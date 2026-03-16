@@ -1,0 +1,33 @@
+name: PHP Lint Guard
+
+on:
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+jobs:
+  php-lint:
+    runs-on: ubuntu-latest
+    name: Syntax Linting
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3' # Ensuring baseline requirement for Anirban Pay
+        tools: parallel-lint
+
+    - name: Run PHP Parallel Lint
+      run: |
+        vendor/bin/parallel-lint --exclude vendor . || echo 'Linting failed. Please fix syntax errors.' 
+        # Fallback to standard CLI lint if parallel-lint is not in vendor
+        find . -name "*.php" -not -path "./vendor/*" -print0 | xargs -0 -n1 -P8 php -l | grep -v "No syntax errors detected" || true
+        # Fail the build if any syntax error exists
+        if find . -name "*.php" -not -path "./vendor/*" -print0 | xargs -0 -n1 -P8 php -l | grep -q 'Errors parsing'; then
+          echo "Fatal syntax errors exist!"
+          exit 1
+        fi

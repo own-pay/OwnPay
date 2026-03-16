@@ -1,0 +1,49 @@
+name: SQL Anti-Pattern Guard
+
+on:
+  pull_request:
+    paths:
+      - '**.sql'
+  push:
+    branches: [ "main", "master" ]
+    paths:
+      - '**.sql'
+
+jobs:
+  check-sql:
+    runs-on: ubuntu-latest
+    name: DDL Integrity Check
+    
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Scan for forbidden SQL patterns
+      run: |
+        echo "Scanning SQL files for enterprise anti-patterns..."
+        
+        has_errors=0
+        
+        # 1. Block FLOAT/DOUBLE (Precision Issues for Financial Data)
+        if grep -inr -E '\b(FLOAT|DOUBLE)\b' --include="*.sql" .; then
+          echo "::error::Found FLOAT or DOUBLE in SQL files. You MUST use DECIMAL(19,4) or similar for currency/financial data to prevent rounding errors."
+          has_errors=1
+        fi
+        
+        # 2. Block MyISAM Engine (Lack of strict ACID compliance/Foreign Keys)
+        if grep -inr -i 'ENGINE=MyISAM' --include="*.sql" .; then
+          echo "::error::Found MyISAM engine. All tables must use InnoDB for ACID compliance and foreign key constraint support."
+          has_errors=1
+        fi
+
+        # 3. Warn on VARCHAR for standard UUID IDs (Optional strictness)
+        if grep -inr -E -i '\b(id|merchant_id|transaction_id|user_id)\s+VARCHAR' --include="*.sql" .; then
+          echo "::warning::Found VARCHAR used for standard IDs. Consider using CHAR(36) if storing standard dashed UUIDs for better indexing performance."
+        fi
+        
+        if [ $has_errors -eq 1 ]; then
+          echo "SQL Anti-Pattern Guard failed. Please fix the DDL errors above."
+          exit 1
+        fi
+        
+        echo "SQL DDL checks passed successfully!"

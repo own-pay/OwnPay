@@ -1,0 +1,44 @@
+server {
+    listen 80;
+    # server_name yourdomain.com; # Replace with your domain
+    # root /var/www/anirbanpay; # Replace with your absolute path
+
+    index index.php index.html;
+
+    # Universal Front Controller
+    location / {
+        try_files $uri $uri/ /index.php?page=$uri&$args;
+    }
+
+    # Hide sensitive files
+    location ~ \.(env|git|md|json|lock)$ {
+        deny all;
+    }
+
+    # Hide ap-config.php and internal directories
+    location ~ ^/(ap-config\.php|app|src|tests|errors|vendor)/ {
+        deny all;
+    }
+
+    # PHP-FPM Configuration
+    location ~ \.php$ {
+        # include snippets/fastcgi-php.conf; # Ubuntu/Debian Standard
+        # fastcgi_pass unix:/var/run/php/php8.2-fpm.sock; # Adjust PHP version
+        
+        # Or if using TCP (like Windows/Laragon):
+        # fastcgi_pass 127.0.0.1:9000;
+        
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+        
+        # Prevent execution of other PHP scripts natively unless via index
+        if ($request_uri !~ "^/(index\.php)") {
+            return 403;
+        }
+    }
+
+    # Deny access to hidden files (.htaccess, .htpasswd, etc)
+    location ~ /\.ht {
+        deny all;
+    }
+}
