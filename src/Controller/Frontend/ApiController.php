@@ -2,9 +2,12 @@
 
 namespace AnirbanPay\Controller\Frontend;
 
+use AnirbanPay\Http\RequestContext;
+
 class ApiController
 {
-    public static function handle(array $context) {
+    public static function handle(array $context, ?RequestContext $ctx = null) {
+        $ctx ??= $GLOBALS['requestContext'] ?? throw new \RuntimeException('RequestContext not available');
         extract($context);
 
                     $api_type = $segments[1] ?? null;

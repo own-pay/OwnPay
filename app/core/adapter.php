@@ -397,7 +397,7 @@ if (isset($_POST['action-v2'])) {
         echo json_encode(['status' => "false", 'title' => 'Oops! Something went wrong', 'message' => 'Your request could not be processed. Please try again.']);
     } else {
         if (in_array($action, ["invoice", "payment-link", "payment-link-default"])) {
-            \AnirbanPay\Controller\CheckoutController::handle($action);
+            \AnirbanPay\Controller\CheckoutController::handle($action, $requestContext);
             exit;
         }
 
