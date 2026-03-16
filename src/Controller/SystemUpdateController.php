@@ -3,10 +3,20 @@ declare(strict_types=1);
 
 namespace AnirbanPay\Controller;
 
+use AnirbanPay\Http\RequestContext;
+
 class SystemUpdateController
 {
-    public static function handle(string $action): void
+    public static function handle(string $action, ?RequestContext $ctx = null): void
     {
+        $ctx ??= $GLOBALS['requestContext'] ?? throw new \RuntimeException('RequestContext not available');
+        $global_user_login = $ctx->isLoggedIn;
+        $global_response_permission = $ctx->permissionResponse;
+        $global_user_response = $ctx->userResponse;
+        $new_csrf_token = $ctx->csrfToken;
+        $db_prefix = $ctx->dbPrefix;
+        $ap_demo_mode = $ctx->demoMode;
+
         if ($action == "system-settings-update-setting") {
             if ($global_user_login == true) {
                 if (!empty($ap_demo_mode)) {

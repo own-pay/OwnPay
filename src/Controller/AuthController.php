@@ -3,14 +3,18 @@ declare(strict_types=1);
 
 namespace AnirbanPay\Controller;
 
+use AnirbanPay\Http\RequestContext;
+
 class AuthController
 {
     /**
      * Process a successful login: set cookies, create session, generate 2FA secret if needed.
      */
-    private static function processSuccessfulLogin(array $user, string $password, string $hashColumn): void
+    private static function processSuccessfulLogin(array $user, string $password, string $hashColumn, RequestContext $ctx): void
     {
-        global $db_prefix, $path_admin, $new_csrf_token;
+        $db_prefix = $ctx->dbPrefix;
+        $path_admin = $ctx->pathAdmin;
+        $new_csrf_token = $ctx->csrfToken;
 
         // Transparently rehash to Argon2id if needed
         if (password_needs_rehash($user[$hashColumn], PASSWORD_ARGON2ID)) {
@@ -57,9 +61,20 @@ class AuthController
         echo json_encode(['status' => 'true', 'target' => $target, 'session_token' => $cookie, 'csrf_token' => $new_csrf_token]);
     }
 
-    public static function handle(string $action): void
+    public static function handle(string $action, ?RequestContext $ctx = null): void
     {
-        global $db_prefix, $path_admin, $new_csrf_token, $global_user_login, $global_user_response, $ap_admin, $global_two_fector_validate, $ap_demo_mode, $global_response_brand, $global_cookie_response, $global_user_2fa;
+        $ctx ??= $GLOBALS['requestContext'] ?? throw new \RuntimeException('RequestContext not available');
+        $db_prefix = $ctx->dbPrefix;
+        $path_admin = $ctx->pathAdmin;
+        $new_csrf_token = $ctx->csrfToken;
+        $global_user_login = $ctx->isLoggedIn;
+        $global_user_response = $ctx->userResponse;
+        $ap_admin = $ctx->isAdmin();
+        $global_two_fector_validate = $GLOBALS['global_two_fector_validate'] ?? false;
+        $ap_demo_mode = $ctx->demoMode;
+        $global_response_brand = $ctx->brandResponse;
+        $global_cookie_response = $ctx->cookieResponse;
+        $global_user_2fa = $GLOBALS['global_user_2fa'] ?? false;
 
         $request = \AnirbanPay\Http\Request::createFromGlobals();
 
@@ -92,9 +107,9 @@ class AuthController
                 if ($response['status'] == true) {
                     $user = $response['response'][0];
                     if (password_verify($password, $user['password_hash'])) {
-                        self::processSuccessfulLogin($user, $password, 'password_hash');
+                        self::processSuccessfulLogin($user, $password, 'password_hash', $ctx);
                     } elseif (password_verify($password, $user['temp_password'])) {
-                        self::processSuccessfulLogin($user, $password, 'temp_password');
+                        self::processSuccessfulLogin($user, $password, 'temp_password', $ctx);
                     } else {
                         echo json_encode(['status' => 'false', 'title' => 'Login Failed', 'message' => 'The email or password you entered is incorrect.', 'csrf_token' => $new_csrf_token]);
                     }
@@ -487,12 +502,12 @@ class AuthController
         }
 
         if (in_array($action, ["create-new-brand", "all-brand-list", "brand-bulk-action", "brand-delete", "edit-brand"])) {
-            \AnirbanPay\Controller\BrandController::handle($action);
+            \AnirbanPay\Controller\BrandController::handle($action, $ctx);
             exit;
         }
 
         if (in_array($action, ["all-domain-list", "domains-info-byID", "create-domains", "domains-edit", "domains-delete", "domain-bulk-action"])) {
-            \AnirbanPay\Controller\DomainController::handle($action);
+            \AnirbanPay\Controller\DomainController::handle($action, $ctx);
             exit;
         }
 

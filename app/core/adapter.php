@@ -304,7 +304,7 @@ if (isset($_POST['action'])) {
         }
 
         if (in_array($action, ["login", "2fa-verify", "forgot-password", "set-default-brand", "my-account-profile-information", "my-account-account-browser-sessions", "my-account-account-two-factor-authentication", "activities-list"])) {
-            \AnirbanPay\Controller\AuthController::handle($action);
+            \AnirbanPay\Controller\AuthController::handle($action, $requestContext);
             exit;
         }
 
@@ -319,22 +319,22 @@ if (isset($_POST['action'])) {
         }
 
         if (in_array($action, ["customer-list", "customers-create", "customers-bulk-action", "customers-delete", "customers-info-byID", "customers-edit"])) {
-            \AnirbanPay\Controller\CustomerController::handle($action);
+            \AnirbanPay\Controller\CustomerController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["invoice-list", "invoice-create", "invoice-edit", "invoice-manageStatus", "invoice-bulk-action", "invoice-delete"])) {
-            \AnirbanPay\Controller\InvoiceController::handle($action);
+            \AnirbanPay\Controller\InvoiceController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["paymentLink-list", "paymentLink-bulk-action", "paymentLink-delete", "paymentLink-create", "paymentLink-edit", "paymentLink-defaultLinkCurrency"])) {
-            \AnirbanPay\Controller\PaymentLinkController::handle($action);
+            \AnirbanPay\Controller\PaymentLinkController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["currency-list", "currency-edit", "currency-info-byID", "currency-bulkImport", "currency-rateSync", "currency-bulk-rateSync"])) {
-            \AnirbanPay\Controller\CurrencyController::handle($action);
+            \AnirbanPay\Controller\CurrencyController::handle($action, $requestContext);
             exit;
         }
 
@@ -366,17 +366,17 @@ if (isset($_POST['action'])) {
         }
 
         if (in_array($action, ["sms-data-list", "sms-data-delete", "sms-data-bulk-action", "sms-data-create", "sms-data-info-byID", "sms-data-edit"])) {
-            \AnirbanPay\Controller\SmsDataController::handle($action);
+            \AnirbanPay\Controller\SmsDataController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["themes-new-active", "theme-setting-update"])) {
-            \AnirbanPay\Controller\ThemeController::handle($action);
+            \AnirbanPay\Controller\ThemeController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["system-settings-update-setting", "system-settings-update-check", "system-settings-update-download", "system-settings-update-install", "system-settings-import"])) {
-            \AnirbanPay\Controller\SystemUpdateController::handle($action);
+            \AnirbanPay\Controller\SystemUpdateController::handle($action, $requestContext);
             exit;
         }
 
@@ -402,7 +402,7 @@ if (isset($_POST['action-v2'])) {
         }
 
         if ($action == "transaction-verify") {
-            \AnirbanPay\Controller\TransactionController::handle($action);
+            \AnirbanPay\Controller\TransactionController::handle($action, $requestContext);
             exit;
         }
     }
