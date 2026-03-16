@@ -261,6 +261,19 @@ final class SessionMiddleware
             csrfToken: $csrfToken,
             isLoggedIn: $isLoggedIn,
             role: $role,
+            siteUrl: $GLOBALS['site_url'] ?? '',
+            pathAdmin: $GLOBALS['path_admin'] ?? '',
+            pathPayment: $GLOBALS['path_payment'] ?? '',
+            pathInvoice: $GLOBALS['path_invoice'] ?? '',
+            pathPaymentLink: $GLOBALS['path_payment_link'] ?? '',
+            currencyCode: $this->currencyCode,
+            currencySymbol: $this->currencySymbol,
+            currencyRate: $this->currencyRate,
+            demoMode: !empty($GLOBALS['ap_demo_mode']),
+            userResponse: $this->userResponse,
+            brandResponse: $this->brandResponse,
+            permissionResponse: $this->permissionResponse,
+            cookieResponse: $this->cookieResponse,
         );
     }
 }
