@@ -1,0 +1,24 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    Options -Indexes
+
+    # Block sensitive system files
+    RewriteRule ^(\.git|\.env|\.env\..+|ap-config\.php|composer\.json|composer\.lock|README\.md)$ - [F,L,NC]
+
+    # Block orphaned test/debug scripts (defense-in-depth)
+    RewriteRule ^test_.*\.php$ - [F,L,NC]
+    RewriteRule ^check_db\.php$ - [F,L,NC]
+
+    # Block core source directories from public access
+    RewriteRule ^(app|src|errors|tests|vendor)/(.*)$ - [F,L,NC]
+
+    # Block direct PHP execution except index.php
+    RewriteCond %{REQUEST_FILENAME} \.php$
+    RewriteCond %{REQUEST_URI} !/index.php$
+    RewriteRule ^ - [F,L,NC]
+
+    # Front Controller Pattern
+    RewriteCond %{REQUEST_FILENAME} !-d
+    RewriteCond %{REQUEST_FILENAME} !-f
+    RewriteRule ^(.*)$ index.php?page=$1 [QSA,L]
+</IfModule>

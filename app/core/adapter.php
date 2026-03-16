@@ -342,12 +342,12 @@ if (isset($_POST['action'])) {
 
 
         if (in_array($action, ["faq-list", "faq-create", "faq-info-byID", "faq-edit", "faq-bulk-action", "faq-delete"])) {
-            \AnirbanPay\Controller\FaqController::handle($action);
+            \AnirbanPay\Controller\FaqController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["api-create", "api-list", "api-info-byID", "api-bulk-action", "api-delete", "api-edit"])) {
-            \AnirbanPay\Controller\ApiKeyController::handle($action);
+            \AnirbanPay\Controller\ApiKeyController::handle($action, $requestContext);
             exit;
         }
 
@@ -381,7 +381,7 @@ if (isset($_POST['action'])) {
         }
 
         if (in_array($action, ["gateway-create", "gateways-list", "gateways-delete", "gateway-install", "gateway-uninstall"])) {
-            \AnirbanPay\Controller\GatewayController::handle($action);
+            \AnirbanPay\Controller\GatewayController::handle($action, $requestContext);
             exit;
         }
 

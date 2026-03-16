@@ -1,5 +1,5 @@
-docs/*
-!docs/plans/
+docs/
+docs/plans
 
 # Environment & secrets
 .env
@@ -13,8 +13,6 @@ docs/*
 logs/
 !logs/.gitignore
 
-# Media uploads
-media/
 
 # Debug / test artifacts
 cookie.txt
@@ -22,7 +20,6 @@ test_*.php
 check_db.php
 
 # Dependencies
-vendor/
 node_modules/
 package-lock.json
 
@@ -37,3 +34,4 @@ Thumbs.db
 *.swo
 .claude
 .agents
+README.md
