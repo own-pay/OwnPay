@@ -178,7 +178,7 @@ function setsCookie($cookieName, $cookieValue, $days = 365)
         'path' => '/',
         'secure' => $isSecure,
         'httponly' => true,
-        'samesite' => $isSecure ? 'None' : 'Lax', // Allow cross-origin if Secure, else Lax
+        'samesite' => 'Lax',
     ]);
 }
 
