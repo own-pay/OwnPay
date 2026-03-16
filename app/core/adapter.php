@@ -309,12 +309,12 @@ if (isset($_POST['action'])) {
         }
 
         if (in_array($action, ["cron-job-command-generate", "geneal-application-settings", "general-setting"])) {
-            \AnirbanPay\Controller\SettingsController::handle($action);
+            \AnirbanPay\Controller\SettingsController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["dashboard-transaction-statistics", "dashboard-gateway-statistics", "reports"])) {
-            \AnirbanPay\Controller\DashboardController::handle($action);
+            \AnirbanPay\Controller\DashboardController::handle($action, $requestContext);
             exit;
         }
 
@@ -356,12 +356,12 @@ if (isset($_POST['action'])) {
 
 
         if (in_array($action, ["device-list", "device-delete", "device-bulk-action", "device-connect-info"])) {
-            \AnirbanPay\Controller\DeviceController::handle($action);
+            \AnirbanPay\Controller\DeviceController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["balance-verification-list", "balance-verification-bulk-action", "balance-verification-delete", "balance-verification-create", "balance-verification-iupdate", "balance-verification-info-byID", "balance-verification-update"])) {
-            \AnirbanPay\Controller\BalanceVerificationController::handle($action);
+            \AnirbanPay\Controller\BalanceVerificationController::handle($action, $requestContext);
             exit;
         }
 
@@ -414,7 +414,7 @@ if (isset($_POST['action-companion'])) {
     if ($action == "") {
         echo json_encode(['status' => "false", 'title' => 'Oops! Something went wrong', 'message' => 'Your request could not be processed. Please try again.']);
     } else {
-        \AnirbanPay\Controller\CompanionApiController::handle($action);
+        \AnirbanPay\Controller\CompanionApiController::handle($action, $requestContext);
     }
     exit();
 }
