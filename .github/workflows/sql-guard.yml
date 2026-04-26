@@ -25,7 +25,8 @@ jobs:
         has_errors=0
         
         # 1. Block FLOAT/DOUBLE (Precision Issues for Financial Data)
-        if grep -inr -E '\b(FLOAT|DOUBLE)\b' --include="*.sql" .; then
+        #    Excludes SQL comment lines (--) to avoid false positives on terms like "Double-Entry Ledger"
+        if grep -inr -E '\b(FLOAT|DOUBLE)\b' --include="*.sql" . | grep -v -E '^\s*--' | grep -v -E ':\s*--'; then
           echo "::error::Found FLOAT or DOUBLE in SQL files. You MUST use DECIMAL(19,4) or similar for currency/financial data to prevent rounding errors."
           has_errors=1
         fi
