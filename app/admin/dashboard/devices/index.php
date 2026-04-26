@@ -182,7 +182,11 @@
                     qrContainer.innerHTML = '';
                     qrContainer.appendChild(wrapper);
                 } else {
-                    qrContainer.innerHTML = '<div class="inline-block op-card p-3 text-sm text-gray-500">QR unavailable. Use manual code.</div>';
+                    const fallback = document.createElement('div');
+                    fallback.className = 'inline-block op-card p-3 text-sm text-gray-500';
+                    fallback.textContent = 'QR unavailable. Use manual code.';
+                    qrContainer.innerHTML = '';
+                    qrContainer.appendChild(fallback);
                 }
                 // Start countdown
                 let remaining = response.expires_in || 300;
