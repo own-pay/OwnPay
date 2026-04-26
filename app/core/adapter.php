@@ -374,6 +374,11 @@ if (isset($_POST['action'])) {
             exit;
         }
 
+        if (in_array($action, ["sms-template-list", "sms-template-create", "sms-template-info-byID", "sms-template-edit", "sms-template-delete", "sms-template-test-regex", "sms-queue-list", "sms-queue-reprocess", "sms-queue-resolve"])) {
+            \OwnPay\Controller\SmsTemplateAdminController::handle($action, $requestContext);
+            exit;
+        }
+
         if (in_array($action, ["themes-new-active", "theme-setting-update"])) {
             \OwnPay\Controller\ThemeController::handle($action, $requestContext);
             exit;
@@ -455,7 +460,7 @@ if (isset($_POST['root'])) {
         // The 'root' value is only used as an existence sentinel for this AJAX endpoint —
         // never concatenated into a filesystem path or SQL query. Defense in depth.
         $root = \OwnPay\Service\InputSanitizer::trim($_POST['root'] ?? '');
-        if ($root === '' || strlen($root) > 64 || !preg_match('/^[a-zA-Z0-9_\-]+$/', $root)) {
+        if ($root === '' || strlen($root) > 64 || !preg_match('/^[a-zA-Z0-9_\-\/]+$/', $root) || str_contains($root, '..')) {
             echo json_encode(['status' => "false", 'message' => 'Invalid request.']);
             exit;
         }
