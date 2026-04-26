@@ -325,6 +325,15 @@ final class SmsParserServiceTest extends TestCase
             }
         };
 
+        // Stub: MobileNotificationService (no-op)
+        $notifService = new class {
+            public function queuePaymentNotification(
+                string $deviceUuid, string $type,
+                ?float $amount = null, ?string $sender = null,
+                ?string $trxId = null, ?string $provider = null,
+            ): int { return 1; }
+        };
+
         return new SmsParserService(
             $deviceRepo,
             $templateRepo,
@@ -332,6 +341,7 @@ final class SmsParserServiceTest extends TestCase
             $this->regexParser,
             $this->heuristicParser,
             $encryptor,
+            $notifService,
         );
     }
 }

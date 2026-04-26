@@ -142,4 +142,17 @@ final class MobileNotificationRepository
 
         return $stmt->rowCount();
     }
+
+    /**
+     * Find a notification by its ID.
+     */
+    public function findById(int $id): ?array
+    {
+        $stmt = $this->pdo->prepare(
+            "SELECT * FROM " . self::TABLE . " WHERE id = :id LIMIT 1"
+        );
+        $stmt->execute([':id' => $id]);
+        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+        return $row ?: null;
+    }
 }
