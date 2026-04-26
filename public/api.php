@@ -32,6 +32,8 @@ use OwnPay\Http\Controller\WebhookController;
 use OwnPay\Http\Controller\HealthController;
 use OwnPay\Http\Controller\MobileDeviceController;
 use OwnPay\Http\Controller\MobileSmsController;
+use OwnPay\Http\Controller\MobileNotificationController;
+use OwnPay\Http\Controller\MobileDashboardController;
 use OwnPay\Middleware\CorsMiddleware;
 use OwnPay\Middleware\BearerAuthMiddleware;
 use OwnPay\Middleware\IpAllowlistMiddleware;
@@ -81,7 +83,7 @@ Database::init($dbHost, $dbName, $dbUser, $dbPass, $dbPort);
 // ── Mobile Companion Routes (bypass BearerAuth — use JWT/OTP) ────────
 
 $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
-if (preg_match('#^/v1/(device/(pair|refresh|status)|sms/submit|config/filter-rules)#', $requestUri)) {
+if (preg_match('#^/v1/(device/(pair|refresh|status)|sms/submit|config/filter-rules|notifications/(poll|read)|dashboard/(summary|transactions?(/\d+)?))#', $requestUri)) {
     // IP rate limit for pairing endpoint: 5 req / 5 min per IP
     if (str_contains($requestUri, '/pair') && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
@@ -105,6 +107,11 @@ if (preg_match('#^/v1/(device/(pair|refresh|status)|sms/submit|config/filter-rul
     $mobileRouter->get('/v1/device/status',   [MobileDeviceController::class, 'status']);
     $mobileRouter->post('/v1/sms/submit',       [MobileSmsController::class, 'submit']);
     $mobileRouter->get('/v1/config/filter-rules', [MobileSmsController::class, 'filterRules']);
+    $mobileRouter->get('/v1/notifications/poll',  [MobileNotificationController::class, 'poll']);
+    $mobileRouter->post('/v1/notifications/read', [MobileNotificationController::class, 'markRead']);
+    $mobileRouter->get('/v1/dashboard/summary',       [MobileDashboardController::class, 'summary']);
+    $mobileRouter->get('/v1/dashboard/transactions',  [MobileDashboardController::class, 'transactions']);
+    $mobileRouter->get('/v1/dashboard/transaction/{id}', [MobileDashboardController::class, 'transactionDetail']);
     $mobileRouter->dispatch();
     exit; // dispatch() exits on match; if no match, fall through
 }
