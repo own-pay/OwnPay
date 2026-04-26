@@ -61,9 +61,9 @@ class TransactionService
                 }
             }
 
-            $params = [':gateway_id' => $gateway_id, ':brand_id' => $response_transaciton['response'][0]['brand_id']];
+            $params = [':gateway_id' => $gateway_id, ':brand_id' => $response_transaciton['response'][0]['brand_id'], ':status' => 'active'];
 
-            $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE gateway_id = :gateway_id AND brand_id = :brand_id  AND status = "active"', '* FROM', $params);
+            $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE gateway_id = :gateway_id AND brand_id = :brand_id AND status = :status', '* FROM', $params);
             if ($response_gateway['status'] == true) {
                 $currencyRates = [];
 

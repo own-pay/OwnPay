@@ -23,9 +23,9 @@ class GatewayRendererService
     {
         $db_prefix = self::dbPrefix();
 
-        $params = [':tab' => $tab, ':brand_id' => $data['brand']['id']];
+        $params = [':tab' => $tab, ':brand_id' => $data['brand']['id'], ':status' => 'active'];
 
-        $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE tab = :tab AND brand_id = :brand_id AND status = "active"', '* FROM', $params);
+        $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE tab = :tab AND brand_id = :brand_id AND status = :status', '* FROM', $params);
 
         $gatewayList = [];
 
@@ -114,9 +114,9 @@ class GatewayRendererService
     {
         $db_prefix = self::dbPrefix();
 
-        $params = [':gateway_id' => $gateway_id, ':brand_id' => $data['brand']['id']];
+        $params = [':gateway_id' => $gateway_id, ':brand_id' => $data['brand']['id'], ':status' => 'active'];
 
-        $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE gateway_id = :gateway_id AND brand_id = :brand_id AND status = "active"', '* FROM', $params);
+        $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE gateway_id = :gateway_id AND brand_id = :brand_id AND status = :status', '* FROM', $params);
 
         if ($response_gateway['status'] === true) {
             $row = $response_gateway['response'][0];
@@ -238,9 +238,9 @@ class GatewayRendererService
 
         unset($data['options'], $data['lang']);
 
-        $params = [':gateway_id' => $gateway_id, ':brand_id' => $data['brand']['id']];
+        $params = [':gateway_id' => $gateway_id, ':brand_id' => $data['brand']['id'], ':status' => 'active'];
 
-        $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE gateway_id = :gateway_id AND brand_id = :brand_id  AND status = "active"', '* FROM', $params);
+        $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE gateway_id = :gateway_id AND brand_id = :brand_id AND status = :status', '* FROM', $params);
         if ($response_gateway['status'] == true) {
 
             $options = [];

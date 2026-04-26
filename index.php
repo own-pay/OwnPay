@@ -45,7 +45,14 @@ if (file_exists(__DIR__ . '/app/core/functions.php')) {
 | Loads the Composer autoloader and initializes the SOA Database singleton.
 | This makes all OwnPay\Service\* and OwnPay\Repository\* classes
 | available to the legacy runtime without breaking the existing flow.
+|
+| NOTE: op-config.php MUST be loaded first so that $db_host, $db_user,
+| $db_pass, $db_name globals are available for Bootstrap::init().
 */
+if (file_exists(__DIR__ . '/op-config.php')) {
+    require_once __DIR__ . '/op-config.php';
+}
+
 if (file_exists(__DIR__ . '/vendor/autoload.php')) {
     require_once __DIR__ . '/vendor/autoload.php';
 

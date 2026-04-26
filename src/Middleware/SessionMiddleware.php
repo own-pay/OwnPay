@@ -63,9 +63,9 @@ final class SessionMiddleware
 
             $this->cookieResponse = CrudService::select(
                 $dbPrefix . 'sessions',
-                "WHERE cookie= :cookie AND status= 'active'",
+                'WHERE cookie= :cookie AND status= :status',
                 '* FROM',
-                [':cookie' => $op_admin],
+                [':cookie' => $op_admin, ':status' => 'active'],
             );
 
             if (($this->cookieResponse['status'] ?? false) == true) {
