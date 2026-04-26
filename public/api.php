@@ -31,6 +31,7 @@ use OwnPay\Http\Controller\ApiKeyController;
 use OwnPay\Http\Controller\WebhookController;
 use OwnPay\Http\Controller\HealthController;
 use OwnPay\Http\Controller\MobileDeviceController;
+use OwnPay\Http\Controller\MobileSmsController;
 use OwnPay\Middleware\CorsMiddleware;
 use OwnPay\Middleware\BearerAuthMiddleware;
 use OwnPay\Middleware\IpAllowlistMiddleware;
@@ -80,7 +81,7 @@ Database::init($dbHost, $dbName, $dbUser, $dbPass, $dbPort);
 // ── Mobile Companion Routes (bypass BearerAuth — use JWT/OTP) ────────
 
 $requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
-if (preg_match('#^/v1/device/(pair|refresh|status)#', $requestUri)) {
+if (preg_match('#^/v1/(device/(pair|refresh|status)|sms/submit|config/filter-rules)#', $requestUri)) {
     // IP rate limit for pairing endpoint: 5 req / 5 min per IP
     if (str_contains($requestUri, '/pair') && $_SERVER['REQUEST_METHOD'] === 'POST') {
         $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
@@ -102,6 +103,8 @@ if (preg_match('#^/v1/device/(pair|refresh|status)#', $requestUri)) {
     $mobileRouter->post('/v1/device/pair',    [MobileDeviceController::class, 'pair']);
     $mobileRouter->post('/v1/device/refresh', [MobileDeviceController::class, 'refresh']);
     $mobileRouter->get('/v1/device/status',   [MobileDeviceController::class, 'status']);
+    $mobileRouter->post('/v1/sms/submit',       [MobileSmsController::class, 'submit']);
+    $mobileRouter->get('/v1/config/filter-rules', [MobileSmsController::class, 'filterRules']);
     $mobileRouter->dispatch();
     exit; // dispatch() exits on match; if no match, fall through
 }
