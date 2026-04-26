@@ -34,6 +34,9 @@ use OwnPay\Http\Controller\MobileDeviceController;
 use OwnPay\Http\Controller\MobileSmsController;
 use OwnPay\Http\Controller\MobileNotificationController;
 use OwnPay\Http\Controller\MobileDashboardController;
+use OwnPay\Http\Controller\AdminSmsTemplateController;
+use OwnPay\Http\Controller\AdminSmsQueueController;
+use OwnPay\Http\Controller\AdminDeviceController;
 use OwnPay\Middleware\CorsMiddleware;
 use OwnPay\Middleware\BearerAuthMiddleware;
 use OwnPay\Middleware\IpAllowlistMiddleware;
@@ -189,6 +192,26 @@ $router->delete('/v1/webhooks/{id}', [WebhookController::class, 'destroy']);
 $router->get('/v1/health', [HealthController::class, 'index']);
 $router->get('/v1/health/reconciliation', [HealthController::class, 'reconciliation']);
 
+// --- Admin: SMS Templates ---
+$router->get('/v1/admin/sms-templates', [AdminSmsTemplateController::class, 'index']);
+$router->get('/v1/admin/sms-templates/{id}', [AdminSmsTemplateController::class, 'show']);
+$router->post('/v1/admin/sms-templates', [AdminSmsTemplateController::class, 'create']);
+$router->put('/v1/admin/sms-templates/{id}', [AdminSmsTemplateController::class, 'update']);
+$router->delete('/v1/admin/sms-templates/{id}', [AdminSmsTemplateController::class, 'destroy']);
+$router->post('/v1/admin/sms-templates/test', [AdminSmsTemplateController::class, 'testRegex']);
+
+// --- Admin: SMS Queue ---
+$router->get('/v1/admin/sms-queue', [AdminSmsQueueController::class, 'index']);
+$router->post('/v1/admin/sms-queue/{id}/reprocess', [AdminSmsQueueController::class, 'reprocess']);
+$router->post('/v1/admin/sms-queue/{id}/resolve', [AdminSmsQueueController::class, 'resolve']);
+$router->get('/v1/admin/sms-stats', [AdminSmsQueueController::class, 'stats']);
+
+// --- Admin: Devices ---
+$router->get('/v1/admin/devices', [AdminDeviceController::class, 'index']);
+$router->get('/v1/admin/devices/{id}', [AdminDeviceController::class, 'show']);
+$router->post('/v1/admin/devices/{id}/revoke', [AdminDeviceController::class, 'revoke']);
+$router->delete('/v1/admin/devices/{id}', [AdminDeviceController::class, 'destroy']);
+$router->post('/v1/admin/notifications/cleanup', [AdminDeviceController::class, 'notificationCleanup']);
 // ── Dispatch ─────────────────────────────────────────────────────────
 
 $router->dispatch();

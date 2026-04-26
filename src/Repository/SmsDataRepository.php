@@ -144,4 +144,33 @@ final class SmsDataRepository
         $stmt->execute([':bid' => $brandId]);
         return (int) $stmt->fetchColumn();
     }
+
+    /**
+     * Update parsed data on an existing SMS record (admin reprocess/resolve).
+     */
+    public function updateParsedData(int $id, array $data): bool
+    {
+        $allowed = [
+            'parsed_amount', 'parsed_trx_id', 'parsed_sender', 'parsed_balance',
+            'parsed_type', 'parse_method', 'template_id', 'parse_confidence', 'status',
+        ];
+
+        $fields = [];
+        $params = [':id' => $id];
+
+        foreach ($allowed as $field) {
+            if (array_key_exists($field, $data)) {
+                $fields[] = "{$field} = :{$field}";
+                $params[":{$field}"] = $data[$field];
+            }
+        }
+
+        if (empty($fields)) {
+            return false;
+        }
+
+        $fields[] = 'processed_at = NOW()';
+        $sql = "UPDATE " . self::TABLE . " SET " . implode(', ', $fields) . " WHERE id = :id";
+        return $this->pdo->prepare($sql)->execute($params);
+    }
 }
