@@ -168,11 +168,25 @@
         opFetch('device-pair-generate', {}).then(response => {
             if (response.status === 'true') {
                 otpField.value = response.otp;
-                // Show server-side QR
+                // Show server-side QR — use DOM API to avoid XSS via string interpolation
                 if (response.qr_data) {
-                    qrContainer.innerHTML = '<div class="inline-block op-card p-3"><img src="' + response.qr_data + '" alt="QR Code" style="width:200px;height:200px;" class="dark:invert"></div>';
+                    const img = document.createElement('img');
+                    img.setAttribute('src', response.qr_data);
+                    img.setAttribute('alt', 'QR Code');
+                    img.style.width = '200px';
+                    img.style.height = '200px';
+                    img.className = 'dark:invert';
+                    const wrapper = document.createElement('div');
+                    wrapper.className = 'inline-block op-card p-3';
+                    wrapper.appendChild(img);
+                    qrContainer.innerHTML = '';
+                    qrContainer.appendChild(wrapper);
                 } else {
-                    qrContainer.innerHTML = '<div class="inline-block op-card p-3 text-sm text-gray-500">QR unavailable. Use manual code.</div>';
+                    const fallback = document.createElement('div');
+                    fallback.className = 'inline-block op-card p-3 text-sm text-gray-500';
+                    fallback.textContent = 'QR unavailable. Use manual code.';
+                    qrContainer.innerHTML = '';
+                    qrContainer.appendChild(fallback);
                 }
                 // Start countdown
                 let remaining = response.expires_in || 300;

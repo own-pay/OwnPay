@@ -241,7 +241,7 @@ class DeviceController
                         ]);
                         $qr = new \chillerlan\QRCode\QRCode($qrOptions);
                         $svgRaw = $qr->render($qrPayload);
-                        $qrDataUri = $svgRaw; // render() returns data URI for SVG
+                        $qrDataUri = 'data:image/svg+xml;base64,' . base64_encode($svgRaw);
                     } catch (\Throwable $e) {
                         // QR generation failed — non-critical, OTP still works manually
                     }
