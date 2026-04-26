@@ -1,9 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\EnvironmentService;
 
 /**
  * Checkout Controller
@@ -40,7 +42,7 @@ class CheckoutController
         $path_payment = $ctx->pathPayment;
         $path_invoice = $ctx->pathInvoice;
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         $itemid = $request->post('itemid', '');
 
@@ -49,7 +51,7 @@ class CheckoutController
         } else {
             $params = [':invoiceID' => $itemid, ':status' => 'unpaid'];
 
-            $response = json_decode(getData($db_prefix . 'invoice', 'WHERE ref = :invoiceID AND status = :status', '* FROM', $params), true);
+            $response = CrudService::select($db_prefix . 'invoice', 'WHERE ref = :invoiceID AND status = :status', '* FROM', $params);
             if ($response['status'] == true) {
                 $invoiceRow = $response['response'][0];
 
@@ -59,7 +61,7 @@ class CheckoutController
 
                 $params = [':invoice_id' => $invoiceRow['ref'], ':brand_id' => $invoiceRow['brand_id']];
 
-                $response_invoiceItem = json_decode(getData($db_prefix . 'invoice_items', 'WHERE invoice_id = :invoice_id AND brand_id = :brand_id', '* FROM', $params), true);
+                $response_invoiceItem = CrudService::select($db_prefix . 'invoice_items', 'WHERE invoice_id = :invoice_id AND brand_id = :brand_id', '* FROM', $params);
 
                 if ($response_invoiceItem['status'] == true) {
 
@@ -113,7 +115,7 @@ class CheckoutController
                 $columns = ['brand_id', 'source', 'ref', 'customer_info', 'amount', 'currency', 'source_info', 'metadata', 'return_url', 'webhook_url', 'created_date', 'updated_date'];
                 $values = [$invoiceRow['brand_id'], 'invoice', $payment_id, '{ "name": "' . $customer_name . '", "email": "' . $customer_email . '", "mobile": "' . $customer_mobile . '" }', money_sanitize($amount), $currency, $source_info, $metadata, $return_url, $webhook_url, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                insertData($db_prefix . 'transaction', $columns, $values);
+                CrudService::insert($db_prefix . 'transaction', $columns, $values);
 
                 echo json_encode(['status' => "true", 'redirect' => $site_url . $path_payment . '/' . $payment_id]);
             } else {
@@ -128,7 +130,7 @@ class CheckoutController
         $site_url = $ctx->siteUrl;
         $path_payment = $ctx->pathPayment;
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         $itemid = $request->post('itemid', '');
 
@@ -137,7 +139,7 @@ class CheckoutController
         } else {
             $params = [':ref' => $itemid];
 
-            $response_payment_link = json_decode(getData($db_prefix . 'payment_link', 'WHERE ref = :ref', '* FROM', $params), true);
+            $response_payment_link = CrudService::select($db_prefix . 'payment_link', 'WHERE ref = :ref', '* FROM', $params);
             if ($response_payment_link['status'] == true) {
                 $paymentRow = $response_payment_link['response'][0];
 
@@ -145,13 +147,13 @@ class CheckoutController
                     $columns = ['quantity'];
                     $values = [$paymentRow['quantity'] - 1];
                     $params_link = [':ref' => $paymentRow['ref']];
-                    updateData($db_prefix . 'payment_link', $columns, $values, 'ref = :ref', $params_link);
+                    CrudService::update($db_prefix . 'payment_link', $columns, $values, 'ref = :ref', $params_link);
                 } else {
                     echo json_encode(['status' => "false", 'title' => 'Product Not Available', 'message' => 'Cannot generate payment link because the product is out of stock.']);
                     exit();
                 }
 
-                if ($paymentRow['expired_date'] == "--") {
+                if (empty($paymentRow['expired_date'])) {
                     $status = $paymentRow['status'];
                 } else {
                     if (isExpired($paymentRow['expired_date'])) {
@@ -172,11 +174,11 @@ class CheckoutController
 
                 $params = [':paymentLinkID' => $paymentRow['ref']];
 
-                $response_PaymentLinkItem = json_decode(getData($db_prefix . 'payment_link_field', 'WHERE paymentLinkID = :paymentLinkID', '* FROM', $params), true);
+                $response_PaymentLinkItem = CrudService::select($db_prefix . 'payment_link_field', 'WHERE paymentLinkID = :paymentLinkID', '* FROM', $params);
                 if ($response_PaymentLinkItem['status'] == true) {
                     foreach ($response_PaymentLinkItem['response'] as $row) {
                         $Inputoptions = [];
-                        if ($row['formType'] === 'select' && $row['value'] !== '--' || $row['formType'] === 'file' && $row['value'] !== '--') {
+                        if ($row['formType'] === 'select' && ($row['value'] !== null && $row['value'] !== '') || $row['formType'] === 'file' && ($row['value'] !== null && $row['value'] !== '')) {
                             $Inputoptions = array_map('trim', explode(',', $row['value']));
                         }
 
@@ -246,7 +248,7 @@ class CheckoutController
                 $columns = ['brand_id', 'source', 'ref', 'customer_info', 'amount', 'currency', 'source_info', 'metadata', 'created_date', 'updated_date'];
                 $values = [$paymentRow['brand_id'], 'payment-link', $payment_id, '{ "name": "' . $customer_name . '", "email": "' . $customer_email . '", "mobile": "' . $customer_mobile . '" }', money_sanitize($paymentRow['amount']), $currency, $source_info, $metadata, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                insertData($db_prefix . 'transaction', $columns, $values);
+                CrudService::insert($db_prefix . 'transaction', $columns, $values);
 
                 echo json_encode(['status' => "true", 'redirect' => $site_url . $path_payment . '/' . $payment_id]);
             } else {
@@ -261,7 +263,7 @@ class CheckoutController
         $site_url = $ctx->siteUrl;
         $path_payment = $ctx->pathPayment;
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         $itemid = $request->post('itemid', '');
 
@@ -270,7 +272,7 @@ class CheckoutController
         } else {
             $params = [':brand_id' => $itemid];
 
-            $response_brand = json_decode(getData($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params), true);
+            $response_brand = CrudService::select($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params);
             if ($response_brand['status'] == true) {
                 $brandRow = $response_brand['response'][0];
 
@@ -281,14 +283,14 @@ class CheckoutController
                 $metadata = '{"paymentLink_id": "' . $itemid . '"}';
 
                 $amount = trim($request->post('amount', ''));
-                $currency = (($v = get_env('payment-link-default-currency', $response_brand['response'][0]['brand_id'])) && $v !== '--') ? $v : $brandRow['currency_code'];
+                $currency = (($v = EnvironmentService::get('payment-link-default-currency', $response_brand['response'][0]['brand_id'])) && $v !== null && $v !== '') ? $v : $brandRow['currency_code'];
 
                 $payment_id = generateItemID(27, 27);
 
                 $columns = ['brand_id', 'source', 'ref', 'customer_info', 'amount', 'currency', 'created_date', 'updated_date'];
                 $values = [$brandRow['brand_id'], 'payment-link-default', $payment_id, '{ "name": "' . $customer_name . '", "email": "' . $customer_email . '", "mobile": "' . $customer_mobile . '" }', money_sanitize($amount), $currency, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                insertData($db_prefix . 'transaction', $columns, $values);
+                CrudService::insert($db_prefix . 'transaction', $columns, $values);
 
                 echo json_encode(['status' => "true", 'redirect' => $site_url . $path_payment . '/' . $payment_id]);
             } else {

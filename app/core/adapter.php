@@ -4,7 +4,7 @@ declare(strict_types=1);
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
-if (!defined('ANIRBANPAY_INIT')) {
+if (!defined('OWNPAY_INIT')) {
     http_response_code(403);
     exit('Direct access not allowed');
 }
@@ -140,10 +140,10 @@ if (!file_exists(__DIR__ . '/functions.php')) {
     }
     exit();
 }
-if (!isset($ap_functions_loaded)) {
+if (!isset($op_functions_loaded)) {
     require __DIR__ . '/functions.php';
 }
-if (!isset($ap_functions_loaded)) {
+if (!isset($op_functions_loaded)) {
     http_response_code(404);
     if (file_exists(__DIR__ . '/../../errors/404.php')) {
         require __DIR__ . '/../../errors/404.php';
@@ -153,16 +153,16 @@ if (!isset($ap_functions_loaded)) {
     exit();
 }
 
-if (file_exists(__DIR__ . '/../../ap-config.php')) {
-    require __DIR__ . '/../../ap-config.php';
+if (file_exists(__DIR__ . '/../../op-config.php')) {
+    require __DIR__ . '/../../op-config.php';
 
     if ($requriemntnoneedchecked == true) {
-        $path_payment = ($value = get_env('geneal-application-settings-paymentPath')) && $value !== '--' ? $value : 'payment';
-        $path_invoice = ($value = get_env('geneal-application-settings-invoicePath')) && $value !== '--' ? $value : 'invoice';
-        $path_payment_link = ($value = get_env('geneal-application-settings-paymentLinkPath')) && $value !== '--' ? $value : 'payment-link';
-        $path_admin = ($value = get_env('geneal-application-settings-adminPath')) && $value !== '--' ? $value : 'admin';
-        $path_cron = ($value = get_env('geneal-application-settings-cronPath')) && $value !== '--' ? $value : 'cron';
-        $path_homepageRedirect = ($value = get_env('geneal-application-settings-homepageRedirect')) && $value !== '--' ? $value : '';
+        $path_payment = ($value = get_env('geneal-application-settings-paymentPath')) && $value !== null && $value !== '' ? $value : 'payment';
+        $path_invoice = ($value = get_env('geneal-application-settings-invoicePath')) && $value !== null && $value !== '' ? $value : 'invoice';
+        $path_payment_link = ($value = get_env('geneal-application-settings-paymentLinkPath')) && $value !== null && $value !== '' ? $value : 'payment-link';
+        $path_admin = ($value = get_env('geneal-application-settings-adminPath')) && $value !== null && $value !== '' ? $value : 'admin';
+        $path_cron = ($value = get_env('geneal-application-settings-cronPath')) && $value !== null && $value !== '' ? $value : 'cron';
+        $path_homepageRedirect = ($value = get_env('geneal-application-settings-homepageRedirect')) && $value !== null && $value !== '' ? $value : '';
 
         $params_addon = [':status' => 'active'];
         $response_addonLoader = json_decode(getData($db_prefix . 'addon', ' WHERE status = :status ORDER BY 1 DESC ', '* FROM', $params_addon), true);
@@ -203,8 +203,8 @@ if (file_exists(__DIR__ . '/../../ap-config.php')) {
         }
     }
 } else {
-    if (file_exists(__DIR__ . '/../../ap-temp-config.php')) {
-        require __DIR__ . '/../../ap-temp-config.php';
+    if (file_exists(__DIR__ . '/../../op-temp-config.php')) {
+        require __DIR__ . '/../../op-temp-config.php';
     }
 }
 
@@ -217,9 +217,9 @@ if (file_exists(__DIR__ . '/../../media/sdk/fpdf/fpdf.php')) {
     exit('SDK Missing');
 }
 
-$ap_adapter_loaded = true;
+$op_adapter_loaded = true;
 
-$AnirbanPay_current_version = [
+$OwnPay_current_version = [
     'version_name' => 'v3.0.0-beta',
     'version_code' => '3.0.0',
     'version_hash' => '6b6f7c62e34e3680398387720dbd44a036d1a574860d5f90a3bd5d9b6280bea1
@@ -235,12 +235,12 @@ aa021689e729dc2302b47e9bdc7d1a9f8b72f95f01530da35bf3b848b188d5b1
     'version_channel' => 'beta'
 ];
 
-$directory = (ap_site_url('fulldomain') == 'http://localhost') ? 'AnirbanPay-panel/' : '';
-$site_url = ap_site_url('fulldomain') . '/' . $directory;
+$directory = (op_site_url('fulldomain') == 'http://localhost') ? 'OwnPay-panel/' : '';
+$site_url = op_site_url('fulldomain') . '/' . $directory;
 
-$AnirbanPay_favicon = $site_url . 'assets/images/favicon-light.png';
-$AnirbanPay_logo_light = $site_url . 'assets/images/logo-light.png';
-$AnirbanPay_logo_dark = $site_url . 'assets/images/logo-dark.png';
+$OwnPay_favicon = $site_url . 'assets/images/favicon-light.png';
+$OwnPay_logo_light = $site_url . 'assets/images/logo-light.png';
+$OwnPay_logo_dark = $site_url . 'assets/images/logo-dark.png';
 
 if (isset($_GET['logout'])) {
     logoutCookie();
@@ -253,7 +253,7 @@ if (isset($_GET['logout'])) {
 }
 
 // --- SOA Middleware Orchestration ---
-$_sessionMiddleware = new \AnirbanPay\Middleware\SessionMiddleware();
+$_sessionMiddleware = new \OwnPay\Middleware\SessionMiddleware();
 $requestContext = $_sessionMiddleware->handle($db_prefix);
 
 // Export to globals for backwards compatibility with controllers
@@ -270,17 +270,21 @@ $global_brand_currency_code = $_sessionMiddleware->currencyCode;
 $global_brand_currency_symbol = $_sessionMiddleware->currencySymbol;
 $global_brand_currency_rate = $_sessionMiddleware->currencyRate;
 
+// --- Plugin System Boot ---
+// Load, register, and boot all active plugins before any routing
+\OwnPay\Plugin\PluginLoader::boot();
+
 if (isset($_POST['action'])) {
-    $action = escape_string($_POST['action'] ?? '');
-    // Support modern 'ap-' parameters with fallback to legacy 'pp-'
-    $ap_app_token = escape_string($_POST['ap-token'] ?? $_POST['pp-token'] ?? '');
+    $action = clean_input($_POST['action'] ?? '');
+    // Support modern 'op-' parameters with fallback to legacy 'pp-'
+    $op_app_token = clean_input($_POST['op-token'] ?? $_POST['pp-token'] ?? '');
 
     if ($action == "") {
         echo json_encode(['status' => "false", 'title' => 'Oops! Something went wrong', 'message' => 'Your request could not be processed. Please try again.']);
     } else {
         // --- CSRF / HMAC validation via CsrfMiddleware ---
-        $_csrfMiddleware = new \AnirbanPay\Middleware\CsrfMiddleware();
-        $_csrfResult = $_csrfMiddleware->validate($ap_app_token);
+        $_csrfMiddleware = new \OwnPay\Middleware\CsrfMiddleware();
+        $_csrfResult = $_csrfMiddleware->validate($op_app_token);
         if (!$_csrfResult['valid']) {
             $new_csrf_token = $_csrfResult['newToken'] ?? $_SESSION['csrf_token'] ?? '';
             echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => $_csrfResult['error'], 'csrf_token' => $new_csrf_token]);
@@ -290,7 +294,7 @@ if (isset($_POST['action'])) {
 
         // --- 2FA verification via TwoFactorMiddleware ---
         if (isset($_POST['my-two-step-verify-code'])) {
-            $_tfaMiddleware = new \AnirbanPay\Middleware\TwoFactorMiddleware();
+            $_tfaMiddleware = new \OwnPay\Middleware\TwoFactorMiddleware();
             $_tfaResult = $_tfaMiddleware->verify(
                 $global_user_response['response'][0] ?? [],
                 sanitize_html($_POST['my-two-step-verify-code'] ?? '')
@@ -304,37 +308,37 @@ if (isset($_POST['action'])) {
         }
 
         if (in_array($action, ["login", "2fa-verify", "forgot-password", "set-default-brand", "my-account-profile-information", "my-account-account-browser-sessions", "my-account-account-two-factor-authentication", "activities-list"])) {
-            \AnirbanPay\Controller\AuthController::handle($action, $requestContext);
+            \OwnPay\Controller\AuthController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["cron-job-command-generate", "geneal-application-settings", "general-setting"])) {
-            \AnirbanPay\Controller\SettingsController::handle($action, $requestContext);
+            \OwnPay\Controller\SettingsController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["dashboard-transaction-statistics", "dashboard-gateway-statistics", "reports"])) {
-            \AnirbanPay\Controller\DashboardController::handle($action, $requestContext);
+            \OwnPay\Controller\DashboardController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["customer-list", "customers-create", "customers-bulk-action", "customers-delete", "customers-info-byID", "customers-edit"])) {
-            \AnirbanPay\Controller\CustomerController::handle($action, $requestContext);
+            \OwnPay\Controller\CustomerController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["invoice-list", "invoice-create", "invoice-edit", "invoice-manageStatus", "invoice-bulk-action", "invoice-delete"])) {
-            \AnirbanPay\Controller\InvoiceController::handle($action, $requestContext);
+            \OwnPay\Controller\InvoiceController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["paymentLink-list", "paymentLink-bulk-action", "paymentLink-delete", "paymentLink-create", "paymentLink-edit", "paymentLink-defaultLinkCurrency"])) {
-            \AnirbanPay\Controller\PaymentLinkController::handle($action, $requestContext);
+            \OwnPay\Controller\PaymentLinkController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["currency-list", "currency-edit", "currency-info-byID", "currency-bulkImport", "currency-rateSync", "currency-bulk-rateSync"])) {
-            \AnirbanPay\Controller\CurrencyController::handle($action, $requestContext);
+            \OwnPay\Controller\CurrencyController::handle($action, $requestContext);
             exit;
         }
 
@@ -342,12 +346,12 @@ if (isset($_POST['action'])) {
 
 
         if (in_array($action, ["faq-list", "faq-create", "faq-info-byID", "faq-edit", "faq-bulk-action", "faq-delete"])) {
-            \AnirbanPay\Controller\FaqController::handle($action, $requestContext);
+            \OwnPay\Controller\FaqController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["api-create", "api-list", "api-info-byID", "api-bulk-action", "api-delete", "api-edit"])) {
-            \AnirbanPay\Controller\ApiKeyController::handle($action, $requestContext);
+            \OwnPay\Controller\ApiKeyController::handle($action, $requestContext);
             exit;
         }
 
@@ -356,32 +360,37 @@ if (isset($_POST['action'])) {
 
 
         if (in_array($action, ["device-list", "device-delete", "device-bulk-action", "device-connect-info"])) {
-            \AnirbanPay\Controller\DeviceController::handle($action, $requestContext);
+            \OwnPay\Controller\DeviceController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["balance-verification-list", "balance-verification-bulk-action", "balance-verification-delete", "balance-verification-create", "balance-verification-iupdate", "balance-verification-info-byID", "balance-verification-update"])) {
-            \AnirbanPay\Controller\BalanceVerificationController::handle($action, $requestContext);
+            \OwnPay\Controller\BalanceVerificationController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["sms-data-list", "sms-data-delete", "sms-data-bulk-action", "sms-data-create", "sms-data-info-byID", "sms-data-edit"])) {
-            \AnirbanPay\Controller\SmsDataController::handle($action, $requestContext);
+            \OwnPay\Controller\SmsDataController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["themes-new-active", "theme-setting-update"])) {
-            \AnirbanPay\Controller\ThemeController::handle($action, $requestContext);
+            \OwnPay\Controller\ThemeController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["system-settings-update-setting", "system-settings-update-check", "system-settings-update-download", "system-settings-update-install", "system-settings-import"])) {
-            \AnirbanPay\Controller\SystemUpdateController::handle($action, $requestContext);
+            \OwnPay\Controller\SystemUpdateController::handle($action, $requestContext);
             exit;
         }
 
         if (in_array($action, ["gateway-create", "gateways-list", "gateways-delete", "gateway-install", "gateway-uninstall"])) {
-            \AnirbanPay\Controller\GatewayController::handle($action, $requestContext);
+            \OwnPay\Controller\GatewayController::handle($action, $requestContext);
+            exit;
+        }
+
+        if (in_array($action, ["plugins-list", "plugins-install", "plugins-activate", "plugins-deactivate", "plugins-delete", "plugins-settings-get", "plugins-settings-save", "plugins-scan"])) {
+            \OwnPay\Controller\PluginController::handle($action, $requestContext);
             exit;
         }
 
@@ -391,46 +400,69 @@ if (isset($_POST['action'])) {
 }
 
 if (isset($_POST['action-v2'])) {
-    $action = escape_string($_POST['action-v2'] ?? '');
+    $action = clean_input($_POST['action-v2'] ?? '');
+    $op_app_token = clean_input($_POST['op-token'] ?? $_POST['pp-token'] ?? '');
 
     if ($action == "") {
         echo json_encode(['status' => "false", 'title' => 'Oops! Something went wrong', 'message' => 'Your request could not be processed. Please try again.']);
     } else {
+        // --- CSRF / HMAC validation via CsrfMiddleware ---
+        $_csrfMiddleware = new \OwnPay\Middleware\CsrfMiddleware();
+        $_csrfResult = $_csrfMiddleware->validate($op_app_token);
+        if (!$_csrfResult['valid']) {
+            $new_csrf_token = $_csrfResult['newToken'] ?? $_SESSION['csrf_token'] ?? '';
+            echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => $_csrfResult['error'], 'csrf_token' => $new_csrf_token]);
+            exit;
+        }
+        $new_csrf_token = $_csrfResult['newToken'] ?? $_SESSION['csrf_token'];
+
         if (in_array($action, ["invoice", "payment-link", "payment-link-default"])) {
-            \AnirbanPay\Controller\CheckoutController::handle($action, $requestContext);
+            \OwnPay\Controller\CheckoutController::handle($action, $requestContext);
             exit;
         }
 
         if ($action == "transaction-verify") {
-            \AnirbanPay\Controller\TransactionController::handle($action, $requestContext);
+            \OwnPay\Controller\TransactionController::handle($action, $requestContext);
             exit;
         }
     }
     exit();
 }
 if (isset($_POST['action-companion'])) {
-    $action = escape_string($_POST['action-companion'] ?? '');
+    $action = clean_input($_POST['action-companion'] ?? '');
+    $op_app_token = clean_input($_POST['op-token'] ?? $_POST['pp-token'] ?? '');
 
     if ($action == "") {
         echo json_encode(['status' => "false", 'title' => 'Oops! Something went wrong', 'message' => 'Your request could not be processed. Please try again.']);
     } else {
-        \AnirbanPay\Controller\CompanionApiController::handle($action, $requestContext);
+        // --- CSRF / HMAC validation via CsrfMiddleware ---
+        $_csrfMiddleware = new \OwnPay\Middleware\CsrfMiddleware();
+        $_csrfResult = $_csrfMiddleware->validate($op_app_token);
+        if (!$_csrfResult['valid']) {
+            $new_csrf_token = $_csrfResult['newToken'] ?? $_SESSION['csrf_token'] ?? '';
+            echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => $_csrfResult['error'], 'csrf_token' => $new_csrf_token]);
+            exit;
+        }
+        $new_csrf_token = $_csrfResult['newToken'] ?? $_SESSION['csrf_token'];
+
+        \OwnPay\Controller\CompanionApiController::handle($action, $requestContext);
     }
     exit();
 }
 if (isset($_POST['root'])) {
     if ($global_user_login == true) {
-        $root = escape_string(trim($_POST['root'] ?? ''));
-        $root = preg_replace('/[^a-zA-Z0-9\-\/_]/', '', $root); // sanitize
-
-        if ($root == "") {
-            echo json_encode(['status' => "false", 'message' => 'Something went wrong!']);
+        // F3: strict identifier whitelist (was: regex allowing slashes; not used as path).
+        // The 'root' value is only used as an existence sentinel for this AJAX endpoint —
+        // never concatenated into a filesystem path or SQL query. Defense in depth.
+        $root = \OwnPay\Service\InputSanitizer::trim($_POST['root'] ?? '');
+        if ($root === '' || strlen($root) > 64 || !preg_match('/^[a-zA-Z0-9_\-]+$/', $root)) {
+            echo json_encode(['status' => "false", 'message' => 'Invalid request.']);
             exit;
         }
 
         $initPendingTrscount = 0;
-        $pdo = connectDatabase();
         try {
+            $pdo = \OwnPay\Core\Database::getInstance()->getPdo();
             $stmt = $pdo->prepare("SELECT COUNT(*) AS cnt FROM `{$db_prefix}transaction` WHERE brand_id = :bid AND status = 'pending'");
             $stmt->execute([':bid' => $global_response_brand['response'][0]['brand_id']]);
             $initPendingTrscount = (int) ($stmt->fetch(PDO::FETCH_ASSOC)['cnt'] ?? 0);
@@ -443,11 +475,11 @@ if (isset($_POST['root'])) {
                 <?php
                 if ($initPendingTrscount == 0) {
                     ?>
-                    var pendBadge = document.querySelector(".nav-item-transaction .ap-badge-danger"); if (pendBadge) pendBadge.style.display = 'none';
+                    var pendBadge = document.querySelector(".nav-item-transaction .op-badge-danger"); if (pendBadge) pendBadge.style.display = 'none';
                     <?php
                 } else {
                     ?>
-                    var pendBadge = document.querySelector(".nav-item-transaction .ap-badge-danger"); if (pendBadge) pendBadge.innerHTML = '<?= $initPendingTrscount ?>';
+                    var pendBadge = document.querySelector(".nav-item-transaction .op-badge-danger"); if (pendBadge) pendBadge.innerHTML = '<?= $initPendingTrscount ?>';
                     <?php
                 }
                 ?>

@@ -1,0 +1,12 @@
+{
+    "name": "PayStation Gateway",
+    "slug": "paystation",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "PayStation Gateway payment gateway",
+    "tab": "mfs",
+    "currency": "BDT",
+    "gateway_type": "api"
+}

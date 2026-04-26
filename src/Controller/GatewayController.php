@@ -1,9 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\PermissionGuard;
 
 class GatewayController
 {
@@ -41,31 +43,26 @@ class GatewayController
         $new_csrf_token = $ctx->csrfToken;
 
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
+            if (PermissionGuard::denyUnlessCanAccess($ctx, 'gateways')) { return; }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'create', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
+            if (PermissionGuard::denyUnlessHas($ctx, 'gateways', 'create')) { return; }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $gateway = $request->post('gateway', '');
 
             if ($gateway == "") {
                 echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
             } else {
-                if (!file_exists(__DIR__ . '/../../app/pp-modules/pp-gateways/' . $gateway . '/class.php')) {
+                $gatewayPath = safeModulePath($gateway, __DIR__ . '/../../app/pp-modules/pp-gateways');
+                if ($gatewayPath === false) {
                     echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
                 } else {
-                    require_once __DIR__ . '/../../app/pp-modules/pp-gateways/' . $gateway . '/class.php';
+                    require_once $gatewayPath;
 
-                    $slug = basename(__DIR__ . '/../../app/pp-modules/pp-gateways/' . $gateway);
+                    $slug = $gateway; // Already validated as safe slug by safeModulePath()
 
-                    // twenty-six → TwentySixGateway
+                    // own-pay → OwnPayGateway
                     $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $slug))) . 'Gateway';
 
                     if (!class_exists($class)) {
@@ -81,7 +78,7 @@ class GatewayController
                         $columns = ['gateway_id', 'brand_id', 'slug', 'name', 'display', 'logo', 'currency', 'primary_color', 'text_color', 'btn_color', 'btn_text_color', 'tab', 'created_date', 'updated_date'];
                         $values = [$gateway_id, $global_response_brand['response'][0]['brand_id'], $slug, $gatewayInfo['title'], $gatewayInfo['title'], $site_url . 'app/modules/gateways/' . $gateway . '/' . $gatewayInfo['logo'], $gatewayInfo['currency'], $gatewayColor['primary_color'], $gatewayColor['text_color'], $gatewayColor['btn_color'], $gatewayColor['btn_text_color'], $gatewayInfo['tab'], getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                        insertData($db_prefix . 'gateways', $columns, $values);
+                        CrudService::insert($db_prefix . 'gateways', $columns, $values);
 
                         echo json_encode(['status' => 'true', 'title' => 'Gateway Created', 'message' => 'The gateway has been created successfully.', 'csrf_token' => $new_csrf_token]);
 
@@ -103,12 +100,9 @@ class GatewayController
         $new_csrf_token = $ctx->csrfToken;
 
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
+            if (PermissionGuard::denyUnlessCanAccess($ctx, 'gateways')) { return; }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $search_input = $request->post('search_input', '');
             $show_limit = $request->post('show_limit', '5');
@@ -146,9 +140,10 @@ class GatewayController
             $where_sql = $where ? implode(' AND ', $where) . ' AND ' : '';
             /* Filters */
 
-            $page = max(1, (int) $request->post('page', '1'));
-            $show_limit_val = ($request->post('show_limit') == '') ? 999999 : (int) $request->post('show_limit');
-            $offset = ($page - 1) * $show_limit_val;
+            $pag = \OwnPay\Service\PaginationService::resolve($request->post('page', '1'), $request->post('show_limit'));
+            $page = $pag['page'];
+            $show_limit_val = $pag['perPage'];
+            $offset = $pag['offset'];
 
             $sql_query = '';
 
@@ -158,13 +153,13 @@ class GatewayController
             }
 
             $sql_limit = '';
-            if ($show_limit_val == 'all') {
+            if ($pag['isAll']) {
 
             } else {
                 $sql_limit = " LIMIT $offset, $show_limit_val";
             }
 
-            $response_result = json_decode(getData($db_prefix . 'gateways', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_gw), true);
+            $response_result = CrudService::select($db_prefix . 'gateways', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_gw);
             if ($response_result['status'] == true) {
                 $response = [];
 
@@ -178,44 +173,12 @@ class GatewayController
                     ];
                 }
 
-                $count_data = json_decode(getData($db_prefix . 'gateways', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_gw), true);
+                $count_data = CrudService::select($db_prefix . 'gateways', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_gw);
 
                 $total_records = count($count_data['response'] ?? []);
-                $total_pages = ceil($total_records / $show_limit);
-
-                $pagination = '<ul class="pagination m-0 ms-auto">';
-
-                // Prev button
-                $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                        <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                <path d="M15 6l-6 6l6 6"></path>
-                            </svg>
-                        </button>
-                    </li>';
-
-                // Page numbers
-                for ($i = 1; $i <= $total_pages; $i++) {
-                    $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                            <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                        </li>';
-                }
-
-                // Next button
-                $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                        <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                <path d="M9 6l6 6l-6 6"></path>
-                            </svg>
-                        </button>
-                    </li>';
-
-                $pagination .= '</ul>';
-
-                $start = ($offset + 1);
-                $end = min($offset + $show_limit, $total_records);
-
-                $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+                $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit_val, $offset);
+                $pagination = $pagHtml['pagination'];
+                $datatableInfo = $pagHtml['datatableInfo'];
 
                 echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
             } else {
@@ -237,32 +200,26 @@ class GatewayController
         $new_csrf_token = $ctx->csrfToken;
 
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
+            if (PermissionGuard::denyUnlessCanAccess($ctx, 'gateways')) { return; }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'delete', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
+            if (PermissionGuard::denyUnlessHas($ctx, 'gateways', 'delete')) { return; }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $ItemID = $request->post('ItemID', '');
             $params_item = [':gw_id' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']];
 
-            $response_brand = json_decode(getData($db_prefix . 'gateways', 'WHERE gateway_id = :gw_id AND brand_id = :brand_id', '* FROM', $params_item), true);
+            $response_brand = CrudService::select($db_prefix . 'gateways', 'WHERE gateway_id = :gw_id AND brand_id = :brand_id', '* FROM', $params_item);
             if ($response_brand['status'] == true) {
                 $condition = "gateway_id = :gw_id";
                 $whereParams = [':gw_id' => $ItemID];
 
-                deleteData($db_prefix . 'gateways', $condition, $whereParams);
+                CrudService::delete($db_prefix . 'gateways', $condition, $whereParams);
 
                 $condition = "gateway_id = :gw_id";
                 $whereParams = [':gw_id' => $ItemID];
 
-                deleteData($db_prefix . 'gateways_parameter', $condition, $whereParams);
+                CrudService::delete($db_prefix . 'gateways_parameter', $condition, $whereParams);
             }
 
             echo json_encode(['status' => 'true', 'title' => 'Gateway Deleted', 'message' => 'The selected gateway have been deleted successfully.', 'csrf_token' => $new_csrf_token]);
@@ -279,22 +236,16 @@ class GatewayController
         $new_csrf_token = $ctx->csrfToken;
 
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
+            if (PermissionGuard::denyUnlessCanAccess($ctx, 'gateways')) { return; }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'create', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
+            if (PermissionGuard::denyUnlessHas($ctx, 'gateways', 'create')) { return; }
 
             if (!isset($_FILES['plugin_zip']) || $_FILES['plugin_zip']['error'] !== UPLOAD_ERR_OK) {
                 echo json_encode(['status' => 'false', 'title' => 'Upload Failed', 'message' => 'Please select a valid ZIP file.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            $result = \AnirbanPay\Service\PluginManager::install('gateway', $_FILES['plugin_zip']);
+            $result = \OwnPay\Service\PluginManager::install('gateway', $_FILES['plugin_zip']);
 
             echo json_encode([
                 'status' => $result['status'] ? 'true' : 'false',
@@ -315,17 +266,11 @@ class GatewayController
         $new_csrf_token = $ctx->csrfToken;
 
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
+            if (PermissionGuard::denyUnlessCanAccess($ctx, 'gateways')) { return; }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'delete', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
+            if (PermissionGuard::denyUnlessHas($ctx, 'gateways', 'delete')) { return; }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $slug = $request->post('slug', '');
             if ($slug === '') {
@@ -333,7 +278,7 @@ class GatewayController
                 exit();
             }
 
-            $result = \AnirbanPay\Service\PluginManager::uninstall('gateway', $slug);
+            $result = \OwnPay\Service\PluginManager::uninstall('gateway', $slug);
 
             echo json_encode([
                 'status' => $result['status'] ? 'true' : 'false',

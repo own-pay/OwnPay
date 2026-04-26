@@ -1,0 +1,27 @@
+{
+  "name": "Hello World",
+  "slug": "hello-world",
+  "version": "1.0.0",
+  "type": "plugin",
+  "description": "Minimal reference plugin for testing the plugin system",
+  "author": "OwnPay Team",
+  "author_url": "",
+  "license": "AGPL-3.0",
+  "min_php": "8.2",
+  "min_app": "0.1.0",
+  "entrypoint": "Plugin.php",
+  "namespace": "HelloWorld",
+  "capabilities": [
+    "hooks"
+  ],
+  "dependencies": [],
+  "hooks": {
+    "actions": [
+      "system.boot"
+    ],
+    "filters": []
+  },
+  "admin_menu": [],
+  "cron": [],
+  "migrations": []
+}

@@ -1,8 +1,11 @@
 <?php
+declare(strict_types=1);
 
-namespace AnirbanPay\Controller\Frontend;
+namespace OwnPay\Controller\Frontend;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\InputSanitizer;
 
 class ApiController
 {
@@ -18,7 +21,7 @@ class ApiController
 
                     $params = [':api_key' => $apiKey];
 
-                    $response_api = json_decode(getData($db_prefix . 'api', 'WHERE api_key = :api_key AND status = "active"', '* FROM', $params), true);
+                    $response_api = CrudService::select($db_prefix . 'api', 'WHERE api_key = :api_key AND status = "active"', '* FROM', $params);
                     if ($response_api['status'] == false) {
                         http_response_code(400);
 
@@ -32,7 +35,7 @@ class ApiController
                     }
 
                     // Rate limiting per API key
-                    $rateLimiter = new \AnirbanPay\Middleware\RateLimiterMiddleware();
+                    $rateLimiter = new \OwnPay\Middleware\RateLimiterMiddleware();
                     $rateLimiter->enforce(
                         (int) $response_api['response'][0]['id'],
                         $response_api['response'][0]['api_key_prefix'] ?? '',
@@ -109,7 +112,7 @@ class ApiController
                             }
 
                             if ($returnUrl == "") {
-                                $returnUrl = '--';
+                                $returnUrl = null;
                             } else {
                                 $returnDomain = getDomainFromUrl($returnUrl);
 
@@ -125,7 +128,7 @@ class ApiController
                                 } else {
                                     $params = [':domain' => $returnDomain];
 
-                                    $response_urlCheck = json_decode(getData($db_prefix . 'domain', 'WHERE domain = :domain', '* FROM', $params), true);
+                                    $response_urlCheck = CrudService::select($db_prefix . 'domain', 'WHERE domain = :domain', '* FROM', $params);
                                     if ($response_urlCheck['status'] == true) {
                                         if ($response_urlCheck['response'][0]['status'] !== "active") {
                                             http_response_code(400);
@@ -151,7 +154,7 @@ class ApiController
                             }
 
                             if ($webhookUrl == "") {
-                                $webhookUrl = '--';
+                                $webhookUrl = null;
                             } else {
                                 $webhookDomain = getDomainFromUrl($webhookUrl);
 
@@ -167,7 +170,7 @@ class ApiController
                                 } else {
                                     $params = [':domain' => $webhookDomain];
 
-                                    $response_urlCheck = json_decode(getData($db_prefix . 'domain', 'WHERE domain = :domain', '* FROM', $params), true);
+                                    $response_urlCheck = CrudService::select($db_prefix . 'domain', 'WHERE domain = :domain', '* FROM', $params);
                                     if ($response_urlCheck['status'] == true) {
                                         if ($response_urlCheck['response'][0]['status'] !== "active") {
                                             http_response_code(400);
@@ -269,8 +272,8 @@ class ApiController
                             $idemKey = $_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? $data['idempotency_key'] ?? null;
                             $idemRowId = null;
 
-                            if ($idemKey !== null && $idemKey !== '' && class_exists('\AnirbanPay\Service\LegacyIdempotencyBridge')) {
-                                $idemBridge = new \AnirbanPay\Service\LegacyIdempotencyBridge($db_prefix);
+                            if ($idemKey !== null && $idemKey !== '' && class_exists('\OwnPay\Service\LegacyIdempotencyBridge')) {
+                                $idemBridge = new \OwnPay\Service\LegacyIdempotencyBridge($db_prefix);
                                 $idemResult = $idemBridge->acquire(
                                     'checkout',
                                     $response_api['response'][0]['brand_id'],
@@ -300,17 +303,17 @@ class ApiController
 
                             $params = [':brand_id' => $response_api['response'][0]['brand_id'], ':code' => $currency];
 
-                            $response_currency = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id AND code = :code', '* FROM', $params), true);
+                            $response_currency = CrudService::select($db_prefix . 'currency', 'WHERE brand_id = :brand_id AND code = :code', '* FROM', $params);
                             if ($response_currency['status'] == true) {
                                 $params = [':brand_id' => $response_api['response'][0]['brand_id'], ':email' => $email, ':status' => 'suspend'];
 
-                                $check_customer = json_decode(getData($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email AND status = :status', '* FROM', $params), true);
+                                $check_customer = CrudService::select($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email AND status = :status', '* FROM', $params);
                                 if ($check_customer['status'] == true) {
                                     http_response_code(400);
                                     echo json_encode([
                                         'error' => [
                                             'code' => 'INVALID_CUSTOMER',
-                                            'message' => $check_customer['response'][0]['suspend_reason'] == "--" ? 'Customer is already suspended by the admin.' : 'Customer is already suspended by the admin. Reason: ' . $check_customer['response'][0]['suspend_reason']
+                                            'message' => empty($check_customer['response'][0]['suspend_reason']) ? 'Customer is already suspended by the admin.' : 'Customer is already suspended by the admin. Reason: ' . InputSanitizer::html($check_customer['response'][0]['suspend_reason'])
                                         ]
                                     ]);
                                     exit;
@@ -327,21 +330,21 @@ class ApiController
                                 $columns = ['brand_id', 'ref', 'customer_info', 'amount', 'currency', 'metadata', 'return_url', 'webhook_url', 'created_date', 'updated_date'];
                                 $values = [$response_api['response'][0]['brand_id'], $payment_id, $customerInfoJson, money_sanitize($amount), $currency, json_encode($metadata), $returnUrl, $webhookUrl, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                                insertData($db_prefix . 'transaction', $columns, $values);
+                                CrudService::insert($db_prefix . 'transaction', $columns, $values);
 
                                 $params = [':brand_id' => $response_api['response'][0]['brand_id'], ':email' => $email];
 
-                                $response_customer = json_decode(getData($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email', '* FROM', $params), true);
+                                $response_customer = CrudService::select($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email', '* FROM', $params);
                                 if ($response_customer['status'] == false) {
                                     $ref = generateItemID();
 
                                     $columns = ['ref', 'brand_id', 'name', 'email', 'mobile', 'created_date', 'updated_date'];
                                     $values = [$ref, $response_api['response'][0]['brand_id'], $fullName, $email, $mobile, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                                    insertData($db_prefix . 'customer', $columns, $values);
+                                    CrudService::insert($db_prefix . 'customer', $columns, $values);
                                 }
 
-                                $checkoutResponse = json_encode(['ap_id' => $payment_id, 'ap_url' => $site_url . $path_payment . '/' . $payment_id]);
+                                $checkoutResponse = json_encode(['op_id' => $payment_id, 'op_url' => $site_url . $path_payment . '/' . $payment_id]);
 
                                 // Cache the response for idempotency replay
                                 if ($idemRowId !== null && isset($idemBridge)) {
@@ -366,11 +369,11 @@ class ApiController
                                 $mobile = $data['mobile_number'] ?? '';
                                 $amount = $data['amount'] ?? '0';
                                 $currency = $data['currency'] ?? 'BDT';
-                                $webhookUrl = $data['webhook_url'] ?? '--';
+                                $webhookUrl = $data['webhook_url'] ?? null;
                                 $metadataRaw = $data['metadata'] ?? '{}';
 
                                 if ($webhookUrl == "") {
-                                    $webhookUrl = '--';
+                                    $webhookUrl = null;
                                 }
 
                                 if (is_string($metadataRaw)) {
@@ -450,8 +453,8 @@ class ApiController
                                 $idemKey = $_SERVER['HTTP_IDEMPOTENCY_KEY'] ?? $data['idempotency_key'] ?? null;
                                 $idemRowId = null;
 
-                                if ($idemKey !== null && $idemKey !== '' && class_exists('\AnirbanPay\Service\LegacyIdempotencyBridge')) {
-                                    $idemBridge = new \AnirbanPay\Service\LegacyIdempotencyBridge($db_prefix);
+                                if ($idemKey !== null && $idemKey !== '' && class_exists('\OwnPay\Service\LegacyIdempotencyBridge')) {
+                                    $idemBridge = new \OwnPay\Service\LegacyIdempotencyBridge($db_prefix);
                                     $idemResult = $idemBridge->acquire(
                                         'checkout',
                                         $response_api['response'][0]['brand_id'],
@@ -481,17 +484,17 @@ class ApiController
 
                                 $params = [':brand_id' => $response_api['response'][0]['brand_id'], ':code' => $currency];
 
-                                $response_currency = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id AND code = :code', '* FROM', $params), true);
+                                $response_currency = CrudService::select($db_prefix . 'currency', 'WHERE brand_id = :brand_id AND code = :code', '* FROM', $params);
                                 if ($response_currency['status'] == true) {
                                     $params = [':brand_id' => $response_api['response'][0]['brand_id'], ':email' => $email, ':status' => 'suspend'];
 
-                                    $check_customer = json_decode(getData($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email AND status = :status', '* FROM', $params), true);
+                                    $check_customer = CrudService::select($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email AND status = :status', '* FROM', $params);
                                     if ($check_customer['status'] == true) {
                                         http_response_code(400);
                                         echo json_encode([
                                             'error' => [
                                                 'code' => 'INVALID_CUSTOMER',
-                                                'message' => $check_customer['response'][0]['suspend_reason'] == "--" ? 'Customer is already suspended by the admin.' : 'Customer is already suspended by the admin. Reason: ' . $check_customer['response'][0]['suspend_reason']
+                                                'message' => empty($check_customer['response'][0]['suspend_reason']) ? 'Customer is already suspended by the admin.' : 'Customer is already suspended by the admin. Reason: ' . InputSanitizer::html($check_customer['response'][0]['suspend_reason'])
                                             ]
                                         ]);
                                         exit;
@@ -509,21 +512,21 @@ class ApiController
                                     $columns = ['brand_id', 'ref', 'customer_info', 'amount', 'currency', 'metadata', 'webhook_url', 'created_date', 'updated_date'];
                                     $values = [$response_api['response'][0]['brand_id'], $payment_id, $customerInfoJson, money_sanitize($amount), $currency, json_encode($metadata), $webhookUrl, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                                    insertData($db_prefix . 'transaction', $columns, $values);
+                                    CrudService::insert($db_prefix . 'transaction', $columns, $values);
 
                                     $params = [':brand_id' => $response_api['response'][0]['brand_id'], ':email' => $email];
 
-                                    $response_customer = json_decode(getData($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email', '* FROM', $params), true);
+                                    $response_customer = CrudService::select($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email', '* FROM', $params);
                                     if ($response_customer['status'] == false) {
                                         $ref = generateItemID();
 
                                         $columns = ['ref', 'brand_id', 'name', 'email', 'mobile', 'created_date', 'updated_date'];
                                         $values = [$ref, $response_api['response'][0]['brand_id'], $fullName, $email, $mobile, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                                        insertData($db_prefix . 'customer', $columns, $values);
+                                        CrudService::insert($db_prefix . 'customer', $columns, $values);
                                     }
 
-                                    $checkoutResponse = json_encode(['ap_id' => $payment_id, 'ap_url' => $site_url . $path_payment . '/' . $payment_id]);
+                                    $checkoutResponse = json_encode(['op_id' => $payment_id, 'op_url' => $site_url . $path_payment . '/' . $payment_id]);
 
                                     // Cache the response for idempotency replay
                                     if ($idemRowId !== null && isset($idemBridge)) {
@@ -571,9 +574,9 @@ class ApiController
                                 exit;
                             }
 
-                            $ap_id = $data['ap_id'] ?? '';
+                            $op_id = $data['op_id'] ?? '';
 
-                            if ($ap_id == "") {
+                            if ($op_id == "") {
                                 http_response_code(400);
                                 echo json_encode([
                                     'error' => [
@@ -583,13 +586,13 @@ class ApiController
                                 ]);
                                 exit;
                             } else {
-                                $params = [':ref' => $ap_id];
+                                $params = [':ref' => $op_id];
 
-                                $response_transaction = json_decode(getData($db_prefix . 'transaction', 'WHERE ref = :ref', '* FROM', $params), true);
+                                $response_transaction = CrudService::select($db_prefix . 'transaction', 'WHERE ref = :ref', '* FROM', $params);
                                 if ($response_transaction['status'] == true) {
                                     $metadata = json_decode($response_transaction['response'][0]['metadata'], true) ?: [];
 
-                                    $response_gateway = json_decode(getData($db_prefix . 'gateways', ' WHERE brand_id ="' . $response_transaction['response'][0]['brand_id'] . '" AND gateway_id = "' . $response_transaction['response'][0]['gateway_id'] . '"'), true);
+                                    $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE brand_id = :brand_id AND gateway_id = :gateway_id', '* FROM', [':brand_id' => $response_transaction['response'][0]['brand_id'], ':gateway_id' => $response_transaction['response'][0]['gateway_id']]);
 
                                     $gateway = $response_gateway['response'][0]['display'] ?? '';
 
@@ -597,12 +600,12 @@ class ApiController
 
                                     $params = [':brand_id' => $response_transaction['response'][0]['brand_id']];
 
-                                    $response_brand = json_decode(getData($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params), true);
+                                    $response_brand = CrudService::select($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params);
 
                                     $net = money_sub(money_add($response_transaction['response'][0]['amount'], $response_transaction['response'][0]['processing_fee']), $response_transaction['response'][0]['discount_amount']);
 
                                     $transactions = [
-                                        "ap_id" => $response_transaction['response'][0]['ref'],
+                                        "op_id" => $response_transaction['response'][0]['ref'],
                                         "full_name" => $customer_info['name'] ?? 'N/A',
                                         "email_address" => $customer_info['email'] ?? 'N/A',
                                         "mobile_number" => $customer_info['mobile'] ?? 'N/A',
@@ -618,7 +621,7 @@ class ApiController
                                         "sender" => $response_transaction['response'][0]['sender'],
                                         "transaction_id" => $response_transaction['response'][0]['trx_id'],
                                         "status" => $response_transaction['response'][0]['status'],
-                                        "date" => convertUTCtoUserTZ($response_transaction['response'][0]['created_date'], ($response_brand['response'][0]['timezone'] === '--' || $response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                                        "date" => convertUTCtoUserTZ($response_transaction['response'][0]['created_date'], empty($response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y h:i A")
                                     ];
 
                                     echo json_encode($transactions);
@@ -653,9 +656,9 @@ class ApiController
                                     exit;
                                 }
 
-                                $ap_id = $data['ap_id'] ?? '';
+                                $op_id = $data['op_id'] ?? '';
 
-                                if ($ap_id == "") {
+                                if ($op_id == "") {
                                     http_response_code(400);
                                     echo json_encode([
                                         'error' => [
@@ -665,20 +668,20 @@ class ApiController
                                     ]);
                                     exit;
                                 } else {
-                                    $params = [':ref' => $ap_id];
+                                    $params = [':ref' => $op_id];
 
-                                    $response_transaction = json_decode(getData($db_prefix . 'transaction', 'WHERE ref = :ref', '* FROM', $params), true);
+                                    $response_transaction = CrudService::select($db_prefix . 'transaction', 'WHERE ref = :ref', '* FROM', $params);
                                     if ($response_transaction['status'] == true) {
                                         $columns = ['status', 'updated_date'];
                                         $values = ['refunded', getCurrentDatetime('Y-m-d H:i:s')];
                                         $condition = 'id ="' . $response_transaction['response'][0]['id'] . '"';
 
-                                        updateData($db_prefix . 'transaction', $columns, $values, $condition);
+                                        CrudService::update($db_prefix . 'transaction', $columns, $values, $condition);
 
 
                                         $metadata = json_decode($response_transaction['response'][0]['metadata'], true) ?: [];
 
-                                        $response_gateway = json_decode(getData($db_prefix . 'gateways', ' WHERE brand_id ="' . $response_transaction['response'][0]['brand_id'] . '" AND gateway_id = "' . $response_transaction['response'][0]['gateway_id'] . '"'), true);
+                                        $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE brand_id = :brand_id AND gateway_id = :gateway_id', '* FROM', [':brand_id' => $response_transaction['response'][0]['brand_id'], ':gateway_id' => $response_transaction['response'][0]['gateway_id']]);
 
                                         $gateway = $response_gateway['response'][0]['display'] ?? '';
 
@@ -686,12 +689,12 @@ class ApiController
 
                                         $params = [':brand_id' => $response_transaction['response'][0]['brand_id']];
 
-                                        $response_brand = json_decode(getData($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params), true);
+                                        $response_brand = CrudService::select($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params);
 
                                         $net = money_sub(money_add($response_transaction['response'][0]['amount'], $response_transaction['response'][0]['processing_fee']), $response_transaction['response'][0]['discount_amount']);
 
                                         $transactions = [
-                                            "ap_id" => $response_transaction['response'][0]['ref'],
+                                            "op_id" => $response_transaction['response'][0]['ref'],
                                             "full_name" => $customer_info['name'] ?? 'N/A',
                                             "email_address" => $customer_info['email'] ?? 'N/A',
                                             "mobile_number" => $customer_info['mobile'] ?? 'N/A',
@@ -707,7 +710,7 @@ class ApiController
                                             "sender" => $response_transaction['response'][0]['sender'],
                                             "transaction_id" => $response_transaction['response'][0]['trx_id'],
                                             "status" => 'refunded',
-                                            "date" => convertUTCtoUserTZ($response_transaction['response'][0]['created_date'], ($response_brand['response'][0]['timezone'] === '--' || $response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                                            "date" => convertUTCtoUserTZ($response_transaction['response'][0]['created_date'], empty($response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y h:i A")
                                         ];
 
                                         echo json_encode($transactions);

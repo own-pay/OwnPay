@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Service;
 
 use PHPUnit\Framework\TestCase;
-use AnirbanPay\Service\HttpClient;
+use OwnPay\Service\HttpClient;
 
 class HttpClientTest extends TestCase
 {

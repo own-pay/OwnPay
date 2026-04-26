@@ -1,7 +1,7 @@
 server {
     listen 80;
-    # server_name yourdomain.com; # Replace with your domain
-    # root /var/www/anirbanpay; # Replace with your absolute path
+    # server_name yourdomain.com; # Replace with your domain (e.g. ownpay.org)
+    # root /var/www/ownpay; # Replace with your absolute path
 
     index index.php index.html;
 
@@ -11,12 +11,20 @@ server {
     }
 
     # Hide sensitive files
-    location ~ \.(env|git|md|json|lock)$ {
+    location ~ \.(env|git|md|json|lock|installed)$ {
         deny all;
     }
 
-    # Hide ap-config.php and internal directories
-    location ~ ^/(ap-config\.php|app|src|tests|errors|vendor)/ {
+    # Hide op-config.php, op-temp-config.php and internal directories
+    location ~ ^/(op-config\.php|op-temp-config\.php) {
+        deny all;
+    }
+    location ~ ^/(app|src|tests|errors|vendor|migrations|storage)/ {
+        deny all;
+    }
+
+    # Explicit installer block (defense in depth)
+    location ~ ^/app/install/ {
         deny all;
     }
 

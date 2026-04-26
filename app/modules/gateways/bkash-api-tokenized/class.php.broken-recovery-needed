@@ -1,0 +1,275 @@
+<?php
+
+declare(strict_types=1);
+
+use OwnPay\Gateway\GatewayAdapterInterface;
+use OwnPay\Gateway\GatewayDefaults;
+
+class BkashApiTokenizedGateway implements GatewayAdapterInterface
+{
+    use GatewayDefaults;
+    public function info(): array
+    {
+        return [
+            'title' => 'Bkash Api (Tokenized)',
+            'logo' => 'assets/logo.jpg',
+            'currency' => 'BDT',
+            'tab' => 'mfs',
+
+            'gateway_type' => 'api',
+        ];
+    }
+
+    public function color(): array
+    {
+        return [
+            'primary_color' => '#D12053',
+            'text_color' => '#FFFFFF',
+            'btn_color' => '#D12053',
+            'btn_text_color' => '#FFFFFF',
+        ];
+    }
+
+    public function fields(): array
+    {
+        return [
+            [
+                'name' => 'username',
+                'label' => 'Username',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'password',
+                'label' => 'Password',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'app_key',
+                'label' => 'App Key',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'app_secret_key',
+                'label' => 'App Secret Key',
+                'type' => 'text',
+            ],
+            [
+                'name' => 'mode',
+                'label' => 'Mode',
+                'type' => 'select',
+                'options' => [
+                    'live' => 'Live',
+                    'sandbox' => 'Sandbox',
+                ],
+                'value' => 'live',
+                'required' => true,
+                'multiple' => false,
+            ],
+        ];
+    }
+
+    public function process_payment(array $data = []): void
+    {
+        echo '<center><div class="spinner-border text-primary m-3 loading-123412341234" role="status"><span class="visually-hidden">Loading...</span></div></center>';
+
+        $base_url = (($data['options']['mode'] ?? 'sandbox') === 'live') ? 'https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized' : 'https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized';
+
+        $request_data = array(
+            'app_key' => ($data['options']['app_key'] ?? ''),
+            'app_secret' => ($data['options']['app_secret_key'] ?? '')
+        );
+
+        $url = curl_init($base_url . '/checkout/token/grant');
+        $request_data_json = json_encode($request_data);
+        $header = array(
+            'Content-Type:application/json',
+            'username:' . ($data['options']['username'] ?? ''),
+            'password:' . ($data['options']['password'] ?? '')
+        );
+
+        curl_setopt($url, CURLOPT_HTTPHEADER, $header);
+        curl_setopt($url, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($url, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($url, CURLOPT_POSTFIELDS, $request_data_json);
+        curl_setopt($url, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($url, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+
+        $token_grand = json_decode(curl_exec($url), true);
+        curl_close($url);
+
+        $token_grand_bk = ($token_grand['id_token'] ?? '');
+
+        if ($token_grand_bk !== "") {
+            $_SESSION['bk-token'] = $token_grand_bk;
+        }
+
+        $requestbody = array(
+            'mode' => '0011',
+            'amount' => $data['transaction']['local_net_amount'],
+            'currency' => $data['transaction']['local_currency'],
+            'intent' => 'sale',
+            'payerReference' => 'BillPax',
+            'merchantInvoiceNumber' => rand() . '-BP-' . $data['transaction']['ref'],
+            'callbackURL' => op_callback_url()
+        );
+        $url = curl_init($base_url . '/checkout/create');
+        $requestbodyJson = json_encode($requestbody);
+
+        $header = array(
+            'Content-Type:application/json',
+            "accept: application/json",
+            'Authorization:' . ($token_grand['id_token'] ?? ''),
+            'X-APP-Key:' . ($data['options']['app_key'] ?? '')
+        );
+
+        curl_setopt($url, CURLOPT_HTTPHEADER, $header);
+        curl_setopt($url, CURLOPT_CUSTOMREQUEST, "POST");
+        curl_setopt($url, CURLOPT_RETURNTRANSFER, true);
+        curl_setopt($url, CURLOPT_POSTFIELDS, $requestbodyJson);
+        curl_setopt($url, CURLOPT_FOLLOWLOCATION, 1);
+        curl_setopt($url, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+        $resultdata = json_decode(curl_exec($url), true);
+        curl_close($url);
+
+        if (isset($resultdata['bkashURL'])) {
+            echo '<script nonce="' . ($csp_nonce ?? '') . '">location.href="' . $resultdata['bkashURL'] . '";</script>';
+        } else {
+            echo "<center>Bkash Initialize Error</center> <style>.loading-123412341234{display: none;}</style>";
+        }
+    }
+
+    public function callback(array $data = []): void
+    {
+        echo '<center><div class="spinner-border text-primary m-3 loading-123412341234" role="status"><span class="visually-hidden">Loading...</span></div></center>';
+
+        $base_url = (($data['options']['mode'] ?? 'sandbox') === 'live') ? 'https://tokenized.pay.bka.sh/v1.2.0-beta/tokenized' : 'https://tokenized.sandbox.bka.sh/v1.2.0-beta/tokenized';
+
+        $status = $_GET['status'] ?? '';
+
+        if ($status == "success") {
+            $paymentID = $_GET['paymentID'] ?? '';
+            $auth = $_SESSION['bk-token'] ?? '';
+
+            $post_token = array('paymentID' => $paymentID);
+
+            $url = curl_init($base_url . '/checkout/execute');
+            $posttoken = json_encode($post_token);
+
+            $header = array(
+                'Content-Type:application/json',
+                'Authorization:' . $auth,
+                'X-APP-Key:' . ($data['options']['app_key'] ?? '')
+            );
+            curl_setopt($url, CURLOPT_HTTPHEADER, $header);
+            curl_setopt($url, CURLOPT_CUSTOMREQUEST, "POST");
+            curl_setopt($url, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($url, CURLOPT_POSTFIELDS, $posttoken);
+            curl_setopt($url, CURLOPT_FOLLOWLOCATION, 1);
+            curl_setopt($url, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+            $resultdata = curl_exec($url);
+
+            curl_close($url);
+
+            $obj = json_decode($resultdata, true);
+
+            if (isset($obj['statusMessage'])) {
+                if ($obj['statusMessage'] == 'Successful') {
+                    $merchantInvoiceNumber = $obj['merchantInvoiceNumber'];
+
+                    $parts = explode('-BP-', $merchantInvoiceNumber);
+
+                    $afterBP = $parts[1] ?? null;
+
+                    if ($afterBP == $data['transaction']['ref']) {
+                        $moreinfo = [
+                            [
+                                'label' => 'Payment ID',
+                                'value' => $obj['paymentID']
+                            ]
+                        ];
+
+                        op_set_transaction_status($data['transaction']['ref'], 'completed', $data['gateway']['gateway_id'], $obj['trxID'], $moreinfo);
+
+                        echo '<script nonce="' . ($csp_nonce ?? '') . '">location.reload();</script>';
+                    } else {
+                        echo '<div class="alert alert-danger" role="alert">Transaction not valid or not found.</div><style>.loading-123412341234{display: none;}</style>';
+                    }
+                } else {
+                    echo '<div class="alert alert-danger" role="alert">Transaction not valid or not found.</div><style>.loading-123412341234{display: none;}</style>';
+                }
+            } else {
+                echo '<div class="alert alert-danger" role="alert">Transaction not valid or not found.</div><style>.loading-123412341234{display: none;}</style>';
+            }
+        } else {
+            if ($status == "cancel") {
+                echo '<script nonce="' . ($csp_nonce ?? '') . '">location.href="' . op_checkout_address() . '";</script>';
+            } else {
+                echo '<div class="alert alert-danger" role="alert">Transaction not valid or not found.</div><style>.loading-123412341234{display: none;}</style>';
+            }
+        }
+    }
+}
+
+GET['paymentID'] ?? '');
+            $auth = $_SESSION['bk-token'] ?? '';
+
+            $post_token = array('paymentID' => $paymentID);
+
+            $url = curl_init($base_url . '/checkout/execute');
+            $posttoken = json_encode($post_token);
+
+            $header = array(
+                'Content-Type:application/json',
+                'Authorization:' . $auth,
+                'X-APP-Key:' . ($data['options']['app_key'] ?? '')
+            );
+            curl_setopt($url, CURLOPT_HTTPHEADER, $header);
+            curl_setopt($url, CURLOPT_CUSTOMREQUEST, "POST");
+            curl_setopt($url, CURLOPT_RETURNTRANSFER, true);
+            curl_setopt($url, CURLOPT_POSTFIELDS, $posttoken);
+            curl_setopt($url, CURLOPT_FOLLOWLOCATION, 1);
+            curl_setopt($url, CURLOPT_IPRESOLVE, CURL_IPRESOLVE_V4);
+            $resultdata = curl_exec($url);
+
+            curl_close($url);
+
+            $obj = json_decode($resultdata, true);
+
+            if (isset($obj['statusMessage'])) {
+                if ($obj['statusMessage'] == 'Successful') {
+                    $merchantInvoiceNumber = $obj['merchantInvoiceNumber'];
+
+                    $parts = explode('-BP-', $merchantInvoiceNumber);
+
+                    $afterBP = $parts[1] ?? null;
+
+                    if ($afterBP == $data['transaction']['ref']) {
+                        $moreinfo = [
+                            [
+                                'label' => 'Payment ID',
+                                'value' => $obj['paymentID']
+                            ]
+                        ];
+
+                        op_set_transaction_status($data['transaction']['ref'], 'completed', $data['gateway']['gateway_id'], $obj['trxID'], $moreinfo);
+
+                        echo '<script nonce="' . ($csp_nonce ?? '') . '">location.reload();</script>';
+                    } else {
+                        echo '<div class="alert alert-danger" role="alert">Transaction not valid or not found.</div><style>.loading-123412341234{display: none;}</style>';
+                    }
+                } else {
+                    echo '<div class="alert alert-danger" role="alert">Transaction not valid or not found.</div><style>.loading-123412341234{display: none;}</style>';
+                }
+            } else {
+                echo '<div class="alert alert-danger" role="alert">Transaction not valid or not found.</div><style>.loading-123412341234{display: none;}</style>';
+            }
+        } else {
+            if ($status == "cancel") {
+                echo '<script nonce="' . ($csp_nonce ?? '') . '">location.href="' . op_checkout_address() . '";</script>';
+            } else {
+                echo '<div class="alert alert-danger" role="alert">Transaction not valid or not found.</div><style>.loading-123412341234{display: none;}</style>';
+            }
+        }
+    }
+}
+

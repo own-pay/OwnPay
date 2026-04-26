@@ -1,0 +1,49 @@
+{
+  "name": "Webhook Logger",
+  "slug": "webhook-logger",
+  "version": "1.0.0",
+  "type": "plugin",
+  "description": "Logs all incoming webhook events to a dedicated table for debugging and auditing",
+  "author": "OwnPay Team",
+  "author_url": "",
+  "license": "AGPL-3.0",
+  "min_php": "8.2",
+  "min_app": "0.1.0",
+  "entrypoint": "Plugin.php",
+  "namespace": "WebhookLogger",
+
+  "capabilities": [
+    "hooks",
+    "db_read",
+    "db_write",
+    "admin_menu",
+    "settings"
+  ],
+
+  "dependencies": [],
+
+  "hooks": {
+    "actions": [
+      "payment.gateway.webhook",
+      "payment.transaction.created",
+      "payment.transaction.completed"
+    ],
+    "filters": []
+  },
+
+  "admin_menu": [
+    {
+      "title": "Webhook Logs",
+      "slug": "webhook-logger",
+      "icon": "activity",
+      "parent": "plugins",
+      "permission": "manage_plugins"
+    }
+  ],
+
+  "cron": [],
+
+  "migrations": [
+    "migrations/001_create_webhook_log.sql"
+  ]
+}

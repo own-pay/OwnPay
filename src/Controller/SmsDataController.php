@@ -1,9 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\InputSanitizer;
+use OwnPay\Service\PermissionGuard;
 
 class SmsDataController
 {
@@ -11,20 +14,18 @@ class SmsDataController
     {
         $ctx ??= $GLOBALS['requestContext'] ?? throw new \RuntimeException('RequestContext not available');
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         $db_prefix = $ctx->dbPrefix;
         $global_response_brand = $ctx->brandResponse;
 
         if ($action == "sms-data-list") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'sms_data')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
 
-                $request = \AnirbanPay\Http\Request::createFromGlobals();
+                $request = \OwnPay\Http\Request::createFromGlobals();
 
                 $search_input = $request->post('search_input', '');
                 $show_limit = $request->post('show_limit', 5);
@@ -63,9 +64,10 @@ class SmsDataController
                 /* Filters */
 
 
-                $page = max(1, (int) $request->post('page', 1));
-                $show_limit_val = ($request->post('show_limit') == '') ? 999999 : (int) $request->post('show_limit');
-                $offset = ($page - 1) * $show_limit_val;
+                $pag = \OwnPay\Service\PaginationService::resolve($request->post('page', 1), $request->post('show_limit'));
+                $page = $pag['page'];
+                $show_limit_val = $pag['perPage'];
+                $offset = $pag['offset'];
 
                 $sql_query = '';
 
@@ -75,20 +77,20 @@ class SmsDataController
                 }
 
                 $sql_limit = '';
-                if ($show_limit == 'all') {
+                if ($pag['isAll']) {
 
                 } else {
-                    $sql_limit = " LIMIT $offset, $show_limit";
+                    $sql_limit = " LIMIT $offset, $show_limit_val";
                 }
 
-                $response_result = json_decode(getData($db_prefix . 'sms_data', ' WHERE ' . $where_sql . ' device_id NOT IN (:zero_device) AND status NOT IN (:error_status) ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_sms), true);
+                $response_result = CrudService::select($db_prefix . 'sms_data', ' WHERE ' . $where_sql . ' device_id NOT IN (:zero_device) AND status NOT IN (:error_status) ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_sms);
                 if ($response_result['status'] == true) {
                     $response = [];
 
                     foreach ($response_result['response'] as $row) {
                         $device_name = '';
                         $params_dev = [':device_id' => $row['device_id']];
-                        $response_device = json_decode(getData($db_prefix . 'device', ' WHERE device_id = :device_id', '* FROM', $params_dev), true);
+                        $response_device = CrudService::select($db_prefix . 'device', ' WHERE device_id = :device_id', '* FROM', $params_dev);
                         if ($response_device['status'] == true) {
                             $device_name = $response_device['response'][0]['name'];
                         }
@@ -107,56 +109,24 @@ class SmsDataController
                             "id" => $row['id'],
                             "device" => $device_name,
                             "payment_method" => $payment_method,
-                            "type" => ($row['type'] === '--') ? '' : $row['type'],
-                            "mobileNumber" => ($row['number'] === '--') ? '' : $row['number'],
-                            "transaction_id" => ($row['trx_id'] === '--') ? '' : $row['trx_id'],
-                            "amount" => ($row['currency'] === '--') ? '' : $row['currency'] . ' ' . money_round($row['amount'], 2),
-                            "balance" => ($row['currency'] === '--') ? '' : $row['currency'] . ' ' . money_round($row['balance'], 2),
+                            "type" => $row['type'] ?? '',
+                            "mobileNumber" => $row['number'] ?? '',
+                            "transaction_id" => $row['trx_id'] ?? '',
+                            "amount" => empty($row['currency']) ? '' : $row['currency'] . ' ' . money_round($row['amount'], 2),
+                            "balance" => empty($row['currency']) ? '' : $row['currency'] . ' ' . money_round($row['balance'], 2),
                             "status" => $row['status'],
-                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                            "created_date" => convertUTCtoUserTZ($row['created_date'], (empty($global_response_brand['response'][0]['timezone'])) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], (empty($global_response_brand['response'][0]['timezone'])) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                         ];
                     }
 
-                    $count_data = json_decode(getData($db_prefix . 'sms_data', ' WHERE ' . $where_sql . ' device_id NOT IN (:zero_device) AND status NOT IN (:error_status) ' . $sql_query, '* FROM', $params_sms), true);
+                    $count_data = CrudService::select($db_prefix . 'sms_data', ' WHERE ' . $where_sql . ' device_id NOT IN (:zero_device) AND status NOT IN (:error_status) ' . $sql_query, '* FROM', $params_sms);
 
 
                     $total_records = count($count_data['response'] ?? []);
-                    $total_pages = ceil($total_records / $show_limit);
-
-                    $pagination = '<ul class="pagination m-0 ms-auto">';
-
-                    // Prev button
-                    $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M15 6l-6 6l6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    // Page numbers
-                    for ($i = 1; $i <= $total_pages; $i++) {
-                        $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                                <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                            </li>';
-                    }
-
-                    // Next button
-                    $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M9 6l6 6l-6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    $pagination .= '</ul>';
-
-                    $start = ($offset + 1);
-                    $end = min($offset + $show_limit, $total_records);
-
-                    $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+                    $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit_val, $offset);
+                    $pagination = $pagHtml['pagination'];
+                    $datatableInfo = $pagHtml['datatableInfo'];
 
                     echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
                 } else {
@@ -170,27 +140,22 @@ class SmsDataController
 
         if ($action == "sms-data-delete") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'sms_data') || !PermissionGuard::has($ctx, 'sms_data', 'delete')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
 
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'delete', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                $request = \AnirbanPay\Http\Request::createFromGlobals();
+                $request = \OwnPay\Http\Request::createFromGlobals();
 
                 $ItemID = $request->post('ItemID', '');
                 $params_item = [':id' => $ItemID];
 
-                $response_brand = json_decode(getData($db_prefix . 'sms_data', 'WHERE id = :id', '* FROM', $params_item), true);
+                $response_brand = CrudService::select($db_prefix . 'sms_data', 'WHERE id = :id', '* FROM', $params_item);
                 if ($response_brand['status'] == true) {
                     $condition = "id = :id";
                     $whereParams = [':id' => $ItemID];
 
-                    deleteData($db_prefix . 'sms_data', $condition, $whereParams);
+                    CrudService::delete($db_prefix . 'sms_data', $condition, $whereParams);
                 }
 
                 echo json_encode(['status' => 'true', 'title' => 'SMS Data Deleted', 'message' => 'The selected sms data have been deleted successfully.', 'csrf_token' => $new_csrf_token]);
@@ -201,12 +166,12 @@ class SmsDataController
 
         if ($action == "sms-data-bulk-action") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'sms_data')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
 
-                $request = \AnirbanPay\Http\Request::createFromGlobals();
+                $request = \OwnPay\Http\Request::createFromGlobals();
 
                 $actionID = $request->post('actionID', '');
                 $selected_ids_json = $request->post('selected_ids', '[]');
@@ -214,31 +179,31 @@ class SmsDataController
 
                 if (!empty($selected_ids)) {
                     foreach ($selected_ids as $id) {
-                        $itemID = escape_string($id);
+                        $itemID = InputSanitizer::trim($id);
                         $params_item = [':id' => $itemID];
 
-                        $response_brand = json_decode(getData($db_prefix . 'sms_data', 'WHERE id = :id', '* FROM', $params_item), true);
+                        $response_brand = CrudService::select($db_prefix . 'sms_data', 'WHERE id = :id', '* FROM', $params_item);
                         if ($response_brand['status'] == true) {
                             if ($actionID == "deleted") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'delete', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'sms_data', 'delete')) {
 
                                     $condition = "id = :id";
                                     $whereParams = [':id' => $itemID];
 
-                                    deleteData($db_prefix . 'sms_data', $condition, $whereParams);
+                                    CrudService::delete($db_prefix . 'sms_data', $condition, $whereParams);
 
                                 }
                             }
 
                             if ($actionID !== "deleted") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'sms_data', 'edit')) {
 
                                     $columns = ['status', 'updated_date'];
                                     $values = [$actionID, getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = "id = :id";
                                     $whereParams = [':id' => $itemID];
 
-                                    updateData($db_prefix . 'sms_data', $columns, $values, $condition, $whereParams);
+                                    CrudService::update($db_prefix . 'sms_data', $columns, $values, $condition, $whereParams);
 
                                 }
                             }
@@ -258,17 +223,12 @@ class SmsDataController
 
         if ($action == "sms-data-create") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'sms_data') || !PermissionGuard::has($ctx, 'sms_data', 'create')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
 
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'create', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                $request = \AnirbanPay\Http\Request::createFromGlobals();
+                $request = \OwnPay\Http\Request::createFromGlobals();
 
                 $device_id = $request->post('device', '');
                 $entry_type = $request->post('entry_type', '');
@@ -295,11 +255,11 @@ class SmsDataController
                                 echo json_encode(['status' => "false", 'title' => 'Invalid or unknown MFS message', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
                                 exit();
                             } else {
-                                $type = escape_string($result['type'] ?? '');
-                                $amount = escape_string($result['amount'] ?? '');
-                                $balance = escape_string($result['balance'] ?? '');
-                                $phone_number = escape_string($result['sender'] ?? '');
-                                $transaction_id = escape_string($result['trxid'] ?? '');
+                                $type = InputSanitizer::trim($result['type'] ?? '');
+                                $amount = InputSanitizer::trim($result['amount'] ?? '');
+                                $balance = InputSanitizer::trim($result['balance'] ?? '');
+                                $phone_number = InputSanitizer::trim($result['sender'] ?? '');
+                                $transaction_id = InputSanitizer::trim($result['trxid'] ?? '');
 
                                 if ($type == "" || $amount == "" || $phone_number == "" || $transaction_id == "") {
                                     echo json_encode(['status' => "false", 'title' => 'Invalid or unknown MFS message', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
@@ -307,10 +267,10 @@ class SmsDataController
                                 }
                                 $params = [':sender_key' => $sender_key, ':trx_id' => $transaction_id];
 
-                                $response = json_decode(getData($db_prefix . 'sms_data', 'WHERE sender_key = :sender_key AND trx_id = :trx_id', '* FROM', $params), true);
+                                $response = CrudService::select($db_prefix . 'sms_data', 'WHERE sender_key = :sender_key AND trx_id = :trx_id', '* FROM', $params);
                                 if ($response['status'] == false) {
                                     if ($device_id == "") {
-                                        $device_id = '--';
+                                        $device_id = null;
                                     }
 
                                     /*$response_balance_verification = json_decode(getData($db_prefix.'balance_verification','WHERE device_id ="'.$device_id.'" AND sender_key = "'.$sender_key.'" AND payment_type = "'.$type.'"'),true);
@@ -319,7 +279,7 @@ class SmsDataController
 
                                         $columns = ['current_balance', 'updated_date'];
                                         $values = [$balance, getCurrentDatetime('Y-m-d H:i:s')];
-                                        $condition = "id = '".$response_balance_verification['response'][0]['id']."'"; 
+                                        $condition = "id = '".$response_balance_verification['response'][0]['id']."'";
 
                                         updateData($db_prefix.'balance_verification', $columns, $values, $condition);
                                     }*/
@@ -327,7 +287,7 @@ class SmsDataController
                                     $columns = ['device_id', 'sender_key', 'number', 'amount', 'currency', 'trx_id', 'balance', 'type', 'entry_type', 'status', 'message', 'created_date', 'updated_date'];
                                     $values = [$device_id, $sender_key, $phone_number, money_sanitize($amount), $currency, $transaction_id, money_sanitize($balance), $type, $entry_type, $status, $message, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                                    insertData($db_prefix . 'sms_data', $columns, $values);
+                                    CrudService::insert($db_prefix . 'sms_data', $columns, $values);
 
                                     echo json_encode(['status' => 'true', 'title' => 'SMS Data Created', 'message' => 'The sms data has been created successfully.' . $amount, 'csrf_token' => $new_csrf_token]);
                                 } else {
@@ -342,10 +302,10 @@ class SmsDataController
                         } else {
                             $params = [':sender_key' => $sender_key, ':trx_id' => $transaction_id];
 
-                            $response = json_decode(getData($db_prefix . 'sms_data', 'WHERE sender_key = :sender_key AND trx_id = :trx_id', '* FROM', $params), true);
+                            $response = CrudService::select($db_prefix . 'sms_data', 'WHERE sender_key = :sender_key AND trx_id = :trx_id', '* FROM', $params);
                             if ($response['status'] == false) {
                                 if ($device_id == "") {
-                                    $device_id = '--';
+                                    $device_id = null;
                                 }
 
                                 $balance = 0;
@@ -356,7 +316,7 @@ class SmsDataController
 
                                     $columns = ['current_balance', 'updated_date'];
                                     $values = [$balance, getCurrentDatetime('Y-m-d H:i:s')];
-                                    $condition = "id = '".$response_balance_verification['response'][0]['id']."'"; 
+                                    $condition = "id = '".$response_balance_verification['response'][0]['id']."'";
 
                                     updateData($db_prefix.'balance_verification', $columns, $values, $condition);
                                 }*/
@@ -364,7 +324,7 @@ class SmsDataController
                                 $columns = ['device_name', 'sender_key', 'number', 'amount', 'currency', 'trx_id', 'balance', 'type', 'entry_type', 'status', 'message', 'created_date', 'updated_date'];
                                 $values = [$device, $sender_key, $phone_number, money_sanitize($amount), $currency, $transaction_id, money_sanitize($balance), $type, $entry_type, $status, $message, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                                insertData($db_prefix . 'sms_data', $columns, $values);
+                                CrudService::insert($db_prefix . 'sms_data', $columns, $values);
 
                                 echo json_encode(['status' => 'true', 'title' => 'SMS Data Created', 'message' => 'The sms data has been created successfully.', 'csrf_token' => $new_csrf_token]);
                             } else {
@@ -380,21 +340,16 @@ class SmsDataController
 
         if ($action == "sms-data-info-byID") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'sms_data') || !PermissionGuard::has($ctx, 'sms_data', 'edit')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
 
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                $request = \AnirbanPay\Http\Request::createFromGlobals();
+                $request = \OwnPay\Http\Request::createFromGlobals();
 
                 $ItemID = $request->post('ItemID', '');
 
-                $response_brand = json_decode(getData($db_prefix . 'sms_data', 'WHERE id = :id', '* FROM', [':id' => $ItemID]), true);
+                $response_brand = CrudService::select($db_prefix . 'sms_data', 'WHERE id = :id', '* FROM', [':id' => $ItemID]);
                 if ($response_brand['status'] == true) {
                     echo json_encode(['status' => 'true', 'device_id' => $response_brand['response'][0]['device_id'], 'sender_key' => $response_brand['response'][0]['sender_key'], 'number' => $response_brand['response'][0]['number'], 'amount' => money_round($response_brand['response'][0]['amount'], 2), 'currency' => $response_brand['response'][0]['currency'], 'trx_id' => $response_brand['response'][0]['trx_id'], 'balance' => money_round($response_brand['response'][0]['balance'], 2), 'message' => $response_brand['response'][0]['message'], 'type' => $response_brand['response'][0]['type'], 'entry_type' => $response_brand['response'][0]['entry_type'], 'istatus' => $response_brand['response'][0]['status'], 'reason' => $response_brand['response'][0]['reason'], 'csrf_token' => $new_csrf_token]);
                 } else {
@@ -407,17 +362,12 @@ class SmsDataController
 
         if ($action == "sms-data-edit") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'sms_data') || !PermissionGuard::has($ctx, 'sms_data', 'edit')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
 
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                $request = \AnirbanPay\Http\Request::createFromGlobals();
+                $request = \OwnPay\Http\Request::createFromGlobals();
 
                 $itemid = $request->post('itemid', '');
                 $device_id = $request->post('device', '');
@@ -430,7 +380,7 @@ class SmsDataController
                 $transaction_id = $request->post('transaction_id', '');
                 $currency = $request->post('currency', '');
 
-                $responseV = json_decode(getData($db_prefix . 'sms_data', 'WHERE id = :id', '* FROM', [':id' => $itemid]), true);
+                $responseV = CrudService::select($db_prefix . 'sms_data', 'WHERE id = :id', '* FROM', [':id' => $itemid]);
                 if ($responseV['status'] == false) {
                     echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
                     exit();
@@ -452,11 +402,11 @@ class SmsDataController
                                 echo json_encode(['status' => "false", 'title' => 'Invalid or unknown MFS message', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
                                 exit();
                             } else {
-                                $type = escape_string($result['type'] ?? '');
-                                $amount = escape_string($result['amount'] ?? '');
-                                $balance = escape_string($result['balance'] ?? '');
-                                $phone_number = escape_string($result['sender'] ?? '');
-                                $transaction_id = escape_string($result['trxid'] ?? '');
+                                $type = InputSanitizer::trim($result['type'] ?? '');
+                                $amount = InputSanitizer::trim($result['amount'] ?? '');
+                                $balance = InputSanitizer::trim($result['balance'] ?? '');
+                                $phone_number = InputSanitizer::trim($result['sender'] ?? '');
+                                $transaction_id = InputSanitizer::trim($result['trxid'] ?? '');
 
                                 if ($type == "" || $amount == "" || $phone_number == "" || $transaction_id == "") {
                                     echo json_encode(['status' => "false", 'title' => 'Invalid or unknown MFS message', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
@@ -465,7 +415,7 @@ class SmsDataController
 
                                 $params = [':sender_key' => $sender_key, ':trx_id' => $transaction_id];
 
-                                $response = json_decode(getData($db_prefix . 'sms_data', 'WHERE sender_key = :sender_key AND trx_id = :trx_id', '* FROM', $params), true);
+                                $response = CrudService::select($db_prefix . 'sms_data', 'WHERE sender_key = :sender_key AND trx_id = :trx_id', '* FROM', $params);
                                 if ($response['status'] == false) {
                                     if ($response['response'][0]['id'] == $itemid) {
 
@@ -476,7 +426,7 @@ class SmsDataController
                                 }
 
                                 if ($device_id == "") {
-                                    $device_id = '--';
+                                    $device_id = null;
                                 }
 
                                 /*$response_balance_verification = json_decode(getData($db_prefix.'balance_verification','WHERE device_id ="'.$device_id.'" AND sender_key = "'.$sender_key.'" AND payment_type = "'.$type.'"'),true);
@@ -485,7 +435,7 @@ class SmsDataController
 
                                     $columns = ['current_balance', 'updated_date'];
                                     $values = [$balance, getCurrentDatetime('Y-m-d H:i:s')];
-                                    $condition = "id = '".$response_balance_verification['response'][0]['id']."'"; 
+                                    $condition = "id = '".$response_balance_verification['response'][0]['id']."'";
 
                                     updateData($db_prefix.'balance_verification', $columns, $values, $condition);
                                 }*/
@@ -496,7 +446,7 @@ class SmsDataController
                                 $condition = "id = :id";
                                 $whereParams = [':id' => $itemid];
 
-                                updateData($db_prefix . 'sms_data', $columns, $values, $condition, $whereParams);
+                                CrudService::update($db_prefix . 'sms_data', $columns, $values, $condition, $whereParams);
 
                                 echo json_encode(['status' => 'true', 'title' => 'SMS Data Updated', 'message' => 'The sms data has been updated successfully.', 'csrf_token' => $new_csrf_token]);
                             }
@@ -508,7 +458,7 @@ class SmsDataController
                         } else {
                             $params = [':sender_key' => $sender_key, ':trx_id' => $transaction_id];
 
-                            $response = json_decode(getData($db_prefix . 'sms_data', 'WHERE sender_key = :sender_key AND trx_id = :trx_id', '* FROM', $params), true);
+                            $response = CrudService::select($db_prefix . 'sms_data', 'WHERE sender_key = :sender_key AND trx_id = :trx_id', '* FROM', $params);
                             if ($response['status'] == false) {
                                 if ($response['response'][0]['id'] == $itemid) {
 
@@ -519,7 +469,7 @@ class SmsDataController
                             }
 
                             if ($device_id == "") {
-                                $device_id = '--';
+                                $device_id = null;
                             }
 
                             $balance = 0;
@@ -530,7 +480,7 @@ class SmsDataController
 
                                 $columns = ['current_balance', 'updated_date'];
                                 $values = [$balance, getCurrentDatetime('Y-m-d H:i:s')];
-                                $condition = "id = '".$response_balance_verification['response'][0]['id']."'"; 
+                                $condition = "id = '".$response_balance_verification['response'][0]['id']."'";
 
                                 updateData($db_prefix.'balance_verification', $columns, $values, $condition);
                             }*/
@@ -541,7 +491,7 @@ class SmsDataController
                             $condition = "id = :id";
                             $whereParams = [':id' => $itemid];
 
-                            updateData($db_prefix . 'sms_data', $columns, $values, $condition, $whereParams);
+                            CrudService::update($db_prefix . 'sms_data', $columns, $values, $condition, $whereParams);
 
                             echo json_encode(['status' => 'true', 'title' => 'SMS Data Updated', 'message' => 'The sms data has been updated successfully.', 'csrf_token' => $new_csrf_token]);
                         }

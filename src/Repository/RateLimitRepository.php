@@ -2,15 +2,20 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
-use AnirbanPay\Core\Database;
+use OwnPay\Core\Database;
 
 /**
  * DB-backed sliding window storage for rate limiting.
  *
- * Uses ap_rate_limits table. If the table doesn't exist,
+ * Uses op_rate_limits table. If the table doesn't exist,
  * gracefully degrades (rate limiting disabled).
+ *
+ * NOTE: TenantScope is declared for interface consistency but is NOT
+ * applied in queries because the op_rate_limits table is keyed by
+ * rate_key (which already encodes the tenant context, e.g. "api_key:123")
+ * and has no merchant_id column.
  */
 final class RateLimitRepository
 {
@@ -38,14 +43,14 @@ final class RateLimitRepository
         try {
             // Insert the hit
             $stmt = $pdo->prepare("
-                INSERT INTO ap_rate_limits (rate_key, hit_at)
+                INSERT INTO op_rate_limits (rate_key, hit_at)
                 VALUES (:rk, NOW(6))
             ");
             $stmt->execute([':rk' => $key]);
 
             // Count hits in current window
             $countStmt = $pdo->prepare("
-                SELECT COUNT(*) FROM ap_rate_limits
+                SELECT COUNT(*) FROM op_rate_limits
                 WHERE rate_key = :rk AND hit_at >= :ws
             ");
             $countStmt->execute([':rk' => $key, ':ws' => $windowStart]);
@@ -68,7 +73,7 @@ final class RateLimitRepository
 
         try {
             $stmt = $pdo->prepare("
-                SELECT COUNT(*) FROM ap_rate_limits
+                SELECT COUNT(*) FROM op_rate_limits
                 WHERE rate_key = :rk AND hit_at >= :ws
             ");
             $stmt->execute([':rk' => $key, ':ws' => $windowStart]);
@@ -90,7 +95,7 @@ final class RateLimitRepository
         $cutoff = date('Y-m-d H:i:s', time() - $olderThanSec);
 
         try {
-            $stmt = $pdo->prepare("DELETE FROM ap_rate_limits WHERE hit_at < :cutoff");
+            $stmt = $pdo->prepare("DELETE FROM op_rate_limits WHERE hit_at < :cutoff");
             $stmt->execute([':cutoff' => $cutoff]);
             return $stmt->rowCount();
         } catch (\PDOException $e) {

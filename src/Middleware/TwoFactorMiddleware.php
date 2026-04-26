@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Middleware;
+namespace OwnPay\Middleware;
 
-use AnirbanPay\Security\Authenticator;
+use OwnPay\Security\Authenticator;
 
 /**
  * Extracts 2FA verification logic from adapter.php (lines 466-488).
@@ -31,30 +31,30 @@ final class TwoFactorMiddleware
 
         if ($twoFaEnabled) {
             $secret = $user['2fa_secret'] ?? '';
-            if (empty($secret) || $secret === '--' || $secret === null) {
+            if (empty($secret)) {
                 return ['verified' => false, 'error' => '2FA not configured'];
             }
 
+            // F6: replay-guarded TOTP — same window cannot be reused
             $ga = new Authenticator();
-            if ($ga->verifyCode($secret, $code, 2)) {
-                return ['verified' => true, 'error' => null];
+            $matched = $ga->verifyCodeWithReplayGuard(
+                $secret,
+                $code,
+                (int) ($user['last_otp_window'] ?? 0),
+                2
+            );
+            if ($matched > 0) {
+                return ['verified' => true, 'error' => null, 'matched_window' => $matched];
             }
 
             return [
                 'verified' => false,
-                'error' => 'The code you entered is incorrect. Please try again.',
+                'error'    => 'The code you entered is incorrect or has already been used. Please try again.',
             ];
         }
 
-        // Fallback: password verification when 2FA is disabled
-        $hash = $user['password'] ?? '';
-        if (password_verify($code, $hash)) {
-            return ['verified' => true, 'error' => null];
-        }
-
-        return [
-            'verified' => false,
-            'error' => 'The password you entered is incorrect. Please try again.',
-        ];
+        // 2FA is not enabled for this user — no TOTP gate to enforce.
+        // Do NOT fall back to password verification (would silently downgrade 2FA).
+        return ['verified' => true, 'error' => null];
     }
 }

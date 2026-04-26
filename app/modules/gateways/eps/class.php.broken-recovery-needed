@@ -1,0 +1,406 @@
+<?php
+
+declare(strict_types=1);
+
+use OwnPay\Gateway\GatewayAdapterInterface;
+use OwnPay\Gateway\GatewayDefaults;
+
+class EpsGateway implements GatewayAdapterInterface
+{
+    use GatewayDefaults;
+        public function info(): array
+    {
+            return [
+                'title'       => 'EPS Gateway',
+                'logo'        => 'assets/logo.jpg',
+                'currency'        => 'BDT',
+                'tab'        => 'mfs',
+
+                'gateway_type'        => 'api',
+            ];
+        }
+
+        public function color(): array
+    {
+            return [
+                'primary_color'        => '#ee2d42',
+                'text_color'        => '#FFFFFF',
+                'btn_color'        => '#ee2d42',
+                'btn_text_color'        => '#FFFFFF',
+            ];
+        }
+
+        public function fields(): array
+    {
+            return [
+                [
+                    'name'  => 'merchant_id',
+                    'label' => 'Merchant ID',
+                    'type'  => 'text',
+                ],
+                [
+                    'name'  => 'store_id',
+                    'label' => 'Store id',
+                    'type'  => 'text',
+                ],
+                [
+                    'name'  => 'username',
+                    'label' => 'Username',
+                    'type'  => 'text',
+                ],
+                [
+                    'name'  => 'password',
+                    'label' => 'Password',
+                    'type'  => 'text',
+                ],
+                [
+                    'name'  => 'hashkey',
+                    'label' => 'Hash key',
+                    'type'  => 'text',
+                ],
+                [
+                    'name'  => 'mode',
+                    'label' => 'Mode',
+                    'type'  => 'select',
+                    'options' => [
+                        'live'  => 'Live',
+                        'sandbox' => 'Sandbox',
+                    ],
+                    'value' => 'live',
+                    'required' => true,
+                    'multiple' => false,
+                ],
+            ];
+        }
+
+        public function process_payment(array $data = []): void
+    {
+            echo '<center><div class="spinner-border text-primary m-3 loading-123412341234" role="status"><span class="visually-hidden">Loading...</span></div></center>';
+
+            $base_url = (($data['options']['mode'] ?? 'sandbox') === 'live') ? 'https://pgapi.eps.com.bd' : 'https://sandboxpgapi.eps.com.bd';
+
+            $x_hash = base64_encode( hash_hmac( 'sha512', $data['options']['username'] ?? '', $data['options']['hashkey'] ?? '', true ));
+
+            $ch = curl_init($base_url . '/v1/Auth/GetToken');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'x-hash: ' . $x_hash
+                ],
+                CURLOPT_POSTFIELDS => json_encode([
+                    'userName' => $data['options']['username'] ?? '',
+                    'password' => $data['options']['password'] ?? ''
+                ])
+            ]);
+            
+            $response = curl_exec($ch);
+            curl_close($ch);
+
+            $tokenData = json_decode($response, true);
+            
+            if (empty($tokenData['token'])) {
+                echo "<center>EPS Token Error</center> <style>.loading-123412341234{display: none;}</style>";
+                exit();
+            }
+            
+            $token = $tokenData['token'];
+        
+            $merchantTransactionId = time() . rand(1000, 9999);
+            $x_hash = base64_encode( hash_hmac( 'sha512', $merchantTransactionId, $data['options']['hashkey'] ?? '', true ));
+
+            $payload = [
+                'merchantId' => $data['options']['merchant_id'] ?? '',
+                'storeId' => $data['options']['store_id'] ?? '',
+                'CustomerOrderId' => (string) $merchantTransactionId,
+                'merchantTransactionId' => $merchantTransactionId,
+                'transactionTypeId' => 1, // Web
+                'totalAmount' => $data['transaction']['local_net_amount'],
+                'successUrl' => op_callback_url(),
+                'failUrl' => op_checkout_address(),
+                'cancelUrl' => op_checkout_address(),
+                'customerName' => trim($data['transaction']['customer']['name']),
+                'customerEmail' => $data['transaction']['customer']['email'],
+                'customerAddress' => 'N/A',
+                'customerCity' => 'N/A',
+                'customerState' => 'N/A',
+                'customerPostcode' => '0000',
+                'customerCountry' => 'BD',
+                'customerPhone' => $data['transaction']['customer']['mobile'],
+                'productName' => 'Digital Products',
+                'ValueA' => (string) $data['transaction']['ref']
+            ];
+
+            $ch = curl_init($base_url . '/v1/EPSEngine/InitializeEPS');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'Authorization: Bearer ' . $token,
+                    'x-hash: ' . $x_hash
+                ],
+                CURLOPT_POSTFIELDS => json_encode($payload)
+            ]);
+            
+            $response = curl_exec($ch);
+            curl_close($ch);
+
+            $initData = json_decode($response, true);
+            
+            if (empty($initData['RedirectURL'])) {
+                echo "<center>EPS Initialize Error</center> <style>.loading-123412341234{display: none;}</style>";
+                exit();
+            }
+            
+            $redirectUrl = $initData['RedirectURL'];
+            
+            echo '<script nonce="' . ($csp_nonce ?? '') . '">location.href="' . $redirectUrl . '";</script>';
+        }
+
+        public function callback(array $data = []): void
+    {
+            echo '<center><div class="spinner-border text-primary m-3 loading-123412341234" role="status"><span class="visually-hidden">Loading...</span></div></center>';
+
+            $base_url = (($data['options']['mode'] ?? 'sandbox') === 'live') ? 'https://pgapi.eps.com.bd' : 'https://sandboxpgapi.eps.com.bd';
+
+            $merchantTransactionId = $_GET['MerchantTransactionId'] ?? '';
+            $epsTransactionId = $_GET['EPSTransactionId'] ?? '';
+            
+            if (!$merchantTransactionId && !$epsTransactionId) {
+                echo "<center>Invalid EPS response</center> <style>.loading-123412341234{display: none;}</style>";
+                exit();
+            }
+
+            $x_hash = base64_encode( hash_hmac( 'sha512', $data['options']['username'] ?? '', $data['options']['hashkey'] ?? '', true ));
+            
+            $ch = curl_init($base_url . '/v1/Auth/GetToken');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'x-hash: ' . $x_hash
+                ],
+                CURLOPT_POSTFIELDS => json_encode([
+                    'userName' => $data['options']['username'] ?? '',
+                    'password' => $data['options']['password'] ?? ''
+                ])
+            ]);
+            
+            $response = curl_exec($ch);
+            curl_close($ch);
+
+            $tokenData = json_decode($response, true);
+            
+            if (empty($tokenData['token'])) {
+                echo "<center>EPS Token Error</center> <style>.loading-123412341234{display: none;}</style>";
+                exit();
+            }
+            
+            $token = $tokenData['token'];
+
+            $url = $base_url . '/v1/EPSEngine/CheckMerchantTransactionStatus'. '?merchantTransactionId=' . urlencode($merchantTransactionId). '&EPSTransactionId=' . urlencode($epsTransactionId);
+            
+            $x_hash = base64_encode( hash_hmac( 'sha512', $merchantTransactionId, $data['options']['hashkey'] ?? '', true ));
+
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $token,
+                    'x-hash: ' . $x_hash
+                ]
+            ]);
+            
+            $response = curl_exec($ch);
+            curl_close($ch);
+
+            $resdata = json_decode($response, true);
+            
+            $ValueA = $resdata['ValueA'];
+
+            if (isset($resdata['Status']) && $resdata['Status'] === 'Success') {
+                if($ValueA == $data['transaction']['ref']){
+                    $moreinfo = [
+                        [
+                            'label' => 'EPS TransactionId',
+                            'value' => $resdata['EPSTransactionId']
+                        ],
+                        [
+                            'label' => 'Financial Entity',
+                            'value' => $resdata['FinancialEntity']
+                        ]
+                    ];
+
+                    op_set_transaction_status($data['transaction']['ref'], 'completed', $data['gateway']['gateway_id'], $resdata['MerchantTransactionId'], $moreinfo);
+
+                   echo '<script nonce="' . ($csp_nonce ?? '') . '">location.reload();</script>';
+                }else{
+                    echo '
+                    <center>
+                        <div class="alert alert-important alert-danger alert-dismissible" role="alert" style=" text-align: left; ">
+                        <div class="alert-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon alert-icon icon-2">
+                            <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path>
+                            <path d="M12 8v4"></path>
+                            <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="alert-heading">Payment Verification Failed</h4>
+                            <div class="alert-description">
+                                <p class="m-0">The transaction could not be verified with the payment provider.</p>
+                                <hr class="m-2">
+                                <p class="m-0">Reason: <strong>Invalid transaction.</strong></p>
+                            </div>
+                        </div>
+                        </div>
+                    </center> <style>.loading-123412341234{display: none;}</style>';
+                }
+            } else {
+                echo '
+                <center>
+                    <div class="alert alert-important alert-danger alert-dismissible" role="alert" style=" text-align: left; ">
+                      <div class="alert-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon alert-icon icon-2">
+                          <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path>
+                          <path d="M12 8v4"></path>
+                          <path d="M12 16h.01"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 class="alert-heading">Payment Verification Failed</h4>
+                        <div class="alert-description">
+                            <p class="m-0">The transaction could not be verified with the payment provider.</p>
+                            <hr class="m-2">
+                            <p class="m-0">Reason: <strong>Invalid transaction.</strong></p>
+                        </div>
+                      </div>
+                    </div>
+                </center> <style>.loading-123412341234{display: none;}</style>';
+            }
+        }
+    }
+
+
+GET['EPSTransactionId'] ?? '');
+            
+            if (!$merchantTransactionId && !$epsTransactionId) {
+                echo "<center>Invalid EPS response</center> <style>.loading-123412341234{display: none;}</style>";
+                exit();
+            }
+
+            $x_hash = base64_encode( hash_hmac( 'sha512', $data['options']['username'] ?? '', $data['options']['hashkey'] ?? '', true ));
+            
+            $ch = curl_init($base_url . '/v1/Auth/GetToken');
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST => true,
+                CURLOPT_HTTPHEADER => [
+                    'Content-Type: application/json',
+                    'x-hash: ' . $x_hash
+                ],
+                CURLOPT_POSTFIELDS => json_encode([
+                    'userName' => $data['options']['username'] ?? '',
+                    'password' => $data['options']['password'] ?? ''
+                ])
+            ]);
+            
+            $response = curl_exec($ch);
+            curl_close($ch);
+
+            $tokenData = json_decode($response, true);
+            
+            if (empty($tokenData['token'])) {
+                echo "<center>EPS Token Error</center> <style>.loading-123412341234{display: none;}</style>";
+                exit();
+            }
+            
+            $token = $tokenData['token'];
+
+            $url = $base_url . '/v1/EPSEngine/CheckMerchantTransactionStatus'. '?merchantTransactionId=' . urlencode($merchantTransactionId). '&EPSTransactionId=' . urlencode($epsTransactionId);
+            
+            $x_hash = base64_encode( hash_hmac( 'sha512', $merchantTransactionId, $data['options']['hashkey'] ?? '', true ));
+
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_HTTPHEADER => [
+                    'Authorization: Bearer ' . $token,
+                    'x-hash: ' . $x_hash
+                ]
+            ]);
+            
+            $response = curl_exec($ch);
+            curl_close($ch);
+
+            $resdata = json_decode($response, true);
+            
+            $ValueA = $resdata['ValueA'];
+
+            if (isset($resdata['Status']) && $resdata['Status'] === 'Success') {
+                if($ValueA == $data['transaction']['ref']){
+                    $moreinfo = [
+                        [
+                            'label' => 'EPS TransactionId',
+                            'value' => $resdata['EPSTransactionId']
+                        ],
+                        [
+                            'label' => 'Financial Entity',
+                            'value' => $resdata['FinancialEntity']
+                        ]
+                    ];
+
+                    op_set_transaction_status($data['transaction']['ref'], 'completed', $data['gateway']['gateway_id'], $resdata['MerchantTransactionId'], $moreinfo);
+
+                   echo '<script nonce="' . ($csp_nonce ?? '') . '">location.reload();</script>';
+                }else{
+                    echo '
+                    <center>
+                        <div class="alert alert-important alert-danger alert-dismissible" role="alert" style=" text-align: left; ">
+                        <div class="alert-icon">
+                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon alert-icon icon-2">
+                            <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path>
+                            <path d="M12 8v4"></path>
+                            <path d="M12 16h.01"></path>
+                            </svg>
+                        </div>
+                        <div>
+                            <h4 class="alert-heading">Payment Verification Failed</h4>
+                            <div class="alert-description">
+                                <p class="m-0">The transaction could not be verified with the payment provider.</p>
+                                <hr class="m-2">
+                                <p class="m-0">Reason: <strong>Invalid transaction.</strong></p>
+                            </div>
+                        </div>
+                        </div>
+                    </center> <style>.loading-123412341234{display: none;}</style>';
+                }
+            } else {
+                echo '
+                <center>
+                    <div class="alert alert-important alert-danger alert-dismissible" role="alert" style=" text-align: left; ">
+                      <div class="alert-icon">
+                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon alert-icon icon-2">
+                          <path d="M3 12a9 9 0 1 0 18 0a9 9 0 0 0 -18 0"></path>
+                          <path d="M12 8v4"></path>
+                          <path d="M12 16h.01"></path>
+                        </svg>
+                      </div>
+                      <div>
+                        <h4 class="alert-heading">Payment Verification Failed</h4>
+                        <div class="alert-description">
+                            <p class="m-0">The transaction could not be verified with the payment provider.</p>
+                            <hr class="m-2">
+                            <p class="m-0">Reason: <strong>Invalid transaction.</strong></p>
+                        </div>
+                      </div>
+                    </div>
+                </center> <style>.loading-123412341234{display: none;}</style>';
+            }
+        }
+    }
+
+

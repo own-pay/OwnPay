@@ -3,14 +3,18 @@
     Options -Indexes
 
     # Block sensitive system files
-    RewriteRule ^(\.git|\.env|\.env\..+|ap-config\.php|composer\.json|composer\.lock|README\.md)$ - [F,L,NC]
+    RewriteRule ^(\.git|\.env|\.env\..+|op-config\.php|op-temp-config\.php|composer\.json|composer\.lock|README\.md)$ - [F,L,NC]
 
     # Block orphaned test/debug scripts (defense-in-depth)
     RewriteRule ^test_.*\.php$ - [F,L,NC]
     RewriteRule ^check_db\.php$ - [F,L,NC]
 
     # Block core source directories from public access
-    RewriteRule ^(app|src|errors|tests|vendor)/(.*)$ - [F,L,NC]
+    RewriteRule ^(app|src|errors|tests|vendor|migrations|storage)/(.*)$ - [F,L,NC]
+
+    # Explicitly block installer files and the .installed marker (defense in depth)
+    RewriteRule ^app/install(/.*)?$ - [F,L,NC]
+    RewriteRule ^\.installed$ - [F,L,NC]
 
     # Block direct PHP execution except index.php
     RewriteCond %{REQUEST_FILENAME} \.php$

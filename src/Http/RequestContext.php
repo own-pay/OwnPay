@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Http;
+namespace OwnPay\Http;
 
 /**
  * Immutable request context — replaces global variables in controllers.

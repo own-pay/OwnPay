@@ -2,21 +2,21 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
-use AnirbanPay\Core\UuidGenerator;
+use OwnPay\Core\UuidGenerator;
 
 /**
  * Repository for webhook system:
- *   - ap_webhooks (endpoint config)
- *   - ap_webhook_events (inbound event dedupe) — PARTITIONED
- *   - ap_webhook_delivery_logs (outbound delivery tracking)
+ *   - op_webhooks (endpoint config)
+ *   - op_webhook_events (inbound event dedupe) — PARTITIONED
+ *   - op_webhook_delivery_logs (outbound delivery tracking)
  */
 class WebhookRepository extends BaseRepository
 {
     use TenantScope;
 
-    protected string $table = 'ap_webhooks';
+    protected string $table = 'op_webhooks';
 
     // ─── Webhook Endpoints ───────────────────────────────────────────
 
@@ -25,16 +25,17 @@ class WebhookRepository extends BaseRepository
      */
     public function findEndpoints(int $merchantId, string $eventType): array
     {
+        $tc = $this->tenantCondition();
         // JSON_CONTAINS checks if the event_type is in the events JSON array
         return $this->db->fetchAll(
-            "SELECT * FROM `ap_webhooks`
+            "SELECT * FROM `op_webhooks`
              WHERE `merchant_id` = :mid
                AND `status` = 'active'
-               AND JSON_CONTAINS(`events`, :evt)",
-            [
+               AND JSON_CONTAINS(`events`, :evt){$tc}",
+            array_merge([
                 'mid' => $merchantId,
                 'evt' => json_encode($eventType),
-            ]
+            ], $this->tenantParams())
         );
     }
 
@@ -45,10 +46,11 @@ class WebhookRepository extends BaseRepository
      */
     public function eventExists(string $eventId): bool
     {
+        $tc = $this->tenantCondition();
         $row = $this->db->fetchOne(
-            "SELECT `id` FROM `ap_webhook_events`
-             WHERE `event_id` = :eid LIMIT 1",
-            ['eid' => $eventId]
+            "SELECT `id` FROM `op_webhook_events`
+             WHERE `event_id` = :eid{$tc} LIMIT 1",
+            array_merge(['eid' => $eventId], $this->tenantParams())
         );
         return $row !== null;
     }
@@ -66,7 +68,7 @@ class WebhookRepository extends BaseRepository
         $now = gmdate('Y-m-d H:i:s.u');
 
         $this->db->execute(
-            "INSERT INTO `ap_webhook_events`
+            "INSERT INTO `op_webhook_events`
              (`event_id`, `merchant_id`, `event_type`, `payload`,
               `source_ip`, `status`, `created_at`)
              VALUES (:eid, :mid, :et, :pl, :ip, 'received', :ca)",
@@ -103,7 +105,7 @@ class WebhookRepository extends BaseRepository
         $now = gmdate('Y-m-d H:i:s.u');
 
         $this->db->execute(
-            "INSERT INTO `ap_webhook_delivery_logs`
+            "INSERT INTO `op_webhook_delivery_logs`
              (`public_id`, `webhook_id`, `webhook_event_id`, `url`,
               `request_headers`, `request_body`, `http_status`,
               `response_body`, `attempt_number`, `success`,

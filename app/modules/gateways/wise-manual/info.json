@@ -1,0 +1,12 @@
+{
+    "name": "Wise Manual",
+    "slug": "wise-manual",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "Wise Manual payment gateway",
+    "tab": "global",
+    "currency": "USD",
+    "gateway_type": "manual"
+}

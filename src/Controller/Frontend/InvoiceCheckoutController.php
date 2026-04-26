@@ -1,8 +1,11 @@
 <?php
+declare(strict_types=1);
 
-namespace AnirbanPay\Controller\Frontend;
+namespace OwnPay\Controller\Frontend;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\EnvironmentService;
 
 class InvoiceCheckoutController
 {
@@ -30,11 +33,11 @@ class InvoiceCheckoutController
                         }
 
                         // 3️⃣ Access data (EXACT match to sender)
-                        $ap_id = $data['ap_id'] ?? null;
+                        $op_id = $data['op_id'] ?? null;
 
-                        $params = [':ref' => $ap_id];
+                        $params = [':ref' => $op_id];
 
-                        $response_transaction = json_decode(getData($db_prefix . 'transaction', 'WHERE ref = :ref', '* FROM', $params), true);
+                        $response_transaction = CrudService::select($db_prefix . 'transaction', 'WHERE ref = :ref', '* FROM', $params);
                         if ($response_transaction['status'] == true) {
 
                             $metadata_decode = json_decode($response_transaction['response'][0]['metadata'], true);
@@ -43,14 +46,14 @@ class InvoiceCheckoutController
 
                             $params = [':ref' => $invoiceIDD];
 
-                            $response_invoice = json_decode(getData($db_prefix . 'invoice', 'WHERE ref = :ref', '* FROM', $params), true);
+                            $response_invoice = CrudService::select($db_prefix . 'invoice', 'WHERE ref = :ref', '* FROM', $params);
                             if ($response_invoice['status'] == true) {
                                 if ($response_transaction['response'][0]['status'] == "completed") {
                                     $columns = ['gateway_id', 'status', 'updated_date'];
                                     $values = [$response_transaction['response'][0]['gateway_id'], 'paid', getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = 'id ="' . $response_invoice['response'][0]['id'] . '"';
 
-                                    updateData($db_prefix . 'invoice', $columns, $values, $condition);
+                                    CrudService::update($db_prefix . 'invoice', $columns, $values, $condition);
                                 }
 
                                 if ($response_transaction['response'][0]['status'] == "refunded") {
@@ -58,19 +61,19 @@ class InvoiceCheckoutController
                                     $values = [$response_transaction['response'][0]['gateway_id'], 'refunded', getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = 'id ="' . $response_invoice['response'][0]['id'] . '"';
 
-                                    updateData($db_prefix . 'invoice', $columns, $values, $condition);
+                                    CrudService::update($db_prefix . 'invoice', $columns, $values, $condition);
                                 }
 
                                 $params = [':ref' => $invoiceIDD];
 
-                                $response_invoice = json_decode(getData($db_prefix . 'invoice', 'WHERE ref = :ref', '* FROM', $params), true);
+                                $response_invoice = CrudService::select($db_prefix . 'invoice', 'WHERE ref = :ref', '* FROM', $params);
 
                                 $params = [':brand_id' => $response_invoice['response'][0]['brand_id']];
-                                $response_brand = json_decode(getData($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params), true);
+                                $response_brand = CrudService::select($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params);
 
                                 $invoice_items_array = [];
 
-                                $response_items = json_decode(getData($db_prefix . 'invoice_items', 'WHERE brand_id ="' . $response_invoice['response'][0]['brand_id'] . '" AND ref ="' . $response_invoice['response'][0]['ref'] . '"'), true);
+                                $response_items = CrudService::select($db_prefix . 'invoice_items', 'WHERE brand_id = :brand_id AND ref = :ref', '* FROM', [':brand_id' => $response_invoice['response'][0]['brand_id'], ':ref' => $response_invoice['response'][0]['ref']]);
                                 foreach ($response_items['response'] as $rowItem) {
                                     $invoice_items_array[] = [
                                         'description' => $rowItem['description'],
@@ -92,8 +95,8 @@ class InvoiceCheckoutController
                                         'status' => $response_invoice['response'][0]['status'],
                                         'note' => $response_invoice['response'][0]['note'],
                                         'private_note' => $response_invoice['response'][0]['private_note'],
-                                        'created_date' => convertUTCtoUserTZ($response_invoice['response'][0]['created_date'], ($response_brand['response'][0]['timezone'] === '--' || $response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                                        'updated_date' => convertUTCtoUserTZ(getCurrentDatetime('Y-m-d H:i:s'), ($response_brand['response'][0]['timezone'] === '--' || $response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                                        'created_date' => convertUTCtoUserTZ($response_invoice['response'][0]['created_date'], empty($response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                                        'updated_date' => convertUTCtoUserTZ(getCurrentDatetime('Y-m-d H:i:s'), empty($response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y h:i A")
                                     ],
                                     'invoice_items' => $invoice_items_array
                                 ];
@@ -111,16 +114,18 @@ class InvoiceCheckoutController
 
                     $params = [':ref' => $invoiceID];
 
-                    $response_invoice = json_decode(getData($db_prefix . 'invoice', 'WHERE ref = :ref', '* FROM', $params), true);
+                    $response_invoice = CrudService::select($db_prefix . 'invoice', 'WHERE ref = :ref', '* FROM', $params);
                     if ($response_invoice['status'] == true) {
                         $params = [':brand_id' => $response_invoice['response'][0]['brand_id']];
 
-                        $response_brand = json_decode(getData($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params), true);
+                        $response_brand = CrudService::select($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params);
                         if ($response_brand['status'] == true) {
-                            if (file_exists(__DIR__ . '/app/modules/themes/' . $response_brand['response'][0]['theme'] . '/class.php')) {
-                                require_once __DIR__ . '/app/modules/themes/' . $response_brand['response'][0]['theme'] . '/class.php';
+                            $themeSlug = $response_brand['response'][0]['theme'];
+                            $themePath = safeModulePath($themeSlug, __DIR__ . '/app/modules/themes');
+                            if ($themePath !== false) {
+                                require_once $themePath;
 
-                                $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $response_brand['response'][0]['theme']))) . 'Theme';
+                                $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $themeSlug))) . 'Theme';
 
                                 $theme = new $class();
 
@@ -137,7 +142,7 @@ class InvoiceCheckoutController
                                 $options = [];
                                 foreach ($fields as $field) {
                                     $optionName = $response_brand['response'][0]['theme'] . '-' . $field['name'];
-                                    $value = get_env($optionName, $response_brand['response'][0]['brand_id']);
+                                    $value = EnvironmentService::get($optionName, $response_brand['response'][0]['brand_id']);
 
                                     // Handle multi-select stored as JSON
                                     if (!empty($field['multiple']) && !empty($value)) {
@@ -153,7 +158,7 @@ class InvoiceCheckoutController
 
                                 $params = [':gateway_id' => $response_invoice['response'][0]['gateway_id']];
 
-                                $response_gateway = json_decode(getData($db_prefix . 'gateways', 'WHERE gateway_id = :gateway_id', '* FROM', $params), true);
+                                $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE gateway_id = :gateway_id', '* FROM', $params);
 
                                 /* Clean Invoice Info */
                                 $invoiceInfo = [
@@ -161,12 +166,12 @@ class InvoiceCheckoutController
                                     'gateway' => $response_gateway['response'][0]['display'] ?? '',
                                     'status' => $invoiceRow['status'],
                                     'currency' => $invoiceRow['currency'],
-                                    'due_date' => $invoiceRow['due_date'] !== '--' ? convertUTCtoUserTZ($invoiceRow['due_date'], ($response_brand['response'][0]['timezone'] === '--' || $response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y") : null,
+                                    'due_date' => !empty($invoiceRow['due_date']) ? convertUTCtoUserTZ($invoiceRow['due_date'], empty($response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y") : null,
                                     'shippingFee' => money_round($invoiceRow['shipping']),
-                                    'note' => $invoiceRow['note'] !== '--' ? $invoiceRow['note'] : null,
-                                    'privateNote' => $invoiceRow['private_note'] !== '--' ? $invoiceRow['private_note'] : null,
-                                    'created_date' => convertUTCtoUserTZ($invoiceRow['created_date'], ($response_brand['response'][0]['timezone'] === '--' || $response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y"),
-                                    'updated_date' => convertUTCtoUserTZ($invoiceRow['updated_date'], ($response_brand['response'][0]['timezone'] === '--' || $response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y"),
+                                    'note' => !empty($invoiceRow['note']) ? $invoiceRow['note'] : null,
+                                    'privateNote' => !empty($invoiceRow['private_note']) ? $invoiceRow['private_note'] : null,
+                                    'created_date' => convertUTCtoUserTZ($invoiceRow['created_date'], empty($response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y"),
+                                    'updated_date' => convertUTCtoUserTZ($invoiceRow['updated_date'], empty($response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $response_brand['response'][0]['timezone'], "M d, Y"),
 
                                     'customer' => [
                                         'id' => $customer['id'] ?? null,
@@ -185,7 +190,7 @@ class InvoiceCheckoutController
 
                                 $params = [':invoice_id' => $invoiceRow['ref'], ':brand_id' => $invoiceRow['brand_id']];
 
-                                $response_invoiceItem = json_decode(getData($db_prefix . 'invoice_items', 'WHERE invoice_id = :invoice_id AND brand_id = :brand_id', '* FROM', $params), true);
+                                $response_invoiceItem = CrudService::select($db_prefix . 'invoice_items', 'WHERE invoice_id = :invoice_id AND brand_id = :brand_id', '* FROM', $params);
 
                                 if ($response_invoiceItem['status'] == true) {
                                     foreach ($response_invoiceItem['response'] as $row) {
@@ -228,10 +233,10 @@ class InvoiceCheckoutController
 
                                 $brandInfo = [
                                     'id' => $brandRow['brand_id'],
-                                    'name' => ($brandRow['name'] == "--") ? $brandRow['identify_name'] : $brandRow['name'],
+                                    'name' => empty($brandRow['name']) ? $brandRow['identify_name'] : $brandRow['name'],
                                     'identifyName' => $brandRow['identify_name'],
-                                    'logo' => $brandRow['logo'] !== '--' ? $brandRow['logo'] : 'https://help.AnirbanPay.com/storage/branding_media/8a5c6ee4-8eba-401d-bffb-c43006d5f65d.png',
-                                    'favicon' => $brandRow['favicon'] !== '--' ? $brandRow['favicon'] : 'https://help.AnirbanPay.com/favicon/icon-144x144.png',
+                                    'logo' => !empty($brandRow['logo']) ? $brandRow['logo'] : 'https://help.OwnPay.com/storage/branding_media/8a5c6ee4-8eba-401d-bffb-c43006d5f65d.png',
+                                    'favicon' => !empty($brandRow['favicon']) ? $brandRow['favicon'] : 'https://help.OwnPay.com/favicon/icon-144x144.png',
 
                                     'support' => [
                                         'email' => $brandRow['support_email_address'],

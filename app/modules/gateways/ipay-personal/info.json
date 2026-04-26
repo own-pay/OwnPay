@@ -1,0 +1,12 @@
+{
+    "name": "Ipay Personal",
+    "slug": "ipay-personal",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "Ipay Personal payment gateway",
+    "tab": "mfs",
+    "currency": "BDT",
+    "gateway_type": "automation"
+}

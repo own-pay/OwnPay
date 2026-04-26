@@ -1,0 +1,12 @@
+{
+    "name": "Ipay Merchant",
+    "slug": "ipay-merchant",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "Ipay Merchant payment gateway",
+    "tab": "mfs",
+    "currency": "BDT",
+    "gateway_type": "automation"
+}

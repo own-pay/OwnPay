@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
 /**
- * Repository for ap_audit_logs — immutable audit trail.
+ * Repository for op_audit_logs — immutable audit trail.
  *
  * NOTE: This table is PARTITIONED by created_at and is
  * intentionally immutable — no update() or delete() methods.
@@ -14,7 +14,7 @@ class AuditLogRepository extends BaseRepository
 {
     use TenantScope;
 
-    protected string $table = 'ap_audit_logs';
+    protected string $table = 'op_audit_logs';
 
     protected function hasUpdatedAt(): bool
     {
@@ -70,9 +70,10 @@ class AuditLogRepository extends BaseRepository
      */
     public function findByEntity(string $entityType, string $entityId, int $limit = 50): array
     {
+        $tc = $this->tenantCondition();
         return $this->findWhere(
-            '`entity_type` = :et AND `entity_id` = :eid',
-            ['et' => $entityType, 'eid' => $entityId],
+            '`entity_type` = :et AND `entity_id` = :eid' . $tc,
+            array_merge(['et' => $entityType, 'eid' => $entityId], $this->tenantParams()),
             'created_at DESC',
             $limit
         );
@@ -83,9 +84,10 @@ class AuditLogRepository extends BaseRepository
      */
     public function findByMerchant(int $merchantId, int $limit = 100): array
     {
+        $tc = $this->tenantCondition();
         return $this->findWhere(
-            '`merchant_id` = :mid',
-            ['mid' => $merchantId],
+            '`merchant_id` = :mid' . $tc,
+            array_merge(['mid' => $merchantId], $this->tenantParams()),
             'created_at DESC',
             $limit
         );

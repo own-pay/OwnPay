@@ -1,0 +1,12 @@
+{
+    "name": "Binance Personal",
+    "slug": "binance-personal",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "Binance Personal payment gateway",
+    "tab": "global",
+    "currency": "USD",
+    "gateway_type": "api"
+}

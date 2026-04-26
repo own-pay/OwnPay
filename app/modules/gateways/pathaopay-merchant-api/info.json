@@ -1,0 +1,12 @@
+{
+    "name": "PathaoPay Merchant Api",
+    "slug": "pathaopay-merchant-api",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "PathaoPay Merchant Api payment gateway",
+    "tab": "mfs",
+    "currency": "BDT",
+    "gateway_type": "api"
+}

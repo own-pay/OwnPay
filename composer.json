@@ -1,6 +1,6 @@
 {
-    "name": "anirbanpay/anirbanpay",
-    "description": "Anirban Pay — Enterprise-grade Open-Source Payment Gateway",
+    "name": "ownpay/ownpay",
+    "description": "Own Pay — Enterprise-grade Open-Source Payment Gateway",
     "type": "project",
     "license": "AGPL-3.0-or-later",
     "require": {
@@ -16,7 +16,7 @@
     },
     "autoload": {
         "psr-4": {
-            "AnirbanPay\\": "src/"
+            "OwnPay\\": "src/"
         }
     },
     "config": {

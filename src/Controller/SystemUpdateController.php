@@ -1,46 +1,41 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\EnvironmentService;
+use OwnPay\Service\PermissionGuard;
 
 class SystemUpdateController
 {
     public static function handle(string $action, ?RequestContext $ctx = null): void
     {
+        global $OwnPay_current_version;
         $ctx ??= $GLOBALS['requestContext'] ?? throw new \RuntimeException('RequestContext not available');
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
-        $db_prefix = $ctx->dbPrefix;
-        $ap_demo_mode = $ctx->demoMode;
+        $op_demo_mode = $ctx->demoMode;
 
         if ($action == "system-settings-update-setting") {
             if ($global_user_login == true) {
-                if (!empty($ap_demo_mode)) {
+                if (!empty($op_demo_mode)) {
                     echo json_encode(['status' => "false", 'title' => 'Demo Restriction', 'message' => 'This feature is disabled in the demo version.', 'csrf_token' => $new_csrf_token]);
                 } else {
-                    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) {
+                    if (!PermissionGuard::canAccess($ctx, 'system_settings') || !PermissionGuard::has($ctx, 'system_settings', 'manage_update')) {
                         echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                         exit();
                     }
 
-                    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'manage_update', $global_user_response['response'][0]['role'])) {
-                        echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                        exit();
-                    }
-
-                    $request = \AnirbanPay\Http\Request::createFromGlobals();
+                    $request = \OwnPay\Http\Request::createFromGlobals();
 
                     $update_channel = $request->post('update_channel', '');
                     $automatic_update = $request->post('automatic_update', '');
                     $create_backup = $request->post('create_backup', '');
 
-                    set_env('system-settings-update_channel', $update_channel);
-                    set_env('system-settings-automatic_update', $automatic_update);
-                    set_env('system-settings-create_backup', $create_backup);
+                    EnvironmentService::set('system-settings-update_channel', $update_channel);
+                    EnvironmentService::set('system-settings-automatic_update', $automatic_update);
+                    EnvironmentService::set('system-settings-create_backup', $create_backup);
 
                     echo json_encode(['status' => 'true', 'title' => 'Settings Updated', 'message' => 'Your changes have been saved successfully.', 'csrf_token' => $new_csrf_token]);
                 }
@@ -51,28 +46,24 @@ class SystemUpdateController
 
         if ($action == "system-settings-update-check") {
             if ($global_user_login == true) {
-                if (!empty($ap_demo_mode)) {
+                if (!empty($op_demo_mode)) {
                     echo json_encode(['status' => "false", 'title' => 'Demo Restriction', 'message' => 'This feature is disabled in the demo version.', 'csrf_token' => $new_csrf_token]);
                 } else {
-                    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) {
+                    if (!PermissionGuard::canAccess($ctx, 'system_settings') || !PermissionGuard::has($ctx, 'system_settings', 'manage_update')) {
                         echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                         exit();
                     }
 
-                    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'manage_update', $global_user_response['response'][0]['role'])) {
-                        echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                        exit();
-                    }
+                    EnvironmentService::set('last-auto-update-check', getCurrentDatetime('Y-m-d H:i:s'));
 
-                    set_env('last-auto-update-check', getCurrentDatetime('Y-m-d H:i:s'));
+                    $manifest = json_decode(\OwnPay\Service\HttpClient::get('https://updates.OwnPay.com/manifest.json') ?? '', true);
 
-                    $manifest = json_decode(\AnirbanPay\Service\HttpClient::get('https://updates.AnirbanPay.com/manifest.json') ?? '', true);
+                    $current_code = $OwnPay_current_version['version_code'];
+                    $current_name = $OwnPay_current_version['version_name'];
+                    $version_hash = $OwnPay_current_version['version_hash'];
 
-                    $current_code = $AnirbanPay_current_version['version_code'];
-                    $current_name = $AnirbanPay_current_version['version_name'];
-                    $version_hash = $AnirbanPay_current_version['version_hash'];
-
-                    if (get_env('system-settings-update_channel') == "" || get_env('system-settings-update_channel') == "--" || get_env('system-settings-update_channel') == "stable") {
+                    $channelPref = EnvironmentService::get('system-settings-update_channel');
+                    if ($channelPref === '' || empty($channelPref) || $channelPref === 'stable') {
                         $update_channel = 'stable';
                     } else {
                         $update_channel = 'beta';
@@ -103,15 +94,15 @@ class SystemUpdateController
                     }
 
                     if ($update_available == true) {
-                        set_env('last-update-version-name', $latest_name);
-                        set_env('last-update-version-hash', $latest_hash);
-                        set_env('last-update-version', $latest_code);
+                        EnvironmentService::set('last-update-version-name', $latest_name);
+                        EnvironmentService::set('last-update-version-hash', $latest_hash);
+                        EnvironmentService::set('last-update-version', $latest_code);
 
                         echo json_encode(['status' => 'true', 'title' => 'Update Available', 'message' => 'A new system update is available. Please update to get the latest features and improvements.', 'csrf_token' => $new_csrf_token]);
                     } else {
-                        set_env('last-update-version-name', $current_name);
-                        set_env('last-update-version-hash', $version_hash);
-                        set_env('last-update-version', $current_code);
+                        EnvironmentService::set('last-update-version-name', $current_name);
+                        EnvironmentService::set('last-update-version-hash', $version_hash);
+                        EnvironmentService::set('last-update-version', $current_code);
 
                         echo json_encode(['status' => 'true', 'title' => 'System Up to Date', 'message' => 'Everything is up to date. No updates were found.', 'csrf_token' => $new_csrf_token]);
                     }
@@ -124,27 +115,23 @@ class SystemUpdateController
 
         if ($action == "system-settings-update-download") {
             if ($global_user_login == true) {
-                if (!empty($ap_demo_mode)) {
+                if (!empty($op_demo_mode)) {
                     echo json_encode(['status' => "false", 'title' => 'Demo Restriction', 'message' => 'This feature is disabled in the demo version.', 'csrf_token' => $new_csrf_token]);
                 } else {
-                    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) {
+                    if (!PermissionGuard::canAccess($ctx, 'system_settings') || !PermissionGuard::has($ctx, 'system_settings', 'manage_update')) {
                         echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                         exit();
                     }
 
-                    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'manage_update', $global_user_response['response'][0]['role'])) {
-                        echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                        exit();
-                    }
+                    $lasted_update_version = EnvironmentService::get('last-update-version');
+                    $update_available = false;
 
-                    $lasted_update_version = get_env('last-update-version');
-
-                    if (version_compare($lasted_update_version, $AnirbanPay_current_version['version_code'], '>')) {
+                    if (version_compare($lasted_update_version, $OwnPay_current_version['version_code'], '>')) {
                         $update_available = true;
                     }
 
                     if ($update_available == true) {
-                        $url = "https://updates.AnirbanPay.com/download.php?version=$lasted_update_version";
+                        $url = "https://updates.OwnPay.com/download.php?version=$lasted_update_version";
 
                         $saveDir = __DIR__ . '/../../media/storage/updates/';
 
@@ -188,23 +175,19 @@ class SystemUpdateController
 
         if ($action == "system-settings-update-install") {
             if ($global_user_login == true) {
-                if (!empty($ap_demo_mode)) {
+                if (!empty($op_demo_mode)) {
                     echo json_encode(['status' => "false", 'title' => 'Demo Restriction', 'message' => 'This feature is disabled in the demo version.', 'csrf_token' => $new_csrf_token]);
                 } else {
-                    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) {
+                    if (!PermissionGuard::canAccess($ctx, 'system_settings') || !PermissionGuard::has($ctx, 'system_settings', 'manage_update')) {
                         echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                         exit();
                     }
 
-                    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'manage_update', $global_user_response['response'][0]['role'])) {
-                        echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                        exit();
-                    }
+                    $lasted_update_version = EnvironmentService::get('last-update-version');
+                    $lasted_update_version_hash = EnvironmentService::get('last-update-version-hash');
+                    $update_available = false;
 
-                    $lasted_update_version = get_env('last-update-version');
-                    $lasted_update_version_hash = get_env('last-update-version-hash');
-
-                    if (version_compare($lasted_update_version, $AnirbanPay_current_version['version_code'], '>')) {
+                    if (version_compare($lasted_update_version, $OwnPay_current_version['version_code'], '>')) {
                         $update_available = true;
                     }
 
@@ -224,9 +207,9 @@ class SystemUpdateController
                         @mkdir($backupDir, 0755, true);
                         @mkdir($tempDir, 0755, true);
 
-                        zipFolder($root, "$backupDir/" . $AnirbanPay_current_version['version_code'] . ".zip");
+                        zipFolder($root, "$backupDir/" . $OwnPay_current_version['version_code'] . ".zip");
 
-                        backupDatabasePDO("$backupDir/db_" . $AnirbanPay_current_version['version_code'] . ".sql");
+                        backupDatabasePDO("$backupDir/db_" . $OwnPay_current_version['version_code'] . ".sql");
 
                         file_put_contents("$root/.maintenance", 'updating');
 
@@ -253,15 +236,10 @@ class SystemUpdateController
 
         if ($action == "system-settings-import") {
             if ($global_user_login == true) {
-                if (!empty($ap_demo_mode)) {
+                if (!empty($op_demo_mode)) {
                     echo json_encode(['status' => "false", 'title' => 'Demo Restriction', 'message' => 'This feature is disabled in the demo version.', 'csrf_token' => $new_csrf_token]);
                 } else {
-                    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) {
-                        echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                        exit();
-                    }
-
-                    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'manage_import', $global_user_response['response'][0]['role'])) {
+                    if (!PermissionGuard::canAccess($ctx, 'system_settings') || !PermissionGuard::has($ctx, 'system_settings', 'manage_import')) {
                         echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                         exit();
                     }
@@ -362,12 +340,13 @@ class SystemUpdateController
                     if (!is_dir($updatesDir))
                         mkdir($updatesDir, 0755, true);
 
-                    $sanitizedName = pathinfo($uploadedFile['name'], PATHINFO_FILENAME);
+                    // Sanitize filename: strip path separators and restrict to safe characters
+                    $sanitizedName = preg_replace('/[^a-zA-Z0-9_\-]/', '_', pathinfo(basename($uploadedFile['name']), PATHINFO_FILENAME));
                     $tempDir = $storage . "temp/" . $sanitizedName . "/";
                     if (!is_dir($tempDir))
                         mkdir($tempDir, 0755, true);
 
-                    $destination = $updatesDir . $uploadedFile['name'];
+                    $destination = $updatesDir . $sanitizedName . '.zip';
                     if (!move_uploaded_file($uploadedFile['tmp_name'], $destination)) {
                         echo json_encode([
                             'status' => 'false',
@@ -400,10 +379,11 @@ class SystemUpdateController
                         ]);
 
                     } catch (Exception $e) {
+                        error_log('[OwnPay] Import failed: ' . $e->getMessage());
                         echo json_encode([
                             'status' => 'false',
                             'title' => 'Server Error',
-                            'message' => $e->getMessage(),
+                            'message' => 'Import failed. Please check server logs for details.',
                             'csrf_token' => $new_csrf_token
                         ]);
                         exit;

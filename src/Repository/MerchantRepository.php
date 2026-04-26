@@ -2,25 +2,26 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
 /**
- * Repository for ap_merchants — tenant/business entity management.
+ * Repository for op_merchants — tenant/business entity management.
  */
 class MerchantRepository extends BaseRepository
 {
     use TenantScope;
 
-    protected string $table = 'ap_merchants';
+    protected string $table = 'op_merchants';
 
     /**
      * Find merchant by business name (case-insensitive).
      */
     public function findByBusinessName(string $name): ?array
     {
+        $tc = $this->tenantCondition();
         return $this->findOneWhere(
-            '`business_name` = :name AND `deleted_at` IS NULL',
-            ['name' => $name]
+            '`business_name` = :name AND `deleted_at` IS NULL' . $tc,
+            array_merge(['name' => $name], $this->tenantParams())
         );
     }
 
@@ -29,9 +30,10 @@ class MerchantRepository extends BaseRepository
      */
     public function findActive(): array
     {
+        $tc = $this->tenantCondition();
         return $this->findWhere(
-            '`status` = :status AND `deleted_at` IS NULL',
-            ['status' => 'active'],
+            '`status` = :status AND `deleted_at` IS NULL' . $tc,
+            array_merge(['status' => 'active'], $this->tenantParams()),
             'created_at DESC'
         );
     }
@@ -41,7 +43,12 @@ class MerchantRepository extends BaseRepository
      */
     public function activate(int $id): int
     {
-        return $this->updateById($id, ['status' => 'active']);
+        $tc = $this->tenantCondition();
+        return $this->update(
+            ['status' => 'active'],
+            '`id` = :where_id' . $tc,
+            array_merge(['where_id' => $id], $this->tenantParams())
+        );
     }
 
     /**
@@ -49,9 +56,11 @@ class MerchantRepository extends BaseRepository
      */
     public function suspend(int $id, string $reason = ''): int
     {
-        return $this->updateById($id, [
-            'status' => 'suspended',
-            'suspend_reason' => $reason,
-        ]);
+        $tc = $this->tenantCondition();
+        return $this->update(
+            ['status' => 'suspended', 'suspend_reason' => $reason],
+            '`id` = :where_id' . $tc,
+            array_merge(['where_id' => $id], $this->tenantParams())
+        );
     }
 }

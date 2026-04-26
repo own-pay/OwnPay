@@ -1,9 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\PermissionGuard;
+use OwnPay\Service\InputSanitizer;
 
 class FaqController
 {
@@ -16,20 +19,14 @@ class FaqController
         $db_prefix = $ctx->dbPrefix;
         $global_response_brand = $ctx->brandResponse;
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         // Inline extracted code from adapter.php
         if ($action == "faq-list") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'brand_settings')) { return; }
 
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'view', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessHas($ctx, 'faq_settings', 'view')) { return; }
 
                 $search_input = $request->post('search_input', '');
                 $show_limit_raw = $request->post('show_limit', '5');
@@ -60,9 +57,10 @@ class FaqController
                 $where_sql = $where ? implode(' AND ', $where) . ' AND ' : '';
                 /* Filters */
 
-                $page = max(1, (int) $request->post('page', '1'));
-                $show_limit_val = ($request->post('show_limit') == '') ? 999999 : (int) $request->post('show_limit');
-                $offset = ($page - 1) * $show_limit_val;
+                $pag = \OwnPay\Service\PaginationService::resolve($request->post('page', '1'), $request->post('show_limit'));
+                $page = $pag['page'];
+                $show_limit_val = $pag['perPage'];
+                $offset = $pag['offset'];
                 $show_limit = $show_limit_val;
 
                 $sql_query = '';
@@ -73,13 +71,13 @@ class FaqController
                 }
 
                 $sql_limit = '';
-                if ($show_limit_val == 'all') {
+                if ($pag['isAll']) {
 
                 } else {
                     $sql_limit = " LIMIT $offset, $show_limit_val";
                 }
 
-                $response_result = json_decode(getData($db_prefix . 'faq', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_faq), true);
+                $response_result = CrudService::select($db_prefix . 'faq', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_faq);
                 if ($response_result['status'] == true) {
                     $response = [];
 
@@ -89,49 +87,17 @@ class FaqController
                             "title" => $row['title'],
                             "description" => $row['description'],
                             "status" => $row['status'],
-                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                         ];
                     }
 
-                    $count_data = json_decode(getData($db_prefix . 'faq', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_faq), true);
+                    $count_data = CrudService::select($db_prefix . 'faq', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_faq);
 
                     $total_records = count($count_data['response'] ?? []);
-                    $total_pages = ceil($total_records / $show_limit);
-
-                    $pagination = '<ul class="pagination m-0 ms-auto">';
-
-                    // Prev button
-                    $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M15 6l-6 6l6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    // Page numbers
-                    for ($i = 1; $i <= $total_pages; $i++) {
-                        $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                                <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                            </li>';
-                    }
-
-                    // Next button
-                    $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M9 6l6 6l-6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    $pagination .= '</ul>';
-
-                    $start = ($offset + 1);
-                    $end = min($offset + $show_limit, $total_records);
-
-                    $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+                    $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit, $offset);
+                    $pagination = $pagHtml['pagination'];
+                    $datatableInfo = $pagHtml['datatableInfo'];
 
                     echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
                 } else {
@@ -145,15 +111,9 @@ class FaqController
 
         if ($action == "faq-create") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'brand_settings')) { return; }
 
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'create', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessHas($ctx, 'faq_settings', 'create')) { return; }
 
                 $faq_title = $request->post('faq_title', '');
                 $faq_description = $request->post('faq_description', '');
@@ -165,7 +125,7 @@ class FaqController
                     $columns = ['brand_id', 'title', 'description', 'status', 'created_date', 'updated_date'];
                     $values = [$global_response_brand['response'][0]['brand_id'], $faq_title, $faq_description, $faq_status, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                    insertData($db_prefix . 'faq', $columns, $values);
+                    CrudService::insert($db_prefix . 'faq', $columns, $values);
 
                     echo json_encode(['status' => 'true', 'title' => 'FAQ Created', 'message' => 'The faq has been created successfully.', 'csrf_token' => $new_csrf_token]);
                 }
@@ -176,19 +136,13 @@ class FaqController
 
         if ($action == "faq-info-byID") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'brand_settings')) { return; }
 
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'edit', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessHas($ctx, 'faq_settings', 'edit')) { return; }
 
                 $ItemID = $request->post('ItemID', '');
 
-                $response_brand = json_decode(getData($db_prefix . 'faq', 'WHERE id = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                $response_brand = CrudService::select($db_prefix . 'faq', 'WHERE id = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                 if ($response_brand['status'] == true) {
                     echo json_encode(['status' => 'true', 'title' => $response_brand['response'][0]['title'], 'description' => $response_brand['response'][0]['description'], 'fstatus' => $response_brand['response'][0]['status'], 'csrf_token' => $new_csrf_token]);
                 } else {
@@ -201,15 +155,9 @@ class FaqController
 
         if ($action == "faq-edit") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'brand_settings')) { return; }
 
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'edit', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessHas($ctx, 'faq_settings', 'edit')) { return; }
 
                 $faq_id = $request->post('faq_id', '');
                 $faq_title = $request->post('faq_title', '');
@@ -219,7 +167,7 @@ class FaqController
                 if ($faq_id == "" || $faq_title == "" || $faq_description == "" || $faq_status == "") {
                     echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
                 } else {
-                    $response_faq = json_decode(getData($db_prefix . 'faq', 'WHERE id = :id AND brand_id = :brand_id', '* FROM', [':id' => $faq_id, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                    $response_faq = CrudService::select($db_prefix . 'faq', 'WHERE id = :id AND brand_id = :brand_id', '* FROM', [':id' => $faq_id, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                     if ($response_faq['status'] == true) {
 
                         $columns = ['title', 'description', 'status', 'updated_date'];
@@ -228,7 +176,7 @@ class FaqController
                         $condition = "id = :id";
                         $whereParams = [':id' => $faq_id];
 
-                        updateData($db_prefix . 'faq', $columns, $values, $condition, $whereParams);
+                        CrudService::update($db_prefix . 'faq', $columns, $values, $condition, $whereParams);
 
                         echo json_encode(['status' => 'true', 'title' => 'FAQ Updated', 'message' => 'The faq has been updated successfully.', 'csrf_token' => $new_csrf_token]);
                     } else {
@@ -242,15 +190,9 @@ class FaqController
 
         if ($action == "faq-bulk-action") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'brand_settings')) { return; }
 
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'delete', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessHas($ctx, 'faq_settings', 'delete')) { return; }
 
                 $actionID = $request->post('actionID', '');
                 $selected_ids_json = $request->post('selected_ids', '[]');
@@ -258,41 +200,41 @@ class FaqController
 
                 if (!empty($selected_ids)) {
                     foreach ($selected_ids as $id) {
-                        $itemID = escape_string($id);
+                        $itemID = InputSanitizer::trim($id);
 
-                        $response_brand = json_decode(getData($db_prefix . 'faq', 'WHERE id = :itemID AND brand_id = :brand_id', '* FROM', [':itemID' => $itemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                        $response_brand = CrudService::select($db_prefix . 'faq', 'WHERE id = :itemID AND brand_id = :brand_id', '* FROM', [':itemID' => $itemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                         if ($response_brand['status'] == true) {
                             if ($actionID == "deleted") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'delete', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'faq_settings', 'delete')) {
                                     $condition = "id = :itemID";
                                     $whereParams = [':itemID' => $itemID];
 
-                                    deleteData($db_prefix . 'faq', $condition, $whereParams);
+                                    CrudService::delete($db_prefix . 'faq', $condition, $whereParams);
                                 }
                             }
 
                             if ($actionID == "activated") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'edit', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'faq_settings', 'edit')) {
 
                                     $columns = ['status', 'updated_date'];
                                     $values = ['active', getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = "id = :itemID";
                                     $whereParams = [':itemID' => $itemID];
 
-                                    updateData($db_prefix . 'faq', $columns, $values, $condition, $whereParams);
+                                    CrudService::update($db_prefix . 'faq', $columns, $values, $condition, $whereParams);
 
                                 }
                             }
 
                             if ($actionID == "inactivated") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'edit', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'faq_settings', 'edit')) {
 
                                     $columns = ['status', 'updated_date'];
                                     $values = ['inactive', getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = "id = :itemID";
                                     $whereParams = [':itemID' => $itemID];
 
-                                    updateData($db_prefix . 'faq', $columns, $values, $condition, $whereParams);
+                                    CrudService::update($db_prefix . 'faq', $columns, $values, $condition, $whereParams);
 
                                 }
                             }
@@ -310,24 +252,18 @@ class FaqController
 
         if ($action == "faq-delete") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'brand_settings')) { return; }
 
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'delete', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessHas($ctx, 'faq_settings', 'delete')) { return; }
 
                 $ItemID = $request->post('ItemID', '');
 
-                $response_brand = json_decode(getData($db_prefix . 'faq', 'WHERE id = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                $response_brand = CrudService::select($db_prefix . 'faq', 'WHERE id = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                 if ($response_brand['status'] == true) {
                     $condition = "id = :ItemID";
                     $whereParams = [':ItemID' => $ItemID];
 
-                    deleteData($db_prefix . 'faq', $condition, $whereParams);
+                    CrudService::delete($db_prefix . 'faq', $condition, $whereParams);
                 }
 
                 echo json_encode(['status' => 'true', 'title' => 'FAQ Deleted', 'message' => 'The selected faq have been deleted successfully.', 'csrf_token' => $new_csrf_token]);

@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
 /**
  * Provides automatic merchant/tenant scoping for repository queries.

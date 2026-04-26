@@ -1,9 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\InputSanitizer;
+use OwnPay\Service\PermissionGuard;
 
 class CustomerController
 {
@@ -13,17 +16,15 @@ class CustomerController
         $ctx ??= $GLOBALS['requestContext'] ?? throw new \RuntimeException('RequestContext not available');
 
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         $db_prefix = $ctx->dbPrefix;
         $global_response_brand = $ctx->brandResponse;
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         if ($action == "customer-list") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'customers')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
@@ -65,9 +66,10 @@ class CustomerController
                 /* Filters */
 
 
-                $page = max(1, (int) $request->post('page', '1'));
-                $show_limit_val = ($request->post('show_limit') == '') ? 999999 : (($request->post('show_limit') == 'all') ? 999999 : (int) $request->post('show_limit'));
-                $offset = ($page - 1) * $show_limit_val;
+                $pag = \OwnPay\Service\PaginationService::resolve($request->post('page', '1'), $request->post('show_limit'));
+                $page = $pag['page'];
+                $show_limit_val = $pag['perPage'];
+                $offset = $pag['offset'];
 
                 $sql_query = '';
 
@@ -77,13 +79,13 @@ class CustomerController
                 }
 
                 $sql_limit = '';
-                if ($request->post('show_limit') == 'all') {
+                if ($pag['isAll']) {
 
                 } else {
                     $sql_limit = " LIMIT $offset, $show_limit_val";
                 }
 
-                $response_result = json_decode(getData($db_prefix . 'customer', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_cust), true);
+                $response_result = CrudService::select($db_prefix . 'customer', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_cust);
                 if ($response_result['status'] == true) {
                     $response = [];
 
@@ -94,51 +96,19 @@ class CustomerController
                             "email" => $row['email'],
                             "mobile" => $row['mobile'],
                             "status" => $row['status'],
-                            'suspend_reason' => ($row['suspend_reason'] == "--") ? '' : $row['suspend_reason'],
-                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                            'suspend_reason' => $row['suspend_reason'] ?? '',
+                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                         ];
                     }
 
-                    $count_data = json_decode(getData($db_prefix . 'customer', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_cust), true);
+                    $count_data = CrudService::select($db_prefix . 'customer', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_cust);
 
 
                     $total_records = count($count_data['response'] ?? []);
-                    $total_pages = ceil($total_records / (intval($show_limit) == 0 ? 1 : intval($show_limit)));
-
-                    $pagination = '<ul class="pagination m-0 ms-auto">';
-
-                    // Prev button
-                    $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M15 6l-6 6l6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    // Page numbers
-                    for ($i = 1; $i <= $total_pages; $i++) {
-                        $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                                <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                            </li>';
-                    }
-
-                    // Next button
-                    $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M9 6l6 6l-6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    $pagination .= '</ul>';
-
-                    $start = ($offset + 1);
-                    $end = min($offset + $show_limit_val, $total_records);
-
-                    $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+                    $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit_val, $offset);
+                    $pagination = $pagHtml['pagination'];
+                    $datatableInfo = $pagHtml['datatableInfo'];
 
                     echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
                 } else {
@@ -152,12 +122,7 @@ class CustomerController
 
         if ($action == "customers-create") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'create', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'customers') || !PermissionGuard::has($ctx, 'customers', 'create')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
@@ -179,18 +144,18 @@ class CustomerController
                     }
 
                     if ($suspend_reason == "") {
-                        $suspend_reason = "--";
+                        $suspend_reason = null;
                     }
 
                     if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                        $response = json_decode(getData($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':email' => $email]), true);
+                        $response = CrudService::select($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':email' => $email]);
                         if ($response['status'] == false) {
                             $ref = generateItemID();
 
                             $columns = ['ref', 'brand_id', 'name', 'email', 'mobile', 'status', 'suspend_reason', 'created_date', 'updated_date'];
                             $values = [$ref, $global_response_brand['response'][0]['brand_id'], $name, $email, $mobile, $status, $suspend_reason, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                            insertData($db_prefix . 'customer', $columns, $values);
+                            CrudService::insert($db_prefix . 'customer', $columns, $values);
 
                             echo json_encode(['status' => 'true', 'title' => 'Customer Created', 'message' => 'The customer has been created successfully.', 'csrf_token' => $new_csrf_token]);
                         } else {
@@ -208,7 +173,7 @@ class CustomerController
 
         if ($action == "customers-bulk-action") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'customers')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
@@ -219,43 +184,43 @@ class CustomerController
 
                 if (!empty($selected_ids)) {
                     foreach ($selected_ids as $id) {
-                        $itemID = escape_string($id);
+                        $itemID = InputSanitizer::trim($id);
 
-                        $response_brand = json_decode(getData($db_prefix . 'customer', 'WHERE ref = :itemID AND brand_id = :brand_id', '* FROM', [':itemID' => $itemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                        $response_brand = CrudService::select($db_prefix . 'customer', 'WHERE ref = :itemID AND brand_id = :brand_id', '* FROM', [':itemID' => $itemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                         if ($response_brand['status'] == true) {
                             if ($actionID == "deleted") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'delete', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'customers', 'delete')) {
 
                                     $condition = "ref = :itemID";
                                     $whereParams = [':itemID' => $itemID];
 
-                                    deleteData($db_prefix . 'customer', $condition, $whereParams);
+                                    CrudService::delete($db_prefix . 'customer', $condition, $whereParams);
 
                                 }
                             }
 
                             if ($actionID == "activated") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'edit', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'customers', 'edit')) {
 
                                     $columns = ['status', 'updated_date'];
                                     $values = ['active', getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = "ref = :itemID";
                                     $whereParams = [':itemID' => $itemID];
 
-                                    updateData($db_prefix . 'customer', $columns, $values, $condition, $whereParams);
+                                    CrudService::update($db_prefix . 'customer', $columns, $values, $condition, $whereParams);
 
                                 }
                             }
 
                             if ($actionID == "suspended") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'edit', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'customers', 'edit')) {
 
                                     $columns = ['status', 'updated_date'];
                                     $values = ['suspend', getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = "ref = :itemID";
                                     $whereParams = [':itemID' => $itemID];
 
-                                    updateData($db_prefix . 'customer', $columns, $values, $condition, $whereParams);
+                                    CrudService::update($db_prefix . 'customer', $columns, $values, $condition, $whereParams);
 
                                 }
                             }
@@ -274,24 +239,19 @@ class CustomerController
 
         if ($action == "customers-delete") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'delete', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'customers') || !PermissionGuard::has($ctx, 'customers', 'delete')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
 
                 $ItemID = $request->post('ItemID', '');
 
-                $response_brand = json_decode(getData($db_prefix . 'customer', 'WHERE ref = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                $response_brand = CrudService::select($db_prefix . 'customer', 'WHERE ref = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                 if ($response_brand['status'] == true) {
                     $condition = "ref = :ItemID";
                     $whereParams = [':ItemID' => $ItemID];
 
-                    deleteData($db_prefix . 'customer', $condition, $whereParams);
+                    CrudService::delete($db_prefix . 'customer', $condition, $whereParams);
                 }
 
                 echo json_encode(['status' => 'true', 'title' => 'Customer Deleted', 'message' => 'The selected customer have been deleted successfully.', 'csrf_token' => $new_csrf_token]);
@@ -302,21 +262,16 @@ class CustomerController
 
         if ($action == "customers-info-byID") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'edit', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'customers') || !PermissionGuard::has($ctx, 'customers', 'edit')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
 
                 $ItemID = $request->post('ItemID', '');
 
-                $response_brand = json_decode(getData($db_prefix . 'customer', 'WHERE ref = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                $response_brand = CrudService::select($db_prefix . 'customer', 'WHERE ref = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                 if ($response_brand['status'] == true) {
-                    echo json_encode(['status' => 'true', 'name' => $response_brand['response'][0]['name'], 'email' => $response_brand['response'][0]['email'], 'mobile' => $response_brand['response'][0]['mobile'], 'istatus' => $response_brand['response'][0]['status'], 'suspend_reason' => ($response_brand['response'][0]['suspend_reason'] === "--") ? "" : $response_brand['response'][0]['suspend_reason'], 'csrf_token' => $new_csrf_token]);
+                    echo json_encode(['status' => 'true', 'name' => $response_brand['response'][0]['name'], 'email' => $response_brand['response'][0]['email'], 'mobile' => $response_brand['response'][0]['mobile'], 'istatus' => $response_brand['response'][0]['status'], 'suspend_reason' => $response_brand['response'][0]['suspend_reason'] ?? "", 'csrf_token' => $new_csrf_token]);
                 } else {
                     echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
                 }
@@ -327,12 +282,7 @@ class CustomerController
 
         if ($action == "customers-edit") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'edit', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'customers') || !PermissionGuard::has($ctx, 'customers', 'edit')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
@@ -345,7 +295,7 @@ class CustomerController
                 $suspend_reason = $request->post('suspend_reason', '');
 
                 if ($suspend_reason == "") {
-                    $suspend_reason = "--";
+                    $suspend_reason = null;
                 }
 
                 if ($status == "active" || $status == "suspend") {
@@ -359,12 +309,12 @@ class CustomerController
                     echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
                 } else {
                     if (filter_var($email, FILTER_VALIDATE_EMAIL)) {
-                        $response = json_decode(getData($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND ref = :customer_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':customer_id' => $customer_id]), true);
+                        $response = CrudService::select($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND ref = :customer_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':customer_id' => $customer_id]);
                         if ($response['status'] == true) {
                             if ($response['response'][0]['email'] == $email) {
 
                             } else {
-                                $responseCheck = json_decode(getData($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':email' => $email]), true);
+                                $responseCheck = CrudService::select($db_prefix . 'customer', 'WHERE brand_id = :brand_id AND email = :email', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':email' => $email]);
                                 if ($responseCheck['status'] == false) {
 
                                 } else {
@@ -378,7 +328,7 @@ class CustomerController
                             $condition = "ref = :customer_id";
                             $whereParams = [':customer_id' => $customer_id];
 
-                            updateData($db_prefix . 'customer', $columns, $values, $condition, $whereParams);
+                            CrudService::update($db_prefix . 'customer', $columns, $values, $condition, $whereParams);
 
                             echo json_encode(['status' => 'true', 'title' => 'Customer Updated', 'message' => 'The customer has been updated successfully.', 'csrf_token' => $new_csrf_token]);
                         } else {

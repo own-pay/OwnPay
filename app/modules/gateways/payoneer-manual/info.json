@@ -1,0 +1,12 @@
+{
+    "name": "Payoneer Manual",
+    "slug": "payoneer-manual",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "Payoneer Manual payment gateway",
+    "tab": "global",
+    "currency": "USD",
+    "gateway_type": "manual"
+}

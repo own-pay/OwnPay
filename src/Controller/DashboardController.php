@@ -1,9 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\PermissionGuard;
 
 class DashboardController
 {
@@ -16,13 +18,10 @@ class DashboardController
         $db_prefix = $ctx->dbPrefix;
         $global_response_brand = $ctx->brandResponse;
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
         if ($action == "dashboard-transaction-statistics") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'dashboard', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'dashboard')) { return; }
 
                 $date = $request->post('date', 'this_year');
                 $start = $request->post('start', '');
@@ -112,7 +111,7 @@ class DashboardController
                 $keyMap = array_flip($keys);
 
                 // Fetch transactions
-                $response_transaction = json_decode(getData($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status NOT IN ("initiated")', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                $response_transaction = CrudService::select($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status NOT IN ("initiated")', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]);
 
                 foreach ($response_transaction['response'] as $row) {
 
@@ -153,10 +152,7 @@ class DashboardController
 
         if ($action == "dashboard-gateway-statistics") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'dashboard', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'dashboard')) { return; }
 
                 $date = $request->post('date', 'this_year');
                 $start = $request->post('start', '');
@@ -246,7 +242,7 @@ class DashboardController
                 $gatewayLabels = []; // slug => name
 
                 // Get all transactions
-                $response_transaction = json_decode(getData($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status ="completed"', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                $response_transaction = CrudService::select($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status ="completed"', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]);
 
                 foreach ($response_transaction['response'] as $row) {
 
@@ -268,7 +264,7 @@ class DashboardController
                     // Get gateway name
                     $gateway_id = $row['gateway_id'];
                     if (!isset($gatewayLabels[$gateway_id])) {
-                        $resGateway = json_decode(getData($db_prefix . 'gateways', ' WHERE brand_id = :brand_id  AND gateway_id = :gateway_id LIMIT 1', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':gateway_id' => $gateway_id]), true);
+                        $resGateway = CrudService::select($db_prefix . 'gateways', ' WHERE brand_id = :brand_id  AND gateway_id = :gateway_id LIMIT 1', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':gateway_id' => $gateway_id]);
                         $gatewayName = "Unknown"; // default if gateway missing
                         $gatewayColor = '#d3d3d3'; // default light grey for unknown
                         if ($resGateway['status'] && isset($resGateway['response'][0]['name']) && !empty($resGateway['response'][0]['name'])) {
@@ -303,10 +299,7 @@ class DashboardController
 
         if ($action == "reports") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'reports', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'reports')) { return; }
 
                 $date = $request->post('date', 'this_year');
 
@@ -476,7 +469,7 @@ class DashboardController
 
                 $currencyRates = [];
 
-                $currencyRes = json_decode(getData($db_prefix . 'currency', ' WHERE brand_id = :brand_id', '* FROM', [':brand_id' => $brand_id]), true);
+                $currencyRes = CrudService::select($db_prefix . 'currency', ' WHERE brand_id = :brand_id', '* FROM', [':brand_id' => $brand_id]);
                 if (!empty($currencyRes['response'])) {
                     foreach ($currencyRes['response'] as $c) {
                         $currencyRates[$c['code']] = (string) $c['rate'];
@@ -487,7 +480,7 @@ class DashboardController
                 $global_brand_currency_rate = "1";
 
                 $combinedParams = array_merge([':brand_id' => $brand_id], $whereParams);
-                $res = json_decode(getData($db_prefix . 'transaction', " WHERE brand_id = :brand_id AND status NOT IN ('initiated', 'expired') AND $where", '* FROM', $combinedParams), true);
+                $res = CrudService::select($db_prefix . 'transaction', " WHERE brand_id = :brand_id AND status NOT IN ('initiated', 'expired') AND $where", '* FROM', $combinedParams);
 
                 $total = 0;
                 $completed = 0;
@@ -513,7 +506,7 @@ class DashboardController
                 $average = $completed ? money_div($revenue, (string) $completed, 2) : "0";
 
                 $combinedPrevParams = array_merge([':brand_id' => $brand_id], $prevWhereParams);
-                $prevRes = json_decode(getData($db_prefix . 'transaction', " WHERE brand_id = :brand_id AND status NOT IN ('initiated', 'expired') AND $prevWhere", '* FROM', $combinedPrevParams), true);
+                $prevRes = CrudService::select($db_prefix . 'transaction', " WHERE brand_id = :brand_id AND status NOT IN ('initiated', 'expired') AND $prevWhere", '* FROM', $combinedPrevParams);
 
                 $prevTotal = 0;
                 $prevCompleted = 0;

@@ -2,30 +2,34 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
 /**
- * Repository for ap_disputes table.
+ * Repository for op_disputes table.
  */
 final class DisputeRepository extends BaseRepository
 {
     use TenantScope;
 
-    protected string $table = 'ap_disputes';
+    protected string $table = 'op_disputes';
 
     /**
      * Find disputes for a merchant with pagination.
      */
     public function findByMerchant(int $merchantId, int $limit = 20, int $offset = 0): array
     {
+        $tc = $this->tenantCondition();
         $pdo = $this->db->getPdo();
         $stmt = $pdo->prepare("
             SELECT * FROM {$this->table}
-            WHERE merchant_id = :mid
+            WHERE merchant_id = :mid{$tc}
             ORDER BY created_at DESC
             LIMIT :lim OFFSET :off
         ");
         $stmt->bindValue(':mid', $merchantId, \PDO::PARAM_INT);
+        foreach ($this->tenantParams() as $k => $v) {
+            $stmt->bindValue($k, $v);
+        }
         $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
         $stmt->bindValue(':off', $offset, \PDO::PARAM_INT);
         $stmt->execute();
@@ -37,9 +41,10 @@ final class DisputeRepository extends BaseRepository
      */
     public function findByPublicId(string $publicId): ?array
     {
+        $tc = $this->tenantCondition();
         $pdo = $this->db->getPdo();
-        $stmt = $pdo->prepare("SELECT * FROM {$this->table} WHERE public_id = :pid LIMIT 1");
-        $stmt->execute([':pid' => $publicId]);
+        $stmt = $pdo->prepare("SELECT * FROM {$this->table} WHERE public_id = :pid{$tc} LIMIT 1");
+        $stmt->execute(array_merge([':pid' => $publicId], $this->tenantParams()));
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
         return $row ?: null;
     }
@@ -49,13 +54,14 @@ final class DisputeRepository extends BaseRepository
      */
     public function findByTransactionId(int $transactionId): ?array
     {
+        $tc = $this->tenantCondition();
         $pdo = $this->db->getPdo();
         $stmt = $pdo->prepare("
             SELECT * FROM {$this->table}
-            WHERE transaction_id = :tid AND status IN ('open', 'under_review')
+            WHERE transaction_id = :tid AND status IN ('open', 'under_review'){$tc}
             LIMIT 1
         ");
-        $stmt->execute([':tid' => $transactionId]);
+        $stmt->execute(array_merge([':tid' => $transactionId], $this->tenantParams()));
         $row = $stmt->fetch(\PDO::FETCH_ASSOC);
         return $row ?: null;
     }
@@ -65,18 +71,19 @@ final class DisputeRepository extends BaseRepository
      */
     public function resolve(int $id, string $status, string $resolution, ?string $evidence = null): void
     {
+        $tc = $this->tenantCondition();
         $pdo = $this->db->getPdo();
         $pdo->prepare("
             UPDATE {$this->table}
             SET status = :st, resolution = :res, evidence = :ev,
                 resolved_at = NOW(6), updated_at = NOW(6)
-            WHERE id = :id
-        ")->execute([
+            WHERE id = :id{$tc}
+        ")->execute(array_merge([
                     ':st' => $status,
                     ':res' => $resolution,
                     ':ev' => $evidence,
                     ':id' => $id,
-                ]);
+                ], $this->tenantParams()));
     }
 
     /**
@@ -84,12 +91,13 @@ final class DisputeRepository extends BaseRepository
      */
     public function countOpenByMerchant(int $merchantId): int
     {
+        $tc = $this->tenantCondition();
         $pdo = $this->db->getPdo();
         $stmt = $pdo->prepare("
             SELECT COUNT(*) FROM {$this->table}
-            WHERE merchant_id = :mid AND status IN ('open', 'under_review')
+            WHERE merchant_id = :mid AND status IN ('open', 'under_review'){$tc}
         ");
-        $stmt->execute([':mid' => $merchantId]);
+        $stmt->execute(array_merge([':mid' => $merchantId], $this->tenantParams()));
         return (int) $stmt->fetchColumn();
     }
 }

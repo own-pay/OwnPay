@@ -2,9 +2,10 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Middleware;
+namespace OwnPay\Middleware;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\PermissionGuard;
 
 /**
  * Extracts the auth-guard pattern from adapter.php controller dispatch.
@@ -31,12 +32,7 @@ final class PermissionMiddleware
     {
         $this->requireLogin($ctx);
 
-        $perms = json_decode(
-            $GLOBALS['global_response_permission']['response'][0]['permission'] ?? '{}',
-            true
-        ) ?: [];
-
-        if (!canAccessPage($perms, $page, $ctx->role)) {
+        if (!PermissionGuard::canAccess($ctx, $page)) {
             echo json_encode([
                 'status' => 'false',
                 'title' => 'Access denied',
@@ -51,12 +47,7 @@ final class PermissionMiddleware
     {
         $this->requireLogin($ctx);
 
-        $perms = json_decode(
-            $GLOBALS['global_response_permission']['response'][0]['permission'] ?? '{}',
-            true
-        ) ?: [];
-
-        if (!hasPermission($perms, $module, $action, $ctx->role)) {
+        if (!PermissionGuard::has($ctx, $module, $action)) {
             echo json_encode([
                 'status' => 'false',
                 'title' => 'Permission denied',

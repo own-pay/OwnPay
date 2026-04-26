@@ -1,0 +1,12 @@
+{
+    "name": "TapTap Send Manual",
+    "slug": "taptap-send-manual",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "TapTap Send Manual payment gateway",
+    "tab": "global",
+    "currency": "USD",
+    "gateway_type": "manual"
+}

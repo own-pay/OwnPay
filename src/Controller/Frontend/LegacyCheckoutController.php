@@ -1,8 +1,11 @@
 <?php
+declare(strict_types=1);
 
-namespace AnirbanPay\Controller\Frontend;
+namespace OwnPay\Controller\Frontend;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\EnvironmentService;
 
 class LegacyCheckoutController
 {
@@ -15,16 +18,18 @@ class LegacyCheckoutController
 
                     $params = [':ref' => $paymentID];
 
-                    $response_transaction = json_decode(getData($db_prefix . 'transaction', 'WHERE ref = :ref', '* FROM', $params), true);
+                    $response_transaction = CrudService::select($db_prefix . 'transaction', 'WHERE ref = :ref', '* FROM', $params);
                     if ($response_transaction['status'] == true) {
                         $params = [':brand_id' => $response_transaction['response'][0]['brand_id']];
 
-                        $response_brand = json_decode(getData($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params), true);
+                        $response_brand = CrudService::select($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params);
                         if ($response_brand['status'] == true) {
-                            if (file_exists(__DIR__ . '/app/modules/themes/' . $response_brand['response'][0]['theme'] . '/class.php')) {
-                                require_once __DIR__ . '/app/modules/themes/' . $response_brand['response'][0]['theme'] . '/class.php';
+                            $themeSlug = $response_brand['response'][0]['theme'];
+                            $themePath = safeModulePath($themeSlug, __DIR__ . '/app/modules/themes');
+                            if ($themePath !== false) {
+                                require_once $themePath;
 
-                                $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $response_brand['response'][0]['theme']))) . 'Theme';
+                                $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $themeSlug))) . 'Theme';
 
                                 $theme = new $class();
 
@@ -41,7 +46,7 @@ class LegacyCheckoutController
                                 $options = [];
                                 foreach ($fields as $field) {
                                     $optionName = $response_brand['response'][0]['theme'] . '-' . $field['name'];
-                                    $value = get_env($optionName, $response_brand['response'][0]['brand_id']);
+                                    $value = EnvironmentService::get($optionName, $response_brand['response'][0]['brand_id']);
 
                                     // Handle multi-select stored as JSON
                                     if (!empty($field['multiple']) && !empty($value)) {
@@ -55,21 +60,21 @@ class LegacyCheckoutController
 
                                 $customer = json_decode($transactionRow['customer_info'], true) ?? [];
 
-                                $response_gateway = json_decode(getData($db_prefix . 'gateways', ' WHERE brand_id ="' . $response_brand['response'][0]['brand_id'] . '" AND gateway_id = "' . $response_transaction['response'][0]['gateway_id'] . '"'), true);
+                                $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE brand_id = :brand_id AND gateway_id = :gateway_id', '* FROM', [':brand_id' => $response_brand['response'][0]['brand_id'], ':gateway_id' => $response_transaction['response'][0]['gateway_id']]);
 
                                 $gateway = $response_gateway['response'][0]['display'] ?? '';
 
                                 if ($transactionRow['status'] == "initiated") {
                                     $finalUrl = '--';
                                 } else {
-                                    if ($transactionRow['return_url'] == "" || $transactionRow['return_url'] == "--") {
+                                    if (empty($transactionRow['return_url'])) {
                                         $finalUrl = '--';
                                     } else {
-                                        $finalUrl = addQueryParams($transactionRow['return_url'], ['ap_status' => $transactionRow['status'], 'transaction_ref' => $transactionRow['ref']]);
+                                        $finalUrl = addQueryParams($transactionRow['return_url'], ['op_status' => $transactionRow['status'], 'transaction_ref' => $transactionRow['ref']]);
                                     }
                                 }
 
-                                $response_faq = json_decode(getData($db_prefix . 'faq', ' WHERE brand_id ="' . $response_brand['response'][0]['brand_id'] . '" AND status ="active" ORDER BY 1 DESC'), true);
+                                $response_faq = CrudService::select($db_prefix . 'faq', 'WHERE brand_id = :brand_id AND status = :status ORDER BY 1 DESC', '* FROM', [':brand_id' => $response_brand['response'][0]['brand_id'], ':status' => 'active']);
 
                                 /* Clean Transaction Info */
                                 $transactionInfo = [
@@ -98,10 +103,10 @@ class LegacyCheckoutController
 
                                 $brandInfo = [
                                     'id' => $brandRow['brand_id'],
-                                    'name' => ($brandRow['name'] == "--") ? $brandRow['identify_name'] : $brandRow['name'],
+                                    'name' => empty($brandRow['name']) ? $brandRow['identify_name'] : $brandRow['name'],
                                     'identifyName' => $brandRow['identify_name'],
-                                    'logo' => $brandRow['logo'] !== '--' ? $brandRow['logo'] : 'https://help.AnirbanPay.com/storage/branding_media/8a5c6ee4-8eba-401d-bffb-c43006d5f65d.png',
-                                    'favicon' => $brandRow['favicon'] !== '--' ? $brandRow['favicon'] : 'https://help.AnirbanPay.com/favicon/icon-144x144.png',
+                                    'logo' => ($brandRow['logo'] !== null && $brandRow['logo'] !== '') ? $brandRow['logo'] : 'https://help.OwnPay.com/storage/branding_media/8a5c6ee4-8eba-401d-bffb-c43006d5f65d.png',
+                                    'favicon' => ($brandRow['favicon'] !== null && $brandRow['favicon'] !== '') ? $brandRow['favicon'] : 'https://help.OwnPay.com/favicon/icon-144x144.png',
 
                                     'support' => [
                                         'email' => $brandRow['support_email_address'],

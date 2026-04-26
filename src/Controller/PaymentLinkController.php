@@ -1,9 +1,13 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\EnvironmentService;
+use OwnPay\Service\InputSanitizer;
+use OwnPay\Service\PermissionGuard;
 
 class PaymentLinkController
 {
@@ -44,12 +48,12 @@ class PaymentLinkController
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'payment_link')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $search_input = $request->post('search_input', '');
             $show_limit = $request->post('show_limit', '5');
@@ -80,9 +84,10 @@ class PaymentLinkController
             $where_sql = $where ? implode(' AND ', $where) . ' AND ' : '';
             /* Filters */
 
-            $page = max(1, (int) $request->post('page', '1'));
-            $show_limit_val = ($request->post('show_limit') == '') ? 999999 : (int) $request->post('show_limit');
-            $offset = ($page - 1) * $show_limit_val;
+            $pag = \OwnPay\Service\PaginationService::resolve($request->post('page', '1'), $request->post('show_limit'));
+            $page = $pag['page'];
+            $show_limit_val = $pag['perPage'];
+            $offset = $pag['offset'];
 
             $sql_query = '';
 
@@ -92,13 +97,13 @@ class PaymentLinkController
             }
 
             $sql_limit = '';
-            if ($show_limit_val == 'all') {
+            if ($pag['isAll']) {
 
             } else {
                 $sql_limit = " LIMIT $offset, $show_limit_val";
             }
 
-            $response_result = json_decode(getData($db_prefix . 'payment_link', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_pl), true);
+            $response_result = CrudService::select($db_prefix . 'payment_link', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_pl);
             if ($response_result['status'] == true) {
                 $response = [];
 
@@ -106,11 +111,11 @@ class PaymentLinkController
                     $product_info = json_decode($row['product_info'], true);
 
                     $params_curr = [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':code' => $row['currency']];
-                    $response_currency = json_decode(getData($db_prefix . 'currency', ' WHERE brand_id = :brand_id AND code = :code', '* FROM', $params_curr), true);
+                    $response_currency = CrudService::select($db_prefix . 'currency', ' WHERE brand_id = :brand_id AND code = :code', '* FROM', $params_curr);
 
                     $currency = $response_currency['response'][0]['symbol'] ?? '';
 
-                    if ($row['expired_date'] == "--") {
+                    if (empty($row['expired_date'])) {
                         $status = $row['status'];
                     } else {
                         if (isExpired($row['expired_date'])) {
@@ -127,49 +132,17 @@ class PaymentLinkController
                         "status" => $status,
                         "quantity" => $row['quantity'],
                         "amount" => $currency . money_round($row['amount'], 2),
-                        "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                        "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                        "created_date" => convertUTCtoUserTZ($row['created_date'], empty($global_response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                        "updated_date" => convertUTCtoUserTZ($row['updated_date'], empty($global_response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                     ];
                 }
 
-                $count_data = json_decode(getData($db_prefix . 'payment_link', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_pl), true);
+                $count_data = CrudService::select($db_prefix . 'payment_link', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_pl);
 
                 $total_records = count($count_data['response'] ?? []);
-                $total_pages = ceil($total_records / $show_limit);
-
-                $pagination = '<ul class="pagination m-0 ms-auto">';
-
-                // Prev button
-                $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                        <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                <path d="M15 6l-6 6l6 6"></path>
-                            </svg>
-                        </button>
-                    </li>';
-
-                // Page numbers
-                for ($i = 1; $i <= $total_pages; $i++) {
-                    $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                            <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                        </li>';
-                }
-
-                // Next button
-                $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                        <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                <path d="M9 6l6 6l-6 6"></path>
-                            </svg>
-                        </button>
-                    </li>';
-
-                $pagination .= '</ul>';
-
-                $start = ($offset + 1);
-                $end = min($offset + $show_limit, $total_records);
-
-                $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+                $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit_val, $offset);
+                $pagination = $pagHtml['pagination'];
+                $datatableInfo = $pagHtml['datatableInfo'];
 
                 echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
             } else {
@@ -190,12 +163,12 @@ class PaymentLinkController
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'payment_link')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $actionID = $request->post('actionID', '');
             $selected_ids_json = $request->post('selected_ids', '[]');
@@ -203,48 +176,48 @@ class PaymentLinkController
 
             if (!empty($selected_ids)) {
                 foreach ($selected_ids as $id) {
-                    $itemID = escape_string($id);
+                    $itemID = InputSanitizer::trim($id);
 
-                    $response_brand = json_decode(getData($db_prefix . 'payment_link', 'WHERE ref = :itemID AND brand_id = :brand_id', '* FROM', [':itemID' => $itemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                    $response_brand = CrudService::select($db_prefix . 'payment_link', 'WHERE ref = :itemID AND brand_id = :brand_id', '* FROM', [':itemID' => $itemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                     if ($response_brand['status'] == true) {
                         if ($actionID == "deleted") {
-                            if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'delete', $global_user_response['response'][0]['role'])) {
+                            if (PermissionGuard::has($ctx, 'payment_link', 'delete')) {
 
                                 $condition = "paymentLinkID = :itemID";
                                 $whereParams_field = [':itemID' => $itemID];
 
-                                deleteData($db_prefix . 'payment_link_field', $condition, $whereParams_field);
+                                CrudService::delete($db_prefix . 'payment_link_field', $condition, $whereParams_field);
 
                                 $condition = "ref = :itemID";
                                 $whereParams = [':itemID' => $itemID];
 
-                                deleteData($db_prefix . 'payment_link', $condition, $whereParams);
+                                CrudService::delete($db_prefix . 'payment_link', $condition, $whereParams);
 
                             }
                         }
 
                         if ($actionID == "activated") {
-                            if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role'])) {
+                            if (PermissionGuard::has($ctx, 'payment_link', 'edit')) {
 
                                 $columns = ['status', 'updated_date'];
                                 $values = ['active', getCurrentDatetime('Y-m-d H:i:s')];
                                 $condition = "ref = :itemID";
                                 $whereParams = [':itemID' => $itemID];
 
-                                updateData($db_prefix . 'payment_link', $columns, $values, $condition, $whereParams);
+                                CrudService::update($db_prefix . 'payment_link', $columns, $values, $condition, $whereParams);
 
                             }
                         }
 
                         if ($actionID == "inactivated") {
-                            if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role'])) {
+                            if (PermissionGuard::has($ctx, 'payment_link', 'edit')) {
 
                                 $columns = ['status', 'updated_date'];
                                 $values = ['inactive', getCurrentDatetime('Y-m-d H:i:s')];
                                 $condition = "ref = :itemID";
                                 $whereParams = [':itemID' => $itemID];
 
-                                updateData($db_prefix . 'payment_link', $columns, $values, $condition, $whereParams);
+                                CrudService::update($db_prefix . 'payment_link', $columns, $values, $condition, $whereParams);
 
                             }
                         }
@@ -269,31 +242,26 @@ class PaymentLinkController
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'payment_link') || !PermissionGuard::has($ctx, 'payment_link', 'delete')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'delete', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $ItemID = $request->post('ItemID', '');
 
-            $response_brand = json_decode(getData($db_prefix . 'payment_link', 'WHERE ref = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+            $response_brand = CrudService::select($db_prefix . 'payment_link', 'WHERE ref = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
             if ($response_brand['status'] == true) {
                 $condition = "paymentLinkID = :ItemID";
                 $whereParams_field = [':ItemID' => $ItemID];
 
-                deleteData($db_prefix . 'payment_link_field', $condition, $whereParams_field);
+                CrudService::delete($db_prefix . 'payment_link_field', $condition, $whereParams_field);
 
                 $condition = "ref = :ItemID";
                 $whereParams = [':ItemID' => $ItemID];
 
-                deleteData($db_prefix . 'payment_link', $condition, $whereParams);
+                CrudService::delete($db_prefix . 'payment_link', $condition, $whereParams);
             }
 
             echo json_encode(['status' => 'true', 'title' => 'Payment Links Deleted', 'message' => 'The selected payment link have been deleted successfully.', 'csrf_token' => $new_csrf_token]);
@@ -311,17 +279,12 @@ class PaymentLinkController
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'payment_link') || !PermissionGuard::has($ctx, 'payment_link', 'create')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'create', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $title = $request->post('title', '');
             $quantity = $request->post('quantity', '');
@@ -341,7 +304,7 @@ class PaymentLinkController
                     exit();
                 }
             } else {
-                $expiry_date = "--";
+                $expiry_date = null;
             }
 
             if ($title == "" || $quantity == "" || $description == "" || $currency == "" || $amount == "" || $status == "") {
@@ -357,7 +320,7 @@ class PaymentLinkController
                 $columns = ['ref', 'brand_id', 'product_info', 'amount', 'quantity', 'currency', 'expired_date', 'status', 'created_date', 'updated_date'];
                 $values = [$paymentLinkID, $global_response_brand['response'][0]['brand_id'], $product_info, money_sanitize($amount), money_sanitize($quantity), $currency, $expiry_date, $status, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                insertData($db_prefix . 'payment_link', $columns, $values);
+                CrudService::insert($db_prefix . 'payment_link', $columns, $values);
 
                 foreach ($items as $uniqueId => $item) {
                     $formType = $item['formType'] ?? '';
@@ -366,7 +329,7 @@ class PaymentLinkController
                     $fileExtensions = $item['fileExtensions'] ?? []; // array
                     $addOptions = $item['addOptions'] ?? [];         // array
 
-                    $value = '--';
+                    $value = null;
 
                     if ($formType === 'file') {
                         $value = implode(', ', $fileExtensions);
@@ -378,7 +341,7 @@ class PaymentLinkController
                     $columns = ['paymentLinkID', 'formType', 'fieldName', 'required', 'value', 'created_date', 'updated_date'];
                     $values = [$paymentLinkID, $formType, $fieldName, $required, $value, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                    insertData($db_prefix . 'payment_link_field', $columns, $values);
+                    CrudService::insert($db_prefix . 'payment_link_field', $columns, $values);
                 }
 
                 echo json_encode(['status' => 'true', 'title' => 'Payment Link Created', 'message' => 'The payment link has been created successfully.', 'csrf_token' => $new_csrf_token]);
@@ -397,17 +360,12 @@ class PaymentLinkController
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'payment_link') || !PermissionGuard::has($ctx, 'payment_link', 'edit')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $paymentLinkID = $request->post('paymentLinkID', '');
             $title = $request->post('title', '');
@@ -429,7 +387,7 @@ class PaymentLinkController
                     exit();
                 }
             } else {
-                $expiry_date = "--";
+                $expiry_date = null;
             }
 
             if ($paymentLinkID == "" || $title == "" || $quantity == "" || $description == "" || $currency == "" || $amount == "" || $status == "") {
@@ -446,13 +404,13 @@ class PaymentLinkController
                 $condition = "ref = :paymentLinkID";
                 $whereParams = [':paymentLinkID' => $paymentLinkID];
 
-                updateData($db_prefix . 'payment_link', $columns, $values, $condition, $whereParams);
+                CrudService::update($db_prefix . 'payment_link', $columns, $values, $condition, $whereParams);
 
                 foreach ($deletedItems as $itemId) {
                     $condition = "id = :itemId";
                     $whereParams_field = [':itemId' => $itemId];
 
-                    deleteData($db_prefix . 'payment_link_field', $condition, $whereParams_field);
+                    CrudService::delete($db_prefix . 'payment_link_field', $condition, $whereParams_field);
                 }
 
                 foreach ($items as $uniqueId => $item) {
@@ -463,7 +421,7 @@ class PaymentLinkController
                     $fileExtensions = $item['fileExtensions'] ?? []; // array
                     $addOptions = $item['addOptions'] ?? [];         // array
 
-                    $value = '--';
+                    $value = null;
 
                     if ($formType === 'file') {
                         $value = implode(', ', $fileExtensions);
@@ -476,7 +434,7 @@ class PaymentLinkController
                         $columns = ['paymentLinkID', 'formType', 'fieldName', 'required', 'value', 'created_date', 'updated_date'];
                         $values = [$paymentLinkID, $formType, $fieldName, $required, $value, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                        insertData($db_prefix . 'payment_link_field', $columns, $values);
+                        CrudService::insert($db_prefix . 'payment_link_field', $columns, $values);
                     } else {
                         $columns = ['formType', 'fieldName', 'required', 'value', 'updated_date'];
                         $values = [$formType, $fieldName, $required, $value, getCurrentDatetime('Y-m-d H:i:s')];
@@ -484,7 +442,7 @@ class PaymentLinkController
                         $condition = "id = :fieldID";
                         $whereParams_field = [':fieldID' => $fieldID];
 
-                        updateData($db_prefix . 'payment_link_field', $columns, $values, $condition, $whereParams_field);
+                        CrudService::update($db_prefix . 'payment_link_field', $columns, $values, $condition, $whereParams_field);
                     }
                 }
 
@@ -504,21 +462,16 @@ class PaymentLinkController
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'payment_link') || !PermissionGuard::has($ctx, 'payment_link', 'edit')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $DefaultCurrency = $request->post('DefaultCurrency', '');
 
-            set_env('payment-link-default-currency', $DefaultCurrency, $global_response_brand['response'][0]['brand_id']);
+            EnvironmentService::set('payment-link-default-currency', $DefaultCurrency, $global_response_brand['response'][0]['brand_id']);
 
             echo json_encode(['status' => 'true', 'title' => 'Default Currency Updated', 'message' => 'The default payment link currency has been updated successfully.', 'csrf_token' => $new_csrf_token]);
         } else {

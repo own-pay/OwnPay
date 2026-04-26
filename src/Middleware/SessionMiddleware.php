@@ -2,9 +2,12 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Middleware;
+namespace OwnPay\Middleware;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\AuthSessionService;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\InputSanitizer;
 
 /**
  * Extracts session initialization and cookie-based authentication
@@ -13,8 +16,8 @@ use AnirbanPay\Http\RequestContext;
  * Handles:
  * - PHP session start
  * - CSRF token generation
- * - ap_admin cookie validation (main login)
- * - ap_2fa cookie validation (2FA stage)
+ * - op_admin cookie validation (main login)
+ * - op_2fa cookie validation (2FA stage)
  * - User, brand, permission, currency loading
  */
 final class SessionMiddleware
@@ -50,25 +53,29 @@ final class SessionMiddleware
         $isLoggedIn = false;
         $role = '';
 
-        if (!file_exists(__DIR__ . '/../../ap-config.php')) {
+        if (!file_exists(__DIR__ . '/../../op-config.php')) {
             return $this->buildContext($dbPrefix, $user, $brand, $permissions, $csrfToken, $isLoggedIn, $role);
         }
 
-        // --- Main login path: ap_admin cookie ---
-        if (getCookie('ap_admin') !== null) {
-            $ap_admin = sanitize_html(getCookie('ap_admin'));
+        // --- Main login path: op_admin cookie ---
+        if (AuthSessionService::getCookie('op_admin') !== null) {
+            $op_admin = InputSanitizer::html(AuthSessionService::getCookie('op_admin'));
 
-            $this->cookieResponse = json_decode(
-                getData($dbPrefix . 'sessions', 'WHERE cookie= :cookie', '* FROM', [':cookie' => $ap_admin]),
-                true
+            $this->cookieResponse = CrudService::select(
+                $dbPrefix . 'sessions',
+                "WHERE cookie= :cookie AND status= 'active'",
+                '* FROM',
+                [':cookie' => $op_admin],
             );
 
             if (($this->cookieResponse['status'] ?? false) == true) {
                 $userId = $this->cookieResponse['response'][0]['user_id'];
 
-                $this->userResponse = json_decode(
-                    getData($dbPrefix . 'merchant_users', 'WHERE id= :id', '* FROM', [':id' => $userId]),
-                    true
+                $this->userResponse = CrudService::select(
+                    $dbPrefix . 'merchant_users',
+                    'WHERE id= :id',
+                    '* FROM',
+                    [':id' => $userId],
                 );
 
                 if (($this->userResponse['status'] ?? false) == true
@@ -84,9 +91,11 @@ final class SessionMiddleware
 
                     $merchantId = $u['merchant_id'];
 
-                    $this->brandResponse = json_decode(
-                        getData($dbPrefix . 'merchants', 'WHERE id = :id', '* FROM', [':id' => $merchantId]),
-                        true
+                    $this->brandResponse = CrudService::select(
+                        $dbPrefix . 'merchants',
+                        'WHERE id = :id',
+                        '* FROM',
+                        [':id' => $merchantId],
                     );
 
                     if (($this->brandResponse['status'] ?? false) == true) {
@@ -121,7 +130,7 @@ final class SessionMiddleware
                             ],
                         ];
 
-                        setsCookie('ap_brand', (string) $merchantId);
+                        AuthSessionService::setCookie('op_brand', (string) $merchantId);
 
                         $isLoggedIn = true;
                         $user = $u;
@@ -135,8 +144,8 @@ final class SessionMiddleware
                 }
             }
         }
-        // --- 2FA stage path: ap_2fa cookie ---
-        elseif (getCookie('ap_2fa') !== null) {
+        // --- 2FA stage path: op_2fa cookie ---
+        elseif (AuthSessionService::getCookie('op_2fa') !== null) {
             $this->handle2faStage($dbPrefix);
             if ($this->is2fa && !empty($this->userResponse['response'][0])) {
                 $user = $this->userResponse['response'][0];
@@ -155,10 +164,12 @@ final class SessionMiddleware
 
     private function handle2faStage(string $dbPrefix): void
     {
-        $params = [':cookie' => getCookie('ap_2fa'), ':status' => 'active'];
-        $this->cookieResponse = json_decode(
-            getData($dbPrefix . 'sessions', 'WHERE cookie= :cookie AND status= :status', '* FROM', $params),
-            true
+        $params = [':cookie' => AuthSessionService::getCookie('op_2fa'), ':status' => 'active'];
+        $this->cookieResponse = CrudService::select(
+            $dbPrefix . 'sessions',
+            'WHERE cookie= :cookie AND status= :status',
+            '* FROM',
+            $params,
         );
 
         if (($this->cookieResponse['status'] ?? false) != true) {
@@ -169,9 +180,11 @@ final class SessionMiddleware
             ':user_id' => $this->cookieResponse['response'][0]['user_id'],
             ':two_fa_status' => 'enabled',
         ];
-        $this->userResponse = json_decode(
-            getData($dbPrefix . 'merchant_users', 'WHERE id= :user_id AND two_fa_status= :two_fa_status', '* FROM', $params),
-            true
+        $this->userResponse = CrudService::select(
+            $dbPrefix . 'merchant_users',
+            'WHERE id= :user_id AND two_fa_status= :two_fa_status',
+            '* FROM',
+            $params,
         );
 
         if (($this->userResponse['status'] ?? false) != true
@@ -180,19 +193,21 @@ final class SessionMiddleware
             return;
         }
 
-        if (getCookie('ap_brand') === null) {
+        if (AuthSessionService::getCookie('op_brand') === null) {
             return;
         }
 
-        $apBrand = sanitize_html(getCookie('ap_brand'));
+        $apBrand = InputSanitizer::html(AuthSessionService::getCookie('op_brand'));
         $params = [
             ':a_id' => $this->userResponse['response'][0]['a_id'] ?? $this->userResponse['response'][0]['public_id'] ?? '',
             ':status' => 'active',
             ':brand_id' => $apBrand,
         ];
-        $this->permissionResponse = json_decode(
-            getData($dbPrefix . 'permission', 'WHERE a_id = :a_id AND status = :status AND brand_id = :brand_id', '* FROM', $params),
-            true
+        $this->permissionResponse = CrudService::select(
+            $dbPrefix . 'permission',
+            'WHERE a_id = :a_id AND status = :status AND brand_id = :brand_id',
+            '* FROM',
+            $params,
         );
 
         if (($this->permissionResponse['status'] ?? false) != true) {
@@ -201,9 +216,11 @@ final class SessionMiddleware
                 ':a_id' => $this->userResponse['response'][0]['a_id'] ?? $this->userResponse['response'][0]['public_id'] ?? '',
                 ':status' => 'active',
             ];
-            $this->permissionResponse = json_decode(
-                getData($dbPrefix . 'permission', 'WHERE a_id = :a_id AND status = :status LIMIT 1', '* FROM', $params),
-                true
+            $this->permissionResponse = CrudService::select(
+                $dbPrefix . 'permission',
+                'WHERE a_id = :a_id AND status = :status LIMIT 1',
+                '* FROM',
+                $params,
             );
 
             if (($this->permissionResponse['status'] ?? false) != true) {
@@ -212,13 +229,15 @@ final class SessionMiddleware
         }
 
         $params = [':brand_id' => $this->permissionResponse['response'][0]['brand_id']];
-        $this->brandResponse = json_decode(
-            getData($dbPrefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params),
-            true
+        $this->brandResponse = CrudService::select(
+            $dbPrefix . 'brands',
+            'WHERE brand_id = :brand_id',
+            '* FROM',
+            $params,
         );
 
         if (($this->brandResponse['status'] ?? false) == true) {
-            setsCookie('ap_brand', $this->permissionResponse['response'][0]['brand_id']);
+            AuthSessionService::setCookie('op_brand', $this->permissionResponse['response'][0]['brand_id']);
             $this->is2fa = true;
         }
     }
@@ -234,9 +253,11 @@ final class SessionMiddleware
         }
 
         $params = [':brand_id' => $brand['brand_id'], ':code' => $this->currencyCode];
-        $currencyData = json_decode(
-            getData($dbPrefix . 'currency', 'WHERE brand_id = :brand_id AND code = :code', '* FROM', $params),
-            true
+        $currencyData = CrudService::select(
+            $dbPrefix . 'currency',
+            'WHERE brand_id = :brand_id AND code = :code',
+            '* FROM',
+            $params,
         );
 
         if (($currencyData['status'] ?? false) == true) {
@@ -269,7 +290,7 @@ final class SessionMiddleware
             currencyCode: $this->currencyCode,
             currencySymbol: $this->currencySymbol,
             currencyRate: $this->currencyRate,
-            demoMode: !empty($GLOBALS['ap_demo_mode']),
+            demoMode: !empty($GLOBALS['op_demo_mode']),
             userResponse: $this->userResponse,
             brandResponse: $this->brandResponse,
             permissionResponse: $this->permissionResponse,

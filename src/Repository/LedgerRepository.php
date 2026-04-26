@@ -2,22 +2,22 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
-use AnirbanPay\Core\Database;
-use AnirbanPay\Core\UuidGenerator;
+use OwnPay\Core\Database;
+use OwnPay\Core\UuidGenerator;
 
 /**
  * Repository for the double-entry ledger system:
- *   - ap_ledger_accounts
- *   - ap_ledger_transactions (journal headers)
- *   - ap_ledger_entries (debit/credit lines) — PARTITIONED
+ *   - op_ledger_accounts
+ *   - op_ledger_transactions (journal headers)
+ *   - op_ledger_entries (debit/credit lines) — PARTITIONED
  */
 class LedgerRepository extends BaseRepository
 {
     use TenantScope;
 
-    protected string $table = 'ap_ledger_accounts';
+    protected string $table = 'op_ledger_accounts';
 
     // ─── Accounts ────────────────────────────────────────────────────
 
@@ -40,6 +40,10 @@ class LedgerRepository extends BaseRepository
         } else {
             $where .= ' AND `merchant_id` IS NULL';
         }
+
+        $tc = $this->tenantCondition();
+        $where .= $tc;
+        $params = array_merge($params, $this->tenantParams());
 
         $account = $this->findOneWhere($where, $params);
 
@@ -76,12 +80,13 @@ class LedgerRepository extends BaseRepository
      */
     public function adjustBalance(int $accountId, string $amount): void
     {
+        $tc = $this->tenantCondition();
         $this->db->execute(
-            "UPDATE `ap_ledger_accounts`
+            "UPDATE `op_ledger_accounts`
              SET `balance` = `balance` + :amount,
                  `updated_at` = NOW(6)
-             WHERE `id` = :id",
-            ['amount' => $amount, 'id' => $accountId]
+             WHERE `id` = :id{$tc}",
+            array_merge(['amount' => $amount, 'id' => $accountId], $this->tenantParams())
         );
     }
 
@@ -104,7 +109,7 @@ class LedgerRepository extends BaseRepository
         $now = gmdate('Y-m-d H:i:s.u');
 
         $this->db->execute(
-            "INSERT INTO `ap_ledger_transactions`
+            "INSERT INTO `op_ledger_transactions`
              (`public_id`, `event_type`, `reference_type`, `reference_id`,
               `total_amount`, `currency`, `description`, `status`, `created_at`)
              VALUES (:pid, :et, :rt, :ri, :ta, :cur, :desc, 'posted', :ca)",
@@ -139,7 +144,7 @@ class LedgerRepository extends BaseRepository
         $now = gmdate('Y-m-d H:i:s.u');
 
         $this->db->execute(
-            "INSERT INTO `ap_ledger_entries`
+            "INSERT INTO `op_ledger_entries`
              (`ledger_transaction_id`, `account_id`, `entry_type`,
               `amount`, `currency`, `created_at`)
              VALUES (:ltid, :aid, :et, :amt, :cur, :ca)",
@@ -158,11 +163,13 @@ class LedgerRepository extends BaseRepository
 
     /**
      * Get all entries for a journal transaction.
+     * NOTE: op_ledger_entries has no merchant_id column — scoping is
+     * enforced at the journal-transaction level rather than per-entry.
      */
     public function getEntries(int $ledgerTransactionId): array
     {
         return $this->db->fetchAll(
-            "SELECT * FROM `ap_ledger_entries`
+            "SELECT * FROM `op_ledger_entries`
              WHERE `ledger_transaction_id` = :ltid
              ORDER BY `account_id` ASC",
             ['ltid' => $ledgerTransactionId]
@@ -172,6 +179,8 @@ class LedgerRepository extends BaseRepository
     /**
      * Verify the balanced invariant for a journal transaction.
      * Returns true if sum(debit) === sum(credit).
+     * NOTE: op_ledger_entries has no merchant_id column — scoping is
+     * enforced at the journal-transaction level rather than per-entry.
      */
     public function isBalanced(int $ledgerTransactionId): bool
     {
@@ -179,7 +188,7 @@ class LedgerRepository extends BaseRepository
             "SELECT
                 SUM(CASE WHEN `entry_type` = 'debit'  THEN `amount` ELSE 0 END) AS total_debit,
                 SUM(CASE WHEN `entry_type` = 'credit' THEN `amount` ELSE 0 END) AS total_credit
-             FROM `ap_ledger_entries`
+             FROM `op_ledger_entries`
              WHERE `ledger_transaction_id` = :ltid",
             ['ltid' => $ledgerTransactionId]
         );

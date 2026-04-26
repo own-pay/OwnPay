@@ -2,25 +2,26 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
 /**
- * Repository for ap_refunds — partial/full refund records.
+ * Repository for op_refunds — partial/full refund records.
  */
 class RefundRepository extends BaseRepository
 {
     use TenantScope;
 
-    protected string $table = 'ap_refunds';
+    protected string $table = 'op_refunds';
 
     /**
      * Find refunds for a transaction.
      */
     public function findByTransaction(int $transactionId): array
     {
+        $tc = $this->tenantCondition();
         return $this->findWhere(
-            '`transaction_id` = :tid',
-            ['tid' => $transactionId],
+            '`transaction_id` = :tid' . $tc,
+            array_merge(['tid' => $transactionId], $this->tenantParams()),
             'created_at DESC'
         );
     }
@@ -30,9 +31,10 @@ class RefundRepository extends BaseRepository
      */
     public function findByMerchant(int $merchantId, int $limit = 50): array
     {
+        $tc = $this->tenantCondition();
         return $this->findWhere(
-            '`merchant_id` = :mid',
-            ['mid' => $merchantId],
+            '`merchant_id` = :mid' . $tc,
+            array_merge(['mid' => $merchantId], $this->tenantParams()),
             'created_at DESC',
             $limit
         );
@@ -43,12 +45,13 @@ class RefundRepository extends BaseRepository
      */
     public function totalRefunded(int $transactionId): string
     {
+        $tc = $this->tenantCondition();
         $result = $this->db->fetchColumn(
             "SELECT COALESCE(SUM(`amount`), 0)
              FROM `{$this->table}`
              WHERE `transaction_id` = :tid
-               AND `status` IN ('pending', 'completed')",
-            ['tid' => $transactionId]
+               AND `status` IN ('pending', 'completed'){$tc}",
+            array_merge(['tid' => $transactionId], $this->tenantParams())
         );
 
         return (string) $result;
@@ -63,6 +66,11 @@ class RefundRepository extends BaseRepository
         if ($status === 'completed') {
             $data['completed_at'] = gmdate('Y-m-d H:i:s.u');
         }
-        return $this->updateById($id, $data);
+        $tc = $this->tenantCondition();
+        return $this->update(
+            $data,
+            '`id` = :where_id' . $tc,
+            array_merge(['where_id' => $id], $this->tenantParams())
+        );
     }
 }

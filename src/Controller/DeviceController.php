@@ -1,31 +1,28 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\InputSanitizer;
+use OwnPay\Service\PermissionGuard;
 
 class DeviceController
 {
     public static function handle(string $action, RequestContext $ctx): void
     {
-        $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
+        $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
         $db_prefix = $ctx->dbPrefix;
-        $global_response_brand = $ctx->brandResponse;
-        $ap_admin = $ctx->isAdmin();
+        $op_admin = $ctx->isAdmin();
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         // Inline extracted code from adapter.php
         if ($action == "device-list") {
-            if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'device', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+            if ($ctx->isLoggedIn) {
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'device')) { return; }
 
                 $search_input = $request->post('search_input', '');
                 $show_limit_raw = $request->post('show_limit', '5');
@@ -60,9 +57,10 @@ class DeviceController
                 /* Filters */
 
 
-                $page = max(1, (int) $request->post('page', '1'));
-                $show_limit_val = ($request->post('show_limit') == '') ? 999999 : (int) $request->post('show_limit');
-                $offset = ($page - 1) * $show_limit_val;
+                $pag = \OwnPay\Service\PaginationService::resolve($request->post('page', '1'), $request->post('show_limit'));
+                $page = $pag['page'];
+                $show_limit_val = $pag['perPage'];
+                $offset = $pag['offset'];
                 $show_limit = $show_limit_val;
 
                 $sql_query = '';
@@ -73,13 +71,13 @@ class DeviceController
                 }
 
                 $sql_limit = '';
-                if ($show_limit_val == 'all') {
+                if ($pag['isAll']) {
 
                 } else {
                     $sql_limit = " LIMIT $offset, $show_limit_val";
                 }
 
-                $response_result = json_decode(getData($db_prefix . 'device', ' WHERE ' . $where_sql . ' status = :status_used ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_device), true);
+                $response_result = CrudService::select($db_prefix . 'device', ' WHERE ' . $where_sql . ' status = :status_used ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_device);
                 if ($response_result['status'] == true) {
                     $response = [];
 
@@ -90,51 +88,19 @@ class DeviceController
                             "model" => $row['model'],
                             "android_level" => $row['android_level'],
                             "status" => $row['status'],
-                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                            "last_sync" => ($row['last_sync'] == "--") ? '' : convertUTCtoUserTZ($row['last_sync'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                            "last_sync" => empty($row['last_sync']) ? '' : convertUTCtoUserTZ($row['last_sync'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                         ];
                     }
 
-                    $count_data = json_decode(getData($db_prefix . 'device', ' WHERE ' . $where_sql . ' status = :status_used ' . $sql_query, '* FROM', $params_device), true);
+                    $count_data = CrudService::select($db_prefix . 'device', ' WHERE ' . $where_sql . ' status = :status_used ' . $sql_query, '* FROM', $params_device);
 
 
                     $total_records = count($count_data['response'] ?? []);
-                    $total_pages = ceil($total_records / $show_limit);
-
-                    $pagination = '<ul class="pagination m-0 ms-auto">';
-
-                    // Prev button
-                    $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M15 6l-6 6l6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    // Page numbers
-                    for ($i = 1; $i <= $total_pages; $i++) {
-                        $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                                <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                            </li>';
-                    }
-
-                    // Next button
-                    $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M9 6l6 6l-6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    $pagination .= '</ul>';
-
-                    $start = ($offset + 1);
-                    $end = min($offset + $show_limit, $total_records);
-
-                    $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+                    $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit, $offset);
+                    $pagination = $pagHtml['pagination'];
+                    $datatableInfo = $pagHtml['datatableInfo'];
 
                     echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
                 } else {
@@ -147,30 +113,23 @@ class DeviceController
         }
 
         if ($action == "device-delete") {
-            if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'device', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'delete', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+            if ($ctx->isLoggedIn) {
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'device')) { return; }
+                if (PermissionGuard::denyUnlessHas($ctx, 'device', 'delete')) { return; }
 
                 $ItemID = $request->post('ItemID', '');
                 $params_item = [':id' => $ItemID];
 
-                $response_brand = json_decode(getData($db_prefix . 'device', 'WHERE device_id = :id', '* FROM', $params_item), true);
+                $response_brand = CrudService::select($db_prefix . 'device', 'WHERE device_id = :id', '* FROM', $params_item);
                 if ($response_brand['status'] == true) {
                     $condition = "device_id = :id";
                     $whereParams = [':id' => $ItemID];
 
-                    deleteData($db_prefix . 'device', $condition, $whereParams);
+                    CrudService::delete($db_prefix . 'device', $condition, $whereParams);
 
                     $condition = "device_id = :id";
 
-                    deleteData($db_prefix . 'balance_verification', $condition, $whereParams);
+                    CrudService::delete($db_prefix . 'balance_verification', $condition, $whereParams);
                 }
 
                 echo json_encode(['status' => 'true', 'title' => 'Device Deleted', 'message' => 'The selected device have been deleted successfully.', 'csrf_token' => $new_csrf_token]);
@@ -180,11 +139,8 @@ class DeviceController
         }
 
         if ($action == "device-bulk-action") {
-            if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'device', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+            if ($ctx->isLoggedIn) {
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'device')) { return; }
 
                 $actionID = $request->post('actionID', '');
                 $selected_ids_json = $request->post('selected_ids', '[]');
@@ -192,22 +148,22 @@ class DeviceController
 
                 if (!empty($selected_ids)) {
                     foreach ($selected_ids as $id) {
-                        $itemID = escape_string($id);
+                        $itemID = InputSanitizer::trim($id);
                         $params_item = [':id' => $itemID];
 
-                        $response_brand = json_decode(getData($db_prefix . 'device', 'WHERE device_id = :id', '* FROM', $params_item), true);
+                        $response_brand = CrudService::select($db_prefix . 'device', 'WHERE device_id = :id', '* FROM', $params_item);
                         if ($response_brand['status'] == true) {
                             if ($actionID == "deleted") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'delete', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'device', 'delete')) {
 
                                     $condition = "device_id = :id";
                                     $whereParams = [':id' => $itemID];
 
-                                    deleteData($db_prefix . 'device', $condition, $whereParams);
+                                    CrudService::delete($db_prefix . 'device', $condition, $whereParams);
 
                                     $condition = "device_id = :id";
 
-                                    deleteData($db_prefix . 'balance_verification', $condition, $whereParams);
+                                    CrudService::delete($db_prefix . 'balance_verification', $condition, $whereParams);
                                 }
                             }
                         }
@@ -223,37 +179,30 @@ class DeviceController
         }
 
         if ($action == "device-connect-info") {
-            if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'device', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'connect', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
+            if ($ctx->isLoggedIn) {
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'device')) { return; }
+                if (PermissionGuard::denyUnlessHas($ctx, 'device', 'connect')) { return; }
 
                 $otp = generateItemID();
-                $params_dev = [':status' => 'processing', ':d_id' => $ap_admin];
+                $params_dev = [':status' => 'processing', ':d_id' => $op_admin];
 
-                $response_brand = json_decode(getData($db_prefix . 'device', 'WHERE status = :status AND d_id = :d_id', '* FROM', $params_dev), true);
+                $response_brand = CrudService::select($db_prefix . 'device', 'WHERE status = :status AND d_id = :d_id', '* FROM', $params_dev);
                 if ($response_brand['status'] == true) {
                     $columns = ['otp', 'updated_date'];
                     $values = [$otp, getCurrentDatetime('Y-m-d H:i:s')];
                     $condition = "id = :id";
                     $whereParams = [':id' => $response_brand['response'][0]['id']];
 
-                    updateData($db_prefix . 'device', $columns, $values, $condition, $whereParams);
+                    CrudService::update($db_prefix . 'device', $columns, $values, $condition, $whereParams);
 
                     echo json_encode(['status' => 'true', 'otp' => $otp, 'csrf_token' => $new_csrf_token]);
                 } else {
                     $device_id = generateItemID();
 
                     $columns = ['d_id', 'device_id', 'otp', 'created_date', 'updated_date'];
-                    $values = [$ap_admin, $device_id, $otp, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
+                    $values = [$op_admin, $device_id, $otp, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                    insertData($db_prefix . 'device', $columns, $values);
+                    CrudService::insert($db_prefix . 'device', $columns, $values);
 
                     echo json_encode(['status' => 'true', 'otp' => $otp, 'csrf_token' => $new_csrf_token]);
                 }

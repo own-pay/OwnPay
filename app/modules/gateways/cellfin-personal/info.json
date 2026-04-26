@@ -1,0 +1,12 @@
+{
+    "name": "Cellfin Personal",
+    "slug": "cellfin-personal",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "Cellfin Personal payment gateway",
+    "tab": "mfs",
+    "currency": "BDT",
+    "gateway_type": "automation"
+}

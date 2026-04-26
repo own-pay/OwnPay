@@ -1,9 +1,12 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\InputSanitizer;
+use OwnPay\Service\PermissionGuard;
 
 class StaffController
 {
@@ -51,17 +54,16 @@ class StaffController
     {
         $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
         $global_user_response = $ctx->userResponse;
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'staff_management')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $search_input = $request->post('search_input', '');
             $show_limit_val = $request->post('show_limit', '5');
@@ -92,9 +94,10 @@ class StaffController
             $where_sql = $where ? implode(' AND ', $where) . ' AND ' : '';
             /* Filters */
 
-            $page = max(1, (int) $request->post('page', '1'));
-            $show_limit = ($request->post('show_limit') == '') ? 999999 : (int) $request->post('show_limit');
-            $offset = ($page - 1) * $show_limit;
+            $pag = \OwnPay\Service\PaginationService::resolve($request->post('page', '1'), $request->post('show_limit'));
+            $page = $pag['page'];
+            $show_limit = $pag['perPage'];
+            $offset = $pag['offset'];
 
             $sql_query = '';
 
@@ -104,13 +107,13 @@ class StaffController
             }
 
             $sql_limit = '';
-            if ($show_limit_val == 'all') {
+            if ($pag['isAll']) {
 
             } else {
                 $sql_limit = " LIMIT $offset, $show_limit";
             }
 
-            $response_result = json_decode(getData($db_prefix . 'admin', 'WHERE ' . $where_sql . '  role = :role AND a_id NOT IN (:a_id) ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_staff), true);
+            $response_result = CrudService::select($db_prefix . 'admin', 'WHERE ' . $where_sql . '  role = :role AND a_id NOT IN (:a_id) ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_staff);
             if ($response_result['status'] == true) {
                 $response = [];
 
@@ -122,49 +125,17 @@ class StaffController
                         "email" => $row['email'],
                         "status" => $row['status'],
                         "role" => $row['role'],
-                        "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                        "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                        "created_date" => convertUTCtoUserTZ($row['created_date'], empty($global_response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                        "updated_date" => convertUTCtoUserTZ($row['updated_date'], empty($global_response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                     ];
                 }
 
-                $count_data = json_decode(getData($db_prefix . 'admin', 'WHERE ' . $where_sql . ' role="staff" AND a_id NOT IN (:a_id) ' . $sql_query, '* FROM', [':a_id' => $global_user_response['response'][0]['a_id']]), true);
+                $count_data = CrudService::select($db_prefix . 'admin', 'WHERE ' . $where_sql . ' role="staff" AND a_id NOT IN (:a_id) ' . $sql_query, '* FROM', [':a_id' => $global_user_response['response'][0]['a_id']]);
 
                 $total_records = count($count_data['response'] ?? []);
-                $total_pages = ceil($total_records / $show_limit);
-
-                $pagination = '<ul class="pagination m-0 ms-auto">';
-
-                // Prev button
-                $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                        <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                <path d="M15 6l-6 6l6 6"></path>
-                            </svg>
-                        </button>
-                    </li>';
-
-                // Page numbers
-                for ($i = 1; $i <= $total_pages; $i++) {
-                    $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                            <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                        </li>';
-                }
-
-                // Next button
-                $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                        <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                <path d="M9 6l6 6l-6 6"></path>
-                            </svg>
-                        </button>
-                    </li>';
-
-                $pagination .= '</ul>';
-
-                $start = ($offset + 1);
-                $end = min($offset + $show_limit, $total_records);
-
-                $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+                $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit, $offset);
+                $pagination = $pagHtml['pagination'];
+                $datatableInfo = $pagHtml['datatableInfo'];
 
                 echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
             } else {
@@ -180,67 +151,73 @@ class StaffController
     {
         $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
         $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'staff_management')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $actionID = $request->post('actionID', '');
             $selected_ids_json = $request->post('selected_ids', '[]');
             $selected_ids = json_decode($selected_ids_json, true);
 
+            // Validate actionID against allowlist to prevent XSS
+            $allowedBulkActions = ['deleted', 'activated', 'suspended'];
+            if (!in_array($actionID, $allowedBulkActions, true)) {
+                echo json_encode(['status' => 'false', 'title' => 'Invalid Action', 'message' => 'The requested action is not valid.', 'csrf_token' => $new_csrf_token]);
+                exit();
+            }
+
             if (!empty($selected_ids)) {
                 foreach ($selected_ids as $id) {
-                    $itemID = escape_string($id);
+                    $itemID = InputSanitizer::trim($id);
 
-                    $response_staff = json_decode(getData($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $itemID]), true);
+                    $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $itemID]);
                     if ($response_staff['status'] == true) {
                         if ($itemID == $global_user_response['response'][0]['a_id']) {
 
                         } else {
                             if ($actionID == "deleted") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'delete', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'staff', 'delete')) {
 
                                     $condition = "a_id = :a_id";
                                     $whereParams = [':a_id' => $response_staff['response'][0]['a_id']];
 
-                                    deleteData($db_prefix . 'permission', $condition, $whereParams);
+                                    CrudService::delete($db_prefix . 'permission', $condition, $whereParams);
 
-                                    deleteData($db_prefix . 'browser_log', $condition, $whereParams);
+                                    CrudService::delete($db_prefix . 'browser_log', $condition, $whereParams);
 
-                                    deleteData($db_prefix . 'admin', $condition, $whereParams);
+                                    CrudService::delete($db_prefix . 'admin', $condition, $whereParams);
 
                                 }
                             }
 
                             if ($actionID == "activated") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'edit', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'staff', 'edit')) {
 
                                     $columns = ['status', 'updated_date'];
                                     $values = ['active', getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = "a_id = :id";
                                     $whereParams = [':id' => $itemID];
 
-                                    updateData($db_prefix . 'admin', $columns, $values, $condition, $whereParams);
+                                    CrudService::update($db_prefix . 'admin', $columns, $values, $condition, $whereParams);
 
                                 }
                             }
 
                             if ($actionID == "suspended") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'edit', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'staff', 'edit')) {
 
                                     $columns = ['status', 'updated_date'];
                                     $values = ['suspend', getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = "a_id = :id";
                                     $whereParams = [':id' => $itemID];
 
-                                    updateData($db_prefix . 'admin', $columns, $values, $condition, $whereParams);
+                                    CrudService::update($db_prefix . 'admin', $columns, $values, $condition, $whereParams);
 
                                 }
                             }
@@ -261,25 +238,19 @@ class StaffController
     {
         $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
         $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'staff_management') || !PermissionGuard::has($ctx, 'staff', 'delete')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'delete', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $ItemID = $request->post('ItemID', '');
 
-            $response_staff = json_decode(getData($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $ItemID]), true);
+            $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $ItemID]);
             if ($response_staff['status'] == true) {
                 if ($ItemID == $global_user_response['response'][0]['a_id']) {
                     echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'You cannot delete your own account.', 'csrf_token' => $new_csrf_token]);
@@ -287,14 +258,14 @@ class StaffController
                     $condition = "a_id = :a_id";
                     $whereParams = [':a_id' => $response_staff['response'][0]['a_id']];
 
-                    deleteData($db_prefix . 'permission', $condition, $whereParams);
+                    CrudService::delete($db_prefix . 'permission', $condition, $whereParams);
 
-                    deleteData($db_prefix . 'browser_log', $condition, $whereParams);
+                    CrudService::delete($db_prefix . 'browser_log', $condition, $whereParams);
 
                     $condition = "id = :id";
                     $whereParams = [':id' => $response_staff['response'][0]['id']];
 
-                    deleteData($db_prefix . 'admin', $condition, $whereParams);
+                    CrudService::delete($db_prefix . 'admin', $condition, $whereParams);
 
                     echo json_encode(['status' => 'true', 'title' => 'Staff Deleted', 'message' => 'The staff member have been deleted successfully.', 'csrf_token' => $new_csrf_token]);
                 }
@@ -310,21 +281,14 @@ class StaffController
     {
         $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'staff_management') || !PermissionGuard::has($ctx, 'staff', 'create')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'create', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $fullname = $request->post('full-name', '');
             $username = $request->post('username', '');
@@ -348,13 +312,13 @@ class StaffController
                         exit();
                     }
 
-                    $response = json_decode(getData($db_prefix . 'admin', 'WHERE username = :username', '* FROM', [':username' => $username]), true);
+                    $response = CrudService::select($db_prefix . 'admin', 'WHERE username = :username', '* FROM', [':username' => $username]);
                     if ($response['status'] == true) {
                         echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Username already exits.', 'csrf_token' => $new_csrf_token]);
                         exit();
                     }
 
-                    $response = json_decode(getData($db_prefix . 'admin', 'WHERE email = :email', '* FROM', [':email' => $email_address]), true);
+                    $response = CrudService::select($db_prefix . 'admin', 'WHERE email = :email', '* FROM', [':email' => $email_address]);
                     if ($response['status'] == true) {
                         echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Email Address already exits.', 'csrf_token' => $new_csrf_token]);
                         exit();
@@ -369,7 +333,7 @@ class StaffController
                     $columns = ['a_id', 'full_name', 'username', 'email', 'password', 'temp_password', 'role', 'created_date', 'updated_date'];
                     $values = [$a_id, $fullname, $username, $email_address, $password, $temp_password, 'staff', getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                    insertData($db_prefix . 'admin', $columns, $values);
+                    CrudService::insert($db_prefix . 'admin', $columns, $values);
 
                     $schema = permissionSchema();
 
@@ -395,15 +359,15 @@ class StaffController
                     $permission_json = json_encode($newPermissions);
 
                     foreach ($brands as $brand_id) {
-                        $brand_id = escape_string($brand_id);
+                        $brand_id = InputSanitizer::trim($brand_id);
 
-                        $response = json_decode(getData($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', [':brand_id' => $brand_id]), true);
+                        $response = CrudService::select($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', [':brand_id' => $brand_id]);
                         if ($response['status'] == true) {
 
                             $columns = ['brand_id', 'a_id', 'permission', 'created_date', 'updated_date'];
                             $values = [$brand_id, $a_id, $permission_json, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                            insertData($db_prefix . 'permission', $columns, $values);
+                            CrudService::insert($db_prefix . 'permission', $columns, $values);
 
                         }
                     }
@@ -422,20 +386,15 @@ class StaffController
     {
         $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
         $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'edit', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'staff_management') || !PermissionGuard::has($ctx, 'staff', 'edit')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $fullname = $request->post('full-name', '');
             $username = $request->post('username', '');
@@ -443,7 +402,7 @@ class StaffController
             $password = $request->post('password', '');
             $itemID = $request->post('itemID', '');
 
-            $response_staff = json_decode(getData($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $itemID]), true);
+            $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $itemID]);
             if ($response_staff['status'] == true) {
                 if ($global_user_response['response'][0]['a_id'] == $itemID) {
                     echo json_encode(['status' => "false", 'title' => 'Edit Staff Failed', 'message' => 'You are not allowed to edit your own staff information.', 'csrf_token' => $new_csrf_token]);
@@ -459,7 +418,7 @@ class StaffController
                         }
 
                         if ($username !== $response_staff['response'][0]['username']) {
-                            $response = json_decode(getData($db_prefix . 'admin', 'WHERE username = :username', '* FROM', [':username' => $username]), true);
+                            $response = CrudService::select($db_prefix . 'admin', 'WHERE username = :username', '* FROM', [':username' => $username]);
                             if ($response['status'] == true) {
                                 echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Username already exits.', 'csrf_token' => $new_csrf_token]);
                                 exit();
@@ -467,7 +426,7 @@ class StaffController
                         }
 
                         if ($email_address !== $response_staff['response'][0]['email']) {
-                            $response = json_decode(getData($db_prefix . 'admin', 'WHERE email = :email', '* FROM', [':email' => $email_address]), true);
+                            $response = CrudService::select($db_prefix . 'admin', 'WHERE email = :email', '* FROM', [':email' => $email_address]);
                             if ($response['status'] == true) {
                                 echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Email Address already exits.', 'csrf_token' => $new_csrf_token]);
                                 exit();
@@ -488,7 +447,7 @@ class StaffController
                         $condition = "a_id = :a_id";
                         $whereParams = [':a_id' => $response_staff['response'][0]['a_id']];
 
-                        updateData($db_prefix . 'admin', $columns, $values, $condition, $whereParams);
+                        CrudService::update($db_prefix . 'admin', $columns, $values, $condition, $whereParams);
 
                         echo json_encode(['status' => 'true', 'title' => 'Staff Profile Updated', 'message' => 'Staff profile information has been updated successfully.', 'csrf_token' => $new_csrf_token]);
                     } else {
@@ -505,22 +464,16 @@ class StaffController
     {
         $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
         $global_user_response = $ctx->userResponse;
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'staff_management') || !PermissionGuard::has($ctx, 'staff', 'view_permission_list')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'view_permission_list', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $show_limit_val = $request->post('show_limit', '5');
             $a_id = $request->post('a_id', '');
@@ -547,18 +500,19 @@ class StaffController
             $where_sql = $where ? implode(' AND ', $where) . ' AND ' : '';
             /* Filters */
 
-            $page = max(1, (int) $request->post('page', '1'));
-            $show_limit = ($request->post('show_limit') == '') ? 999999 : (int) $request->post('show_limit');
-            $offset = ($page - 1) * $show_limit;
+            $pag2 = \OwnPay\Service\PaginationService::resolve($request->post('page', '1'), $request->post('show_limit'));
+            $page = $pag2['page'];
+            $show_limit = $pag2['perPage'];
+            $offset = $pag2['offset'];
 
             $sql_limit = '';
-            if ($show_limit_val == 'all') {
+            if ($pag2['isAll']) {
 
             } else {
                 $sql_limit = " LIMIT $offset, $show_limit";
             }
 
-            $response_staff = json_decode(getData($db_prefix . 'admin', 'WHERE a_id = :id AND id NOT IN (:global_id) AND role = :role', '* FROM', [':id' => $a_id, ':global_id' => $global_user_response['response'][0]['id'], ':role' => 'staff']), true);
+            $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE a_id = :id AND id NOT IN (:global_id) AND role = :role', '* FROM', [':id' => $a_id, ':global_id' => $global_user_response['response'][0]['id'], ':role' => 'staff']);
             if ($response_staff['status'] == true) {
                 if ($global_user_response['response'][0]['a_id'] == $a_id) {
                     echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => "You can't edit your info", 'csrf_token' => $new_csrf_token]);
@@ -569,62 +523,30 @@ class StaffController
                 exit();
             }
 
-            $response_result = json_decode(getData($db_prefix . 'permission', 'WHERE ' . $where_sql . ' a_id = :a_id ORDER BY 1 DESC ' . $sql_limit, '* FROM', [':a_id' => $response_staff['response'][0]['a_id']]), true);
+            $response_result = CrudService::select($db_prefix . 'permission', 'WHERE ' . $where_sql . ' a_id = :a_id ORDER BY 1 DESC ' . $sql_limit, '* FROM', [':a_id' => $response_staff['response'][0]['a_id']]);
             if ($response_result['status'] == true) {
                 $response = [];
 
                 foreach ($response_result['response'] as $row) {
-                    $response_brand = json_decode(getData($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', [':brand_id' => $row['brand_id']]), true);
+                    $response_brand = CrudService::select($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', [':brand_id' => $row['brand_id']]);
                     if ($response_brand['status'] == true) {
                         $response[] = [
                             "id" => $row['id'],
                             "identify_name" => $response_brand['response'][0]['identify_name'],
                             "brandname" => $response_brand['response'][0]['name'],
                             "status" => $row['status'],
-                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                            "created_date" => convertUTCtoUserTZ($row['created_date'], empty($global_response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], empty($global_response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                         ];
                     }
                 }
 
-                $count_data = json_decode(getData($db_prefix . 'permission', 'WHERE a_id = :a_id', '* FROM', [':a_id' => $response_staff['response'][0]['a_id']]), true);
+                $count_data = CrudService::select($db_prefix . 'permission', 'WHERE a_id = :a_id', '* FROM', [':a_id' => $response_staff['response'][0]['a_id']]);
 
                 $total_records = count($count_data['response'] ?? []);
-                $total_pages = ceil($total_records / $show_limit);
-
-                $pagination = '<ul class="pagination m-0 ms-auto">';
-
-                // Prev button
-                $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                        <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                <path d="M15 6l-6 6l6 6"></path>
-                            </svg>
-                        </button>
-                    </li>';
-
-                // Page numbers
-                for ($i = 1; $i <= $total_pages; $i++) {
-                    $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                            <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                        </li>';
-                }
-
-                // Next button
-                $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                        <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                <path d="M9 6l6 6l-6 6"></path>
-                            </svg>
-                        </button>
-                    </li>';
-
-                $pagination .= '</ul>';
-
-                $start = ($offset + 1);
-                $end = min($offset + $show_limit, $total_records);
-
-                $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+                $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit, $offset);
+                $pagination = $pagHtml['pagination'];
+                $datatableInfo = $pagHtml['datatableInfo'];
 
                 echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
             } else {
@@ -640,62 +562,68 @@ class StaffController
     {
         $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
         $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'staff_management')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $actionID = $request->post('actionID', '');
             $selected_ids_json = $request->post('selected_ids', '[]');
             $selected_ids = json_decode($selected_ids_json, true);
 
+            // Validate actionID against allowlist to prevent XSS
+            $allowedPermActions = ['deleted'];
+            if (!in_array($actionID, $allowedPermActions, true)) {
+                echo json_encode(['status' => 'false', 'title' => 'Invalid Action', 'message' => 'The requested action is not valid.', 'csrf_token' => $new_csrf_token]);
+                exit();
+            }
+
             if (!empty($selected_ids)) {
                 foreach ($selected_ids as $id) {
-                    $itemID = escape_string($id);
+                    $itemID = InputSanitizer::trim($id);
 
-                    $response_brand = json_decode(getData($db_prefix . 'permission', 'WHERE id = :id', '* FROM', [':id' => $itemID]), true);
+                    $response_brand = CrudService::select($db_prefix . 'permission', 'WHERE id = :id', '* FROM', [':id' => $itemID]);
                     if ($response_brand['status'] == true) {
                         if ($response_brand['response'][0]['a_id'] == $global_user_response['response'][0]['a_id']) {
 
                         } else {
-                            $response_admin = json_decode(getData($db_prefix . 'admin', 'WHERE role = "admin" AND a_id = :a_id', '* FROM', [':a_id' => $response_brand['response'][0]['a_id']]), true);
+                            $response_admin = CrudService::select($db_prefix . 'admin', 'WHERE role = "admin" AND a_id = :a_id', '* FROM', [':a_id' => $response_brand['response'][0]['a_id']]);
                             if ($response_admin['status'] == true) {
 
                             } else {
                                 if ($actionID == "deleted") {
-                                    if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'delete_permission_of', $global_user_response['response'][0]['role'])) {
+                                    if (PermissionGuard::has($ctx, 'staff', 'delete_permission_of')) {
                                         $condition = "id = :id";
                                         $whereParams = [':id' => $itemID];
 
-                                        deleteData($db_prefix . 'permission', $condition, $whereParams);
+                                        CrudService::delete($db_prefix . 'permission', $condition, $whereParams);
                                     }
                                 }
 
                                 if ($actionID == "activated") {
-                                    if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'edit_permission', $global_user_response['response'][0]['role'])) {
+                                    if (PermissionGuard::has($ctx, 'staff', 'edit_permission')) {
                                         $columns = ['status', 'updated_date'];
                                         $values = ['active', getCurrentDatetime('Y-m-d H:i:s')];
                                         $condition = "id = :id";
                                         $whereParams = [':id' => $itemID];
 
-                                        updateData($db_prefix . 'permission', $columns, $values, $condition, $whereParams);
+                                        CrudService::update($db_prefix . 'permission', $columns, $values, $condition, $whereParams);
                                     }
                                 }
 
                                 if ($actionID == "suspended") {
-                                    if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'edit_permission', $global_user_response['response'][0]['role'])) {
+                                    if (PermissionGuard::has($ctx, 'staff', 'edit_permission')) {
                                         $columns = ['status', 'updated_date'];
                                         $values = ['suspend', getCurrentDatetime('Y-m-d H:i:s')];
                                         $condition = "id = :id";
                                         $whereParams = [':id' => $itemID];
 
-                                        updateData($db_prefix . 'permission', $columns, $values, $condition, $whereParams);
+                                        CrudService::update($db_prefix . 'permission', $columns, $values, $condition, $whereParams);
                                     }
                                 }
                             }
@@ -716,26 +644,21 @@ class StaffController
     {
         $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
         $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'delete_permission', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'staff_management') || !PermissionGuard::has($ctx, 'staff', 'delete_permission')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $ItemID = $request->post('ItemID', '');
 
-            $response_permision = json_decode(getData($db_prefix . 'permission', 'WHERE id = :id', '* FROM', [':id' => $ItemID]), true);
+            $response_permision = CrudService::select($db_prefix . 'permission', 'WHERE id = :id', '* FROM', [':id' => $ItemID]);
             if ($response_permision['status'] == true) {
-                $response_staff = json_decode(getData($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :a_id', '* FROM', [':a_id' => $response_permision['response'][0]['a_id']]), true);
+                $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :a_id', '* FROM', [':a_id' => $response_permision['response'][0]['a_id']]);
                 if ($response_staff['status'] == true) {
                     if ($response_staff['response'][0]['id'] == $global_user_response['response'][0]['id']) {
                         echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'You cannot delete your own permission.', 'csrf_token' => $new_csrf_token]);
@@ -743,7 +666,7 @@ class StaffController
                         $condition = "id = :id";
                         $whereParams = [':id' => $ItemID];
 
-                        deleteData($db_prefix . 'permission', $condition, $whereParams);
+                        CrudService::delete($db_prefix . 'permission', $condition, $whereParams);
 
                         echo json_encode(['status' => 'true', 'title' => 'Staff Permission Deleted', 'message' => 'The staff member permission have been deleted successfully.', 'csrf_token' => $new_csrf_token]);
                     }
@@ -762,21 +685,15 @@ class StaffController
     {
         $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
         $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'staff_management') || !PermissionGuard::has($ctx, 'staff', 'assign_brand_to')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'assign_brand_to', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $staffID = $request->post('staff_id', '');
             $brands = $request->post('brands', []);
@@ -792,7 +709,7 @@ class StaffController
                 exit();
             }
 
-            $response_staff = json_decode(getData($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $staffID]), true);
+            $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $staffID]);
             if ($response_staff['status'] == true) {
                 if ($global_user_response['response'][0]['a_id'] == $staffID) {
                     echo json_encode(['status' => "false", 'title' => 'Edit Staff Failed', 'message' => 'You are not allowed to edit your own permissions.', 'csrf_token' => $new_csrf_token]);
@@ -800,10 +717,10 @@ class StaffController
                 }
 
                 foreach ($brands as $brandid) {
-                    $response_brand = json_decode(getData($db_prefix . 'brands', ' WHERE brand_id = :id', '* FROM', [':id' => $brandid]), true);
+                    $response_brand = CrudService::select($db_prefix . 'brands', ' WHERE brand_id = :id', '* FROM', [':id' => $brandid]);
                     if ($response_brand['status'] == true) {
                         foreach ($response_brand['response'] as $row) {
-                            $response_permission = json_decode(getData($db_prefix . 'permission', ' WHERE a_id = :a_id AND brand_id = :brand_id', '* FROM', [':a_id' => $response_staff['response'][0]['a_id'], ':brand_id' => $row['brand_id']]), true);
+                            $response_permission = CrudService::select($db_prefix . 'permission', ' WHERE a_id = :a_id AND brand_id = :brand_id', '* FROM', [':a_id' => $response_staff['response'][0]['a_id'], ':brand_id' => $row['brand_id']]);
 
                             if ($response_permission['status'] == true) {
 
@@ -812,7 +729,7 @@ class StaffController
                                 $columns = ['brand_id', 'a_id', 'permission', 'created_date', 'updated_date'];
                                 $values = [$brandid, $response_staff['response'][0]['a_id'], json_encode(permissionSchema()), getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                                insertData($db_prefix . 'permission', $columns, $values);
+                                CrudService::insert($db_prefix . 'permission', $columns, $values);
 
                             }
                         }
@@ -832,21 +749,15 @@ class StaffController
     {
         $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
         $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         if ($global_user_login == true) {
-            if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) {
+            if (!PermissionGuard::canAccess($ctx, 'staff_management') || !PermissionGuard::has($ctx, 'staff', 'edit_permission')) {
                 echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                 exit();
             }
 
-            if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'edit_permission', $global_user_response['response'][0]['role'])) {
-                echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $request = \AnirbanPay\Http\Request::createFromGlobals();
+            $request = \OwnPay\Http\Request::createFromGlobals();
 
             $permission_id = $request->post('staff_id', '');
             $status = $request->post('status', '');
@@ -874,9 +785,9 @@ class StaffController
 
             $permission_json = json_encode($newPermissions);
 
-            $response = json_decode(getData($db_prefix . 'permission', 'WHERE id = :id', '* FROM', [':id' => $permission_id]), true);
+            $response = CrudService::select($db_prefix . 'permission', 'WHERE id = :id', '* FROM', [':id' => $permission_id]);
             if ($response['status'] == true) {
-                $response_staff = json_decode(getData($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :a_id', '* FROM', [':a_id' => $response['response'][0]['a_id']]), true);
+                $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :a_id', '* FROM', [':a_id' => $response['response'][0]['a_id']]);
                 if ($response_staff['status'] == true) {
                     if ($global_user_response['response'][0]['a_id'] == $response['response'][0]['a_id']) {
                         echo json_encode(['status' => "false", 'title' => 'Edit Staff Failed', 'message' => 'You are not allowed to edit your own permissions.', 'csrf_token' => $new_csrf_token]);
@@ -889,7 +800,7 @@ class StaffController
                     $condition = "id = :id";
                     $whereParams = [':id' => $permission_id];
 
-                    updateData($db_prefix . 'permission', $columns, $values, $condition, $whereParams);
+                    CrudService::update($db_prefix . 'permission', $columns, $values, $condition, $whereParams);
 
                     echo json_encode(['status' => 'true', 'title' => 'Permissions Updated', 'message' => 'The staff brand permissions has been created successfully.', 'csrf_token' => $new_csrf_token]);
                 } else {

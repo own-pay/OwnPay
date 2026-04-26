@@ -1,8 +1,10 @@
 <?php
+declare(strict_types=1);
 
-namespace AnirbanPay\Controller\Frontend;
+namespace OwnPay\Controller\Frontend;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
 
 class IpnController
 {
@@ -14,7 +16,7 @@ class IpnController
 
                     $params = [':gateway_id' => $gateway_id];
 
-                    $response_gateway = json_decode(getData($db_prefix . 'gateways', 'WHERE gateway_id = :gateway_id', '* FROM', $params), true);
+                    $response_gateway = CrudService::select($db_prefix . 'gateways', 'WHERE gateway_id = :gateway_id', '* FROM', $params);
                     if ($response_gateway['status'] == false) {
                         http_response_code(400);
 
@@ -28,12 +30,12 @@ class IpnController
                     } else {
                         $params = [':brand_id' => $response_gateway['response'][0]['brand_id']];
 
-                        $response_brand = json_decode(getData($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params), true);
+                        $response_brand = CrudService::select($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params);
                         if ($response_brand['status'] == true) {
                             $options = [];
 
                             $params = [':gateway_id' => $gateway_id];
-                            $response_gateways_parameter = json_decode(getData($db_prefix . 'gateways_parameter', 'WHERE gateway_id = :gateway_id', '* FROM', $params), true);
+                            $response_gateways_parameter = CrudService::select($db_prefix . 'gateways_parameter', 'WHERE gateway_id = :gateway_id', '* FROM', $params);
                             foreach ($response_gateways_parameter['response'] as $field) {
                                 $value = $field['value'];
 
@@ -74,10 +76,10 @@ class IpnController
 
                                 $brandInfo = [
                                     'id' => $brandRow['brand_id'],
-                                    'name' => ($brandRow['name'] == "--") ? $brandRow['identify_name'] : $brandRow['name'],
+                                    'name' => empty($brandRow['name']) ? $brandRow['identify_name'] : $brandRow['name'],
                                     'identifyName' => $brandRow['identify_name'],
-                                    'logo' => $brandRow['logo'] !== '--' ? $brandRow['logo'] : 'https://help.AnirbanPay.com/storage/branding_media/8a5c6ee4-8eba-401d-bffb-c43006d5f65d.png',
-                                    'favicon' => $brandRow['favicon'] !== '--' ? $brandRow['favicon'] : 'https://help.AnirbanPay.com/favicon/icon-144x144.png',
+                                    'logo' => ($brandRow['logo'] !== null && $brandRow['logo'] !== '') ? $brandRow['logo'] : 'https://help.OwnPay.com/storage/branding_media/8a5c6ee4-8eba-401d-bffb-c43006d5f65d.png',
+                                    'favicon' => ($brandRow['favicon'] !== null && $brandRow['favicon'] !== '') ? $brandRow['favicon'] : 'https://help.OwnPay.com/favicon/icon-144x144.png',
 
                                     'support' => [
                                         'email' => $brandRow['support_email_address'],
@@ -132,8 +134,8 @@ class IpnController
                                         'id' => $brandRow['brand_id'],
                                         'name' => $brandRow['name'],
                                         'identifyName' => $brandRow['identify_name'],
-                                        'logo' => $brandRow['logo'] !== '--' ? $brandRow['logo'] : null,
-                                        'favicon' => $brandRow['favicon'] !== '--' ? $brandRow['favicon'] : null,
+                                        'logo' => ($brandRow['logo'] !== null && $brandRow['logo'] !== '') ? $brandRow['logo'] : null,
+                                        'favicon' => ($brandRow['favicon'] !== null && $brandRow['favicon'] !== '') ? $brandRow['favicon'] : null,
 
                                         'support' => [
                                             'email' => $brandRow['support_email_address'],

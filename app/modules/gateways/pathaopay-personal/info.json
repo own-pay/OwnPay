@@ -1,0 +1,12 @@
+{
+    "name": "PathaoPay Personal",
+    "slug": "pathaopay-personal",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "PathaoPay Personal payment gateway",
+    "tab": "mfs",
+    "currency": "BDT",
+    "gateway_type": "automation"
+}

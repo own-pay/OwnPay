@@ -2,25 +2,26 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
 /**
- * Repository for ap_api_keys — hashed API key registry.
+ * Repository for op_api_keys — hashed API key registry.
  */
 class ApiKeyRepository extends BaseRepository
 {
     use TenantScope;
 
-    protected string $table = 'ap_api_keys';
+    protected string $table = 'op_api_keys';
 
     /**
      * Find an active key by its SHA-256 hash.
      */
     public function findByHash(string $hash): ?array
     {
+        $tc = $this->tenantCondition();
         return $this->findOneWhere(
-            '`key_hash` = :hash AND `status` = :status',
-            ['hash' => $hash, 'status' => 'active']
+            '`key_hash` = :hash AND `status` = :status' . $tc,
+            array_merge(['hash' => $hash, 'status' => 'active'], $this->tenantParams())
         );
     }
 
@@ -29,9 +30,10 @@ class ApiKeyRepository extends BaseRepository
      */
     public function findByPrefix(string $prefix): ?array
     {
+        $tc = $this->tenantCondition();
         return $this->findOneWhere(
-            '`key_prefix` = :prefix AND `status` = :status',
-            ['prefix' => $prefix, 'status' => 'active']
+            '`key_prefix` = :prefix AND `status` = :status' . $tc,
+            array_merge(['prefix' => $prefix, 'status' => 'active'], $this->tenantParams())
         );
     }
 
@@ -40,9 +42,10 @@ class ApiKeyRepository extends BaseRepository
      */
     public function findByMerchant(int $merchantId): array
     {
+        $tc = $this->tenantCondition();
         return $this->findWhere(
-            '`merchant_id` = :mid',
-            ['mid' => $merchantId],
+            '`merchant_id` = :mid' . $tc,
+            array_merge(['mid' => $merchantId], $this->tenantParams()),
             'created_at DESC'
         );
     }
@@ -52,10 +55,12 @@ class ApiKeyRepository extends BaseRepository
      */
     public function revoke(int $id): int
     {
-        return $this->updateById($id, [
-            'status' => 'revoked',
-            'revoked_at' => gmdate('Y-m-d H:i:s.u'),
-        ]);
+        $tc = $this->tenantCondition();
+        return $this->update(
+            ['status' => 'revoked', 'revoked_at' => gmdate('Y-m-d H:i:s.u')],
+            '`id` = :where_id' . $tc,
+            array_merge(['where_id' => $id], $this->tenantParams())
+        );
     }
 
     /**
@@ -63,10 +68,12 @@ class ApiKeyRepository extends BaseRepository
      */
     public function touchUsage(int $id, string $ip): int
     {
-        return $this->updateById($id, [
-            'last_used_at' => gmdate('Y-m-d H:i:s.u'),
-            'last_used_ip' => $ip,
-        ]);
+        $tc = $this->tenantCondition();
+        return $this->update(
+            ['last_used_at' => gmdate('Y-m-d H:i:s.u'), 'last_used_ip' => $ip],
+            '`id` = :where_id' . $tc,
+            array_merge(['where_id' => $id], $this->tenantParams())
+        );
     }
 
     /**
@@ -74,8 +81,11 @@ class ApiKeyRepository extends BaseRepository
      */
     public function setExpiry(int $id, string $expiresAt): int
     {
-        return $this->updateById($id, [
-            'expires_at' => $expiresAt,
-        ]);
+        $tc = $this->tenantCondition();
+        return $this->update(
+            ['expires_at' => $expiresAt],
+            '`id` = :where_id' . $tc,
+            array_merge(['where_id' => $id], $this->tenantParams())
+        );
     }
 }

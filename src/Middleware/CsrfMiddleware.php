@@ -2,14 +2,17 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Middleware;
+namespace OwnPay\Middleware;
+
+use OwnPay\Service\EnvironmentService;
+use OwnPay\Service\InputSanitizer;
 
 /**
  * Extracts CSRF and HMAC token validation from adapter.php.
  *
  * Supports two modes:
  * 1. Standard CSRF double-submit (session-based)
- * 2. External API HMAC-SHA256 signature (ap-token / pp-token)
+ * 2. External API HMAC-SHA256 signature (op-token / pp-token)
  */
 final class CsrfMiddleware
 {
@@ -46,8 +49,8 @@ final class CsrfMiddleware
 
     private function validateHmac(string $appToken): array
     {
-        $appId = sanitize_html($_POST['ap-app-id'] ?? $_POST['pp-app-id'] ?? '');
-        $appTimestamp = sanitize_html($_POST['ap-app-timestamp'] ?? $_POST['pp-app-timestamp'] ?? '');
+        $appId = InputSanitizer::html($_POST['op-app-id'] ?? $_POST['pp-app-id'] ?? '');
+        $appTimestamp = InputSanitizer::html($_POST['op-app-timestamp'] ?? $_POST['pp-app-timestamp'] ?? '');
 
         // Timestamp freshness (±5 minutes)
         if (!ctype_digit($appTimestamp) || abs(time() - (int) $appTimestamp) > 300) {
@@ -58,13 +61,24 @@ final class CsrfMiddleware
             ];
         }
 
-        $hmacSecret = get_env('app-hmac-secret', 'both');
-        if (empty($hmacSecret) || $hmacSecret === '--') {
-            $hmacSecret = '698b7520-c604-8323-a04d-dc519bb3e1d3';
-            error_log('[AnirbanPay] WARNING: app-hmac-secret not found in env, using hardcoded fallback');
+        // HMAC secret: prefer .env file, fall back to DB, never auto-generate to DB
+        $hmacSecret = $_ENV['APP_HMAC_SECRET'] ?? '';
+        if (empty($hmacSecret)) {
+            // Fallback: read from DB (legacy installs)
+            $hmacSecret = EnvironmentService::get('app-hmac-secret', 'both');
+        }
+        if (empty($hmacSecret)) {
+            error_log('[OwnPay] CRITICAL: APP_HMAC_SECRET not configured in .env file');
+            return [
+                'valid' => false,
+                'newToken' => '',
+                'error' => 'Server configuration error. Contact administrator.',
+            ];
         }
 
-        $data = $appId . '|' . $appTimestamp;
+        // Bind HMAC to specific action to prevent cross-action replay
+        $action = InputSanitizer::trim($_POST['action'] ?? $_POST['action-v2'] ?? $_POST['action-companion'] ?? '');
+        $data = $appId . '|' . $appTimestamp . '|' . $action;
         $expected = hash_hmac('sha256', $data, $hmacSecret);
 
         if (!hash_equals($expected, $appToken)) {

@@ -1,0 +1,12 @@
+{
+    "name": "OkWallet Personal",
+    "slug": "okwallet-personal",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "OkWallet Personal payment gateway",
+    "tab": "mfs",
+    "currency": "BDT",
+    "gateway_type": "automation"
+}

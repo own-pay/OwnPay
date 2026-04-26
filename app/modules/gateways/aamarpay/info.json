@@ -1,0 +1,12 @@
+{
+    "name": "aamarPay Gateway",
+    "slug": "aamarpay",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "aamarPay Gateway payment gateway",
+    "tab": "mfs",
+    "currency": "BDT",
+    "gateway_type": "api"
+}

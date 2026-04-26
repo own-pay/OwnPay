@@ -1,37 +1,28 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\InputSanitizer;
+use OwnPay\Service\PermissionGuard;
 
 class ApiKeyController
 {
     public static function handle(string $action, RequestContext $ctx): void
     {
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $new_csrf_token = $ctx->csrfToken;
         $db_prefix = $ctx->dbPrefix;
         $global_response_brand = $ctx->brandResponse;
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         // Inline extracted code from adapter.php
         if ($action == "api-create") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'view', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'create', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'brand_settings') || !PermissionGuard::has($ctx, 'api_settings', 'view') || !PermissionGuard::has($ctx, 'api_settings', 'create')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
@@ -44,7 +35,7 @@ class ApiKeyController
                 if ($api_name == "") {
                     echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
                 } else {
-                    $response = json_decode(getData($db_prefix . 'api', 'WHERE brand_id = :brand_id AND name = :name', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':name' => $api_name]), true);
+                    $response = CrudService::select($db_prefix . 'api', 'WHERE brand_id = :brand_id AND name = :name', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':name' => $api_name]);
                     if ($response['status'] == true) {
                         echo json_encode(['status' => 'false', 'title' => 'API Name Already Exists', 'message' => 'This API name is already in use. Please choose a different name.', 'csrf_token' => $new_csrf_token]);
                     } else {
@@ -56,7 +47,7 @@ class ApiKeyController
                                 exit();
                             }
                         } else {
-                            $apiExpiryDate = "--";
+                            $apiExpiryDate = null;
                         }
 
                         $api_key = bin2hex(random_bytes(25));
@@ -65,7 +56,7 @@ class ApiKeyController
                         $columns = ['brand_id', 'name', 'api_key', 'expired_date', 'status', 'api_scopes', 'created_date', 'updated_date'];
                         $values = [$global_response_brand['response'][0]['brand_id'], $api_name, $api_key, $apiExpiryDate, $api_status, $scopes_json, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                        insertData($db_prefix . 'api', $columns, $values);
+                        CrudService::insert($db_prefix . 'api', $columns, $values);
 
                         echo json_encode(['status' => 'true', 'title' => 'Api Created', 'message' => 'The api has been created successfully.', 'csrf_token' => $new_csrf_token]);
                     }
@@ -77,12 +68,7 @@ class ApiKeyController
 
         if ($action == "api-list") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'view', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'brand_settings') || !PermissionGuard::has($ctx, 'api_settings', 'view')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
@@ -116,9 +102,10 @@ class ApiKeyController
                 $where_sql = $where ? implode(' AND ', $where) . ' AND ' : '';
                 /* Filters */
 
-                $page = max(1, (int) $request->post('page', '1'));
-                $show_limit_val = ($request->post('show_limit') == '') ? 999999 : (int) $request->post('show_limit');
-                $offset = ($page - 1) * $show_limit_val;
+                $pag = \OwnPay\Service\PaginationService::resolve($request->post('page', '1'), $request->post('show_limit'));
+                $page = $pag['page'];
+                $show_limit_val = $pag['perPage'];
+                $offset = $pag['offset'];
                 $show_limit = $show_limit_val;
 
                 $sql_query = '';
@@ -129,18 +116,18 @@ class ApiKeyController
                 }
 
                 $sql_limit = '';
-                if ($show_limit_val == 'all') {
+                if ($pag['isAll']) {
 
                 } else {
                     $sql_limit = " LIMIT $offset, $show_limit_val";
                 }
 
-                $response_result = json_decode(getData($db_prefix . 'api', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_api), true);
+                $response_result = CrudService::select($db_prefix . 'api', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_api);
                 if ($response_result['status'] == true) {
                     $response = [];
 
                     foreach ($response_result['response'] as $row) {
-                        if ($row['expired_date'] == "--") {
+                        if (empty($row['expired_date'])) {
                             $status = $row['status'];
                         } else {
                             if (isExpired($row['expired_date'])) {
@@ -150,55 +137,27 @@ class ApiKeyController
                             }
                         }
 
+                        // Mask API key: show first 8 chars + masked remainder
+                        $rawKey = $row['api_key'] ?? '';
+                        $maskedKey = strlen($rawKey) > 8 ? substr($rawKey, 0, 8) . str_repeat('*', 24) : str_repeat('*', 32);
+
                         $response[] = [
                             "id" => $row['id'],
                             "name" => $row['name'],
-                            "api_key" => $row['api_key'],
+                            "api_key" => $maskedKey,
                             "expired_date" => $row['expired_date'],
                             "status" => $status,
-                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                         ];
                     }
 
-                    $count_data = json_decode(getData($db_prefix . 'api', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_api), true);
+                    $count_data = CrudService::select($db_prefix . 'api', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_api);
 
                     $total_records = count($count_data['response'] ?? []);
-                    $total_pages = ceil($total_records / $show_limit);
-
-                    $pagination = '<ul class="pagination m-0 ms-auto">';
-
-                    // Prev button
-                    $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M15 6l-6 6l6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    // Page numbers
-                    for ($i = 1; $i <= $total_pages; $i++) {
-                        $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                                <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                            </li>';
-                    }
-
-                    // Next button
-                    $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M9 6l6 6l-6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    $pagination .= '</ul>';
-
-                    $start = ($offset + 1);
-                    $end = min($offset + $show_limit, $total_records);
-
-                    $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+                    $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit, $offset);
+                    $pagination = $pagHtml['pagination'];
+                    $datatableInfo = $pagHtml['datatableInfo'];
 
                     echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
                 } else {
@@ -212,24 +171,14 @@ class ApiKeyController
 
         if ($action == "api-info-byID") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'view', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'edit', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'brand_settings') || !PermissionGuard::has($ctx, 'api_settings', 'view') || !PermissionGuard::has($ctx, 'api_settings', 'edit')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
 
                 $ItemID = $request->post('ItemID', '');
 
-                $response_brand = json_decode(getData($db_prefix . 'api', 'WHERE id = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                $response_brand = CrudService::select($db_prefix . 'api', 'WHERE id = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                 if ($response_brand['status'] == true) {
                     echo json_encode(['status' => 'true', 'name' => $response_brand['response'][0]['name'], 'expired_date' => $response_brand['response'][0]['expired_date'], 'api_scopes' => json_decode($response_brand['response'][0]['api_scopes'], true), 'astatus' => $response_brand['response'][0]['status'], 'csrf_token' => $new_csrf_token]);
                 } else {
@@ -242,12 +191,7 @@ class ApiKeyController
 
         if ($action == "api-bulk-action") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'view', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'brand_settings') || !PermissionGuard::has($ctx, 'api_settings', 'view')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
@@ -258,43 +202,43 @@ class ApiKeyController
 
                 if (!empty($selected_ids)) {
                     foreach ($selected_ids as $id) {
-                        $itemID = escape_string($id);
+                        $itemID = InputSanitizer::trim($id);
 
-                        $response_brand = json_decode(getData($db_prefix . 'api', 'WHERE id = :itemID AND brand_id = :brand_id', '* FROM', [':itemID' => $itemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                        $response_brand = CrudService::select($db_prefix . 'api', 'WHERE id = :itemID AND brand_id = :brand_id', '* FROM', [':itemID' => $itemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                         if ($response_brand['status'] == true) {
                             if ($actionID == "deleted") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'delete', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'api_settings', 'delete')) {
 
                                     $condition = "id = :itemID";
                                     $whereParams = [':itemID' => $itemID];
 
-                                    deleteData($db_prefix . 'api', $condition, $whereParams);
+                                    CrudService::delete($db_prefix . 'api', $condition, $whereParams);
 
                                 }
                             }
 
                             if ($actionID == "activated") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'edit', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'api_settings', 'edit')) {
 
                                     $columns = ['status', 'updated_date'];
                                     $values = ['active', getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = "id = :itemID";
                                     $whereParams = [':itemID' => $itemID];
 
-                                    updateData($db_prefix . 'api', $columns, $values, $condition, $whereParams);
+                                    CrudService::update($db_prefix . 'api', $columns, $values, $condition, $whereParams);
 
                                 }
                             }
 
                             if ($actionID == "inactivated") {
-                                if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'edit', $global_user_response['response'][0]['role'])) {
+                                if (PermissionGuard::has($ctx, 'api_settings', 'edit')) {
 
                                     $columns = ['status', 'updated_date'];
                                     $values = ['inactive', getCurrentDatetime('Y-m-d H:i:s')];
                                     $condition = "id = :itemID";
                                     $whereParams = [':itemID' => $itemID];
 
-                                    updateData($db_prefix . 'api', $columns, $values, $condition, $whereParams);
+                                    CrudService::update($db_prefix . 'api', $columns, $values, $condition, $whereParams);
 
                                 }
                             }
@@ -312,29 +256,19 @@ class ApiKeyController
 
         if ($action == "api-delete") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'view', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'delete', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'brand_settings') || !PermissionGuard::has($ctx, 'api_settings', 'view') || !PermissionGuard::has($ctx, 'api_settings', 'delete')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
 
                 $ItemID = $request->post('ItemID', '');
 
-                $response_brand = json_decode(getData($db_prefix . 'api', 'WHERE id = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                $response_brand = CrudService::select($db_prefix . 'api', 'WHERE id = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                 if ($response_brand['status'] == true) {
-                    $condition = "id = :ItemID";
-                    $whereParams = [':ItemID' => $ItemID];
+                    $condition = "id = :ItemID AND brand_id = :brand_id";
+                    $whereParams = [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']];
 
-                    deleteData($db_prefix . 'api', $condition, $whereParams);
+                    CrudService::delete($db_prefix . 'api', $condition, $whereParams);
                 }
 
                 echo json_encode(['status' => 'true', 'title' => 'Api Key Deleted', 'message' => 'The selected api key have been deleted successfully.', 'csrf_token' => $new_csrf_token]);
@@ -346,17 +280,7 @@ class ApiKeyController
 
         if ($action == "api-edit") {
             if ($global_user_login == true) {
-                if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'view', $global_user_response['response'][0]['role'])) {
-                    echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-                    exit();
-                }
-
-                if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'edit', $global_user_response['response'][0]['role'])) {
+                if (!PermissionGuard::canAccess($ctx, 'brand_settings') || !PermissionGuard::has($ctx, 'api_settings', 'view') || !PermissionGuard::has($ctx, 'api_settings', 'edit')) {
                     echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
                     exit();
                 }
@@ -370,9 +294,9 @@ class ApiKeyController
                 if ($api_name == "" || $api_status == "") {
                     echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
                 } else {
-                    $responseApi = json_decode(getData($db_prefix . 'api', 'WHERE brand_id = :brand_id AND id = :api_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':api_id' => $api_id]), true);
+                    $responseApi = CrudService::select($db_prefix . 'api', 'WHERE brand_id = :brand_id AND id = :api_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':api_id' => $api_id]);
                     if ($responseApi['status'] == true) {
-                        $response = json_decode(getData($db_prefix . 'api', 'WHERE brand_id = :brand_id AND name = :name', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':name' => $api_name]), true);
+                        $response = CrudService::select($db_prefix . 'api', 'WHERE brand_id = :brand_id AND name = :name', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':name' => $api_name]);
                         if ($response['status'] == true) {
                             if ($response['response'][0]['id'] == $api_id) {
 
@@ -390,7 +314,7 @@ class ApiKeyController
                                 exit();
                             }
                         } else {
-                            $apiExpiryDate = "--";
+                            $apiExpiryDate = null;
                         }
 
                         $scopes_json = json_encode($scopes);
@@ -398,10 +322,10 @@ class ApiKeyController
                         $columns = ['name', 'expired_date', 'status', 'api_scopes', 'updated_date'];
                         $values = [$api_name, $apiExpiryDate, $api_status, $scopes_json, getCurrentDatetime('Y-m-d H:i:s')];
 
-                        $condition = "id = :api_id";
-                        $whereParams = [':api_id' => $api_id];
+                        $condition = "id = :api_id AND brand_id = :brand_id";
+                        $whereParams = [':api_id' => $api_id, ':brand_id' => $global_response_brand['response'][0]['brand_id']];
 
-                        updateData($db_prefix . 'api', $columns, $values, $condition, $whereParams);
+                        CrudService::update($db_prefix . 'api', $columns, $values, $condition, $whereParams);
 
                         echo json_encode(['status' => 'true', 'title' => 'Api Updated', 'message' => 'The api has been updated successfully.', 'csrf_token' => $new_csrf_token]);
                     } else {

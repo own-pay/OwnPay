@@ -2,16 +2,16 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
 /**
- * Repository for ap_idempotency_keys — API replay prevention.
+ * Repository for op_idempotency_keys — API replay prevention.
  */
 class IdempotencyRepository extends BaseRepository
 {
     use TenantScope;
 
-    protected string $table = 'ap_idempotency_keys';
+    protected string $table = 'op_idempotency_keys';
 
     protected function hasPublicId(): bool
     {
@@ -24,9 +24,10 @@ class IdempotencyRepository extends BaseRepository
      */
     public function findByKey(string $scope, string $key): ?array
     {
+        $tc = $this->tenantCondition();
         return $this->findOneWhere(
-            '`scope` = :scope AND `idempotency_key` = :key',
-            ['scope' => $scope, 'key' => $key]
+            '`scope` = :scope AND `idempotency_key` = :key' . $tc,
+            array_merge(['scope' => $scope, 'key' => $key], $this->tenantParams())
         );
     }
 
@@ -35,15 +36,21 @@ class IdempotencyRepository extends BaseRepository
      */
     public function complete(int $id, string $responsePayload, int $httpStatus): int
     {
-        return $this->updateById($id, [
-            'response_payload' => $responsePayload,
-            'http_status' => $httpStatus,
-            'status' => 'completed',
-        ]);
+        $tc = $this->tenantCondition();
+        return $this->update(
+            [
+                'response_payload' => $responsePayload,
+                'http_status' => $httpStatus,
+                'status' => 'completed',
+            ],
+            '`id` = :where_id' . $tc,
+            array_merge(['where_id' => $id], $this->tenantParams())
+        );
     }
 
     /**
      * Clean up expired keys (older than $hours).
+     * NOTE: This is a global housekeeping operation — no tenant scoping applied.
      */
     public function cleanup(int $hours = 24): int
     {

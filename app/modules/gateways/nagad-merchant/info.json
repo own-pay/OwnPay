@@ -1,0 +1,12 @@
+{
+    "name": "Nagad Merchant",
+    "slug": "nagad-merchant",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "Nagad Merchant payment gateway",
+    "tab": "mfs",
+    "currency": "BDT",
+    "gateway_type": "automation"
+}

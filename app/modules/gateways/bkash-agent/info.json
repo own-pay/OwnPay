@@ -1,0 +1,12 @@
+{
+    "name": "Bkash Agent",
+    "slug": "bkash-agent",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "Bkash Agent payment gateway",
+    "tab": "mfs",
+    "currency": "BDT",
+    "gateway_type": "automation"
+}

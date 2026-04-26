@@ -1,8 +1,12 @@
 <?php
+declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\CrudService;
+use OwnPay\Service\InputSanitizer;
+use OwnPay\Service\PermissionGuard;
 
 class InvoiceController
 {
@@ -10,11 +14,7 @@ class InvoiceController
     {
         $ctx ??= $GLOBALS['requestContext'] ?? throw new \RuntimeException('RequestContext not available');
 
-        $db_prefix = $ctx->dbPrefix;
         $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
-        $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
 
         if ($global_user_login != true) {
@@ -47,17 +47,15 @@ class InvoiceController
     private static function list(RequestContext $ctx): void
     {
         $db_prefix = $ctx->dbPrefix;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
 
-        if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', $global_user_response['response'][0]['role'])) {
+        if (!PermissionGuard::canAccess($ctx, 'invoice')) {
             echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
             exit();
         }
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         $search_input = $request->post('search_input', '');
         $show_limit = $request->post('show_limit', '5');
@@ -95,9 +93,10 @@ class InvoiceController
         $where_sql = $where ? implode(' AND ', $where) . ' AND ' : '';
         /* Filters */
 
-        $page = max(1, (int) $request->post('page', '1'));
-        $show_limit_val = ($request->post('show_limit') == '') ? 999999 : (int) $request->post('show_limit');
-        $offset = ($page - 1) * $show_limit_val;
+        $pag = \OwnPay\Service\PaginationService::resolve($request->post('page', '1'), $request->post('show_limit'));
+        $page = $pag['page'];
+        $show_limit_val = $pag['perPage'];
+        $offset = $pag['offset'];
 
         $sql_query = '';
 
@@ -107,13 +106,13 @@ class InvoiceController
         }
 
         $sql_limit = '';
-        if ($show_limit_val == 'all') {
+        if ($pag['isAll']) {
 
         } else {
             $sql_limit = " LIMIT $offset, $show_limit_val";
         }
 
-        $response_result = json_decode(getData($db_prefix . 'invoice', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_inv), true);
+        $response_result = CrudService::select($db_prefix . 'invoice', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_inv);
         if ($response_result['status'] == true) {
             $response = [];
 
@@ -121,13 +120,13 @@ class InvoiceController
                 $customer_info = json_decode($row['customer_info'], true);
 
                 $params_curr = [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':code' => $row['currency']];
-                $response_currency = json_decode(getData($db_prefix . 'currency', ' WHERE brand_id = :brand_id AND code = :code', '* FROM', $params_curr), true);
+                $response_currency = CrudService::select($db_prefix . 'currency', ' WHERE brand_id = :brand_id AND code = :code', '* FROM', $params_curr);
 
                 $total = "0";
                 $items_count = 0;
 
                 $params_items = [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoice_id' => $row['ref']];
-                $response_items = json_decode(getData($db_prefix . 'invoice_items', ' WHERE brand_id = :brand_id AND invoice_id = :invoice_id', '* FROM', $params_items), true);
+                $response_items = CrudService::select($db_prefix . 'invoice_items', ' WHERE brand_id = :brand_id AND invoice_id = :invoice_id', '* FROM', $params_items);
 
                 if (!empty($response_items['response']) && is_array($response_items['response'])) {
                     foreach ($response_items['response'] as $items) {
@@ -158,49 +157,17 @@ class InvoiceController
                     "status" => $row['status'],
                     "items" => $items_count,
                     "amount" => $currency . money_round($total, 2),
-                    "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                    "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                    "created_date" => convertUTCtoUserTZ($row['created_date'], (empty($global_response_brand['response'][0]['timezone'])) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                    "updated_date" => convertUTCtoUserTZ($row['updated_date'], (empty($global_response_brand['response'][0]['timezone'])) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                 ];
             }
 
-            $count_data = json_decode(getData($db_prefix . 'invoice', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_inv), true);
+            $count_data = CrudService::select($db_prefix . 'invoice', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_inv);
 
             $total_records = count($count_data['response'] ?? []);
-            $total_pages = ceil($total_records / $show_limit);
-
-            $pagination = '<ul class="pagination m-0 ms-auto">';
-
-            // Prev button
-            $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                    <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                            <path d="M15 6l-6 6l6 6"></path>
-                        </svg>
-                    </button>
-                </li>';
-
-            // Page numbers
-            for ($i = 1; $i <= $total_pages; $i++) {
-                $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                        <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                    </li>';
-            }
-
-            // Next button
-            $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                    <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                        <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                            <path d="M9 6l6 6l-6 6"></path>
-                        </svg>
-                    </button>
-                </li>';
-
-            $pagination .= '</ul>';
-
-            $start = ($offset + 1);
-            $end = min($offset + $show_limit, $total_records);
-
-            $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+            $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit_val, $offset);
+            $pagination = $pagHtml['pagination'];
+            $datatableInfo = $pagHtml['datatableInfo'];
 
             echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
         } else {
@@ -212,22 +179,15 @@ class InvoiceController
     private static function create(RequestContext $ctx): void
     {
         $db_prefix = $ctx->dbPrefix;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
 
-        if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', $global_user_response['response'][0]['role'])) {
+        if (!PermissionGuard::canAccess($ctx, 'invoice') || !PermissionGuard::has($ctx, 'invoice', 'create')) {
             echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
             exit();
         }
 
-        if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'create', $global_user_response['response'][0]['role'])) {
-            echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-            exit();
-        }
-
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         $customer = $request->post('customers', []);
         $currency = $request->post('currency', '');
@@ -250,10 +210,10 @@ class InvoiceController
         $item_vat = (array) $item_vat;
 
         if ($note == "") {
-            $note = '--';
+            $note = null;
         }
         if ($private_note_content == "") {
-            $private_note_content = '--';
+            $private_note_content = null;
         }
 
         if ($due_date !== "") {
@@ -262,7 +222,7 @@ class InvoiceController
                 exit();
             }
         } else {
-            $due_date = "--";
+            $due_date = null;
         }
 
         if ($currency == "" || $status == "" || $shipping == "") {
@@ -273,7 +233,7 @@ class InvoiceController
             $all_invoices = [];
 
             foreach ($customer as $customer_id) {
-                $response = json_decode(getData($db_prefix . 'customer', 'WHERE (brand_id = :brand_id AND ref = :id) OR (brand_id = :brand_id AND email = :id)', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':id' => $customer_id]), true);
+                $response = CrudService::select($db_prefix . 'customer', 'WHERE (brand_id = :brand_id AND ref = :id) OR (brand_id = :brand_id AND email = :id)', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':id' => $customer_id]);
                 if ($response['status'] == true) {
                     $invoice_id = generateItemID(27, 27);
 
@@ -288,16 +248,16 @@ class InvoiceController
 
                     if (count($item_description) > 0) {
                         for ($i = 0; $i < count($item_description); $i++) {
-                            $descriptions = escape_string($item_description[$i] ?? '');
-                            $quantities = escape_string($item_quantity[$i] ?? '');
-                            $amounts = escape_string($item_amount[$i] ?? '');
-                            $discounts = escape_string($item_discount[$i] ?? '');
-                            $vats = escape_string($item_vat[$i] ?? '');
+                            $descriptions = InputSanitizer::trim($item_description[$i] ?? '');
+                            $quantities = InputSanitizer::trim($item_quantity[$i] ?? '');
+                            $amounts = InputSanitizer::trim($item_amount[$i] ?? '');
+                            $discounts = InputSanitizer::trim($item_discount[$i] ?? '');
+                            $vats = InputSanitizer::trim($item_vat[$i] ?? '');
 
                             $columns = ['invoice_id', 'brand_id', 'description', 'amount', 'quantity', 'discount', 'vat', 'created_date', 'updated_date'];
                             $values = [$invoice_id, $global_response_brand['response'][0]['brand_id'], $descriptions, money_sanitize($amounts), money_sanitize($quantities), money_sanitize($discounts), money_sanitize($vats), getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                            insertData($db_prefix . 'invoice_items', $columns, $values);
+                            CrudService::insert($db_prefix . 'invoice_items', $columns, $values);
 
                             $invoice_items_array[] = [
                                 'description' => $descriptions,
@@ -317,7 +277,7 @@ class InvoiceController
                     $columns = ['ref', 'brand_id', 'customer_info', 'currency', 'due_date', 'shipping', 'status', 'note', 'private_note', 'created_date', 'updated_date'];
                     $values = [$invoice_id, $global_response_brand['response'][0]['brand_id'], $customer_info, $currency, $due_date, money_sanitize($shipping), $status, $note, $private_note_content, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                    insertData($db_prefix . 'invoice', $columns, $values);
+                    CrudService::insert($db_prefix . 'invoice', $columns, $values);
 
                     $all_invoices['invoice_' . $invoice_id] = [
                         'customer_info' => $customer_info,
@@ -330,8 +290,8 @@ class InvoiceController
                             'status' => $status,
                             'note' => $note,
                             'private_note' => $private_note_content,
-                            'created_date' => convertUTCtoUserTZ(getCurrentDatetime('Y-m-d H:i:s'), ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                            'updated_date' => convertUTCtoUserTZ(getCurrentDatetime('Y-m-d H:i:s'), ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                            'created_date' => convertUTCtoUserTZ(getCurrentDatetime('Y-m-d H:i:s'), (empty($global_response_brand['response'][0]['timezone'])) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                            'updated_date' => convertUTCtoUserTZ(getCurrentDatetime('Y-m-d H:i:s'), (empty($global_response_brand['response'][0]['timezone'])) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                         ],
                         'invoice_items' => $invoice_items_array
                     ];
@@ -353,22 +313,15 @@ class InvoiceController
     private static function edit(RequestContext $ctx): void
     {
         $db_prefix = $ctx->dbPrefix;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
 
-        if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', $global_user_response['response'][0]['role'])) {
+        if (!PermissionGuard::canAccess($ctx, 'invoice') || !PermissionGuard::has($ctx, 'invoice', 'edit')) {
             echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
             exit();
         }
 
-        if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'edit', $global_user_response['response'][0]['role'])) {
-            echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-            exit();
-        }
-
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         $invoiceID = $request->post('invoiceID', '');
         $currency = $request->post('currency', '');
@@ -394,10 +347,10 @@ class InvoiceController
         $item_id = (array) $item_id;
 
         if ($note == "") {
-            $note = '--';
+            $note = null;
         }
         if ($private_note_content == "") {
-            $private_note_content = '--';
+            $private_note_content = null;
         }
 
         if ($due_date !== "") {
@@ -406,13 +359,13 @@ class InvoiceController
                 exit();
             }
         } else {
-            $due_date = "--";
+            $due_date = null;
         }
 
         if ($currency == "" || $status == "" || $shipping == "") {
             echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
         } else {
-            $response = json_decode(getData($db_prefix . 'invoice', 'WHERE brand_id = :brand_id AND ref = :invoiceID', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoiceID' => $invoiceID]), true);
+            $response = CrudService::select($db_prefix . 'invoice', 'WHERE brand_id = :brand_id AND ref = :invoiceID', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoiceID' => $invoiceID]);
             if ($response['status'] == true) {
                 $columns = ['currency', 'due_date', 'shipping', 'status', 'note', 'private_note', 'updated_date'];
                 $values = [$currency, $due_date, money_sanitize($shipping), $status, $note, $private_note_content, getCurrentDatetime('Y-m-d H:i:s')];
@@ -420,25 +373,25 @@ class InvoiceController
                 $condition = "ref = :invoiceID";
                 $whereParams = [':invoiceID' => $invoiceID];
 
-                updateData($db_prefix . 'invoice', $columns, $values, $condition, $whereParams);
+                CrudService::update($db_prefix . 'invoice', $columns, $values, $condition, $whereParams);
 
                 foreach ($deletedItems as $itemId) {
                     $condition = "id = :itemId";
                     $whereParams_item = [':itemId' => $itemId];
 
-                    deleteData($db_prefix . 'invoice_items', $condition, $whereParams_item);
+                    CrudService::delete($db_prefix . 'invoice_items', $condition, $whereParams_item);
                 }
 
                 $invoice_items_array = [];
 
                 if (count($item_description) > 0) {
                     for ($i = 0; $i < count($item_description); $i++) {
-                        $descriptions = escape_string($item_description[$i] ?? '');
-                        $quantities = escape_string($item_quantity[$i] ?? '');
-                        $amounts = escape_string($item_amount[$i] ?? '');
-                        $discounts = escape_string($item_discount[$i] ?? '');
-                        $vats = escape_string($item_vat[$i] ?? '');
-                        $itemidS = escape_string($item_id[$i] ?? '');
+                        $descriptions = InputSanitizer::trim($item_description[$i] ?? '');
+                        $quantities = InputSanitizer::trim($item_quantity[$i] ?? '');
+                        $amounts = InputSanitizer::trim($item_amount[$i] ?? '');
+                        $discounts = InputSanitizer::trim($item_discount[$i] ?? '');
+                        $vats = InputSanitizer::trim($item_vat[$i] ?? '');
+                        $itemidS = InputSanitizer::trim($item_id[$i] ?? '');
 
                         if ($itemidS !== "") {
                             $columns = ['description', 'amount', 'quantity', 'discount', 'vat', 'updated_date'];
@@ -446,12 +399,12 @@ class InvoiceController
                             $condition = "id = :itemidS";
                             $whereParams_item = [':itemidS' => $itemidS];
 
-                            updateData($db_prefix . 'invoice_items', $columns, $values, $condition, $whereParams_item);
+                            CrudService::update($db_prefix . 'invoice_items', $columns, $values, $condition, $whereParams_item);
                         } else {
                             $columns = ['invoice_id', 'brand_id', 'description', 'amount', 'quantity', 'discount', 'vat', 'created_date', 'updated_date'];
                             $values = [$invoiceID, $global_response_brand['response'][0]['brand_id'], $descriptions, money_sanitize($amounts), money_sanitize($quantities), money_sanitize($discounts), money_sanitize($vats), getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
 
-                            insertData($db_prefix . 'invoice_items', $columns, $values);
+                            CrudService::insert($db_prefix . 'invoice_items', $columns, $values);
                         }
 
                         $invoice_items_array[] = [
@@ -475,8 +428,8 @@ class InvoiceController
                         'status' => $status,
                         'note' => $note,
                         'private_note' => $private_note_content,
-                        'created_date' => convertUTCtoUserTZ($response['response'][0]['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                        'updated_date' => convertUTCtoUserTZ(getCurrentDatetime('Y-m-d H:i:s'), ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                        'created_date' => convertUTCtoUserTZ($response['response'][0]['created_date'], (empty($global_response_brand['response'][0]['timezone'])) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                        'updated_date' => convertUTCtoUserTZ(getCurrentDatetime('Y-m-d H:i:s'), (empty($global_response_brand['response'][0]['timezone'])) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                     ],
                     'invoice_items' => $invoice_items_array
                 ];
@@ -494,27 +447,20 @@ class InvoiceController
     private static function manageStatus(RequestContext $ctx): void
     {
         $db_prefix = $ctx->dbPrefix;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
 
-        if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', $global_user_response['response'][0]['role'])) {
+        if (!PermissionGuard::canAccess($ctx, 'invoice') || !PermissionGuard::has($ctx, 'invoice', 'edit')) {
             echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
             exit();
         }
 
-        if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'edit', $global_user_response['response'][0]['role'])) {
-            echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-            exit();
-        }
-
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         $invoiceID = $request->post('invoice-id', '');
         $status = $request->post('status', '');
 
-        $response = json_decode(getData($db_prefix . 'invoice', 'WHERE brand_id = :brand_id AND ref = :invoiceID', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoiceID' => $invoiceID]), true);
+        $response = CrudService::select($db_prefix . 'invoice', 'WHERE brand_id = :brand_id AND ref = :invoiceID', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoiceID' => $invoiceID]);
         if ($response['status'] == true) {
             $columns = ['status', 'updated_date'];
             $values = [$status, getCurrentDatetime('Y-m-d H:i:s')];
@@ -522,11 +468,11 @@ class InvoiceController
             $condition = "ref = :invoiceID";
             $whereParams = [':invoiceID' => $invoiceID];
 
-            updateData($db_prefix . 'invoice', $columns, $values, $condition, $whereParams);
+            CrudService::update($db_prefix . 'invoice', $columns, $values, $condition, $whereParams);
 
             $invoice_items_array = [];
 
-            $response_items = json_decode(getData($db_prefix . 'invoice_items', 'WHERE brand_id = :brand_id AND invoice_id = :invoiceID', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoiceID' => $invoiceID]), true);
+            $response_items = CrudService::select($db_prefix . 'invoice_items', 'WHERE brand_id = :brand_id AND invoice_id = :invoiceID', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoiceID' => $invoiceID]);
             foreach ($response_items['response'] as $rowItem) {
                 $invoice_items_array[] = [
                     'description' => $rowItem['description'],
@@ -548,8 +494,8 @@ class InvoiceController
                     'status' => $status,
                     'note' => $response['response'][0]['note'],
                     'private_note' => $response['response'][0]['private_note'],
-                    'created_date' => convertUTCtoUserTZ($response['response'][0]['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                    'updated_date' => convertUTCtoUserTZ(getCurrentDatetime('Y-m-d H:i:s'), ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                    'created_date' => convertUTCtoUserTZ($response['response'][0]['created_date'], (empty($global_response_brand['response'][0]['timezone'])) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                    'updated_date' => convertUTCtoUserTZ(getCurrentDatetime('Y-m-d H:i:s'), (empty($global_response_brand['response'][0]['timezone'])) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                 ],
                 'invoice_items' => $invoice_items_array
             ];
@@ -566,17 +512,15 @@ class InvoiceController
     private static function bulkAction(RequestContext $ctx): void
     {
         $db_prefix = $ctx->dbPrefix;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
 
-        if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', $global_user_response['response'][0]['role'])) {
+        if (!PermissionGuard::canAccess($ctx, 'invoice')) {
             echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
             exit();
         }
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         $actionID = $request->post('actionID', '');
         $selected_ids_json = $request->post('selected_ids', '[]');
@@ -584,21 +528,21 @@ class InvoiceController
 
         if (!empty($selected_ids)) {
             foreach ($selected_ids as $id) {
-                $itemID = escape_string($id);
+                $itemID = InputSanitizer::trim($id);
 
-                $response_brand = json_decode(getData($db_prefix . 'invoice', 'WHERE ref = :itemID AND brand_id = :brand_id', '* FROM', [':itemID' => $itemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                $response_brand = CrudService::select($db_prefix . 'invoice', 'WHERE ref = :itemID AND brand_id = :brand_id', '* FROM', [':itemID' => $itemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
                 if ($response_brand['status'] == true) {
                     if ($actionID == "deleted") {
-                        if (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'delete', $global_user_response['response'][0]['role'])) {
+                        if (PermissionGuard::has($ctx, 'invoice', 'delete')) {
                             $condition = "invoice_id = :itemID";
                             $whereParams_item = [':itemID' => $itemID];
 
-                            deleteData($db_prefix . 'invoice_items', $condition, $whereParams_item);
+                            CrudService::delete($db_prefix . 'invoice_items', $condition, $whereParams_item);
 
                             $condition = "ref = :itemID";
                             $whereParams = [':itemID' => $itemID];
 
-                            deleteData($db_prefix . 'invoice', $condition, $whereParams);
+                            CrudService::delete($db_prefix . 'invoice', $condition, $whereParams);
                         }
                     }
                 }
@@ -613,36 +557,29 @@ class InvoiceController
     private static function delete(RequestContext $ctx): void
     {
         $db_prefix = $ctx->dbPrefix;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
         $global_response_brand = $ctx->brandResponse;
         $new_csrf_token = $ctx->csrfToken;
 
-        if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', $global_user_response['response'][0]['role'])) {
+        if (!PermissionGuard::canAccess($ctx, 'invoice') || !PermissionGuard::has($ctx, 'invoice', 'delete')) {
             echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
             exit();
         }
 
-        if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'delete', $global_user_response['response'][0]['role'])) {
-            echo json_encode(['status' => 'false', 'title' => 'Access denied', 'message' => 'You need permission to perform this action. Please contact the admin.', 'csrf_token' => $new_csrf_token]);
-            exit();
-        }
-
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         $ItemID = $request->post('ItemID', '');
 
-        $response_brand = json_decode(getData($db_prefix . 'invoice', 'WHERE ref = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+        $response_brand = CrudService::select($db_prefix . 'invoice', 'WHERE ref = :ItemID AND brand_id = :brand_id', '* FROM', [':ItemID' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']]);
         if ($response_brand['status'] == true) {
             $condition = "invoice_id = :ItemID";
             $whereParams_item = [':ItemID' => $ItemID];
 
-            deleteData($db_prefix . 'invoice_items', $condition, $whereParams_item);
+            CrudService::delete($db_prefix . 'invoice_items', $condition, $whereParams_item);
 
             $condition = "ref = :ItemID";
             $whereParams = [':ItemID' => $ItemID];
 
-            deleteData($db_prefix . 'invoice', $condition, $whereParams);
+            CrudService::delete($db_prefix . 'invoice', $condition, $whereParams);
         }
 
         echo json_encode(['status' => 'true', 'title' => 'Invoice Deleted', 'message' => 'The selected invoice have been deleted successfully.', 'csrf_token' => $new_csrf_token]);

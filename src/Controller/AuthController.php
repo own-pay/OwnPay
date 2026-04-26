@@ -1,9 +1,11 @@
 <?php
 declare(strict_types=1);
 
-namespace AnirbanPay\Controller;
+namespace OwnPay\Controller;
 
-use AnirbanPay\Http\RequestContext;
+use OwnPay\Http\RequestContext;
+use OwnPay\Service\AuthSessionService;
+use OwnPay\Service\CrudService;
 
 class AuthController
 {
@@ -19,7 +21,7 @@ class AuthController
         // Transparently rehash to Argon2id if needed
         if (password_needs_rehash($user[$hashColumn], PASSWORD_ARGON2ID)) {
             $rehashed = password_hash($password, PASSWORD_ARGON2ID);
-            updateData($db_prefix . 'merchant_users', [$hashColumn], [$rehashed], 'id = :id', [':id' => $user['id']]);
+            CrudService::update($db_prefix . 'merchant_users', [$hashColumn], [$rehashed], 'id = :id', [':id' => $user['id']]);
         }
 
         if ($user['status'] !== 'active') {
@@ -33,18 +35,18 @@ class AuthController
         $userInfo = getUserDeviceInfo();
 
         if ($user['two_fa_status'] === 'enabled') {
-            setsCookie('ap_2fa', $cookie);
+            AuthSessionService::setCookie('op_2fa', $cookie);
             $target = '2fa';
         } else {
-            setsCookie('ap_admin', $cookie);
+            AuthSessionService::setCookie('op_admin', $cookie);
             $target = $path_admin . '/dashboard';
         }
 
         // Generate 2FA secret if not set
-        if ($user['two_fa_secret'] === '--' || empty($user['two_fa_secret'])) {
-            $ga = new \AnirbanPay\Security\Authenticator();
+        if ($user['two_fa_secret'] === null || $user['two_fa_secret'] === '' || empty($user['two_fa_secret'])) {
+            $ga = new \OwnPay\Security\Authenticator();
             $secret = $ga->createSecret();
-            updateData($db_prefix . 'merchant_users', ['two_fa_secret'], [$secret], 'id = :id', [':id' => $user['id']]);
+            CrudService::update($db_prefix . 'merchant_users', ['two_fa_secret'], [$secret], 'id = :id', [':id' => $user['id']]);
         }
 
         // Create session record - mapping to V2 `sessions` table schema
@@ -56,9 +58,9 @@ class AuthController
             $user['role_id'],
             getCurrentDatetime('Y-m-d H:i:s')
         ];
-        insertData($db_prefix . 'sessions', $columns, $values);
+        CrudService::insert($db_prefix . 'sessions', $columns, $values);
 
-        echo json_encode(['status' => 'true', 'target' => $target, 'session_token' => $cookie, 'csrf_token' => $new_csrf_token]);
+        echo json_encode(['status' => 'true', 'target' => $target, 'csrf_token' => $new_csrf_token]);
     }
 
     public static function handle(string $action, ?RequestContext $ctx = null): void
@@ -69,20 +71,21 @@ class AuthController
         $new_csrf_token = $ctx->csrfToken;
         $global_user_login = $ctx->isLoggedIn;
         $global_user_response = $ctx->userResponse;
-        $ap_admin = $ctx->isAdmin();
+        $op_admin = $ctx->isAdmin();
         $global_two_fector_validate = $GLOBALS['global_two_fector_validate'] ?? false;
-        $ap_demo_mode = $ctx->demoMode;
+        $op_demo_mode = $ctx->demoMode;
         $global_response_brand = $ctx->brandResponse;
         $global_cookie_response = $ctx->cookieResponse;
         $global_user_2fa = $GLOBALS['global_user_2fa'] ?? false;
 
-        $request = \AnirbanPay\Http\Request::createFromGlobals();
+        $request = \OwnPay\Http\Request::createFromGlobals();
 
         if ($action === 'login') {
             // Rate limit: 5 login attempts per minute per IP
-            $rateLimiter = new \AnirbanPay\Middleware\RateLimiterMiddleware();
+            $rateLimiter = new \OwnPay\Middleware\RateLimiterMiddleware();
             $ipKey = 'login_ip:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown');
-            $rateResult = $rateLimiter->check(crc32($ipKey), '', 'POST', 5);
+            // F11: SHA-256-derived bucket id (was CRC32 — collision risk per audit)
+            $rateResult = $rateLimiter->check((int) hexdec(substr(hash('sha256', $ipKey), 0, 8)), '', 'POST', 5);
             if (!$rateResult['allowed']) {
                 echo json_encode(['status' => 'false', 'title' => 'Too Many Attempts', 'message' => 'Please try again in ' . $rateResult['retryAfter'] . ' seconds.', 'csrf_token' => $new_csrf_token]);
                 return;
@@ -102,7 +105,7 @@ class AuthController
                     $sql_email_username = 'username = :username';
                 }
 
-                $response = json_decode(getData($db_prefix . 'merchant_users', 'WHERE ' . $sql_email_username, '* FROM', $params), true);
+                $response = CrudService::select($db_prefix . 'merchant_users', 'WHERE ' . $sql_email_username, '* FROM', $params);
 
                 if ($response['status'] == true) {
                     $user = $response['response'][0];
@@ -134,22 +137,39 @@ class AuthController
                 if ($global_user_2fa == true) {
                     $params = [':id' => $global_user_response['response'][0]['id']];
 
-                    $response = json_decode(getData($db_prefix . 'merchant_users', 'WHERE id = :id', '* FROM', $params), true);
+                    $response = CrudService::select($db_prefix . 'merchant_users', 'WHERE id = :id', '* FROM', $params);
 
                     if ($response['status'] == true) {
-                        $ga = new \AnirbanPay\Security\Authenticator();
+                        $ga = new \OwnPay\Security\Authenticator();
+                        $row = $response['response'][0];
+                        $code = $code_one . $code_two . $code_three . $code_four . $code_five . $code_six;
 
-                        $check = $ga->verifyCode($response['response'][0]['two_fa_secret'], $code_one . $code_two . $code_three . $code_four . $code_five . $code_six, 2);
+                        // F6: replay-guarded TOTP — same window cannot be reused
+                        $matchedWindow = $ga->verifyCodeWithReplayGuard(
+                            $row['two_fa_secret'],
+                            $code,
+                            (int) ($row['last_otp_window'] ?? 0),
+                            2
+                        );
 
-                        if ($check) {
-                            logoutCookie();
+                        if ($matchedWindow > 0) {
+                            // Persist consumed window before issuing session
+                            CrudService::update(
+                                $db_prefix . 'merchant_users',
+                                ['last_otp_window'],
+                                [$matchedWindow],
+                                'id = :id',
+                                [':id' => $row['id']]
+                            );
 
-                            setsCookie('ap_brand', $global_response_brand['response'][0]['brand_id']);
-                            setsCookie('ap_admin', $global_cookie_response['response'][0]['cookie']);
+                            AuthSessionService::destroySession();
 
-                            echo json_encode(['status' => "true", 'target' => $path_admin . '/dashboard', 'session_token' => $global_cookie_response['response'][0]['cookie'], 'csrf_token' => $new_csrf_token]);
+                            AuthSessionService::setCookie('op_brand', $global_response_brand['response'][0]['brand_id']);
+                            AuthSessionService::setCookie('op_admin', $global_cookie_response['response'][0]['cookie']);
+
+                            echo json_encode(['status' => "true", 'target' => $path_admin . '/dashboard', 'csrf_token' => $new_csrf_token]);
                         } else {
-                            echo json_encode(['status' => "false", 'title' => 'Verification Failed', 'message' => 'The code you entered is incorrect. Please try again.', 'csrf_token' => $new_csrf_token]);
+                            echo json_encode(['status' => "false", 'title' => 'Verification Failed', 'message' => 'The code you entered is incorrect or has already been used. Please try again.', 'csrf_token' => $new_csrf_token]);
                         }
                     } else {
                         echo json_encode(['status' => "false", 'title' => 'Login Failed', 'message' => 'You do not have access to this account. Please check your credentials.', 'csrf_token' => $new_csrf_token]);
@@ -167,10 +187,25 @@ class AuthController
             if ($email_address == "") {
                 echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
             } else {
+                // F15: rate-limit forgot-password by (IP + email) at 3 per minute.
+                // Mitigates email-enumeration timing oracle and mail-server abuse.
+                $rateLimiter = new \OwnPay\Middleware\RateLimiterMiddleware();
+                $forgotKey = 'forgot:' . ($_SERVER['REMOTE_ADDR'] ?? 'unknown') . ':' . strtolower(trim($email_address));
+                $rateResult = $rateLimiter->check(
+                    (int) hexdec(substr(hash('sha256', $forgotKey), 0, 8)),
+                    '',
+                    'POST',
+                    3
+                );
+                if (!$rateResult['allowed']) {
+                    // Same response shape as success — do not leak rate-limit-vs-not-found
+                    echo json_encode(['status' => "true", 'title' => 'Password Reset', 'message' => 'If the email exists, a reset link has been sent. Please check your inbox.', 'csrf_token' => $new_csrf_token]);
+                    return;
+                }
                 if (filter_var($email_address, FILTER_VALIDATE_EMAIL)) {
                     $params = [':email' => $email_address, ':status' => 'active'];
 
-                    $response = json_decode(getData($db_prefix . 'merchant_users', 'WHERE email = :email AND status = :status', '* FROM', $params), true);
+                    $response = CrudService::select($db_prefix . 'merchant_users', 'WHERE email = :email AND status = :status', '* FROM', $params);
 
                     if ($response['status'] == true) {
 
@@ -184,7 +219,7 @@ class AuthController
                         $condition = "id = :id";
                         $whereParams = [':id' => $response['response'][0]['id']];
 
-                        updateData($db_prefix . 'merchant_users', $columns, $values, $condition, $whereParams);
+                        CrudService::update($db_prefix . 'merchant_users', $columns, $values, $condition, $whereParams);
 
                         $action_data = [
                             'full_name' => $response['response'][0]['full_name'],
@@ -217,9 +252,9 @@ class AuthController
                 } else {
                     $params = [':a_id' => $global_user_response['response'][0]['a_id'], ':status' => 'active', ':brand_id' => $brand_id];
 
-                    $response = json_decode(getData($db_prefix . 'permission', 'WHERE a_id = :a_id AND status = :status AND brand_id = :brand_id', '* FROM', $params), true);
+                    $response = CrudService::select($db_prefix . 'permission', 'WHERE a_id = :a_id AND status = :status AND brand_id = :brand_id', '* FROM', $params);
                     if ($response['status'] == true) {
-                        setsCookie('ap_brand', $brand_id);
+                        AuthSessionService::setCookie('op_brand', $brand_id);
 
                         echo json_encode(['status' => "true", 'csrf_token' => $new_csrf_token]);
                     } else {
@@ -233,7 +268,7 @@ class AuthController
 
         elseif ($action === 'my-account-profile-information') {
             if ($global_user_login == true) {
-                if (!empty($ap_demo_mode)) {
+                if (!empty($op_demo_mode)) {
                     echo json_encode(['status' => 'false', 'title' => 'Demo Restriction', 'message' => 'This feature is disabled in the demo version.', 'csrf_token' => $new_csrf_token]);
                 } else {
                     $fullname = $request->post('fullname', '');
@@ -257,7 +292,7 @@ class AuthController
                             // Check username uniqueness against merchant_users
                             if ($username !== $global_user_response['response'][0]['username']) {
                                 $params = [':username' => $username];
-                                $response = json_decode(getData($db_prefix . 'merchant_users', 'WHERE username = :username', '* FROM', $params), true);
+                                $response = CrudService::select($db_prefix . 'merchant_users', 'WHERE username = :username', '* FROM', $params);
                                 if ($response['status'] == true) {
                                     echo json_encode(['status' => 'false', 'title' => 'Duplicate Username', 'message' => 'Username already exists.', 'csrf_token' => $new_csrf_token]);
                                     exit();
@@ -267,7 +302,7 @@ class AuthController
                             // Check email uniqueness against merchant_users
                             if ($email_address !== $global_user_response['response'][0]['email']) {
                                 $params = [':email' => $email_address];
-                                $response = json_decode(getData($db_prefix . 'merchant_users', 'WHERE email = :email', '* FROM', $params), true);
+                                $response = CrudService::select($db_prefix . 'merchant_users', 'WHERE email = :email', '* FROM', $params);
                                 if ($response['status'] == true) {
                                     echo json_encode(['status' => 'false', 'title' => 'Duplicate Email', 'message' => 'Email address already exists.', 'csrf_token' => $new_csrf_token]);
                                     exit();
@@ -288,7 +323,7 @@ class AuthController
                             $condition = 'id = :id';
                             $whereParams = [':id' => $global_user_response['response'][0]['id']];
 
-                            updateData($db_prefix . 'merchant_users', $columns, $values, $condition, $whereParams);
+                            CrudService::update($db_prefix . 'merchant_users', $columns, $values, $condition, $whereParams);
 
                             echo json_encode(['status' => 'true', 'title' => 'Profile Updated', 'message' => 'Your profile information has been updated successfully.', 'csrf_token' => $new_csrf_token]);
                         } else {
@@ -303,7 +338,7 @@ class AuthController
 
         elseif ($action === 'my-account-account-browser-sessions') {
             if ($global_user_login == true) {
-                if (!empty($ap_demo_mode)) {
+                if (!empty($op_demo_mode)) {
                     echo json_encode(['status' => 'false', 'title' => 'Demo Restriction', 'message' => 'This feature is disabled in the demo version.', 'csrf_token' => $new_csrf_token]);
                 } else {
                     if ($global_two_fector_validate == false) {
@@ -313,10 +348,10 @@ class AuthController
 
                     $columns = ['status', 'updated_date'];
                     $values = ['expired', getCurrentDatetime('Y-m-d H:i:s')];
-                    $condition = 'user_id = :user_id AND cookie != :ap_admin';
-                    $whereParams = [':user_id' => $global_user_response['response'][0]['id'], ':ap_admin' => $ap_admin];
+                    $condition = 'user_id = :user_id AND cookie != :op_admin';
+                    $whereParams = [':user_id' => $global_user_response['response'][0]['id'], ':op_admin' => $op_admin];
 
-                    updateData($db_prefix . 'sessions', $columns, $values, $condition, $whereParams);
+                    CrudService::update($db_prefix . 'sessions', $columns, $values, $condition, $whereParams);
 
                     echo json_encode(['status' => 'true', 'title' => 'Logged Out Successfully', 'message' => 'You have been logged out of all other browser sessions.', 'csrf_token' => $new_csrf_token]);
                 }
@@ -327,7 +362,7 @@ class AuthController
 
         elseif ($action === 'my-account-account-two-factor-authentication') {
             if ($global_user_login == true) {
-                if (!empty($ap_demo_mode)) {
+                if (!empty($op_demo_mode)) {
                     echo json_encode(['status' => 'false', 'title' => 'Demo Restriction', 'message' => 'This feature is disabled in the demo version.', 'csrf_token' => $new_csrf_token]);
                 } else {
                     $auth_code = $request->post('auth-code', '');
@@ -335,7 +370,7 @@ class AuthController
                     if ($auth_code === '') {
                         echo json_encode(['status' => 'false', 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
                     } else {
-                        $ga = new \AnirbanPay\Security\Authenticator();
+                        $ga = new \OwnPay\Security\Authenticator();
 
                         // Use mapped column names from adapter.php
                         $check = $ga->verifyCode($global_user_response['response'][0]['2fa_secret'], $auth_code, 2);
@@ -353,7 +388,7 @@ class AuthController
                             $condition = 'id = :id';
                             $whereParams = [':id' => $global_user_response['response'][0]['id']];
 
-                            updateData($db_prefix . 'merchant_users', $columns, $values, $condition, $whereParams);
+                            CrudService::update($db_prefix . 'merchant_users', $columns, $values, $condition, $whereParams);
 
                             if ($fa_status === 'disabled') {
                                 echo json_encode(['status' => 'true', 'title' => 'Two-Factor Authentication Disabled', 'message' => 'Two-factor authentication has been successfully disabled for your account.', 'csrf_token' => $new_csrf_token]);
@@ -402,9 +437,10 @@ class AuthController
                 $where_sql = $where ? implode(' AND ', $where) . ' AND ' : '';
                 /* Filters */
 
-                $page = max(1, (int) $request->post('page', 1));
-                $show_limit_val = ($request->post('show_limit') == '') ? 999999 : (int) $request->post('show_limit');
-                $offset = ($page - 1) * $show_limit_val;
+                $pag = \OwnPay\Service\PaginationService::resolve($request->post('page', 1), $request->post('show_limit'));
+                $page = $pag['page'];
+                $show_limit_val = $pag['perPage'];
+                $offset = $pag['offset'];
 
                 $sql_query = '';
 
@@ -414,19 +450,19 @@ class AuthController
                 }
 
                 $sql_limit = '';
-                if ($show_limit == 'all') {
+                if ($pag['isAll']) {
 
                 } else {
-                    $sql_limit = ' LIMIT ' . (int) $offset . ', ' . (int) $show_limit;
+                    $sql_limit = ' LIMIT ' . (int) $offset . ', ' . (int) $show_limit_val;
                 }
 
-                $response_result = json_decode(getData($db_prefix . 'sessions', 'WHERE ' . $where_sql . ' user_id = :user_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_act), true);
+                $response_result = CrudService::select($db_prefix . 'sessions', 'WHERE ' . $where_sql . ' user_id = :user_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_act);
                 if ($response_result['status'] == true) {
                     $response = [];
 
                     foreach ($response_result['response'] as $row) {
                         $isequal = '';
-                        if ($row['cookie'] == $ap_admin) {
+                        if ($row['cookie'] == $op_admin) {
                             $isequal = 'matched';
                         }
 
@@ -437,8 +473,8 @@ class AuthController
                             "ip" => $row['ip'],
                             "status" => $row['status'],
                             "isequal" => $isequal,
-                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
-                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === '--' || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
+                            "created_date" => convertUTCtoUserTZ($row['created_date'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A"),
+                            "updated_date" => convertUTCtoUserTZ($row['updated_date'], ($global_response_brand['response'][0]['timezone'] === null || $global_response_brand['response'][0]['timezone'] === '') ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")
                         ];
                     }
 
@@ -447,44 +483,12 @@ class AuthController
                     if ($search_input !== '') {
                         $count_params[':search'] = "%$search_input%";
                     }
-                    $count_data = json_decode(getData($db_prefix . 'sessions', 'WHERE ' . $where_sql . ' user_id = :user_id ' . $sql_query, '* FROM', $count_params), true);
+                    $count_data = CrudService::select($db_prefix . 'sessions', 'WHERE ' . $where_sql . ' user_id = :user_id ' . $sql_query, '* FROM', $count_params);
 
                     $total_records = count($count_data['response'] ?? []);
-                    $total_pages = ceil($total_records / $show_limit);
-
-                    $pagination = '<ul class="pagination m-0 ms-auto">';
-
-                    // Prev button
-                    $pagination .= '<li class="page-item' . ($page <= 1 ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page > 1 ? 'data-page="' . ($page - 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M15 6l-6 6l6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    // Page numbers
-                    for ($i = 1; $i <= $total_pages; $i++) {
-                        $pagination .= '<li class="page-item' . ($i == $page ? ' active' : '') . '">
-                                <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                            </li>';
-                    }
-
-                    // Next button
-                    $pagination .= '<li class="page-item' . ($page >= $total_pages ? ' disabled' : '') . '">
-                            <button class="page-link" ' . ($page < $total_pages ? 'data-page="' . ($page + 1) . '"' : '') . '>
-                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                    <path d="M9 6l6 6l-6 6"></path>
-                                </svg>
-                            </button>
-                        </li>';
-
-                    $pagination .= '</ul>';
-
-                    $start = ($offset + 1);
-                    $end = min($offset + $show_limit, $total_records);
-
-                    $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$total_records entries</strong>";
+                    $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit_val, $offset);
+                    $pagination = $pagHtml['pagination'];
+                    $datatableInfo = $pagHtml['datatableInfo'];
 
                     echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
                 } else {
@@ -497,17 +501,17 @@ class AuthController
         }
 
         if (in_array($action, ["staff-management-list", "staff-bulk-action", "staff-delete", "staff-create", "staff-update", "staff-permissions", "staff-permission-bulk-action", "staff-permission-delete", "staff-brand-add", "staff-update-permission"])) {
-            \AnirbanPay\Controller\StaffController::handle($action);
+            \OwnPay\Controller\StaffController::handle($action);
             exit;
         }
 
         if (in_array($action, ["create-new-brand", "all-brand-list", "brand-bulk-action", "brand-delete", "edit-brand"])) {
-            \AnirbanPay\Controller\BrandController::handle($action, $ctx);
+            \OwnPay\Controller\BrandController::handle($action, $ctx);
             exit;
         }
 
         if (in_array($action, ["all-domain-list", "domains-info-byID", "create-domains", "domains-edit", "domains-delete", "domain-bulk-action"])) {
-            \AnirbanPay\Controller\DomainController::handle($action, $ctx);
+            \OwnPay\Controller\DomainController::handle($action, $ctx);
             exit;
         }
 

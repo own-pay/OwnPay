@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Service;
+namespace OwnPay\Service;
 
 use Monolog\Logger as MonologLogger;
 use Monolog\Handler\RotatingFileHandler;
@@ -33,7 +33,7 @@ final class Logger
         if (!isset(self::$loggers[$channel])) {
             $logger = new MonologLogger($channel);
 
-            $logDir = defined('AP_ROOT') ? AP_ROOT . '/logs' : __DIR__ . '/../../logs';
+            $logDir = defined('OP_ROOT') ? OP_ROOT . '/logs' : __DIR__ . '/../../logs';
             if (!is_dir($logDir)) {
                 mkdir($logDir, 0755, true);
             }

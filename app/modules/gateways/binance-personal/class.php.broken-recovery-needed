@@ -1,0 +1,172 @@
+<?php
+
+        }
+    
+        function ipn($data = []){
+            $bpid = $_POST['bpid'] ?? '';
+            $order_id = $_POST['order_id'] ?? '';
+            $transaction_amount = (get_env('binance-personal-op_amount'.$bpid) == "") ? 0 : get_env('binance-personal-op_amount'.$bpid);
+
+            if($order_id == ""){
+                echo json_encode(['status' => 'false', 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.']);
+            }else{
+                if(op_check_transaction_id($order_id)){
+                    echo json_encode(['status' => 'false', 'title' => 'Duplicate Transaction ID', 'message' => 'This Transaction ID is already exits. Please provide a different one.']);
+                }else{
+                    $transaction_details = op_check_transaction($bpid);
+
+                    if($transaction_details == true){
+                        $transaction_details = json_decode($transaction_details, true);
+                        
+                        $endpoint = "https://api.binance.com/sapi/v1/pay/transactions";
+                        
+                        $timestamp = round(microtime(true) * 1000);
+                        
+                        $params = [
+                            'limit' => 100,       // Max 100 transactions per request
+                            'timestamp' => $timestamp
+                        ];
+
+                        $query = http_build_query($params);
+
+                        $signature = hash_hmac('sha256', $query, ($data['gateway']['options']['secret_key'] ?? ''));
+
+                        $url = $endpoint . "?" . $query . "&signature=" . $signature;
+
+                        $ch = curl_init();
+                        curl_setopt($ch, CURLOPT_URL, $url);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                            "X-MBX-APIKEY: ".($data['gateway']['options']['api_key'] ?? '')
+                        ]);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Follow redirects
+                        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true); // Verify SSL
+                        
+                        $response = curl_exec($ch);
+                    
+                        curl_close($ch);
+
+                        // Convert JSON to array
+                        $data_res = json_decode($response, true);
+
+                        if(isset($data_res['data'])){
+
+                        }else{
+                            echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => $data_res['msg']]);
+                            exit();
+                        }
+
+                        // Initialize result
+                        $amount = null;
+                        
+                        // Loop through data
+                        foreach ($data_res['data'] as $transaction) {
+                            if ($transaction['orderId'] === $order_id && $transaction['currency'] === "USDT") {
+                                $amount = $transaction['amount'];
+                                break; // Stop loop once matched
+                            }
+                        }
+                        
+                        if ($amount !== null) {
+                            if($transaction_amount <= $amount){
+                                op_set_transaction_status($bpid, 'completed', $data['gateway']['gateway_id'], $order_id);
+
+                                echo json_encode(['status' => "true", 'title' => 'Transaction Verified', 'message' => 'Your transaction has been verified successfully.']);
+                            }else{
+                                echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'The order does not meet the required amount!']);
+                            }
+                        } else {
+                            echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'The Order ID you entered is incorrect. Try again!']);
+                        }
+                    }else{
+                        echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'The Transaction ID you entered is incorrect. Try again!']);
+                    }
+                }
+            }
+        }
+    }
+
+
+POST['order_id'] ?? '');
+            $transaction_amount = (get_env('binance-personal-op_amount'.$bpid) == "") ? 0 : get_env('binance-personal-op_amount'.$bpid);
+
+            if($order_id == ""){
+                echo json_encode(['status' => 'false', 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.']);
+            }else{
+                if(op_check_transaction_id($order_id)){
+                    echo json_encode(['status' => 'false', 'title' => 'Duplicate Transaction ID', 'message' => 'This Transaction ID is already exits. Please provide a different one.']);
+                }else{
+                    $transaction_details = op_check_transaction($bpid);
+
+                    if($transaction_details == true){
+                        $transaction_details = json_decode($transaction_details, true);
+                        
+                        $endpoint = "https://api.binance.com/sapi/v1/pay/transactions";
+                        
+                        $timestamp = round(microtime(true) * 1000);
+                        
+                        $params = [
+                            'limit' => 100,       // Max 100 transactions per request
+                            'timestamp' => $timestamp
+                        ];
+
+                        $query = http_build_query($params);
+
+                        $signature = hash_hmac('sha256', $query, ($data['gateway']['options']['secret_key'] ?? ''));
+
+                        $url = $endpoint . "?" . $query . "&signature=" . $signature;
+
+                        $ch = curl_init();
+                        curl_setopt($ch, CURLOPT_URL, $url);
+                        curl_setopt($ch, CURLOPT_HTTPHEADER, [
+                            "X-MBX-APIKEY: ".($data['gateway']['options']['api_key'] ?? '')
+                        ]);
+                        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                        curl_setopt($ch, CURLOPT_FOLLOWLOCATION, true); // Follow redirects
+                        curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, true); // Verify SSL
+                        
+                        $response = curl_exec($ch);
+                    
+                        curl_close($ch);
+
+                        // Convert JSON to array
+                        $data_res = json_decode($response, true);
+
+                        if(isset($data_res['data'])){
+
+                        }else{
+                            echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => $data_res['msg']]);
+                            exit();
+                        }
+
+                        // Initialize result
+                        $amount = null;
+                        
+                        // Loop through data
+                        foreach ($data_res['data'] as $transaction) {
+                            if ($transaction['orderId'] === $order_id && $transaction['currency'] === "USDT") {
+                                $amount = $transaction['amount'];
+                                break; // Stop loop once matched
+                            }
+                        }
+                        
+                        if ($amount !== null) {
+                            if($transaction_amount <= $amount){
+                                op_set_transaction_status($bpid, 'completed', $data['gateway']['gateway_id'], $order_id);
+
+                                echo json_encode(['status' => "true", 'title' => 'Transaction Verified', 'message' => 'Your transaction has been verified successfully.']);
+                            }else{
+                                echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'The order does not meet the required amount!']);
+                            }
+                        } else {
+                            echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'The Order ID you entered is incorrect. Try again!']);
+                        }
+                    }else{
+                        echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'The Transaction ID you entered is incorrect. Try again!']);
+                    }
+                }
+            }
+        }
+    }
+
+

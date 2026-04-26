@@ -2,13 +2,13 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
-use AnirbanPay\Core\Database;
-use AnirbanPay\Core\UuidGenerator;
+use OwnPay\Core\Database;
+use OwnPay\Core\UuidGenerator;
 
 /**
- * Abstract base repository — provides type-safe CRUD for all ap_* tables.
+ * Abstract base repository — provides type-safe CRUD for all op_* tables.
  *
  * All queries use prepared statements with named parameters.
  * Subclasses only need to set $table and optionally override methods.
@@ -17,7 +17,7 @@ abstract class BaseRepository
 {
     protected Database $db;
 
-    /** Fully-qualified table name including prefix, e.g. 'ap_merchants'. */
+    /** Fully-qualified table name including prefix, e.g. 'op_merchants'. */
     protected string $table;
 
     public function __construct(?Database $db = null)
@@ -29,24 +29,38 @@ abstract class BaseRepository
 
     /**
      * Find a single row by internal auto-increment ID.
+     * Automatically applies tenant scoping if the repository uses TenantScope.
      */
     public function findById(int $id): ?array
     {
-        return $this->db->fetchOne(
-            "SELECT * FROM `{$this->table}` WHERE `id` = :id LIMIT 1",
-            ['id' => $id]
-        );
+        $sql = "SELECT * FROM `{$this->table}` WHERE `id` = :id";
+        $params = ['id' => $id];
+
+        // Apply tenant scope if available (repositories using TenantScope trait)
+        if (method_exists($this, 'tenantCondition')) {
+            $sql .= $this->tenantCondition();
+            $params = array_merge($params, $this->tenantParams());
+        }
+
+        return $this->db->fetchOne($sql . ' LIMIT 1', $params);
     }
 
     /**
      * Find a single row by public UUID.
+     * Automatically applies tenant scoping if the repository uses TenantScope.
      */
     public function findByPublicId(string $publicId): ?array
     {
-        return $this->db->fetchOne(
-            "SELECT * FROM `{$this->table}` WHERE `public_id` = :pid LIMIT 1",
-            ['pid' => $publicId]
-        );
+        $sql = "SELECT * FROM `{$this->table}` WHERE `public_id` = :pid";
+        $params = ['pid' => $publicId];
+
+        // Apply tenant scope if available (repositories using TenantScope trait)
+        if (method_exists($this, 'tenantCondition')) {
+            $sql .= $this->tenantCondition();
+            $params = array_merge($params, $this->tenantParams());
+        }
+
+        return $this->db->fetchOne($sql . ' LIMIT 1', $params);
     }
 
     /**

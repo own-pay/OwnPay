@@ -1,0 +1,12 @@
+{
+    "name": "PayPal Manual",
+    "slug": "paypal-manual",
+    "type": "gateway",
+    "version": "1.0.0",
+    "author": "OwnPay",
+    "entrypoint": "class.php",
+    "description": "PayPal Manual payment gateway",
+    "tab": "global",
+    "currency": "USD",
+    "gateway_type": "manual"
+}

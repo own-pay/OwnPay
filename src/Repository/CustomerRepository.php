@@ -2,25 +2,26 @@
 
 declare(strict_types=1);
 
-namespace AnirbanPay\Repository;
+namespace OwnPay\Repository;
 
 /**
- * Repository for ap_customers — customer records per merchant.
+ * Repository for op_customers — customer records per merchant.
  */
 class CustomerRepository extends BaseRepository
 {
     use TenantScope;
 
-    protected string $table = 'ap_customers';
+    protected string $table = 'op_customers';
 
     /**
      * Find customer by email within a merchant scope.
      */
     public function findByEmail(int $merchantId, string $email): ?array
     {
+        $tc = $this->tenantCondition();
         return $this->findOneWhere(
-            '`merchant_id` = :mid AND `email` = :email',
-            ['mid' => $merchantId, 'email' => $email]
+            '`merchant_id` = :mid AND `email` = :email' . $tc,
+            array_merge(['mid' => $merchantId, 'email' => $email], $this->tenantParams())
         );
     }
 
@@ -54,9 +55,10 @@ class CustomerRepository extends BaseRepository
      */
     public function findByMerchant(int $merchantId, int $limit = 50): array
     {
+        $tc = $this->tenantCondition();
         return $this->findWhere(
-            '`merchant_id` = :mid AND `status` = :status',
-            ['mid' => $merchantId, 'status' => 'active'],
+            '`merchant_id` = :mid AND `status` = :status' . $tc,
+            array_merge(['mid' => $merchantId, 'status' => 'active'], $this->tenantParams()),
             'created_at DESC',
             $limit
         );
