@@ -30,6 +30,7 @@ use OwnPay\Http\Controller\CustomerController;
 use OwnPay\Http\Controller\ApiKeyController;
 use OwnPay\Http\Controller\WebhookController;
 use OwnPay\Http\Controller\HealthController;
+use OwnPay\Http\Controller\MobileDeviceController;
 use OwnPay\Middleware\CorsMiddleware;
 use OwnPay\Middleware\BearerAuthMiddleware;
 use OwnPay\Middleware\IpAllowlistMiddleware;
@@ -75,6 +76,35 @@ $dbPass = getenv('DB_PASS') ?: '';
 $dbPort = (int) (getenv('DB_PORT') ?: 3306);
 
 Database::init($dbHost, $dbName, $dbUser, $dbPass, $dbPort);
+
+// ── Mobile Companion Routes (bypass BearerAuth — use JWT/OTP) ────────
+
+$requestUri = parse_url($_SERVER['REQUEST_URI'] ?? '', PHP_URL_PATH) ?: '';
+if (preg_match('#^/v1/device/(pair|refresh|status)#', $requestUri)) {
+    // IP rate limit for pairing endpoint: 5 req / 5 min per IP
+    if (str_contains($requestUri, '/pair') && $_SERVER['REQUEST_METHOD'] === 'POST') {
+        $clientIp = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? 'unknown';
+        $clientIp = explode(',', $clientIp)[0]; // First IP if proxied
+        $rateKey = 'device_pair:' . hash('sha256', $clientIp);
+        $rateLimitRepo = new \OwnPay\Repository\RateLimitRepository();
+        $hitCount = $rateLimitRepo->hit($rateKey, 300); // 5-min window
+        if ($hitCount > 5) {
+            \OwnPay\Http\JsonResponse::error(
+                'RATE_LIMIT_EXCEEDED',
+                'Too many pairing attempts. Please try again in 5 minutes.',
+                429
+            );
+            exit;
+        }
+    }
+
+    $mobileRouter = new Router();
+    $mobileRouter->post('/v1/device/pair',    [MobileDeviceController::class, 'pair']);
+    $mobileRouter->post('/v1/device/refresh', [MobileDeviceController::class, 'refresh']);
+    $mobileRouter->get('/v1/device/status',   [MobileDeviceController::class, 'status']);
+    $mobileRouter->dispatch();
+    exit; // dispatch() exits on match; if no match, fall through
+}
 
 // ── 2. Bearer Authentication ─────────────────────────────────────────
 
