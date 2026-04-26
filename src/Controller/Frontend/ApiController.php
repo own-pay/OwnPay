@@ -19,9 +19,9 @@ class ApiController
 
                     $apiKey = getAuthorizationHeader();
 
-                    $params = [':api_key' => $apiKey];
+                    $params = [':api_key' => $apiKey, ':status' => 'active'];
 
-                    $response_api = CrudService::select($db_prefix . 'api', 'WHERE api_key = :api_key AND status = "active"', '* FROM', $params);
+                    $response_api = CrudService::select($db_prefix . 'api', 'WHERE api_key = :api_key AND status = :status', '* FROM', $params);
                     if ($response_api['status'] == false) {
                         http_response_code(400);
 
@@ -674,9 +674,10 @@ class ApiController
                                     if ($response_transaction['status'] == true) {
                                         $columns = ['status', 'updated_date'];
                                         $values = ['refunded', getCurrentDatetime('Y-m-d H:i:s')];
-                                        $condition = 'id ="' . $response_transaction['response'][0]['id'] . '"';
+                                        $condition = 'id = :id';
+                                        $whereParams = [':id' => $response_transaction['response'][0]['id']];
 
-                                        CrudService::update($db_prefix . 'transaction', $columns, $values, $condition);
+                                        CrudService::update($db_prefix . 'transaction', $columns, $values, $condition, $whereParams);
 
 
                                         $metadata = json_decode($response_transaction['response'][0]['metadata'], true) ?: [];

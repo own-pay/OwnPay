@@ -50,12 +50,16 @@ class AuthController
         }
 
         // Create session record - mapping to V2 `sessions` table schema
-        $columns = ['cookie', 'user_id', 'merchant_id', 'role_id', 'created_at'];
+        $columns = ['cookie', 'user_id', 'merchant_id', 'role_id', 'status', 'browser', 'device', 'ip', 'created_at'];
         $values = [
             $cookie,
             $user['id'],
             $user['merchant_id'],
             $user['role_id'],
+            'active',
+            $userInfo['browser'] ?? '',
+            $userInfo['device'] ?? '',
+            $userInfo['ip'] ?? ($_SERVER['REMOTE_ADDR'] ?? ''),
             getCurrentDatetime('Y-m-d H:i:s')
         ];
         CrudService::insert($db_prefix . 'sessions', $columns, $values);
