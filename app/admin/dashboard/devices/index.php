@@ -69,7 +69,23 @@
     </div>
 </div>
 
-<!-- Bulk Action Modal -->
+<!-- Paired Companion Devices -->
+<div class="op-card mt-4">
+    <div class="p-4 border-b border-gray-200 dark:border-gray-700">
+        <div class="flex justify-between items-center">
+            <div>
+                <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Paired Companion Devices</h3>
+                <p class="text-xs text-gray-500 mt-0.5">Devices connected via the OwnPay Companion App</p>
+            </div>
+            <button class="text-xs text-blue-600 hover:text-blue-800" onclick="loadPairedDevices()">Refresh</button>
+        </div>
+    </div>
+    <div id="paired-devices-list">
+        <div class="p-8 text-center"><div class="op-spinner"></div></div>
+    </div>
+</div>
+
+<!-- Connect Device Modal (Secure Pairing) -->
 <div id="model-bulkAction" tabindex="-1" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full" data-modal-backdrop="static">
     <div class="relative p-4 w-full max-w-md max-h-full">
         <div class="relative bg-white rounded-lg shadow-sm dark:bg-gray-800">
@@ -92,42 +108,45 @@
     </div>
 </div>
 
-<!-- Connect Device Modal -->
+<!-- Connect Device Modal (Secure Pairing) -->
 <div id="modal-createItem" tabindex="-1" class="hidden overflow-y-auto overflow-x-hidden fixed top-0 right-0 left-0 z-50 justify-center items-center w-full md:inset-0 h-[calc(100%-1rem)] max-h-full" data-modal-backdrop="static">
     <div class="relative p-4 w-full max-w-md max-h-full">
         <div class="relative bg-white rounded-lg shadow-sm dark:bg-gray-800">
             <div class="flex items-center justify-between p-4 border-b dark:border-gray-700">
-                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Connect Device</h3>
+                <h3 class="text-lg font-semibold text-gray-900 dark:text-white">Pair Mobile Device</h3>
                 <button type="button" class="op-modal-close" data-modal-hide="modal-createItem"><svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/></svg></button>
             </div>
             <div class="p-4 space-y-4">
-                <div class="p-4 text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-gray-700 dark:text-blue-400">
-                    Download the <strong>OwnPay Companion App</strong> (<a href="https://play.google.com/store/apps/details?id=com.ownpay.companion" target="_blank" class="font-medium underline">Android</a>) on your mobile device to connect it with your account.
+                <div class="p-3 text-sm text-blue-800 rounded-lg bg-blue-50 dark:bg-gray-700 dark:text-blue-400">
+                    Open the <strong>OwnPay Companion App</strong> on your phone, tap <strong>"Pair Device"</strong>, and scan the QR code below.
                 </div>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Scan this QR code in your OwnPay Companion app to connect your device automatically:</p>
-                <div class="text-center">
-                    <div class="inline-block op-card p-3 loading-process">
+                <div class="text-center" id="pair-qr-container">
+                    <div class="inline-block op-card p-3">
                         <div class="op-spinner"></div>
                     </div>
                 </div>
-                <p class="text-sm text-gray-600 dark:text-gray-400">Or connect manually using your credentials:</p>
+                <div class="text-center" id="pair-countdown-container" style="display:none;">
+                    <span class="text-sm text-gray-500 dark:text-gray-400">Expires in <strong id="pair-countdown">5:00</strong></span>
+                </div>
+                <p class="text-sm text-gray-600 dark:text-gray-400">Or enter the code manually in the app:</p>
                 <div>
-                    <label class="op-label">Base URL <span class="text-red-500">*</span></label>
+                    <label class="op-label">Server URL</label>
                     <div class="flex">
-                        <input type="text" class="op-input rounded-e-none" id="base-url" value="<?php echo $site_url ?>" readonly>
-                        <button type="button" class="op-btn-secondary rounded-s-none" onclick="copyContent(document.getElementById('base-url').value, 'Copied!', 'Base URL copied.')">Copy</button>
+                        <input type="text" class="op-input rounded-e-none" id="pair-base-url" value="<?php echo $site_url ?>" readonly>
+                        <button type="button" class="op-btn-secondary rounded-s-none" onclick="copyContent(document.getElementById('pair-base-url').value, 'Copied!', 'URL copied.')">Copy</button>
                     </div>
                 </div>
                 <div>
-                    <label class="op-label">One-Time Password <span class="text-red-500">*</span></label>
+                    <label class="op-label">Pairing Code</label>
                     <div class="flex">
-                        <input type="text" class="op-input rounded-e-none" id="one-time-password" readonly>
-                        <button type="button" class="op-btn-secondary rounded-s-none" onclick="copyContent(document.getElementById('one-time-password').value, 'Copied!', 'OTP copied.')">Copy</button>
+                        <input type="text" class="op-input rounded-e-none font-mono text-lg tracking-widest text-center" id="pair-otp" readonly placeholder="------">
+                        <button type="button" class="op-btn-secondary rounded-s-none" onclick="copyContent(document.getElementById('pair-otp').value, 'Copied!', 'Code copied.')">Copy</button>
                     </div>
                 </div>
             </div>
-            <div class="flex justify-end p-4 border-t dark:border-gray-700">
-                <button type="button" class="op-btn-secondary" data-modal-hide="modal-createItem">Cancel</button>
+            <div class="flex justify-between p-4 border-t dark:border-gray-700">
+                <button type="button" class="op-btn-secondary text-sm" onclick="iniConnectDeviceInfo()">Regenerate</button>
+                <button type="button" class="op-btn-secondary" data-modal-hide="modal-createItem">Close</button>
             </div>
         </div>
     </div>
@@ -135,24 +154,40 @@
 
 <script nonce="<?= $csp_nonce ?? '' ?>" data-cfasync="false">
     window.OP_DASHBOARD_URL = '<?php echo $site_url.$path_admin ?>/dashboard';
-
-    function iniModelConnectDevice(){
-        var model = document.querySelector("#modal-createItem");
-        var baseUrl = model.querySelector("#base-url").value;
-        var pass = model.querySelector("#one-time-password").value;
-        model.querySelector('#qrcode').innerHTML = "";
-        qr = new QRCode(model.querySelector('#qrcode'), { text: baseUrl+'----'+pass, width: 200, height: 200 });
-    }
+    let pairCountdownInterval = null;
 
     function iniConnectDeviceInfo(){
-        var model = document.querySelector("#modal-createItem");
-        model.querySelector("#one-time-password").value = '';
-        model.querySelector('.loading-process').innerHTML = '<div class="op-spinner"></div>';
-        opFetch('device-connect-info', {}).then(response => {
+        const qrContainer = document.getElementById('pair-qr-container');
+        const cdContainer = document.getElementById('pair-countdown-container');
+        const otpField = document.getElementById('pair-otp');
+        qrContainer.innerHTML = '<div class="inline-block op-card p-3"><div class="op-spinner"></div></div>';
+        cdContainer.style.display = 'none';
+        otpField.value = '';
+        if (pairCountdownInterval) clearInterval(pairCountdownInterval);
+
+        opFetch('device-pair-generate', {}).then(response => {
             if (response.status === 'true') {
-                model.querySelector("#one-time-password").value = response.otp;
-                model.querySelector('.loading-process').innerHTML = '<div id="qrcode"></div>';
-                iniModelConnectDevice();
+                otpField.value = response.otp;
+                // Show server-side QR
+                if (response.qr_data) {
+                    qrContainer.innerHTML = '<div class="inline-block op-card p-3"><img src="' + response.qr_data + '" alt="QR Code" style="width:200px;height:200px;" class="dark:invert"></div>';
+                } else {
+                    qrContainer.innerHTML = '<div class="inline-block op-card p-3 text-sm text-gray-500">QR unavailable. Use manual code.</div>';
+                }
+                // Start countdown
+                let remaining = response.expires_in || 300;
+                cdContainer.style.display = 'block';
+                pairCountdownInterval = setInterval(() => {
+                    remaining--;
+                    const m = Math.floor(remaining / 60);
+                    const s = remaining % 60;
+                    document.getElementById('pair-countdown').textContent = m + ':' + String(s).padStart(2, '0');
+                    if (remaining <= 0) {
+                        clearInterval(pairCountdownInterval);
+                        document.getElementById('pair-countdown').textContent = 'Expired';
+                        qrContainer.innerHTML = '<div class="inline-block op-card p-6 text-sm text-red-500">Code expired. Click Regenerate.</div>';
+                    }
+                }, 1000);
             } else { apToast('error', response.title, response.message); }
         }).catch(err => apToastError());
     }
@@ -196,6 +231,53 @@
                 response.status === 'true' ? (apToast('success', response.title, response.message), load_data_list(1)) : apToast('error', response.title, response.message);
             }).catch(err => apToastError());
         } else { show_action_confirmation_tab(btnClass, 'Delete Device', 'Delete', 'btn-danger'); }
+    }
+
+    function revokeDevice(deviceUuid){
+        var my_action_confirmation_btn = document.querySelector("#my-action-confirmation-btn")?.value || '';
+        var btnClass = 'btnRevoke-'+deviceUuid.replace(/-/g,'');
+        if(my_action_confirmation_btn !== ""){
+            document.querySelector('.global-loaderSpinner').innerHTML = '<div class="op-spinner"></div>';
+            opFetch('device-revoke', { device_uuid: deviceUuid }).then(response => {
+                closeAllModals(); document.querySelector("#my-action-confirmation-btn").value = ''; document.querySelector('.global-loaderSpinner').innerHTML = '';
+                if(response.status === 'true'){ apToast('success', response.title, response.message); loadPairedDevices(); }
+                else { apToast('error', response.title, response.message); }
+            }).catch(err => apToastError());
+        } else { show_action_confirmation_tab(btnClass, 'Revoke Device', 'Revoke', 'btn-danger'); }
+    }
+
+    function loadPairedDevices(){
+        const container = document.getElementById('paired-devices-list');
+        if (!container) return;
+        container.innerHTML = '<div class="p-8 text-center"><div class="op-spinner"></div></div>';
+        opFetch('device-paired-list', {}).then(res => {
+            if (res.status === 'true' && res.response.length > 0) {
+                let html = '';
+                let allowRevoke = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                res.response.forEach(d => {
+                    const statusBadge = d.status === 'active'
+                        ? '<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Active</span>'
+                        : '<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400">Revoked</span>';
+                    const platformIcon = d.platform === 'ios' ? '🍎' : '🤖';
+                    const revokeBtn = (allowRevoke && d.status === 'active')
+                        ? `<button class="text-xs text-red-500 hover:text-red-700 btnRevoke-${d.device_uuid.replace(/-/g,'')}" onclick="revokeDevice('${d.device_uuid}')">Revoke</button>`
+                        : '';
+                    html += `<div class="flex items-center justify-between p-3 border-b border-gray-100 dark:border-gray-700 last:border-0">
+                        <div class="flex items-center gap-3">
+                            <span class="text-xl">${platformIcon}</span>
+                            <div>
+                                <p class="text-sm font-medium text-gray-900 dark:text-white">${d.device_name || 'Unknown Device'}</p>
+                                <p class="text-xs text-gray-500">v${d.app_version || '?'} · Last seen: ${d.last_seen} · ${d.created_at}</p>
+                            </div>
+                        </div>
+                        <div class="flex items-center gap-2">${statusBadge} ${revokeBtn}</div>
+                    </div>`;
+                });
+                container.innerHTML = html;
+            } else {
+                container.innerHTML = '<div class="p-8 text-center text-sm text-gray-500">No paired devices yet.</div>';
+            }
+        }).catch(err => { container.innerHTML = '<div class="p-8 text-center text-sm text-red-500">Failed to load paired devices.</div>'; });
     }
 
     function load_data_list(page = 1){
@@ -254,6 +336,7 @@
 
     document.addEventListener('click', function(e){ if(e.target.closest('.table-data-list-pagination button')){ load_data_list(parseInt(e.target.closest('button').dataset.page)); } });
     load_data_list(1);
+    loadPairedDevices();
 
     function filter_hide_show_reset(className) {
         const c = document.querySelector('.' + className); if (!c) return;

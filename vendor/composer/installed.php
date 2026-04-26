@@ -1,24 +1,15 @@
 <?php return array(
     'root' => array(
-        'name' => 'anirbanpay/anirbanpay',
+        'name' => 'ownpay/ownpay',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'b937df74903ad9560aa93556c64889a46253ddd8',
+        'reference' => '64bcd0765c3021e937bd378508f5b0027e7300f9',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
         'dev' => true,
     ),
     'versions' => array(
-        'anirbanpay/anirbanpay' => array(
-            'pretty_version' => 'dev-main',
-            'version' => 'dev-main',
-            'reference' => 'b937df74903ad9560aa93556c64889a46253ddd8',
-            'type' => 'project',
-            'install_path' => __DIR__ . '/../../',
-            'aliases' => array(),
-            'dev_requirement' => false,
-        ),
         'brick/math' => array(
             'pretty_version' => '0.14.8',
             'version' => '0.14.8.0',
@@ -52,6 +43,15 @@
             'reference' => '95ed3e9676a1d47cab2e3174d19b43f5dbf52681',
             'type' => 'library',
             'install_path' => __DIR__ . '/../chillerlan/php-settings-container',
+            'aliases' => array(),
+            'dev_requirement' => false,
+        ),
+        'firebase/php-jwt' => array(
+            'pretty_version' => 'v7.0.5',
+            'version' => '7.0.5.0',
+            'reference' => '47ad26bab5e7c70ae8a6f08ed25ff83631121380',
+            'type' => 'library',
+            'install_path' => __DIR__ . '/../firebase/php-jwt',
             'aliases' => array(),
             'dev_requirement' => false,
         ),
@@ -99,6 +99,15 @@
             'install_path' => __DIR__ . '/../nikic/php-parser',
             'aliases' => array(),
             'dev_requirement' => true,
+        ),
+        'ownpay/ownpay' => array(
+            'pretty_version' => 'dev-main',
+            'version' => 'dev-main',
+            'reference' => '64bcd0765c3021e937bd378508f5b0027e7300f9',
+            'type' => 'project',
+            'install_path' => __DIR__ . '/../../',
+            'aliases' => array(),
+            'dev_requirement' => false,
         ),
         'phar-io/manifest' => array(
             'pretty_version' => '2.0.4',

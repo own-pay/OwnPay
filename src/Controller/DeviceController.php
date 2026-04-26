@@ -5,8 +5,10 @@ namespace OwnPay\Controller;
 
 use OwnPay\Http\RequestContext;
 use OwnPay\Service\CrudService;
+use OwnPay\Service\DevicePairingService;
 use OwnPay\Service\InputSanitizer;
 use OwnPay\Service\PermissionGuard;
+use OwnPay\Repository\PairedDeviceRepository;
 
 class DeviceController
 {
@@ -206,6 +208,100 @@ class DeviceController
 
                     echo json_encode(['status' => 'true', 'otp' => $otp, 'csrf_token' => $new_csrf_token]);
                 }
+            } else {
+                echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
+            }
+        }
+
+        // ── New Secure Pairing System ────────────────────────────────────
+
+        if ($action == "device-pair-generate") {
+            if ($ctx->isLoggedIn) {
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'device')) { return; }
+                if (PermissionGuard::denyUnlessHas($ctx, 'device', 'connect')) { return; }
+
+                $brandId = (int) ($global_response_brand['response'][0]['brand_id'] ?? 0);
+                $adminId = (int) ($ctx->user['a_id'] ?? $ctx->user['id'] ?? 0);
+
+                $pairingService = new DevicePairingService();
+                $result = $pairingService->generatePairingOtp($brandId, $adminId);
+
+                if (isset($result['error'])) {
+                    echo json_encode(['status' => 'false', 'title' => 'Rate Limited', 'message' => $result['error'], 'csrf_token' => $new_csrf_token]);
+                } else {
+                    // Generate server-side QR code
+                    $siteUrl = $global_response_brand['response'][0]['site_url'] ?? ($_SERVER['REQUEST_SCHEME'] . '://' . $_SERVER['HTTP_HOST']);
+                    $qrPayload = json_encode(['url' => rtrim($siteUrl, '/'), 'otp' => $result['otp']]);
+                    $qrDataUri = '';
+                    try {
+                        $qrOptions = new \chillerlan\QRCode\QROptions([
+                            'outputType'   => \chillerlan\QRCode\QRCode::OUTPUT_MARKUP_SVG,
+                            'eccLevel'     => \chillerlan\QRCode\QRCode::ECC_M,
+                            'svgUseCssProperties' => false,
+                        ]);
+                        $qr = new \chillerlan\QRCode\QRCode($qrOptions);
+                        $svgRaw = $qr->render($qrPayload);
+                        $qrDataUri = $svgRaw; // render() returns data URI for SVG
+                    } catch (\Throwable $e) {
+                        // QR generation failed — non-critical, OTP still works manually
+                    }
+
+                    echo json_encode([
+                        'status'     => 'true',
+                        'otp'        => $result['otp'],
+                        'expires_in' => $result['expires_in'],
+                        'qr_data'    => $qrDataUri,
+                        'csrf_token' => $new_csrf_token,
+                    ]);
+                }
+            } else {
+                echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
+            }
+        }
+
+        if ($action == "device-paired-list") {
+            if ($ctx->isLoggedIn) {
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'device')) { return; }
+
+                $brandId = (int) ($global_response_brand['response'][0]['brand_id'] ?? 0);
+
+                $repo = new PairedDeviceRepository();
+                $data = $repo->listByBrand($brandId, 50, 0);
+
+                $devices = array_map(function ($d) use ($global_response_brand) {
+                    $tz = $global_response_brand['response'][0]['timezone'] ?? 'Asia/Dhaka';
+                    return [
+                        'device_uuid' => $d['device_uuid'],
+                        'device_name' => $d['device_name'],
+                        'platform'    => $d['platform'],
+                        'app_version' => $d['app_version'],
+                        'last_seen'   => $d['last_seen_at'] ? convertUTCtoUserTZ($d['last_seen_at'], $tz, "M d, Y h:i A") : 'Never',
+                        'status'      => $d['revoked_at'] ? 'revoked' : 'active',
+                        'created_at'  => convertUTCtoUserTZ($d['created_at'], $tz, "M d, Y h:i A"),
+                    ];
+                }, $data['devices']);
+
+                echo json_encode(['status' => 'true', 'response' => $devices, 'total' => $data['total'], 'csrf_token' => $new_csrf_token]);
+            } else {
+                echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
+            }
+        }
+
+        if ($action == "device-revoke") {
+            if ($ctx->isLoggedIn) {
+                if (PermissionGuard::denyUnlessCanAccess($ctx, 'device')) { return; }
+                if (PermissionGuard::denyUnlessHas($ctx, 'device', 'delete')) { return; }
+
+                $deviceUuid = $request->post('device_uuid', '');
+                if ($deviceUuid === '') {
+                    echo json_encode(['status' => 'false', 'title' => 'Invalid Request', 'message' => 'Device UUID is required.', 'csrf_token' => $new_csrf_token]);
+                    return;
+                }
+
+                $repo = new PairedDeviceRepository();
+                $repo->revoke($deviceUuid);
+
+                echo json_encode(['status' => 'true', 'title' => 'Device Revoked', 'message' => 'The device has been revoked and will no longer be able to connect.', 'csrf_token' => $new_csrf_token]);
             } else {
                 echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
             }

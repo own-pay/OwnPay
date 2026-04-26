@@ -359,7 +359,7 @@ if (isset($_POST['action'])) {
         // Note: 'general-setting' is handled by SettingsController above (line ~499)
 
 
-        if (in_array($action, ["device-list", "device-delete", "device-bulk-action", "device-connect-info"])) {
+        if (in_array($action, ["device-list", "device-delete", "device-bulk-action", "device-connect-info", "device-pair-generate", "device-paired-list", "device-revoke"])) {
             \OwnPay\Controller\DeviceController::handle($action, $requestContext);
             exit;
         }
