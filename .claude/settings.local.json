@@ -1,0 +1,24 @@
+{
+  "env": {
+    "ANTHROPIC_BASE_URL": "http://127.0.0.1:8045",
+    "ANTHROPIC_AUTH_TOKEN": "sk-9b0be440f5294295a7a129657104a6bf",
+    "ANTHROPIC_API_KEY": ""
+  },
+  "permissions": {
+    "allow": [
+      "Bash(git -C /c/laragon/www/anirbanpay diff --stat)",
+      "Bash(npx tailwindcss:*)",
+      "Bash(php -l src/Plugin/PluginLoader.php)",
+      "Bash(php -l src/Plugin/PluginRegistry.php)",
+      "Bash(php -l src/Plugin/PluginManifest.php)",
+      "Bash(php -l src/Plugin/PluginInterface.php)",
+      "Bash(php -l src/Plugin/Capability.php)",
+      "Bash(./vendor/bin/phpunit --testdox)",
+      "Bash(php -l src/Plugin/PluginSandbox.php)",
+      "Bash(php -l src/Plugin/PluginInstaller.php)",
+      "Bash(php -l src/Plugin/PluginMigrator.php)",
+      "Bash(./vendor/bin/phpunit)",
+      "Bash(grep -n \"shell\\\\\\\\\\\\\\\\_exec\\\\|HTTPS\\\\|web.config\\\\|Outstanding\" docs/name_change/installer_security_audit.md)"
+    ]
+  }
+}

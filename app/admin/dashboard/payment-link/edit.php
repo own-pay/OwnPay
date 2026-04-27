@@ -22,7 +22,7 @@ if (!defined('OWNPAY_INIT')) {
         exit('Invalid payment link id');
     } else {
         $ref = clean_input($ref);
-        $response_paymentLink = json_decode(getData($db_prefix.'payment_link','WHERE ref = "'.$ref.'" AND brand_id = "'.$global_response_brand['response'][0]['brand_id'].'"'),true);
+        $response_paymentLink = json_decode(getData($db_prefix.'payment_link','WHERE ref = :ref AND brand_id = :brand_id', '* FROM', [':ref' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id']]),true);
         if($response_paymentLink['status'] == true){
             $response_product_info = json_decode($response_paymentLink['response'][0]['product_info'], true);
         } else {
@@ -72,7 +72,7 @@ if (!defined('OWNPAY_INIT')) {
                 <label class="op-label">Currency <span class="text-red-500">*</span></label>
                 <select class="js-select in-currency op-select" name="currency" data-search="true" data-remove="true" required onchange="FNcurrency()">
                     <?php
-                        $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" ORDER BY 1 DESC'), true);
+                        $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                         if ($response_brand['status'] == true) {
                             foreach ($response_brand['response'] as $row) {
                     ?>
@@ -107,7 +107,7 @@ if (!defined('OWNPAY_INIT')) {
     <!-- Existing Fields -->
     <div class="item-list space-y-4 mt-4">
         <?php
-            $response = json_decode(getData($db_prefix.'payment_link_field','WHERE paymentLinkID ="'.$ref.'"'),true);
+            $response = json_decode(getData($db_prefix.'payment_link_field','WHERE paymentLinkID = :ref', '* FROM', [':ref' => $ref]),true);
             foreach($response['response'] as $row){
                 $uniqueID = uniqid();
         ?>

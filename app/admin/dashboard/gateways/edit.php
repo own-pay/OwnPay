@@ -22,7 +22,7 @@
         exit('Invalid slug');
     } else {
         $ref = clean_input($ref);
-        $response_gateway = json_decode(getData($db_prefix.'gateways','WHERE gateway_id = "'.$ref.'" AND brand_id = "'.$global_response_brand['response'][0]['brand_id'].'"'),true);
+        $response_gateway = json_decode(getData($db_prefix.'gateways','WHERE gateway_id = :gid AND brand_id = :brand_id', '* FROM', [':gid' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id']]),true);
         if($response_gateway['status'] == false){
             http_response_code(403);
             exit('Invalid slug');
@@ -119,7 +119,7 @@
                     <label class="op-label">Currency <span class="text-red-500">*</span></label>
                     <select class="js-select op-select" id="currency" name="currency" data-search="true" data-remove="true" required onchange="FNcurrency()">
                         <?php
-                            $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" ORDER BY 1 DESC'), true);
+                            $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                             if ($response_brand['status'] == true) {
                                 foreach ($response_brand['response'] as $row) {
                                     $isSelected = ($row['code'] === $response_gateway['response'][0]['currency']) ? 'selected' : '';
@@ -183,7 +183,7 @@
                 <?php endif; ?>
 
                 <?php foreach($fields as $field):
-                    $response_optionValue = json_decode(getData($db_prefix.'gateways_parameter','WHERE gateway_id = "'.$ref.'" AND brand_id = "'.$global_response_brand['response'][0]['brand_id'].'" AND option_name = "'.$field['name'].'"'),true);
+                    $response_optionValue = json_decode(getData($db_prefix.'gateways_parameter','WHERE gateway_id = :gid AND brand_id = :brand_id AND option_name = :opt_name', '* FROM', [':gid' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id'], ':opt_name' => $field['name']]),true);
                     $value = $field['value'] ?? '';
                     if(isset($response_optionValue['response'][0]['value'])) $value = empty($response_optionValue['response'][0]['value']) ? $value : $response_optionValue['response'][0]['value'];
                     if(!empty($field['multiple']) && !empty($value)) $value = is_array($value) ? $value : json_decode($value, true);

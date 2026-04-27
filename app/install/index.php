@@ -436,6 +436,13 @@ if (isset($_POST['adminName'])) {
     }
 
     try {
+        // Initialize the SOA Database singleton from temp config credentials.
+        // This is required because insertData() → CrudService → Database::getInstance()
+        // expects the singleton to already be initialized, but Bootstrap::init() fails
+        // during install since op-config.php doesn't exist yet.
+        if (class_exists('\\OwnPay\\Core\\Database')) {
+            \OwnPay\Core\Database::init($db_host, $db_name, $db_user, $db_pass);
+        }
         $newTempPassword   = generateStrongPassword(8);
         $hashedPass        = password_hash($adminPassword, PASSWORD_BCRYPT);
         $tempPasswordHash  = password_hash($newTempPassword, PASSWORD_BCRYPT);
@@ -483,6 +490,47 @@ if (isset($_POST['adminName'])) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
         } catch (Throwable $e) {
             // Non-fatal — continue
+        }
+
+        // 5b. Legacy Compatibility Seeding — bridge V2 data into legacy tables
+        try {
+            // Seed op_brands from merchant data
+            insertData($db_prefix . 'brands',
+                ['brand_id', 'identify_name', 'name', 'currency_code', 'currency_symbol', 'timezone', 'language'],
+                [$merchantPublicId, 'System Default', 'System Default', 'BDT', '৳', 'Asia/Dhaka', 'en']
+            );
+
+            // Seed op_admin from admin user data
+            $adminAid = generateUuidV4();
+            insertData($db_prefix . 'admin',
+                ['a_id', 'name', 'email', 'username', 'password', 'temp_password', 'role', 'status', 'created_date', 'updated_date'],
+                [$adminAid, $adminName, $adminEmail, $adminUsername, $hashedPass, $tempPasswordHash, 'admin', 'active', $currentTime, $currentTime]
+            );
+
+            // Seed op_currency
+            insertData($db_prefix . 'currency',
+                ['brand_id', 'code', 'name', 'symbol', 'rate', 'status'],
+                [$merchantPublicId, 'BDT', 'Bangladeshi Taka', '৳', '1.00000000', 'active']
+            );
+
+            // Seed essential op_env settings
+            $envDefaults = [
+                ['both', 'app_name', 'OwnPay'],
+                ['both', 'app_version', '2.0.0'],
+                ['both', 'timezone', 'Asia/Dhaka'],
+                ['both', 'language', 'en'],
+                ['both', 'currency', 'BDT'],
+                ['both', 'theme', 'own-pay'],
+            ];
+            foreach ($envDefaults as $env) {
+                insertData($db_prefix . 'env',
+                    ['brand_id', 'option_name', 'value'],
+                    [$env[0], $env[1], $env[2]]
+                );
+            }
+        } catch (Throwable $e) {
+            // Non-fatal — legacy seeding failure should not block install
+            error_log('[OwnPay Installer] Legacy seeding warning: ' . $e->getMessage());
         }
 
         // 6. Atomically promote temp → final config

@@ -8,7 +8,7 @@
     if ($ref === null) { http_response_code(403); exit('Invalid slug'); }
 
     $ref = clean_input($ref);
-    $response_addon = json_decode(getData($db_prefix.'addon','WHERE addon_id = "'.$ref.'"'),true);
+    $response_addon = json_decode(getData($db_prefix.'addon','WHERE addon_id = :addon_id', '* FROM', [':addon_id' => $ref]),true);
     if($response_addon['status'] == false){ http_response_code(403); exit('Invalid slug'); }
 
     if(file_exists(__DIR__ . '/../../../pp-modules/pp-addons/'.$response_addon['response'][0]['slug'].'/class.php')){

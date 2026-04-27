@@ -1,0 +1,5 @@
+Installed: 2026-04-27 05:50:37
+Admin email: foryou.fn@gmail.com
+Schema: master_install.sql v2.1
+Lock: This file MUST exist to prevent installer re-execution.
+Recommended: Delete the entire app/install/ directory after a successful install.

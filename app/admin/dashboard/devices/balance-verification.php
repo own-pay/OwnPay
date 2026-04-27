@@ -22,7 +22,7 @@
         exit('Invalid item id');
     } else {
         $d_id = clean_input($d_id);
-        $response_staff = json_decode(getData($db_prefix . 'device', 'WHERE device_id = "' . $d_id . '"'), true);
+        $response_staff = json_decode(getData($db_prefix . 'device', 'WHERE device_id = :d_id', '* FROM', [':d_id' => $d_id]), true);
         if ($response_staff['status'] != true) {
             http_response_code(403);
             exit('Direct access not allowed');

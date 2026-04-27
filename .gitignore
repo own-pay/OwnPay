@@ -1,5 +1,4 @@
 docs/
-docs/plans
 
 # Environment & secrets
 .env
@@ -13,7 +12,6 @@ docs/plans
 logs/
 !logs/.gitignore
 
-
 # Debug / test artifacts
 cookie.txt
 test_*.php
@@ -21,7 +19,6 @@ check_db.php
 
 # Dependencies
 node_modules/
-package-lock.json
 
 # OS files
 .DS_Store
@@ -32,6 +29,4 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
-.claude
-.agents
 README.md

@@ -24,9 +24,9 @@ if (!defined('OWNPAY_INIT')) {
     }else{
         $ref = clean_input($ref);
 
-        $response_transaction = json_decode(getData($db_prefix.'transaction','WHERE ref = "'.$ref.'" AND brand_id = "'.$global_response_brand['response'][0]['brand_id'].'" AND status NOT IN ("initiated")'),true);
+        $response_transaction = json_decode(getData($db_prefix.'transaction','WHERE ref = :ref AND brand_id = :brand_id AND status != :exc_status', '* FROM', [':ref' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id'], ':exc_status' => 'initiated']),true);
         if($response_transaction['status'] == true){
-            $response_gateway = json_decode(getData($db_prefix.'gateways',' WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" AND gateway_id = "'.$response_transaction['response'][0]['gateway_id'].'"'),true);
+            $response_gateway = json_decode(getData($db_prefix.'gateways',' WHERE brand_id = :brand_id AND gateway_id = :gateway_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':gateway_id' => $response_transaction['response'][0]['gateway_id']]),true);
 
             $gateway_name = $response_gateway['response'][0]['name'] ?? 'Unknown';
 

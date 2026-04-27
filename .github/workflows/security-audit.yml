@@ -50,8 +50,15 @@ jobs:
         uses: semgrep/semgrep-action@v1
         with:
           config: >-
-            p/php p/security-audit p/sql-injection p/xss p/owasp-top-ten
-            p/cwe-top-25 p/secrets p/command-injection p/insecure-transport
+            p/php
+            p/security-audit
+            p/sql-injection
+            p/xss
+            p/owasp-top-ten
+            p/cwe-top-25
+            p/secrets
+            p/command-injection
+            p/insecure-transport
 
       - name: 🧪 Static Analysis - PHPStan
         run: |

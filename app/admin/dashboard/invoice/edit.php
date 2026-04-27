@@ -22,7 +22,7 @@ if (!defined('OWNPAY_INIT')) {
         exit('Invalid invoice id');
     } else {
         $i_id = clean_input($i_id);
-        $response_invoice = json_decode(getData($db_prefix.'invoice','WHERE ref = "'.$i_id.'" AND brand_id = "'.$global_response_brand['response'][0]['brand_id'].'"'),true);
+        $response_invoice = json_decode(getData($db_prefix.'invoice','WHERE ref = :ref AND brand_id = :brand_id', '* FROM', [':ref' => $i_id, ':brand_id' => $global_response_brand['response'][0]['brand_id']]),true);
         if($response_invoice['status'] != true){
             http_response_code(403);
             exit('Direct access not allowed');
@@ -69,7 +69,7 @@ if (!defined('OWNPAY_INIT')) {
                         <label class="op-label">Currency <span class="text-red-500">*</span></label>
                         <select class="js-select in-currency op-select" name="currency" data-search="true" data-remove="true" required onchange="FNcurrency()">
                             <?php
-                                $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" ORDER BY 1 DESC'), true);
+                                $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                                 if ($response_brand['status'] == true) {
                                     foreach ($response_brand['response'] as $row) {
                             ?>
@@ -101,7 +101,7 @@ if (!defined('OWNPAY_INIT')) {
             <!-- Existing Items -->
             <div class="item-list space-y-4">
                 <?php
-                    $response = json_decode(getData($db_prefix.'invoice_items','WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" AND invoice_id ="'.$i_id.'"'),true);
+                    $response = json_decode(getData($db_prefix.'invoice_items','WHERE brand_id = :brand_id AND invoice_id = :invoice_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoice_id' => $i_id]),true);
                     if ($response['status'] == true) { foreach($response['response'] as $row){
                 ?>
                         <div class="op-card item-<?php echo $row['id']?>">

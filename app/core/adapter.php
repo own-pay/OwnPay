@@ -9,7 +9,14 @@ if (!defined('OWNPAY_INIT')) {
     exit('Direct access not allowed');
 }
 
-session_start();
+// SEC-13: Harden session security with strict cookie flags
+session_start([
+    'cookie_httponly' => true,
+    'cookie_secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+    'cookie_samesite' => 'Lax',
+    'use_only_cookies' => true,
+    'use_strict_mode' => true,
+]);
 
 if (date_default_timezone_get() !== 'UTC') {
     date_default_timezone_set('UTC');
@@ -253,26 +260,47 @@ if (isset($_GET['logout'])) {
 }
 
 // --- SOA Middleware Orchestration ---
-$_sessionMiddleware = new \OwnPay\Middleware\SessionMiddleware();
-$requestContext = $_sessionMiddleware->handle($db_prefix);
+// Only run session middleware when op-config.php has been loaded (i.e., $db_prefix is set).
+// During fresh install, this block is skipped entirely.
+if (isset($db_prefix) && $db_prefix !== '') {
+    $_sessionMiddleware = new \OwnPay\Middleware\SessionMiddleware();
+    $requestContext = $_sessionMiddleware->handle($db_prefix);
 
-// Export to globals for backwards compatibility with controllers
-$csrf_token = $requestContext->csrfToken;
-$global_user_login = $requestContext->isLoggedIn;
-$global_user_2fa = $_sessionMiddleware->is2fa;
-$global_two_fector_validate = false;
-$global_user_response = ['status' => true, 'response' => [$requestContext->user]];
-$global_response_brand = ['status' => true, 'response' => [$requestContext->brand]];
-$global_response_permission = $_sessionMiddleware->permissionResponse;
-$global_permissions = $requestContext->permissions;
-$global_cookie_response = $_sessionMiddleware->cookieResponse;
-$global_brand_currency_code = $_sessionMiddleware->currencyCode;
-$global_brand_currency_symbol = $_sessionMiddleware->currencySymbol;
-$global_brand_currency_rate = $_sessionMiddleware->currencyRate;
+    // Export to globals for backwards compatibility with controllers
+    $csrf_token = $requestContext->csrfToken;
+    $global_user_login = $requestContext->isLoggedIn;
+    $global_user_2fa = $_sessionMiddleware->is2fa;
+    $global_two_fector_validate = false;
+    $global_user_response = ['status' => true, 'response' => [$requestContext->user]];
+    $global_response_brand = ['status' => true, 'response' => [$requestContext->brand]];
+    $global_response_permission = $_sessionMiddleware->permissionResponse;
+    $global_permissions = $requestContext->permissions;
+    $global_cookie_response = $_sessionMiddleware->cookieResponse;
+    $global_brand_currency_code = $_sessionMiddleware->currencyCode;
+    $global_brand_currency_symbol = $_sessionMiddleware->currencySymbol;
+    $global_brand_currency_rate = $_sessionMiddleware->currencyRate;
+} else {
+    // Installer mode: provide safe defaults so the boot sequence doesn't crash
+    $csrf_token = bin2hex(random_bytes(32));
+    $global_user_login = false;
+    $global_user_2fa = false;
+    $global_two_fector_validate = false;
+    $global_user_response = ['status' => false, 'response' => []];
+    $global_response_brand = ['status' => false, 'response' => []];
+    $global_response_permission = [];
+    $global_permissions = [];
+    $global_cookie_response = [];
+    $global_brand_currency_code = 'BDT';
+    $global_brand_currency_symbol = '৳';
+    $global_brand_currency_rate = '1.00000000';
+}
 
 // --- Plugin System Boot ---
 // Load, register, and boot all active plugins before any routing
-\OwnPay\Plugin\PluginLoader::boot();
+// Only boot plugins when the system is fully configured (not during install)
+if (isset($db_prefix) && $db_prefix !== '') {
+    \OwnPay\Plugin\PluginLoader::boot();
+}
 
 if (isset($_POST['action'])) {
     $action = clean_input($_POST['action'] ?? '');

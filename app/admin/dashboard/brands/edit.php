@@ -8,7 +8,7 @@
     if ($b_id === null) { http_response_code(403); exit('Invalid brand id'); }
 
     $b_id = clean_input($b_id);
-    $response_brands = json_decode(getData($db_prefix.'brands','WHERE brand_id = "'.$b_id.'"'),true);
+    $response_brands = json_decode(getData($db_prefix.'brands','WHERE brand_id = :brand_id', '* FROM', [':brand_id' => $b_id]),true);
     if($response_brands['status'] == true){
         if($response_brands['response'][0]['id'] == 1){ http_response_code(403); exit("You can't edit default brand"); }
     } else { http_response_code(403); exit('Direct access not allowed'); }

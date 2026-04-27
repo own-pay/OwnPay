@@ -7,14 +7,14 @@
     $staff_id = getParam($params, 'staff');
     if ($staff_id === null) { http_response_code(403); exit('Invalid staff id'); }
     $staff_id = clean_input($staff_id);
-    $response_staff = json_decode(getData($db_prefix.'admin','WHERE a_id = "'.$staff_id.'" AND role = "staff"'),true);
+    $response_staff = json_decode(getData($db_prefix.'admin','WHERE a_id = :a_id AND role = :role', '* FROM', [':a_id' => $staff_id, ':role' => 'staff']),true);
     if($response_staff['status'] == true){
         if($global_user_response['response'][0]['id'] == $staff_id){ http_response_code(403); exit("You can't edit your info"); }
     } else { http_response_code(403); exit('Direct access not allowed'); }
 
     $canEditPermission = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'edit_permission', $global_user_response['response'][0]['role']);
     if ($canEditPermission) {
-        $response_perm = json_decode(getData($db_prefix.'permission','WHERE a_id = "'.$staff_id.'"'),true);
+        $response_perm = json_decode(getData($db_prefix.'permission','WHERE a_id = :a_id', '* FROM', [':a_id' => $staff_id]),true);
         $hasPerm = ($response_perm['status'] == true);
     }
 ?>

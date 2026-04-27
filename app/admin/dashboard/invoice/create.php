@@ -41,7 +41,7 @@ if (!defined('OWNPAY_INIT')) {
                         <div class="flex">
                             <select class="js-select customersList op-select flex-1" name="customers[]" multiple data-search="true" data-remove="true" data-placeholder="Select customers" required>
                                 <?php
-                                    $response_brand = json_decode(getData($db_prefix . 'customer', 'WHERE status = "active" AND brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" ORDER BY 1 DESC'), true);
+                                    $response_brand = json_decode(getData($db_prefix . 'customer', 'WHERE status = :status AND brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':status' => 'active', ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                                     if ($response_brand['status'] == true) {
                                         foreach ($response_brand['response'] as $row) {
                                 ?>
@@ -61,7 +61,7 @@ if (!defined('OWNPAY_INIT')) {
                         <label class="op-label">Currency <span class="text-red-500">*</span></label>
                         <select class="js-select in-currency op-select" name="currency" data-search="true" data-remove="true" required onchange="FNcurrency()">
                             <?php
-                                $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" ORDER BY 1 DESC'), true);
+                                $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                                 if ($response_brand['status'] == true) {
                                     foreach ($response_brand['response'] as $row) {
                             ?>
