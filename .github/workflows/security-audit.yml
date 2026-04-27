@@ -46,8 +46,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-
-
+      - name: 🔍 SAST - Semgrep
+        run: docker run --rm -v "${{ github.workspace }}:/src" -w /src semgrep/semgrep semgrep scan --config auto
 
       - name: 🧪 Static Analysis - PHPStan
         run: |
@@ -69,15 +69,3 @@ jobs:
         if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: "trivy-results.sarif"
-
-  semgrep:
-    name: Semgrep CE Scan
-    runs-on: ubuntu-latest
-    container:
-      image: semgrep/semgrep
-    if: (github.actor != 'dependabot[bot]')
-    steps:
-      - name: Checkout Code
-        uses: actions/checkout@v4
-      - name: Run Semgrep CE scan
-        run: semgrep scan --config auto
