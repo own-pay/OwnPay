@@ -54,7 +54,7 @@ class GatewayController
             if ($gateway == "") {
                 echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
             } else {
-                $gatewayPath = safeModulePath($gateway, __DIR__ . '/../../app/pp-modules/pp-gateways');
+                $gatewayPath = safeModulePath($gateway, __DIR__ . '/../../app/modules/gateways');
                 if ($gatewayPath === false) {
                     echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
                 } else {

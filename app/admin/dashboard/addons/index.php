@@ -59,7 +59,7 @@
             <select class="js-select op-select" name="addon" data-search="true" data-remove="true" required>
                 <?php
                     $addons = [];
-                    $addonDirs = glob(__DIR__ . '/../../../pp-modules/pp-addons/*', GLOB_ONLYDIR);
+                    $addonDirs = glob(__DIR__ . '/../../../modules/addons/*', GLOB_ONLYDIR);
                     foreach ($addonDirs as $dir) {
                         if (!file_exists($dir . '/class.php')) continue;
                         require_once $dir . '/class.php';

@@ -58,19 +58,24 @@ class AddonController
             if ($addon == "") {
                 echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
             } else {
-                if (!file_exists(__DIR__ . '/../../app/modules/addons/' . $addon . '/class.php')) {
-                    // Assuming pp-modules/pp-addons is roughly meant to refer to app/modules/addons based on standard path
-                    if (!file_exists(__DIR__ . '/../../app/modules/pp-addons/' . $addon . '/class.php')) {
-                        echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
-                    } else {
-                        require_once __DIR__ . '/../../app/modules/pp-addons/' . $addon . '/class.php';
-                        $slug = basename(__DIR__ . '/../../app/modules/pp-addons/' . $addon);
+                $safeAddon = preg_replace('/[^a-zA-Z0-9_\-]/', '', $addon);
+                $baseDirs = [
+                    realpath(__DIR__ . '/../../app/modules/addons'),
+                ];
+                $resolved = false;
+                foreach ($baseDirs as $base) {
+                    if ($base === false) continue;
+                    $classFile = realpath($base . '/' . $safeAddon . '/class.php');
+                    if ($classFile !== false && strpos($classFile, $base . DIRECTORY_SEPARATOR) === 0) {
+                        require_once $classFile;
+                        $slug = basename($safeAddon);
                         $this->instantiateAddon($slug, $ctx);
+                        $resolved = true;
+                        break;
                     }
-                } else {
-                    require_once __DIR__ . '/../../app/modules/addons/' . $addon . '/class.php';
-                    $slug = basename(__DIR__ . '/../../app/modules/addons/' . $addon);
-                    $this->instantiateAddon($slug, $ctx);
+                }
+                if (!$resolved) {
+                    echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
                 }
             }
         } else {

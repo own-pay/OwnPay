@@ -27,11 +27,17 @@
             http_response_code(403);
             exit('Invalid slug');
         } else {
-            if(file_exists(__DIR__ . '/../../../modules/gateways/'.$response_gateway['response'][0]['slug'].'/class.php')){
-                require_once __DIR__ . '/../../../modules/gateways/'.$response_gateway['response'][0]['slug'].'/class.php';
-                $slug = basename(__DIR__ . '/../../../modules/gateways/'.$response_gateway['response'][0]['slug']);
+            $rawSlug = $response_gateway['response'][0]['slug'];
+            $safeSlug = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawSlug);
+            $gwBase = realpath(__DIR__ . '/../../../modules/gateways');
+            $classFile = $gwBase ? realpath($gwBase . '/' . $safeSlug . '/class.php') : false;
+            if($gwBase !== false && $classFile !== false && strpos($classFile, $gwBase . DIRECTORY_SEPARATOR) === 0){
+                // nosemgrep: php.laravel.security.laravel-path-traversal.laravel-path-traversal, php.lang.security.tainted-path-traversal.tainted-path-traversal
+                require_once $classFile;
+                $slug = basename($safeSlug);
                 $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $slug))) . 'Gateway';
                 if (class_exists($class)) {
+                    // nosemgrep: php.lang.security.injection.tainted-object-instantiation.tainted-object-instantiation
                     $gatewayObj = new $class();
                     $gatewayInfo = $gatewayObj->info();
                     $gatewayColor = $gatewayObj->color();
@@ -65,7 +71,7 @@
     <div>
         <nav class="flex mb-1" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
-                <li><a href="javascript:void(0)" onclick="load_content('Gateways','<?php echo $site_url.$path_admin ?>/gateways','nav-item-gateways')" class="hover:text-primary-600">Gateways</a></li>
+                <li><a href="javascript:void(0)" onclick="load_content('Gateways','<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/gateways','nav-item-gateways')" class="hover:text-primary-600">Gateways</a></li>
                 <li class="flex items-center"><svg class="w-3 h-3 mx-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg><span class="text-gray-900 dark:text-white">Gateway Setting</span></li>
             </ol>
         </nav>
@@ -75,8 +81,8 @@
 
 <form class="form-submit" enctype="multipart/form-data">
     <input type="hidden" name="action" value="gateway-setting-update">
-    <input type="hidden" name="gateway-id" value="<?php echo $response_gateway['response'][0]['gateway_id']?>">
-    <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
+    <input type="hidden" name="gateway-id" value="<?php echo htmlspecialchars((string) ($response_gateway['response'][0]['gateway_id']), ENT_QUOTES, 'UTF-8'); ?>">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string) ($csrf_token), ENT_QUOTES, 'UTF-8'); ?>">
 
     <!-- Information -->
     <div class="op-card">
@@ -93,27 +99,27 @@
                 </div>
                 <div>
                     <label class="op-label">Min Amount <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo $response_gateway['response'][0]['currency']?></span><input type="text" class="op-input rounded-s-none" name="min_amount" value="<?php echo money_round($response_gateway['response'][0]['min_allow'])?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="min_amount" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['min_allow'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Max Amount <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo $response_gateway['response'][0]['currency']?></span><input type="text" class="op-input rounded-s-none" name="max_amount" value="<?php echo money_round($response_gateway['response'][0]['max_allow'])?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="max_amount" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['max_allow'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Fixed Charge <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo $response_gateway['response'][0]['currency']?></span><input type="text" class="op-input rounded-s-none" name="fixed_charge" value="<?php echo money_round($response_gateway['response'][0]['fixed_charge'])?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="fixed_charge" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['fixed_charge'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Percentage Charge <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="percentage_charge" value="<?php echo money_round($response_gateway['response'][0]['percentage_charge'])?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="percentage_charge" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['percentage_charge'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Fixed Discount <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo $response_gateway['response'][0]['currency']?></span><input type="text" class="op-input rounded-s-none" name="fixed_discount" value="<?php echo money_round($response_gateway['response'][0]['fixed_discount'])?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="fixed_discount" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['fixed_discount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Percentage Discount <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="percentage_discount" value="<?php echo money_round($response_gateway['response'][0]['percentage_discount'])?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="percentage_discount" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['percentage_discount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Currency <span class="text-red-500">*</span></label>
@@ -132,8 +138,8 @@
                 <div>
                     <label class="op-label">Status <span class="text-red-500">*</span></label>
                     <select class="js-select op-select" name="status" required>
-                        <option value="active" <?php echo ($response_gateway['response'][0]['status'] == "active") ? 'selected' : '';?>>Active</option>
-                        <option value="inactive" <?php echo ($response_gateway['response'][0]['status'] == "inactive") ? 'selected' : '';?>>Inactive</option>
+                        <option value="active" <?php echo htmlspecialchars((string) (($response_gateway['response'][0]['status'] == "active") ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Active</option>
+                        <option value="inactive" <?php echo htmlspecialchars((string) (($response_gateway['response'][0]['status'] == "inactive") ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Inactive</option>
                     </select>
                 </div>
             </div>
@@ -149,7 +155,7 @@
                 <input type="file" class="op-input img-input" name="gateway_logo" data-preview="preview2">
             </div>
             <div class="border rounded-lg p-2 mt-2 flex items-center justify-center h-20 max-w-xs dark:border-gray-700">
-                <img src="<?php echo $response_gateway['response'][0]['logo'];?>" alt="" id="preview2" class="max-w-full max-h-full">
+                <img src="<?php echo htmlspecialchars((string) ($response_gateway['response'][0]['logo']), ENT_QUOTES, 'UTF-8'); ?>" alt="" id="preview2" class="max-w-full max-h-full">
             </div>
         </div>
     </div>
@@ -159,16 +165,16 @@
         <div class="op-card-header"><h3 class="text-sm font-semibold text-gray-900 dark:text-white">Colors</h3></div>
         <div class="p-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label class="op-label">Primary Color <span class="text-red-500">*</span></label><input type="color" class="op-input h-10" name="primary_color" value="<?php echo $response_gateway['response'][0]['primary_color']?>" required readonly></div>
-                <div><label class="op-label">Text Color <span class="text-red-500">*</span></label><input type="color" class="op-input h-10" name="text_color" value="<?php echo $response_gateway['response'][0]['text_color']?>" required></div>
-                <div><label class="op-label">Button Color <span class="text-red-500">*</span></label><input type="color" class="op-input h-10" name="btn_color" value="<?php echo $response_gateway['response'][0]['btn_color']?>" required></div>
-                <div><label class="op-label">Button Text Color <span class="text-red-500">*</span></label><input type="color" class="op-input h-10" name="btn_text_color" value="<?php echo $response_gateway['response'][0]['btn_text_color']?>" required></div>
+                <div><label class="op-label">Primary Color <span class="text-red-500">*</span></label><input type="color" class="op-input h-10" name="primary_color" value="<?php echo htmlspecialchars((string) ($response_gateway['response'][0]['primary_color']), ENT_QUOTES, 'UTF-8'); ?>" required readonly></div>
+                <div><label class="op-label">Text Color <span class="text-red-500">*</span></label><input type="color" class="op-input h-10" name="text_color" value="<?php echo htmlspecialchars((string) ($response_gateway['response'][0]['text_color']), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                <div><label class="op-label">Button Color <span class="text-red-500">*</span></label><input type="color" class="op-input h-10" name="btn_color" value="<?php echo htmlspecialchars((string) ($response_gateway['response'][0]['btn_color']), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                <div><label class="op-label">Button Text Color <span class="text-red-500">*</span></label><input type="color" class="op-input h-10" name="btn_text_color" value="<?php echo htmlspecialchars((string) ($response_gateway['response'][0]['btn_text_color']), ENT_QUOTES, 'UTF-8'); ?>" required></div>
             </div>
         </div>
     </div>
 
     <!-- Configuration -->
-    <div class="op-card mt-4 <?= empty($fields) ? 'hidden' : '' ?>">
+    <div class="op-card mt-4 <?= htmlspecialchars((string) (empty($fields) ? 'hidden' : ''), ENT_QUOTES, 'UTF-8'); ?>">
         <div class="op-card-header"><h3 class="text-sm font-semibold text-gray-900 dark:text-white">Configuration</h3></div>
         <div class="p-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -176,8 +182,8 @@
                 <div class="md:col-span-2">
                     <label class="op-label">IPN Url</label>
                     <div class="flex">
-                        <input type="text" value="<?php echo $site_url?>ipn/<?php echo $ref?>" class="op-input rounded-e-none" readonly>
-                        <button type="button" class="op-btn-secondary rounded-s-none" onclick="copyContent('<?php echo $site_url?>ipn/<?php echo $ref?>', 'Copied!', 'IPN url copied successfully.')">Copy</button>
+                        <input type="text" value="<?php echo htmlspecialchars((string) ($site_url), ENT_QUOTES, 'UTF-8'); ?>ipn/<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>" class="op-input rounded-e-none" readonly>
+                        <button type="button" class="op-btn-secondary rounded-s-none" onclick="copyContent('<?php echo htmlspecialchars((string) ($site_url), ENT_QUOTES, 'UTF-8'); ?>ipn/<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>', 'Copied!', 'IPN url copied successfully.')">Copy</button>
                     </div>
                 </div>
                 <?php endif; ?>
@@ -189,7 +195,7 @@
                     if(!empty($field['multiple']) && !empty($value)) $value = is_array($value) ? $value : json_decode($value, true);
                 ?>
                 <div>
-                    <label class="op-label"><?= $field['label'] ?> <?php if(!empty($field['required'])): ?><span class="text-red-500">*</span><?php endif; ?></label>
+                    <label class="op-label"><?= htmlspecialchars((string) ($field['label']), ENT_QUOTES, 'UTF-8'); ?> <?php if(!empty($field['required'])): ?><span class="text-red-500">*</span><?php endif; ?></label>
                     <?php
                     switch($field['type']) {
                         case 'text':
@@ -212,15 +218,17 @@
                             echo "<label class='relative inline-flex items-center cursor-pointer'><input type='checkbox' class='sr-only peer' name='{$field['name']}' value='1' $checked><div class='w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full rtl:peer-checked:after:-translate-x-full peer-checked:after:border-white after:content-[\"\"] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-gray-600 peer-checked:bg-primary-600'></div></label>";
                             break;
                         case 'image':
-                            echo "<input type='file' class='op-input img-input' name='{$field['name']}' data-preview='{$field['name']}' ".(!empty($field['required']) ? 'required' : '').">";
-                            echo "<div class='border rounded-lg p-2 mt-2 flex items-center justify-center h-20 max-w-xs dark:border-gray-700'><img src='$value' alt='' id='{$field['name']}' class='max-w-full max-h-full'></div>";
+                            $safeName = htmlspecialchars($field['name'], ENT_QUOTES, 'UTF-8');
+                            $safeValue = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+                            echo "<input type='file' class='op-input img-input' name='{$safeName}' data-preview='{$safeName}' ".(!empty($field['required']) ? 'required' : '').">";
+                            echo "<div class='border rounded-lg p-2 mt-2 flex items-center justify-center h-20 max-w-xs dark:border-gray-700'><img src='{$safeValue}' alt='' id='{$safeName}' class='max-w-full max-h-full'></div>";
                             break;
                         case 'radio':
                             foreach($field['options'] as $k=>$v){ $checked = $value == $k ? 'checked' : ''; echo "<div class='flex items-center mb-2'><input type='radio' class='w-4 h-4 text-primary-600' name='{$field['name']}' value='$k' $checked ".(!empty($field['required']) ? 'required' : '')."><label class='ms-2 text-sm text-gray-900 dark:text-gray-300'>$v</label></div>"; }
                             break;
                     }
                     ?>
-                    <?php if (!empty($field['hint'])): ?><p class="text-xs text-gray-500 mt-1"><?= $field['hint'] ?></p><?php endif; ?>
+                    <?php if (!empty($field['hint'])): ?><p class="text-xs text-gray-500 mt-1"><?= htmlspecialchars((string) ($field['hint']), ENT_QUOTES, 'UTF-8'); ?></p><?php endif; ?>
                 </div>
                 <?php endforeach; ?>
             </div>
@@ -246,8 +254,8 @@
     </div>
 </form>
 
-<script nonce="<?= $csp_nonce ?? '' ?>" data-cfasync="false">
-    window.OP_DASHBOARD_URL = '<?php echo $site_url.$path_admin ?>/dashboard';
+<script nonce="<?= htmlspecialchars((string) ($csp_nonce ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-cfasync="false">
+    window.OP_DASHBOARD_URL = '<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/dashboard';
 
     function FNcurrency() {
         var c = document.getElementById("currency")?.value;
@@ -280,7 +288,7 @@
         if (!valid) return;
         var btnEl = document.querySelector('.btn-saveChanges'); var btn = btnEl.innerHTML;
         btnEl.innerHTML = '<div class="op-spinner" style="width:16px;height:16px;border-width:2px"></div>';
-        fetch('<?php echo $site_url.$path_admin ?>/dashboard', { method: 'POST', body: new FormData(this) })
+        fetch('<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/dashboard', { method: 'POST', body: new FormData(this) })
             .then(r => r.json()).then(response => {
                 apRotateCsrf(response.csrf_token); btnEl.innerHTML = btn;
                 response.status === 'true' ? apToast('success', response.title, response.message) : apToast('error', response.title, response.message);

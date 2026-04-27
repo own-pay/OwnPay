@@ -11,16 +11,22 @@
     $response_addon = json_decode(getData($db_prefix.'addon','WHERE addon_id = :addon_id', '* FROM', [':addon_id' => $ref]),true);
     if($response_addon['status'] == false){ http_response_code(403); exit('Invalid slug'); }
 
-    if(file_exists(__DIR__ . '/../../../pp-modules/pp-addons/'.$response_addon['response'][0]['slug'].'/class.php')){
-        require_once __DIR__ . '/../../../pp-modules/pp-addons/'.$response_addon['response'][0]['slug'].'/class.php';
-        $slug = basename(__DIR__ . '/../../../pp-modules/pp-addons/'.$response_addon['response'][0]['slug']);
-        $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $slug))) . 'Addon';
-        if (class_exists($class)) {
-            $addonObj = new $class();
-            if (method_exists($addonObj, 'info')) { $addonInfo = $addonObj->info(); }
-            else { http_response_code(403); exit('Invalid info'); }
-        } else { http_response_code(403); exit('Invalid slug'); }
-    } else { http_response_code(403); exit('Invalid slug'); }
+    $rawSlug = $response_addon['response'][0]['slug'];
+    $safeSlug = preg_replace('/[^a-zA-Z0-9_\-]/', '', $rawSlug);
+    $addonBase = realpath(__DIR__ . '/../../../modules/addons');
+    $classFile = realpath($addonBase . '/' . $safeSlug . '/class.php');
+    if ($addonBase === false || $classFile === false || strpos($classFile, $addonBase . DIRECTORY_SEPARATOR) !== 0) {
+        http_response_code(403); exit('Invalid slug');
+    }
+    // nosemgrep: php.laravel.security.laravel-path-traversal.laravel-path-traversal, php.lang.security.tainted-path-traversal.tainted-path-traversal
+    require_once $classFile;
+    $slug = basename($safeSlug);
+    $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $slug))) . 'Addon';
+    if (!class_exists($class)) { http_response_code(403); exit('Invalid slug'); }
+    // nosemgrep: php.lang.security.injection.tainted-object-instantiation.tainted-object-instantiation
+    $addonObj = new $class();
+    if (method_exists($addonObj, 'info')) { $addonInfo = $addonObj->info(); }
+    else { http_response_code(403); exit('Invalid info'); }
 ?>
 
 <div class="op-page-header">
@@ -37,14 +43,14 @@
 
 <form class="form-submit" enctype="multipart/form-data">
     <input type="hidden" name="action" value="addon-setting-update">
-    <input type="hidden" name="addon-id" value="<?php echo $response_addon['response'][0]['addon_id']?>">
+    <input type="hidden" name="addon-id" value="<?php echo htmlspecialchars($response_addon['response'][0]['addon_id'], ENT_QUOTES, 'UTF-8'); ?>">
     <input type="hidden" name="csrf_token" value="<?= $csrf_token ?>">
 
     <div class="op-card">
         <div class="op-card-header"><h3 class="text-lg font-semibold text-gray-900 dark:text-white">Information</h3></div>
         <div class="p-4">
             <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div><label class="op-label">Addon Name <span class="text-red-500">*</span></label><input type="text" class="op-input" name="addon_name" value="<?php echo $response_addon['response'][0]['name']?>" readonly></div>
+                <div><label class="op-label">Addon Name <span class="text-red-500">*</span></label><input type="text" class="op-input" name="addon_name" value="<?php echo htmlspecialchars($response_addon['response'][0]['name'], ENT_QUOTES, 'UTF-8'); ?>" readonly></div>
                 <div><label class="op-label">Status <span class="text-red-500">*</span></label><select class="op-select" name="status"><option value="active" <?php echo ($response_addon['response'][0]['status'] == "active") ? 'selected' : '';?>>Active</option><option value="inactive" <?php echo ($response_addon['response'][0]['status'] == "inactive") ? 'selected' : '';?>>Inactive</option></select></div>
             </div>
         </div>

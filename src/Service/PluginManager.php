@@ -231,11 +231,20 @@ class PluginManager
     {
         if (!is_dir($dir))
             return;
+        $realDir = realpath($dir);
+        $realBase = realpath(self::getBasePath());
+        if ($realDir === false || $realBase === false || strpos($realDir, $realBase . DIRECTORY_SEPARATOR) !== 0) {
+            return; // Refuse to delete outside project boundaries
+        }
         $items = array_diff(scandir($dir), ['.', '..']);
         foreach ($items as $item) {
             $path = $dir . '/' . $item;
-            is_dir($path) ? self::deleteDir($path) : unlink($path);
+            $realPath = realpath($path);
+            if ($realPath === false || strpos($realPath, $realBase . DIRECTORY_SEPARATOR) !== 0) {
+                continue; // Skip symlinks or paths escaping boundaries
+            }
+            is_dir($realPath) ? self::deleteDir($realPath) : unlink($realPath);
         }
-        rmdir($dir);
+        rmdir($realDir);
     }
 }

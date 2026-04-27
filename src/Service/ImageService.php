@@ -106,11 +106,13 @@ class ImageService
         $filename = basename($file);
         $full_path = $upload_directory . $filename;
 
-        if (!file_exists($full_path)) {
+        $realPath = realpath($full_path);
+        $realBase = realpath($upload_directory);
+        if ($realPath === false || $realBase === false || strpos($realPath, $realBase . DIRECTORY_SEPARATOR) !== 0) {
             return json_encode(["status" => false, "message" => "File not found."]);
         }
 
-        if (unlink($full_path)) {
+        if (unlink($realPath)) {
             return json_encode(["status" => true, "message" => "File deleted successfully!"]);
         } else {
             return json_encode(["status" => false, "message" => "Error deleting file."]);
