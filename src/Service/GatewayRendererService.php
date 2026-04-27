@@ -174,7 +174,7 @@ class GatewayRendererService
 
                     $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $gwSlug))) . 'Gateway';
 
-                    if (!class_exists($class)) { return false; }
+                    if (!class_exists($class)) { return ['status' => false, 'gateway' => []]; }
                     $gateway = new $class();
 
                     $gateway_info = $gateway->info();

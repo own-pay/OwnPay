@@ -254,9 +254,19 @@ class UpdaterService
         $process = @proc_open($composerCmd, $descriptors, $pipes);
         if (is_resource($process)) {
             fclose($pipes[0]);
+            // Drain stdout and stderr to prevent the child process from blocking
+            // on a full pipe buffer before we call proc_close().
+            stream_get_contents($pipes[1]);
+            stream_get_contents($pipes[2]);
             fclose($pipes[1]);
             fclose($pipes[2]);
-            proc_close($process);
+            $exitCode = proc_close($process);
+            if ($exitCode !== 0) {
+                \OwnPay\Service\Logger::app()->warning(
+                    'composer install exited with non-zero status',
+                    ['exit_code' => $exitCode]
+                );
+            }
         }
 
         // 2. Clear OpCache
