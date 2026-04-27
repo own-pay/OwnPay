@@ -22,7 +22,7 @@ if (!defined('OWNPAY_INIT')) {
         exit('Invalid payment link id');
     } else {
         $ref = clean_input($ref);
-        $response_paymentLink = json_decode(getData($db_prefix.'payment_link','WHERE ref = "'.$ref.'" AND brand_id = "'.$global_response_brand['response'][0]['brand_id'].'"'),true);
+        $response_paymentLink = json_decode(getData($db_prefix.'payment_link','WHERE ref = :ref AND brand_id = :brand_id', '* FROM', [':ref' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id']]),true);
         if($response_paymentLink['status'] == true){
             $response_product_info = json_decode($response_paymentLink['response'][0]['product_info'], true);
         } else {
@@ -36,22 +36,22 @@ if (!defined('OWNPAY_INIT')) {
     <div>
         <nav class="flex mb-1" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
-                <li><a href="javascript:void(0)" onclick="load_content('Payment Link','<?php echo $site_url.$path_admin ?>/payment-link','nav-item-payment-link')" class="hover:text-primary-600">Payment Link</a></li>
+                <li><a href="javascript:void(0)" onclick="load_content('Payment Link','<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/payment-link','nav-item-payment-link')" class="hover:text-primary-600">Payment Link</a></li>
                 <li class="flex items-center"><svg class="w-3 h-3 mx-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg><span class="text-gray-900 dark:text-white">Edit Payment Link</span></li>
             </ol>
         </nav>
         <h2 class="op-page-title">Edit Payment Link</h2>
     </div>
     <div class="flex items-center gap-2">
-        <button class="op-btn-primary" onclick="copyContent('<?php echo $site_url.$path_payment_link ?>/<?php echo $ref;?>', 'Copied!', 'Payment Link copied successfully.')">Copy Link</button>
-        <button class="op-btn-danger btnDeleteItem-<?php echo $ref;?> <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'delete', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>" onclick="deleteItem('<?php echo $ref;?>')">Delete</button>
+        <button class="op-btn-primary" onclick="copyContent('<?php echo htmlspecialchars((string) ($site_url.$path_payment_link), ENT_QUOTES, 'UTF-8'); ?>/<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>', 'Copied!', 'Payment Link copied successfully.')">Copy Link</button>
+        <button class="op-btn-danger btnDeleteItem-<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?> <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'delete', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>" onclick="deleteItem('<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>')">Delete</button>
     </div>
 </div>
 
 <form class="form-paymentLink-edit">
     <input type="hidden" name="action" value="paymentLink-edit">
-    <input type="hidden" name="csrf_token" value="<?= $csrf_token; ?>">
-    <input type="hidden" name="paymentLinkID" value="<?php echo $response_paymentLink['response'][0]['ref']?>">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string) ($csrf_token), ENT_QUOTES, 'UTF-8'); ?>">
+    <input type="hidden" name="paymentLinkID" value="<?php echo htmlspecialchars((string) ($response_paymentLink['response'][0]['ref']), ENT_QUOTES, 'UTF-8'); ?>">
     <input type="hidden" name="deleted_items" id="deleted_items" value="">
 
     <div class="op-card p-5">
@@ -72,11 +72,11 @@ if (!defined('OWNPAY_INIT')) {
                 <label class="op-label">Currency <span class="text-red-500">*</span></label>
                 <select class="js-select in-currency op-select" name="currency" data-search="true" data-remove="true" required onchange="FNcurrency()">
                     <?php
-                        $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" ORDER BY 1 DESC'), true);
+                        $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                         if ($response_brand['status'] == true) {
                             foreach ($response_brand['response'] as $row) {
                     ?>
-                                <option value="<?php echo $row['code'] ?>" <?php echo ($response_paymentLink['response'][0]['currency'] == $row['code']) ? 'selected' : '';?>><?php echo $row['code'] ?></option>
+                                <option value="<?php echo htmlspecialchars((string) ($row['code']), ENT_QUOTES, 'UTF-8'); ?>" <?php echo htmlspecialchars((string) (($response_paymentLink['response'][0]['currency'] == $row['code']) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>><?php echo htmlspecialchars((string) ($row['code']), ENT_QUOTES, 'UTF-8'); ?></option>
                     <?php
                             }
                         }
@@ -86,19 +86,19 @@ if (!defined('OWNPAY_INIT')) {
             <div>
                 <label class="op-label">Amount <span class="text-red-500">*</span></label>
                 <div class="flex">
-                    <span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo $global_brand_currency_code?></span>
-                    <input type="text" class="op-input rounded-s-none" name="amount" value="<?php echo money_round($response_paymentLink['response'][0]['amount'])?>" required>
+                    <span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span>
+                    <input type="text" class="op-input rounded-s-none" name="amount" value="<?php echo htmlspecialchars((string) (money_round($response_paymentLink['response'][0]['amount'])), ENT_QUOTES, 'UTF-8'); ?>" required>
                 </div>
             </div>
             <div>
                 <label class="op-label">Expiry Date</label>
-                <input type="date" class="op-input" name="expiry_date" value="<?php echo $response_paymentLink['response'][0]['expired_date'] ?? '';?>">
+                <input type="date" class="op-input" name="expiry_date" value="<?php echo htmlspecialchars((string) ($response_paymentLink['response'][0]['expired_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
             </div>
             <div>
                 <label class="op-label">Status <span class="text-red-500">*</span></label>
                 <select class="js-select op-select" name="status" required>
-                    <option value="active" <?= ($response_paymentLink['response'][0]['status'] === 'active') ? 'selected' : '' ?>>Active</option>
-                    <option value="inactive" <?= ($response_paymentLink['response'][0]['status'] === 'inactive') ? 'selected' : '' ?>>Inactive</option>
+                    <option value="active" <?= htmlspecialchars((string) (($response_paymentLink['response'][0]['status'] === 'active') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Active</option>
+                    <option value="inactive" <?= htmlspecialchars((string) (($response_paymentLink['response'][0]['status'] === 'inactive') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Inactive</option>
                 </select>
             </div>
         </div>
@@ -107,15 +107,15 @@ if (!defined('OWNPAY_INIT')) {
     <!-- Existing Fields -->
     <div class="item-list space-y-4 mt-4">
         <?php
-            $response = json_decode(getData($db_prefix.'payment_link_field','WHERE paymentLinkID ="'.$ref.'"'),true);
+            $response = json_decode(getData($db_prefix.'payment_link_field','WHERE paymentLinkID = :ref', '* FROM', [':ref' => $ref]),true);
             foreach($response['response'] as $row){
                 $uniqueID = uniqid();
         ?>
-                <input type="hidden" name="items[item-card-<?php echo $uniqueID?>][fieldID]" value="<?php echo $row['id']?>">
-                <div class="op-card" id="item-card-<?php echo $uniqueID?>">
+                <input type="hidden" name="items[item-card-<?php echo htmlspecialchars((string) ($uniqueID), ENT_QUOTES, 'UTF-8'); ?>][fieldID]" value="<?php echo htmlspecialchars((string) ($row['id']), ENT_QUOTES, 'UTF-8'); ?>">
+                <div class="op-card" id="item-card-<?php echo htmlspecialchars((string) ($uniqueID), ENT_QUOTES, 'UTF-8'); ?>">
                     <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                         <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Input Field</h3>
-                        <button type="button" class="remove-item text-red-500 hover:text-red-700" onclick="delete_item('item-card-<?php echo $uniqueID?>', '<?php echo $row['id']?>')">
+                        <button type="button" class="remove-item text-red-500 hover:text-red-700" onclick="delete_item('item-card-<?php echo htmlspecialchars((string) ($uniqueID), ENT_QUOTES, 'UTF-8'); ?>', '<?php echo htmlspecialchars((string) ($row['id']), ENT_QUOTES, 'UTF-8'); ?>')">
                             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
                         </button>
                     </div>
@@ -123,44 +123,44 @@ if (!defined('OWNPAY_INIT')) {
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             <div>
                                 <label class="op-label">Form Type <span class="text-red-500">*</span></label>
-                                <select class="js-select op-select" name="items[item-card-<?php echo $uniqueID?>][formType]" id="formType-<?php echo $uniqueID?>" onchange="formTypeF('item-card-<?php echo $uniqueID?>')" required>
-                                    <option value="text" <?= ($row['formType'] === 'text') ? 'selected' : '' ?>>Text</option>
-                                    <option value="textarea" <?= ($row['formType'] === 'textarea') ? 'selected' : '' ?>>Textarea</option>
-                                    <option value="select" <?= ($row['formType'] === 'select') ? 'selected' : '' ?>>Select</option>
-                                    <option value="file" <?= ($row['formType'] === 'file') ? 'selected' : '' ?>>File</option>
-                                    <option value="checkbox" <?= ($row['formType'] === 'checkbox') ? 'selected' : '' ?>>Checkbox</option>
-                                    <option value="radio" <?= ($row['formType'] === 'radio') ? 'selected' : '' ?>>Radio</option>
+                                <select class="js-select op-select" name="items[item-card-<?php echo htmlspecialchars((string) ($uniqueID), ENT_QUOTES, 'UTF-8'); ?>][formType]" id="formType-<?php echo htmlspecialchars((string) ($uniqueID), ENT_QUOTES, 'UTF-8'); ?>" onchange="formTypeF('item-card-<?php echo htmlspecialchars((string) ($uniqueID), ENT_QUOTES, 'UTF-8'); ?>')" required>
+                                    <option value="text" <?= htmlspecialchars((string) (($row['formType'] === 'text') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Text</option>
+                                    <option value="textarea" <?= htmlspecialchars((string) (($row['formType'] === 'textarea') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Textarea</option>
+                                    <option value="select" <?= htmlspecialchars((string) (($row['formType'] === 'select') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Select</option>
+                                    <option value="file" <?= htmlspecialchars((string) (($row['formType'] === 'file') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>File</option>
+                                    <option value="checkbox" <?= htmlspecialchars((string) (($row['formType'] === 'checkbox') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Checkbox</option>
+                                    <option value="radio" <?= htmlspecialchars((string) (($row['formType'] === 'radio') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Radio</option>
                                 </select>
                             </div>
                             <div>
                                 <label class="op-label">Field Name <span class="text-red-500">*</span></label>
-                                <input type="text" class="op-input" name="items[item-card-<?php echo $uniqueID?>][fieldName]" placeholder="Enter field name" value="<?php echo htmlspecialchars($row['fieldName'], ENT_QUOTES, 'UTF-8')?>" required>
+                                <input type="text" class="op-input" name="items[item-card-<?php echo htmlspecialchars((string) ($uniqueID), ENT_QUOTES, 'UTF-8'); ?>][fieldName]" placeholder="Enter field name" value="<?php echo htmlspecialchars($row['fieldName'], ENT_QUOTES, 'UTF-8')?>" required>
                             </div>
                             <div>
                                 <label class="op-label">Required <span class="text-red-500">*</span></label>
-                                <select class="js-select op-select" name="items[item-card-<?php echo $uniqueID?>][required]" required>
-                                    <option value="true" <?= ($row['required'] === 'true') ? 'selected' : '' ?>>Yes</option>
-                                    <option value="false" <?= ($row['required'] === 'false') ? 'selected' : '' ?>>No</option>
+                                <select class="js-select op-select" name="items[item-card-<?php echo htmlspecialchars((string) ($uniqueID), ENT_QUOTES, 'UTF-8'); ?>][required]" required>
+                                    <option value="true" <?= htmlspecialchars((string) (($row['required'] === 'true') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Yes</option>
+                                    <option value="false" <?= htmlspecialchars((string) (($row['required'] === 'false') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>No</option>
                                 </select>
                             </div>
-                            <div class="formType-File <?= ($row['formType'] === 'file') ? '' : 'hidden' ?>">
+                            <div class="formType-File <?= htmlspecialchars((string) (($row['formType'] === 'file') ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>">
                                 <label class="op-label">File Extensions <span class="text-red-500">*</span></label>
                                 <?php $selectedValues = array_map('trim', explode(',', $row['value'])); ?>
-                                <select class="js-select op-select" name="items[item-card-<?php echo $uniqueID?>][fileExtensions][]" multiple>
-                                    <option value="jpg" <?= in_array('jpg', $selectedValues) ? 'selected' : '' ?>>JPG</option>
-                                    <option value="jpeg" <?= in_array('jpeg', $selectedValues) ? 'selected' : '' ?>>JPEG</option>
-                                    <option value="png" <?= in_array('png', $selectedValues) ? 'selected' : '' ?>>PNG</option>
-                                    <option value="gif" <?= in_array('gif', $selectedValues) ? 'selected' : '' ?>>GIF</option>
-                                    <option value="webp" <?= in_array('webp', $selectedValues) ? 'selected' : '' ?>>WEBP</option>
-                                    <option value="bmp" <?= in_array('bmp', $selectedValues) ? 'selected' : '' ?>>BMP</option>
-                                    <option value="svg" <?= in_array('svg', $selectedValues) ? 'selected' : '' ?>>SVG</option>
-                                    <option value="ico" <?= in_array('ico', $selectedValues) ? 'selected' : '' ?>>ICO</option>
-                                    <option value="tiff" <?= in_array('tiff', $selectedValues) ? 'selected' : '' ?>>TIFF</option>
+                                <select class="js-select op-select" name="items[item-card-<?php echo htmlspecialchars((string) ($uniqueID), ENT_QUOTES, 'UTF-8'); ?>][fileExtensions][]" multiple>
+                                    <option value="jpg" <?= htmlspecialchars((string) (in_array('jpg', $selectedValues) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>JPG</option>
+                                    <option value="jpeg" <?= htmlspecialchars((string) (in_array('jpeg', $selectedValues) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>JPEG</option>
+                                    <option value="png" <?= htmlspecialchars((string) (in_array('png', $selectedValues) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>PNG</option>
+                                    <option value="gif" <?= htmlspecialchars((string) (in_array('gif', $selectedValues) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>GIF</option>
+                                    <option value="webp" <?= htmlspecialchars((string) (in_array('webp', $selectedValues) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>WEBP</option>
+                                    <option value="bmp" <?= htmlspecialchars((string) (in_array('bmp', $selectedValues) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>BMP</option>
+                                    <option value="svg" <?= htmlspecialchars((string) (in_array('svg', $selectedValues) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>SVG</option>
+                                    <option value="ico" <?= htmlspecialchars((string) (in_array('ico', $selectedValues) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>ICO</option>
+                                    <option value="tiff" <?= htmlspecialchars((string) (in_array('tiff', $selectedValues) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>TIFF</option>
                                 </select>
                             </div>
-                            <div class="formType-Select <?= (in_array($row['formType'], ['select','checkbox','radio'])) ? '' : 'hidden' ?>">
+                            <div class="formType-Select <?= htmlspecialchars((string) ((in_array($row['formType'], ['select','checkbox','radio'])) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>">
                                 <label class="op-label">Add Options <span class="text-red-500">*</span></label>
-                                <input type="text" class="js-tags op-input" id="items[item-card-<?php echo $uniqueID?>][addOptions][]" value="<?php echo htmlspecialchars($row['value'], ENT_QUOTES, 'UTF-8')?>" placeholder="Type and press Enter">
+                                <input type="text" class="js-tags op-input" id="items[item-card-<?php echo htmlspecialchars((string) ($uniqueID), ENT_QUOTES, 'UTF-8'); ?>][addOptions][]" value="<?php echo htmlspecialchars($row['value'], ENT_QUOTES, 'UTF-8')?>" placeholder="Type and press Enter">
                             </div>
                         </div>
                     </div>
@@ -180,8 +180,8 @@ if (!defined('OWNPAY_INIT')) {
     </div>
 </form>
 
-<script nonce="<?= $csp_nonce ?? '' ?>" data-cfasync="false">
-    window.OP_DASHBOARD_URL = '<?php echo $site_url.$path_admin ?>/dashboard';
+<script nonce="<?= htmlspecialchars((string) ($csp_nonce ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-cfasync="false">
+    window.OP_DASHBOARD_URL = '<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/dashboard';
 
     function deleteItem(ItemID){
         var my_action_confirmation_btn = document.querySelector("#my-action-confirmation-btn")?.value || '';
@@ -191,13 +191,13 @@ if (!defined('OWNPAY_INIT')) {
             btnEl.innerHTML = '<div class="op-spinner" style="width:16px;height:16px;border-width:2px"></div>';
             opFetch('paymentLink-delete', { ItemID }).then(response => {
                 closeAllModals(); document.querySelector("#my-action-confirmation-btn").value = ''; btnEl.innerHTML = btn;
-                response.status === 'true' ? (apToast('success', response.title, response.message), load_content('Payment Link','<?php echo $site_url.$path_admin ?>/payment-link','nav-item-payment-link')) : apToast('error', response.title, response.message);
+                response.status === 'true' ? (apToast('success', response.title, response.message), load_content('Payment Link','<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/payment-link','nav-item-payment-link')) : apToast('error', response.title, response.message);
             }).catch(err => apToastError());
         } else { show_action_confirmation_tab(btnClass, 'Delete Payment Link', 'Delete', 'btn-danger'); }
     }
 
     function FNcurrency(){
-        var currency_main = document.querySelector(".in-currency")?.value || '<?php echo $global_brand_currency_code?>';
+        var currency_main = document.querySelector(".in-currency")?.value || '<?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?>';
         document.querySelectorAll('.currency-code').forEach(el => el.textContent = currency_main);
     }
     FNcurrency();
@@ -277,7 +277,7 @@ if (!defined('OWNPAY_INIT')) {
         var btnEl = document.querySelector(".btn-paymentLink-edit"); var btn = btnEl.innerHTML;
         btnEl.innerHTML = '<div class="op-spinner" style="width:16px;height:16px;border-width:2px"></div>';
         var formData = new URLSearchParams(new FormData(this)).toString();
-        fetch('<?php echo $site_url.$path_admin ?>/dashboard', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData })
+        fetch('<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/dashboard', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData })
             .then(r => r.json()).then(response => {
                 apRotateCsrf(response.csrf_token); btnEl.innerHTML = btn;
                 response.status === 'true' ? apToast('success', response.title, response.message) : apToast('error', response.title, response.message);

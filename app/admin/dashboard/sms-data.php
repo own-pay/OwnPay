@@ -167,7 +167,7 @@
                         <select class="op-select" name="device">
                             <option value="" selected>Select a device</option>
                             <?php
-                                $response_result = json_decode(getData($db_prefix.'device',' WHERE status ="used" ORDER BY 1 DESC '),true);
+                                $response_result = json_decode(getData($db_prefix.'device',' WHERE status = :status ORDER BY 1 DESC ', '* FROM', [':status' => 'used']),true);
                                 if($response_result['status'] == true){
                                     foreach($response_result['response'] as $row){
                             ?>
@@ -271,7 +271,7 @@
                         <select class="op-select" name="device">
                             <option value="" selected>Select a device</option>
                             <?php
-                                $response_result = json_decode(getData($db_prefix.'device',' WHERE status ="used" ORDER BY 1 DESC '),true);
+                                $response_result = json_decode(getData($db_prefix.'device',' WHERE status = :status ORDER BY 1 DESC ', '* FROM', [':status' => 'used']),true);
                                 if($response_result['status'] == true){
                                     foreach($response_result['response'] as $row){
                             ?>

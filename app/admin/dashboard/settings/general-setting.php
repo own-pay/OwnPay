@@ -37,7 +37,7 @@ function bv($b, $k, $d='') { return empty($b[$k]) ? $d : $b[$k]; }
                     </select>
                 </div>
                 <div><label class="op-label">Default Currency <span class="text-red-500">*</span></label>
-                    <?php $selCurr = bv($b,'currency_code'); $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id ="' . $b['brand_id'] . '" ORDER BY 1 DESC'), true); ?>
+                    <?php $selCurr = bv($b,'currency_code'); $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $b['brand_id']]), true); ?>
                     <select class="js-select op-select" id="default_currency" name="default_currency" data-search="true" data-remove="true" data-placeholder="Select currency" required onchange="FNcurrency()">
                         <?php if ($response_brand['status'] == true) { foreach ($response_brand['response'] as $row) { ?>
                             <option value="<?= $row['code'] ?>" <?= ($row['code'] === $selCurr) ? 'selected' : '' ?>><?= $row['code'] ?></option>

@@ -111,7 +111,7 @@ class DashboardController
                 $keyMap = array_flip($keys);
 
                 // Fetch transactions
-                $response_transaction = CrudService::select($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status NOT IN ("initiated")', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]);
+                $response_transaction = CrudService::select($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status != :exc_status', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':exc_status' => 'initiated']);
 
                 foreach ($response_transaction['response'] as $row) {
 
@@ -242,7 +242,7 @@ class DashboardController
                 $gatewayLabels = []; // slug => name
 
                 // Get all transactions
-                $response_transaction = CrudService::select($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status ="completed"', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]);
+                $response_transaction = CrudService::select($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status = :status', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'completed']);
 
                 foreach ($response_transaction['response'] as $row) {
 
@@ -479,8 +479,8 @@ class DashboardController
                 $global_brand_currency_code = $global_response_brand['response'][0]['currency_code'];
                 $global_brand_currency_rate = "1";
 
-                $combinedParams = array_merge([':brand_id' => $brand_id], $whereParams);
-                $res = CrudService::select($db_prefix . 'transaction', " WHERE brand_id = :brand_id AND status NOT IN ('initiated', 'expired') AND $where", '* FROM', $combinedParams);
+                $combinedParams = array_merge([':brand_id' => $brand_id, ':exc_s1' => 'initiated', ':exc_s2' => 'expired'], $whereParams);
+                $res = CrudService::select($db_prefix . 'transaction', " WHERE brand_id = :brand_id AND status != :exc_s1 AND status != :exc_s2 AND $where", '* FROM', $combinedParams);
 
                 $total = 0;
                 $completed = 0;
@@ -505,8 +505,8 @@ class DashboardController
                 $successRate = $total ? money_div((string) ($completed * 100), (string) $total, 2) : "0";
                 $average = $completed ? money_div($revenue, (string) $completed, 2) : "0";
 
-                $combinedPrevParams = array_merge([':brand_id' => $brand_id], $prevWhereParams);
-                $prevRes = CrudService::select($db_prefix . 'transaction', " WHERE brand_id = :brand_id AND status NOT IN ('initiated', 'expired') AND $prevWhere", '* FROM', $combinedPrevParams);
+                $combinedPrevParams = array_merge([':brand_id' => $brand_id, ':exc_s1' => 'initiated', ':exc_s2' => 'expired'], $prevWhereParams);
+                $prevRes = CrudService::select($db_prefix . 'transaction', " WHERE brand_id = :brand_id AND status != :exc_s1 AND status != :exc_s2 AND $prevWhere", '* FROM', $combinedPrevParams);
 
                 $prevTotal = 0;
                 $prevCompleted = 0;

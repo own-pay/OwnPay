@@ -197,8 +197,12 @@ if (!file_exists(__DIR__ . '/.maintenance')) {
                 case 'login':
                 case 'forgot':
                 case '2fa':
-                    if (file_exists(__DIR__ . '/app/admin/' . $route . '.php')) {
-                        require __DIR__ . '/app/admin/' . $route . '.php';
+                    if ($route === 'login') {
+                        require __DIR__ . '/app/admin/login.php';
+                    } elseif ($route === 'forgot') {
+                        require __DIR__ . '/app/admin/forgot.php';
+                    } elseif ($route === '2fa') {
+                        require __DIR__ . '/app/admin/2fa.php';
                     } else {
                         if (file_exists(__DIR__ . '/errors/404.php')) {
                             http_response_code(404);

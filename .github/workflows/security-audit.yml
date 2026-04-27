@@ -21,11 +21,12 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
+          submodules: false
 
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: "8.2"
+          php-version: "8.3"
           extensions: pdo, bcmath, json, curl
           tools: composer:v2, phpstan
 
@@ -41,7 +42,7 @@ jobs:
         run: npm audit --audit-level=moderate
 
       - name: 🔑 Secret Scanning - Gitleaks
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
@@ -50,15 +51,8 @@ jobs:
         uses: semgrep/semgrep-action@v1
         with:
           config: >-
-            p/php
-            p/security-audit
-            p/sql-injection
-            p/xss
-            p/owasp-top-ten
-            p/cwe-top-25
-            p/secrets
-            p/command-injection
-            p/insecure-transport
+            p/php p/security-audit p/sql-injection p/xss p/owasp-top-ten
+            p/cwe-top-25 p/secrets p/command-injection p/insecure-transport
 
       - name: 🧪 Static Analysis - PHPStan
         run: |
@@ -66,7 +60,7 @@ jobs:
           phpstan analyze src --level=6 --error-format=github
 
       - name: 🏛️ Filesystem Vulnerability Scan - Trivy
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: "fs"
           scanners: "vuln,secret,misconfig"
@@ -76,7 +70,7 @@ jobs:
           severity: "CRITICAL,HIGH,MEDIUM"
 
       - name: 📤 Upload Trivy Results to GitHub Security Tab
-        uses: github/codeql-action/upload-sarif@v3
-        if: always()
+        uses: github/codeql-action/upload-sarif@v4
+        if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: "trivy-results.sarif"

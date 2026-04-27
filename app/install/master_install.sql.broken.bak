@@ -36,8 +36,8 @@ SET time_zone = '+00:00';
 -- ----------------------------------------------------------------------------
 -- 1.1  op_merchants — Top-level tenant / business entity (replaces op_brands)
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_merchants`;
-CREATE TABLE `op_merchants` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`       CHAR(36)        NOT NULL,                          -- UUID v4, public-facing
   `business_name`   VARCHAR(255)    NOT NULL,
@@ -72,8 +72,8 @@ CREATE TABLE `op_merchants` (
 -- ----------------------------------------------------------------------------
 -- 1.2  op_roles — RBAC role definitions
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_roles`;
-CREATE TABLE `op_roles` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `slug`        VARCHAR(50)     NOT NULL,                              -- e.g. 'owner','admin','staff','viewer'
   `name`        VARCHAR(100)    NOT NULL,
@@ -89,8 +89,8 @@ CREATE TABLE `op_roles` (
 -- ----------------------------------------------------------------------------
 -- 1.3  op_permissions — Granular permission tokens
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_permissions`;
-CREATE TABLE `op_permissions` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `slug`        VARCHAR(80)     NOT NULL,                              -- e.g. 'payments:read','refunds:create'
   `name`        VARCHAR(150)    NOT NULL,
@@ -104,8 +104,8 @@ CREATE TABLE `op_permissions` (
 -- ----------------------------------------------------------------------------
 -- 1.4  op_role_permissions — Many-to-many junction
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_role_permissions`;
-CREATE TABLE `op_role_permissions` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `role_id`       BIGINT UNSIGNED NOT NULL,
   `permission_id` BIGINT UNSIGNED NOT NULL,
 
@@ -117,8 +117,8 @@ CREATE TABLE `op_role_permissions` (
 -- ----------------------------------------------------------------------------
 -- 1.5  op_merchant_users — Users with RBAC mapped to merchants
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_merchant_users`;
-CREATE TABLE `op_merchant_users` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`     CHAR(36)        NOT NULL,
   `merchant_id`   BIGINT UNSIGNED NOT NULL,
@@ -154,8 +154,8 @@ CREATE TABLE `op_merchant_users` (
 --      Token format: op_live_<random> or op_test_<random>
 --      DB stores SHA-256 hash only; raw shown once on creation.
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_api_keys`;
-CREATE TABLE `op_api_keys` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`     CHAR(36)        NOT NULL,
   `merchant_id`   BIGINT UNSIGNED NOT NULL,
@@ -187,8 +187,8 @@ CREATE TABLE `op_api_keys` (
 -- ----------------------------------------------------------------------------
 -- 1.7  op_domains — Whitelisted domains per merchant
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_domains`;
-CREATE TABLE `op_domains` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id` BIGINT UNSIGNED NOT NULL,
   `domain`      VARCHAR(255)    NOT NULL,                              -- e.g. 'example.com'
@@ -211,8 +211,8 @@ CREATE TABLE `op_domains` (
 -- ----------------------------------------------------------------------------
 -- 2.1  op_gateways — Gateway plugin registry (46 gateways in current system)
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_gateways`;
-CREATE TABLE `op_gateways` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`       CHAR(36)        NOT NULL,
   `slug`            VARCHAR(60)     NOT NULL,                          -- e.g. 'bkash-api-tokenized'
@@ -238,8 +238,8 @@ CREATE TABLE `op_gateways` (
 -- ----------------------------------------------------------------------------
 -- 2.2  op_gateway_configs — Per-merchant gateway configuration
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_gateway_configs`;
-CREATE TABLE `op_gateway_configs` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`                  BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id`         BIGINT UNSIGNED NOT NULL,
   `gateway_id`          BIGINT UNSIGNED NOT NULL,
@@ -274,8 +274,8 @@ CREATE TABLE `op_gateway_configs` (
 -- ----------------------------------------------------------------------------
 -- 2.3  op_currencies — Currency definitions
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_currencies`;
-CREATE TABLE `op_currencies` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `code`        CHAR(3)         NOT NULL,                              -- ISO 4217: BDT, USD, EUR
   `name`        VARCHAR(80)     NOT NULL,
@@ -291,8 +291,8 @@ CREATE TABLE `op_currencies` (
 -- ----------------------------------------------------------------------------
 -- 2.4  op_exchange_rates — Rate snapshots per merchant
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_exchange_rates`;
-CREATE TABLE `op_exchange_rates` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id`   BIGINT UNSIGNED NOT NULL,
   `from_currency` CHAR(3)         NOT NULL,
@@ -310,8 +310,8 @@ CREATE TABLE `op_exchange_rates` (
 -- ----------------------------------------------------------------------------
 -- 2.5  op_system_settings — Key-value config store (replaces op_env)
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_system_settings`;
-CREATE TABLE `op_system_settings` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `scope`       VARCHAR(20)     NOT NULL DEFAULT 'global',             -- 'global' or merchant public_id
   `group_name`  VARCHAR(50)     NOT NULL DEFAULT 'general',            -- UI grouping
@@ -334,8 +334,8 @@ CREATE TABLE `op_system_settings` (
 -- ----------------------------------------------------------------------------
 -- 3.1  op_customers — Customer records per merchant
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_customers`;
-CREATE TABLE `op_customers` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`     CHAR(36)        NOT NULL,
   `merchant_id`   BIGINT UNSIGNED NOT NULL,
@@ -367,8 +367,8 @@ CREATE TABLE `op_customers` (
 -- ----------------------------------------------------------------------------
 -- 4.1  op_payment_intents — Checkout session lifecycle
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_payment_intents`;
-CREATE TABLE `op_payment_intents` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`       CHAR(36)        NOT NULL,                          -- UUID: pi_xxx
   `merchant_id`     BIGINT UNSIGNED NOT NULL,
@@ -410,8 +410,8 @@ CREATE TABLE `op_payment_intents` (
 -- ----------------------------------------------------------------------------
 -- 4.2  op_transactions — Actual payment execution against a gateway
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_transactions`;
-CREATE TABLE `op_transactions` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`         CHAR(36)        NOT NULL,                        -- UUID: txn_xxx
   `payment_intent_id` BIGINT UNSIGNED NOT NULL,
@@ -488,8 +488,8 @@ PARTITION BY RANGE (YEAR(`created_at`) * 100 + MONTH(`created_at`)) (
 -- ----------------------------------------------------------------------------
 -- 4.3  op_idempotency_keys — Replay prevention for API calls
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_idempotency_keys`;
-CREATE TABLE `op_idempotency_keys` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `scope`           VARCHAR(64)     NOT NULL,                          -- e.g. 'checkout','refund'
   `merchant_id`     BIGINT UNSIGNED NOT NULL,
@@ -511,8 +511,8 @@ CREATE TABLE `op_idempotency_keys` (
 -- ----------------------------------------------------------------------------
 -- 4.4  op_refunds — Partial and full refunds linked to transactions
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_refunds`;
-CREATE TABLE `op_refunds` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`       CHAR(36)        NOT NULL,                          -- UUID: rfd_xxx
   `transaction_id`  BIGINT UNSIGNED NOT NULL,
@@ -545,8 +545,8 @@ CREATE TABLE `op_refunds` (
 -- ----------------------------------------------------------------------------
 -- 4.5  op_payment_links — Shareable payment link generation
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_payment_links`;
-CREATE TABLE `op_payment_links` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`   CHAR(36)        NOT NULL,
   `merchant_id` BIGINT UNSIGNED NOT NULL,
@@ -575,8 +575,8 @@ CREATE TABLE `op_payment_links` (
 -- ----------------------------------------------------------------------------
 -- 4.6  op_payment_link_fields — Custom form fields per payment link
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_payment_link_fields`;
-CREATE TABLE `op_payment_link_fields` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `payment_link_id` BIGINT UNSIGNED NOT NULL,
   `field_type`      VARCHAR(30)     NOT NULL,                          -- text,email,number,tel,file,select
@@ -595,8 +595,8 @@ CREATE TABLE `op_payment_link_fields` (
 -- ----------------------------------------------------------------------------
 -- 4.7  op_invoices — Invoice records
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_invoices`;
-CREATE TABLE `op_invoices` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`     CHAR(36)        NOT NULL,
   `merchant_id`   BIGINT UNSIGNED NOT NULL,
@@ -629,8 +629,8 @@ CREATE TABLE `op_invoices` (
 -- ----------------------------------------------------------------------------
 -- 4.8  op_invoice_items — Line items per invoice
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_invoice_items`;
-CREATE TABLE `op_invoice_items` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `invoice_id`  BIGINT UNSIGNED NOT NULL,
   `description` VARCHAR(500)    NOT NULL,
@@ -655,8 +655,8 @@ CREATE TABLE `op_invoice_items` (
 -- ----------------------------------------------------------------------------
 -- 5.1  op_webhooks — Outbound webhook endpoint config per merchant
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_webhooks`;
-CREATE TABLE `op_webhooks` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`       CHAR(36)        NOT NULL,
   `merchant_id`     BIGINT UNSIGNED NOT NULL,
@@ -683,8 +683,8 @@ CREATE TABLE `op_webhooks` (
 -- ----------------------------------------------------------------------------
 -- 5.2  op_webhook_events — Inbound event ingestion + dedupe
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_webhook_events`;
-CREATE TABLE `op_webhook_events` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`                BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id`       BIGINT UNSIGNED NOT NULL,
   `provider`          VARCHAR(60)     NOT NULL,                        -- gateway slug
@@ -733,8 +733,8 @@ PARTITION BY RANGE (YEAR(`created_at`) * 100 + MONTH(`created_at`)) (
 -- ----------------------------------------------------------------------------
 -- 5.3  op_webhook_delivery_logs — Outbound delivery tracking
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_webhook_delivery_logs`;
-CREATE TABLE `op_webhook_delivery_logs` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `webhook_id`    BIGINT UNSIGNED NOT NULL,
   `event_type`    VARCHAR(100)    NOT NULL,
@@ -766,8 +766,8 @@ CREATE TABLE `op_webhook_delivery_logs` (
 -- ----------------------------------------------------------------------------
 -- 6.1  op_ledger_accounts — Chart of accounts (internal wallets)
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_ledger_accounts`;
-CREATE TABLE `op_ledger_accounts` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`     CHAR(36)        NOT NULL,
   `code`          VARCHAR(20)     NOT NULL,                            -- e.g. 'MERCH-BAL','GW-RECV','PLAT-REV','TAX-PAY'
@@ -795,8 +795,8 @@ CREATE TABLE `op_ledger_accounts` (
 -- ----------------------------------------------------------------------------
 -- 6.2  op_ledger_transactions — Journal header (one business event = one journal)
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_ledger_transactions`;
-CREATE TABLE `op_ledger_transactions` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`     CHAR(36)        NOT NULL,
   `event_type`    VARCHAR(60)     NOT NULL,                            -- 'payment_completed','refund_issued','fee_charged','settlement'
@@ -821,8 +821,8 @@ CREATE TABLE `op_ledger_transactions` (
 -- ----------------------------------------------------------------------------
 -- 6.3  op_ledger_entries — Debit/credit lines (IMMUTABLE, no UPDATE/DELETE)
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_ledger_entries`;
-CREATE TABLE `op_ledger_entries` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`                    BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `ledger_transaction_id` BIGINT UNSIGNED NOT NULL,
   `account_id`            BIGINT UNSIGNED NOT NULL,
@@ -882,8 +882,8 @@ PARTITION BY RANGE (YEAR(`created_at`) * 100 + MONTH(`created_at`)) (
 -- ----------------------------------------------------------------------------
 -- 7.1  op_settlements — Settlement batch records
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_settlements`;
-CREATE TABLE `op_settlements` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`       CHAR(36)        NOT NULL,
   `merchant_id`     BIGINT UNSIGNED NOT NULL,
@@ -913,8 +913,8 @@ CREATE TABLE `op_settlements` (
 -- ----------------------------------------------------------------------------
 -- 7.2  op_settlement_items — Transactions included in a settlement
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_settlement_items`;
-CREATE TABLE `op_settlement_items` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `settlement_id`  BIGINT UNSIGNED NOT NULL,
   `transaction_id` BIGINT UNSIGNED NOT NULL,
@@ -934,8 +934,8 @@ CREATE TABLE `op_settlement_items` (
 -- ----------------------------------------------------------------------------
 -- 7.3  op_disputes — Chargeback and dispute records
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_disputes`;
-CREATE TABLE `op_disputes` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`       CHAR(36)        NOT NULL,
   `transaction_id`  BIGINT UNSIGNED NOT NULL,
@@ -974,8 +974,8 @@ CREATE TABLE `op_disputes` (
 -- ----------------------------------------------------------------------------
 -- 8.1  op_fee_rules — Configurable fee structure per merchant/gateway
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_fee_rules`;
-CREATE TABLE `op_fee_rules` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id`   BIGINT UNSIGNED NOT NULL,
   `gateway_id`    BIGINT UNSIGNED NULL,                                -- NULL = applies to all gateways
@@ -1017,8 +1017,8 @@ CREATE TABLE `op_fee_rules` (
 -- 9.1  op_audit_logs — WHO did WHAT, WHEN, to WHICH entity
 --      Immutable append-only table for compliance and forensics.
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_audit_logs`;
-CREATE TABLE `op_audit_logs` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id`   BIGINT UNSIGNED NULL,                                -- NULL for system/global events
   `actor_type`    VARCHAR(30)     NOT NULL,                            -- 'merchant_user','system','api_key','webhook'
@@ -1072,8 +1072,8 @@ PARTITION BY RANGE (YEAR(`created_at`) * 100 + MONTH(`created_at`)) (
 -- ----------------------------------------------------------------------------
 -- 9.2  op_login_attempts — Brute-force and credential stuffing protection
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_login_attempts`;
-CREATE TABLE `op_login_attempts` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`          BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `identifier`  VARCHAR(255)    NOT NULL,                              -- username or email attempted
   `ip_address`  VARCHAR(45)     NOT NULL,
@@ -1123,8 +1123,8 @@ PARTITION BY RANGE (YEAR(`created_at`) * 100 + MONTH(`created_at`)) (
 -- ----------------------------------------------------------------------------
 -- 10.1  op_devices — Companion app device registry
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_devices`;
-CREATE TABLE `op_devices` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `public_id`       CHAR(36)        NOT NULL,
   `device_code`     VARCHAR(40)     NOT NULL,                          -- hardware identifier
@@ -1150,8 +1150,8 @@ CREATE TABLE `op_devices` (
 -- 10.2  op_companion_tokens — Auth tokens for companion devices
 --       Tokens are rotated on each use (sliding window).
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_companion_tokens`;
-CREATE TABLE `op_companion_tokens` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `device_id`     BIGINT UNSIGNED NOT NULL,
   `token_hash`    CHAR(64)        NOT NULL,                            -- SHA-256 of bearer token
@@ -1179,8 +1179,8 @@ CREATE TABLE `op_companion_tokens` (
 --       Core automation: companion app forwards incoming SMS from MFS providers.
 --       System parses amount/trx_id/sender and matches against pending transactions.
 -- ----------------------------------------------------------------------------
-DROP TABLE IF EXISTS `op_sms_data`;
-CREATE TABLE `op_sms_data` (
+DROP TABLE IF EXISTS ``;
+CREATE TABLE `` (
   `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `device_id`     BIGINT UNSIGNED NOT NULL,
   `merchant_id`   BIGINT UNSIGNED NULL,                                -- resolved after matching
@@ -1214,376 +1214,6 @@ CREATE TABLE `op_sms_data` (
   CONSTRAINT `fk_sms_device`  FOREIGN KEY (`device_id`)      REFERENCES `op_devices`(`id`)       ON DELETE RESTRICT
   -- FK NOTE: fk_sms_txn removed — op_transactions is partitioned.
   -- APP-LAYER: SmsMatchingService must validate matched_txn_id before UPDATE.
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-
--- ############################################################################
--- SECTION 11: LEGACY COMPATIBILITY TABLES (Admin Panel Controllers)
--- ############################################################################
--- ############################################################################
--- SECTION 11: LEGACY COMPATIBILITY TABLES (Admin Panel Controllers)
--- ############################################################################
-
--- 11.1 op_env
-CREATE TABLE IF NOT EXISTS `op_env` (
-  `id`            BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `brand_id`      VARCHAR(64)     NOT NULL DEFAULT 'both',
-  `option_name`   VARCHAR(255)    NOT NULL,
-  `value`         TEXT            NULL,
-  `created_date`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_env_brand_option` (`brand_id`, `option_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.2 op_brands
-CREATE TABLE IF NOT EXISTS `op_brands` (
-  `id`                     BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `brand_id`               VARCHAR(64)     NOT NULL,
-  `identify_name`          VARCHAR(255)    NOT NULL DEFAULT '',
-  `name`                   VARCHAR(255)    NOT NULL DEFAULT '',
-  `currency_code`          CHAR(3)         NOT NULL DEFAULT 'BDT',
-  `currency_symbol`        VARCHAR(10)     NOT NULL DEFAULT '৳',
-  `timezone`               VARCHAR(64)     NOT NULL DEFAULT 'Asia/Dhaka',
-  `language`               VARCHAR(10)     NOT NULL DEFAULT 'en',
-  `theme`                  VARCHAR(64)     NOT NULL DEFAULT 'own-pay',
-  `logo`                   VARCHAR(2048)   NULL,
-  `favicon`                VARCHAR(2048)   NULL,
-  `payment_tolerance`      DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `autoExchange`           VARCHAR(20)     NOT NULL DEFAULT 'disabled',
-  `street_address`         VARCHAR(500)    NULL,
-  `city_town`              VARCHAR(100)    NULL,
-  `postal_code`            VARCHAR(20)     NULL,
-  `country`                VARCHAR(100)    NULL,
-  `support_phone_number`   VARCHAR(30)     NULL,
-  `support_email_address`  VARCHAR(255)    NULL,
-  `support_website`        VARCHAR(2048)   NULL,
-  `whatsapp_number`        VARCHAR(30)     NULL,
-  `telegram`               VARCHAR(100)    NULL,
-  `facebook_messenger`     VARCHAR(100)    NULL,
-  `facebook_page`          VARCHAR(100)    NULL,
-  `primary_color`          VARCHAR(20)     NULL DEFAULT '#6366f1',
-  `status`                 VARCHAR(20)     NOT NULL DEFAULT 'active',
-  `created_date`           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`           DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_brands_brand_id` (`brand_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.3 op_admin
-CREATE TABLE IF NOT EXISTS `op_admin` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `a_id`           VARCHAR(64)     NOT NULL,
-  `name`           VARCHAR(200)    NOT NULL DEFAULT '',
-  `email`          VARCHAR(255)    NOT NULL,
-  `username`       VARCHAR(80)     NOT NULL,
-  `password`       VARCHAR(255)    NOT NULL,
-  `temp_password`  VARCHAR(255)    NULL,
-  `role`           VARCHAR(20)     NOT NULL DEFAULT 'admin',
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'active',
-  `2fa_status`     VARCHAR(20)     NOT NULL DEFAULT 'disable',
-  `2fa_secret`     VARCHAR(64)     NULL,
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_admin_email` (`email`),
-  UNIQUE KEY `uq_admin_username` (`username`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.4 op_transaction
-CREATE TABLE IF NOT EXISTS `op_transaction` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `ref`            VARCHAR(64)     NOT NULL,
-  `trx_id`         VARCHAR(128)    NULL,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `gateway_id`     VARCHAR(64)     NOT NULL DEFAULT '',
-  `amount`         DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `currency`       CHAR(3)         NOT NULL DEFAULT 'BDT',
-  `fee`            DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `net_amount`     DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `sender_key`     VARCHAR(128)    NULL,
-  `type`           VARCHAR(30)     NULL,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'initiated',
-  `version`        INT UNSIGNED    NOT NULL DEFAULT 1,
-  `customer_name`  VARCHAR(200)    NULL,
-  `customer_email` VARCHAR(255)    NULL,
-  `customer_phone` VARCHAR(30)     NULL,
-  `note`           TEXT            NULL,
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_transaction_ref` (`ref`),
-  INDEX `idx_transaction_brand_status` (`brand_id`, `status`),
-  INDEX `idx_transaction_trx_id` (`trx_id`),
-  INDEX `idx_transaction_created` (`created_date`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.5 op_currency
-CREATE TABLE IF NOT EXISTS `op_currency` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `code`           CHAR(3)         NOT NULL,
-  `name`           VARCHAR(80)     NOT NULL DEFAULT '',
-  `symbol`         VARCHAR(10)     NOT NULL DEFAULT '',
-  `rate`           DECIMAL(19,8)   NOT NULL DEFAULT 1.00000000,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'active',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `idx_currency_brand` (`brand_id`, `code`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.6 op_permission
-CREATE TABLE IF NOT EXISTS `op_permission` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `a_id`           VARCHAR(64)     NOT NULL,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `permission`     TEXT            NULL,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'active',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `idx_permission_aid` (`a_id`, `brand_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.7 op_addon
-CREATE TABLE IF NOT EXISTS `op_addon` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `addon_id`       VARCHAR(64)     NOT NULL,
-  `slug`           VARCHAR(100)    NOT NULL,
-  `name`           VARCHAR(200)    NOT NULL DEFAULT '',
-  `description`    TEXT            NULL,
-  `version`        VARCHAR(20)     NOT NULL DEFAULT '1.0.0',
-  `author`         VARCHAR(200)    NULL,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'inactive',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_addon_slug` (`slug`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.8 op_addon_parameter
-CREATE TABLE IF NOT EXISTS `op_addon_parameter` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `addon_id`       VARCHAR(64)     NOT NULL,
-  `option_name`    VARCHAR(255)    NOT NULL,
-  `value`          TEXT            NULL,
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `idx_addon_param_addon` (`addon_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.9 op_plugins
-CREATE TABLE IF NOT EXISTS `op_plugins` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `slug`           VARCHAR(100)    NOT NULL,
-  `name`           VARCHAR(200)    NOT NULL DEFAULT '',
-  `type`           VARCHAR(30)     NOT NULL DEFAULT 'gateway',
-  `entrypoint`     VARCHAR(500)    NOT NULL DEFAULT '',
-  `load_order`     INT             NOT NULL DEFAULT 100,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'inactive',
-  `version`        VARCHAR(20)     NOT NULL DEFAULT '1.0.0',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_plugins_slug` (`slug`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.10 op_webhook_log
-CREATE TABLE IF NOT EXISTS `op_webhook_log` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `ref`            VARCHAR(64)     NOT NULL,
-  `gateway_id`     VARCHAR(64)     NOT NULL DEFAULT '',
-  `type`           VARCHAR(30)     NULL,
-  `response`       TEXT            NULL,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'received',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `idx_webhook_log_ref` (`ref`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.11 op_gateways_parameter
-CREATE TABLE IF NOT EXISTS `op_gateways_parameter` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `gateway_id`     VARCHAR(64)     NOT NULL,
-  `option_name`    VARCHAR(255)    NOT NULL,
-  `value`          TEXT            NULL,
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `idx_gw_param_gw` (`gateway_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.12 op_invoice
-CREATE TABLE IF NOT EXISTS `op_invoice` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `invoice_id`     VARCHAR(64)     NOT NULL,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `customer_id`    VARCHAR(64)     NULL,
-  `title`          VARCHAR(255)    NOT NULL DEFAULT '',
-  `description`    TEXT            NULL,
-  `amount`         DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `currency`       CHAR(3)         NOT NULL DEFAULT 'BDT',
-  `tax`            DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `discount`       DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `total`          DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'draft',
-  `due_date`       DATE            NULL,
-  `note`           TEXT            NULL,
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_invoice_id` (`invoice_id`),
-  INDEX `idx_invoice_brand` (`brand_id`, `status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.13 op_payment_link
-CREATE TABLE IF NOT EXISTS `op_payment_link` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `link_id`        VARCHAR(64)     NOT NULL,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `title`          VARCHAR(255)    NOT NULL DEFAULT '',
-  `description`    TEXT            NULL,
-  `amount`         DECIMAL(19,4)   NULL,
-  `currency`       CHAR(3)         NOT NULL DEFAULT 'BDT',
-  `slug`           VARCHAR(255)    NOT NULL,
-  `type`           VARCHAR(20)     NOT NULL DEFAULT 'standard',
-  `redirect_url`   VARCHAR(2048)   NULL,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'active',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_payment_link_id` (`link_id`),
-  INDEX `idx_payment_link_brand` (`brand_id`, `status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.14 op_payment_link_field
-CREATE TABLE IF NOT EXISTS `op_payment_link_field` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `link_id`        VARCHAR(64)     NOT NULL,
-  `field_name`     VARCHAR(100)    NOT NULL,
-  `field_type`     VARCHAR(30)     NOT NULL DEFAULT 'text',
-  `required`       TINYINT(1)      NOT NULL DEFAULT 0,
-  `sort_order`     INT             NOT NULL DEFAULT 0,
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `idx_plf_link` (`link_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.15 op_customer
-CREATE TABLE IF NOT EXISTS `op_customer` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `customer_id`    VARCHAR(64)     NOT NULL,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `name`           VARCHAR(200)    NOT NULL DEFAULT '',
-  `email`          VARCHAR(255)    NULL,
-  `phone`          VARCHAR(30)     NULL,
-  `address`        TEXT            NULL,
-  `note`           TEXT            NULL,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'active',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_customer_id` (`customer_id`),
-  INDEX `idx_customer_brand` (`brand_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.16 op_api
-CREATE TABLE IF NOT EXISTS `op_api` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `api_id`         VARCHAR(64)     NOT NULL,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `name`           VARCHAR(200)    NOT NULL DEFAULT '',
-  `api_key`        VARCHAR(255)    NOT NULL,
-  `secret_key`     VARCHAR(255)    NOT NULL,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'active',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_api_id` (`api_id`),
-  INDEX `idx_api_brand` (`brand_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.17 op_faq
-CREATE TABLE IF NOT EXISTS `op_faq` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `faq_id`         VARCHAR(64)     NOT NULL,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `question`       VARCHAR(500)    NOT NULL,
-  `answer`         TEXT            NULL,
-  `sort_order`     INT             NOT NULL DEFAULT 0,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'active',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_faq_id` (`faq_id`),
-  INDEX `idx_faq_brand` (`brand_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.18 op_domain
-CREATE TABLE IF NOT EXISTS `op_domain` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `domain_id`      VARCHAR(64)     NOT NULL,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `domain`         VARCHAR(255)    NOT NULL,
-  `type`           VARCHAR(20)     NOT NULL DEFAULT 'custom',
-  `ssl_status`     VARCHAR(20)     NOT NULL DEFAULT 'pending',
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'active',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_domain_id` (`domain_id`),
-  INDEX `idx_domain_brand` (`brand_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.19 op_device
-CREATE TABLE IF NOT EXISTS `op_device` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `device_id`      VARCHAR(64)     NOT NULL,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `name`           VARCHAR(200)    NOT NULL DEFAULT '',
-  `type`           VARCHAR(30)     NOT NULL DEFAULT 'mobile',
-  `identifier`     VARCHAR(255)    NULL,
-  `last_active`    DATETIME        NULL,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'active',
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_device_id` (`device_id`),
-  INDEX `idx_device_brand` (`brand_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.20 op_balance_verification
-CREATE TABLE IF NOT EXISTS `op_balance_verification` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `verification_id` VARCHAR(64)   NOT NULL,
-  `brand_id`       VARCHAR(64)    NOT NULL,
-  `gateway_id`     VARCHAR(64)    NOT NULL DEFAULT '',
-  `expected_amount` DECIMAL(19,4) NOT NULL DEFAULT 0.0000,
-  `actual_amount`  DECIMAL(19,4)  NULL,
-  `currency`       CHAR(3)        NOT NULL DEFAULT 'BDT',
-  `status`         VARCHAR(20)    NOT NULL DEFAULT 'pending',
-  `note`           TEXT           NULL,
-  `created_date`   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME       NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uq_bv_id` (`verification_id`),
-  INDEX `idx_bv_brand` (`brand_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
--- 11.21 op_browser_log
-CREATE TABLE IF NOT EXISTS `op_browser_log` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `brand_id`       VARCHAR(64)     NOT NULL DEFAULT '',
-  `user_id`        VARCHAR(64)     NULL,
-  `action`         VARCHAR(100)    NOT NULL DEFAULT '',
-  `ip`             VARCHAR(45)     NULL,
-  `user_agent`     TEXT            NULL,
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  PRIMARY KEY (`id`),
-  INDEX `idx_browser_log_brand` (`brand_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
@@ -1653,29 +1283,6 @@ COMMIT;
 --  35.  op_companion_tokens       — Device auth tokens
 --  36.  op_sms_data               — SMS transaction matching
 --
--- Section 11: Legacy Compatibility (Admin Panel)
---  37.  op_env                    — Key-value environment store
---  38.  op_brands                 — Legacy brand/merchant store
---  39.  op_admin                  — Legacy admin/staff users
---  40.  op_transaction            — Legacy transaction (singular)
---  41.  op_currency               — Legacy currency (singular)
---  42.  op_permission             — Legacy permission store
---  43.  op_addon                  — Addon/module registry
---  44.  op_addon_parameter        — Addon config key-value
---  45.  op_plugins                — Plugin registry
---  46.  op_webhook_log            — Legacy webhook log
---  47.  op_gateways_parameter     — Legacy gateway config
---  48.  op_invoice                — Legacy invoice (singular)
---  49.  op_payment_link           — Legacy payment link (singular)
---  50.  op_payment_link_field     — Payment link custom fields
---  51.  op_customer               — Legacy customer (singular)
---  52.  op_api                    — Legacy API keys
---  53.  op_faq                    — FAQ entries
---  54.  op_domain                 — Domain management
---  55.  op_device                 — Device management
---  56.  op_balance_verification   — Balance verification
---  57.  op_browser_log            — Browser activity log
---
--- TOTAL: 57 tables (36 V2 + 21 legacy) | 5 partitioned | 11 JSON constraints | 4 deadlock indexes
+-- TOTAL: 36 tables | 5 partitioned | 11 JSON constraints | 4 deadlock indexes
 -- ============================================================================
 -- Schema Version: 2.0 (Unified Production — Schema + Hardening)

@@ -81,7 +81,7 @@
                     <label class="op-label">Currency <span class="text-red-500">*</span></label>
                     <select class="js-select op-select" id="currency" name="currency" data-search="true" data-remove="true" required onchange="FNcurrency()">
                         <?php
-                            $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" ORDER BY 1 DESC'), true);
+                            $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                             if ($response_brand['status'] == true) {
                                 foreach ($response_brand['response'] as $row) {
                                     $isSelected = ($row['code'] === $global_response_brand['response'][0]['currency_code']) ? 'selected' : '';

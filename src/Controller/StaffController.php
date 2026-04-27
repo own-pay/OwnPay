@@ -130,7 +130,7 @@ class StaffController
                     ];
                 }
 
-                $count_data = CrudService::select($db_prefix . 'admin', 'WHERE ' . $where_sql . ' role="staff" AND a_id NOT IN (:a_id) ' . $sql_query, '* FROM', [':a_id' => $global_user_response['response'][0]['a_id']]);
+                $count_data = CrudService::select($db_prefix . 'admin', 'WHERE ' . $where_sql . ' role = :role AND a_id NOT IN (:a_id) ' . $sql_query, '* FROM', [':a_id' => $global_user_response['response'][0]['a_id'], ':role' => 'staff']);
 
                 $total_records = count($count_data['response'] ?? []);
                 $pagHtml = \OwnPay\Service\PaginationService::render($page, $total_records, $show_limit, $offset);
@@ -176,7 +176,7 @@ class StaffController
                 foreach ($selected_ids as $id) {
                     $itemID = InputSanitizer::trim($id);
 
-                    $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $itemID]);
+                    $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = :role AND a_id = :id', '* FROM', [':id' => $itemID, ':role' => 'staff']);
                     if ($response_staff['status'] == true) {
                         if ($itemID == $global_user_response['response'][0]['a_id']) {
 
@@ -250,7 +250,7 @@ class StaffController
 
             $ItemID = $request->post('ItemID', '');
 
-            $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $ItemID]);
+            $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = :role AND a_id = :id', '* FROM', [':id' => $ItemID, ':role' => 'staff']);
             if ($response_staff['status'] == true) {
                 if ($ItemID == $global_user_response['response'][0]['a_id']) {
                     echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'You cannot delete your own account.', 'csrf_token' => $new_csrf_token]);
@@ -402,7 +402,7 @@ class StaffController
             $password = $request->post('password', '');
             $itemID = $request->post('itemID', '');
 
-            $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $itemID]);
+            $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = :role AND a_id = :id', '* FROM', [':id' => $itemID, ':role' => 'staff']);
             if ($response_staff['status'] == true) {
                 if ($global_user_response['response'][0]['a_id'] == $itemID) {
                     echo json_encode(['status' => "false", 'title' => 'Edit Staff Failed', 'message' => 'You are not allowed to edit your own staff information.', 'csrf_token' => $new_csrf_token]);
@@ -484,17 +484,21 @@ class StaffController
             $filter_end = $request->post('filter_end', '');
 
             $where = [];
+            $filterParams = [];
 
             if ($filter_start !== '') {
-                $where[] = "created_date >= '{$filter_start} 00:00:00'";
+                $where[] = "created_date >= :filter_start";
+                $filterParams[':filter_start'] = "{$filter_start} 00:00:00";
             }
 
             if ($filter_end !== '') {
-                $where[] = "created_date <= '{$filter_end} 23:59:59'";
+                $where[] = "created_date <= :filter_end";
+                $filterParams[':filter_end'] = "{$filter_end} 23:59:59";
             }
 
             if ($filter_status !== '') {
-                $where[] = "status = '{$filter_status}'";
+                $where[] = "status = :filter_status";
+                $filterParams[':filter_status'] = $filter_status;
             }
 
             $where_sql = $where ? implode(' AND ', $where) . ' AND ' : '';
@@ -523,7 +527,7 @@ class StaffController
                 exit();
             }
 
-            $response_result = CrudService::select($db_prefix . 'permission', 'WHERE ' . $where_sql . ' a_id = :a_id ORDER BY 1 DESC ' . $sql_limit, '* FROM', [':a_id' => $response_staff['response'][0]['a_id']]);
+            $response_result = CrudService::select($db_prefix . 'permission', 'WHERE ' . $where_sql . ' a_id = :a_id ORDER BY 1 DESC ' . $sql_limit, '* FROM', array_merge($filterParams, [':a_id' => $response_staff['response'][0]['a_id']]));
             if ($response_result['status'] == true) {
                 $response = [];
 
@@ -592,7 +596,7 @@ class StaffController
                         if ($response_brand['response'][0]['a_id'] == $global_user_response['response'][0]['a_id']) {
 
                         } else {
-                            $response_admin = CrudService::select($db_prefix . 'admin', 'WHERE role = "admin" AND a_id = :a_id', '* FROM', [':a_id' => $response_brand['response'][0]['a_id']]);
+                            $response_admin = CrudService::select($db_prefix . 'admin', 'WHERE role = :role AND a_id = :a_id', '* FROM', [':a_id' => $response_brand['response'][0]['a_id'], ':role' => 'admin']);
                             if ($response_admin['status'] == true) {
 
                             } else {
@@ -658,7 +662,7 @@ class StaffController
 
             $response_permision = CrudService::select($db_prefix . 'permission', 'WHERE id = :id', '* FROM', [':id' => $ItemID]);
             if ($response_permision['status'] == true) {
-                $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :a_id', '* FROM', [':a_id' => $response_permision['response'][0]['a_id']]);
+                $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = :role AND a_id = :a_id', '* FROM', [':a_id' => $response_permision['response'][0]['a_id'], ':role' => 'staff']);
                 if ($response_staff['status'] == true) {
                     if ($response_staff['response'][0]['id'] == $global_user_response['response'][0]['id']) {
                         echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'You cannot delete your own permission.', 'csrf_token' => $new_csrf_token]);
@@ -709,7 +713,7 @@ class StaffController
                 exit();
             }
 
-            $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :id', '* FROM', [':id' => $staffID]);
+            $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = :role AND a_id = :id', '* FROM', [':id' => $staffID, ':role' => 'staff']);
             if ($response_staff['status'] == true) {
                 if ($global_user_response['response'][0]['a_id'] == $staffID) {
                     echo json_encode(['status' => "false", 'title' => 'Edit Staff Failed', 'message' => 'You are not allowed to edit your own permissions.', 'csrf_token' => $new_csrf_token]);
@@ -787,7 +791,7 @@ class StaffController
 
             $response = CrudService::select($db_prefix . 'permission', 'WHERE id = :id', '* FROM', [':id' => $permission_id]);
             if ($response['status'] == true) {
-                $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = "staff" AND a_id = :a_id', '* FROM', [':a_id' => $response['response'][0]['a_id']]);
+                $response_staff = CrudService::select($db_prefix . 'admin', 'WHERE role = :role AND a_id = :a_id', '* FROM', [':a_id' => $response['response'][0]['a_id'], ':role' => 'staff']);
                 if ($response_staff['status'] == true) {
                     if ($global_user_response['response'][0]['a_id'] == $response['response'][0]['a_id']) {
                         echo json_encode(['status' => "false", 'title' => 'Edit Staff Failed', 'message' => 'You are not allowed to edit your own permissions.', 'csrf_token' => $new_csrf_token]);

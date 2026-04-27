@@ -59,7 +59,7 @@ interface SettingsContainerInterface extends JsonSerializable, Serializable{
 	 *
 	 * The values will be run through the magic __set(), which may also call custom setters.
 	 *
-	 *  @phpstan-param array<string, mixed> $properties
+	 * @param iterable<string, mixed> $properties
 	 */
 	public function fromIterable(iterable $properties):static;
 

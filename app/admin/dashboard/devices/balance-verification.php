@@ -22,7 +22,7 @@
         exit('Invalid item id');
     } else {
         $d_id = clean_input($d_id);
-        $response_staff = json_decode(getData($db_prefix . 'device', 'WHERE device_id = "' . $d_id . '"'), true);
+        $response_staff = json_decode(getData($db_prefix . 'device', 'WHERE device_id = :d_id', '* FROM', [':d_id' => $d_id]), true);
         if ($response_staff['status'] != true) {
             http_response_code(403);
             exit('Direct access not allowed');
@@ -45,7 +45,7 @@
     <div>
         <nav class="flex mb-1" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
-                <li><a href="javascript:void(0)" onclick="load_content('Devices','<?php echo $site_url.$path_admin ?>/devices','nav-item-devices')" class="hover:text-primary-600">Devices</a></li>
+                <li><a href="javascript:void(0)" onclick="load_content('Devices','<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/devices','nav-item-devices')" class="hover:text-primary-600">Devices</a></li>
                 <li class="flex items-center"><svg class="w-3 h-3 mx-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg><span class="text-gray-900 dark:text-white">Balance Verification</span></li>
             </ol>
         </nav>
@@ -53,7 +53,7 @@
     </div>
     <div class="flex items-center gap-2">
         <span class="global-loaderSpinner"></span>
-        <span class="<?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
+        <span class="<?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>">
             <button class="op-btn-primary" data-modal-target="modal-createItem" data-modal-toggle="modal-createItem">New Verification</button>
         </span>
     </div>
@@ -117,7 +117,7 @@
                 <label class="op-label">Action <span class="text-red-500">*</span></label>
                 <select class="op-select" id="model-bulkActionID">
                     <option value="" selected>Select a Action</option>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option><option value="activated">Active Selected</option><option value="inactivated">Inactive Selected</option>' : '' ?>
+                    <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option><option value="activated">Active Selected</option><option value="inactivated">Inactive Selected</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
                 </select>
             </div>
             <div class="flex justify-end gap-2 p-4 border-t dark:border-gray-700">
@@ -138,7 +138,7 @@
             </div>
             <div class="p-4">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div><label class="op-label">Payment Method <span class="text-red-500">*</span></label><select class="op-select" name="sender_key" onchange="paymentChangedCreate(this)"><?= $bvProviderOptions ?></select></div>
+                    <div><label class="op-label">Payment Method <span class="text-red-500">*</span></label><select class="op-select" name="sender_key" onchange="paymentChangedCreate(this)"><?= htmlspecialchars((string) ($bvProviderOptions), ENT_QUOTES, 'UTF-8'); ?></select></div>
                     <div><label class="op-label">Payment Type <span class="text-red-500">*</span></label><select class="op-select" name="payment-type"><option value="Personal">Personal</option><option value="Agent">Agent</option><option value="Merchant">Merchant</option></select></div>
                     <div><label class="op-label">Sim Slot <span class="text-red-500">*</span></label><select class="op-select" name="simslot"><option value="Any">Any</option><option value="Sim1">Sim 1</option><option value="Sim2">Sim 2</option></select></div>
                     <div><label class="op-label">Current Balance <span class="text-red-500">*</span></label><div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 payment-method-currency">BDT</span><input type="text" class="op-input rounded-s-none" name="current-balance" value="0"></div></div>
@@ -168,7 +168,7 @@
             <div class="p-4">
                 <input type="hidden" name="itemID">
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                    <div><label class="op-label">Payment Method <span class="text-red-500">*</span></label><select class="op-select" name="sender_key" onchange="paymentChangedCreate2(this)"><?= $bvProviderOptions ?></select></div>
+                    <div><label class="op-label">Payment Method <span class="text-red-500">*</span></label><select class="op-select" name="sender_key" onchange="paymentChangedCreate2(this)"><?= htmlspecialchars((string) ($bvProviderOptions), ENT_QUOTES, 'UTF-8'); ?></select></div>
                     <div><label class="op-label">Payment Type <span class="text-red-500">*</span></label><select class="op-select" name="payment-type"><option value="Personal">Personal</option><option value="Agent">Agent</option><option value="Merchant">Merchant</option></select></div>
                     <div><label class="op-label">Sim Slot <span class="text-red-500">*</span></label><select class="op-select" name="simslot"><option value="Any">Any</option><option value="Sim1">Sim 1</option><option value="Sim2">Sim 2</option></select></div>
                     <div><label class="op-label">Current Balance <span class="text-red-500">*</span></label><div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 payment-method-currency">BDT</span><input type="text" class="op-input rounded-s-none" name="current-balance" value="0"></div></div>
@@ -187,8 +187,8 @@
     </div>
 </div>
 
-<script nonce="<?= $csp_nonce ?? '' ?>" data-cfasync="false">
-    window.OP_DASHBOARD_URL = '<?php echo $site_url.$path_admin ?>/dashboard';
+<script nonce="<?= htmlspecialchars((string) ($csp_nonce ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-cfasync="false">
+    window.OP_DASHBOARD_URL = '<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/dashboard';
 
     function updateItem(ItemID){
         var balance = document.getElementById('tr-data'+ItemID)?.value;
@@ -250,11 +250,11 @@
 
         document.querySelector(".table-data-list").innerHTML = apSkeletonRows(5);
 
-        opFetch('balance-verification-list', { d_id: "<?php echo $d_id?>", search_input, show_limit, page, filter_status, filter_start, filter_end }).then(res => {
+        opFetch('balance-verification-list', { d_id: "<?php echo htmlspecialchars((string) ($d_id), ENT_QUOTES, 'UTF-8'); ?>", search_input, show_limit, page, filter_status, filter_start, filter_end }).then(res => {
             let html = '';
             if (res.status === 'true') {
-                let allowEdit = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
-                let allowDelete = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                let allowEdit = <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? 'true' : 'false'), ENT_QUOTES, 'UTF-8'); ?>;
+                let allowDelete = <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? 'true' : 'false'), ENT_QUOTES, 'UTF-8'); ?>;
 
                 res.response.forEach(item => {
                     let redirectEdit = allowEdit ? `style="cursor:pointer;" onclick="openEditModel('${item.id}')"` : '';
@@ -335,7 +335,7 @@
         var btnEl = this; var btn = btnEl.innerHTML;
         btnEl.innerHTML = '<div class="op-spinner" style="width:16px;height:16px;border-width:2px"></div>';
 
-        opFetch('balance-verification-create', { d_id: "<?php echo $d_id?>", sender_key, payment_type, simslot, current_balance, balance_verification_status }).then(response => {
+        opFetch('balance-verification-create', { d_id: "<?php echo htmlspecialchars((string) ($d_id), ENT_QUOTES, 'UTF-8'); ?>", sender_key, payment_type, simslot, current_balance, balance_verification_status }).then(response => {
             closeAllModals();
             modal.querySelectorAll('input[type="text"]').forEach(i => i.value = '');
             modal.querySelector('input[name="current-balance"]').value = '0';
@@ -361,7 +361,7 @@
         var btnEl = this; var btn = btnEl.innerHTML;
         btnEl.innerHTML = '<div class="op-spinner" style="width:16px;height:16px;border-width:2px"></div>';
 
-        opFetch('balance-verification-update', { d_id: "<?php echo $d_id?>", itemID, sender_key, payment_type, simslot, current_balance, balance_verification_status }).then(response => {
+        opFetch('balance-verification-update', { d_id: "<?php echo htmlspecialchars((string) ($d_id), ENT_QUOTES, 'UTF-8'); ?>", itemID, sender_key, payment_type, simslot, current_balance, balance_verification_status }).then(response => {
             closeAllModals();
             modal.querySelectorAll('input[type="text"]').forEach(i => i.value = '');
             modal.querySelectorAll('select').forEach(s => s.selectedIndex = 0);
