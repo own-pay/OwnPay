@@ -1,0 +1,11 @@
+parameters:
+    level: 5
+    paths:
+        - src
+        - app
+    excludePaths:
+        - vendor
+        - node_modules
+    ignoreErrors:
+        - '#Constant OWNPAY_INIT not found.#'
+    reportUnmatchedIgnoredErrors: false
