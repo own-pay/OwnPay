@@ -3,8 +3,9 @@
 ## 1) Module Placement
 - Gateways go in: `app/modules/gateways`
 - Addons go in: `app/modules/addons`
+- Plugins go in: `app/modules/plugins`
 - Themes go in: `app/modules/themes`
-- Core cross-cutting services belong in: `src/`
+- Shared core cross-cutting services belong in: `src/`
 
 ## 2) Module Design
 - Use explicit contracts/interfaces for module entrypoints.
