@@ -48,7 +48,7 @@ jobs:
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
       - name: 🔍 SAST - Semgrep
-        uses: semgrep/semgrep-action@v1
+        uses: semgrep/semgrep-action@v1.161.0
         with:
           config: >-
             p/php p/security-audit p/sql-injection p/xss p/owasp-top-ten
