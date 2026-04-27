@@ -41,7 +41,7 @@ jobs:
         run: npm audit --audit-level=moderate
 
       - name: 🔑 Secret Scanning - Gitleaks
-        uses: gitleaks/gitleaks-action@v3
+        uses: gitleaks/gitleaks-action@v2.3.9
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
@@ -66,7 +66,7 @@ jobs:
           phpstan analyze src --level=6 --error-format=github
 
       - name: 🏛️ Filesystem Vulnerability Scan - Trivy
-        uses: aquasecurity/trivy-action@0.36.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: "fs"
           scanners: "vuln,secret,misconfig"
