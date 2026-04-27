@@ -47,12 +47,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
 
-      - name: 🔍 SAST - Semgrep
-        uses: semgrep/semgrep-action@v1
-        with:
-          config: >-
-            p/php p/security-audit p/sql-injection p/xss p/owasp-top-ten
-            p/cwe-top-25 p/secrets p/command-injection p/insecure-transport
+
 
       - name: 🧪 Static Analysis - PHPStan
         run: |
@@ -74,3 +69,15 @@ jobs:
         if: always() && hashFiles('trivy-results.sarif') != ''
         with:
           sarif_file: "trivy-results.sarif"
+
+  semgrep:
+    name: Semgrep CE Scan
+    runs-on: ubuntu-latest
+    container:
+      image: semgrep/semgrep
+    if: (github.actor != 'dependabot[bot]')
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+      - name: Run Semgrep CE scan
+        run: semgrep scan --config auto
