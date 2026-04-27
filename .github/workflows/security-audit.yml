@@ -6,7 +6,7 @@ on:
   pull_request:
     branches: [ main, dev ]
   schedule:
-    - cron: '0 0 * * 0' # Run weekly on Sundays
+    - cron: "0 0 * * 0" # Run weekly on Sundays
 
 jobs:
   security-audit:
@@ -21,14 +21,14 @@ jobs:
       - name: Setup PHP
         uses: shivammathur/setup-php@v2
         with:
-          php-version: '8.2'
+          php-version: "8.2"
           extensions: pdo, bcmath, json, curl
           tools: composer:v2, phpstan
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '20'
+          node-version: "20"
 
       - name: 🛡️ SCA - Composer Audit
         run: composer audit
@@ -36,19 +36,19 @@ jobs:
       - name: 🛡️ SCA - NPM Audit
         run: npm audit --audit-level=high
 
-      - name: 🔑 Secret Scanning - Gitleaks
-        uses: gitleaks/gitleaks-action@v2
+      - name: gitleaks
+        with:
+          fetch-depth: 0
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE}}
 
       - name: 🔍 SAST - Semgrep
-        uses: semgrep/semgrep-action@v1
+        uses: returntocorp/semgrep-action@v1.161.0
         with:
           config: >-
-            p/php
-            p/security-audit
-            p/sql-injection
-            p/xss
+            p/php p/security-audit p/sql-injection p/xss
 
       - name: 🧪 Static Analysis - PHPStan
         run: |
@@ -58,7 +58,7 @@ jobs:
       - name: 🏛️ Filesystem Vulnerability Scan - Trivy
         uses: aquasecurity/trivy-action@master
         with:
-          scan-type: 'fs'
+          scan-type: "fs"
           ignore-unfixed: true
-          format: 'table'
-          severity: 'HIGH,CRITICAL'
+          format: "table"
+          severity: "HIGH,CRITICAL"
