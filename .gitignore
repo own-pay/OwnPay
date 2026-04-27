@@ -31,3 +31,6 @@ Thumbs.db
 *.swo
 README.md
 op-config.php.bak
+
+# Installer lock file (generated at runtime, contains environment-specific data)
+app/install/.installed
