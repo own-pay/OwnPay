@@ -14,6 +14,7 @@
 - [ ] Core (`src/`)
 - [ ] Gateway module (`app/modules/gateways`)
 - [ ] Addon module (`app/modules/addons`)
+- [ ] Plugin module (`app/modules/plugins`)
 - [ ] Theme module (`app/modules/themes`)
 - [ ] Other (describe below)
 
