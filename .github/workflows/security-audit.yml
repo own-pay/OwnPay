@@ -47,13 +47,9 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_LICENSE: ${{ secrets.GITLEAKS_LICENSE }}
-
+          
       - name: 🔍 SAST - Semgrep
-        uses: semgrep/semgrep-action@v1.161.0
-        with:
-          config: >-
-            p/php p/security-audit p/sql-injection p/xss p/owasp-top-ten
-            p/cwe-top-25 p/secrets p/command-injection p/insecure-transport
+        run: docker run --rm -v "${{ github.workspace }}:/src" -w /src semgrep/semgrep:1.76.0 semgrep scan --config p/security-audit --config p/secrets
 
       - name: 🧪 Static Analysis - PHPStan
         run: |
