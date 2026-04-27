@@ -7,10 +7,16 @@ $slug = getParam($params, 'slug');
 if ($slug === null) { http_response_code(403); exit('Invalid slug'); }
 $slug = clean_input($slug);
 if ($global_response_brand['response'][0]['theme'] !== $slug) { http_response_code(403); exit('Invalid slug'); }
-if (!file_exists(__DIR__.'/../../../modules/themes/'.$slug.'/class.php')) { http_response_code(403); exit('Invalid slug'); }
-require_once __DIR__.'/../../../modules/themes/'.$slug.'/class.php';
-$class = str_replace(' ', '', ucwords(str_replace('-', ' ', $slug))) . 'Theme';
-$theme = new $class(); $fields = $theme->fields(); $supported_languages = $theme->supported_languages(); $themeSlug = $slug;
+$safeSlug = preg_replace('/[^a-zA-Z0-9_\-]/', '', $slug);
+$themeBase = realpath(__DIR__.'/../../../modules/themes');
+$classFile = $themeBase ? realpath($themeBase.'/'.$safeSlug.'/class.php') : false;
+if ($themeBase === false || $classFile === false || strpos($classFile, $themeBase . DIRECTORY_SEPARATOR) !== 0) { http_response_code(403); exit('Invalid slug'); }
+// nosemgrep: php.laravel.security.laravel-path-traversal.laravel-path-traversal, php.lang.security.tainted-path-traversal.tainted-path-traversal
+require_once $classFile;
+$class = str_replace(' ', '', ucwords(str_replace('-', ' ', $safeSlug))) . 'Theme';
+if (!class_exists($class)) { http_response_code(403); exit('Invalid slug'); }
+// nosemgrep: php.lang.security.injection.tainted-object-instantiation.tainted-object-instantiation
+$theme = new $class(); $fields = $theme->fields(); $supported_languages = $theme->supported_languages(); $themeSlug = $safeSlug;
 ?>
 <div class="op-page-header"><div>
     <nav class="flex mb-1"><ol class="inline-flex items-center space-x-1 text-sm text-gray-500"><li><a href="javascript:void(0)" onclick="load_content('Settings','<?php echo $site_url.$path_admin ?>/settings','nav-item-settings')" class="hover:text-primary-600">Settings</a></li><li class="flex items-center"><svg class="w-3 h-3 mx-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg><a href="javascript:void(0)" onclick="load_content('Themes','<?php echo $site_url.$path_admin ?>/settings/themes','nav-item-settings')" class="hover:text-primary-600">Themes</a></li><li class="flex items-center"><svg class="w-3 h-3 mx-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg><span class="text-gray-900 dark:text-white">Theme Setting</span></li></ol></nav>
@@ -43,10 +49,13 @@ $theme = new $class(); $fields = $theme->fields(); $supported_languages = $theme
                         echo "</select>"; break;
                     case 'checkbox':
                         $checked = $value ? 'checked' : '';
-                        echo "<label class='relative inline-flex items-center cursor-pointer'><input type='checkbox' class='sr-only peer' name='{$field['name']}' value='1' $checked><div class='w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[\"\"] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600'></div></label>"; break;
+                        $safeName = htmlspecialchars($field['name'], ENT_QUOTES, 'UTF-8');
+                        echo "<label class='relative inline-flex items-center cursor-pointer'><input type='checkbox' class='sr-only peer' name='{$safeName}' value='1' $checked><div class='w-11 h-6 bg-gray-200 peer-focus:ring-4 peer-focus:ring-primary-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[\"\"] after:absolute after:top-[2px] after:start-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-primary-600'></div></label>"; break;
                     case 'image':
-                        echo "<input type='file' class='op-input img-input' name='{$field['name']}' data-preview='{$field['name']}' ".(!empty($field['required']) ? 'required' : '').">
-                        <div class='border rounded-lg p-2 mt-2 flex items-center justify-center h-20 max-w-xs dark:border-gray-700'><img src='$value' alt='' id='{$field['name']}' class='max-w-full max-h-full'></div>"; break;
+                        $safeName = htmlspecialchars($field['name'], ENT_QUOTES, 'UTF-8');
+                        $safeValue = htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+                        echo "<input type='file' class='op-input img-input' name='{$safeName}' data-preview='{$safeName}' ".(!empty($field['required']) ? 'required' : '').">
+                        <div class='border rounded-lg p-2 mt-2 flex items-center justify-center h-20 max-w-xs dark:border-gray-700'><img src='{$safeValue}' alt='' id='{$safeName}' class='max-w-full max-h-full'></div>"; break;
                     case 'radio':
                         foreach($field['options'] as $k=>$v){ $checked = $value == $k ? 'checked' : '';
                             echo "<label class='flex items-center gap-2 text-sm mb-1'><input type='radio' class='op-checkbox' name='{$field['name']}' value='$k' $checked ".(!empty($field['required']) ? 'required' : '')."><span>$v</span></label>";

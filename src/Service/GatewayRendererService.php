@@ -166,11 +166,15 @@ class GatewayRendererService
             $isBelowMax = $hasNoMax ? true : (bccomp(money_round($convertedAmount), $max, 2) <= 0);
 
             if ($isAboveMin && $isBelowMax) {
-                if (file_exists(__DIR__ . '/../pp-modules/pp-gateways/' . $response_gateway['response'][0]['slug'] . '/class.php')) {
-                    require_once __DIR__ . '/../pp-modules/pp-gateways/' . $response_gateway['response'][0]['slug'] . '/class.php';
+                $gwSlug = preg_replace('/[^a-zA-Z0-9_\-]/', '', $response_gateway['response'][0]['slug']);
+                $gwBase = realpath(__DIR__ . '/../../app/modules/gateways');
+                $gwClassFile = $gwBase ? realpath($gwBase . '/' . $gwSlug . '/class.php') : false;
+                if ($gwBase !== false && $gwClassFile !== false && strpos($gwClassFile, $gwBase . DIRECTORY_SEPARATOR) === 0) {
+                    require_once $gwClassFile;
 
-                    $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $response_gateway['response'][0]['slug']))) . 'Gateway';
+                    $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $gwSlug))) . 'Gateway';
 
+                    if (!class_exists($class)) { return ['status' => false, 'gateway' => []]; }
                     $gateway = new $class();
 
                     $gateway_info = $gateway->info();
@@ -331,11 +335,15 @@ class GatewayRendererService
             $data['transaction']['local_net_amount'] = money_round($convertedAmount, 2);
             $data['transaction']['local_currency'] = $gatewayCurrency;
 
-            if (file_exists(__DIR__ . '/../pp-modules/pp-gateways/' . $response_gateway['response'][0]['slug'] . '/class.php')) {
-                require_once __DIR__ . '/../pp-modules/pp-gateways/' . $response_gateway['response'][0]['slug'] . '/class.php';
+            $gwSlug2 = preg_replace('/[^a-zA-Z0-9_\-]/', '', $response_gateway['response'][0]['slug']);
+            $gwBase2 = realpath(__DIR__ . '/../../app/modules/gateways');
+            $gwClassFile2 = $gwBase2 ? realpath($gwBase2 . '/' . $gwSlug2 . '/class.php') : false;
+            if ($gwBase2 !== false && $gwClassFile2 !== false && strpos($gwClassFile2, $gwBase2 . DIRECTORY_SEPARATOR) === 0) {
+                require_once $gwClassFile2;
 
-                $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $response_gateway['response'][0]['slug']))) . 'Gateway';
+                $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $gwSlug2))) . 'Gateway';
 
+                if (!class_exists($class)) { return false; }
                 $gateway = new $class();
 
                 $gateway_info = $gateway->info();

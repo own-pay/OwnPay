@@ -100,7 +100,11 @@ class UpdaterService
         fclose($file);
 
         if ($result === false) {
-            unlink($zipFile);
+            $realZip = realpath($zipFile);
+            $realTemp = realpath($this->tempDir);
+            if ($realZip !== false && $realTemp !== false && strpos($realZip, $realTemp . DIRECTORY_SEPARATOR) === 0) {
+                unlink($realZip);
+            }
             throw new Exception("Failed to download update: $error");
         }
 
@@ -228,10 +232,15 @@ class UpdaterService
         $files = new \RecursiveIteratorIterator($it, \RecursiveIteratorIterator::CHILD_FIRST);
 
         foreach ($files as $file) {
+            $realFile = $file->getRealPath();
+            $realBase = realpath($this->tempDir) ?: realpath($this->rootDir);
+            if ($realFile === false || $realBase === false || strpos($realFile, $realBase . DIRECTORY_SEPARATOR) !== 0) {
+                continue; // Skip files outside expected boundaries
+            }
             if ($file->isDir()) {
-                rmdir($file->getRealPath());
+                rmdir($realFile);
             } else {
-                unlink($file->getRealPath());
+                unlink($realFile);
             }
         }
         rmdir($dir);
@@ -239,9 +248,25 @@ class UpdaterService
 
     private function runPostUpdateHooks(): void
     {
-        // 1. Composer update
-        if (function_exists('shell_exec')) {
-            @shell_exec('composer install --no-dev --optimize-autoloader -d ' . escapeshellarg($this->rootDir) . ' 2>&1');
+        // 1. Composer update (safe: no shell interpolation via proc_open array)
+        $composerCmd = ['composer', 'install', '--no-dev', '--optimize-autoloader', '-d', $this->rootDir];
+        $descriptors = [0 => ['pipe', 'r'], 1 => ['pipe', 'w'], 2 => ['pipe', 'w']];
+        $process = @proc_open($composerCmd, $descriptors, $pipes);
+        if (is_resource($process)) {
+            fclose($pipes[0]);
+            // Drain stdout and stderr to prevent the child process from blocking
+            // on a full pipe buffer before we call proc_close().
+            stream_get_contents($pipes[1]);
+            stream_get_contents($pipes[2]);
+            fclose($pipes[1]);
+            fclose($pipes[2]);
+            $exitCode = proc_close($process);
+            if ($exitCode !== 0) {
+                \OwnPay\Service\Logger::app()->warning(
+                    'composer install exited with non-zero status',
+                    ['exit_code' => $exitCode]
+                );
+            }
         }
 
         // 2. Clear OpCache
@@ -249,11 +274,13 @@ class UpdaterService
             @opcache_reset();
         }
 
-        // 3. Database migrations would be executed here by requiring an upgrade.php or reading upgrade.sql if exists
+        // 3. Database migrations
         $upgradeScript = $this->rootDir . '/updates/upgrade.php';
-        if (file_exists($upgradeScript)) {
-            require_once $upgradeScript;
-            unlink($upgradeScript); // Remove after success
+        $realUpgrade = realpath($upgradeScript);
+        $realRoot = realpath($this->rootDir);
+        if ($realUpgrade !== false && $realRoot !== false && strpos($realUpgrade, $realRoot . DIRECTORY_SEPARATOR) === 0) {
+            require_once $realUpgrade;
+            unlink($realUpgrade); // Remove after success
         }
     }
 }

@@ -2,6 +2,15 @@
     RewriteEngine On
     Options -Indexes
 
+    # ─────────── SECURITY HEADERS ───────────
+    # SEC-12 fix: Defense-in-depth headers
+    Header set X-Frame-Options "SAMEORIGIN"
+    Header set X-Content-Type-Options "nosniff"
+    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    Header set X-XSS-Protection "1; mode=block"
+    Header set Permissions-Policy "camera=(), microphone=(), geolocation=()"
+    # ────────────────────────────────────────
+
     # Block sensitive system files
     RewriteRule ^(\.git|\.env|\.env\..+|op-config\.php|op-temp-config\.php|composer\.json|composer\.lock|README\.md)$ - [F,L,NC]
 
@@ -26,3 +35,4 @@
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteRule ^(.*)$ index.php?page=$1 [QSA,L]
 </IfModule>
+

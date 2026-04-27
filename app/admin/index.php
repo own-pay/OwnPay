@@ -65,6 +65,9 @@ if ($global_user_login == true) {
     <input type="hidden" name="csrf_token_default" value="<?= $csrf_token; ?>">
 
     <script nonce="<?= $csp_nonce ?? '' ?>" data-cfasync="false">
+        // Store the page's CSP nonce for dynamic script injection in SPA navigation
+        const __opCspNonce = '<?= addslashes($csp_nonce ?? '') ?>';
+
         // Chart global variables
         let chartTransactionStatistics = null;
         let chartGatewayStatistics = null;
@@ -158,9 +161,16 @@ if ($global_user_login == true) {
 
                     // Re-execute inline scripts (innerHTML doesn't run <script> tags)
                     // Replace let/const with var to avoid redeclaration errors on SPA re-navigation
+                    // Override nonce with page's original CSP nonce to avoid CSP violations
                     rootPrint.querySelectorAll('script').forEach(oldScript => {
                         const newScript = document.createElement('script');
-                        Array.from(oldScript.attributes).forEach(attr => newScript.setAttribute(attr.name, attr.value));
+                        Array.from(oldScript.attributes).forEach(attr => {
+                            if (attr.name === 'nonce') return; // skip — will set the page's nonce below
+                            newScript.setAttribute(attr.name, attr.value);
+                        });
+                        if (typeof __opCspNonce === 'string' && __opCspNonce) {
+                            newScript.nonce = __opCspNonce;
+                        }
                         newScript.textContent = oldScript.textContent.replace(/^(\s*)(let|const)\s+/gm, '$1var ');
                         oldScript.parentNode.replaceChild(newScript, oldScript);
                     });

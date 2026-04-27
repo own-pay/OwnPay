@@ -3,7 +3,7 @@
  * Own Pay — Configuration
  *
  * Loads database credentials from .env file via vlucas/phpdotenv.
- * Falls back to hardcoded defaults if .env is missing (dev convenience only).
+ * Falls back to $_ENV/$_SERVER overrides, then to safe defaults (dev convenience only).
  */
 
 // Load Composer autoloader (needed for phpdotenv)
@@ -20,9 +20,9 @@ if (file_exists($envPath) && class_exists('Dotenv\Dotenv')) {
 }
 
 // Database configuration — sourced from .env, with fallback defaults
-$db_host = $_ENV['DB_HOST'] ?? $_SERVER['DB_HOST'] ?? 'localhost';
-$db_user = $_ENV['DB_USER'] ?? $_SERVER['DB_USER'] ?? 'root';
-$db_pass = $_ENV['DB_PASS'] ?? $_SERVER['DB_PASS'] ?? 'root';
-$db_name = $_ENV['DB_NAME'] ?? $_SERVER['DB_NAME'] ?? 'ownpay';
+$db_host   = $_ENV['DB_HOST']   ?? $_SERVER['DB_HOST']   ?? 'localhost';
+$db_user   = $_ENV['DB_USER']   ?? $_SERVER['DB_USER']   ?? 'root';
+$db_pass   = $_ENV['DB_PASS']   ?? $_SERVER['DB_PASS']   ?? '';
+$db_name   = $_ENV['DB_NAME']   ?? $_SERVER['DB_NAME']   ?? 'ownpay';
 $db_prefix = $_ENV['DB_PREFIX'] ?? $_SERVER['DB_PREFIX'] ?? 'op_';
 ?>

@@ -139,7 +139,7 @@ final class SmsDataRepository
     {
         $stmt = $this->pdo->prepare(
             "SELECT COUNT(*) FROM " . self::TABLE . "
-             WHERE brand_id = :bid AND parse_method = 'unparsed'"
+             WHERE brand_id = :bid AND status = 'admin_review'"
         );
         $stmt->execute([':bid' => $brandId]);
         return (int) $stmt->fetchColumn();

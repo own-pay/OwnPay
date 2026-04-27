@@ -22,7 +22,7 @@ if (!defined('OWNPAY_INIT')) {
         exit('Invalid invoice id');
     } else {
         $i_id = clean_input($i_id);
-        $response_invoice = json_decode(getData($db_prefix.'invoice','WHERE ref = "'.$i_id.'" AND brand_id = "'.$global_response_brand['response'][0]['brand_id'].'"'),true);
+        $response_invoice = json_decode(getData($db_prefix.'invoice','WHERE ref = :ref AND brand_id = :brand_id', '* FROM', [':ref' => $i_id, ':brand_id' => $global_response_brand['response'][0]['brand_id']]),true);
         if($response_invoice['status'] != true){
             http_response_code(403);
             exit('Direct access not allowed');
@@ -34,22 +34,22 @@ if (!defined('OWNPAY_INIT')) {
     <div>
         <nav class="flex mb-1" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
-                <li><a href="javascript:void(0)" onclick="load_content('Invoice','<?php echo $site_url.$path_admin ?>/invoice','nav-item-invoice')" class="hover:text-primary-600">Invoice</a></li>
+                <li><a href="javascript:void(0)" onclick="load_content('Invoice','<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/invoice','nav-item-invoice')" class="hover:text-primary-600">Invoice</a></li>
                 <li class="flex items-center"><svg class="w-3 h-3 mx-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg><span class="text-gray-900 dark:text-white">Edit Invoice</span></li>
             </ol>
         </nav>
         <h2 class="op-page-title">Edit Invoice</h2>
     </div>
     <div class="flex items-center gap-2">
-        <button class="op-btn-primary" onclick="copyContent('<?php echo $site_url.$path_invoice ?>/<?php echo $i_id;?>', 'Copied!', 'Invoice URL copied successfully.')">Copy Link</button>
-        <button class="op-btn-danger btnDeleteItem-<?php echo $i_id;?> <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'delete', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>" onclick="deleteItem('<?php echo $i_id;?>')">Delete</button>
+        <button class="op-btn-primary" onclick="copyContent('<?php echo htmlspecialchars((string) ($site_url.$path_invoice), ENT_QUOTES, 'UTF-8'); ?>/<?php echo htmlspecialchars((string) ($i_id), ENT_QUOTES, 'UTF-8'); ?>', 'Copied!', 'Invoice URL copied successfully.')">Copy Link</button>
+        <button class="op-btn-danger btnDeleteItem-<?php echo htmlspecialchars((string) ($i_id), ENT_QUOTES, 'UTF-8'); ?> <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'delete', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>" onclick="deleteItem('<?php echo htmlspecialchars((string) ($i_id), ENT_QUOTES, 'UTF-8'); ?>')">Delete</button>
     </div>
 </div>
 
 <form class="form-invoice-edit">
     <input type="hidden" name="action" value="invoice-edit">
-    <input type="hidden" name="csrf_token" value="<?= $csrf_token; ?>">
-    <input type="hidden" name="invoiceID" value="<?php echo $response_invoice['response'][0]['ref']?>">
+    <input type="hidden" name="csrf_token" value="<?= htmlspecialchars((string) ($csrf_token), ENT_QUOTES, 'UTF-8'); ?>">
+    <input type="hidden" name="invoiceID" value="<?php echo htmlspecialchars((string) ($response_invoice['response'][0]['ref']), ENT_QUOTES, 'UTF-8'); ?>">
     <input type="hidden" name="deleted_items" id="deleted_items" value="">
 
     <div class="grid grid-cols-1 lg:grid-cols-3 gap-4">
@@ -61,7 +61,7 @@ if (!defined('OWNPAY_INIT')) {
                         <label class="op-label">Customer <span class="text-red-500">*</span></label>
                         <?php $customer_info = json_decode($response_invoice['response'][0]['customer_info'], true); ?>
                         <select class="js-select op-select" name="customer" data-search="false" data-remove="false" required>
-                            <option value="<?php echo $customer_info['id']?>" selected><?php echo htmlspecialchars($customer_info['name'])?> - <?php echo htmlspecialchars($customer_info['email'])?></option>
+                            <option value="<?php echo htmlspecialchars((string) ($customer_info['id']), ENT_QUOTES, 'UTF-8'); ?>" selected><?php echo htmlspecialchars($customer_info['name'])?> - <?php echo htmlspecialchars($customer_info['email'])?></option>
                         </select>
                     </div>
 
@@ -69,11 +69,11 @@ if (!defined('OWNPAY_INIT')) {
                         <label class="op-label">Currency <span class="text-red-500">*</span></label>
                         <select class="js-select in-currency op-select" name="currency" data-search="true" data-remove="true" required onchange="FNcurrency()">
                             <?php
-                                $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" ORDER BY 1 DESC'), true);
+                                $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                                 if ($response_brand['status'] == true) {
                                     foreach ($response_brand['response'] as $row) {
                             ?>
-                                        <option value="<?php echo $row['code'] ?>" <?php echo ($response_invoice['response'][0]['currency'] == $row['code']) ? 'selected' : '';?>><?php echo $row['code'] ?></option>
+                                        <option value="<?php echo htmlspecialchars((string) ($row['code']), ENT_QUOTES, 'UTF-8'); ?>" <?php echo htmlspecialchars((string) (($response_invoice['response'][0]['currency'] == $row['code']) ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>><?php echo htmlspecialchars((string) ($row['code']), ENT_QUOTES, 'UTF-8'); ?></option>
                             <?php
                                     }
                                 }
@@ -83,16 +83,16 @@ if (!defined('OWNPAY_INIT')) {
 
                     <div>
                         <label class="op-label">Due Date</label>
-                        <input type="date" class="op-input" name="due_date" value="<?php echo $response_invoice['response'][0]['due_date'] ?? '';?>">
+                        <input type="date" class="op-input" name="due_date" value="<?php echo htmlspecialchars((string) ($response_invoice['response'][0]['due_date'] ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
                     </div>
 
                     <div>
                         <label class="op-label">Status <span class="text-red-500">*</span></label>
                         <select class="js-select op-select" name="status" required>
-                            <option value="paid" <?= ($response_invoice['response'][0]['status'] === 'paid') ? 'selected' : '' ?>>Paid</option>
-                            <option value="unpaid" <?= ($response_invoice['response'][0]['status'] === 'unpaid') ? 'selected' : '' ?>>Unpaid</option>
-                            <option value="refunded" <?= ($response_invoice['response'][0]['status'] === 'refunded') ? 'selected' : '' ?>>Refunded</option>
-                            <option value="canceled" <?= ($response_invoice['response'][0]['status'] === 'canceled') ? 'selected' : '' ?>>Canceled</option>
+                            <option value="paid" <?= htmlspecialchars((string) (($response_invoice['response'][0]['status'] === 'paid') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Paid</option>
+                            <option value="unpaid" <?= htmlspecialchars((string) (($response_invoice['response'][0]['status'] === 'unpaid') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Unpaid</option>
+                            <option value="refunded" <?= htmlspecialchars((string) (($response_invoice['response'][0]['status'] === 'refunded') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Refunded</option>
+                            <option value="canceled" <?= htmlspecialchars((string) (($response_invoice['response'][0]['status'] === 'canceled') ? 'selected' : ''), ENT_QUOTES, 'UTF-8'); ?>>Canceled</option>
                         </select>
                     </div>
                 </div>
@@ -101,13 +101,13 @@ if (!defined('OWNPAY_INIT')) {
             <!-- Existing Items -->
             <div class="item-list space-y-4">
                 <?php
-                    $response = json_decode(getData($db_prefix.'invoice_items','WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" AND invoice_id ="'.$i_id.'"'),true);
+                    $response = json_decode(getData($db_prefix.'invoice_items','WHERE brand_id = :brand_id AND invoice_id = :invoice_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoice_id' => $i_id]),true);
                     if ($response['status'] == true) { foreach($response['response'] as $row){
                 ?>
-                        <div class="op-card item-<?php echo $row['id']?>">
+                        <div class="op-card item-<?php echo htmlspecialchars((string) ($row['id']), ENT_QUOTES, 'UTF-8'); ?>">
                             <div class="flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-700">
                                 <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Item</h3>
-                                <button type="button" class="remove-item text-red-500 hover:text-red-700" onclick="delete_item('<?php echo $row['id']?>')">
+                                <button type="button" class="remove-item text-red-500 hover:text-red-700" onclick="delete_item('<?php echo htmlspecialchars((string) ($row['id']), ENT_QUOTES, 'UTF-8'); ?>')">
                                     <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 pointer-events-none" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7l16 0" /><path d="M10 11l0 6" /><path d="M14 11l0 6" /><path d="M5 7l1 12a2 2 0 0 0 2 2h8a2 2 0 0 0 2 -2l1 -12" /><path d="M9 7v-3a1 1 0 0 1 1 -1h4a1 1 0 0 1 1 1v3" /></svg>
                                 </button>
                             </div>
@@ -115,24 +115,24 @@ if (!defined('OWNPAY_INIT')) {
                                 <div class="grid grid-cols-1 md:grid-cols-4 gap-3">
                                     <div class="md:col-span-4">
                                         <label class="op-label">Description <span class="text-red-500">*</span></label>
-                                        <input type="hidden" name="item-id" value="<?php echo $row['id']?>">
+                                        <input type="hidden" name="item-id" value="<?php echo htmlspecialchars((string) ($row['id']), ENT_QUOTES, 'UTF-8'); ?>">
                                         <input type="text" class="op-input" name="item-description" value="<?php echo htmlspecialchars($row['description'])?>" required>
                                     </div>
                                     <div>
                                         <label class="op-label">Quantity <span class="text-red-500">*</span></label>
-                                        <input type="text" class="op-input" name="item-quantity" value="<?php echo money_round($row['quantity'])?>" required>
+                                        <input type="text" class="op-input" name="item-quantity" value="<?php echo htmlspecialchars((string) (money_round($row['quantity'])), ENT_QUOTES, 'UTF-8'); ?>" required>
                                     </div>
                                     <div>
                                         <label class="op-label">Amount <span class="text-red-500">*</span></label>
-                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo $global_brand_currency_code?></span><input type="text" class="op-input rounded-s-none" name="item-amount" value="<?php echo money_round($row['amount'])?>" required></div>
+                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="item-amount" value="<?php echo htmlspecialchars((string) (money_round($row['amount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                                     </div>
                                     <div>
                                         <label class="op-label">Discount <span class="text-red-500">*</span></label>
-                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo $global_brand_currency_code?></span><input type="text" class="op-input rounded-s-none" name="item-discount" value="<?php echo money_round($row['discount'])?>" required></div>
+                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="item-discount" value="<?php echo htmlspecialchars((string) (money_round($row['discount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                                     </div>
                                     <div>
                                         <label class="op-label">Vat <span class="text-red-500">*</span></label>
-                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="item-vat" value="<?php echo money_round($row['vat'])?>" required></div>
+                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="item-vat" value="<?php echo htmlspecialchars((string) (money_round($row['vat'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                                     </div>
                                 </div>
                             </div>
@@ -150,7 +150,7 @@ if (!defined('OWNPAY_INIT')) {
             <!-- Email Note -->
             <div class="op-card">
                 <div class="op-card-header"><h3 class="text-sm font-semibold text-gray-900 dark:text-white">Email Note</h3></div>
-                <div class="p-4"><textarea class="hugerte-textArea" name="private-note-content"><?php echo $response_invoice['response'][0]['private_note'] ?? '';?></textarea></div>
+                <div class="p-4"><textarea class="hugerte-textArea" name="private-note-content"><?php echo htmlspecialchars((string) ($response_invoice['response'][0]['private_note'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></textarea></div>
             </div>
         </div>
 
@@ -161,26 +161,26 @@ if (!defined('OWNPAY_INIT')) {
                 <div class="p-4 space-y-3">
                     <div>
                         <label class="op-label">Shipping</label>
-                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo $global_brand_currency_code?></span><input type="text" class="op-input rounded-s-none invoice-shipping" name="shipping" value="<?php echo money_round($response_invoice['response'][0]['shipping'])?>" required></div>
+                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none invoice-shipping" name="shipping" value="<?php echo htmlspecialchars((string) (money_round($response_invoice['response'][0]['shipping'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                     </div>
                     <div>
                         <label class="op-label">Discount</label>
-                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo $global_brand_currency_code?></span><input type="text" class="op-input rounded-s-none invoice-discount" name="discount" readonly value="0" required></div>
+                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none invoice-discount" name="discount" readonly value="0" required></div>
                     </div>
                     <div>
                         <label class="op-label">Vat</label>
-                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo $global_brand_currency_code?></span><input type="text" class="op-input rounded-s-none invoice-vat" name="vat" readonly value="0" required></div>
+                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none invoice-vat" name="vat" readonly value="0" required></div>
                     </div>
                     <div>
                         <label class="op-label">Total</label>
-                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo $global_brand_currency_code?></span><input type="text" class="op-input rounded-s-none invoice-total" name="total" readonly value="0" required></div>
+                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none invoice-total" name="total" readonly value="0" required></div>
                     </div>
                 </div>
             </div>
 
             <div class="op-card">
                 <div class="op-card-header"><h3 class="text-sm font-semibold text-gray-900 dark:text-white">Note</h3></div>
-                <div class="p-4"><textarea name="note" class="op-input" rows="3"><?php if(!empty($response_invoice['response'][0]['note'])){ echo $response_invoice['response'][0]['note']; } ?></textarea></div>
+                <div class="p-4"><textarea name="note" class="op-input" rows="3"><?php if(!empty($response_invoice['response'][0]['note'])){ echo htmlspecialchars($response_invoice['response'][0]['note'], ENT_QUOTES, 'UTF-8'); } ?></textarea></div>
             </div>
         </div>
     </div>
@@ -190,11 +190,11 @@ if (!defined('OWNPAY_INIT')) {
     </div>
 </form>
 
-<script nonce="<?= $csp_nonce ?? '' ?>" data-cfasync="false">
-    window.OP_DASHBOARD_URL = '<?php echo $site_url.$path_admin ?>/dashboard';
+<script nonce="<?= htmlspecialchars((string) ($csp_nonce ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-cfasync="false">
+    window.OP_DASHBOARD_URL = '<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/dashboard';
 
     function FNcurrency(){
-        var currency_main = document.querySelector(".in-currency")?.value || '<?php echo $global_brand_currency_code?>';
+        var currency_main = document.querySelector(".in-currency")?.value || '<?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?>';
         document.querySelectorAll('.currency-code').forEach(el => el.textContent = currency_main);
     }
     FNcurrency();
@@ -288,7 +288,7 @@ if (!defined('OWNPAY_INIT')) {
 
         setTimeout(() => {
             var formData = new URLSearchParams(new FormData(this)).toString();
-            fetch('<?php echo $site_url.$path_admin ?>/dashboard', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData })
+            fetch('<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/dashboard', { method: 'POST', headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, body: formData })
                 .then(r => r.json()).then(response => {
                     apRotateCsrf(response.csrf_token); btnEl.innerHTML = btn;
                     response.status === 'true' ? apToast('success', response.title, response.message) : apToast('error', response.title, response.message);
@@ -304,7 +304,7 @@ if (!defined('OWNPAY_INIT')) {
             btnEl.innerHTML = '<div class="op-spinner" style="width:16px;height:16px;border-width:2px"></div>';
             opFetch('invoice-delete', { ItemID }).then(response => {
                 closeAllModals(); document.querySelector("#my-action-confirmation-btn").value = ''; btnEl.innerHTML = btn;
-                response.status === 'true' ? (apToast('success', response.title, response.message), load_content('Invoice','<?php echo $site_url.$path_admin ?>/invoice','nav-item-invoice')) : apToast('error', response.title, response.message);
+                response.status === 'true' ? (apToast('success', response.title, response.message), load_content('Invoice','<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/invoice','nav-item-invoice')) : apToast('error', response.title, response.message);
             }).catch(err => apToastError());
         } else { show_action_confirmation_tab(btnClass, 'Delete Invoice', 'Delete', 'btn-danger'); }
     }

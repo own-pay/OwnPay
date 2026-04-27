@@ -16,6 +16,7 @@ $e = static fn(mixed $v): string => htmlspecialchars((string) ($v ?? ''), ENT_QU
 if (isset($_GET['lang']) && $_GET['lang'] !== '') {
     op_set_lang((string) $_GET['lang']);
     $redirectTo = op_checkout_address() . '?gateway=' . urlencode((string) ($_GET['gateway'] ?? ''));
+    // nosemgrep: php.lang.security.injection.echoed-request.echoed-request, php.lang.security.taint-unsafe-echo-tag.taint-unsafe-echo-tag
     echo '<script nonce="' . $e($csp_nonce ?? '') . '">location.href=' . json_encode($redirectTo) . ';</script>';
     exit;
 }

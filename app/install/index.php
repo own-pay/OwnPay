@@ -436,6 +436,13 @@ if (isset($_POST['adminName'])) {
     }
 
     try {
+        // Initialize the SOA Database singleton from temp config credentials.
+        // This is required because insertData() → CrudService → Database::getInstance()
+        // expects the singleton to already be initialized, but Bootstrap::init() fails
+        // during install since op-config.php doesn't exist yet.
+        if (class_exists('\\OwnPay\\Core\\Database')) {
+            \OwnPay\Core\Database::init($db_host, $db_name, $db_user, $db_pass);
+        }
         $newTempPassword   = generateStrongPassword(8);
         $hashedPass        = password_hash($adminPassword, PASSWORD_BCRYPT);
         $tempPasswordHash  = password_hash($newTempPassword, PASSWORD_BCRYPT);
@@ -483,6 +490,47 @@ if (isset($_POST['adminName'])) {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;");
         } catch (Throwable $e) {
             // Non-fatal — continue
+        }
+
+        // 5b. Legacy Compatibility Seeding — bridge V2 data into legacy tables
+        try {
+            // Seed op_brands from merchant data
+            insertData($db_prefix . 'brands',
+                ['brand_id', 'identify_name', 'name', 'currency_code', 'currency_symbol', 'timezone', 'language'],
+                [$merchantPublicId, 'System Default', 'System Default', 'BDT', '৳', 'Asia/Dhaka', 'en']
+            );
+
+            // Seed op_admin from admin user data
+            $adminAid = generateUuidV4();
+            insertData($db_prefix . 'admin',
+                ['a_id', 'name', 'email', 'username', 'password', 'temp_password', 'role', 'status', 'created_date', 'updated_date'],
+                [$adminAid, $adminName, $adminEmail, $adminUsername, $hashedPass, $tempPasswordHash, 'admin', 'active', $currentTime, $currentTime]
+            );
+
+            // Seed op_currency
+            insertData($db_prefix . 'currency',
+                ['brand_id', 'code', 'name', 'symbol', 'rate', 'status'],
+                [$merchantPublicId, 'BDT', 'Bangladeshi Taka', '৳', '1.00000000', 'active']
+            );
+
+            // Seed essential op_env settings
+            $envDefaults = [
+                ['both', 'app_name', 'OwnPay'],
+                ['both', 'app_version', '2.0.0'],
+                ['both', 'timezone', 'Asia/Dhaka'],
+                ['both', 'language', 'en'],
+                ['both', 'currency', 'BDT'],
+                ['both', 'theme', 'own-pay'],
+            ];
+            foreach ($envDefaults as $env) {
+                insertData($db_prefix . 'env',
+                    ['brand_id', 'option_name', 'value'],
+                    [$env[0], $env[1], $env[2]]
+                );
+            }
+        } catch (Throwable $e) {
+            // Non-fatal — legacy seeding failure should not block install
+            error_log('[OwnPay Installer] Legacy seeding warning: ' . $e->getMessage());
         }
 
         // 6. Atomically promote temp → final config
@@ -564,7 +612,7 @@ $allPassed = ($passCount === $totalCount);
     <meta name="robots" content="noindex, nofollow">
     <meta name="color-scheme" content="dark">
     <title>Setup · Own Pay</title>
-    <link rel="shortcut icon" href="<?= $OwnPay_favicon ?? '' ?>">
+    <link rel="shortcut icon" href="<?= htmlspecialchars((string) ($OwnPay_favicon ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
@@ -1185,8 +1233,8 @@ $allPassed = ($passCount === $totalCount);
             <div class="brand-name">Own Pay <span>· Setup</span></div>
         </div>
         <div class="env-badges">
-            <span class="env-badge">PHP <?= PHP_VERSION ?></span>
-            <span class="env-badge"><?= PHP_OS ?></span>
+            <span class="env-badge">PHP <?= htmlspecialchars((string) (PHP_VERSION), ENT_QUOTES, 'UTF-8'); ?></span>
+            <span class="env-badge"><?= htmlspecialchars((string) (PHP_OS), ENT_QUOTES, 'UTF-8'); ?></span>
         </div>
     </header>
 
@@ -1225,12 +1273,12 @@ $allPassed = ($passCount === $totalCount);
                     <?php if ($allPassed): ?>
                         <div class="callout success">
                             <span class="c-icon">✓</span>
-                            <span>All <strong><?= $totalCount ?> checks passed</strong>. Your server is ready.</span>
+                            <span>All <strong><?= htmlspecialchars((string) ($totalCount), ENT_QUOTES, 'UTF-8'); ?> checks passed</strong>. Your server is ready.</span>
                         </div>
                     <?php else: ?>
                         <div class="callout warn">
                             <span class="c-icon">⚠</span>
-                            <span><strong><?= ($totalCount - $passCount) ?> requirement(s) failed.</strong> Enable the missing extensions before continuing.</span>
+                            <span><strong><?= htmlspecialchars((string) (($totalCount - $passCount)), ENT_QUOTES, 'UTF-8'); ?> requirement(s) failed.</strong> Enable the missing extensions before continuing.</span>
                         </div>
                     <?php endif; ?>
                     <?php
@@ -1263,7 +1311,7 @@ $allPassed = ($passCount === $totalCount);
                                     <div class="ri-name"><?= htmlspecialchars($req['name']) ?></div>
                                     <div class="ri-meta"><?= htmlspecialchars($req['required']) ?> · <?= htmlspecialchars($req['current']) ?></div>
                                 </div>
-                                <span class="req-badge <?= $ok ? 'ok' : 'fail' ?>"><?= $ok ? '✓ pass' : '✗ fail' ?></span>
+                                <span class="req-badge <?= htmlspecialchars((string) ($ok ? 'ok' : 'fail'), ENT_QUOTES, 'UTF-8'); ?>"><?= htmlspecialchars((string) ($ok ? '✓ pass' : '✗ fail'), ENT_QUOTES, 'UTF-8'); ?></span>
                             </div>
                             <?php if (!$ok && isset($fixGuides[$req['name']])): ?>
                                 <details class="fix-box">
@@ -1431,13 +1479,13 @@ $allPassed = ($passCount === $totalCount);
             <a href="https://github.com/own-pay/ownpay" target="_blank" rel="noopener">GitHub</a>
             <a href="https://github.com/own-pay/ownpay/blob/main/LICENSE" target="_blank" rel="noopener">AGPL-3.0</a>
         </div>
-        <div class="ft-copy">© <?= date('Y') ?> Own Pay · Open Source Payment Platform</div>
+        <div class="ft-copy">© <?= htmlspecialchars((string) (date('Y')), ENT_QUOTES, 'UTF-8'); ?> Own Pay · Open Source Payment Platform</div>
         <div class="ft-sec">AES-256 + bcrypt · Field-level PII encryption</div>
     </footer>
 
     <!-- ═══ SCRIPTS ═══ -->
-    <script nonce="<?= $csp_nonce ?? '' ?>" src="<?= $site_url ?>assets/js/custom-toast.js?v=1.2"></script>
-    <script nonce="<?= $csp_nonce ?? '' ?>">
+    <script nonce="<?= htmlspecialchars((string) ($csp_nonce ?? ''), ENT_QUOTES, 'UTF-8'); ?>" src="<?= htmlspecialchars((string) ($site_url), ENT_QUOTES, 'UTF-8'); ?>assets/js/custom-toast.js?v=1.2"></script>
+    <script nonce="<?= htmlspecialchars((string) ($csp_nonce ?? ''), ENT_QUOTES, 'UTF-8'); ?>">
         (function () {
             let cur = 1;
             function go(step) {

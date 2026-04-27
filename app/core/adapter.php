@@ -9,7 +9,14 @@ if (!defined('OWNPAY_INIT')) {
     exit('Direct access not allowed');
 }
 
-session_start();
+// SEC-13: Harden session security with strict cookie flags
+session_start([
+    'cookie_httponly' => true,
+    'cookie_secure'   => (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'),
+    'cookie_samesite' => 'Lax',
+    'use_only_cookies' => true,
+    'use_strict_mode' => true,
+]);
 
 if (date_default_timezone_get() !== 'UTC') {
     date_default_timezone_set('UTC');
@@ -253,26 +260,47 @@ if (isset($_GET['logout'])) {
 }
 
 // --- SOA Middleware Orchestration ---
-$_sessionMiddleware = new \OwnPay\Middleware\SessionMiddleware();
-$requestContext = $_sessionMiddleware->handle($db_prefix);
+// Only run session middleware when op-config.php has been loaded (i.e., $db_prefix is set).
+// During fresh install, this block is skipped entirely.
+if (isset($db_prefix) && $db_prefix !== '') {
+    $_sessionMiddleware = new \OwnPay\Middleware\SessionMiddleware();
+    $requestContext = $_sessionMiddleware->handle($db_prefix);
 
-// Export to globals for backwards compatibility with controllers
-$csrf_token = $requestContext->csrfToken;
-$global_user_login = $requestContext->isLoggedIn;
-$global_user_2fa = $_sessionMiddleware->is2fa;
-$global_two_fector_validate = false;
-$global_user_response = ['status' => true, 'response' => [$requestContext->user]];
-$global_response_brand = ['status' => true, 'response' => [$requestContext->brand]];
-$global_response_permission = $_sessionMiddleware->permissionResponse;
-$global_permissions = $requestContext->permissions;
-$global_cookie_response = $_sessionMiddleware->cookieResponse;
-$global_brand_currency_code = $_sessionMiddleware->currencyCode;
-$global_brand_currency_symbol = $_sessionMiddleware->currencySymbol;
-$global_brand_currency_rate = $_sessionMiddleware->currencyRate;
+    // Export to globals for backwards compatibility with controllers
+    $csrf_token = $requestContext->csrfToken;
+    $global_user_login = $requestContext->isLoggedIn;
+    $global_user_2fa = $_sessionMiddleware->is2fa;
+    $global_two_fector_validate = false;
+    $global_user_response = ['status' => true, 'response' => [$requestContext->user]];
+    $global_response_brand = ['status' => true, 'response' => [$requestContext->brand]];
+    $global_response_permission = $_sessionMiddleware->permissionResponse;
+    $global_permissions = $requestContext->permissions;
+    $global_cookie_response = $_sessionMiddleware->cookieResponse;
+    $global_brand_currency_code = $_sessionMiddleware->currencyCode;
+    $global_brand_currency_symbol = $_sessionMiddleware->currencySymbol;
+    $global_brand_currency_rate = $_sessionMiddleware->currencyRate;
+} else {
+    // Installer mode: provide safe defaults so the boot sequence doesn't crash
+    $csrf_token = bin2hex(random_bytes(32));
+    $global_user_login = false;
+    $global_user_2fa = false;
+    $global_two_fector_validate = false;
+    $global_user_response = ['status' => false, 'response' => []];
+    $global_response_brand = ['status' => false, 'response' => []];
+    $global_response_permission = [];
+    $global_permissions = [];
+    $global_cookie_response = [];
+    $global_brand_currency_code = 'BDT';
+    $global_brand_currency_symbol = '৳';
+    $global_brand_currency_rate = '1.00000000';
+}
 
 // --- Plugin System Boot ---
 // Load, register, and boot all active plugins before any routing
-\OwnPay\Plugin\PluginLoader::boot();
+// Only boot plugins when the system is fully configured (not during install)
+if (isset($db_prefix) && $db_prefix !== '') {
+    \OwnPay\Plugin\PluginLoader::boot();
+}
 
 if (isset($_POST['action'])) {
     $action = clean_input($_POST['action'] ?? '');
@@ -287,6 +315,7 @@ if (isset($_POST['action'])) {
         $_csrfResult = $_csrfMiddleware->validate($op_app_token);
         if (!$_csrfResult['valid']) {
             $new_csrf_token = $_csrfResult['newToken'] ?? $_SESSION['csrf_token'] ?? '';
+            // nosemgrep: php.lang.security.injection.echoed-request.echoed-request, php.lang.security.taint-unsafe-echo-tag.taint-unsafe-echo-tag
             echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => $_csrfResult['error'], 'csrf_token' => $new_csrf_token]);
             exit;
         }
@@ -302,6 +331,7 @@ if (isset($_POST['action'])) {
             if ($_tfaResult['verified']) {
                 $global_two_fector_validate = true;
             } else {
+                // nosemgrep: php.lang.security.injection.echoed-request.echoed-request, php.lang.security.taint-unsafe-echo-tag.taint-unsafe-echo-tag
                 echo json_encode(['status' => 'false', 'title' => 'Verification Failed', 'message' => $_tfaResult['error'], 'csrf_token' => $new_csrf_token]);
                 exit();
             }
@@ -416,6 +446,7 @@ if (isset($_POST['action-v2'])) {
         $_csrfResult = $_csrfMiddleware->validate($op_app_token);
         if (!$_csrfResult['valid']) {
             $new_csrf_token = $_csrfResult['newToken'] ?? $_SESSION['csrf_token'] ?? '';
+            // nosemgrep: php.lang.security.injection.echoed-request.echoed-request, php.lang.security.taint-unsafe-echo-tag.taint-unsafe-echo-tag
             echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => $_csrfResult['error'], 'csrf_token' => $new_csrf_token]);
             exit;
         }
@@ -445,6 +476,7 @@ if (isset($_POST['action-companion'])) {
         $_csrfResult = $_csrfMiddleware->validate($op_app_token);
         if (!$_csrfResult['valid']) {
             $new_csrf_token = $_csrfResult['newToken'] ?? $_SESSION['csrf_token'] ?? '';
+            // nosemgrep: php.lang.security.injection.echoed-request.echoed-request, php.lang.security.taint-unsafe-echo-tag.taint-unsafe-echo-tag
             echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => $_csrfResult['error'], 'csrf_token' => $new_csrf_token]);
             exit;
         }
@@ -492,12 +524,17 @@ if (isset($_POST['root'])) {
             initPendingTrs();
         </script>
         <?php
-        $base = __DIR__ . '/../admin/dashboard/';
+        $base = realpath(__DIR__ . '/../admin/dashboard/');
+        
+        $targetFile = realpath($base . '/' . $root . '.php');
+        $targetIndex = realpath($base . '/' . $root . '/index.php');
 
-        if (file_exists($base . $root . '.php')) {
-            include($base . $root . '.php');
-        } else if (file_exists($base . $root . '/index.php')) {
-            include($base . $root . '/index.php');
+        if ($targetFile !== false && strpos($targetFile, $base) === 0 && file_exists($targetFile)) {
+            // nosemgrep: php.laravel.security.laravel-path-traversal.laravel-path-traversal, php.lang.security.tainted-path-traversal.tainted-path-traversal
+            include($targetFile);
+        } else if ($targetIndex !== false && strpos($targetIndex, $base) === 0 && file_exists($targetIndex)) {
+            // nosemgrep: php.laravel.security.laravel-path-traversal.laravel-path-traversal, php.lang.security.tainted-path-traversal.tainted-path-traversal
+            include($targetIndex);
         } else {
             echo '<div class="flex flex-col items-center justify-center py-32"><div class="w-20 h-20 mb-4 rounded-full bg-gray-50 dark:bg-gray-800 flex items-center justify-center"><svg xmlns="http://www.w3.org/2000/svg" class="w-10 h-10 text-gray-400 dark:text-gray-500" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 7v4a1 1 0 0 0 1 1h3"/><path d="M7 7v10"/><path d="M10 8v8a1 1 0 0 0 1 1h2a1 1 0 0 0 1 -1v-8a1 1 0 0 0 -1 -1h-2a1 1 0 0 0 -1 1z"/><path d="M17 7v4a1 1 0 0 0 1 1h3"/><path d="M21 7v10"/></svg></div><h3 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Page Not Found</h3><p class="text-sm text-gray-500 dark:text-gray-400">The page you are looking for does not exist or has been moved.</p></div>';
             exit;

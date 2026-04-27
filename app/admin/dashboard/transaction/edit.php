@@ -24,9 +24,9 @@ if (!defined('OWNPAY_INIT')) {
     }else{
         $ref = clean_input($ref);
 
-        $response_transaction = json_decode(getData($db_prefix.'transaction','WHERE ref = "'.$ref.'" AND brand_id = "'.$global_response_brand['response'][0]['brand_id'].'" AND status NOT IN ("initiated")'),true);
+        $response_transaction = json_decode(getData($db_prefix.'transaction','WHERE ref = :ref AND brand_id = :brand_id AND status != :exc_status', '* FROM', [':ref' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id'], ':exc_status' => 'initiated']),true);
         if($response_transaction['status'] == true){
-            $response_gateway = json_decode(getData($db_prefix.'gateways',' WHERE brand_id ="'.$global_response_brand['response'][0]['brand_id'].'" AND gateway_id = "'.$response_transaction['response'][0]['gateway_id'].'"'),true);
+            $response_gateway = json_decode(getData($db_prefix.'gateways',' WHERE brand_id = :brand_id AND gateway_id = :gateway_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':gateway_id' => $response_transaction['response'][0]['gateway_id']]),true);
 
             $gateway_name = $response_gateway['response'][0]['name'] ?? 'Unknown';
 
@@ -56,18 +56,18 @@ if (!defined('OWNPAY_INIT')) {
     <div>
         <nav class="flex mb-1" aria-label="Breadcrumb">
             <ol class="inline-flex items-center space-x-1 text-sm text-gray-500 dark:text-gray-400">
-                <li><a href="javascript:void(0)" onclick="load_content('Transaction','<?php echo $site_url.$path_admin ?>/transaction','nav-item-transaction')" class="hover:text-primary-600">Transaction</a></li>
+                <li><a href="javascript:void(0)" onclick="load_content('Transaction','<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/transaction','nav-item-transaction')" class="hover:text-primary-600">Transaction</a></li>
                 <li class="flex items-center"><svg class="w-3 h-3 mx-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"></path></svg><span class="text-gray-900 dark:text-white font-medium">View Transaction</span></li>
             </ol>
         </nav>
         <h2 class="op-page-title">View Transaction</h2>
     </div>
     <div class="flex items-center gap-2">
-        <button data-modal-target="model-bulkAction" data-modal-toggle="model-bulkAction" class="op-btn-primary <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'edit', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
+        <button data-modal-target="model-bulkAction" data-modal-toggle="model-bulkAction" class="op-btn-primary <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'edit', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 me-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415" /><path d="M16 5l3 3" /></svg> Edit
         </button>
-        <button class="op-btn-primary btnIpnItem-<?php echo $ref;?> <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'send_ipn', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>" onclick="ipnItem('<?php echo $ref;?>')" style="background-color:#059669">Send IPN</button>
-        <button class="op-btn-danger btnDeleteItem-<?php echo $ref;?> <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'delete', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>" onclick="deleteItem('<?php echo $ref;?>')">Delete</button>
+        <button class="op-btn-primary btnIpnItem-<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?> <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'send_ipn', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>" onclick="ipnItem('<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>')" style="background-color:#059669">Send IPN</button>
+        <button class="op-btn-danger btnDeleteItem-<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?> <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'delete', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>" onclick="deleteItem('<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>')">Delete</button>
     </div>
 </div>
 
@@ -78,15 +78,15 @@ if (!defined('OWNPAY_INIT')) {
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
             <div>
                 <label class="op-label">Payment ID</label>
-                <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $response_transaction['response'][0]['ref']?></p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['ref']), ENT_QUOTES, 'UTF-8'); ?></p>
             </div>
             <div>
                 <label class="op-label">Date</label>
-                <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo convertUTCtoUserTZ($response_transaction['response'][0]['created_date'], empty($global_response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")?></p>
+                <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) (convertUTCtoUserTZ($response_transaction['response'][0]['created_date'], empty($global_response_brand['response'][0]['timezone']) ? 'Asia/Dhaka' : $global_response_brand['response'][0]['timezone'], "M d, Y h:i A")), ENT_QUOTES, 'UTF-8'); ?></p>
             </div>
             <div>
                 <label class="op-label">Status</label>
-                <p class="text-sm"><span class="<?php echo $badgeClass; ?>"><?php echo $badgeText; ?></span></p>
+                <p class="text-sm"><span class="<?php echo htmlspecialchars((string) ($badgeClass), ENT_QUOTES, 'UTF-8'); ?>"><?php echo htmlspecialchars((string) ($badgeText), ENT_QUOTES, 'UTF-8'); ?></span></p>
             </div>
         </div>
     </div>
@@ -111,25 +111,25 @@ if (!defined('OWNPAY_INIT')) {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="op-label">Gateway</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $gateway_name?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($gateway_name), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Currency</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $response_transaction['response'][0]['local_currency']?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['local_currency']), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Sender</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $response_transaction['response'][0]['sender']?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['sender']), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <?php if(!empty($response_transaction['response'][0]['trx_slip'])){ ?>
                     <div>
                         <label class="op-label">Payment Slip</label>
-                        <p class="text-sm"><a href="<?php echo $response_transaction['response'][0]['trx_slip']?>" target="_blank" class="text-primary-600 hover:underline">View</a></p>
+                        <p class="text-sm"><a href="<?php echo htmlspecialchars((string) ($response_transaction['response'][0]['trx_slip']), ENT_QUOTES, 'UTF-8'); ?>" target="_blank" class="text-primary-600 hover:underline">View</a></p>
                     </div>
                     <?php }else{ ?>
                     <div>
                         <label class="op-label">Transaction Id</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $response_transaction['response'][0]['trx_id']?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['trx_id']), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <?php } ?>
                 </div>
@@ -140,27 +140,27 @@ if (!defined('OWNPAY_INIT')) {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="op-label">Currency</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $response_transaction['response'][0]['currency']?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Amount</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['amount'], 2)?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Processing Fee</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['processing_fee'], 2)?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['processing_fee'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Discount Amount</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['discount_amount'], 2)?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['discount_amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Net Amount</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['amount']+$response_transaction['response'][0]['processing_fee']-$response_transaction['response'][0]['discount_amount'], 2)?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['amount']+$response_transaction['response'][0]['processing_fee']-$response_transaction['response'][0]['discount_amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Net Local Amount</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $response_transaction['response'][0]['local_currency'].' '.money_round($response_transaction['response'][0]['local_net_amount'], 2)?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['local_currency'].' '.money_round($response_transaction['response'][0]['local_net_amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                 </div>
             </div>
@@ -173,15 +173,15 @@ if (!defined('OWNPAY_INIT')) {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <div>
                         <label class="op-label">Full Name</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $customer_info['name'] ?? '' ?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($customer_info['name'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Email Address</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $customer_info['email'] ?? '' ?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($customer_info['email'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Mobile Number</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $customer_info['mobile'] ?? '' ?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($customer_info['mobile'] ?? ''), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                 </div>
             </div>
@@ -195,8 +195,8 @@ if (!defined('OWNPAY_INIT')) {
                 <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
                     <?php foreach($metadata as $key => $value){ ?>
                     <div>
-                        <label class="op-label"><?php echo $key?></label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo $value ?? '' ?></p>
+                        <label class="op-label"><?php echo htmlspecialchars((string) ($key), ENT_QUOTES, 'UTF-8'); ?></label>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($value ?? ''), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <?php } ?>
                 </div>
@@ -239,11 +239,11 @@ if (!defined('OWNPAY_INIT')) {
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label class="op-label">Return URL</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white break-all"><?php echo empty($response_transaction['response'][0]['return_url']) ? '—' : $response_transaction['response'][0]['return_url']; ?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white break-all"><?php echo htmlspecialchars((string) (empty($response_transaction['response'][0]['return_url']) ? '—' : $response_transaction['response'][0]['return_url']), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Webhook URL</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white break-all"><?php echo empty($response_transaction['response'][0]['webhook_url']) ? '—' : $response_transaction['response'][0]['webhook_url']; ?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white break-all"><?php echo htmlspecialchars((string) (empty($response_transaction['response'][0]['webhook_url']) ? '—' : $response_transaction['response'][0]['webhook_url']), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                 </div>
             </div>
@@ -265,9 +265,9 @@ if (!defined('OWNPAY_INIT')) {
                 <label class="op-label">Action <span class="text-red-500">*</span></label>
                 <select class="op-select" id="model-bulkActionID">
                     <option value="" selected>Select a Action</option>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'approve', $global_user_response['response'][0]['role']) ? '<option value="approved">Approve</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'cancel', $global_user_response['response'][0]['role']) ? '<option value="canceled">Cancel</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'refund', $global_user_response['response'][0]['role']) ? '<option value="refunded">Refund</option>' : '' ?>
+                    <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'approve', $global_user_response['response'][0]['role']) ? '<option value="approved">Approve</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
+                    <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'cancel', $global_user_response['response'][0]['role']) ? '<option value="canceled">Cancel</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
+                    <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'refund', $global_user_response['response'][0]['role']) ? '<option value="refunded">Refund</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
                 </select>
             </div>
             <div class="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700">
@@ -278,8 +278,8 @@ if (!defined('OWNPAY_INIT')) {
     </div>
 </div>
 
-<script nonce="<?= $csp_nonce ?? '' ?>" data-cfasync="false">
-    window.OP_DASHBOARD_URL = '<?php echo $site_url.$path_admin ?>/dashboard';
+<script nonce="<?= htmlspecialchars((string) ($csp_nonce ?? ''), ENT_QUOTES, 'UTF-8'); ?>" data-cfasync="false">
+    window.OP_DASHBOARD_URL = '<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/dashboard';
 
     // Tabs: handled by Flowbite data-tabs-toggle (auto-initialized via initFlowbite)
 
@@ -291,7 +291,7 @@ if (!defined('OWNPAY_INIT')) {
         if(actionID === ""){
             apToast('error', 'Action Required', "You haven't selected any action.");
         } else {
-            const selectedRows = ['<?php echo $ref ?>'];
+            const selectedRows = ['<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>'];
 
             if(my_action_confirmation_btn !== ""){
                 var btnEl = document.querySelector('#model-my-action-confirmation-btn');
@@ -307,7 +307,7 @@ if (!defined('OWNPAY_INIT')) {
 
                         if (response.status === 'true') {
                             apToast('success', response.title, response.message);
-                            load_content('Edit Transaction','<?php echo $site_url.$path_admin ?>/transaction/edit?t_id=<?php echo $ref?>','nav-item-transaction');
+                            load_content('Edit Transaction','<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/transaction/edit?t_id=<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>','nav-item-transaction');
                         } else {
                             apToast('error', response.title, response.message);
                         }
@@ -358,7 +358,7 @@ if (!defined('OWNPAY_INIT')) {
 
                     if (response.status === 'true') {
                         apToast('success', response.title, response.message);
-                        load_content('Transaction','<?php echo $site_url.$path_admin ?>/transaction','nav-item-transaction');
+                        load_content('Transaction','<?php echo htmlspecialchars((string) ($site_url.$path_admin), ENT_QUOTES, 'UTF-8'); ?>/transaction','nav-item-transaction');
                     } else {
                         apToast('error', response.title, response.message);
                     }
