@@ -34,3 +34,6 @@ op-config.php.bak
 
 # Installer lock file (generated at runtime, contains environment-specific data)
 app/install/.installed
+
+# Local agent/AI tool configuration (may contain secrets)
+.claude/
