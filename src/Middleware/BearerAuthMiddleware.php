@@ -9,7 +9,7 @@ use OwnPay\Service\ApiKeyService;
 /**
  * BearerAuthMiddleware — extracts and validates Bearer tokens.
  *
- * Replaces the legacy MHS-OwnPay-API-KEY header authentication.
+ * Replaces the legacy X-API-Key header authentication.
  * Expected header format: Authorization: Bearer <TOKEN>
  */
 final class BearerAuthMiddleware
