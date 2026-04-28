@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace OwnPay\Tests\Unit\Controller;
+namespace OwnPay\Controller;
 
 use OwnPay\Service\SmsRegexParser;
 use PHPUnit\Framework\TestCase;

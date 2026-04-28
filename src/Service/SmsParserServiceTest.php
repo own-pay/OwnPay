@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace OwnPay\Tests\Unit\Service;
+namespace OwnPay\Service;
 
 use OwnPay\Service\SmsParserService;
 use OwnPay\Service\SmsRegexParser;

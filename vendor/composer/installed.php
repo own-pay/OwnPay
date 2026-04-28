@@ -1,9 +1,9 @@
 <?php return array(
     'root' => array(
-        'name' => 'ownpay/ownpay',
+        'name' => 'own-pay/ownpay',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '57b85d7731d2448ab641bbeb32f910274f281d54',
+        'reference' => '5898d0be43077367379c70322a151f582680b9fa',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -82,10 +82,10 @@
             'aliases' => array(),
             'dev_requirement' => true,
         ),
-        'ownpay/ownpay' => array(
+        'own-pay/ownpay' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '57b85d7731d2448ab641bbeb32f910274f281d54',
+            'reference' => '5898d0be43077367379c70322a151f582680b9fa',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),
