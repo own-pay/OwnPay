@@ -334,7 +334,21 @@ if (isset($_POST['test_databse_request'])) {
             $pdo->commit();
         }
 
-        // Write a temp config with LOCK_EX; promoted to op-config.php after admin step
+        // Write a temp env file with LOCK_EX; promoted to .env after admin step
+        $envContent = "DB_HOST=" . $host . "\n"
+            . "DB_PORT=" . $port . "\n"
+            . "DB_NAME=" . $dbname . "\n"
+            . "DB_USER=" . $username . "\n"
+            . "DB_PASS=" . $password . "\n"
+            . "DB_PREFIX=" . $tablePrefix . "\n";
+
+        $tempEnvPath = __DIR__ . '/../../.env.temp';
+        if (file_put_contents($tempEnvPath, $envContent, LOCK_EX) === false) {
+            throw new Exception("Failed to write temp env file.");
+        }
+        @chmod($tempEnvPath, 0640);
+
+        // Write a temp config to pass credentials to the next step
         $configContent = "<?php\n"
             . "    \$db_host   = '" . addslashes($host)        . "';\n"
             . "    \$db_user   = '" . addslashes($username)    . "';\n"
@@ -428,14 +442,18 @@ if (isset($_POST['adminName'])) {
     }
 
     $tempFile  = __DIR__ . '/../../op-temp-config.php';
+    $tempEnvFile = __DIR__ . '/../../.env.temp';
+    $finalEnvFile = __DIR__ . '/../../.env';
     $finalFile = __DIR__ . '/../../op-config.php';
 
-    if (!file_exists($tempFile)) {
+    if (!file_exists($tempFile) || !file_exists($tempEnvFile)) {
         echo json_encode(['status' => 'false', 'message' => 'Temp config not found. Please complete the database step first.']);
         exit;
     }
 
     try {
+        require $tempFile;
+
         // Initialize the SOA Database singleton from temp config credentials.
         // This is required because insertData() → CrudService → Database::getInstance()
         // expects the singleton to already be initialized, but Bootstrap::init() fails
@@ -533,15 +551,49 @@ if (isset($_POST['adminName'])) {
             error_log('[OwnPay Installer] Legacy seeding warning: ' . $e->getMessage());
         }
 
-        // 6. Atomically promote temp → final config
-        $configContent = file_get_contents($tempFile);
-        if ($configContent === false) {
-            throw new Exception('Failed to read temp config.');
+        // 6. Atomically promote temp env to final .env and auto-generate op-config.php
+        $envContent = file_get_contents($tempEnvFile);
+        if ($envContent === false) {
+            throw new Exception('Failed to read temp env file.');
         }
-        if (file_put_contents($finalFile, $configContent, LOCK_EX) === false) {
-            throw new Exception('Failed to write final config.');
+        if (file_put_contents($finalEnvFile, $envContent, LOCK_EX) === false) {
+            throw new Exception('Failed to write final .env file.');
+        }
+        @chmod($finalEnvFile, 0640);
+
+        // Auto-generate op-config.php with dotenv loading logic
+        $opConfigContent = "<?php\n"
+            . "/**\n"
+            . " * Own Pay — Configuration\n"
+            . " *\n"
+            . " * Loads database credentials from .env file via vlucas/phpdotenv.\n"
+            . " * Falls back to \$_ENV/\$_SERVER overrides, then to safe defaults (dev convenience only).\n"
+            . " */\n\n"
+            . "// Load Composer autoloader (needed for phpdotenv)\n"
+            . "\$autoloadPath = __DIR__ . '/vendor/autoload.php';\n"
+            . "if (file_exists(\$autoloadPath)) {\n"
+            . "    require_once \$autoloadPath;\n"
+            . "}\n\n"
+            . "// Load .env if it exists\n"
+            . "\$envPath = __DIR__ . '/.env';\n"
+            . "if (file_exists(\$envPath) && class_exists('Dotenv\\Dotenv')) {\n"
+            . "    \$dotenv = Dotenv\\Dotenv::createImmutable(__DIR__);\n"
+            . "    \$dotenv->safeLoad();\n"
+            . "}\n\n"
+            . "// Database configuration — sourced from .env, with fallback defaults\n"
+            . "\$db_host   = \$_ENV['DB_HOST']   ?? \$_SERVER['DB_HOST']   ?? 'localhost';\n"
+            . "\$db_user   = \$_ENV['DB_USER']   ?? \$_SERVER['DB_USER']   ?? 'root';\n"
+            . "\$db_pass   = \$_ENV['DB_PASS']   ?? \$_SERVER['DB_PASS']   ?? '';\n"
+            . "\$db_name   = \$_ENV['DB_NAME']   ?? \$_SERVER['DB_NAME']   ?? 'ownpay';\n"
+            . "\$db_prefix = \$_ENV['DB_PREFIX'] ?? \$_SERVER['DB_PREFIX'] ?? 'op_';\n"
+            . "?>\n";
+
+        if (file_put_contents($finalFile, $opConfigContent, LOCK_EX) === false) {
+            throw new Exception('Failed to auto-generate op-config.php.');
         }
         @chmod($finalFile, 0640);
+
+        @unlink($tempEnvFile);
         @unlink($tempFile);
 
         // 7. Write the install marker — this is the WordPress-style siteurl flag
