@@ -7,5 +7,8 @@
   "devDependencies": {
     "flowbite": "^2.5",
     "tailwindcss": "^3.4"
+  },
+  "dependencies": {
+    "caniuse-lite": "^1.0.30001791"
   }
 }

@@ -3,7 +3,6 @@ docs/
 # Environment & secrets
 .env
 .env.*
-!.env.example
 
 # PHPUnit cache
 .phpunit.cache/
@@ -19,6 +18,7 @@ check_db.php
 
 # Dependencies
 node_modules/
+vendor/
 
 # OS files
 .DS_Store
@@ -30,7 +30,6 @@ Thumbs.db
 *.swp
 *.swo
 README.md
-op-config.php.bak
 
 # Installer lock file (generated at runtime, contains environment-specific data)
 app/install/.installed
