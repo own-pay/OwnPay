@@ -74,6 +74,8 @@ class SmsTemplateAdminController
                         $response[] = [
                             'id'               => $row['id'],
                             'provider_name'    => $row['provider_name'],
+                            'currency'         => $row['currency'],
+                            'balance_verify'   => (int) $row['balance_verify'],
                             'sender_pattern'   => $row['sender_pattern'],
                             'regex_pattern'    => $row['regex_pattern'],
                             'transaction_type' => $row['transaction_type'],
@@ -114,6 +116,8 @@ class SmsTemplateAdminController
                         'status'           => 'true',
                         'id'               => $template['id'],
                         'provider_name'    => $template['provider_name'],
+                        'currency'         => $template['currency'],
+                        'balance_verify'   => (int) $template['balance_verify'],
                         'sender_pattern'   => $template['sender_pattern'],
                         'regex_pattern'    => $template['regex_pattern'],
                         'transaction_type' => $template['transaction_type'],
@@ -136,8 +140,18 @@ class SmsTemplateAdminController
                 if (PermissionGuard::denyUnlessHas($ctx, 'sms_data', 'create')) { return; }
 
                 $provider_name    = InputSanitizer::trim($request->post('provider_name', ''));
+                $currency         = InputSanitizer::trim($request->post('currency', 'BDT'));
+                $balance_verify   = (int) $request->post('balance_verify', '1');
                 $sender_pattern   = InputSanitizer::trim($request->post('sender_pattern', ''));
-                $regex_pattern    = $request->post('regex_pattern', ''); // Don't trim regex
+                $input_type       = InputSanitizer::trim($request->post('input_type', 'regex'));
+                
+                if ($input_type === 'raw') {
+                    $raw_sms = trim($request->post('raw_sms', ''));
+                    $regex_pattern = self::convertRawToRegex($raw_sms);
+                } else {
+                    $regex_pattern = $request->post('regex_pattern', ''); // Don't trim regex
+                }
+                
                 $transaction_type = InputSanitizer::trim($request->post('transaction_type', 'credit'));
                 $priority         = (int) $request->post('priority', '100');
                 $is_active        = (int) $request->post('is_active', '1');
@@ -160,6 +174,8 @@ class SmsTemplateAdminController
                 $repo = new SmsTemplateRepository();
                 $repo->create([
                     'provider_name'    => $provider_name,
+                    'currency'         => $currency,
+                    'balance_verify'   => $balance_verify,
                     'sender_pattern'   => $sender_pattern,
                     'regex_pattern'    => $regex_pattern,
                     'transaction_type' => $transaction_type,
@@ -181,8 +197,18 @@ class SmsTemplateAdminController
 
                 $itemId           = (int) $request->post('itemid', '0');
                 $provider_name    = InputSanitizer::trim($request->post('provider_name', ''));
+                $currency         = InputSanitizer::trim($request->post('currency', 'BDT'));
+                $balance_verify   = (int) $request->post('balance_verify', '1');
                 $sender_pattern   = InputSanitizer::trim($request->post('sender_pattern', ''));
-                $regex_pattern    = $request->post('regex_pattern', '');
+                $input_type       = InputSanitizer::trim($request->post('input_type', 'regex'));
+
+                if ($input_type === 'raw') {
+                    $raw_sms = trim($request->post('raw_sms', ''));
+                    $regex_pattern = self::convertRawToRegex($raw_sms);
+                } else {
+                    $regex_pattern = $request->post('regex_pattern', '');
+                }
+
                 $transaction_type = InputSanitizer::trim($request->post('transaction_type', 'credit'));
                 $priority         = (int) $request->post('priority', '100');
                 $is_active        = (int) $request->post('is_active', '1');
@@ -216,6 +242,8 @@ class SmsTemplateAdminController
 
                 $repo->update($itemId, [
                     'provider_name'    => $provider_name,
+                    'currency'         => $currency,
+                    'balance_verify'   => $balance_verify,
                     'sender_pattern'   => $sender_pattern,
                     'regex_pattern'    => $regex_pattern,
                     'transaction_type' => $transaction_type,
@@ -490,5 +518,34 @@ class SmsTemplateAdminController
                 echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
             }
         }
+    }
+
+    /**
+     * Convert a raw SMS template with {tags} into a robust regex.
+     */
+    private static function convertRawToRegex(string $raw): string
+    {
+        if ($raw === '') return '';
+
+        // Escape the raw string for regex
+        $pattern = preg_quote($raw, '/');
+        
+        // Replace escaped placeholders with named capture groups
+        $replacements = [
+            '\\{amount\\}' => '(?P<amount>[\d,]+(?:\.\d{1,2})?)',
+            '\\{sender\\}' => '(?P<sender_number>\d{11,})',
+            '\\{trxid\\}'  => '(?P<trx_id>[A-Z0-9]+)',
+            '\\{balance\\}'=> '(?P<balance>[\d,]+(?:\.\d{1,2})?)',
+        ];
+        
+        foreach ($replacements as $search => $replace) {
+            $pattern = str_replace($search, $replace, $pattern);
+        }
+        
+        // Make whitespace flexible (e.g. \s+)
+        $pattern = preg_replace('/\\\s+/', '\s*', $pattern);
+        
+        // Add case insensitivity
+        return '/' . $pattern . '/i';
     }
 }

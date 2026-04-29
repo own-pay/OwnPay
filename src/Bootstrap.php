@@ -47,7 +47,7 @@ final class Bootstrap
         $name = $dbConfig['name'] ?? $GLOBALS['db_name'] ?? 'ownpay';
         $user = $dbConfig['user'] ?? $GLOBALS['db_user'] ?? 'root';
         $pass = $dbConfig['pass'] ?? $GLOBALS['db_pass'] ?? '';
-        $port = (int) ($dbConfig['port'] ?? 3306);
+        $port = (int) ($dbConfig['port'] ?? $GLOBALS['db_port'] ?? 3306);
 
         // Initialize Database singleton
         Database::init($host, $name, $user, $pass, $port);

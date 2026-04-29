@@ -158,6 +158,7 @@ final class SmsParserService
 
         // Tier 1: Regex templates
         $templates = $this->templateRepo->findBySender($sender);
+        $templates = apply_filters('mfs.templates', $templates);
         $parsed = $this->regexParser->parse($rawMessage, $templates);
 
         // Tier 2: Heuristic fallback

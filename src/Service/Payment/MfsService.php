@@ -25,85 +25,26 @@ class MfsService
 
     public static function senderWhitelist(?string $sender = null, ?string $providerKey = null, string $mode = 'provider', ?string $providerName = null)
     {
-        $providers = [
-            'bkash' => [
-                'name' => 'bKash',
-                'currency' => 'BDT',
-                'balance_verify' => 'true',
-                'senders' => ['bkash'],
-            ],
-            'nagad' => [
-                'name' => 'Nagad',
-                'currency' => 'BDT',
-                'balance_verify' => 'true',
-                'senders' => ['nagad'],
-            ],
-            'rocket' => [
-                'name' => 'Rocket',
-                'currency' => 'BDT',
-                'balance_verify' => 'true',
-                'senders' => ['16216'],
-            ],
-            'upay' => [
-                'name' => 'Upay',
-                'currency' => 'BDT',
-                'balance_verify' => 'true',
-                'senders' => ['upay'],
-            ],
-            'tap' => [
-                'name' => 'Tap',
-                'currency' => 'USD',
-                'balance_verify' => 'true',
-                'senders' => ['tap.'],
-            ],
-            'cellfin' => [
-                'name' => 'Cellfin',
-                'currency' => 'BDT',
-                'balance_verify' => 'false',
-                'senders' => ['ibbl .'],
-            ],
-            'okwallet' => [
-                'name' => 'Ok Wallet',
-                'currency' => 'BDT',
-                'balance_verify' => 'true',
-                'senders' => ['01847-348685'],
-            ],
-            'mcash' => [
-                'name' => 'mCash',
-                'currency' => 'BDT',
-                'balance_verify' => 'true',
-                'senders' => ['16259'],
-            ],
-            'pathaopay' => [
-                'name' => 'Pathao Pay',
-                'currency' => 'BDT',
-                'balance_verify' => 'true',
-                'senders' => ['pathaopay'],
-            ],
-            'telecash' => [
-                'name' => 'TeleCash',
-                'currency' => 'BDT',
-                'balance_verify' => 'true',
-                'senders' => ['telecash'],
-            ],
-            'ipay' => [
-                'name' => 'Ipay',
-                'currency' => 'BDT',
-                'balance_verify' => 'true',
-                'senders' => ['09638-900800'],
-            ],
-        ];
+        $repo = new \OwnPay\Repository\SmsTemplateRepository();
+        $dbProviders = $repo->findAllProviders();
+        
+        $providers = [];
+        foreach ($dbProviders as $row) {
+            $key = strtolower(preg_replace('/[^a-zA-Z0-9_]/', '', $row['provider_name']));
+            if (!isset($providers[$key])) {
+                $providers[$key] = [
+                    'name' => $row['provider_name'],
+                    'currency' => $row['currency'] ?? 'BDT',
+                    'balance_verify' => ((int)$row['balance_verify'] === 1) ? 'true' : 'false',
+                    'senders' => [],
+                ];
+            }
+            if (!in_array($row['sender_pattern'], $providers[$key]['senders'])) {
+                $providers[$key]['senders'][] = $row['sender_pattern'];
+            }
+        }
 
         // ── Plugin hook: allow addons to register additional MFS providers ──
-        // Usage: add_filter('mfs.providers', function($providers) {
-        //     $providers['myprovider'] = [
-        //         'name' => 'My Provider',
-        //         'currency' => 'BDT',
-        //         'balance_verify' => 'true',
-        //         'senders' => ['myprovider', 'my-provider-alt'],
-        //     ];
-        //     return $providers;
-        // });
         $providers = apply_filters('mfs.providers', $providers);
 
         if ($mode === 'senders') {
@@ -160,290 +101,32 @@ class MfsService
     {
         $message = trim(preg_replace('/\s+/', ' ', $message));
 
-        $formats = [
-            'bkash' => [
-                // 🔹 PERSONAL (Most specific first)
-                [
-                    'type' => 'Personal',
-                    'priority' => 100,
-                    'pattern' => '/You have received Tk ([\d,.]+) from (\d+)\.(?:\s*Ref[:\-]?\s*(\S+))? Fee Tk ([\d,.]+)\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map' => ['amount', 'sender', 'ref', 'fee', 'balance', 'trxid', 'datetime']
-                ],
-                [
-                    'type' => 'Personal',
-                    'priority' => 90,
-                    'pattern' => '/Cash In Tk ([\d,.]+) from (\d+) successful\. Fee Tk ([\d,.]+)\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map' => ['amount', 'sender', 'fee', 'balance', 'trxid', 'datetime']
-                ],
-                [
-                    'type' => 'Merchant',
-                    'priority' => 80,
-                    'pattern' => '/You have received payment Tk ([\d,.]+) from (\d+)\.(?:\s*Ref[:\-]?\s*(\S+))? Fee Tk ([\d,.]+)\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map' => ['amount', 'sender', 'ref', 'fee', 'balance', 'trxid', 'datetime']
-                ],
+        $repo = new \OwnPay\Repository\SmsTemplateRepository();
+        $dbTemplates = $repo->findBySender($mfs);
 
-                /*
-                // 🔹 AGENT
-                [
-                    'type'     => 'Agent',
-                    'priority' => 60,
-                    'pattern'  => '/Cash In Tk ([\d,.]+) from (\d+) successful\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+)/i',
-                    'map'      => ['amount', 'sender', 'balance', 'trxid']
-                ],*/
-            ],
-            'nagad' => [
-                // 🔹 PERSONAL (Most specific first)
-                [
-                    'type' => 'Personal',
-                    'priority' => 100,
-                    'pattern' => '/Money Received\. Amount: Tk ([\d,.]+) Sender: (\d+)(?:\s*Ref[:\-]?\s*(\S+))? TxnID: ([A-Z0-9]+) Balance: Tk ([\d,.]+) ([\d\/:\s]+)/i',
-                    'map' => ['amount', 'sender', 'ref', 'trxid', 'balance', 'datetime']
-                ],
-                [
-                    'type' => 'Personal',
-                    'priority' => 90,
-                    'pattern' => '/Cash In Received\. Amount: Tk ([\d,.]+) Uddokta: (\d+) TxnID: ([A-Z0-9]+) Balance: ([\d,.]+) ([\d\/:\s]+)/i',
-                    'map' => ['amount', 'sender', 'trxid', 'balance', 'datetime']
-                ],
+        // ── Plugin hook: allow addons to register additional SMS templates ──
+        $templates = apply_filters('mfs.templates', $dbTemplates);
 
-                /*
-                [
-                    'type'     => 'Merchant',
-                    'priority' => 70,
-                    'pattern'  => '/received a payment of Tk ([\d,.]+) from (\d+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map'      => ['amount', 'sender', 'trxid', 'datetime']
-                ],
-
-                // 🔹 AGENT
-                [
-                    'type'     => 'Agent',
-                    'priority' => 60,
-                    'pattern'  => '/Cash In Tk ([\d,.]+) from (\d+) successful\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+)/i',
-                    'map'      => ['amount', 'sender', 'balance', 'trxid']
-                ],*/
-            ],
-            'rocket' => [
-                // 🔹 PERSONAL (Most specific first)
-                [
-                    'type' => 'Personal',
-                    'priority' => 100,
-                    'pattern' => '/Tk([\d,.]+) received from A\/C:([*\d]+) Fee:Tk([\d,.]+)\, Your A\/C Balance: Tk([\d,.]+) TxnId:([A-Z0-9]+)(?: Date:([\w\-:\s]+))?/i',
-                    'map' => ['amount', 'sender', 'fee', 'balance', 'trxid', 'datetime']
-                ],
-
-                /*
-                [
-                    'type'     => 'Merchant',
-                    'priority' => 70,
-                    'pattern'  => '/received a payment of Tk ([\d,.]+) from (\d+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map'      => ['amount', 'sender', 'trxid', 'datetime']
-                ],
-
-                // 🔹 AGENT
-                [
-                    'type'     => 'Agent',
-                    'priority' => 60,
-                    'pattern'  => '/Cash In Tk ([\d,.]+) from (\d+) successful\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+)/i',
-                    'map'      => ['amount', 'sender', 'balance', 'trxid']
-                ],*/
-            ],
-            'upay' => [
-                // 🔹 PERSONAL (Most specific first)
-                [
-                    'type' => 'Personal',
-                    'priority' => 100,
-                    'pattern' => '/Tk\. ([\d,.]+) has been received from (\d+)\.(?:\s*Ref[:\-]?\s*(\S+))? Balance Tk\. ([\d,.]+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)\./i',
-                    'map' => ['amount', 'sender', 'ref', 'balance', 'trxid', 'datetime']
-                ],
-
-                /*
-                [
-                    'type'     => 'Merchant',
-                    'priority' => 70,
-                    'pattern'  => '/received a payment of Tk ([\d,.]+) from (\d+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map'      => ['amount', 'sender', 'trxid', 'datetime']
-                ],
-
-                // 🔹 AGENT
-                [
-                    'type'     => 'Agent',
-                    'priority' => 60,
-                    'pattern'  => '/Cash In Tk ([\d,.]+) from (\d+) successful\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+)/i',
-                    'map'      => ['amount', 'sender', 'balance', 'trxid']
-                ],*/
-            ],
-            'tap' => [
-                // 🔹 PERSONAL (Most specific first)
-                [
-                    'type' => 'Personal',
-                    'priority' => 100,
-                    'pattern' => '/Received Tk ([\d,.]+) from (\d+)\. Balance Tk\. ([\d,.]+)\. TxID: ([A-Z0-9]+)\./i',
-                    'map' => ['amount', 'sender', 'balance', 'trxid']
-                ],
-
-                /*
-                [
-                    'type'     => 'Merchant',
-                    'priority' => 70,
-                    'pattern'  => '/received a payment of Tk ([\d,.]+) from (\d+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map'      => ['amount', 'sender', 'trxid', 'datetime']
-                ],
-
-                // 🔹 AGENT
-                [
-                    'type'     => 'Agent',
-                    'priority' => 60,
-                    'pattern'  => '/Cash In Tk ([\d,.]+) from (\d+) successful\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+)/i',
-                    'map'      => ['amount', 'sender', 'balance', 'trxid']
-                ],*/
-            ],
-            'cellfin' => [
-                // 🔹 PERSONAL (Most specific first)
-                [
-                    'type' => 'Personal',
-                    'priority' => 100,
-                    'pattern' => '/Islami Bank CellFin Received ([\d,.]+) Tk From CellFin: (\d+) To CellFin: (\d+) TrxId: ([A-Z0-9]+)/i',
-                    'map' => ['amount', 'sender', 'receiver', 'trxid']
-                ],
-
-                /*
-                [
-                    'type'     => 'Merchant',
-                    'priority' => 70,
-                    'pattern'  => '/received a payment of Tk ([\d,.]+) from (\d+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map'      => ['amount', 'sender', 'trxid', 'datetime']
-                ],
-
-                // 🔹 AGENT
-                [
-                    'type'     => 'Agent',
-                    'priority' => 60,
-                    'pattern'  => '/Cash In Tk ([\d,.]+) from (\d+) successful\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+)/i',
-                    'map'      => ['amount', 'sender', 'balance', 'trxid']
-                ],*/
-            ],
-            'okwallet' => [
-                // 🔹 PERSONAL (Most specific first)
-                [
-                    'type' => 'Personal',
-                    'priority' => 100,
-                    'pattern' => '/\(OK Wallet\) Successfully received Tk ([\d,.]+) from A\/C (\d+)\.(?:\s*Ref[:\-]?\s*(\S+))? Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+)/i',
-                    'map' => ['amount', 'sender', 'ref', 'balance', 'trxid']
-                ],
-
-                /*
-                [
-                    'type'     => 'Merchant',
-                    'priority' => 70,
-                    'pattern'  => '/received a payment of Tk ([\d,.]+) from (\d+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map'      => ['amount', 'sender', 'trxid', 'datetime']
-                ],
-
-                // 🔹 AGENT
-                [
-                    'type'     => 'Agent',
-                    'priority' => 60,
-                    'pattern'  => '/Cash In Tk ([\d,.]+) from (\d+) successful\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+)/i',
-                    'map'      => ['amount', 'sender', 'balance', 'trxid']
-                ],*/
-            ],
-            'mcash' => [
-                // 🔹 PERSONAL (Most specific first)
-                [
-                    'type' => 'Personal',
-                    'priority' => 100,
-                    'pattern' => '/IBBL mCash You have received Tk: ([\d,.]+) From: (\d+)(?:\s*Reference:\s*(\S*))? Balance Tk: ([\d,.]+) TrxID: ([A-Z0-9]+)/i',
-                    'map' => ['amount', 'sender', 'ref', 'balance', 'trxid']
-                ],
-
-                /*
-                [
-                    'type'     => 'Merchant',
-                    'priority' => 70,
-                    'pattern'  => '/received a payment of Tk ([\d,.]+) from (\d+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map'      => ['amount', 'sender', 'trxid', 'datetime']
-                ],
-
-                // 🔹 AGENT
-                [
-                    'type'     => 'Agent',
-                    'priority' => 60,
-                    'pattern'  => '/Cash In Tk ([\d,.]+) from (\d+) successful\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+)/i',
-                    'map'      => ['amount', 'sender', 'balance', 'trxid']
-                ],*/
-            ],
-            'pathaopay' => [
-                // 🔹 PERSONAL (Most specific first)
-                [
-                    'type' => 'Personal',
-                    'priority' => 100,
-                    'pattern' => '/You have received BDT ([\d,.]+) from (\+?\d+)\. Balance BDT ([\d,.]+) TrxID ([A-Z0-9]+)/i',
-                    'map' => ['amount', 'sender', 'balance', 'trxid']
-                ],
-
-                /*
-                [
-                    'type'     => 'Merchant',
-                    'priority' => 70,
-                    'pattern'  => '/received a payment of Tk ([\d,.]+) from (\d+)\. TrxID ([A-Z0-9]+) at ([\d\/:\s]+)/i',
-                    'map'      => ['amount', 'sender', 'trxid', 'datetime']
-                ],
-
-                // 🔹 AGENT
-                [
-                    'type'     => 'Agent',
-                    'priority' => 60,
-                    'pattern'  => '/Cash In Tk ([\d,.]+) from (\d+) successful\. Balance Tk ([\d,.]+)\. TrxID ([A-Z0-9]+)/i',
-                    'map'      => ['amount', 'sender', 'balance', 'trxid']
-                ],*/
-            ],
-
-        ];
-
-        // ── Plugin hook: allow addons to register additional MFS message formats ──
-        // Usage: add_filter('mfs.formats', function($formats) {
-        //     $formats['myprovider'] = [
-        //         [
-        //             'type' => 'Personal',
-        //             'priority' => 100,
-        //             'pattern' => '/Received Tk ([\d,.]+) from (\d+)\. TrxID ([A-Z0-9]+)/i',
-        //             'map' => ['amount', 'sender', 'trxid'],
-        //         ],
-        //     ];
-        //     return $formats;
-        // });
-        $formats = apply_filters('mfs.formats', $formats);
-
-        if (!isset($formats[strtolower($mfs)])) {
+        if (empty($templates)) {
             return false;
         }
 
-        // 🔥 Sort by priority (DESC)
-        usort($formats[strtolower($mfs)], fn($a, $b) => $b['priority'] <=> $a['priority']);
+        $parser = new \OwnPay\Service\Sms\SmsRegexParser();
+        $parsed = $parser->parse($message, $templates);
 
-        foreach ($formats[strtolower($mfs)] as $format) {
-            if (preg_match($format['pattern'], $message, $matches)) {
-
-                $data = [
-                    'mfs' => strtolower($mfs),
-                    'type' => $format['type'],
-                    'raw' => $message,
-                ];
-
-                // Map values safely
-                foreach ($format['map'] as $i => $key) {
-                    $data[$key] = $matches[$i + 1] ?? null;
-                }
-
-                // Normalize numbers
-                foreach (['amount', 'balance', 'fee'] as $field) {
-                    if (isset($data[$field]) && $data[$field] !== null) {
-                        $data[$field] = str_replace(',', '', $data[$field]);
-                    }
-                }
-
-                return $data;
-            }
+        if ($parsed) {
+            return [
+                'mfs' => strtolower($mfs),
+                'type' => ucfirst(strtolower($parsed['parsed_type'] ?? 'Personal')),
+                'raw' => $message,
+                'amount' => $parsed['parsed_amount'],
+                'sender' => $parsed['parsed_sender'],
+                'trxid' => $parsed['parsed_trx_id'],
+                'balance' => $parsed['parsed_balance'],
+                'fee' => null, // Legacy fields not typically captured by dynamic regex
+                'datetime' => null,
+                'ref' => null,
+            ];
         }
 
         return false;

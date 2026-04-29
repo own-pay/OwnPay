@@ -1741,6 +1741,8 @@ CREATE TABLE IF NOT EXISTS `op_sms_templates` (
     `regex_pattern`    TEXT         NOT NULL COMMENT 'PHP PCRE regex with named capture groups',
     `transaction_type` ENUM('credit','debit','both') NOT NULL DEFAULT 'credit',
     `provider_name`    VARCHAR(50)  NOT NULL COMMENT 'Human-readable: bKash, Nagad, Rocket, etc.',
+    `currency`         CHAR(3)      NOT NULL DEFAULT 'BDT',
+    `balance_verify`   TINYINT(1)   NOT NULL DEFAULT 1,
     `priority`         INT          NOT NULL DEFAULT 100 COMMENT 'Lower = try first',
     `is_active`        TINYINT(1)   NOT NULL DEFAULT 1,
     `description`      VARCHAR(255) NULL COMMENT 'Admin note about this template',
@@ -1784,16 +1786,16 @@ CREATE TABLE IF NOT EXISTS `op_sms_parsed` (
     CONSTRAINT `fk_sp_template` FOREIGN KEY (`template_id`) REFERENCES `op_sms_templates`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `op_sms_templates` (`sender_pattern`, `regex_pattern`, `transaction_type`, `provider_name`, `priority`, `description`) VALUES
-('bKash', '/You have received Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:new balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'bKash', 10, 'bKash money received (personal transfer)'),
-('bKash', '/Payment of Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:has been\\s*)?received(?:.*?from\\s*(?P<sender_number>\\d{11}))?(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'bKash', 15, 'bKash payment received (merchant)'),
-('bKash', '/Cash Out Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:to|from)\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'bKash', 20, 'bKash cash out'),
-('bKash', '/You have sent Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*to\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'bKash', 25, 'bKash send money'),
-('Nagad', '/(?:You have received|Received)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?TxnID[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Nagad', 10, 'Nagad money received'),
-('Nagad', '/(?:You have sent|Sent)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*to\\s*(?P<sender_number>\\d{11})(?:.*?TxnID[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'Nagad', 15, 'Nagad send money'),
-('16216', '/(?:Received|Cash In)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11,})(?:.*?TxnId[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:Bal|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Rocket', 10, 'Rocket/DBBL received'),
-('Upay', '/(?:You have received|Received)\\s*(?:Tk\\.?)?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:BDT\\s*)?from\\s*(?P<sender_number>\\d{11})(?:.*?(?:TrxID|TxnID)[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*(?:Tk\\.?)?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Upay', 10, 'Upay received'),
-('SureCash', '/(?:received|Received)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?(?:TrxID|Ref)[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'SureCash', 10, 'SureCash received');
+INSERT INTO `op_sms_templates` (`sender_pattern`, `regex_pattern`, `transaction_type`, `provider_name`, `currency`, `balance_verify`, `priority`, `description`) VALUES
+('bKash', '/You have received Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:new balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'bKash', 'BDT', 1, 10, 'bKash money received (personal transfer)'),
+('bKash', '/Payment of Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:has been\\s*)?received(?:.*?from\\s*(?P<sender_number>\\d{11}))?(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'bKash', 'BDT', 1, 15, 'bKash payment received (merchant)'),
+('bKash', '/Cash Out Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:to|from)\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'bKash', 'BDT', 1, 20, 'bKash cash out'),
+('bKash', '/You have sent Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*to\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'bKash', 'BDT', 1, 25, 'bKash send money'),
+('Nagad', '/(?:You have received|Received)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?TxnID[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Nagad', 'BDT', 1, 10, 'Nagad money received'),
+('Nagad', '/(?:You have sent|Sent)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*to\\s*(?P<sender_number>\\d{11})(?:.*?TxnID[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'Nagad', 'BDT', 1, 15, 'Nagad send money'),
+('16216', '/(?:Received|Cash In)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11,})(?:.*?TxnId[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:Bal|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Rocket', 'BDT', 1, 10, 'Rocket/DBBL received'),
+('Upay', '/(?:You have received|Received)\\s*(?:Tk\\.?)?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:BDT\\s*)?from\\s*(?P<sender_number>\\d{11})(?:.*?(?:TrxID|TxnID)[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*(?:Tk\\.?)?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Upay', 'BDT', 1, 10, 'Upay received'),
+('SureCash', '/(?:received|Received)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?(?:TrxID|Ref)[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'SureCash', 'BDT', 1, 10, 'SureCash received');
 
 
 -- TOTAL: 62 tables (41 V2 + 21 legacy) | 5 partitioned | 11 JSON constraints | 4 deadlock indexes
