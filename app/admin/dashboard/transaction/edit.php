@@ -4,12 +4,12 @@ if (!defined('OWNPAY_INIT')) {
     exit('Direct access not allowed');
 }
 
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
 
-    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'edit', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'edit', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
@@ -24,9 +24,9 @@ if (!defined('OWNPAY_INIT')) {
     }else{
         $ref = clean_input($ref);
 
-        $response_transaction = json_decode(getData($db_prefix.'transaction','WHERE ref = :ref AND brand_id = :brand_id AND status != :exc_status', '* FROM', [':ref' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id'], ':exc_status' => 'initiated']),true);
+        $response_transaction = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'transaction','WHERE ref = :ref AND brand_id = :brand_id AND status != :exc_status', '* FROM', [':ref' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id'], ':exc_status' => 'initiated']),true);
         if($response_transaction['status'] == true){
-            $response_gateway = json_decode(getData($db_prefix.'gateways',' WHERE brand_id = :brand_id AND gateway_id = :gateway_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':gateway_id' => $response_transaction['response'][0]['gateway_id']]),true);
+            $response_gateway = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'gateways',' WHERE brand_id = :brand_id AND gateway_id = :gateway_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':gateway_id' => $response_transaction['response'][0]['gateway_id']]),true);
 
             $gateway_name = $response_gateway['response'][0]['name'] ?? 'Unknown';
 
@@ -63,11 +63,11 @@ if (!defined('OWNPAY_INIT')) {
         <h2 class="op-page-title">View Transaction</h2>
     </div>
     <div class="flex items-center gap-2">
-        <button data-modal-target="model-bulkAction" data-modal-toggle="model-bulkAction" class="op-btn-primary <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'edit', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>">
+        <button data-modal-target="model-bulkAction" data-modal-toggle="model-bulkAction" class="op-btn-primary <?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'edit', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>">
             <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 me-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M7 7h-1a2 2 0 0 0 -2 2v9a2 2 0 0 0 2 2h9a2 2 0 0 0 2 -2v-1" /><path d="M20.385 6.585a2.1 2.1 0 0 0 -2.97 -2.97l-8.415 8.385v3h3l8.385 -8.415" /><path d="M16 5l3 3" /></svg> Edit
         </button>
-        <button class="op-btn-primary btnIpnItem-<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?> <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'send_ipn', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>" onclick="ipnItem('<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>')" style="background-color:#059669">Send IPN</button>
-        <button class="op-btn-danger btnDeleteItem-<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?> <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'delete', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>" onclick="deleteItem('<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>')">Delete</button>
+        <button class="op-btn-primary btnIpnItem-<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?> <?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'send_ipn', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>" onclick="ipnItem('<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>')" style="background-color:#059669">Send IPN</button>
+        <button class="op-btn-danger btnDeleteItem-<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?> <?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'delete', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>" onclick="deleteItem('<?php echo htmlspecialchars((string) ($ref), ENT_QUOTES, 'UTF-8'); ?>')">Delete</button>
     </div>
 </div>
 
@@ -144,23 +144,23 @@ if (!defined('OWNPAY_INIT')) {
                     </div>
                     <div>
                         <label class="op-label">Amount</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.\OwnPay\Service\Payment\CurrencyService::round($response_transaction['response'][0]['amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Processing Fee</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['processing_fee'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.\OwnPay\Service\Payment\CurrencyService::round($response_transaction['response'][0]['processing_fee'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Discount Amount</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['discount_amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.\OwnPay\Service\Payment\CurrencyService::round($response_transaction['response'][0]['discount_amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Net Amount</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.money_round($response_transaction['response'][0]['amount']+$response_transaction['response'][0]['processing_fee']-$response_transaction['response'][0]['discount_amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['currency'].' '.\OwnPay\Service\Payment\CurrencyService::round($response_transaction['response'][0]['amount']+$response_transaction['response'][0]['processing_fee']-$response_transaction['response'][0]['discount_amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                     <div>
                         <label class="op-label">Net Local Amount</label>
-                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['local_currency'].' '.money_round($response_transaction['response'][0]['local_net_amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
+                        <p class="text-sm font-medium text-gray-900 dark:text-white"><?php echo htmlspecialchars((string) ($response_transaction['response'][0]['local_currency'].' '.\OwnPay\Service\Payment\CurrencyService::round($response_transaction['response'][0]['local_net_amount'], 2)), ENT_QUOTES, 'UTF-8'); ?></p>
                     </div>
                 </div>
             </div>
@@ -265,9 +265,9 @@ if (!defined('OWNPAY_INIT')) {
                 <label class="op-label">Action <span class="text-red-500">*</span></label>
                 <select class="op-select" id="model-bulkActionID">
                     <option value="" selected>Select a Action</option>
-                    <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'approve', $global_user_response['response'][0]['role']) ? '<option value="approved">Approve</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
-                    <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'cancel', $global_user_response['response'][0]['role']) ? '<option value="canceled">Cancel</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
-                    <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'refund', $global_user_response['response'][0]['role']) ? '<option value="refunded">Refund</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
+                    <?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'approve', $global_user_response['response'][0]['role']) ? '<option value="approved">Approve</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
+                    <?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'cancel', $global_user_response['response'][0]['role']) ? '<option value="canceled">Cancel</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
+                    <?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'transaction', 'refund', $global_user_response['response'][0]['role']) ? '<option value="refunded">Refund</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
                 </select>
             </div>
             <div class="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700">

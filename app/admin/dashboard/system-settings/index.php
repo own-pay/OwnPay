@@ -1,6 +1,6 @@
 <?php
     if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
 ?>
 
 <div class="op-page-header"><div><div class="op-page-pretitle">System Settings</div><h2 class="op-page-title">System Settings</h2></div></div>
@@ -21,7 +21,7 @@
                  'icon' => '<path d="M4 17v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2 -2v-2"/><path d="M7 9l5 -5l5 5"/><path d="M12 4l0 12"/>'],
             ];
             foreach ($settingsCards as $card):
-                $visible = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), $card['perm'], $card['action'], $global_user_response['response'][0]['role']);
+                $visible = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), $card['perm'], $card['action'], $global_user_response['response'][0]['role']);
             ?>
             <div class="<?= $visible ? '' : 'hidden' ?> cursor-pointer group" onclick="load_content('System Settings','<?php echo $site_url.$path_admin ?>/system-settings/<?= $card['route'] ?>','nav-item-system-settings')">
                 <div class="border rounded-lg p-4 h-full hover:border-primary-500 hover:shadow-sm transition-all dark:border-gray-700">

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Service;
 
 use OwnPay\Core\Database;
-use OwnPay\Service\EnvironmentService;
+use OwnPay\Service\System\EnvironmentService;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;

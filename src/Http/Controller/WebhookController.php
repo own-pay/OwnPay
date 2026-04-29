@@ -7,7 +7,7 @@ namespace OwnPay\Http\Controller;
 use OwnPay\Http\JsonResponse;
 use OwnPay\Middleware\BearerAuthMiddleware;
 use OwnPay\Repository\WebhookRepository;
-use OwnPay\Service\AuditLogger;
+use OwnPay\Service\System\AuditLogger;
 
 /**
  * POST   /v1/webhooks        — Register a webhook endpoint

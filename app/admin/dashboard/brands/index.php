@@ -1,13 +1,13 @@
 <?php
     if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brands', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brands', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
 ?>
 
 <div class="op-page-header">
     <div><div class="op-page-pretitle">Manage</div><h2 class="op-page-title">Brands</h2></div>
     <div class="flex items-center gap-2">
         <span class="global-loaderSpinner"></span>
-        <span class="<?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'brands', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
+        <span class="<?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'brands', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
             <button class="op-btn-primary" data-modal-target="modal-createBrand" data-modal-toggle="modal-createBrand">Create Brand</button>
         </span>
     </div>
@@ -42,7 +42,7 @@
     <div class="relative p-4 w-full max-w-md max-h-full"><div class="relative bg-white rounded-lg shadow-sm dark:bg-gray-800">
         <div class="flex items-center justify-between p-4 border-b dark:border-gray-700"><h3 class="text-lg font-semibold text-gray-900 dark:text-white">Action for Selected Items</h3><button type="button" class="op-modal-close" data-modal-hide="model-bulkAction"><svg class="w-3 h-3" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 14 14"><path stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m1 1 6 6m0 0 6 6M7 7l6-6M7 7l-6 6"/></svg></button></div>
         <div class="p-4"><label class="op-label">Action <span class="text-red-500">*</span></label><select class="op-select" id="model-bulkActionID"><option value="" selected>Select a Action</option>
-            <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'brands', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
+            <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'brands', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
         </select></div>
         <div class="flex justify-end gap-2 p-4 border-t dark:border-gray-700"><button type="button" class="op-btn-secondary" data-modal-hide="model-bulkAction">Close</button><button type="button" class="op-btn-primary model-bulkAction-btn">Confirm</button></div>
     </div></div>
@@ -156,8 +156,8 @@
         opFetch('all-brand-list', { search_input: document.querySelector('.search_input').value, show_limit: document.querySelector('.show_limit').value, page, filter_start: document.getElementById('filter-created-from').value, filter_end: document.getElementById('filter-created-until').value }).then(res => {
             let html = '';
             if (res.status === 'true') {
-                let allowEdit = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'brands', 'edit', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
-                let allowDelete = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'brands', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                let allowEdit = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'brands', 'edit', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                let allowDelete = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'brands', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
                 res.response.forEach(item => {
                     let redirectEdit = allowEdit && item.deleteable !== 'false' ? `style="cursor:pointer;" onclick="openEditBrandModal('${item.id}','${item.identify_name.replace(/'/g, "\\'")}')"` : '';
                     let redirectDelete = allowDelete ? `onclick="deleteItem('${item.id}')"` : '';

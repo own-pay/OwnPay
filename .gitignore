@@ -37,4 +37,3 @@ app/install/.installed
 # Local agent/AI tool configuration (may contain secrets)
 .claude/
 LICENSE
-LICENSE

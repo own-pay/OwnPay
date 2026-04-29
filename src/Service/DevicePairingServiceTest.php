@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Service;
 
-use OwnPay\Service\DevicePairingService;
-use OwnPay\Service\JwtService;
+use OwnPay\Service\Device\DevicePairingService;
+use OwnPay\Service\Auth\JwtService;
 use PHPUnit\Framework\TestCase;
 
 /**

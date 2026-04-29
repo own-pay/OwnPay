@@ -4,12 +4,12 @@
         exit('Direct access not allowed');
     }
 
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
 
-    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'edit', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'edit', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
@@ -22,7 +22,7 @@
         exit('Invalid slug');
     } else {
         $ref = clean_input($ref);
-        $response_gateway = json_decode(getData($db_prefix.'gateways','WHERE gateway_id = :gid AND brand_id = :brand_id', '* FROM', [':gid' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id']]),true);
+        $response_gateway = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'gateways','WHERE gateway_id = :gid AND brand_id = :brand_id', '* FROM', [':gid' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id']]),true);
         if($response_gateway['status'] == false){
             http_response_code(403);
             exit('Invalid slug');
@@ -99,33 +99,33 @@
                 </div>
                 <div>
                     <label class="op-label">Min Amount <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="min_amount" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['min_allow'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="min_amount" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($response_gateway['response'][0]['min_allow'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Max Amount <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="max_amount" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['max_allow'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="max_amount" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($response_gateway['response'][0]['max_allow'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Fixed Charge <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="fixed_charge" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['fixed_charge'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="fixed_charge" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($response_gateway['response'][0]['fixed_charge'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Percentage Charge <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="percentage_charge" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['percentage_charge'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="percentage_charge" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($response_gateway['response'][0]['percentage_charge'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Fixed Discount <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="fixed_discount" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['fixed_discount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 gt-currency"><?php echo htmlspecialchars((string) ($response_gateway['response'][0]['currency']), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="fixed_discount" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($response_gateway['response'][0]['fixed_discount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Percentage Discount <span class="text-red-500">*</span></label>
-                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="percentage_discount" value="<?php echo htmlspecialchars((string) (money_round($response_gateway['response'][0]['percentage_discount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                    <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="percentage_discount" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($response_gateway['response'][0]['percentage_discount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                 </div>
                 <div>
                     <label class="op-label">Currency <span class="text-red-500">*</span></label>
                     <select class="js-select op-select" id="currency" name="currency" data-search="true" data-remove="true" required onchange="FNcurrency()">
                         <?php
-                            $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                            $response_brand = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                             if ($response_brand['status'] == true) {
                                 foreach ($response_brand['response'] as $row) {
                                     $isSelected = ($row['code'] === $response_gateway['response'][0]['currency']) ? 'selected' : '';
@@ -189,7 +189,7 @@
                 <?php endif; ?>
 
                 <?php foreach($fields as $field):
-                    $response_optionValue = json_decode(getData($db_prefix.'gateways_parameter','WHERE gateway_id = :gid AND brand_id = :brand_id AND option_name = :opt_name', '* FROM', [':gid' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id'], ':opt_name' => $field['name']]),true);
+                    $response_optionValue = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'gateways_parameter','WHERE gateway_id = :gid AND brand_id = :brand_id AND option_name = :opt_name', '* FROM', [':gid' => $ref, ':brand_id' => $global_response_brand['response'][0]['brand_id'], ':opt_name' => $field['name']]),true);
                     $value = $field['value'] ?? '';
                     if(isset($response_optionValue['response'][0]['value'])) $value = empty($response_optionValue['response'][0]['value']) ? $value : $response_optionValue['response'][0]['value'];
                     if(!empty($field['multiple']) && !empty($value)) $value = is_array($value) ? $value : json_decode($value, true);

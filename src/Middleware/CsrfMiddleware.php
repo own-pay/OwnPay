@@ -4,15 +4,15 @@ declare(strict_types=1);
 
 namespace OwnPay\Middleware;
 
-use OwnPay\Service\EnvironmentService;
-use OwnPay\Service\InputSanitizer;
+use OwnPay\Service\System\EnvironmentService;
+use OwnPay\Service\System\InputSanitizer;
 
 /**
- * Extracts CSRF and HMAC token validation from adapter.php.
+ * CSRF and HMAC token validation middleware.
  *
  * Supports two modes:
  * 1. Standard CSRF double-submit (session-based)
- * 2. External API HMAC-SHA256 signature (op-token / pp-token)
+ * 2. External API HMAC-SHA256 signature (op-token)
  */
 final class CsrfMiddleware
 {
@@ -49,8 +49,8 @@ final class CsrfMiddleware
 
     private function validateHmac(string $appToken): array
     {
-        $appId = InputSanitizer::html($_POST['op-app-id'] ?? $_POST['pp-app-id'] ?? '');
-        $appTimestamp = InputSanitizer::html($_POST['op-app-timestamp'] ?? $_POST['pp-app-timestamp'] ?? '');
+        $appId = InputSanitizer::html($_POST['op-app-id'] ?? '');
+        $appTimestamp = InputSanitizer::html($_POST['op-app-timestamp'] ?? '');
 
         // Timestamp freshness (±5 minutes)
         if (!ctype_digit($appTimestamp) || abs(time() - (int) $appTimestamp) > 300) {

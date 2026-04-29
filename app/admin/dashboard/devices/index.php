@@ -4,7 +4,7 @@
         exit('Direct access not allowed');
     }
 
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'device', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'device', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
@@ -17,7 +17,7 @@
     </div>
     <div class="flex items-center gap-2">
         <span class="global-loaderSpinner"></span>
-        <span class="<?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'connect', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
+        <span class="<?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'connect', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
             <button class="op-btn-primary" onclick="iniConnectDeviceInfo()" data-modal-target="modal-createItem" data-modal-toggle="modal-createItem">Connect Device</button>
         </span>
     </div>
@@ -97,7 +97,7 @@
                 <label class="op-label">Action <span class="text-red-500">*</span></label>
                 <select class="op-select" id="model-bulkActionID">
                     <option value="" selected>Select a Action</option>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
                 </select>
             </div>
             <div class="flex justify-end gap-2 p-4 border-t dark:border-gray-700">
@@ -267,7 +267,7 @@
         opFetch('device-paired-list', {}).then(res => {
             if (res.status === 'true' && res.response.length > 0) {
                 let html = '';
-                let allowRevoke = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                let allowRevoke = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
                 res.response.forEach(d => {
                     const statusBadge = d.status === 'active'
                         ? '<span class="px-2 py-0.5 text-xs font-medium rounded-full bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400">Active</span>'
@@ -307,8 +307,8 @@
         opFetch('device-list', { search_input, show_limit, page, filter_status, filter_start, filter_end }).then(res => {
             let html = '';
             if (res.status === 'true') {
-                let allowBV = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
-                let allowDelete = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                let allowBV = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                let allowDelete = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
 
                 res.response.forEach(item => {
                     let redirectBV = allowBV ? `onclick="load_content('Balance Verification','<?php echo $site_url.$path_admin ?>/devices/balance-verification?d_id=${item.id}','nav-item-devices')"` : '';

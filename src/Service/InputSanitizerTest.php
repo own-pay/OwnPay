@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Service;
 
-use OwnPay\Service\InputSanitizer;
+use OwnPay\Service\System\InputSanitizer;
 use PHPUnit\Framework\TestCase;
 
 class InputSanitizerTest extends TestCase

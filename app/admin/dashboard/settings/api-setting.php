@@ -1,10 +1,10 @@
 <?php
 if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'view', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-$allowCreate = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'create', $global_user_response['response'][0]['role']);
-$allowEdit = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'edit', $global_user_response['response'][0]['role']);
-$allowDelete = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'delete', $global_user_response['response'][0]['role']);
+if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'view', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+$allowCreate = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'create', $global_user_response['response'][0]['role']);
+$allowEdit = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'edit', $global_user_response['response'][0]['role']);
+$allowDelete = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'api_settings', 'delete', $global_user_response['response'][0]['role']);
 $apiScopes = [['value'=>'create_payment','label'=>'Create Payment'],['value'=>'verify_payment','label'=>'Verify Payment'],['value'=>'refund_payment','label'=>'Refund Payment']];
 $apiEndpoints = [['label'=>'Base URL','value'=>$site_url.'api','hint'=>'Root API endpoint.'],['label'=>'Gateway Checkout','value'=>$site_url.'api/checkout/redirect','hint'=>'Redirects to hosted checkout.'],['label'=>'Verify Payment','value'=>$site_url.'api/verify-payment','hint'=>'Checks payment status.'],['label'=>'Refund Payment','value'=>$site_url.'api/refund-payment','hint'=>'Use this to refund payment.']];
 ?>

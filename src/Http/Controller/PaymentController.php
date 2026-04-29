@@ -6,8 +6,8 @@ namespace OwnPay\Http\Controller;
 
 use OwnPay\Http\JsonResponse;
 use OwnPay\Middleware\BearerAuthMiddleware;
-use OwnPay\Service\PaymentService;
-use OwnPay\Service\IdempotencyService;
+use OwnPay\Service\Payment\PaymentService;
+use OwnPay\Service\Payment\IdempotencyService;
 
 /**
  * POST /v1/payments        — Create a payment intent

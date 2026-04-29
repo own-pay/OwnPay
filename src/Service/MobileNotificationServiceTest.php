@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Service;
 
-use OwnPay\Service\MobileNotificationService;
+use OwnPay\Service\Notification\MobileNotificationService;
 use PHPUnit\Framework\TestCase;
 
 /**

@@ -7,8 +7,8 @@ namespace OwnPay\Http\Controller;
 use OwnPay\Http\JsonResponse;
 use OwnPay\Repository\SmsDataRepository;
 use OwnPay\Repository\SmsTemplateRepository;
-use OwnPay\Service\SmsRegexParser;
-use OwnPay\Service\SmsHeuristicParser;
+use OwnPay\Service\Sms\SmsRegexParser;
+use OwnPay\Service\Sms\SmsHeuristicParser;
 
 /**
  * AdminSmsQueueController — Unparsed SMS review & reprocessing.

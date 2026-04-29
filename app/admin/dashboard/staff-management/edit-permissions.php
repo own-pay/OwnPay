@@ -1,14 +1,14 @@
 <?php
     if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'edit_permission', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+    if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'edit_permission', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
     $params = json_decode($_POST['params'] ?? '{}', true);
     $staff_id = getParam($params, 'staff');
     if ($staff_id === null) { http_response_code(403); exit('Invalid staff id'); }
     $staff_id = clean_input($staff_id);
-    $response_permission = json_decode(getData($db_prefix.'permission','WHERE id = :id', '* FROM', [':id' => $staff_id]),true);
+    $response_permission = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'permission','WHERE id = :id', '* FROM', [':id' => $staff_id]),true);
     if($response_permission['status'] != true){ http_response_code(403); exit('Direct access not allowed'); }
-    $response_staff = json_decode(getData($db_prefix.'admin','WHERE a_id = :a_id AND role = :role', '* FROM', [':a_id' => $response_permission['response'][0]['a_id'], ':role' => 'staff']),true);
+    $response_staff = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'admin','WHERE a_id = :a_id AND role = :role', '* FROM', [':a_id' => $response_permission['response'][0]['a_id'], ':role' => 'staff']),true);
     if($response_staff['status'] != true){ http_response_code(403); exit('Direct access not allowed'); }
     if($global_user_response['response'][0]['id'] == $response_staff['response'][0]['id']){ http_response_code(403); exit("You can't edit your info"); }
 ?>

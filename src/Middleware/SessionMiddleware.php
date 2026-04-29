@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace OwnPay\Middleware;
 
 use OwnPay\Http\RequestContext;
-use OwnPay\Service\AuthSessionService;
-use OwnPay\Service\CrudService;
-use OwnPay\Service\InputSanitizer;
+use OwnPay\Service\Auth\AuthSessionService;
+use OwnPay\Service\System\CrudService;
+use OwnPay\Service\System\InputSanitizer;
 
 /**
  * Extracts session initialization and cookie-based authentication

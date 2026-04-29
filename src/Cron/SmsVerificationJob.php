@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace OwnPay\Cron;
 
 use OwnPay\Event\EventManager;
-use OwnPay\Service\CrudService;
-use OwnPay\Service\CurrencyService;
-use OwnPay\Service\DateTimeService;
+use OwnPay\Service\System\CrudService;
+use OwnPay\Service\Payment\CurrencyService;
+use OwnPay\Service\System\DateTimeService;
 
 /**
  * SmsVerificationJob — match pending transactions against approved SMS data.

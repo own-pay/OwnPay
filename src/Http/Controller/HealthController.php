@@ -6,7 +6,7 @@ namespace OwnPay\Http\Controller;
 
 use OwnPay\Core\Database;
 use OwnPay\Http\JsonResponse;
-use OwnPay\Service\AlertService;
+use OwnPay\Service\Notification\AlertService;
 
 /**
  * HealthController — system health and monitoring endpoints.

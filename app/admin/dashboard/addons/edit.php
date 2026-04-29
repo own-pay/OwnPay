@@ -1,14 +1,14 @@
 <?php
     if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'addons', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'addons', 'edit', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'addons', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+    if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'addons', 'edit', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
 
     $params = json_decode($_POST['params'] ?? '{}', true);
     $ref = getParam($params, 'ref');
     if ($ref === null) { http_response_code(403); exit('Invalid slug'); }
 
     $ref = clean_input($ref);
-    $response_addon = json_decode(getData($db_prefix.'addon','WHERE addon_id = :addon_id', '* FROM', [':addon_id' => $ref]),true);
+    $response_addon = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'addon','WHERE addon_id = :addon_id', '* FROM', [':addon_id' => $ref]),true);
     if($response_addon['status'] == false){ http_response_code(403); exit('Invalid slug'); }
 
     $rawSlug = $response_addon['response'][0]['slug'];

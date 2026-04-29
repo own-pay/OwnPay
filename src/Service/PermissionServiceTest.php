@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Service;
 
-use OwnPay\Service\PermissionService;
+use OwnPay\Service\Auth\PermissionService;
 use PHPUnit\Framework\TestCase;
 
 class PermissionServiceTest extends TestCase

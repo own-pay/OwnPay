@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Service;
 
 use OwnPay\Core\Database;
-use OwnPay\Service\CrudService;
+use OwnPay\Service\System\CrudService;
 use PDO;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;

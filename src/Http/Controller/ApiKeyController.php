@@ -6,7 +6,7 @@ namespace OwnPay\Http\Controller;
 
 use OwnPay\Http\JsonResponse;
 use OwnPay\Middleware\BearerAuthMiddleware;
-use OwnPay\Service\ApiKeyService;
+use OwnPay\Service\Customer\ApiKeyService;
 
 /**
  * POST   /v1/api-keys        — Create an API key

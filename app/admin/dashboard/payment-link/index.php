@@ -4,7 +4,7 @@
         exit('Direct access not allowed');
     }
 
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
@@ -21,7 +21,7 @@
             <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 me-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 15l6 -6" /><path d="M11 6l.463 -.536a5 5 0 0 1 7.071 7.072l-.534 .464" /><path d="M13 18l-.397 .534a5.068 5.068 0 0 1 -7.127 0a4.972 4.972 0 0 1 0 -7.071l.524 -.463" /></svg>
             <span class="hidden sm:inline">Default Link</span>
         </button>
-        <span onclick="load_content('Create Payment Link','<?php echo $site_url.$path_admin ?>/payment-link/create','nav-item-payment-link')" class="<?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
+        <span onclick="load_content('Create Payment Link','<?php echo $site_url.$path_admin ?>/payment-link/create','nav-item-payment-link')" class="<?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
             <button class="op-btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 me-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
                 <span class="hidden sm:inline">Create Payment Link</span>
@@ -123,9 +123,9 @@
                 <label class="op-label">Action <span class="text-red-500">*</span></label>
                 <select class="op-select" id="model-bulkActionID">
                     <option value="" selected>Select a Action</option>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role']) ? '<option value="activated">Active Selected</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role']) ? '<option value="inactivated">Inactive Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role']) ? '<option value="activated">Active Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role']) ? '<option value="inactivated">Inactive Selected</option>' : '' ?>
                 </select>
             </div>
             <div class="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700">
@@ -153,8 +153,8 @@
                     <input type="hidden" name="paymentLink-id">
                     <label class="op-label">Status <span class="text-red-500">*</span></label>
                     <select class="op-select" name="status" id="paymentLink-status">
-                        <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role']) ? '<option value="active">Active</option>' : '' ?>
-                        <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role']) ? '<option value="inactive">Inactive</option>' : '' ?>
+                        <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role']) ? '<option value="active">Active</option>' : '' ?>
+                        <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role']) ? '<option value="inactive">Inactive</option>' : '' ?>
                     </select>
                 </div>
                 <div class="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700">
@@ -180,12 +180,12 @@
                 <div>
                     <label class="op-label">Currency <span class="text-red-500">*</span></label>
                     <?php
-                        $defaultCurrency = get_env('payment-link-default-currency', $global_response_brand['response'][0]['brand_id']);
+                        $defaultCurrency = \OwnPay\Service\System\EnvironmentService::get('payment-link-default-currency', $global_response_brand['response'][0]['brand_id']);
                         $activeCurrency = empty($defaultCurrency) ? $global_brand_currency_code : $defaultCurrency;
                     ?>
                     <select class="op-select DefaultCurrency" onchange="DefaultchangeCurrency()">
                         <?php
-                            $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                            $response_brand = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                             if ($response_brand['status'] == true) {
                                 foreach ($response_brand['response'] as $row) {
                         ?>
@@ -325,8 +325,8 @@
             .then(res => {
                 let html = '';
                 if (res.status === 'true') {
-                    let allowEdit = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
-                    let allowDelete = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                    let allowEdit = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'edit', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                    let allowDelete = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'payment_link', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
 
                     res.response.forEach(item => {
                         let badgeClass = 'op-badge-gray';

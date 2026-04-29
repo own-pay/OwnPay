@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace OwnPay\Cron;
 
 use OwnPay\Event\EventManager;
-use OwnPay\Service\DateTimeService;
-use OwnPay\Service\EnvironmentService;
-use OwnPay\Service\HttpClient;
+use OwnPay\Service\System\DateTimeService;
+use OwnPay\Service\System\EnvironmentService;
+use OwnPay\Service\System\HttpClient;
 
 /**
  * SystemUpdateJob — periodic check for new OwnPay releases.

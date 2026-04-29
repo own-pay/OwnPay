@@ -1,8 +1,8 @@
 <?php
 if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'view', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-$allowEdit = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'edit', $global_user_response['response'][0]['role']);
+if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'view', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+$allowEdit = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'edit', $global_user_response['response'][0]['role']);
 ?>
 <div class="op-page-header"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>

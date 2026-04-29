@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Service;
 
-use OwnPay\Service\SmsRegexParser;
+use OwnPay\Service\Sms\SmsRegexParser;
 use PHPUnit\Framework\TestCase;
 
 /**

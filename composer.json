@@ -17,7 +17,11 @@
     "autoload": {
         "psr-4": {
             "OwnPay\\": "src/"
-        }
+        },
+        "files": [
+            "src/Core/helpers.php"
+        ],
+        "exclude-from-classmap": ["src/**/*Test.php"]
     },
     "config": {
         "optimize-autoloader": true,
