@@ -6,7 +6,7 @@ namespace OwnPay\Http\Controller;
 
 use OwnPay\Http\JsonResponse;
 use OwnPay\Middleware\JwtAuthMiddleware;
-use OwnPay\Service\SmsParserService;
+use OwnPay\Service\Sms\SmsParserService;
 
 /**
  * MobileSmsController — REST API endpoints for SMS submission & filter rules.

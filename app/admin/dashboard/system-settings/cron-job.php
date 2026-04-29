@@ -1,7 +1,7 @@
 <?php
 if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'manage_cron', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'system_settings', 'manage_cron', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
 ?>
 <div class="op-page-header"><div>
     <nav class="flex mb-1"><ol class="inline-flex items-center space-x-1 text-sm text-gray-500"><li><a href="javascript:void(0)" onclick="load_content('Settings','<?php echo $site_url.$path_admin ?>/settings?tab=system','nav-item-settings')" class="hover:text-primary-600">Settings</a></li><li class="flex items-center"><svg class="w-3 h-3 mx-1" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z" clip-rule="evenodd"/></svg><span class="text-gray-900 dark:text-white">Cron Job</span></li></ol></nav>
@@ -14,7 +14,7 @@ if (!hasPermission(json_decode($global_response_permission['response'][0]['permi
         <div class="op-card"><div class="p-4">
             <label class="op-label">Cron Command</label>
             <div class="flex">
-                <input type="text" class="op-input rounded-e-none" id="cron-command" readonly value="curl -s <?php echo $site_url.$path_cron?>/<?= get_env('cron-job'); ?> >/dev/null 2>&1">
+                <input type="text" class="op-input rounded-e-none" id="cron-command" readonly value="curl -s <?php echo $site_url.$path_cron?>/<?= \OwnPay\Service\System\EnvironmentService::get('cron-job'); ?> >/dev/null 2>&1">
                 <button class="px-3 border border-s-0 border-gray-300 bg-gray-50 hover:bg-gray-100 rounded-e-lg dark:bg-gray-700 dark:border-gray-600 cron-command-copy" type="button" title="Copy">
                     <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 </button>

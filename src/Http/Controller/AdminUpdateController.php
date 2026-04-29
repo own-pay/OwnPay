@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Http\Controller;
 
-use OwnPay\Service\UpdaterService;
+use OwnPay\Service\System\UpdaterService;
 use Exception;
 
 class AdminUpdateController

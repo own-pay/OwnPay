@@ -1,6 +1,6 @@
 <?php
     if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
 ?>
 
 <div class="op-page-header">
@@ -29,7 +29,7 @@
     </div>
 
     <!-- Devices Card -->
-    <?php if (canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'device', $global_user_response['response'][0]['role'])): ?>
+    <?php if (\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'device', $global_user_response['response'][0]['role'])): ?>
     <div class="op-card p-5 cursor-pointer hover:shadow-md transition-shadow"
          onclick="load_content('Devices','<?php echo $site_url.$path_admin ?>/devices','nav-item-sms-center')">
         <div class="flex items-start gap-4">

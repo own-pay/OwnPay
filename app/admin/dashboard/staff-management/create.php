@@ -1,7 +1,7 @@
 <?php
     if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'create', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'staff_management', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+    if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'staff', 'create', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
 ?>
 
 <div class="op-page-header">
@@ -24,7 +24,7 @@
                 <div><label class="op-label">Password <span class="text-red-500">*</span></label><input type="password" class="op-input" name="password" placeholder="Password" required minlength="6"></div>
                 <div><label class="op-label">Brands <span class="text-red-500">*</span></label>
                     <select class="js-select op-select" name="brands[]" multiple data-search="true" data-remove="true" data-placeholder="Select brands" required>
-                        <?php $response_brand = json_decode(getData($db_prefix . 'brands', ' ORDER BY 1 DESC'), true); if ($response_brand['status'] == true) { foreach ($response_brand['response'] as $row) { ?>
+                        <?php $response_brand = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'brands', ' ORDER BY 1 DESC'), true); if ($response_brand['status'] == true) { foreach ($response_brand['response'] as $row) { ?>
                             <option value="<?php echo $row['brand_id'] ?>"><?php echo $row['identify_name'] ?></option>
                         <?php } } ?>
                     </select>

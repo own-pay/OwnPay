@@ -4,7 +4,7 @@
         exit('Direct access not allowed');
     }
 
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
@@ -17,10 +17,10 @@
     </div>
     <div class="flex items-center gap-2">
         <span class="global-loaderSpinner"></span>
-        <span class="<?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
+        <span class="<?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
             <button class="op-btn-primary" data-modal-target="modal-createItem" data-modal-toggle="modal-createItem">New Gateway</button>
         </span>
-        <span class="<?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
+        <span class="<?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
             <button class="inline-flex items-center px-4 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors" onclick="load_content('Gateways','<?php echo $site_url.$path_admin ?>/gateways/create-bank','nav-item-gateways')">New Bank</button>
         </span>
     </div>
@@ -110,9 +110,9 @@
                 <label class="op-label">Action <span class="text-red-500">*</span></label>
                 <select class="op-select" id="model-bulkActionID">
                     <option value="" selected>Select an Action</option>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'edit', $global_user_response['response'][0]['role']) ? '<option value="activated">Activate Selected</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'edit', $global_user_response['response'][0]['role']) ? '<option value="inactivated">Inactive Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'edit', $global_user_response['response'][0]['role']) ? '<option value="activated">Activate Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'edit', $global_user_response['response'][0]['role']) ? '<option value="inactivated">Inactive Selected</option>' : '' ?>
                 </select>
             </div>
             <div class="flex justify-end gap-2 p-4 border-t dark:border-gray-700">
@@ -224,8 +224,8 @@
         opFetch('gateways-list', { search_input, show_limit, tabType, page, filter_status, filter_start, filter_end }).then(res => {
             let html = '';
             if (res.status === 'true') {
-                let allowEdit = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'edit', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
-                let allowDelete = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                let allowEdit = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'edit', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                let allowDelete = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'gateways', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
 
                 res.response.forEach(item => {
                     let redirectEdit = allowEdit ? `style="cursor:pointer;" onclick="load_content('Edit Gateway','<?php echo $site_url.$path_admin ?>/gateways/edit?ref=${item.id}','nav-item-gateways')"` : '';

@@ -4,12 +4,12 @@ if (!defined('OWNPAY_INIT')) {
     exit('Direct access not allowed');
 }
 
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
 
-    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'edit', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'edit', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
@@ -22,7 +22,7 @@ if (!defined('OWNPAY_INIT')) {
         exit('Invalid invoice id');
     } else {
         $i_id = clean_input($i_id);
-        $response_invoice = json_decode(getData($db_prefix.'invoice','WHERE ref = :ref AND brand_id = :brand_id', '* FROM', [':ref' => $i_id, ':brand_id' => $global_response_brand['response'][0]['brand_id']]),true);
+        $response_invoice = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'invoice','WHERE ref = :ref AND brand_id = :brand_id', '* FROM', [':ref' => $i_id, ':brand_id' => $global_response_brand['response'][0]['brand_id']]),true);
         if($response_invoice['status'] != true){
             http_response_code(403);
             exit('Direct access not allowed');
@@ -42,7 +42,7 @@ if (!defined('OWNPAY_INIT')) {
     </div>
     <div class="flex items-center gap-2">
         <button class="op-btn-primary" onclick="copyContent('<?php echo htmlspecialchars((string) ($site_url.$path_invoice), ENT_QUOTES, 'UTF-8'); ?>/<?php echo htmlspecialchars((string) ($i_id), ENT_QUOTES, 'UTF-8'); ?>', 'Copied!', 'Invoice URL copied successfully.')">Copy Link</button>
-        <button class="op-btn-danger btnDeleteItem-<?php echo htmlspecialchars((string) ($i_id), ENT_QUOTES, 'UTF-8'); ?> <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'delete', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>" onclick="deleteItem('<?php echo htmlspecialchars((string) ($i_id), ENT_QUOTES, 'UTF-8'); ?>')">Delete</button>
+        <button class="op-btn-danger btnDeleteItem-<?php echo htmlspecialchars((string) ($i_id), ENT_QUOTES, 'UTF-8'); ?> <?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'delete', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>" onclick="deleteItem('<?php echo htmlspecialchars((string) ($i_id), ENT_QUOTES, 'UTF-8'); ?>')">Delete</button>
     </div>
 </div>
 
@@ -69,7 +69,7 @@ if (!defined('OWNPAY_INIT')) {
                         <label class="op-label">Currency <span class="text-red-500">*</span></label>
                         <select class="js-select in-currency op-select" name="currency" data-search="true" data-remove="true" required onchange="FNcurrency()">
                             <?php
-                                $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                                $response_brand = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                                 if ($response_brand['status'] == true) {
                                     foreach ($response_brand['response'] as $row) {
                             ?>
@@ -101,7 +101,7 @@ if (!defined('OWNPAY_INIT')) {
             <!-- Existing Items -->
             <div class="item-list space-y-4">
                 <?php
-                    $response = json_decode(getData($db_prefix.'invoice_items','WHERE brand_id = :brand_id AND invoice_id = :invoice_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoice_id' => $i_id]),true);
+                    $response = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'invoice_items','WHERE brand_id = :brand_id AND invoice_id = :invoice_id', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':invoice_id' => $i_id]),true);
                     if ($response['status'] == true) { foreach($response['response'] as $row){
                 ?>
                         <div class="op-card item-<?php echo htmlspecialchars((string) ($row['id']), ENT_QUOTES, 'UTF-8'); ?>">
@@ -120,19 +120,19 @@ if (!defined('OWNPAY_INIT')) {
                                     </div>
                                     <div>
                                         <label class="op-label">Quantity <span class="text-red-500">*</span></label>
-                                        <input type="text" class="op-input" name="item-quantity" value="<?php echo htmlspecialchars((string) (money_round($row['quantity'])), ENT_QUOTES, 'UTF-8'); ?>" required>
+                                        <input type="text" class="op-input" name="item-quantity" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($row['quantity'])), ENT_QUOTES, 'UTF-8'); ?>" required>
                                     </div>
                                     <div>
                                         <label class="op-label">Amount <span class="text-red-500">*</span></label>
-                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="item-amount" value="<?php echo htmlspecialchars((string) (money_round($row['amount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="item-amount" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($row['amount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                                     </div>
                                     <div>
                                         <label class="op-label">Discount <span class="text-red-500">*</span></label>
-                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="item-discount" value="<?php echo htmlspecialchars((string) (money_round($row['discount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none" name="item-discount" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($row['discount'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                                     </div>
                                     <div>
                                         <label class="op-label">Vat <span class="text-red-500">*</span></label>
-                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="item-vat" value="<?php echo htmlspecialchars((string) (money_round($row['vat'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600">%</span><input type="text" class="op-input rounded-s-none" name="item-vat" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($row['vat'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                                     </div>
                                 </div>
                             </div>
@@ -161,7 +161,7 @@ if (!defined('OWNPAY_INIT')) {
                 <div class="p-4 space-y-3">
                     <div>
                         <label class="op-label">Shipping</label>
-                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none invoice-shipping" name="shipping" value="<?php echo htmlspecialchars((string) (money_round($response_invoice['response'][0]['shipping'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
+                        <div class="flex"><span class="inline-flex items-center px-3 text-sm text-gray-500 bg-gray-100 border border-e-0 border-gray-300 rounded-s-lg dark:bg-gray-600 dark:text-gray-400 dark:border-gray-600 currency-code"><?php echo htmlspecialchars((string) ($global_brand_currency_code), ENT_QUOTES, 'UTF-8'); ?></span><input type="text" class="op-input rounded-s-none invoice-shipping" name="shipping" value="<?php echo htmlspecialchars((string) (\OwnPay\Service\Payment\CurrencyService::round($response_invoice['response'][0]['shipping'])), ENT_QUOTES, 'UTF-8'); ?>" required></div>
                     </div>
                     <div>
                         <label class="op-label">Discount</label>

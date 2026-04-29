@@ -1189,21 +1189,24 @@ CREATE TABLE `op_sms_data` (
   `source`        VARCHAR(10)     NOT NULL DEFAULT 'app'
                   CHECK (`source` IN ('app','web','api')),
   `sender_key`    VARCHAR(30)     NOT NULL,                            -- gateway account identifier
-  `sender_type`   VARCHAR(20)     NOT NULL DEFAULT 'Personal'
-                  CHECK (`sender_type` IN ('Personal','Agent','Merchant')),
+  `type`          VARCHAR(20)     NOT NULL DEFAULT 'Personal'
+                  CHECK (`type` IN ('Personal','Agent','Merchant')),    -- alias: sender_type for legacy compat
   `sim_slot`      VARCHAR(6)      NULL,
-  `phone_number`  VARCHAR(20)     NULL,                                -- sender phone
+  `number`        VARCHAR(20)     NULL,                                -- sender phone (legacy: 'number')
   `amount`        DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
   `currency`      CHAR(3)         NOT NULL DEFAULT 'BDT',
   `trx_id`        VARCHAR(128)    NULL,                                -- parsed transaction ID
   `balance`       DECIMAL(19,4)   NULL,                                -- post-transaction balance
   `raw_message`   TEXT            NULL,                                -- original SMS body
+  `message`       TEXT            NULL,                                -- alias for raw_message (legacy compat)
   `parsed_data`   JSON            NULL,                                -- structured extraction
-  `match_status`  VARCHAR(20)     NOT NULL DEFAULT 'pending'
-                  CHECK (`match_status` IN ('pending','matched','unmatched','error','manual_review')),
+  `status`        VARCHAR(20)     NOT NULL DEFAULT 'pending'
+                  CHECK (`status` IN ('pending','approved','used','error','manual_review')),
   `matched_txn_id` BIGINT UNSIGNED NULL,                               -- linked op_transactions.id
   `matched_at`    DATETIME(6)     NULL,
   `reason`        VARCHAR(300)    NULL,                                -- match failure reason
+  `created_date`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,  -- legacy column name
+  `updated_date`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, -- legacy column name
   `created_at`    DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at`    DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
 
@@ -1211,7 +1214,7 @@ CREATE TABLE `op_sms_data` (
   INDEX `idx_sms_device` (`device_id`),
   INDEX `idx_sms_trx_id` (`trx_id`),
   INDEX `idx_sms_sender` (`sender_key`, `amount`),
-  INDEX `idx_sms_match` (`match_status`, `created_at`),
+  INDEX `idx_sms_status` (`status`, `created_at`),
   INDEX `idx_sms_matched_txn` (`matched_txn_id`),
   CONSTRAINT `fk_sms_device`  FOREIGN KEY (`device_id`)      REFERENCES `op_devices`(`id`)       ON DELETE RESTRICT
   -- FK NOTE: fk_sms_txn removed — op_transactions is partitioned.
@@ -1219,9 +1222,6 @@ CREATE TABLE `op_sms_data` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 
--- ############################################################################
--- SECTION 11: LEGACY COMPATIBILITY TABLES (Admin Panel Controllers)
--- ############################################################################
 -- ############################################################################
 -- SECTION 11: LEGACY COMPATIBILITY TABLES (Admin Panel Controllers)
 -- ############################################################################
@@ -1294,29 +1294,39 @@ CREATE TABLE IF NOT EXISTS `op_admin` (
 
 -- 11.4 op_transaction
 CREATE TABLE IF NOT EXISTS `op_transaction` (
-  `id`             BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `ref`            VARCHAR(64)     NOT NULL,
-  `trx_id`         VARCHAR(128)    NULL,
-  `brand_id`       VARCHAR(64)     NOT NULL,
-  `gateway_id`     VARCHAR(64)     NOT NULL DEFAULT '',
-  `amount`         DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `currency`       CHAR(3)         NOT NULL DEFAULT 'BDT',
-  `fee`            DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `net_amount`     DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
-  `sender_key`     VARCHAR(128)    NULL,
-  `type`           VARCHAR(30)     NULL,
-  `status`         VARCHAR(20)     NOT NULL DEFAULT 'initiated',
-  `version`        INT UNSIGNED    NOT NULL DEFAULT 1,
-  `customer_name`  VARCHAR(200)    NULL,
-  `customer_email` VARCHAR(255)    NULL,
-  `customer_phone` VARCHAR(30)     NULL,
-  `note`           TEXT            NULL,
-  `created_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-  `updated_date`   DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  `id`              BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `ref`             VARCHAR(64)     NOT NULL,
+  `trx_id`          VARCHAR(128)    NULL,
+  `brand_id`        VARCHAR(64)     NOT NULL,
+  `gateway_id`      VARCHAR(64)     NOT NULL DEFAULT '',
+  `amount`          DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
+  `currency`        CHAR(3)         NOT NULL DEFAULT 'BDT',
+  `local_currency`  CHAR(3)         NOT NULL DEFAULT 'BDT',            -- local currency for FX
+  `fee`             DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
+  `processing_fee`  DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,           -- alias for fee (V2 compat)
+  `discount_amount` DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
+  `net_amount`      DECIMAL(19,4)   NOT NULL DEFAULT 0.0000,
+  `local_net_amount` DECIMAL(19,4)  NOT NULL DEFAULT 0.0000,           -- net amount in local currency
+  `sender_key`      VARCHAR(128)    NULL,
+  `sender_type`     VARCHAR(20)     NOT NULL DEFAULT 'Personal',       -- Personal/Agent/Merchant
+  `sender`          VARCHAR(100)    NULL,                              -- resolved sender phone/account
+  `type`            VARCHAR(30)     NULL,
+  `status`          VARCHAR(20)     NOT NULL DEFAULT 'initiated',
+  `version`         INT UNSIGNED    NOT NULL DEFAULT 1,
+  `customer_name`   VARCHAR(200)    NULL,
+  `customer_email`  VARCHAR(255)    NULL,
+  `customer_phone`  VARCHAR(30)     NULL,
+  `customer_info`   JSON            NULL,                              -- full customer snapshot (V2 compat)
+  `metadata`        JSON            NULL,                              -- arbitrary merchant metadata
+  `webhook_url`     VARCHAR(2048)   NULL,                              -- per-transaction webhook
+  `note`            TEXT            NULL,
+  `created_date`    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_date`    DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   PRIMARY KEY (`id`),
   UNIQUE KEY `uq_transaction_ref` (`ref`),
   INDEX `idx_transaction_brand_status` (`brand_id`, `status`),
   INDEX `idx_transaction_trx_id` (`trx_id`),
+  INDEX `idx_transaction_sender_key` (`sender_key`),
   INDEX `idx_transaction_created` (`created_date`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -1686,12 +1696,12 @@ COMMIT;
 CREATE TABLE IF NOT EXISTS `op_device_pairing_tokens` (
     `id`          BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `otp_hash`    VARCHAR(64)     NOT NULL COMMENT 'SHA-256 hash of the 6-digit OTP',
-    `brand_id`    INT UNSIGNED    NOT NULL COMMENT 'FK → op_brands.brand_id',
-    `created_by`  INT UNSIGNED    NOT NULL COMMENT 'Admin user who generated the OTP',
-    `expires_at`  DATETIME        NOT NULL COMMENT 'now() + 5 minutes',
+    `brand_id`    VARCHAR(64)     NOT NULL COMMENT 'FK → op_brands.brand_id (VARCHAR match)',
+    `created_by`  BIGINT UNSIGNED NOT NULL COMMENT 'Admin user id who generated the OTP',
+    `expires_at`  DATETIME(6)     NOT NULL COMMENT 'now() + 5 minutes',
     `is_used`     TINYINT(1)      NOT NULL DEFAULT 0,
-    `used_at`     DATETIME        NULL,
-    `created_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `used_at`     DATETIME(6)     NULL,
+    `created_at`  DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
     INDEX `idx_otp_lookup` (`otp_hash`, `is_used`, `expires_at`),
     INDEX `idx_brand`       (`brand_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1700,19 +1710,19 @@ CREATE TABLE IF NOT EXISTS `op_device_pairing_tokens` (
 CREATE TABLE IF NOT EXISTS `op_paired_devices` (
     `id`                        BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     `device_uuid`               CHAR(36)        NOT NULL COMMENT 'Server-generated UUID v4',
-    `brand_id`                  INT UNSIGNED    NOT NULL COMMENT 'FK → op_brands.brand_id',
+    `brand_id`                  VARCHAR(64)     NOT NULL COMMENT 'FK → op_brands.brand_id (VARCHAR match)',
     `device_name`               VARCHAR(100)    NOT NULL DEFAULT '',
     `fingerprint_hash`          VARCHAR(64)     NOT NULL COMMENT 'SHA-256 of android_id:cert_sha256',
     `aes_key_encrypted`         TEXT            NOT NULL COMMENT 'AES-256 key encrypted via FieldEncryptor',
     `refresh_token_hash`        VARCHAR(64)     NOT NULL COMMENT 'SHA-256 of the opaque refresh token',
-    `refresh_token_expires_at`  DATETIME        NOT NULL,
+    `refresh_token_expires_at`  DATETIME(6)     NOT NULL,
     `jwt_secret`                VARCHAR(128)    NOT NULL COMMENT 'Per-device HMAC-SHA256 key (hex)',
     `platform`                  ENUM('android','ios') NOT NULL DEFAULT 'android',
     `app_version`               VARCHAR(20)     NOT NULL DEFAULT '',
-    `last_seen_at`              DATETIME        NULL,
-    `revoked_at`                DATETIME        NULL COMMENT 'Admin-set; non-null = revoked',
-    `created_at`                DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`                DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `last_seen_at`              DATETIME(6)     NULL,
+    `revoked_at`                DATETIME(6)     NULL COMMENT 'Admin-set; non-null = revoked',
+    `created_at`                DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at`                DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     UNIQUE KEY `uq_device_uuid`   (`device_uuid`),
     INDEX `idx_brand_active`      (`brand_id`, `revoked_at`),
     INDEX `idx_refresh_lookup`    (`refresh_token_hash`),
@@ -1728,8 +1738,9 @@ CREATE TABLE IF NOT EXISTS `op_mobile_notifications` (
     `body`        TEXT            NULL,
     `payload`     JSON            NULL COMMENT 'Arbitrary data for deep linking',
     `is_read`     TINYINT(1)      NOT NULL DEFAULT 0,
-    `read_at`     DATETIME        NULL,
-    `created_at`  DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    `read_at`     DATETIME(6)     NULL,
+    `created_at`  DATETIME(6)     NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    CONSTRAINT `fk_mn_device` FOREIGN KEY (`device_uuid`) REFERENCES `op_paired_devices`(`device_uuid`) ON DELETE CASCADE,
     INDEX `idx_device_poll`   (`device_uuid`, `is_read`, `created_at`),
     INDEX `idx_device_cleanup`(`device_uuid`, `is_read`, `read_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -1741,11 +1752,13 @@ CREATE TABLE IF NOT EXISTS `op_sms_templates` (
     `regex_pattern`    TEXT         NOT NULL COMMENT 'PHP PCRE regex with named capture groups',
     `transaction_type` ENUM('credit','debit','both') NOT NULL DEFAULT 'credit',
     `provider_name`    VARCHAR(50)  NOT NULL COMMENT 'Human-readable: bKash, Nagad, Rocket, etc.',
+    `currency`         CHAR(3)      NOT NULL DEFAULT 'BDT',
+    `balance_verify`   TINYINT(1)   NOT NULL DEFAULT 1,
     `priority`         INT          NOT NULL DEFAULT 100 COMMENT 'Lower = try first',
     `is_active`        TINYINT(1)   NOT NULL DEFAULT 1,
     `description`      VARCHAR(255) NULL COMMENT 'Admin note about this template',
-    `created_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    `updated_at`       DATETIME     NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    `created_at`       DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+    `updated_at`       DATETIME(6)  NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
     PRIMARY KEY (`id`),
     INDEX `idx_sms_tpl_sender` (`sender_pattern`, `is_active`, `priority`),
     INDEX `idx_sms_tpl_provider` (`provider_name`)
@@ -1761,15 +1774,15 @@ CREATE TABLE IF NOT EXISTS `op_sms_parsed` (
     `received_at`      DATETIME        NOT NULL COMMENT 'Original SMS timestamp from device',
     `encrypted_raw`    TEXT            NOT NULL COMMENT 'Original AES-encrypted payload (audit)',
     `raw_message`      TEXT            NULL COMMENT 'Decrypted SMS body (for admin review)',
-    `parsed_amount`    DECIMAL(15,2)   NULL COMMENT 'Extracted transaction amount',
-    `parsed_trx_id`    VARCHAR(50)     NULL COMMENT 'Extracted transaction ID',
-    `parsed_sender`    VARCHAR(50)     NULL COMMENT 'Extracted sender phone/name',
-    `parsed_balance`   DECIMAL(15,2)   NULL COMMENT 'Extracted post-tx balance',
+    `parsed_amount`    DECIMAL(19,4)   NULL COMMENT 'Extracted transaction amount',
+    `parsed_trx_id`    VARCHAR(128)    NULL COMMENT 'Extracted transaction ID',
+    `parsed_sender`    VARCHAR(100)    NULL COMMENT 'Extracted sender phone/name',
+    `parsed_balance`   DECIMAL(19,4)   NULL COMMENT 'Extracted post-tx balance',
     `parsed_type`      ENUM('credit','debit','unknown') NOT NULL DEFAULT 'unknown',
     `parse_method`     ENUM('regex','heuristic','unparsed') NOT NULL DEFAULT 'unparsed',
     `template_id`      INT UNSIGNED    NULL COMMENT 'FK → op_sms_templates.id if regex matched',
     `parse_confidence` ENUM('high','medium','low') NOT NULL DEFAULT 'low',
-    `status`           ENUM('accepted','duplicate','parse_error','admin_review') NOT NULL DEFAULT 'accepted',
+    `status`           ENUM('accepted','duplicate','parse_error','admin_review','used') NOT NULL DEFAULT 'accepted',
     `processed_at`     DATETIME        NULL COMMENT 'Server parse timestamp',
     `created_at`       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP,
     `updated_at`       DATETIME        NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -1784,18 +1797,30 @@ CREATE TABLE IF NOT EXISTS `op_sms_parsed` (
     CONSTRAINT `fk_sp_template` FOREIGN KEY (`template_id`) REFERENCES `op_sms_templates`(`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
-INSERT INTO `op_sms_templates` (`sender_pattern`, `regex_pattern`, `transaction_type`, `provider_name`, `priority`, `description`) VALUES
-('bKash', '/You have received Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:new balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'bKash', 10, 'bKash money received (personal transfer)'),
-('bKash', '/Payment of Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:has been\\s*)?received(?:.*?from\\s*(?P<sender_number>\\d{11}))?(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'bKash', 15, 'bKash payment received (merchant)'),
-('bKash', '/Cash Out Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:to|from)\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'bKash', 20, 'bKash cash out'),
-('bKash', '/You have sent Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*to\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'bKash', 25, 'bKash send money'),
-('Nagad', '/(?:You have received|Received)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?TxnID[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Nagad', 10, 'Nagad money received'),
-('Nagad', '/(?:You have sent|Sent)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*to\\s*(?P<sender_number>\\d{11})(?:.*?TxnID[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'Nagad', 15, 'Nagad send money'),
-('16216', '/(?:Received|Cash In)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11,})(?:.*?TxnId[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:Bal|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Rocket', 10, 'Rocket/DBBL received'),
-('Upay', '/(?:You have received|Received)\\s*(?:Tk\\.?)?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:BDT\\s*)?from\\s*(?P<sender_number>\\d{11})(?:.*?(?:TrxID|TxnID)[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*(?:Tk\\.?)?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Upay', 10, 'Upay received'),
-('SureCash', '/(?:received|Received)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?(?:TrxID|Ref)[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'SureCash', 10, 'SureCash received');
+INSERT INTO `op_sms_templates` (`sender_pattern`, `regex_pattern`, `transaction_type`, `provider_name`, `currency`, `balance_verify`, `priority`, `description`) VALUES
+('bKash', '/You have received Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:new balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'bKash', 'BDT', 1, 10, 'bKash money received (personal transfer)'),
+('bKash', '/Payment of Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:has been\\s*)?received(?:.*?from\\s*(?P<sender_number>\\d{11}))?(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'bKash', 'BDT', 1, 15, 'bKash payment received (merchant)'),
+('bKash', '/Cash Out Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:to|from)\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'bKash', 'BDT', 1, 20, 'bKash cash out'),
+('bKash', '/You have sent Tk\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*to\\s*(?P<sender_number>\\d{11})(?:.*?TrxID\\s*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)\\s*(?:is\\s*)?Tk\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'bKash', 'BDT', 1, 25, 'bKash send money'),
+('Nagad', '/(?:You have received|Received)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?TxnID[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Nagad', 'BDT', 1, 10, 'Nagad money received'),
+('Nagad', '/(?:You have sent|Sent)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*to\\s*(?P<sender_number>\\d{11})(?:.*?TxnID[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'debit', 'Nagad', 'BDT', 1, 15, 'Nagad send money'),
+('16216', '/(?:Received|Cash In)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11,})(?:.*?TxnId[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:Bal|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Rocket', 'BDT', 1, 10, 'Rocket/DBBL received'),
+('Upay', '/(?:You have received|Received)\\s*(?:Tk\\.?)?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*(?:BDT\\s*)?from\\s*(?P<sender_number>\\d{11})(?:.*?(?:TrxID|TxnID)[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*(?:Tk\\.?)?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'Upay', 'BDT', 1, 10, 'Upay received'),
+('SureCash', '/(?:received|Received)\\s*Tk\\.?\\s*(?P<amount>[\\d,]+(?:\\.\\d{1,2})?)\\s*from\\s*(?P<sender_number>\\d{11})(?:.*?(?:TrxID|Ref)[:\\s]*(?P<trx_id>[A-Z0-9]+))?(?:.*?(?:balance|Balance)[:\\s]*Tk\\.?\\s*(?P<balance>[\\d,]+(?:\\.\\d{1,2})?))?/i', 'credit', 'SureCash', 'BDT', 1, 10, 'SureCash received');
 
 
 -- TOTAL: 62 tables (41 V2 + 21 legacy) | 5 partitioned | 11 JSON constraints | 4 deadlock indexes
 -- ============================================================================
--- Schema Version: 2.0 (Unified Production — Schema + Hardening)
+-- Schema Version: 2.1 (Unified Production — Schema + Hardening + Audit Fixes)
+-- Fixes applied (v2.1):
+--   • op_sms_parsed.status ENUM: added 'used' value (required by SmsVerificationJob)
+--   • op_sms_parsed: DECIMAL(15,2) → DECIMAL(19,4), VARCHAR widths aligned to V2 standard
+--   • op_sms_data: renamed match_status→status, phone_number→number, added message alias,
+--                  replaced updated_at/created_at with legacy _date columns for app compat
+--   • op_transaction: added sender_type, sender, local_net_amount, local_currency,
+--                     processing_fee, discount_amount, customer_info, metadata, webhook_url
+--   • op_device_pairing_tokens: brand_id INT→VARCHAR(64), created_by INT→BIGINT, DATETIME→DATETIME(6)
+--   • op_paired_devices: brand_id INT→VARCHAR(64), all DATETIME→DATETIME(6)
+--   • op_mobile_notifications: DATETIME→DATETIME(6), added FK to op_paired_devices
+--   • op_sms_templates: DATETIME→DATETIME(6)
+--   • Removed duplicate Section 11 header comment

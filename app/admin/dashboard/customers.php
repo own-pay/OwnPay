@@ -4,7 +4,7 @@
         exit('Direct access not allowed');
     }
 
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
@@ -17,7 +17,7 @@
     </div>
     <div class="flex items-center gap-3">
         <span class="global-loaderSpinner"></span>
-        <span class="<?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
+        <span class="<?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
             <button data-modal-target="modal-createItem" data-modal-toggle="modal-createItem" class="op-btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 me-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
                 <span class="hidden sm:inline">Create Customer</span>
@@ -129,9 +129,9 @@
                 <label class="op-label">Action <span class="text-red-500">*</span></label>
                 <select class="op-select" id="model-bulkActionID">
                     <option value="" selected>Select a Action</option>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'edit', $global_user_response['response'][0]['role']) ? '<option value="activated">Activate Selected</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'edit', $global_user_response['response'][0]['role']) ? '<option value="suspended">Suspend Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'edit', $global_user_response['response'][0]['role']) ? '<option value="activated">Activate Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'edit', $global_user_response['response'][0]['role']) ? '<option value="suspended">Suspend Selected</option>' : '' ?>
                 </select>
             </div>
             <div class="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700">
@@ -364,8 +364,8 @@
             .then(res => {
                 let html = '';
                 if (res.status === 'true') {
-                    let allowEdit = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'edit', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
-                    let allowDelete = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                    let allowEdit = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'edit', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                    let allowDelete = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
 
                     res.response.forEach(item => {
                         let badgeClass = 'op-badge-gray';

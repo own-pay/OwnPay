@@ -4,7 +4,7 @@ if (!defined('OWNPAY_INIT')) {
     exit('Direct access not allowed');
 }
 
-if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'dashboard', $global_user_response['response'][0]['role'])) {
+if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'dashboard', $global_user_response['response'][0]['role'])) {
     http_response_code(403);
     exit('Access denied. You need permission to perform this action. Please contact the admin.');
 }
@@ -49,7 +49,7 @@ if (!canAccessPage(json_decode($global_response_permission['response'][0]['permi
         <div class="op-stat-value tabular-nums">
             <?php
             $total_revenue = 0;
-            $response_dashboard_info = json_decode(getData($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status = :status', 'SUM(amount) as total FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'completed']), true);
+            $response_dashboard_info = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status = :status', 'SUM(amount) as total FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'completed']), true);
             if ($response_dashboard_info['status'] == true && !empty($response_dashboard_info['response'][0]['total'])) {
                 $total_revenue = $response_dashboard_info['response'][0]['total'];
             }
@@ -70,7 +70,7 @@ if (!canAccessPage(json_decode($global_response_permission['response'][0]['permi
         <div class="op-stat-value tabular-nums">
             <?php
             $count = 0;
-            $response_dashboard_info = json_decode(getData($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status = :status', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'pending']), true);
+            $response_dashboard_info = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status = :status', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'pending']), true);
             if ($response_dashboard_info['status'] == true) {
                 $count = count($response_dashboard_info['response']);
             }
@@ -91,9 +91,9 @@ if (!canAccessPage(json_decode($global_response_permission['response'][0]['permi
         <div class="op-stat-value tabular-nums">
             <?php
             $total = 0; $completed = 0;
-            $response_all = json_decode(getData($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status != :exc_status', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':exc_status' => 'initiated']), true);
+            $response_all = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status != :exc_status', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':exc_status' => 'initiated']), true);
             if ($response_all['status'] == true) { $total = count($response_all['response']); }
-            $response_completed = json_decode(getData($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status = :status', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'completed']), true);
+            $response_completed = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status = :status', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'completed']), true);
             if ($response_completed['status'] == true) { $completed = count($response_completed['response']); }
             $rate = $total > 0 ? round(($completed / $total) * 100, 1) : 0;
             echo $rate . '%';
@@ -113,7 +113,7 @@ if (!canAccessPage(json_decode($global_response_permission['response'][0]['permi
         <div class="op-stat-value tabular-nums">
             <?php
             $count = 0;
-            $response_dashboard_info = json_decode(getData($db_prefix . 'gateways', ' WHERE brand_id = :brand_id AND status = :status', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'active']), true);
+            $response_dashboard_info = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'gateways', ' WHERE brand_id = :brand_id AND status = :status', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'active']), true);
             if ($response_dashboard_info['status'] == true) {
                 $count = count($response_dashboard_info['response']);
             }
@@ -234,7 +234,7 @@ if (!canAccessPage(json_decode($global_response_permission['response'][0]['permi
                 </thead>
                 <tbody>
                     <?php
-                    $response_recent = json_decode(getData($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status != :exc_status ORDER BY id DESC LIMIT 5', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':exc_status' => 'initiated']), true);
+                    $response_recent = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status != :exc_status ORDER BY id DESC LIMIT 5', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':exc_status' => 'initiated']), true);
                     if ($response_recent['status'] == true) {
                         foreach ($response_recent['response'] as $row) {
                             $statusClass = match($row['status']) {
@@ -324,28 +324,28 @@ if (!canAccessPage(json_decode($global_response_permission['response'][0]['permi
     // Customer sparkline data (last 30 days)
     $labels = [];
     for ($i = 29; $i >= 0; $i--) { $labels[date('Y-m-d', strtotime("-$i days"))] = 0; }
-    $response_dashboard_info = json_decode(getData($db_prefix . 'customer', ' WHERE brand_id = :brand_id AND created_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) GROUP BY DATE(created_date)', 'DATE(created_date) as day, COUNT(*) as total FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+    $response_dashboard_info = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'customer', ' WHERE brand_id = :brand_id AND created_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) GROUP BY DATE(created_date)', 'DATE(created_date) as day, COUNT(*) as total FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
     if (isset($response_dashboard_info['response'])) { foreach ($response_dashboard_info['response'] as $row) { if (isset($labels[$row['day']])) $labels[$row['day']] = (int) $row['total']; } }
     $chartLabelsCustomer = json_encode(array_keys($labels)); $chartDataCustomer = json_encode(array_values($labels));
 
     // Unpaid Invoice sparkline data
     $labels = [];
     for ($i = 29; $i >= 0; $i--) { $labels[date('Y-m-d', strtotime("-$i days"))] = 0; }
-    $response_dashboard_info = json_decode(getData($db_prefix . 'invoice', ' WHERE brand_id = :brand_id AND status = :status AND created_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) GROUP BY DATE(created_date)', 'DATE(created_date) as day, COUNT(*) as total FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'unpaid']), true);
+    $response_dashboard_info = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'invoice', ' WHERE brand_id = :brand_id AND status = :status AND created_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) GROUP BY DATE(created_date)', 'DATE(created_date) as day, COUNT(*) as total FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'unpaid']), true);
     if (isset($response_dashboard_info['response'])) { foreach ($response_dashboard_info['response'] as $row) { if (isset($labels[$row['day']])) $labels[$row['day']] = (int) $row['total']; } }
     $chartLabelsInvoice = json_encode(array_keys($labels)); $chartDataInvoice = json_encode(array_values($labels));
 
     // Pending Payment sparkline data
     $labels = [];
     for ($i = 29; $i >= 0; $i--) { $labels[date('Y-m-d', strtotime("-$i days"))] = 0; }
-    $response_dashboard_info = json_decode(getData($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status = :status AND created_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) GROUP BY DATE(created_date)', 'DATE(created_date) as day, COUNT(*) as total FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'pending']), true);
+    $response_dashboard_info = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status = :status AND created_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) GROUP BY DATE(created_date)', 'DATE(created_date) as day, COUNT(*) as total FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':status' => 'pending']), true);
     if (isset($response_dashboard_info['response'])) { foreach ($response_dashboard_info['response'] as $row) { if (isset($labels[$row['day']])) $labels[$row['day']] = (int) $row['total']; } }
     $chartLabelsPending = json_encode(array_keys($labels)); $chartDataPending = json_encode(array_values($labels));
 
     // Total Payment sparkline data
     $labels = [];
     for ($i = 29; $i >= 0; $i--) { $labels[date('Y-m-d', strtotime("-$i days"))] = 0; }
-    $response_dashboard_info = json_decode(getData($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status NOT IN (:s1, :s2) AND created_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) GROUP BY DATE(created_date)', 'DATE(created_date) as day, COUNT(*) as total FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':s1' => 'initiated', ':s2' => 'expired']), true);
+    $response_dashboard_info = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'transaction', ' WHERE brand_id = :brand_id AND status NOT IN (:s1, :s2) AND created_date >= DATE_SUB(CURDATE(), INTERVAL 29 DAY) GROUP BY DATE(created_date)', 'DATE(created_date) as day, COUNT(*) as total FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id'], ':s1' => 'initiated', ':s2' => 'expired']), true);
     if (isset($response_dashboard_info['response'])) { foreach ($response_dashboard_info['response'] as $row) { if (isset($labels[$row['day']])) $labels[$row['day']] = (int) $row['total']; } }
     $chartLabelsTotal = json_encode(array_keys($labels)); $chartDataTotal = json_encode(array_values($labels));
     ?>

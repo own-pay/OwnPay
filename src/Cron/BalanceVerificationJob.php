@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace OwnPay\Cron;
 
-use OwnPay\Service\CrudService;
-use OwnPay\Service\MfsService;
+use OwnPay\Service\System\CrudService;
+use OwnPay\Service\Payment\MfsService;
 
 /**
  * BalanceVerificationJob — reconcile active balance-verification records.

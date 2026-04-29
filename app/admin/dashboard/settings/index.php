@@ -1,6 +1,6 @@
 <?php
     if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
 ?>
 
 <div class="op-page-header">
@@ -135,7 +135,7 @@
             <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4" id="settings-cards-grid">
                 <?php foreach ($tabs as $tabKey => $tabCards): ?>
                     <?php foreach ($tabCards as $card):
-                        $visible = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), $card['perm'], $card['action'], $global_user_response['response'][0]['role']);
+                        $visible = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), $card['perm'], $card['action'], $global_user_response['response'][0]['role']);
                     ?>
                     <div class="op-settings-card-item <?= $visible ? '' : 'hidden' ?> <?= $tabKey !== 'general' ? 'hidden' : '' ?>"
                          data-tab-group="<?= $tabKey ?>"

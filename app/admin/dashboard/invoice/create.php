@@ -4,12 +4,12 @@ if (!defined('OWNPAY_INIT')) {
     exit('Direct access not allowed');
 }
 
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
 
-    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'create', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'invoice', 'create', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
@@ -41,7 +41,7 @@ if (!defined('OWNPAY_INIT')) {
                         <div class="flex">
                             <select class="js-select customersList op-select flex-1" name="customers[]" multiple data-search="true" data-remove="true" data-placeholder="Select customers" required>
                                 <?php
-                                    $response_brand = json_decode(getData($db_prefix . 'customer', 'WHERE status = :status AND brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':status' => 'active', ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                                    $response_brand = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'customer', 'WHERE status = :status AND brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':status' => 'active', ':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                                     if ($response_brand['status'] == true) {
                                         foreach ($response_brand['response'] as $row) {
                                 ?>
@@ -51,7 +51,7 @@ if (!defined('OWNPAY_INIT')) {
                                     }
                                 ?>
                             </select>
-                            <button type="button" class="op-btn-secondary rounded-s-none <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>" data-modal-target="modal-createItem" data-modal-toggle="modal-createItem">
+                            <button type="button" class="op-btn-secondary rounded-s-none <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'customers', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>" data-modal-target="modal-createItem" data-modal-toggle="modal-createItem">
                                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
                             </button>
                         </div>
@@ -61,7 +61,7 @@ if (!defined('OWNPAY_INIT')) {
                         <label class="op-label">Currency <span class="text-red-500">*</span></label>
                         <select class="js-select in-currency op-select" name="currency" data-search="true" data-remove="true" required onchange="FNcurrency()">
                             <?php
-                                $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
+                                $response_brand = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $global_response_brand['response'][0]['brand_id']]), true);
                                 if ($response_brand['status'] == true) {
                                     foreach ($response_brand['response'] as $row) {
                             ?>

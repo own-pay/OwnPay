@@ -354,6 +354,7 @@ if (isset($_POST['test_databse_request'])) {
             . "    \$db_user   = '" . addslashes($username)    . "';\n"
             . "    \$db_pass   = '" . addslashes($password)    . "';\n"
             . "    \$db_name   = '" . addslashes($dbname)      . "';\n"
+            . "    \$db_port   = " . (int)$port               . ";\n"
             . "    \$db_prefix = '" . addslashes($tablePrefix) . "';\n"
             . "?>\n";
 
@@ -497,7 +498,8 @@ if (isset($_POST['adminName'])) {
 
         // 5. Auxiliary sessions table for cookie verification
         try {
-            $pdo = new PDO("mysql:host={$db_host};dbname={$db_name};charset=utf8mb4", $db_user, $db_pass);
+            $portStr = isset($db_port) ? ";port={$db_port}" : "";
+            $pdo = new PDO("mysql:host={$db_host}{$portStr};dbname={$db_name};charset=utf8mb4", $db_user, $db_pass);
             $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
             $pdo->exec("CREATE TABLE IF NOT EXISTS {$db_prefix}sessions (
                 cookie       VARCHAR(100) NOT NULL PRIMARY KEY,
@@ -585,6 +587,7 @@ if (isset($_POST['adminName'])) {
             . "\$db_user   = \$_ENV['DB_USER']   ?? \$_SERVER['DB_USER']   ?? 'root';\n"
             . "\$db_pass   = \$_ENV['DB_PASS']   ?? \$_SERVER['DB_PASS']   ?? '';\n"
             . "\$db_name   = \$_ENV['DB_NAME']   ?? \$_SERVER['DB_NAME']   ?? 'ownpay';\n"
+            . "\$db_port   = \$_ENV['DB_PORT']   ?? \$_SERVER['DB_PORT']   ?? 3306;\n"
             . "\$db_prefix = \$_ENV['DB_PREFIX'] ?? \$_SERVER['DB_PREFIX'] ?? 'op_';\n"
             . "?>\n";
 

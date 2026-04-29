@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Middleware;
 
-use OwnPay\Service\ApiKeyService;
+use OwnPay\Service\Customer\ApiKeyService;
 
 /**
  * BearerAuthMiddleware — extracts and validates Bearer tokens.

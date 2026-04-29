@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Unit\Service;
 
-use OwnPay\Service\JwtService;
+use OwnPay\Service\Auth\JwtService;
 use PHPUnit\Framework\TestCase;
 
 class JwtServiceTest extends TestCase

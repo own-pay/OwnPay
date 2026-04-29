@@ -70,14 +70,16 @@ final class SmsTemplateRepository
     public function create(array $data): int
     {
         $stmt = $this->pdo->prepare(
-            "INSERT INTO " . self::TABLE . " (sender_pattern, regex_pattern, transaction_type, provider_name, priority, is_active, description)
-             VALUES (:sender_pattern, :regex_pattern, :transaction_type, :provider_name, :priority, :is_active, :description)"
+            "INSERT INTO " . self::TABLE . " (sender_pattern, regex_pattern, transaction_type, provider_name, currency, balance_verify, priority, is_active, description)
+             VALUES (:sender_pattern, :regex_pattern, :transaction_type, :provider_name, :currency, :balance_verify, :priority, :is_active, :description)"
         );
         $stmt->execute([
             ':sender_pattern'   => $data['sender_pattern'],
             ':regex_pattern'    => $data['regex_pattern'],
             ':transaction_type' => $data['transaction_type'] ?? 'credit',
             ':provider_name'    => $data['provider_name'],
+            ':currency'         => $data['currency'] ?? 'BDT',
+            ':balance_verify'   => $data['balance_verify'] ?? 1,
             ':priority'         => $data['priority'] ?? 100,
             ':is_active'        => $data['is_active'] ?? 1,
             ':description'      => $data['description'] ?? null,
@@ -92,7 +94,7 @@ final class SmsTemplateRepository
     {
         $fields = [];
         $params = [':id' => $id];
-        $allowed = ['sender_pattern', 'regex_pattern', 'transaction_type', 'provider_name', 'priority', 'is_active', 'description'];
+        $allowed = ['sender_pattern', 'regex_pattern', 'transaction_type', 'provider_name', 'currency', 'balance_verify', 'priority', 'is_active', 'description'];
 
         foreach ($allowed as $field) {
             if (array_key_exists($field, $data)) {
@@ -116,5 +118,19 @@ final class SmsTemplateRepository
     {
         $stmt = $this->pdo->prepare("DELETE FROM " . self::TABLE . " WHERE id = :id");
         return $stmt->execute([':id' => $id]);
+    }
+
+    /**
+     * Get all active providers grouped for MfsService.
+     */
+    public function findAllProviders(): array
+    {
+        $stmt = $this->pdo->query(
+            "SELECT provider_name, currency, balance_verify, sender_pattern 
+             FROM " . self::TABLE . " 
+             WHERE is_active = 1 
+             ORDER BY provider_name ASC"
+        );
+        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
     }
 }

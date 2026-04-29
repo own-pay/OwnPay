@@ -1,7 +1,7 @@
 <?php
 if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'theme_settings', 'edit', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'theme_settings', 'edit', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
 $params = json_decode($_POST['params'] ?? '{}', true);
 $slug = getParam($params, 'slug');
 if ($slug === null) { http_response_code(403); exit('Invalid slug'); }
@@ -32,7 +32,7 @@ $theme = new $class(); $fields = $theme->fields(); $supported_languages = $theme
             <?php foreach($fields as $field):
                 $optionName = $themeSlug . '-' . $field['name'];
                 $value = $field['value'] ?? '';
-                $envVal = get_env($optionName, $global_response_brand['response'][0]['brand_id']);
+                $envVal = \OwnPay\Service\System\EnvironmentService::get($optionName, $global_response_brand['response'][0]['brand_id']);
                 $value = empty($envVal) ? $value : $envVal;
                 if(!empty($field['multiple']) && !empty($value)) { $value = is_array($value) ? $value : json_decode($value, true); }
             ?>

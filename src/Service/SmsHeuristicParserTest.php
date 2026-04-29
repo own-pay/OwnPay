@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Service;
 
-use OwnPay\Service\SmsHeuristicParser;
+use OwnPay\Service\Sms\SmsHeuristicParser;
 use PHPUnit\Framework\TestCase;
 
 /**

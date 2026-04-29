@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace OwnPay\Cron;
 
-use OwnPay\Service\CrudService;
-use OwnPay\Service\DateTimeService;
-use OwnPay\Service\EnvironmentService;
-use OwnPay\Service\NotificationService;
+use OwnPay\Service\System\CrudService;
+use OwnPay\Service\System\DateTimeService;
+use OwnPay\Service\System\EnvironmentService;
+use OwnPay\Service\Notification\NotificationService;
 
 /**
  * WebhookRetryJob — retry pending outbound webhook deliveries.

@@ -6,7 +6,7 @@ namespace OwnPay\Http\Controller;
 
 use OwnPay\Http\JsonResponse;
 use OwnPay\Repository\SmsTemplateRepository;
-use OwnPay\Service\SmsRegexParser;
+use OwnPay\Service\Sms\SmsRegexParser;
 
 /**
  * AdminSmsTemplateController — CRUD for SMS regex templates.

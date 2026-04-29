@@ -1,10 +1,10 @@
 <?php
 if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'view', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-$allowCreate = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'create', $global_user_response['response'][0]['role']);
-$allowEdit = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'edit', $global_user_response['response'][0]['role']);
-$allowDelete = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'delete', $global_user_response['response'][0]['role']);
+if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'view', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+$allowCreate = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'create', $global_user_response['response'][0]['role']);
+$allowEdit = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'edit', $global_user_response['response'][0]['role']);
+$allowDelete = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'faq_settings', 'delete', $global_user_response['response'][0]['role']);
 ?>
 <div class="op-page-header"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>

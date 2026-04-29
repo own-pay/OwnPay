@@ -6,7 +6,7 @@ namespace OwnPay\Http\Controller;
 
 use OwnPay\Http\JsonResponse;
 use OwnPay\Middleware\JwtAuthMiddleware;
-use OwnPay\Service\MobileNotificationService;
+use OwnPay\Service\Notification\MobileNotificationService;
 
 /**
  * MobileNotificationController — Polling endpoint for mobile notifications.

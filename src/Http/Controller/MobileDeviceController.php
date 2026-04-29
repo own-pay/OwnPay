@@ -6,7 +6,7 @@ namespace OwnPay\Http\Controller;
 
 use OwnPay\Http\JsonResponse;
 use OwnPay\Middleware\JwtAuthMiddleware;
-use OwnPay\Service\DevicePairingService;
+use OwnPay\Service\Device\DevicePairingService;
 
 /**
  * MobileDeviceController — REST API endpoints for device pairing & auth.

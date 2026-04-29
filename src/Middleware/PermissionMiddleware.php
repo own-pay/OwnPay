@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OwnPay\Middleware;
 
 use OwnPay\Http\RequestContext;
-use OwnPay\Service\PermissionGuard;
+use OwnPay\Service\Auth\PermissionGuard;
 
 /**
  * Extracts the auth-guard pattern from adapter.php controller dispatch.

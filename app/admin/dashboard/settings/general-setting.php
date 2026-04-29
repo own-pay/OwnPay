@@ -1,7 +1,7 @@
 <?php
 if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', 'view', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', 'view', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
 $b = $global_response_brand['response'][0];
 function bv($b, $k, $d='') { return empty($b[$k]) ? $d : $b[$k]; }
 ?>
@@ -37,7 +37,7 @@ function bv($b, $k, $d='') { return empty($b[$k]) ? $d : $b[$k]; }
                     </select>
                 </div>
                 <div><label class="op-label">Default Currency <span class="text-red-500">*</span></label>
-                    <?php $selCurr = bv($b,'currency_code'); $response_brand = json_decode(getData($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $b['brand_id']]), true); ?>
+                    <?php $selCurr = bv($b,'currency_code'); $response_brand = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'currency', 'WHERE brand_id = :brand_id ORDER BY 1 DESC', '* FROM', [':brand_id' => $b['brand_id']]), true); ?>
                     <select class="js-select op-select" id="default_currency" name="default_currency" data-search="true" data-remove="true" data-placeholder="Select currency" required onchange="FNcurrency()">
                         <?php if ($response_brand['status'] == true) { foreach ($response_brand['response'] as $row) { ?>
                             <option value="<?= $row['code'] ?>" <?= ($row['code'] === $selCurr) ? 'selected' : '' ?>><?= $row['code'] ?></option>

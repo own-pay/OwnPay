@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace OwnPay\Cron;
 
 use OwnPay\Core\Database;
-use OwnPay\Service\ReconciliationService;
-use OwnPay\Service\AlertService;
-use OwnPay\Service\SettlementService;
+use OwnPay\Service\Payment\ReconciliationService;
+use OwnPay\Service\Notification\AlertService;
+use OwnPay\Service\Payment\SettlementService;
 use OwnPay\Repository\RateLimitRepository;
 
 /**

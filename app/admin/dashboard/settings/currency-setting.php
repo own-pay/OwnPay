@@ -1,10 +1,10 @@
 <?php
 if (!defined('OWNPAY_INIT')) { http_response_code(403); exit('Direct access not allowed'); }
-if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'currency_settings', 'view', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
-$allowSync = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'currency_settings', 'sync_rate', $global_user_response['response'][0]['role']);
-$allowEdit = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'currency_settings', 'edit', $global_user_response['response'][0]['role']);
-$allowImport = hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'currency_settings', 'import', $global_user_response['response'][0]['role']);
+if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'brand_settings', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'currency_settings', 'view', $global_user_response['response'][0]['role'])) { http_response_code(403); exit('Access denied.'); }
+$allowSync = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'currency_settings', 'sync_rate', $global_user_response['response'][0]['role']);
+$allowEdit = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'currency_settings', 'edit', $global_user_response['response'][0]['role']);
+$allowImport = \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'currency_settings', 'import', $global_user_response['response'][0]['role']);
 ?>
 <div class="op-page-header"><div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
     <div>

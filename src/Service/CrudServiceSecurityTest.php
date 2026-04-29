@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Tests\Unit\Service;
 
 use InvalidArgumentException;
-use OwnPay\Service\CrudService;
+use OwnPay\Service\System\CrudService;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 

@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OwnPay\Middleware;
 
 use OwnPay\Http\JsonResponse;
-use OwnPay\Service\DevicePairingService;
+use OwnPay\Service\Device\DevicePairingService;
 
 /**
  * JwtAuthMiddleware — Authenticates mobile companion API requests.

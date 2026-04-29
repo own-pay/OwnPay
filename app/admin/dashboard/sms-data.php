@@ -4,7 +4,7 @@
         exit('Direct access not allowed');
     }
 
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
@@ -17,7 +17,7 @@
     </div>
     <div class="flex items-center gap-3">
         <span class="global-loaderSpinner"></span>
-        <span class="<?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
+        <span class="<?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'create', $global_user_response['response'][0]['role']) ? '' : 'hidden' ?>">
             <button data-modal-target="modal-createItem" data-modal-toggle="modal-createItem" class="op-btn-primary">
                 <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5 me-1" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5l0 14" /><path d="M5 12l14 0" /></svg>
                 <span class="hidden sm:inline">Create SMS Data</span>
@@ -136,10 +136,10 @@
                 <label class="op-label">Action <span class="text-red-500">*</span></label>
                 <select class="op-select" id="model-bulkActionID">
                     <option value="" selected>Select a Action</option>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role']) ? '<option value="approved">Approve Selected</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role']) ? '<option value="awaiting-review">Awaiting Review Selected</option>' : '' ?>
-                    <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role']) ? '<option value="used">Use Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'delete', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role']) ? '<option value="approved">Approve Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role']) ? '<option value="awaiting-review">Awaiting Review Selected</option>' : '' ?>
+                    <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role']) ? '<option value="used">Use Selected</option>' : '' ?>
                 </select>
             </div>
             <div class="flex items-center justify-between p-4 border-t border-gray-200 dark:border-gray-700">
@@ -167,7 +167,7 @@
                         <select class="op-select" name="device">
                             <option value="" selected>Select a device</option>
                             <?php
-                                $response_result = json_decode(getData($db_prefix.'device',' WHERE status = :status ORDER BY 1 DESC ', '* FROM', [':status' => 'used']),true);
+                                $response_result = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'device',' WHERE status = :status ORDER BY 1 DESC ', '* FROM', [':status' => 'used']),true);
                                 if($response_result['status'] == true){
                                     foreach($response_result['response'] as $row){
                             ?>
@@ -271,7 +271,7 @@
                         <select class="op-select" name="device">
                             <option value="" selected>Select a device</option>
                             <?php
-                                $response_result = json_decode(getData($db_prefix.'device',' WHERE status = :status ORDER BY 1 DESC ', '* FROM', [':status' => 'used']),true);
+                                $response_result = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix.'device',' WHERE status = :status ORDER BY 1 DESC ', '* FROM', [':status' => 'used']),true);
                                 if($response_result['status'] == true){
                                     foreach($response_result['response'] as $row){
                             ?>
@@ -444,8 +444,8 @@
             .then(res => {
                 let html = '';
                 if (res.status === 'true') {
-                    let allowEdit = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
-                    let allowDelete = <?= hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                    let allowEdit = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'edit', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
+                    let allowDelete = <?= \OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'sms_data', 'delete', $global_user_response['response'][0]['role']) ? 'true' : 'false' ?>;
 
                     res.response.forEach(item => {
                         let badgeClass = 'op-badge-gray';

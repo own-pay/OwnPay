@@ -176,22 +176,21 @@ class CsrfMiddlewareTest extends TestCase
         $this->assertSame('Invalid request token', $result['error']);
     }
 
-    public function testHmacAcceptsPpPrefixedFields(): void
+    public function testHmacRejectsMissingAppFields(): void
     {
-        $secret    = 'shared-secret';
-        $appId     = 'pp-client';
-        $timestamp = (string) time();
-        $action    = 'pp-action';
+        $secret = 'shared-secret';
 
-        $_ENV['APP_HMAC_SECRET']     = $secret;
-        $_POST['pp-app-id']          = $appId;
-        $_POST['pp-app-timestamp']   = $timestamp;
-        $_POST['action']             = $action;
+        $_ENV['APP_HMAC_SECRET'] = $secret;
+        // Only pp- fields provided (legacy prefix — should NOT be accepted)
+        $_POST['pp-app-id']        = 'op-client';
+        $_POST['pp-app-timestamp'] = (string) time();
+        $_POST['action']           = 'test-action';
 
-        $expected = hash_hmac('sha256', "{$appId}|{$timestamp}|{$action}", $secret);
+        $expected = hash_hmac('sha256', "op-client|" . $_POST['pp-app-timestamp'] . "|test-action", $secret);
 
         $result = (new CsrfMiddleware())->validate($expected);
 
-        $this->assertTrue($result['valid']);
+        // Should fail because op-app-id / op-app-timestamp are not set
+        $this->assertFalse($result['valid']);
     }
 }

@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace OwnPay\Gateway;
 
 use OwnPay\Core\Database;
-use OwnPay\Service\PaymentService;
-use OwnPay\Service\AuditLogger;
+use OwnPay\Service\Payment\PaymentService;
+use OwnPay\Service\System\AuditLogger;
 use OwnPay\Repository\WebhookEventRepository;
 use OwnPay\Repository\WebhookEndpointRepository;
 use RuntimeException;

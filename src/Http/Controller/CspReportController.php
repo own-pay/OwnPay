@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Http\Controller;
 
-use OwnPay\Service\Logger;
+use OwnPay\Service\System\Logger;
 
 /**
  * CspReportController — receives Content-Security-Policy violation reports.

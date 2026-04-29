@@ -8,8 +8,8 @@ use OwnPay\Http\JsonResponse;
 use OwnPay\Middleware\BearerAuthMiddleware;
 use OwnPay\Repository\RefundRepository;
 use OwnPay\Repository\TransactionRepository;
-use OwnPay\Service\LedgerService;
-use OwnPay\Service\AuditLogger;
+use OwnPay\Service\Payment\LedgerService;
+use OwnPay\Service\System\AuditLogger;
 
 /**
  * POST /v1/refunds         — Create a refund

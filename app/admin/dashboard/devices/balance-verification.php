@@ -4,12 +4,12 @@
         exit('Direct access not allowed');
     }
 
-    if (!canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'device', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), 'device', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
 
-    if (!hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role'])) {
+    if (!\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role'])) {
         http_response_code(403);
         exit('Access denied. You need permission to perform this action. Please contact the admin.');
     }
@@ -22,7 +22,7 @@
         exit('Invalid item id');
     } else {
         $d_id = clean_input($d_id);
-        $response_staff = json_decode(getData($db_prefix . 'device', 'WHERE device_id = :d_id', '* FROM', [':d_id' => $d_id]), true);
+        $response_staff = json_decode(\OwnPay\Service\System\CrudService::selectLegacy($db_prefix . 'device', 'WHERE device_id = :d_id', '* FROM', [':d_id' => $d_id]), true);
         if ($response_staff['status'] != true) {
             http_response_code(403);
             exit('Direct access not allowed');
@@ -53,7 +53,7 @@
     </div>
     <div class="flex items-center gap-2">
         <span class="global-loaderSpinner"></span>
-        <span class="<?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>">
+        <span class="<?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? '' : 'hidden'), ENT_QUOTES, 'UTF-8'); ?>">
             <button class="op-btn-primary" data-modal-target="modal-createItem" data-modal-toggle="modal-createItem">New Verification</button>
         </span>
     </div>
@@ -117,7 +117,7 @@
                 <label class="op-label">Action <span class="text-red-500">*</span></label>
                 <select class="op-select" id="model-bulkActionID">
                     <option value="" selected>Select a Action</option>
-                    <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option><option value="activated">Active Selected</option><option value="inactivated">Inactive Selected</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
+                    <?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? '<option value="deleted">Delete Selected</option><option value="activated">Active Selected</option><option value="inactivated">Inactive Selected</option>' : ''), ENT_QUOTES, 'UTF-8'); ?>
                 </select>
             </div>
             <div class="flex justify-end gap-2 p-4 border-t dark:border-gray-700">
@@ -253,8 +253,8 @@
         opFetch('balance-verification-list', { d_id: "<?php echo htmlspecialchars((string) ($d_id), ENT_QUOTES, 'UTF-8'); ?>", search_input, show_limit, page, filter_status, filter_start, filter_end }).then(res => {
             let html = '';
             if (res.status === 'true') {
-                let allowEdit = <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? 'true' : 'false'), ENT_QUOTES, 'UTF-8'); ?>;
-                let allowDelete = <?= htmlspecialchars((string) (hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? 'true' : 'false'), ENT_QUOTES, 'UTF-8'); ?>;
+                let allowEdit = <?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? 'true' : 'false'), ENT_QUOTES, 'UTF-8'); ?>;
+                let allowDelete = <?= htmlspecialchars((string) (\OwnPay\Service\Auth\PermissionService::hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), 'device', 'balance_verification_for', $global_user_response['response'][0]['role']) ? 'true' : 'false'), ENT_QUOTES, 'UTF-8'); ?>;
 
                 res.response.forEach(item => {
                     let redirectEdit = allowEdit ? `style="cursor:pointer;" onclick="openEditModel('${item.id}')"` : '';

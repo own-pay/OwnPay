@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace OwnPay\Cron;
 
 use OwnPay\Event\EventManager;
-use OwnPay\Service\CrudService;
-use OwnPay\Service\CurrencyService;
-use OwnPay\Service\DateTimeService;
+use OwnPay\Service\System\CrudService;
+use OwnPay\Service\Payment\CurrencyService;
+use OwnPay\Service\System\DateTimeService;
 
 /**
  * SmsVerificationJob — match pending transactions against approved SMS data.
@@ -54,6 +54,9 @@ final class SmsVerificationJob
         foreach ($pending['response'] as $row) {
             $checked++;
 
+            $smsRow = null;
+            $sourceTable = null;
+
             $smsRes = CrudService::select(
                 $this->dbPrefix . 'sms_data',
                 'WHERE sender_key = :sender_key AND type = :type AND trx_id = :trx_id AND status = :status',
@@ -66,7 +69,35 @@ final class SmsVerificationJob
                 ]
             );
 
-            if ($smsRes['status'] !== true || empty($smsRes['response'])) {
+            if ($smsRes['status'] === true && !empty($smsRes['response'])) {
+                $smsRow = $smsRes['response'][0];
+                $sourceTable = 'sms_data';
+            } else {
+                // Fallback: Check the new V1 SMS engine's parsed data table
+                $parsedRes = CrudService::select(
+                    $this->dbPrefix . 'sms_parsed',
+                    'WHERE parsed_trx_id = :trx_id AND parsed_type = :type AND status = :status',
+                    '* FROM',
+                    [
+                        ':trx_id' => $row['trx_id'],
+                        ':type' => $row['sender_type'],
+                        ':status' => 'accepted',
+                    ]
+                );
+
+                if ($parsedRes['status'] === true && !empty($parsedRes['response'])) {
+                    $parsedRow = $parsedRes['response'][0];
+                    // Map to legacy structure for compatibility with the rest of the loop
+                    $smsRow = [
+                        'id' => $parsedRow['id'],
+                        'amount' => $parsedRow['parsed_amount'],
+                        'number' => $parsedRow['sender']
+                    ];
+                    $sourceTable = 'sms_parsed';
+                }
+            }
+
+            if ($smsRow === null) {
                 continue;
             }
 
@@ -81,7 +112,6 @@ final class SmsVerificationJob
                 continue;
             }
 
-            $smsRow = $smsRes['response'][0];
             $brandRow = $brandRes['response'][0];
 
             $toleranceOk = CurrencyService::verifyPaymentTolerance(
@@ -97,13 +127,23 @@ final class SmsVerificationJob
             $now = DateTimeService::getCurrentDatetime('Y-m-d H:i:s');
 
             // Mark SMS as used
-            CrudService::update(
-                $this->dbPrefix . 'sms_data',
-                ['status', 'updated_date'],
-                ['used', $now],
-                'id = :where_id',
-                [':where_id' => $smsRow['id']]
-            );
+            if ($sourceTable === 'sms_parsed') {
+                CrudService::update(
+                    $this->dbPrefix . 'sms_parsed',
+                    ['status', 'processed_at'],
+                    ['used', $now],
+                    'id = :where_id',
+                    [':where_id' => $smsRow['id']]
+                );
+            } else {
+                CrudService::update(
+                    $this->dbPrefix . 'sms_data',
+                    ['status', 'updated_date'],
+                    ['used', $now],
+                    'id = :where_id',
+                    [':where_id' => $smsRow['id']]
+                );
+            }
 
             // Mark transaction as completed
             CrudService::update(

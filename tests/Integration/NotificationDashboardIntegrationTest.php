@@ -6,7 +6,7 @@ namespace OwnPay\Tests\Integration;
 
 use OwnPay\Core\Database;
 use OwnPay\Repository\MobileNotificationRepository;
-use OwnPay\Service\MobileNotificationService;
+use OwnPay\Service\Notification\MobileNotificationService;
 use PHPUnit\Framework\TestCase;
 
 /**

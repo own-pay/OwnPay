@@ -7,8 +7,8 @@ namespace Tests\Integration;
 use OwnPay\Core\Database;
 use OwnPay\Repository\DevicePairingTokenRepository;
 use OwnPay\Repository\PairedDeviceRepository;
-use OwnPay\Service\DevicePairingService;
-use OwnPay\Service\JwtService;
+use OwnPay\Service\Device\DevicePairingService;
+use OwnPay\Service\Auth\JwtService;
 use PHPUnit\Framework\TestCase;
 
 /**
