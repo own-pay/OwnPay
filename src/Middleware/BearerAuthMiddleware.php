@@ -1,148 +1,76 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Middleware;
 
-use OwnPay\Service\Customer\ApiKeyService;
+use OwnPay\Container;
+use OwnPay\Http\Request;
+use OwnPay\Http\Response;
+use OwnPay\Repository\ApiKeyRepository;
 
 /**
- * BearerAuthMiddleware — extracts and validates Bearer tokens.
+ * Bearer auth middleware — authenticates API requests via API key.
  *
- * Replaces the legacy X-API-Key header authentication.
- * Expected header format: Authorization: Bearer <TOKEN>
+ * Flow: Extract prefix → lookup by prefix → timing-safe hash compare.
+ * Per security skill: never log raw keys, use constant-time comparison.
  */
 final class BearerAuthMiddleware
 {
-    private ApiKeyService $apiKeyService;
+    private Container $container;
 
-    public function __construct(?ApiKeyService $apiKeyService = null)
+    public function __construct(Container $container)
     {
-        $this->apiKeyService = $apiKeyService ?? new ApiKeyService();
+        $this->container = $container;
     }
 
-    /**
-     * Authenticate the current request.
-     *
-     * @param string|null $requiredScope Optional scope check (e.g. 'create_payment')
-     * @return array{
-     *   authenticated: bool,
-     *   merchant: ?array,
-     *   error: ?array{code: string, message: string, httpStatus: int}
-     * }
-     */
-    public function authenticate(?string $requiredScope = null): array
+    public function handle(Request $request, callable $next): Response
     {
-        // 1. Extract token from Authorization header
-        $token = $this->extractBearerToken();
+        $token = $request->bearerToken();
 
-        if ($token === null) {
-            return [
-                'authenticated' => false,
-                'merchant' => null,
-                'error' => [
-                    'code' => 'MISSING_AUTHORIZATION',
-                    'message' => 'Authorization header is missing or invalid. Expected: Authorization: Bearer <TOKEN>',
-                    'httpStatus' => 401,
-                ],
-            ];
+        if ($token === null || $token === '') {
+            return Response::json([
+                'success' => false,
+                'message' => 'Authentication required. Provide Bearer token.',
+            ], 401)->withHeader('WWW-Authenticate', 'Bearer');
         }
 
-        // 2. Authenticate the token
-        $context = $this->apiKeyService->authenticate($token);
-
-        if ($context === null) {
-            return [
-                'authenticated' => false,
-                'merchant' => null,
-                'error' => [
-                    'code' => 'INVALID_API_KEY',
-                    'message' => 'The API key is invalid, expired, or revoked.',
-                    'httpStatus' => 401,
-                ],
-            ];
+        // API key format: op_XXXXXXXX.YYYYYYYY...
+        // Prefix = first 8 chars after "op_"
+        if (!str_starts_with($token, 'op_') || strlen($token) < 12) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Invalid API key format',
+            ], 401);
         }
 
-        // 3. Check scope if required
-        if ($requiredScope !== null && !in_array($requiredScope, $context['scopes'], true)) {
-            return [
-                'authenticated' => false,
-                'merchant' => $context,
-                'error' => [
-                    'code' => 'INSUFFICIENT_SCOPE',
-                    'message' => "The API key does not have the required permission: {$requiredScope}",
-                    'httpStatus' => 403,
-                ],
-            ];
+        $prefix = substr($token, 3, 8);
+        $keyHash = hash('sha256', $token);
+
+        /** @var ApiKeyRepository $repo */
+        $repo = $this->container->get(ApiKeyRepository::class);
+        $apiKey = $repo->findByPrefix($prefix);
+
+        if ($apiKey === null) {
+            return Response::json(['success' => false, 'message' => 'Invalid API key'], 401);
         }
 
-        return [
-            'authenticated' => true,
-            'merchant' => $context,
-            'error' => null,
-        ];
-    }
-
-    /**
-     * Convenience: authenticate and halt with JSON error if unauthorized.
-     * Returns the merchant context array on success.
-     */
-    public function guard(?string $requiredScope = null): array
-    {
-        $result = $this->authenticate($requiredScope);
-
-        if (!$result['authenticated']) {
-            http_response_code($result['error']['httpStatus']);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'error' => [
-                    'code' => $result['error']['code'],
-                    'message' => $result['error']['message'],
-                ],
-            ]);
-            exit;
+        // Timing-safe comparison (per OWASP)
+        if (!hash_equals($apiKey['key_hash'], $keyHash)) {
+            return Response::json(['success' => false, 'message' => 'Invalid API key'], 401);
         }
 
-        return $result['merchant'];
-    }
-
-    /**
-     * Extract Bearer token from the Authorization header.
-     */
-    private function extractBearerToken(): ?string
-    {
-        // Try getallheaders() first (Apache)
-        if (function_exists('getallheaders')) {
-            $headers = getallheaders();
-            foreach ($headers as $name => $value) {
-                if (strtolower($name) === 'authorization') {
-                    return $this->parseBearerValue($value);
-                }
-            }
+        // Check expiry
+        if ($apiKey['expires_at'] !== null && strtotime($apiKey['expires_at']) < time()) {
+            return Response::json(['success' => false, 'message' => 'API key expired'], 401);
         }
 
-        // Fallback: $_SERVER (Nginx / CGI)
-        $header = $_SERVER['HTTP_AUTHORIZATION']
-            ?? $_SERVER['REDIRECT_HTTP_AUTHORIZATION']
-            ?? null;
+        // Inject merchant context into request
+        $request->setAttribute('api_key', $apiKey);
+        $request->setAttribute('merchant_id', (int) $apiKey['merchant_id']);
 
-        if ($header !== null) {
-            return $this->parseBearerValue($header);
-        }
+        // Touch last_used (fire-and-forget)
+        $repo->touchLastUsed((int) $apiKey['id']);
 
-        return null;
-    }
-
-    /**
-     * Parse "Bearer <token>" value.
-     */
-    private function parseBearerValue(string $headerValue): ?string
-    {
-        if (str_starts_with($headerValue, 'Bearer ')) {
-            $token = trim(substr($headerValue, 7));
-            return $token !== '' ? $token : null;
-        }
-
-        return null;
+        return $next($request);
     }
 }

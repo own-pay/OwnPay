@@ -1,0 +1,56 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Transactions — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Transactions</h1>
+    <div class="op-header-actions">
+        <form method="GET" class="op-filter-bar">
+            <input type="search" name="q" value="{{ filters.q ?? '' }}" placeholder="Search TRX ID..." class="op-input op-input-sm">
+            <select name="status" class="op-input op-input-sm">
+                <option value="">All Status</option>
+                {% for s in ['pending','completed','failed','refunded','canceled'] %}
+                <option value="{{ s }}" {{ (filters.status ?? '') == s ? 'selected' : '' }}>{{ s|capitalize }}</option>
+                {% endfor %}
+            </select>
+            <select name="gateway" class="op-input op-input-sm">
+                <option value="">All Gateways</option>
+                {% for gw in gateways %}<option value="{{ gw.slug }}" {{ (filters.gateway ?? '') == gw.slug ? 'selected' : '' }}>{{ gw.name }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="op-btn op-btn-sm op-btn-primary">Filter</button>
+        </form>
+    </div>
+</div>
+
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <table class="op-table">
+            <thead>
+                <tr><th>TRX ID</th><th>Customer</th><th>Amount</th><th>Gateway</th><th>Status</th><th>Date</th><th>Actions</th></tr>
+            </thead>
+            <tbody>
+                {% for txn in transactions %}
+                <tr>
+                    <td><code>{{ txn.trx_id }}</code></td>
+                    <td>{{ txn.customer_name ?? '—' }}</td>
+                    <td><strong>{{ txn.currency }} {{ txn.amount }}</strong></td>
+                    <td><span class="op-badge op-badge-outline">{{ txn.gateway }}</span></td>
+                    <td><span class="op-badge op-badge-{{ txn.status == 'completed' ? 'success' : (txn.status == 'pending' ? 'warning' : 'danger') }}">{{ txn.status }}</span></td>
+                    <td>{{ txn.created_at }}</td>
+                    <td>
+                        <a href="/admin/transactions/{{ txn.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{% if pagination.total_pages > 1 %}
+<nav class="op-pagination">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

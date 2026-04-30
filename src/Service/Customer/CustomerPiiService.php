@@ -1,224 +1,169 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Service\Customer;
 
+use OwnPay\Event\EventManager;
 use OwnPay\Repository\CustomerRepository;
 use OwnPay\Security\FieldEncryptor;
 use OwnPay\Security\PiiMasker;
 
 /**
- * CustomerPiiService — PII lifecycle management.
+ * Customer PII service — encrypted CRUD with PII masking.
  *
- * Handles encryption at rest, decryption on read, GDPR data portability,
- * and right-to-erasure operations.
- *
- * PII fields encrypted: name, email, phone/mobile, address
- * Blind indexes stored for: email (for uniqueness/search)
+ * Per PCI-DSS: all PII encrypted at rest (AES-256-GCM).
+ * Fires: customer.created, customer.updated, customer.deleted
  */
 final class CustomerPiiService
 {
-    /** Fields that contain PII and must be encrypted at rest. */
-    private const PII_FIELDS = ['name', 'email', 'phone', 'mobile', 'address'];
-
-    /** Fields that get a blind index for searchability. */
-    private const INDEXED_FIELDS = ['email', 'phone'];
-
     private CustomerRepository $customers;
     private FieldEncryptor $encryptor;
-    private PiiMasker $masker;
-    private AuditLogger $audit;
+    private EventManager $events;
+
+    /** PII fields that must be encrypted */
+    private const PII_FIELDS = ['email', 'phone', 'name', 'address'];
 
     public function __construct(
-        ?CustomerRepository $customers = null,
-        ?FieldEncryptor $encryptor = null,
-        ?PiiMasker $masker = null,
-        ?AuditLogger $audit = null
+        CustomerRepository $customers,
+        FieldEncryptor $encryptor,
+        EventManager $events
     ) {
-        $this->customers = $customers ?? new CustomerRepository();
-        $this->encryptor = $encryptor ?? new FieldEncryptor();
-        $this->masker = $masker ?? new PiiMasker();
-        $this->audit = $audit ?? new AuditLogger();
+        $this->customers = $customers;
+        $this->encryptor = $encryptor;
+        $this->events = $events;
     }
 
     /**
-     * Store customer data with PII fields encrypted.
-     *
-     * @param array $data Customer data with plaintext PII
-     * @return int Customer ID
+     * Create customer with encrypted PII.
      */
-    public function store(array $data): int
+    public function create(int $merchantId, array $data): array
     {
-        $encrypted = $this->encryptPiiFields($data);
-        return $this->customers->insert($encrypted);
-    }
+        $encrypted = $this->encryptPii($data);
 
-    /**
-     * Retrieve a customer with decrypted PII.
-     *
-     * @param int $id Customer ID
-     * @return array|null Customer data with plaintext PII
-     */
-    public function retrieve(int $id): ?array
-    {
-        $customer = $this->customers->findById($id);
-        if ($customer === null) {
-            return null;
+        // Generate deterministic hash for email lookup
+        if (!empty($data['email'])) {
+            $encrypted['email_hash'] = $this->encryptor->deterministicHash($data['email']);
         }
 
-        return $this->decryptPiiFields($customer);
-    }
+        $repo = $this->customers->forTenant($merchantId);
+        $id = $repo->createScoped($encrypted);
+        $customer = $repo->findScoped((int) $id);
 
-    /**
-     * Retrieve and mask customer data (for API responses).
-     *
-     * @param int $id Customer ID
-     * @return array|null Customer data with masked PII
-     */
-    public function retrieveMasked(int $id): ?array
-    {
-        $decrypted = $this->retrieve($id);
-        if ($decrypted === null) {
-            return null;
-        }
-
-        return $this->masker->mask($decrypted);
-    }
-
-    /**
-     * Search for a customer by encrypted field using blind index.
-     *
-     * @param string $field Field name (must be in INDEXED_FIELDS)
-     * @param string $value Plaintext value to search for
-     * @return array|null Customer data (decrypted) or null
-     */
-    public function findByPiiField(string $field, string $value): ?array
-    {
-        if (!in_array($field, self::INDEXED_FIELDS, true)) {
-            throw new \InvalidArgumentException("Field '{$field}' is not indexed for PII search.");
-        }
-
-        $blindIndex = $this->encryptor->blindIndex($value);
-        $indexColumn = "{$field}_idx";
-
-        $customer = $this->customers->findOneWhere(
-            "`{$indexColumn}` = :idx",
-            ['idx' => $blindIndex]
-        );
-
-        if ($customer === null) {
-            return null;
-        }
-
-        return $this->decryptPiiFields($customer);
-    }
-
-    /**
-     * GDPR: Export all customer data as decrypted JSON.
-     * Data portability — returns raw data for customer download.
-     *
-     * @param int $customerId
-     * @param int $merchantId Merchant scoping for access control
-     * @return array Decrypted customer data
-     */
-    public function export(int $customerId, int $merchantId): array
-    {
-        $customer = $this->retrieve($customerId);
-        if ($customer === null || (int) ($customer['merchant_id'] ?? 0) !== $merchantId) {
-            throw new \InvalidArgumentException('Customer not found or access denied.');
-        }
-
-        $this->audit->log(
-            $merchantId,
-            'pii.exported',
-            'customer',
-            $customer['public_id'] ?? (string) $customerId,
-            'system',
-            'customer_pii_service',
-            null,
-            ['reason' => 'data_portability_request']
-        );
-
-        // Remove internal fields
-        unset($customer['id'], $customer['key_hash']);
-        foreach (self::INDEXED_FIELDS as $field) {
-            unset($customer["{$field}_idx"]);
-        }
+        $this->events->doAction('customer.created', $this->maskForEvent($customer));
 
         return $customer;
     }
 
     /**
-     * GDPR: Purge (right to erasure).
-     * Nullifies all PII columns and blind indexes.
-     *
-     * @param int $customerId
-     * @param int $merchantId Merchant scoping
+     * Find customer by email (via deterministic hash).
      */
-    public function purge(int $customerId, int $merchantId): void
+    public function findByEmail(int $merchantId, string $email): ?array
     {
-        $customer = $this->customers->findById($customerId);
-        if ($customer === null || (int) ($customer['merchant_id'] ?? 0) !== $merchantId) {
-            throw new \InvalidArgumentException('Customer not found or access denied.');
-        }
+        $hash = $this->encryptor->deterministicHash($email);
+        $customer = $this->customers->forTenant($merchantId)->findByEmailHash($hash);
 
-        $nullFields = [];
-        foreach (self::PII_FIELDS as $field) {
-            if (isset($customer[$field])) {
-                $nullFields[$field] = null;
-            }
+        if ($customer !== null) {
+            return $this->decryptPii($customer);
         }
-        foreach (self::INDEXED_FIELDS as $field) {
-            $nullFields["{$field}_idx"] = null;
-        }
-
-        $this->customers->updateById($customerId, $nullFields);
-
-        $this->audit->log(
-            $merchantId,
-            'pii.purged',
-            'customer',
-            $customer['public_id'] ?? (string) $customerId,
-            'system',
-            'customer_pii_service',
-            ['pii_fields' => array_keys($nullFields)],
-            ['pii_fields' => 'PURGED']
-        );
+        return null;
     }
 
     /**
-     * Encrypt PII fields in a data array.
+     * Get customer with decrypted PII.
      */
-    private function encryptPiiFields(array $data): array
+    public function get(int $merchantId, int $customerId): ?array
+    {
+        $customer = $this->customers->forTenant($merchantId)->findScoped($customerId);
+        if ($customer === null) {
+            return null;
+        }
+        return $this->decryptPii($customer);
+    }
+
+    /**
+     * Update customer PII.
+     */
+    public function update(int $merchantId, int $customerId, array $data): array
+    {
+        $encrypted = $this->encryptPii($data);
+
+        if (!empty($data['email'])) {
+            $encrypted['email_hash'] = $this->encryptor->deterministicHash($data['email']);
+        }
+
+        $repo = $this->customers->forTenant($merchantId);
+        $repo->updateScoped($customerId, $encrypted);
+        $customer = $repo->findScoped($customerId);
+
+        $this->events->doAction('customer.updated', $this->maskForEvent($customer));
+
+        return $customer;
+    }
+
+    /**
+     * Delete customer (soft delete — zero PII fields).
+     */
+    public function delete(int $merchantId, int $customerId): void
+    {
+        $repo = $this->customers->forTenant($merchantId);
+        $repo->updateScoped($customerId, [
+            'email_enc'  => null,
+            'phone_enc'  => null,
+            'name_enc'   => null,
+            'email_hash' => null,
+            'status'     => 'deleted',
+        ]);
+
+        $this->events->doAction('customer.deleted', $merchantId, $customerId);
+    }
+
+    /**
+     * List customers (PII masked for list view).
+     */
+    public function list(int $merchantId, int $page = 1, int $perPage = 50): array
+    {
+        $result = $this->customers->forTenant($merchantId)->paginateScoped($page, $perPage);
+        foreach ($result['items'] as &$customer) {
+            $customer = $this->decryptPii($customer);
+            $customer['email_masked'] = PiiMasker::maskEmail($customer['email'] ?? '');
+            $customer['phone_masked'] = PiiMasker::maskPhone($customer['phone'] ?? '');
+        }
+        return $result;
+    }
+
+    private function encryptPii(array $data): array
     {
         foreach (self::PII_FIELDS as $field) {
-            if (isset($data[$field]) && is_string($data[$field]) && $data[$field] !== '') {
-                // Store blind index for indexed fields
-                if (in_array($field, self::INDEXED_FIELDS, true)) {
-                    $data["{$field}_idx"] = $this->encryptor->blindIndex($data[$field]);
-                }
-                $data[$field] = $this->encryptor->encrypt($data[$field]);
+            if (isset($data[$field]) && $data[$field] !== '') {
+                $data["{$field}_enc"] = $this->encryptor->encrypt($data[$field]);
+                unset($data[$field]);
             }
         }
         return $data;
     }
 
-    /**
-     * Decrypt PII fields in a data array.
-     */
-    private function decryptPiiFields(array $data): array
+    private function decryptPii(array $customer): array
     {
         foreach (self::PII_FIELDS as $field) {
-            if (isset($data[$field]) && is_string($data[$field]) && $this->encryptor->isEncrypted($data[$field])) {
+            if (!empty($customer["{$field}_enc"])) {
                 try {
-                    $data[$field] = $this->encryptor->decrypt($data[$field]);
-                } catch (\Throwable $e) {
-                    error_log("[CustomerPII] Decryption failed for field '{$field}': " . $e->getMessage());
-                    $data[$field] = '[DECRYPTION_ERROR]';
+                    $customer[$field] = $this->encryptor->decrypt($customer["{$field}_enc"]);
+                } catch (\Throwable) {
+                    $customer[$field] = '[decryption failed]';
                 }
             }
         }
-        return $data;
+        return $customer;
+    }
+
+    /**
+     * Mask PII for event dispatch (plugins should not receive raw PII).
+     */
+    private function maskForEvent(array $customer): array
+    {
+        $customer['email'] = PiiMasker::maskEmail($customer['email'] ?? $customer['email_enc'] ?? '');
+        $customer['phone'] = PiiMasker::maskPhone($customer['phone'] ?? $customer['phone_enc'] ?? '');
+        unset($customer['email_enc'], $customer['phone_enc'], $customer['name_enc']);
+        return $customer;
     }
 }

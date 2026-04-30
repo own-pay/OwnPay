@@ -1,0 +1,13 @@
+{# EXPRESS CHECKOUT — Apple Pay / Google Pay #}
+<div class="ck-express ck-fi">
+    <p class="ck-section-label">{{ lang.express_checkout ?? 'Express Checkout' }}</p>
+    <div class="ck-express-grid">
+        <button type="button" onclick="doQP('Apple Pay')" class="ck-qpay ck-qpay-dark"> Apple Pay</button>
+        <button type="button" onclick="doQP('Google Pay')" class="ck-qpay ck-qpay-light">Google Pay</button>
+    </div>
+</div>
+<div class="ck-divider-or ck-fi">
+    <div class="ck-divider-line"></div>
+    <span class="ck-divider-text">{{ lang.or_pay_with ?? 'Or pay with' }}</span>
+    <div class="ck-divider-line"></div>
+</div>

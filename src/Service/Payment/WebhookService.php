@@ -1,206 +1,122 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Service\Payment;
 
+use OwnPay\Event\EventManager;
 use OwnPay\Repository\WebhookRepository;
-use OwnPay\Security\LogSanitizer;
-use OwnPay\Security\UrlValidator;
+use OwnPay\Repository\CommLogRepository;
 
 /**
- * WebhookService — outbound webhook delivery with HMAC signing and dedup.
+ * Webhook service — dispatches outbound webhooks to merchant endpoints.
  *
- * Flow:
- *   1. Record event in op_webhook_events (deduplicated)
- *   2. Find all active webhook endpoints for the merchant + event type
- *   3. For each endpoint: sign payload, send via cURL, log delivery
- *   4. Retry failed deliveries up to 3 times with exponential backoff
+ * Fires: webhook.delivery.success, webhook.delivery.failed
+ * Per security skill: HMAC signing, timeout, no private IPs.
  */
 final class WebhookService
 {
-    private const MAX_RETRIES = 3;
-    private const BACKOFF_SECONDS = [1, 5, 25]; // exponential
-    private const CONNECT_TIMEOUT = 5;
-    private const REQUEST_TIMEOUT = 10;
+    private WebhookRepository $webhooks;
+    private CommLogRepository $commLog;
+    private EventManager $events;
 
-    private WebhookRepository $repo;
-    private LogSanitizer $sanitizer;
+    public function __construct(
+        WebhookRepository $webhooks,
+        CommLogRepository $commLog,
+        EventManager $events
+    ) {
+        $this->webhooks = $webhooks;
+        $this->commLog = $commLog;
+        $this->events = $events;
+    }
 
-    public function __construct(?WebhookRepository $repo = null, ?LogSanitizer $sanitizer = null)
+    /**
+     * Dispatch event to all matching merchant webhooks.
+     */
+    public function dispatch(int $merchantId, string $eventType, array $payload): void
     {
-        $this->repo = $repo ?? new WebhookRepository();
-        $this->sanitizer = $sanitizer ?? new LogSanitizer();
+        $hooks = $this->webhooks->forTenant($merchantId)->listActiveForEvent($eventType);
+
+        foreach ($hooks as $hook) {
+            $this->deliver($hook, $eventType, $payload);
+        }
     }
 
     /**
-     * Dispatch a webhook event to all matching endpoints.
-     *
-     * @param int    $merchantId
-     * @param string $eventType  e.g. 'payment.completed', 'refund.issued'
-     * @param array  $payload    Event payload data
-     * @param string $sourceIp   Request origin IP
-     * @return array  Summary: ['dispatched' => int, 'succeeded' => int, 'failed' => int]
+     * Deliver single webhook with HMAC signature.
      */
-    public function dispatch(
-        int $merchantId,
-        string $eventType,
-        array $payload,
-        string $sourceIp = ''
-    ): array {
-        // 0. Sanitize payload — strip PII before sending to merchant endpoints
-        $payload = $this->sanitizer->sanitizeArray($payload);
+    public function deliver(array $webhook, string $eventType, array $payload): bool
+    {
+        $url = $webhook['url'];
 
-        // 1. Record event (creates a dedupe entry)
-        $eventId = $this->repo->createEvent(
-            $merchantId,
-            $eventType,
-            json_encode($payload),
-            $sourceIp
-        );
-
-        // 2. Find matching endpoints
-        $endpoints = $this->repo->findEndpoints($merchantId, $eventType);
-
-        $summary = ['dispatched' => 0, 'succeeded' => 0, 'failed' => 0];
-
-        // 3. Deliver to each endpoint
-        foreach ($endpoints as $endpoint) {
-            $summary['dispatched']++;
-
-            $success = $this->deliverWithRetry(
-                $endpoint,
-                $eventId,
-                $eventType,
-                $payload
-            );
-
-            if ($success) {
-                $summary['succeeded']++;
-            } else {
-                $summary['failed']++;
-            }
+        // SSRF check
+        if (!$this->isUrlSafe($url)) {
+            $this->events->doAction('webhook.delivery.failed', $webhook, 'SSRF blocked');
+            return false;
         }
 
-        return $summary;
-    }
-
-    /**
-     * Deliver a webhook with retry logic.
-     */
-    private function deliverWithRetry(
-        array $endpoint,
-        int $eventId,
-        string $eventType,
-        array $payload
-    ): bool {
-        $url = $endpoint['url'];
-        $secret = $endpoint['signing_secret'] ?? '';
-        $body = json_encode($payload, JSON_UNESCAPED_UNICODE);
-
-        for ($attempt = 1; $attempt <= self::MAX_RETRIES; $attempt++) {
-            // Wait before retry (skip for first attempt)
-            if ($attempt > 1) {
-                sleep(self::BACKOFF_SECONDS[$attempt - 1] ?? 25);
-            }
-
-            $result = $this->sendRequest($url, $body, $secret, $eventType);
-
-            // Log delivery attempt
-            $this->repo->logDelivery(
-                (int) $endpoint['id'],
-                $eventId,
-                $url,
-                json_encode($result['requestHeaders']),
-                $body,
-                $result['httpStatus'],
-                $result['responseBody'],
-                $attempt,
-                $result['success']
-            );
-
-            if ($result['success']) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Send a single webhook HTTP request with HMAC signature.
-     *
-     * @return array{success: bool, httpStatus: int, responseBody: string, requestHeaders: array}
-     */
-    private function sendRequest(
-        string $url,
-        string $body,
-        string $secret,
-        string $eventType
-    ): array {
-        // SSRF guard — block private/loopback/non-http targets (F5)
-        $reason = null;
-        if (!UrlValidator::isSafeOutbound($url, $reason)) {
-            Logger::security()->warning('outbound_webhook_blocked', [
-                'url'    => $url,
-                'event'  => $eventType,
-                'reason' => $reason,
-            ]);
-            return [
-                'success'         => false,
-                'httpStatus'      => 0,
-                'responseBody'    => "Webhook URL rejected by SSRF guard: {$reason}",
-                'requestHeaders'  => [],
-            ];
-        }
-
-        $timestamp = time();
-        $signature = '';
-
-        if ($secret !== '') {
-            $signaturePayload = "{$timestamp}.{$body}";
-            $signature = hash_hmac('sha256', $signaturePayload, $secret);
-        }
-
-        $headers = [
-            'Content-Type: application/json',
-            'User-Agent: OwnPay-Webhook/1.0',
-            "X-OP-Event: {$eventType}",
-            "X-OP-Timestamp: {$timestamp}",
-            'Connection: close',
-        ];
-
-        if ($signature !== '') {
-            $headers[] = "X-OP-Signature: {$signature}";
-        }
-
-        $ch = curl_init($url);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $body,
-            CURLOPT_HTTPHEADER => $headers,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_CONNECTTIMEOUT => self::CONNECT_TIMEOUT,
-            CURLOPT_TIMEOUT => self::REQUEST_TIMEOUT,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_FORBID_REUSE => true,
+        $body = json_encode([
+            'event' => $eventType,
+            'data'  => $payload,
+            'timestamp' => time(),
         ]);
 
-        $responseBody = curl_exec($ch);
-        $httpStatus = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
+        $signature = hash_hmac('sha256', $body, $webhook['secret']);
 
-        if ($responseBody === false) {
-            $responseBody = "cURL error: {$error}";
+        $logId = $this->commLog->log(
+            $webhook['merchant_id'] ?? null,
+            'webhook',
+            $url,
+            $eventType,
+            $body,
+            'internal',
+            'queued'
+        );
+
+        try {
+            $ch = curl_init($url);
+            curl_setopt_array($ch, [
+                CURLOPT_POST           => true,
+                CURLOPT_POSTFIELDS     => $body,
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_CONNECTTIMEOUT => 5,
+                CURLOPT_HTTPHEADER     => [
+                    'Content-Type: application/json',
+                    'X-Signature: sha256=' . $signature,
+                    'X-Timestamp: ' . time(),
+                    'X-Event: ' . $eventType,
+                    'User-Agent: OwnPay-Webhook/0.1.0',
+                ],
+                CURLOPT_FOLLOWLOCATION => false,
+            ]);
+
+            $response = curl_exec($ch);
+            $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($httpCode >= 200 && $httpCode < 300) {
+                $this->commLog->markSent((int) $logId);
+                $this->events->doAction('webhook.delivery.success', $webhook, $httpCode);
+                return true;
+            }
+
+            $this->commLog->markFailed((int) $logId, "HTTP {$httpCode}: {$error}");
+            $this->events->doAction('webhook.delivery.failed', $webhook, "HTTP {$httpCode}");
+            return false;
+
+        } catch (\Throwable $e) {
+            $this->commLog->markFailed((int) $logId, $e->getMessage());
+            $this->events->doAction('webhook.delivery.failed', $webhook, $e->getMessage());
+            return false;
         }
+    }
 
-        return [
-            'success' => $httpStatus >= 200 && $httpStatus < 300,
-            'httpStatus' => $httpStatus,
-            'responseBody' => (string) $responseBody,
-            'requestHeaders' => $headers,
-        ];
+    /**
+     * Basic SSRF prevention for webhook URLs.
+     */
+    private function isUrlSafe(string $url): bool
+    {
+        return \OwnPay\Security\UrlValidator::isValidWebhookUrl($url);
     }
 }

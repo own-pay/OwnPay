@@ -1,50 +1,51 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Gateway;
 
 /**
- * Provides sensible defaults for optional GatewayAdapterInterface methods.
+ * Gateway defaults trait — provides sensible defaults for GatewayAdapterInterface.
  *
- * API gateways should override: process_payment(), callback()
- * Automation / manual gateways typically don't need process_payment or callback.
- * All gateways can progressively add verify() and refund() support.
+ * API gateways override: initiate(), verify()
+ * All gateways can progressively add refund() and supports() capabilities.
  */
 trait GatewayDefaults
 {
-    public function process_payment(array $data = []): void
-    {
-        echo '<div class="alert alert-warning">This gateway does not support programmatic payment processing.</div>';
-    }
-
-    public function callback(array $data = []): void
-    {
-        echo '<div class="alert alert-warning">This gateway does not support callbacks.</div>';
-    }
-
-    public function verify(string $gatewayRef, string $reference): array
+    public function initiate(array $params, array $credentials): array
     {
         return [
-            'verified' => false,
-            'status' => 'unsupported',
-            'amount' => null,
-            'gateway_txn_id' => null,
-            'raw_response' => ['error' => 'verify() not implemented for this gateway'],
+            'redirect_url' => null,
+            'form_html'    => '<div class="op-alert op-alert-warning">This gateway does not support programmatic initiation.</div>',
         ];
     }
 
-    public function refund(string $gatewayTxnId, string $amount, string $reason = ''): array
+    public function verify(array $callbackData, array $credentials): array
     {
         return [
-            'success' => false,
-            'refund_ref' => null,
-            'raw_response' => ['error' => 'refund() not implemented for this gateway'],
+            'success'        => false,
+            'gateway_trx_id' => null,
+            'amount'         => null,
+            'status'         => 'unsupported',
         ];
     }
 
-    public function supportsRefund(): bool
+    public function refund(string $gatewayTrxId, string $amount, array $credentials): array
     {
-        return false;
+        return [
+            'success'   => false,
+            'refund_id' => null,
+            'error'     => 'Refunds not supported by this gateway',
+        ];
+    }
+
+    public function supports(string $feature): bool
+    {
+        return match ($feature) {
+            'refund'       => false,
+            'recurring'    => false,
+            'partial'      => false,
+            'verification' => false,
+            default        => false,
+        };
     }
 }

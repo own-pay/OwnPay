@@ -3,136 +3,83 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\Notification;
 
-use OwnPay\Security\UrlValidator;
+use OwnPay\Event\EventManager;
 
 /**
- * Notification Service
+ * Notification service — orchestrates multi-channel notifications.
  *
- * Handles IPN (Instant Payment Notification) webhook dispatch,
- * both single and multi-curl batch operations.
- *
- * SSRF defense (F5 from docs/security_audit/full_codebase_audit.md):
- *   Every outbound URL is validated by UrlValidator::isSafeOutbound() before
- *   dial. Blocked URLs return HTTP code 0 and emit a security log entry.
- *   FOLLOWLOCATION is disabled — redirect-based SSRF bypass not possible.
+ * Channels: push (mobile), email, sms, admin alert.
+ * Plugins add channels via communication.channels filter.
  */
-class NotificationService
+final class NotificationService
 {
-    public static function sendIPN(string $url, array $payload): int
-{
-    // SSRF guard — refuse to dial private / loopback / non-http targets
-    $reason = null;
-    if (!UrlValidator::isSafeOutbound($url, $reason)) {
-        Logger::security()->warning('outbound_ipn_blocked', [
-            'url'    => $url,
-            'reason' => $reason,
-        ]);
-        return 0;
+    private EventManager $events;
+    private AlertService $alerts;
+    private MobileNotificationService $mobile;
+
+    public function __construct(
+        EventManager $events,
+        AlertService $alerts,
+        MobileNotificationService $mobile
+    ) {
+        $this->events = $events;
+        $this->alerts = $alerts;
+        $this->mobile = $mobile;
     }
 
-    $json = json_encode($payload, JSON_UNESCAPED_UNICODE);
-
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_POST => true,
-        CURLOPT_POSTFIELDS => $json,
-        CURLOPT_HTTPHEADER => [
-            'Content-Type: application/json',
-            'Connection: close'
-        ],
-        CURLOPT_RETURNTRANSFER => false,
-        CURLOPT_HEADER => false,
-        CURLOPT_CONNECTTIMEOUT => 3,
-        CURLOPT_TIMEOUT => 5,
-        CURLOPT_FORBID_REUSE => true,
-        CURLOPT_NOSIGNAL => true,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_SSL_VERIFYHOST => 2,
-        CURLOPT_WRITEFUNCTION => function ($ch, $data) {
-            return strlen($data);
-        },
-    ]);
-
-    $result = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-
-    if ($result === false) {
-        $httpCode = 0;
-    }
-
-
-
-    return $httpCode;
-}
-
-    public static function sendIPNMulti(array $jobs): array
-{
-    $mh = curl_multi_init();
-    $handles = [];
-    $results = [];
-
-    foreach ($jobs as $job) {
-        // SSRF guard per-job
-        $reason = null;
-        if (!UrlValidator::isSafeOutbound($job['url'], $reason)) {
-            Logger::security()->warning('outbound_ipn_blocked_batch', [
-                'url'    => $job['url'],
-                'job_id' => $job['id'],
-                'reason' => $reason,
-            ]);
-            $results[$job['id']] = 0;
-            continue;
+    /**
+     * Send notification via specified channels.
+     *
+     * @param string[] $channels e.g. ['admin', 'push', 'email']
+     */
+    public function notify(int $merchantId, string $event, array $data, array $channels = ['admin']): void
+    {
+        foreach ($channels as $channel) {
+            match ($channel) {
+                'admin' => $this->notifyAdmin($merchantId, $event, $data),
+                'push'  => $this->notifyPush($merchantId, $event, $data),
+                'email' => $this->notifyEmail($merchantId, $event, $data),
+                'sms'   => $this->notifySms($merchantId, $event, $data),
+                default => null, // Plugin channels handled via event
+            };
         }
-
-        $json = json_encode($job['payload'], JSON_UNESCAPED_UNICODE);
-
-        $ch = curl_init($job['url']);
-        curl_setopt_array($ch, [
-            CURLOPT_POST => true,
-            CURLOPT_POSTFIELDS => $json,
-            CURLOPT_HTTPHEADER => [
-                'Content-Type: application/json',
-                'Connection: close'
-            ],
-            CURLOPT_RETURNTRANSFER => false,
-            CURLOPT_CONNECTTIMEOUT => 3,
-            CURLOPT_TIMEOUT => 5,
-            CURLOPT_FORBID_REUSE => true,
-            CURLOPT_NOSIGNAL => true,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_WRITEFUNCTION => fn($ch, $data) => strlen($data),
-        ]);
-
-        curl_multi_add_handle($mh, $ch);
-        $handles[(int) $ch] = [
-            'handle' => $ch,
-            'id' => $job['id']
-        ];
     }
 
-    do {
-        curl_multi_exec($mh, $running);
-        curl_multi_select($mh);
-    } while ($running > 0);
+    private function notifyAdmin(int $merchantId, string $event, array $data): void
+    {
+        $title = $data['title'] ?? $event;
+        $message = $data['message'] ?? json_encode($data);
+        $severity = $data['severity'] ?? 'info';
+        $this->alerts->create($merchantId, $event, $title, $message, $severity);
+    }
 
-    foreach ($handles as $item) {
-        $ch = $item['handle'];
-        $id = $item['id'];
-
-        $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        if ($code === 0) {
-            $code = 0;
+    private function notifyPush(int $merchantId, string $event, array $data): void
+    {
+        $deviceUuid = $data['device_uuid'] ?? null;
+        if ($deviceUuid !== null) {
+            $this->mobile->send($deviceUuid, $data['title'] ?? $event, $data['message'] ?? '', $data);
         }
-
-        $results[$id] = $code;
-
-        curl_multi_remove_handle($mh, $ch);
-
     }
 
-    curl_multi_close($mh);
+    private function notifyEmail(int $merchantId, string $event, array $data): void
+    {
+        // Dispatch via communication service hook
+        $this->events->doAction('communication.mail.send', [
+            'merchant_id' => $merchantId,
+            'event'       => $event,
+            'to'          => $data['email'] ?? null,
+            'subject'     => $data['subject'] ?? $data['title'] ?? $event,
+            'body'        => $data['message'] ?? '',
+        ]);
+    }
 
-    return $results;
-}
+    private function notifySms(int $merchantId, string $event, array $data): void
+    {
+        $this->events->doAction('communication.sms.send', [
+            'merchant_id' => $merchantId,
+            'event'       => $event,
+            'to'          => $data['phone'] ?? null,
+            'message'     => $data['message'] ?? '',
+        ]);
+    }
 }

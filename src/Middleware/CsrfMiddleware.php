@@ -1,94 +1,68 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Middleware;
 
-use OwnPay\Service\System\EnvironmentService;
-use OwnPay\Service\System\InputSanitizer;
+use OwnPay\Container;
+use OwnPay\Http\Request;
+use OwnPay\Http\Response;
 
 /**
- * CSRF and HMAC token validation middleware.
+ * CSRF middleware — validates token on state-changing requests.
  *
- * Supports two modes:
- * 1. Standard CSRF double-submit (session-based)
- * 2. External API HMAC-SHA256 signature (op-token)
+ * Per OWASP: synchronizer token pattern.
+ * Skips GET/HEAD/OPTIONS. API routes use bearer auth instead.
  */
 final class CsrfMiddleware
 {
-    /**
-     * Validate the request token.
-     *
-     * @return array{valid: bool, newToken: string|null, error: string|null}
-     */
-    public function validate(string $appToken): array
-    {
-        if ($appToken !== '') {
-            return $this->validateHmac($appToken);
-        }
+    private Container $container;
 
-        return $this->validateCsrf();
+    public function __construct(Container $container)
+    {
+        $this->container = $container;
     }
 
-    private function validateCsrf(): array
+    public function handle(Request $request, callable $next): Response
     {
-        $postToken = $_POST['csrf_token'] ?? '';
-        $sessionToken = $_SESSION['csrf_token'] ?? '';
-
-        if (empty($postToken) || empty($sessionToken) || !hash_equals($sessionToken, $postToken)) {
-            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
-            return [
-                'valid' => false,
-                'newToken' => $_SESSION['csrf_token'],
-                'error' => 'Invalid request token',
-            ];
+        // Safe methods — no CSRF check needed
+        if (in_array($request->method(), ['GET', 'HEAD', 'OPTIONS'], true)) {
+            return $next($request);
         }
 
-        return ['valid' => true, 'newToken' => $_SESSION['csrf_token'], 'error' => null];
+        // Skip for API routes (authenticated via bearer/JWT, not cookies)
+        if (str_starts_with($request->path(), '/api/')) {
+            return $next($request);
+        }
+
+        // Skip webhook/IPN endpoints
+        if (str_starts_with($request->path(), '/webhook/') || str_starts_with($request->path(), '/ipn/')) {
+            return $next($request);
+        }
+
+        if (session_status() !== PHP_SESSION_ACTIVE) {
+            return $this->forbidden($request, 'Session not active');
+        }
+
+        $sessionToken = $_SESSION['_csrf_token'] ?? '';
+        $submittedToken = $request->post('_csrf_token')
+            ?? $request->header('X-CSRF-Token');
+
+        if ($sessionToken === '' || $submittedToken === '' || !hash_equals($sessionToken, $submittedToken)) {
+            return $this->forbidden($request, 'CSRF token mismatch');
+        }
+
+        return $next($request);
     }
 
-    private function validateHmac(string $appToken): array
+    private function forbidden(Request $request, string $reason): Response
     {
-        $appId = InputSanitizer::html($_POST['op-app-id'] ?? '');
-        $appTimestamp = InputSanitizer::html($_POST['op-app-timestamp'] ?? '');
-
-        // Timestamp freshness (±5 minutes)
-        if (!ctype_digit($appTimestamp) || abs(time() - (int) $appTimestamp) > 300) {
-            return [
-                'valid' => false,
-                'newToken' => null,
-                'error' => 'Request expired. Please try again.',
-            ];
+        if ($request->expectsJson()) {
+            return Response::json([
+                'success' => false,
+                'message' => 'CSRF validation failed',
+            ], 403);
         }
 
-        // HMAC secret: prefer .env file, fall back to DB, never auto-generate to DB
-        $hmacSecret = $_ENV['APP_HMAC_SECRET'] ?? '';
-        if (empty($hmacSecret)) {
-            // Fallback: read from DB (legacy installs)
-            $hmacSecret = EnvironmentService::get('app-hmac-secret', 'both');
-        }
-        if (empty($hmacSecret)) {
-            error_log('[OwnPay] CRITICAL: APP_HMAC_SECRET not configured in .env file');
-            return [
-                'valid' => false,
-                'newToken' => '',
-                'error' => 'Server configuration error. Contact administrator.',
-            ];
-        }
-
-        // Bind HMAC to specific action to prevent cross-action replay
-        $action = InputSanitizer::trim($_POST['action'] ?? $_POST['action-v2'] ?? $_POST['action-companion'] ?? '');
-        $data = $appId . '|' . $appTimestamp . '|' . $action;
-        $expected = hash_hmac('sha256', $data, $hmacSecret);
-
-        if (!hash_equals($expected, $appToken)) {
-            return [
-                'valid' => false,
-                'newToken' => '',
-                'error' => 'Invalid request token',
-            ];
-        }
-
-        return ['valid' => true, 'newToken' => '', 'error' => null];
+        return Response::html('<h1>403 Forbidden</h1><p>CSRF validation failed. Please refresh and try again.</p>', 403);
     }
 }

@@ -1,159 +1,90 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Security;
 
 /**
- * LogSanitizer — scrubs PII from log entries and webhook payloads.
+ * Log sanitizer — strips sensitive fields before logging.
  *
- * Detects PII via regex patterns and replaces with [REDACTED].
- * Applied to audit logs, webhook payloads, and error messages.
+ * Per OWASP + security skill: never log passwords, tokens, keys, PII.
  */
 final class LogSanitizer
 {
-    /**
-     * PII detection patterns (regex => label).
-     */
-    private const PATTERNS = [
-        // Email addresses
-        '/\b[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Z|a-z]{2,}\b/' => '[EMAIL_REDACTED]',
+    /** Fields to completely redact */
+    private const REDACT_KEYS = [
+        'password', 'password_hash', 'password_confirm',
+        'totp_secret', 'totp_secret_enc',
+        'secret', 'key_hash', 'api_key', 'bearer_token',
+        'jwt', 'token', 'refresh_token',
+        'credentials_enc', 'webhook_secret',
+        'credit_card', 'card_number', 'cvv', 'cvc',
+        'ssn', 'social_security',
+    ];
 
-        // Bangladesh phone numbers (+880...)
-        '/(?:\+?880|0)[\s\-]?\d[\s\-]?\d{4}[\s\-]?\d{4}\b/' => '[PHONE_REDACTED]',
-
-        // International phone numbers (generic)
-        '/\+\d{1,3}[\s\-]?\d{4,14}\b/' => '[PHONE_REDACTED]',
-
-        // Credit/debit card numbers (13-19 digits)
-        '/\b\d{4}[\s\-]?\d{4}[\s\-]?\d{4}[\s\-]?\d{1,7}\b/' => '[CARD_REDACTED]',
-
-        // National ID (10-17 digit sequences that look like NID)
-        '/\b\d{10,17}\b/' => null, // Only redact in strict mode
+    /** Fields to mask (show partial) */
+    private const MASK_KEYS = [
+        'email', 'phone', 'name', 'ip_address',
+        'email_enc', 'phone_enc', 'name_enc',
     ];
 
     /**
-     * Fields to always redact in structured data.
+     * Sanitize array for logging.
+     *
+     * @param array<string, mixed> $data
+     * @return array<string, mixed>
      */
-    private const SENSITIVE_FIELDS = [
-        'password',
-        'secret',
-        'token',
-        'key_hash',
-        'signing_secret',
-        'api_key',
-        'bearer',
-        'authorization',
-        'credit_card',
-        'card_number',
-        'cvv',
-        'cvc',
-        'pin',
-        'ssn',
-        'nid',
-        'passport_number',
-    ];
-
-    private bool $strictMode;
-
-    /**
-     * @param bool $strictMode When true, more aggressive pattern matching
-     */
-    public function __construct(bool $strictMode = false)
+    public static function sanitize(array $data): array
     {
-        $this->strictMode = $strictMode;
-    }
+        $result = [];
+        foreach ($data as $key => $value) {
+            $lowerKey = strtolower($key);
 
-    /**
-     * Sanitize a string by replacing detected PII.
-     */
-    public function sanitizeString(string $input): string
-    {
-        $output = $input;
-
-        foreach (self::PATTERNS as $pattern => $replacement) {
-            if ($replacement === null && !$this->strictMode) {
-                continue; // Skip pattern in non-strict mode
+            // Full redaction
+            if (in_array($lowerKey, self::REDACT_KEYS, true) || self::containsSensitiveKey($lowerKey)) {
+                $result[$key] = '[REDACTED]';
+                continue;
             }
 
-            $output = preg_replace($pattern, $replacement ?? '[REDACTED]', $output);
-        }
-
-        return $output;
-    }
-
-    /**
-     * Sanitize structured data (arrays/objects).
-     * Recursively processes nested structures.
-     */
-    public function sanitize(mixed $data): mixed
-    {
-        if (is_string($data)) {
-            return $this->sanitizeString($data);
-        }
-
-        if (is_array($data)) {
-            return $this->sanitizeArray($data);
-        }
-
-        return $data;
-    }
-
-    /**
-     * Sanitize an associative array.
-     * Sensitive field names are fully redacted regardless of content.
-     */
-    public function sanitizeArray(array $data): array
-    {
-        foreach ($data as $key => $value) {
-            // Fully redact known sensitive fields
-            if (is_string($key) && $this->isSensitiveField($key)) {
-                $data[$key] = '[REDACTED]';
+            // Partial mask
+            if (in_array($lowerKey, self::MASK_KEYS, true)) {
+                $result[$key] = is_string($value) ? PiiMasker::mask($value) : '[REDACTED]';
                 continue;
             }
 
             // Recurse into nested arrays
             if (is_array($value)) {
-                $data[$key] = $this->sanitizeArray($value);
+                $result[$key] = self::sanitize($value);
                 continue;
             }
 
-            // Sanitize string values
-            if (is_string($value)) {
-                $data[$key] = $this->sanitizeString($value);
-            }
+            $result[$key] = $value;
         }
-
-        return $data;
+        return $result;
     }
 
     /**
-     * Sanitize a JSON string (parse, sanitize, re-encode).
+     * Sanitize a string message (strip inline secrets).
      */
-    public function sanitizeJson(string $json): string
+    public static function sanitizeMessage(string $message): string
     {
-        $data = json_decode($json, true);
-        if ($data === null) {
-            return $this->sanitizeString($json);
-        }
+        // Mask bearer tokens
+        $message = preg_replace('/Bearer\s+[A-Za-z0-9._-]+/i', 'Bearer [REDACTED]', $message) ?? $message;
+        // Mask API keys
+        $message = preg_replace('/op_[a-zA-Z0-9]{8}\.[a-zA-Z0-9]+/', 'op_[REDACTED]', $message) ?? $message;
+        // Mask JWTs
+        $message = preg_replace('/eyJ[A-Za-z0-9_-]+\.eyJ[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+/', '[JWT_REDACTED]', $message) ?? $message;
 
-        $sanitized = $this->sanitizeArray($data);
-        return json_encode($sanitized, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+        return $message;
     }
 
-    /**
-     * Check if a field name is considered sensitive.
-     */
-    private function isSensitiveField(string $fieldName): bool
+    private static function containsSensitiveKey(string $key): bool
     {
-        $normalized = strtolower(str_replace(['-', '.'], '_', $fieldName));
-
-        foreach (self::SENSITIVE_FIELDS as $sensitive) {
-            if ($normalized === $sensitive || str_contains($normalized, $sensitive)) {
+        $patterns = ['_secret', '_key', '_token', '_hash'];
+        foreach ($patterns as $pattern) {
+            if (str_contains($key, $pattern)) {
                 return true;
             }
         }
-
         return false;
     }
 }

@@ -2,9 +2,9 @@ name: Enterprise Security Audit
 
 on:
   push:
-    branches: [ main, dev ]
+    branches: [ "main", "v2/complete_refactoring" ]
   pull_request:
-    branches: [ main, dev ]
+    branches: [ "main", "v2/complete_refactoring" ]
   schedule:
     - cron: "0 0 * * 0" # Run weekly on Sundays
 
@@ -34,7 +34,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: "20"
+          node-version: "24.x"
 
       - name: 🛡️ SCA - Composer Audit
         run: composer audit

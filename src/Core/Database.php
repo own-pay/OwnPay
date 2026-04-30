@@ -1,119 +1,61 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Core;
 
 use PDO;
-use PDOException;
 use PDOStatement;
-use RuntimeException;
 
 /**
- * Thread-safe PDO singleton for Own Pay.
+ * Thin database wrapper around PDO.
  *
- * Usage:
- *   $db = Database::getInstance();
- *   $db->fetchAll('SELECT * FROM op_merchants WHERE status = ?', ['active']);
+ * Provides convenience methods for common queries while maintaining
+ * full prepared-statement safety. No raw string interpolation ever.
+ *
+ * Injected via DI container — never instantiate directly.
  */
 final class Database
 {
-    private static ?self $instance = null;
-
     private PDO $pdo;
 
-    private function __construct(
-        string $host,
-        string $dbName,
-        string $user,
-        string $pass,
-        int    $port = 3306,
-        string $charset = 'utf8mb4'
-    ) {
-        $dsn = sprintf(
-            'mysql:host=%s;port=%d;dbname=%s;charset=%s',
-            $host,
-            $port,
-            $dbName,
-            $charset
-        );
-
-        try {
-            $this->pdo = new PDO($dsn, $user, $pass, [
-                PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-                PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-                PDO::ATTR_EMULATE_PREPARES   => false,
-                PDO::ATTR_STRINGIFY_FETCHES  => false,
-                PDO::MYSQL_ATTR_FOUND_ROWS   => true,
-            ]);
-
-            // Force UTC for all connections
-            $this->pdo->exec("SET time_zone = '+00:00'");
-        } catch (PDOException $e) {
-            throw new RuntimeException(
-                'Database connection failed: ' . $e->getMessage(),
-                (int) $e->getCode(),
-                $e
-            );
-        }
-    }
-
-    // Prevent cloning and unserialization
-    private function __clone() {}
-    public function __wakeup(): never
+    public function __construct(PDO $pdo)
     {
-        throw new RuntimeException('Cannot unserialize Database singleton.');
+        $this->pdo = $pdo;
     }
 
-    /**
-     * Initialize the singleton with explicit credentials.
-     */
-    public static function init(
-        string $host,
-        string $dbName,
-        string $user,
-        string $pass,
-        int    $port = 3306
-    ): self {
-        if (self::$instance !== null) {
-            return self::$instance;
-        }
-
-        self::$instance = new self($host, $dbName, $user, $pass, $port);
-        return self::$instance;
-    }
-
-    /**
-     * Get the singleton instance. Must call init() first.
-     */
-    public static function getInstance(): self
+    public function pdo(): PDO
     {
-        if (self::$instance === null) {
-            throw new RuntimeException(
-                'Database not initialized. Call Database::init() first.'
-            );
-        }
-
-        return self::$instance;
+        return $this->pdo;
     }
 
+    // ─── Query Methods ─────────────────────────────────────────
+
     /**
-     * Reset singleton (for testing only).
-     * @internal
+     * @return array<int, array<string, mixed>>
      */
-    public static function reset(): void
+    public function fetchAll(string $sql, array $params = []): array
     {
-        self::$instance = null;
+        $stmt = $this->execute($sql, $params);
+        return $stmt->fetchAll(PDO::FETCH_ASSOC);
     }
 
-    // ─── Query Helpers ───────────────────────────────────────────────
-
     /**
-     * Execute a statement and return the PDOStatement.
-     *
-     * @param string $sql    SQL with ? or :named placeholders
-     * @param array  $params Positional or named parameters
+     * @return array<string, mixed>|null
      */
+    public function fetchOne(string $sql, array $params = []): ?array
+    {
+        $stmt = $this->execute($sql, $params);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $row !== false ? $row : null;
+    }
+
+    public function fetchColumn(string $sql, array $params = [], int $column = 0): mixed
+    {
+        $stmt = $this->execute($sql, $params);
+        $value = $stmt->fetchColumn($column);
+        return $value !== false ? $value : null;
+    }
+
     public function execute(string $sql, array $params = []): PDOStatement
     {
         $stmt = $this->pdo->prepare($sql);
@@ -121,48 +63,41 @@ final class Database
         return $stmt;
     }
 
-    /**
-     * Fetch all rows as associative arrays.
-     */
-    public function fetchAll(string $sql, array $params = []): array
+    public function insert(string $sql, array $params = []): string
     {
-        return $this->execute($sql, $params)->fetchAll();
-    }
-
-    /**
-     * Fetch a single row.
-     */
-    public function fetchOne(string $sql, array $params = []): ?array
-    {
-        $row = $this->execute($sql, $params)->fetch();
-        return $row === false ? null : $row;
-    }
-
-    /**
-     * Fetch a single scalar value.
-     */
-    public function fetchColumn(string $sql, array $params = [], int $column = 0): mixed
-    {
-        return $this->execute($sql, $params)->fetchColumn($column);
-    }
-
-    /**
-     * Get the last inserted auto-increment ID.
-     */
-    public function lastInsertId(): string
-    {
+        $this->execute($sql, $params);
         return $this->pdo->lastInsertId();
     }
 
-    /**
-     * Get the row count affected by the last statement.
-     */
-    public function rowCount(PDOStatement $stmt): int
+    public function update(string $sql, array $params = []): int
     {
-        return $stmt->rowCount();
+        return $this->execute($sql, $params)->rowCount();
     }
 
-    // ─── Transaction Control ─────────────────────────────────────────
+    public function delete(string $sql, array $params = []): int
+    {
+        return $this->execute($sql, $params)->rowCount();
+    }
+
+    // ─── Transactions ──────────────────────────────────────────
+
+    /**
+     * @template T
+     * @param callable(): T $callback
+     * @return T
+     */
+    public function transaction(callable $callback): mixed
+    {
+        $this->pdo->beginTransaction();
+        try {
+            $result = $callback();
+            $this->pdo->commit();
+            return $result;
+        } catch (\Throwable $e) {
+            $this->pdo->rollBack();
+            throw $e;
+        }
+    }
 
     public function beginTransaction(): void
     {
@@ -174,11 +109,9 @@ final class Database
         $this->pdo->commit();
     }
 
-    public function rollback(): void
+    public function rollBack(): void
     {
-        if ($this->pdo->inTransaction()) {
-            $this->pdo->rollBack();
-        }
+        $this->pdo->rollBack();
     }
 
     public function inTransaction(): bool
@@ -186,32 +119,22 @@ final class Database
         return $this->pdo->inTransaction();
     }
 
-    /**
-     * Execute a callable inside a DB transaction.
-     * Automatically commits on success, rolls back on exception.
-     *
-     * @template T
-     * @param callable(): T $callback
-     * @return T
-     */
-    public function transactional(callable $callback): mixed
+    // ─── Helpers ───────────────────────────────────────────────
+
+    public function exists(string $table, string $where, array $params = []): bool
     {
-        $this->beginTransaction();
-        try {
-            $result = $callback();
-            $this->commit();
-            return $result;
-        } catch (\Throwable $e) {
-            $this->rollback();
-            throw $e;
-        }
+        $sql = "SELECT 1 FROM {$table} WHERE {$where} LIMIT 1";
+        return $this->fetchColumn($sql, $params) !== null;
     }
 
-    /**
-     * Get the raw PDO instance (escape hatch for advanced queries).
-     */
-    public function getPdo(): PDO
+    public function count(string $table, string $where = '1=1', array $params = []): int
     {
-        return $this->pdo;
+        $sql = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
+        return (int) $this->fetchColumn($sql, $params);
+    }
+
+    public function lastInsertId(): string
+    {
+        return $this->pdo->lastInsertId();
     }
 }

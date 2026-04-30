@@ -1,93 +1,119 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Service\System;
 
 /**
- * HttpClient — outbound HTTP wrapper with hardened defaults.
+ * HTTP client — simple cURL wrapper for outbound API calls.
  *
- * Security posture (see docs/security_audit/full_codebase_audit.md F5 + F7):
- *   - TLS verify always on
- *   - Redirect-following is OPT-IN (default off) — prevents redirect-based SSRF
- *     bypass after a UrlValidator check
- *   - When redirects ARE allowed, only http/https schemes can be followed
- *
- * Callers should call UrlValidator::isSafeOutbound($url) BEFORE these methods
- * for any URL sourced from user input (webhooks, IPN, etc.). HttpClient itself
- * does not call UrlValidator — it only enforces transport-level hardening.
+ * Per security skill: timeout enforcement, SSRF prevention, no private IPs.
  */
 final class HttpClient
 {
-    public static function get(string $url, int $timeout = 10, bool $allowRedirects = false): ?string
+    private int $timeout;
+    private int $connectTimeout;
+
+    public function __construct(int $timeout = 30, int $connectTimeout = 5)
     {
-        $opts = [
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => $timeout,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_FOLLOWLOCATION => $allowRedirects,
-            CURLOPT_USERAGENT      => 'OwnPay/' . (defined('OP_VERSION') ? OP_VERSION : '1.0'),
-        ];
-        if ($allowRedirects) {
-            $opts[CURLOPT_MAXREDIRS]       = 3;
-            $opts[CURLOPT_REDIR_PROTOCOLS] = CURLPROTO_HTTP | CURLPROTO_HTTPS;
-        }
-        $ch = curl_init();
-        curl_setopt_array($ch, $opts);
-
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($response === false || $httpCode >= 400) {
-            error_log("HttpClient::get failed for {$url}: HTTP {$httpCode} — {$error}");
-            return null;
-        }
-
-        return $response;
+        $this->timeout = $timeout;
+        $this->connectTimeout = $connectTimeout;
     }
 
-    public static function post(
-        string $url,
-        string $body,
-        array $headers = [],
-        int $timeout = 15,
-        bool $allowRedirects = false,
-    ): ?string {
-        $opts = [
-            CURLOPT_URL            => $url,
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => $timeout,
-            CURLOPT_CONNECTTIMEOUT => 5,
-            CURLOPT_SSL_VERIFYPEER => true,
-            CURLOPT_SSL_VERIFYHOST => 2,
-            CURLOPT_FOLLOWLOCATION => $allowRedirects,
-            CURLOPT_POST           => true,
-            CURLOPT_POSTFIELDS     => $body,
-            CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_USERAGENT      => 'OwnPay/' . (defined('OP_VERSION') ? OP_VERSION : '1.0'),
-        ];
-        if ($allowRedirects) {
-            $opts[CURLOPT_MAXREDIRS]       = 3;
-            $opts[CURLOPT_REDIR_PROTOCOLS] = CURLPROTO_HTTP | CURLPROTO_HTTPS;
-        }
-        $ch = curl_init();
-        curl_setopt_array($ch, $opts);
+    /**
+     * @return array{status: int, body: string, headers: array}
+     */
+    public function get(string $url, array $headers = []): array
+    {
+        return $this->request('GET', $url, null, $headers);
+    }
 
-        $response = curl_exec($ch);
-        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    /**
+     * @return array{status: int, body: string, headers: array}
+     */
+    public function post(string $url, mixed $data = null, array $headers = []): array
+    {
+        return $this->request('POST', $url, $data, $headers);
+    }
+
+    /**
+     * @return array{status: int, body: string, headers: array}
+     */
+    public function put(string $url, mixed $data = null, array $headers = []): array
+    {
+        return $this->request('PUT', $url, $data, $headers);
+    }
+
+    /**
+     * @return array{status: int, body: string, headers: array}
+     */
+    public function delete(string $url, array $headers = []): array
+    {
+        return $this->request('DELETE', $url, null, $headers);
+    }
+
+    /**
+     * POST JSON.
+     */
+    public function postJson(string $url, array $data, array $headers = []): array
+    {
+        $headers['Content-Type'] = 'application/json';
+        return $this->post($url, json_encode($data), $headers);
+    }
+
+    private function request(string $method, string $url, mixed $data, array $headers): array
+    {
+        // SSRF check
+        if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($url)) {
+            throw new \RuntimeException('URL blocked by SSRF protection');
+        }
+
+        $ch = curl_init($url);
+        $responseHeaders = [];
+
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => $this->timeout,
+            CURLOPT_CONNECTTIMEOUT => $this->connectTimeout,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 3,
+            CURLOPT_CUSTOMREQUEST  => $method,
+            CURLOPT_USERAGENT      => 'OwnPay/' . EnvironmentService::version(),
+            CURLOPT_HEADERFUNCTION => function ($ch, $header) use (&$responseHeaders) {
+                $parts = explode(':', $header, 2);
+                if (count($parts) === 2) {
+                    $responseHeaders[trim($parts[0])] = trim($parts[1]);
+                }
+                return strlen($header);
+            },
+        ]);
+
+        // Build headers
+        $curlHeaders = [];
+        foreach ($headers as $key => $value) {
+            $curlHeaders[] = "{$key}: {$value}";
+        }
+        if (!empty($curlHeaders)) {
+            curl_setopt($ch, CURLOPT_HTTPHEADER, $curlHeaders);
+        }
+
+        // Set body for POST/PUT
+        if ($data !== null && in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
+            curl_setopt($ch, CURLOPT_POSTFIELDS, is_string($data) ? $data : http_build_query($data));
+        }
+
+        $body = curl_exec($ch);
+        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         $error = curl_error($ch);
         curl_close($ch);
 
-        if ($response === false || $httpCode >= 400) {
-            error_log("HttpClient::post failed for {$url}: HTTP {$httpCode} — {$error}");
-            return null;
+        if ($body === false) {
+            throw new \RuntimeException("HTTP request failed: {$error}");
         }
 
-        return $response;
+        return [
+            'status'  => $status,
+            'body'    => $body,
+            'headers' => $responseHeaders,
+        ];
     }
 }

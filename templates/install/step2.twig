@@ -1,0 +1,39 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Database · Own Pay Setup</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/installer.css">
+</head><body>
+<header class="ins-header"><div class="ins-brand"><span class="ins-mark">OP</span><span class="ins-name">Own Pay <span>Setup</span></span></div><span class="ins-badge">Step 2/4</span></header>
+<main class="ins-main"><div class="ins-card">
+<h1>Database Configuration</h1>
+<p class="ins-sub">Enter your MySQL database credentials.</p>
+<form id="dbForm" class="ins-form">
+    <div class="ins-row">
+        <div class="ins-field"><label>Host</label><input name="host" value="localhost" required></div>
+        <div class="ins-field ins-field-sm"><label>Port</label><input name="port" value="3306" required></div>
+    </div>
+    <div class="ins-field"><label>Database Name</label><input name="name" required placeholder="ownpay"></div>
+    <div class="ins-row">
+        <div class="ins-field"><label>Username</label><input name="user" required placeholder="root"></div>
+        <div class="ins-field"><label>Password</label><input name="pass" type="password"></div>
+    </div>
+    <div class="ins-field"><label>Table Prefix</label><input name="prefix" value="op_" required></div>
+    <div id="dbMsg" class="ins-msg"></div>
+    <button type="submit" class="ins-btn" id="dbBtn">Test & Import Schema</button>
+</form>
+</div></main>
+<script>
+document.getElementById('dbForm').addEventListener('submit', async function(e) {
+    e.preventDefault();
+    var btn = document.getElementById('dbBtn'), msg = document.getElementById('dbMsg');
+    btn.disabled = true; btn.textContent = 'Testing...'; msg.textContent = '';
+    var fd = new FormData(this), body = {};
+    fd.forEach(function(v,k){ body[k] = v; });
+    try {
+        var r = await fetch('/install/test-db', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)});
+        var d = await r.json();
+        if (d.success) { msg.className = 'ins-msg ins-msg-ok'; msg.textContent = '✓ ' + (d.message||'Success'); setTimeout(function(){ location.href='?step=3'; }, 800); }
+        else { msg.className = 'ins-msg ins-msg-err'; msg.textContent = '✗ ' + (d.error||'Failed'); btn.disabled = false; btn.textContent = 'Test & Import Schema'; }
+    } catch(err) { msg.className = 'ins-msg ins-msg-err'; msg.textContent = '✗ Network error'; btn.disabled = false; btn.textContent = 'Test & Import Schema'; }
+});
+</script>
+</body></html>

@@ -1,0 +1,58 @@
+{# Confirm delete modal — reusable across admin pages #}
+<div class="op-modal" id="confirm-delete-modal" hidden>
+    <div class="op-modal-backdrop" onclick="closeModal('confirm-delete-modal')"></div>
+    <div class="op-modal-dialog">
+        <div class="op-modal-header">
+            <h4>Confirm Delete</h4>
+            <button type="button" class="op-modal-close" onclick="closeModal('confirm-delete-modal')">×</button>
+        </div>
+        <div class="op-modal-body">
+            <p>Are you sure you want to delete <strong id="delete-item-name"></strong>? This action cannot be undone.</p>
+        </div>
+        <div class="op-modal-footer">
+            <button type="button" class="op-btn op-btn-outline" onclick="closeModal('confirm-delete-modal')">Cancel</button>
+            <form method="POST" id="delete-form" class="op-inline">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <input type="hidden" name="_method" value="DELETE">
+                <button type="submit" class="op-btn op-btn-danger">Delete</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# View detail modal — quick view for transactions/invoices #}
+<div class="op-modal" id="detail-modal" hidden>
+    <div class="op-modal-backdrop" onclick="closeModal('detail-modal')"></div>
+    <div class="op-modal-dialog op-modal-lg">
+        <div class="op-modal-header">
+            <h4 id="detail-modal-title">Details</h4>
+            <button type="button" class="op-modal-close" onclick="closeModal('detail-modal')">×</button>
+        </div>
+        <div class="op-modal-body" id="detail-modal-content">
+            <div class="op-loading">Loading...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+function openDeleteModal(action, itemName) {
+    document.getElementById('delete-form').action = action;
+    document.getElementById('delete-item-name').textContent = itemName;
+    document.getElementById('confirm-delete-modal').hidden = false;
+}
+function closeModal(id) {
+    document.getElementById(id).hidden = true;
+}
+function openDetailModal(title, url) {
+    document.getElementById('detail-modal-title').textContent = title;
+    document.getElementById('detail-modal').hidden = false;
+    const content = document.getElementById('detail-modal-content');
+    content.innerHTML = '<div class="op-loading">Loading...</div>';
+    fetch(url).then(r => r.text()).then(html => { content.innerHTML = html; });
+}
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        document.querySelectorAll('.op-modal:not([hidden])').forEach(m => m.hidden = true);
+    }
+});
+</script>

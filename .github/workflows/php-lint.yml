@@ -2,9 +2,9 @@ name: PHP Lint Guard
 
 on:
   push:
-    branches: [ "main", "master" ]
+    branches: [ "main", "v2/complete_refactoring" ]
   pull_request:
-    branches: [ "main", "master" ]
+    branches: [ "main", "v2/complete_refactoring" ]
 
 jobs:
   php-lint:
@@ -23,7 +23,7 @@ jobs:
 
     - name: Run PHP Parallel Lint
       run: |
-        vendor/bin/parallel-lint --exclude vendor . || echo 'Linting failed. Please fix syntax errors.' 
+        parallel-lint --exclude vendor . || echo 'Linting failed. Please fix syntax errors.' 
         # Fallback to standard CLI lint if parallel-lint is not in vendor
         find . -name "*.php" -not -path "./vendor/*" -print0 | xargs -0 -n1 -P8 php -l | grep -v "No syntax errors detected" || true
         # Fail the build if any syntax error exists

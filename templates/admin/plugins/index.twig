@@ -1,0 +1,95 @@
+{% extends "admin/base.twig" %}
+
+{% block title %}Plugins — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <h1>Plugins</h1>
+    <a href="{{ path('admin.plugins.install') }}" class="op-btn op-btn-primary">
+        <span class="op-icon">+</span> Install Plugin
+    </a>
+</div>
+
+{% if flash_success %}
+<div class="op-alert op-alert-success">{{ flash_success }}</div>
+{% endif %}
+{% if flash_error %}
+<div class="op-alert op-alert-danger">{{ flash_error }}</div>
+{% endif %}
+
+<div class="op-tabs">
+    <button class="op-tab active" data-tab="all">All ({{ plugins|length }})</button>
+    <button class="op-tab" data-tab="active">Active ({{ plugins|filter(p => p.status == 'active')|length }})</button>
+    <button class="op-tab" data-tab="inactive">Inactive ({{ plugins|filter(p => p.status == 'inactive')|length }})</button>
+</div>
+
+<div class="op-card">
+    <table class="op-table" id="plugins-table">
+        <thead>
+            <tr>
+                <th>Plugin</th>
+                <th>Type</th>
+                <th>Version</th>
+                <th>Status</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+        {% for plugin in plugins %}
+            <tr class="plugin-row" data-status="{{ plugin.status }}">
+                <td>
+                    <div class="op-plugin-info">
+                        <strong>{{ plugin.name }}</strong>
+                        <small class="op-text-muted">{{ plugin.slug }}</small>
+                    </div>
+                </td>
+                <td><span class="op-badge op-badge-{{ plugin.type }}">{{ plugin.type|capitalize }}</span></td>
+                <td>{{ plugin.version }}</td>
+                <td>
+                    {% if plugin.status == 'active' %}
+                        <span class="op-badge op-badge-success">Active</span>
+                    {% elseif plugin.status == 'error' %}
+                        <span class="op-badge op-badge-danger">Error</span>
+                    {% else %}
+                        <span class="op-badge op-badge-secondary">Inactive</span>
+                    {% endif %}
+                </td>
+                <td class="op-actions">
+                    {% if plugin.status == 'active' %}
+                        <a href="{{ path('admin.plugins.settings', {slug: plugin.slug}) }}" class="op-btn op-btn-sm op-btn-outline">Settings</a>
+                        <form method="POST" action="{{ path('admin.plugins.deactivate', {slug: plugin.slug}) }}" class="op-inline-form">
+                            {{ csrf_field() }}
+                            <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
+                        </form>
+                    {% elseif plugin.status == 'inactive' %}
+                        <form method="POST" action="{{ path('admin.plugins.activate', {slug: plugin.slug}) }}" class="op-inline-form">
+                            {{ csrf_field() }}
+                            <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
+                        </form>
+                    {% endif %}
+                    <form method="POST" action="{{ path('admin.plugins.uninstall', {slug: plugin.slug}) }}" class="op-inline-form" onsubmit="return confirm('Permanently remove this plugin?')">
+                        {{ csrf_field() }}
+                        <button type="submit" class="op-btn op-btn-sm op-btn-danger">Uninstall</button>
+                    </form>
+                </td>
+            </tr>
+        {% else %}
+            <tr><td colspan="5" class="op-empty">No plugins installed. <a href="{{ path('admin.plugins.install') }}">Install one</a>.</td></tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</div>
+
+<script>
+document.querySelectorAll('.op-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+        document.querySelectorAll('.op-tab').forEach(t => t.classList.remove('active'));
+        tab.classList.add('active');
+        const filter = tab.dataset.tab;
+        document.querySelectorAll('.plugin-row').forEach(row => {
+            row.style.display = (filter === 'all' || row.dataset.status === filter) ? '' : 'none';
+        });
+    });
+});
+</script>
+{% endblock %}

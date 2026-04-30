@@ -1,101 +1,56 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Plugin;
 
+use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * The universal contract that EVERY OwnPay extension must implement.
+ * Plugin interface — every plugin MUST implement this.
  *
- * Whether the extension is a payment gateway, a checkout theme, or a
- * feature plugin — it implements this single interface.  The plugin's
- * *type* (gateway / theme / plugin) is declared in manifest.json and
- * determines which system hooks the loader fires for it.
- *
- * Lifecycle order:
- *   install  → activate() → [register() + boot() on every request] → deactivate() → uninstall()
- *
- * @example
- *   class StripeGateway implements PluginInterface { ... }
- *   class TwentySixTheme implements PluginInterface { ... }
- *   class SmsNotifier implements PluginInterface { ... }
+ * Lifecycle: register() → boot() → deactivate() → uninstall()
  */
 interface PluginInterface
 {
-    // ── Request-time lifecycle (called on every HTTP request) ────────
-
     /**
-     * Register hooks, filters, routes, admin menus, and cron jobs.
-     *
-     * Called once per request, BEFORE boot().  This is the place to wire
-     * the plugin into the system via the EventManager.  Do NOT perform
-     * heavy I/O here — defer that to the hook callback itself.
-     *
-     * @param EventManager $events  The singleton event bus
+     * Plugin metadata.
+     * @return array{name: string, slug: string, version: string, description: string, author: string, type: string}
      */
-    public function register(EventManager $events): void;
+    public static function metadata(): array;
 
     /**
-     * Post-registration bootstrap.
-     *
-     * Called once per request, AFTER every active plugin has called
-     * register().  Safe to depend on hooks registered by other plugins.
+     * Declare capabilities this plugin provides.
+     * @return Capability[]
      */
-    public function boot(): void;
-
-    // ── Admin-triggered lifecycle (called once each) ────────────────
+    public function capabilities(): array;
 
     /**
-     * Run first-time setup: seed data, create settings, etc.
-     *
-     * Called once when the admin activates the plugin.  Database
-     * migrations declared in manifest.json are applied automatically
-     * BEFORE this method is invoked.
+     * Register hooks, filters, and event listeners.
+     * Called on every request when plugin is active.
      */
-    public function activate(): void;
+    public function register(EventManager $events, Container $container): void;
 
     /**
-     * Suspend the plugin gracefully.
-     *
-     * Called when the admin deactivates the plugin.  Must leave all data
-     * intact — the user may re-activate later.
+     * Boot the plugin after all plugins registered.
+     * Access to full container and other plugins.
      */
-    public function deactivate(): void;
+    public function boot(Container $container): void;
 
     /**
-     * Permanent teardown: drop tables, delete settings, clean up files.
-     *
-     * Called once immediately before the plugin directory is deleted.
-     * This is the ONLY lifecycle method that should be destructive.
+     * Called when plugin is deactivated.
      */
-    public function uninstall(): void;
-
-    // ── Metadata ────────────────────────────────────────────────────
+    public function deactivate(Container $container): void;
 
     /**
-     * Return human-readable metadata for the admin panel.
-     *
-     * Expected keys:
-     *   'title'       => string   Display name
-     *   'description' => string   One-liner
-     *   'version'     => string   SemVer (must match manifest)
-     *   'logo'        => ?string  Relative path to logo asset
-     *
-     * @return array<string, mixed>
+     * Called when plugin is uninstalled (permanent removal).
+     * Clean up DB tables, files, etc.
      */
-    public function info(): array;
+    public function uninstall(Container $container): void;
 
     /**
-     * Declare configurable settings for the admin settings page.
-     *
-     * Each entry follows the standard field schema:
-     *   ['name' => 'api_key', 'label' => 'API Key', 'type' => 'text', ...]
-     *
-     * Supported types: text, textarea, select, checkbox, color, image, radio, password
-     *
-     * @return list<array{name: string, label: string, type: string, ...}>
+     * Define settings fields for admin UI auto-rendering.
+     * @return array<int, array{name: string, label: string, type: string, default?: mixed, options?: array}>
      */
     public function fields(): array;
 }

@@ -1,0 +1,662 @@
+<!DOCTYPE html>
+<html lang="en" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="author" content="OwnPay">
+    <title>Own Pay — Master Admin Dashboard Template</title>
+
+    <!-- Inter Font from Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    fontFamily: {
+                        sans: ['Inter', 'system-ui', '-apple-system', 'sans-serif'],
+                    },
+                    colors: {
+                        primary: {
+                            50:  '#f3f0ff',
+                            100: '#e9e0ff',
+                            200: '#d4c1ff',
+                            300: '#b494ff',
+                            400: '#9265ff',
+                            500: '#5f38f9',
+                            600: '#5020e0',
+                            700: '#4316c0',
+                            800: '#38129e',
+                            900: '#2e1080',
+                            950: '#1a0a50',
+                        },
+                        dark: {
+                            card: '#1e293b',
+                            bg: '#0f172a',
+                            border: '#334155',
+                            surface: '#1e293b',
+                            hover: '#2d3a4f',
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- Flowbite CSS -->
+    <link href="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.css" rel="stylesheet" />
+
+    <!-- Material Icons for sidebar -->
+    <link href="https://fonts.googleapis.com/icon?family=Material+Icons+Outlined" rel="stylesheet">
+
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        
+        /* Scrollbar styling */
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        .dark ::-webkit-scrollbar-thumb { background: #475569; }
+
+        /* Sidebar transition */
+        .sidebar-transition { transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), transform 0.3s cubic-bezier(0.4, 0, 0.2, 1); }
+
+        /* KPI Card left accent border */
+        .kpi-accent-green  { border-left: 4px solid #22c55e; }
+        .kpi-accent-blue   { border-left: 4px solid #3b82f6; }
+        .kpi-accent-amber  { border-left: 4px solid #f59e0b; }
+        .kpi-accent-purple { border-left: 4px solid #5f38f9; }
+
+        /* Table row hover */
+        .table-row-hover:hover { background-color: #f8fafc; }
+        .dark .table-row-hover:hover { background-color: #1e293b; }
+
+        /* Status badge micro-animation */
+        .badge-pulse { animation: pulse-badge 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+        @keyframes pulse-badge {
+            0%, 100% { opacity: 1; }
+            50% { opacity: .7; }
+        }
+
+        /* Focus ring for inputs */
+        .input-focus:focus {
+            border-color: #5f38f9;
+            box-shadow: 0 0 0 3px rgba(95, 56, 249, 0.15);
+            outline: none;
+        }
+        .dark .input-focus:focus {
+            box-shadow: 0 0 0 3px rgba(95, 56, 249, 0.25);
+        }
+
+        /* Input error state */
+        .input-error {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15) !important;
+        }
+        .input-error:focus {
+            border-color: #ef4444 !important;
+            box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.25) !important;
+        }
+
+        /* Chart placeholder gradient */
+        .chart-placeholder {
+            background: linear-gradient(135deg, #f0f4ff 0%, #e8ecf4 50%, #f0f4ff 100%);
+        }
+        .dark .chart-placeholder {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 50%, #1e293b 100%);
+        }
+    </style>
+</head>
+
+<!--
+╔══════════════════════════════════════════════════════════════╗
+║  OWN PAY — MASTER ADMIN DASHBOARD THEME TEMPLATE        ║
+║  Version: 1.0.0                                             ║
+║  Design System: Tailwind CSS v3 + Flowbite v2.5             ║
+║  Color Token: Primary #5f38f9 / Text #FFFFFF                ║
+║  Font: Inter (300-800)                                      ║
+║  Modes: Light + Dark (class-based toggling)                 ║
+║  Source: StitchMCP Project #13305380020523152297             ║
+║  Date: 2026-03-15                                           ║
+╚══════════════════════════════════════════════════════════════╝
+-->
+
+<body class="bg-gray-50 dark:bg-dark-bg text-gray-900 dark:text-gray-100 min-h-screen font-sans antialiased">
+
+<!-- ======================================================== -->
+<!-- SECTION 1: TOP NAVBAR (Fixed)                            -->
+<!-- ======================================================== -->
+<nav class="fixed top-0 z-50 w-full bg-slate-900 dark:bg-dark-bg border-b border-slate-800 dark:border-dark-border">
+    <div class="px-4 py-3 lg:px-6">
+        <div class="flex items-center justify-between">
+            <!-- Left: Hamburger + Logo -->
+            <div class="flex items-center gap-3">
+                <button data-drawer-target="sidebar-nav" data-drawer-toggle="sidebar-nav" aria-controls="sidebar-nav" type="button" class="inline-flex items-center p-2 text-sm text-gray-400 rounded-lg lg:hidden hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-600">
+                    <span class="sr-only">Open sidebar</span>
+                    <svg class="w-6 h-6" fill="currentColor" viewBox="0 0 20 20"><path clip-rule="evenodd" fill-rule="evenodd" d="M2 4.75A.75.75 0 012.75 4h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 4.75zm0 10.5a.75.75 0 01.75-.75h7.5a.75.75 0 010 1.5h-7.5a.75.75 0 01-.75-.75zM2 10a.75.75 0 01.75-.75h14.5a.75.75 0 010 1.5H2.75A.75.75 0 012 10z"></path></svg>
+                </button>
+                <a href="#" class="flex items-center gap-2.5">
+                    <div class="flex items-center justify-center w-8 h-8 rounded-lg bg-primary-500">
+                        <span class="text-white font-bold text-sm">AP</span>
+                    </div>
+                    <span class="text-xl font-bold text-white tracking-tight hidden sm:block">Own<span class="text-primary-400">Pay</span></span>
+                </a>
+            </div>
+
+            <!-- Center: Search Bar -->
+            <div class="hidden md:flex flex-1 max-w-md mx-8">
+                <div class="relative w-full">
+                    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                        <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                    </div>
+                    <input type="search" class="w-full pl-10 pr-4 py-2 text-sm bg-slate-800 border border-slate-700 rounded-lg text-gray-200 placeholder-gray-400 focus:ring-primary-500 focus:border-primary-500" placeholder="Search transactions, customers...">
+                    <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                        <kbd class="hidden sm:inline-flex items-center px-1.5 py-0.5 text-xs font-medium text-gray-400 bg-slate-700 border border-slate-600 rounded">⌘K</kbd>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Actions -->
+            <div class="flex items-center gap-2">
+                <!-- Notification Bell -->
+                <button type="button" class="relative p-2 text-gray-400 rounded-lg hover:text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-600 transition-colors">
+                    <span class="sr-only">View notifications</span>
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.437L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                    <span class="absolute top-1.5 right-1.5 w-2 h-2 bg-red-500 rounded-full badge-pulse"></span>
+                </button>
+
+                <!-- Dark Mode Toggle -->
+                <button id="theme-toggle" type="button" class="p-2 text-gray-400 rounded-lg hover:text-white hover:bg-slate-800 focus:outline-none focus:ring-2 focus:ring-slate-600 transition-colors">
+                    <svg id="theme-toggle-dark-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M17.293 13.293A8 8 0 016.707 2.707a8.001 8.001 0 1010.586 10.586z"></path></svg>
+                    <svg id="theme-toggle-light-icon" class="w-5 h-5 hidden" fill="currentColor" viewBox="0 0 20 20"><path d="M10 2a1 1 0 011 1v1a1 1 0 11-2 0V3a1 1 0 011-1zm4 8a4 4 0 11-8 0 4 4 0 018 0zm-.464 4.95l.707.707a1 1 0 001.414-1.414l-.707-.707a1 1 0 00-1.414 1.414zm2.12-10.607a1 1 0 010 1.414l-.706.707a1 1 0 11-1.414-1.414l.707-.707a1 1 0 011.414 0zM17 11a1 1 0 100-2h-1a1 1 0 100 2h1zm-7 4a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM5.05 6.464A1 1 0 106.465 5.05l-.708-.707a1 1 0 00-1.414 1.414l.707.707zm1.414 8.486l-.707.707a1 1 0 01-1.414-1.414l.707-.707a1 1 0 011.414 1.414zM4 11a1 1 0 100-2H3a1 1 0 000 2h1z" fill-rule="evenodd" clip-rule="evenodd"></path></svg>
+                </button>
+
+                <!-- User Avatar Dropdown -->
+                <button type="button" class="flex items-center gap-2 p-1 pl-2 pr-3 rounded-lg hover:bg-slate-800 transition-colors" id="user-menu-button" data-dropdown-toggle="user-dropdown" data-dropdown-placement="bottom-end">
+                    <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center">
+                        <span class="text-white text-xs font-semibold">AA</span>
+                    </div>
+                    <span class="text-sm font-medium text-gray-300 hidden sm:block">Admin</span>
+                    <svg class="w-3 h-3 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <!-- User Dropdown Menu -->
+                <div class="z-50 hidden bg-white dark:bg-dark-card rounded-lg shadow-lg border border-gray-200 dark:border-dark-border w-56" id="user-dropdown">
+                    <div class="px-4 py-3 border-b border-gray-100 dark:border-dark-border">
+                        <p class="text-sm font-semibold text-gray-900 dark:text-white">Enterprise Admin</p>
+                        <p class="text-xs text-gray-500 dark:text-gray-400 truncate">admin@ownpay.org</p>
+                    </div>
+                    <ul class="py-1">
+                        <li><a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-hover"><span class="material-icons-outlined text-lg">person</span> My Account</a></li>
+                        <li><a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-hover"><span class="material-icons-outlined text-lg">settings</span> Settings</a></li>
+                        <li><a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-dark-hover"><span class="material-icons-outlined text-lg">help_outline</span> Help Center</a></li>
+                    </ul>
+                    <div class="py-1 border-t border-gray-100 dark:border-dark-border">
+                        <a href="#" class="flex items-center gap-2 px-4 py-2.5 text-sm text-red-600 dark:text-red-400 hover:bg-gray-50 dark:hover:bg-dark-hover"><span class="material-icons-outlined text-lg">logout</span> Sign Out</a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</nav>
+
+
+<!-- ======================================================== -->
+<!-- SECTION 2: SIDEBAR (Responsive, Collapsible)             -->
+<!-- ======================================================== -->
+<aside id="sidebar-nav" class="fixed top-0 left-0 z-40 w-64 h-screen pt-16 bg-white dark:bg-dark-bg border-r border-gray-200 dark:border-dark-border sidebar-transition -translate-x-full lg:translate-x-0" aria-label="Sidebar">
+    <div class="h-full px-3 py-4 overflow-y-auto">
+        <p class="px-3 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Main Menu</p>
+        <ul class="space-y-0.5">
+            <!-- Dashboard — ACTIVE -->
+            <li>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg bg-primary-50 dark:bg-primary-500/10 text-primary-600 dark:text-primary-400">
+                    <span class="material-icons-outlined text-xl">dashboard</span>
+                    Dashboard
+                </a>
+            </li>
+            <!-- Transactions -->
+            <li>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+                    <span class="material-icons-outlined text-xl">receipt_long</span>
+                    Transactions
+                    <span class="ml-auto inline-flex items-center justify-center px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">84</span>
+                </a>
+            </li>
+            <!-- Customers -->
+            <li>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+                    <span class="material-icons-outlined text-xl">group</span>
+                    Customers
+                </a>
+            </li>
+            <!-- Invoices -->
+            <li>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+                    <span class="material-icons-outlined text-xl">description</span>
+                    Invoices
+                </a>
+            </li>
+            <!-- Payment Links -->
+            <li>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+                    <span class="material-icons-outlined text-xl">link</span>
+                    Payment Links
+                </a>
+            </li>
+            <!-- Gateways (Nested Dropdown) -->
+            <li>
+                <button type="button" class="flex items-center w-full gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors" data-collapse-toggle="dropdown-gateways">
+                    <span class="material-icons-outlined text-xl">account_balance</span>
+                    <span class="flex-1 text-left">Gateways</span>
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"></path></svg>
+                </button>
+                <ul id="dropdown-gateways" class="hidden py-1 space-y-0.5">
+                    <li><a href="#" class="flex items-center gap-2 pl-11 pr-3 py-2 text-sm text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-hover">Mobile Banking</a></li>
+                    <li><a href="#" class="flex items-center gap-2 pl-11 pr-3 py-2 text-sm text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-hover">Net Banking</a></li>
+                    <li><a href="#" class="flex items-center gap-2 pl-11 pr-3 py-2 text-sm text-gray-600 dark:text-gray-400 rounded-lg hover:bg-gray-100 dark:hover:bg-dark-hover">Global Gateways</a></li>
+                </ul>
+            </li>
+            <!-- Staff -->
+            <li>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+                    <span class="material-icons-outlined text-xl">badge</span>
+                    Staff Management
+                </a>
+            </li>
+        </ul>
+
+        <p class="px-3 mt-6 mb-2 text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider">Analytics</p>
+        <ul class="space-y-0.5">
+            <li>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+                    <span class="material-icons-outlined text-xl">monitoring</span>
+                    Reports
+                </a>
+            </li>
+            <li>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+                    <span class="material-icons-outlined text-xl">webhook</span>
+                    Webhooks
+                </a>
+            </li>
+            <li>
+                <a href="#" class="flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-dark-hover transition-colors">
+                    <span class="material-icons-outlined text-xl">settings</span>
+                    System Settings
+                </a>
+            </li>
+        </ul>
+    </div>
+</aside>
+
+
+<!-- ======================================================== -->
+<!-- SECTION 3: MAIN CONTENT AREA                             -->
+<!-- ======================================================== -->
+<main class="lg:ml-64 pt-16 min-h-screen">
+    <div class="p-4 md:p-6 lg:p-8">
+
+        <!-- ─── 3.1 Greeting Header ─── -->
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-6">
+            <div>
+                <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Welcome back, Admin</h1>
+                <p class="text-sm text-gray-500 dark:text-gray-400 mt-0.5">Today is <time datetime="2026-03-15">March 15, 2026</time></p>
+            </div>
+            <div class="mt-3 sm:mt-0 flex gap-2">
+                <button class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-lg hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">
+                    <span class="material-icons-outlined text-base">download</span>
+                    Export
+                </button>
+                <button class="inline-flex items-center gap-1.5 px-4 py-2 text-sm font-medium text-white bg-primary-500 rounded-lg hover:bg-primary-600 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800 transition-colors">
+                    <span class="material-icons-outlined text-base">add</span>
+                    New Payment
+                </button>
+            </div>
+        </div>
+
+
+        <!-- ─── 3.2 KPI Stat Cards ─── -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-4 gap-4 mb-6">
+            <!-- Card 1: Total Revenue -->
+            <div class="kpi-accent-green bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Total Revenue</span>
+                    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-medium rounded-full bg-green-50 text-green-600 dark:bg-green-500/10 dark:text-green-400">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                        12.5%
+                    </span>
+                </div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">৳4,28,190</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">from last 30 days</p>
+            </div>
+
+            <!-- Card 2: Active Customers -->
+            <div class="kpi-accent-blue bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Active Customers</span>
+                    <span class="inline-flex items-center gap-0.5 px-1.5 py-0.5 text-xs font-medium rounded-full bg-blue-50 text-blue-600 dark:bg-blue-500/10 dark:text-blue-400">
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 10l7-7m0 0l7 7m-7-7v18"></path></svg>
+                        8.2%
+                    </span>
+                </div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">12,543</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">active this month</p>
+            </div>
+
+            <!-- Card 3: Pending Transactions -->
+            <div class="kpi-accent-amber bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Pending Transactions</span>
+                    <span class="w-2 h-2 rounded-full bg-amber-400 badge-pulse"></span>
+                </div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">84</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">awaiting confirmation</p>
+            </div>
+
+            <!-- Card 4: Success Rate -->
+            <div class="kpi-accent-purple bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 hover:shadow-md transition-shadow">
+                <div class="flex items-center justify-between mb-3">
+                    <span class="text-sm font-medium text-gray-500 dark:text-gray-400">Success Rate</span>
+                    <span class="material-icons-outlined text-primary-500 text-lg">verified</span>
+                </div>
+                <p class="text-2xl font-bold text-gray-900 dark:text-white">99.2%</p>
+                <p class="text-xs text-gray-400 dark:text-gray-500 mt-1">platform average</p>
+            </div>
+        </div>
+
+
+        <!-- ─── 3.3 Chart Area ─── -->
+        <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 mb-6">
+            <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-4">
+                <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Transaction Overview</h2>
+                <!-- Period Selector Tabs -->
+                <div class="mt-2 sm:mt-0 inline-flex items-center bg-gray-100 dark:bg-slate-800 rounded-lg p-0.5" data-tabs-target="#chart-panel">
+                    <button class="px-3 py-1.5 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">7D</button>
+                    <button class="px-3 py-1.5 text-xs font-medium rounded-md bg-white dark:bg-dark-card text-gray-900 dark:text-white shadow-sm">30D</button>
+                    <button class="px-3 py-1.5 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">90D</button>
+                    <button class="px-3 py-1.5 text-xs font-medium rounded-md text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200 transition-colors">1Y</button>
+                </div>
+            </div>
+            <!-- Chart Placeholder -->
+            <div id="chart-panel" class="chart-placeholder rounded-lg h-64 flex items-center justify-center border-2 border-dashed border-gray-200 dark:border-dark-border">
+                <div class="text-center">
+                    <span class="material-icons-outlined text-4xl text-gray-300 dark:text-gray-600">show_chart</span>
+                    <p class="mt-2 text-sm text-gray-400 dark:text-gray-500">Chart renders here via ApexCharts / Chart.js</p>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ─── 3.4 Data Table: Recent Transactions ─── -->
+        <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border mb-6">
+            <!-- Table Header -->
+            <div class="p-5 border-b border-gray-100 dark:border-dark-border">
+                <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                    <h2 class="text-lg font-semibold text-gray-900 dark:text-white">Recent Transactions</h2>
+                    <div class="flex flex-col sm:flex-row gap-2">
+                        <!-- Search -->
+                        <div class="relative">
+                            <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+                                <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                            </div>
+                            <input type="search" class="pl-9 pr-3 py-2 text-sm bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg text-gray-700 dark:text-gray-300 placeholder-gray-400 input-focus" placeholder="Search by Ref ID...">
+                        </div>
+                        <!-- Filter: Status -->
+                        <select class="px-3 py-2 text-sm bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg text-gray-700 dark:text-gray-300 input-focus">
+                            <option>All Status</option>
+                            <option>Completed</option>
+                            <option>Pending</option>
+                            <option>Failed</option>
+                            <option>Refunded</option>
+                        </select>
+                        <!-- Filter: Gateway -->
+                        <select class="px-3 py-2 text-sm bg-white dark:bg-dark-bg border border-gray-200 dark:border-dark-border rounded-lg text-gray-700 dark:text-gray-300 input-focus">
+                            <option>All Gateways</option>
+                            <option>bKash</option>
+                            <option>Nagad</option>
+                            <option>Stripe</option>
+                            <option>SSLCommerz</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Table Body -->
+            <div class="overflow-x-auto">
+                <table class="w-full text-sm text-left">
+                    <thead class="text-xs text-gray-500 dark:text-gray-400 uppercase bg-gray-50 dark:bg-slate-800/50">
+                        <tr>
+                            <th scope="col" class="px-5 py-3 font-semibold">Ref ID</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">Customer</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">Amount</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">Gateway</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">Status</th>
+                            <th scope="col" class="px-5 py-3 font-semibold">Date</th>
+                            <th scope="col" class="px-5 py-3 font-semibold text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-100 dark:divide-dark-border">
+                        <tr class="table-row-hover transition-colors">
+                            <td class="px-5 py-3.5"><span class="font-mono text-xs text-primary-600 dark:text-primary-400">#TXN-8A3F29</span></td>
+                            <td class="px-5 py-3.5">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded-full bg-blue-100 dark:bg-blue-500/10 flex items-center justify-center"><span class="text-xs font-semibold text-blue-600 dark:text-blue-400">RK</span></div>
+                                    <div>
+                                        <p class="font-medium text-gray-900 dark:text-white">Rahim Khan</p>
+                                        <p class="text-xs text-gray-400">rahim@example.com</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3.5 font-semibold text-gray-900 dark:text-white">৳5,200.00</td>
+                            <td class="px-5 py-3.5"><span class="inline-flex items-center gap-1 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-pink-500"></span> bKash</span></td>
+                            <td class="px-5 py-3.5"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400">Completed</span></td>
+                            <td class="px-5 py-3.5 text-gray-500 dark:text-gray-400">Mar 15, 2026</td>
+                            <td class="px-5 py-3.5 text-right"><button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><span class="material-icons-outlined text-lg">more_horiz</span></button></td>
+                        </tr>
+                        <tr class="table-row-hover transition-colors">
+                            <td class="px-5 py-3.5"><span class="font-mono text-xs text-primary-600 dark:text-primary-400">#TXN-7B2E18</span></td>
+                            <td class="px-5 py-3.5">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-500/10 flex items-center justify-center"><span class="text-xs font-semibold text-emerald-600 dark:text-emerald-400">FA</span></div>
+                                    <div>
+                                        <p class="font-medium text-gray-900 dark:text-white">Fatema Akter</p>
+                                        <p class="text-xs text-gray-400">fatema@example.com</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3.5 font-semibold text-gray-900 dark:text-white">৳12,800.00</td>
+                            <td class="px-5 py-3.5"><span class="inline-flex items-center gap-1 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-orange-500"></span> Nagad</span></td>
+                            <td class="px-5 py-3.5"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-amber-100 text-amber-700 dark:bg-amber-500/10 dark:text-amber-400">Pending</span></td>
+                            <td class="px-5 py-3.5 text-gray-500 dark:text-gray-400">Mar 14, 2026</td>
+                            <td class="px-5 py-3.5 text-right"><button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><span class="material-icons-outlined text-lg">more_horiz</span></button></td>
+                        </tr>
+                        <tr class="table-row-hover transition-colors">
+                            <td class="px-5 py-3.5"><span class="font-mono text-xs text-primary-600 dark:text-primary-400">#TXN-6C1D07</span></td>
+                            <td class="px-5 py-3.5">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded-full bg-violet-100 dark:bg-violet-500/10 flex items-center justify-center"><span class="text-xs font-semibold text-violet-600 dark:text-violet-400">MH</span></div>
+                                    <div>
+                                        <p class="font-medium text-gray-900 dark:text-white">Mohammad Hasan</p>
+                                        <p class="text-xs text-gray-400">hasan@example.com</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3.5 font-semibold text-gray-900 dark:text-white">$450.00</td>
+                            <td class="px-5 py-3.5"><span class="inline-flex items-center gap-1 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-indigo-500"></span> Stripe</span></td>
+                            <td class="px-5 py-3.5"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-red-100 text-red-700 dark:bg-red-500/10 dark:text-red-400">Failed</span></td>
+                            <td class="px-5 py-3.5 text-gray-500 dark:text-gray-400">Mar 13, 2026</td>
+                            <td class="px-5 py-3.5 text-right"><button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><span class="material-icons-outlined text-lg">more_horiz</span></button></td>
+                        </tr>
+                        <tr class="table-row-hover transition-colors">
+                            <td class="px-5 py-3.5"><span class="font-mono text-xs text-primary-600 dark:text-primary-400">#TXN-5D0CF6</span></td>
+                            <td class="px-5 py-3.5">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded-full bg-rose-100 dark:bg-rose-500/10 flex items-center justify-center"><span class="text-xs font-semibold text-rose-600 dark:text-rose-400">SB</span></div>
+                                    <div>
+                                        <p class="font-medium text-gray-900 dark:text-white">Sharmin Begum</p>
+                                        <p class="text-xs text-gray-400">sharmin@example.com</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3.5 font-semibold text-gray-900 dark:text-white">৳3,750.00</td>
+                            <td class="px-5 py-3.5"><span class="inline-flex items-center gap-1 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-teal-500"></span> SSLCommerz</span></td>
+                            <td class="px-5 py-3.5"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400">Completed</span></td>
+                            <td class="px-5 py-3.5 text-gray-500 dark:text-gray-400">Mar 12, 2026</td>
+                            <td class="px-5 py-3.5 text-right"><button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><span class="material-icons-outlined text-lg">more_horiz</span></button></td>
+                        </tr>
+                        <tr class="table-row-hover transition-colors">
+                            <td class="px-5 py-3.5"><span class="font-mono text-xs text-primary-600 dark:text-primary-400">#TXN-4E9BE5</span></td>
+                            <td class="px-5 py-3.5">
+                                <div class="flex items-center gap-2.5">
+                                    <div class="w-7 h-7 rounded-full bg-cyan-100 dark:bg-cyan-500/10 flex items-center justify-center"><span class="text-xs font-semibold text-cyan-600 dark:text-cyan-400">AI</span></div>
+                                    <div>
+                                        <p class="font-medium text-gray-900 dark:text-white">Arif Islam</p>
+                                        <p class="text-xs text-gray-400">arif@example.com</p>
+                                    </div>
+                                </div>
+                            </td>
+                            <td class="px-5 py-3.5 font-semibold text-gray-900 dark:text-white">৳1,100.00</td>
+                            <td class="px-5 py-3.5"><span class="inline-flex items-center gap-1 text-xs"><span class="w-1.5 h-1.5 rounded-full bg-pink-500"></span> bKash</span></td>
+                            <td class="px-5 py-3.5"><span class="inline-flex items-center px-2 py-0.5 text-xs font-semibold rounded-full bg-green-100 text-green-700 dark:bg-green-500/10 dark:text-green-400">Completed</span></td>
+                            <td class="px-5 py-3.5 text-gray-500 dark:text-gray-400">Mar 11, 2026</td>
+                            <td class="px-5 py-3.5 text-right"><button class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"><span class="material-icons-outlined text-lg">more_horiz</span></button></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <!-- Pagination -->
+            <div class="p-4 border-t border-gray-100 dark:border-dark-border">
+                <div class="flex flex-col sm:flex-row items-center justify-between gap-3">
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Showing <span class="font-semibold text-gray-900 dark:text-white">1</span> to <span class="font-semibold text-gray-900 dark:text-white">5</span> of <span class="font-semibold text-gray-900 dark:text-white">2,847</span> entries</p>
+                    <nav class="inline-flex -space-x-px">
+                        <button class="px-3 py-1.5 text-sm text-gray-500 bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-l-lg hover:bg-gray-50 dark:hover:bg-dark-hover">Previous</button>
+                        <button class="px-3 py-1.5 text-sm font-semibold text-white bg-primary-500 border border-primary-500">1</button>
+                        <button class="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover">2</button>
+                        <button class="px-3 py-1.5 text-sm text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border hover:bg-gray-50 dark:hover:bg-dark-hover">3</button>
+                        <button class="px-3 py-1.5 text-sm text-gray-500 bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-r-lg hover:bg-gray-50 dark:hover:bg-dark-hover">Next</button>
+                    </nav>
+                </div>
+            </div>
+        </div>
+
+
+        <!-- ─── 3.5 Form Section: Quick Payment ─── -->
+        <div class="bg-white dark:bg-dark-card rounded-xl shadow-sm border border-gray-100 dark:border-dark-border p-5 mb-6">
+            <h2 class="text-lg font-semibold text-gray-900 dark:text-white mb-1">Quick Payment</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400 mb-5">Funds will be settled into your primary account within 2-3 business days.</p>
+
+            <form class="grid grid-cols-1 md:grid-cols-2 gap-5">
+                <!-- Customer Email — Default State -->
+                <div>
+                    <label for="customer-email" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Customer Email <span class="text-red-500">*</span></label>
+                    <div class="relative">
+                        <input type="email" id="customer-email" class="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded-lg text-gray-900 dark:text-white placeholder-gray-400 input-focus" placeholder="customer@example.com" required>
+                        <div class="absolute inset-y-0 right-0 flex items-center pr-3">
+                            <svg class="w-4 h-4 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd"></path></svg>
+                        </div>
+                    </div>
+                    <p class="mt-1 text-xs text-green-600 dark:text-green-400">Valid email address</p>
+                </div>
+
+                <!-- Amount — With Currency Prefix -->
+                <div>
+                    <label for="amount" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Amount <span class="text-red-500">*</span></label>
+                    <div class="flex">
+                        <select class="px-3 py-2.5 text-sm bg-gray-50 dark:bg-slate-800 border border-r-0 border-gray-300 dark:border-dark-border rounded-l-lg text-gray-700 dark:text-gray-300 font-medium input-focus">
+                            <option>BDT ৳</option>
+                            <option>USD $</option>
+                            <option>EUR €</option>
+                        </select>
+                        <input type="number" id="amount" class="flex-1 px-3.5 py-2.5 text-sm bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded-r-lg text-gray-900 dark:text-white placeholder-gray-400 input-focus" placeholder="0.00" min="1" step="0.01" required>
+                    </div>
+                </div>
+
+                <!-- Gateway Selection -->
+                <div>
+                    <label for="gateway" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Payment Gateway <span class="text-red-500">*</span></label>
+                    <select id="gateway" class="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-dark-bg border border-gray-300 dark:border-dark-border rounded-lg text-gray-900 dark:text-white input-focus" required>
+                        <option value="">Select a gateway...</option>
+                        <option value="bkash">bKash (Mobile Banking)</option>
+                        <option value="nagad">Nagad (Mobile Banking)</option>
+                        <option value="stripe">Stripe (Global)</option>
+                        <option value="sslcommerz">SSLCommerz (Net Banking)</option>
+                    </select>
+                </div>
+
+                <!-- Description — Error State Demo -->
+                <div>
+                    <label for="description-err" class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">Description</label>
+                    <input type="text" id="description-err" class="w-full px-3.5 py-2.5 text-sm bg-white dark:bg-dark-bg border rounded-lg text-gray-900 dark:text-white placeholder-gray-400 input-error" placeholder="Payment for..." value="">
+                    <p class="mt-1 text-xs text-red-600 dark:text-red-400">Description must be at least 10 characters</p>
+                </div>
+
+                <!-- Submit Button — Full width on mobile -->
+                <div class="md:col-span-2 flex justify-end gap-3 pt-2">
+                    <button type="button" class="px-5 py-2.5 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-dark-card border border-gray-300 dark:border-dark-border rounded-lg hover:bg-gray-50 dark:hover:bg-dark-hover transition-colors">Cancel</button>
+                    <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary-500 rounded-lg hover:bg-primary-600 focus:ring-4 focus:ring-primary-300 dark:focus:ring-primary-800 transition-all transform hover:scale-[1.01] active:scale-[0.99]">
+                        <span class="material-icons-outlined text-base">send</span>
+                        Send Payment
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- ======================================================== -->
+    <!-- SECTION 4: FOOTER                                        -->
+    <!-- ======================================================== -->
+    <footer class="border-t border-gray-200 dark:border-dark-border bg-white dark:bg-dark-card">
+        <div class="px-6 py-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+            <p class="text-sm text-gray-500 dark:text-gray-400">&copy; 2026 <a href="#" class="font-medium text-gray-700 dark:text-gray-300 hover:text-primary-500 transition-colors">Own Pay</a>. All rights reserved.</p>
+            <p class="text-xs text-gray-400 dark:text-gray-500">Version 2.6.0-build.109 &middot; <a href="#" class="hover:text-primary-500 transition-colors">Release Notes</a></p>
+        </div>
+    </footer>
+</main>
+
+
+<!-- ======================================================== -->
+<!-- SCRIPTS                                                  -->
+<!-- ======================================================== -->
+
+<!-- Flowbite JS (for drawers, dropdowns, tabs, collapse) -->
+<script src="https://cdn.jsdelivr.net/npm/flowbite@2.5.2/dist/flowbite.min.js"></script>
+
+<!-- Dark Mode Toggle Logic -->
+<script>
+    const themeToggleBtn = document.getElementById('theme-toggle');
+    const themeToggleDarkIcon = document.getElementById('theme-toggle-dark-icon');
+    const themeToggleLightIcon = document.getElementById('theme-toggle-light-icon');
+
+    // Set initial icon state
+    if (localStorage.getItem('color-theme') === 'dark' || (!('color-theme' in localStorage) && window.matchMedia('(prefers-color-scheme: dark)').matches)) {
+        document.documentElement.classList.add('dark');
+        themeToggleLightIcon.classList.remove('hidden');
+    } else {
+        themeToggleDarkIcon.classList.remove('hidden');
+    }
+
+    themeToggleBtn.addEventListener('click', function() {
+        // Toggle icons
+        themeToggleDarkIcon.classList.toggle('hidden');
+        themeToggleLightIcon.classList.toggle('hidden');
+
+        // Toggle class on HTML element
+        if (document.documentElement.classList.contains('dark')) {
+            document.documentElement.classList.remove('dark');
+            localStorage.setItem('color-theme', 'light');
+        } else {
+            document.documentElement.classList.add('dark');
+            localStorage.setItem('color-theme', 'dark');
+        }
+    });
+</script>
+
+</body>
+</html>

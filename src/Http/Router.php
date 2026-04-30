@@ -1,246 +1,261 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Http;
 
+use OwnPay\Container;
+use OwnPay\Event\EventManager;
+use RuntimeException;
+
 /**
- * Lightweight regex-based HTTP router.
+ * HTTP router with named parameters, middleware groups, and plugin route injection.
  *
- * Supports route parameters, HTTP method matching, and middleware.
- * No external dependencies.
- *
- * Usage:
- *   $router = new Router();
- *   $router->get('/v1/transactions/{id}', [TransactionController::class, 'show']);
- *   $router->post('/v1/payments', [PaymentController::class, 'create']);
- *   $router->dispatch();
+ * Route format: METHOD /path/{param} → Controller@method
+ * Supports: GET, POST, PUT, DELETE, PATCH
+ * Fires 'system.routes.register' hook to allow plugins to register routes.
  */
 final class Router
 {
-    /** @var array<array{method: string, pattern: string, handler: callable|array, middleware: array}> */
+    private Container $container;
+
+    /**
+     * @var array<string, array<int, array{
+     *     pattern: string,
+     *     regex: string,
+     *     paramNames: string[],
+     *     handler: string,
+     *     middleware: string
+     * }>>
+     */
     private array $routes = [];
 
-    /** @var array<callable> */
-    private array $globalMiddleware = [];
+    /** @var bool Whether routes have been loaded */
+    private bool $loaded = false;
 
-    /**
-     * Add global middleware (runs on every route).
-     */
-    public function use(callable $middleware): self
+    public function __construct(Container $container)
     {
-        $this->globalMiddleware[] = $middleware;
-        return $this;
+        $this->container = $container;
     }
 
-    // ─── Plugin Route Registration ─────────────────────────────────────
+    // ─── Route Registration ────────────────────────────────────
 
-    /**
-     * Register a route owned by a plugin.
-     *
-     * Plugin routes are prefixed with /plugins/{slug}/ automatically.
-     * They are dispatched after core routes.
-     *
-     * @param string $method   HTTP method (GET, POST, PUT, DELETE)
-     * @param string $slug     Plugin slug (used as route namespace)
-     * @param string $path     Route path (e.g. "/webhook", "/api/status")
-     * @param callable|array $handler  Route handler
-     * @param array  $middleware       Optional middleware callables
-     */
-    public function registerPluginRoute(
-        string $method,
-        string $slug,
-        string $path,
-        callable|array $handler,
-        array $middleware = [],
-    ): self {
-        $fullPath = '/plugins/' . $slug . '/' . ltrim($path, '/');
-        $this->routes[] = [
-            'method'     => strtoupper($method),
-            'pattern'    => $fullPath,
-            'handler'    => $handler,
-            'middleware'  => $middleware,
-            'plugin'     => $slug,
-        ];
-        return $this;
+    public function get(string $pattern, string $handler, string $middleware = 'web'): void
+    {
+        $this->addRoute('GET', $pattern, $handler, $middleware);
+    }
+
+    public function post(string $pattern, string $handler, string $middleware = 'web'): void
+    {
+        $this->addRoute('POST', $pattern, $handler, $middleware);
+    }
+
+    public function put(string $pattern, string $handler, string $middleware = 'web'): void
+    {
+        $this->addRoute('PUT', $pattern, $handler, $middleware);
+    }
+
+    public function delete(string $pattern, string $handler, string $middleware = 'web'): void
+    {
+        $this->addRoute('DELETE', $pattern, $handler, $middleware);
+    }
+
+    public function patch(string $pattern, string $handler, string $middleware = 'web'): void
+    {
+        $this->addRoute('PATCH', $pattern, $handler, $middleware);
     }
 
     /**
-     * Get all routes registered by plugins.
-     *
-     * @return array<array{method: string, pattern: string, plugin: string}>
+     * Register a route for any HTTP method.
      */
-    public function getPluginRoutes(): array
+    public function any(string $pattern, string $handler, string $middleware = 'web'): void
     {
-        return array_values(array_filter(
-            $this->routes,
-            fn(array $r): bool => isset($r['plugin']),
-        ));
-    }
-
-    // ─── Route Registration ──────────────────────────────────────────
-
-    public function get(string $path, callable|array $handler, array $middleware = []): self
-    {
-        return $this->addRoute('GET', $path, $handler, $middleware);
-    }
-
-    public function post(string $path, callable|array $handler, array $middleware = []): self
-    {
-        return $this->addRoute('POST', $path, $handler, $middleware);
-    }
-
-    public function put(string $path, callable|array $handler, array $middleware = []): self
-    {
-        return $this->addRoute('PUT', $path, $handler, $middleware);
-    }
-
-    public function patch(string $path, callable|array $handler, array $middleware = []): self
-    {
-        return $this->addRoute('PATCH', $path, $handler, $middleware);
-    }
-
-    public function delete(string $path, callable|array $handler, array $middleware = []): self
-    {
-        return $this->addRoute('DELETE', $path, $handler, $middleware);
-    }
-
-    private function addRoute(string $method, string $path, callable|array $handler, array $middleware): self
-    {
-        $this->routes[] = [
-            'method' => $method,
-            'pattern' => $path,
-            'handler' => $handler,
-            'middleware' => $middleware,
-        ];
-        return $this;
-    }
-
-    // ─── Dispatch ────────────────────────────────────────────────────
-
-    /**
-     * Match the current request against registered routes and dispatch.
-     */
-    public function dispatch(): void
-    {
-        $method = $_SERVER['REQUEST_METHOD'] ?? 'GET';
-        $uri = $this->getRequestUri();
-
-        // Handle CORS preflight
-        if ($method === 'OPTIONS') {
-            JsonResponse::cors();
-            http_response_code(204);
-            return;
+        foreach (['GET', 'POST', 'PUT', 'DELETE', 'PATCH'] as $method) {
+            $this->addRoute($method, $pattern, $handler, $middleware);
         }
-
-        $matchedMethods = [];
-
-        foreach ($this->routes as $route) {
-            $params = $this->matchRoute($route['pattern'], $uri);
-
-            if ($params !== null) {
-                $matchedMethods[] = $route['method'];
-
-                if ($route['method'] === $method) {
-                    // Run global middleware
-                    foreach ($this->globalMiddleware as $mw) {
-                        $result = $mw();
-                        if ($result === false) {
-                            return; // Middleware halted the request
-                        }
-                    }
-
-                    // Run route-specific middleware
-                    foreach ($route['middleware'] as $mw) {
-                        $result = $mw();
-                        if ($result === false) {
-                            return;
-                        }
-                    }
-
-                    // Invoke handler
-                    $this->invokeHandler($route['handler'], $params);
-                    return;
-                }
-            }
-        }
-
-        // Route matched but wrong method
-        if (!empty($matchedMethods)) {
-            JsonResponse::error(
-                'METHOD_NOT_ALLOWED',
-                "Method {$method} is not allowed. Allowed: " . implode(', ', array_unique($matchedMethods)),
-                405
-            );
-            return;
-        }
-
-        // No route matched at all
-        JsonResponse::error(
-            'NOT_FOUND',
-            "No endpoint matches: {$method} {$uri}",
-            404
-        );
     }
 
-    // ─── Internals ───────────────────────────────────────────────────
-
     /**
-     * Match a route pattern against a URI.
-     * Returns parameter array on match, null on no match.
-     *
-     * Pattern: /v1/transactions/{id}
-     * URI:     /v1/transactions/abc-123
-     * Result:  ['id' => 'abc-123']
+     * Internal route registration.
      */
-    private function matchRoute(string $pattern, string $uri): ?array
+    private function addRoute(string $method, string $pattern, string $handler, string $middleware): void
     {
-        // Convert route params {name} to named regex groups
-        $regex = preg_replace(
-            '/\{([a-zA-Z_]+)\}/',
-            '(?P<$1>[a-zA-Z0-9_-]+)',
-            $pattern
-        );
+        $paramNames = [];
+        // Convert {param} to regex capture groups
+        $regex = preg_replace_callback('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', static function (array $m) use (&$paramNames): string {
+            $paramNames[] = $m[1];
+            return '([a-zA-Z0-9_\-]+)';
+        }, $pattern);
 
         $regex = '#^' . $regex . '$#';
 
-        if (preg_match($regex, $uri, $matches)) {
-            // Filter to named groups only
-            return array_filter($matches, fn($key) => is_string($key), ARRAY_FILTER_USE_KEY);
+        $this->routes[$method][] = [
+            'pattern'    => $pattern,
+            'regex'      => $regex,
+            'paramNames' => $paramNames,
+            'handler'    => $handler,
+            'middleware'  => $middleware,
+        ];
+    }
+
+    // ─── Route Loading ─────────────────────────────────────────
+
+    /**
+     * Load route files and fire plugin hook.
+     */
+    public function loadRoutes(): void
+    {
+        if ($this->loaded) {
+            return;
+        }
+
+        $configDir = $this->container->get('config.app')['paths']['config'] ?? dirname(__DIR__, 2) . '/config';
+
+        // Load web routes
+        $webRoutes = $configDir . '/routes/web.php';
+        if (is_file($webRoutes)) {
+            $fn = require $webRoutes;
+            if (is_callable($fn)) {
+                $fn($this);
+            }
+        }
+
+        // Load API routes
+        $apiRoutes = $configDir . '/routes/api.php';
+        if (is_file($apiRoutes)) {
+            $fn = require $apiRoutes;
+            if (is_callable($fn)) {
+                $fn($this);
+            }
+        }
+
+        // Allow plugins to register routes
+        if ($this->container->has(EventManager::class)) {
+            /** @var EventManager $events */
+            $events = $this->container->get(EventManager::class);
+            $events->doAction('system.routes.register', $this);
+        }
+
+        $this->loaded = true;
+    }
+
+    // ─── Dispatching ───────────────────────────────────────────
+
+    /**
+     * Match and dispatch a request.
+     *
+     * @return array{handler: string, params: array<string, string>, middleware: string}|null
+     */
+    public function match(Request $request): ?array
+    {
+        $method = $request->method();
+        $path   = $request->path();
+
+        // Normalize: strip trailing slash (except root)
+        if ($path !== '/' && str_ends_with($path, '/')) {
+            $path = rtrim($path, '/');
+        }
+
+        if (!isset($this->routes[$method])) {
+            return null;
+        }
+
+        foreach ($this->routes[$method] as $route) {
+            if (preg_match($route['regex'], $path, $matches)) {
+                array_shift($matches); // Remove full match
+
+                $params = [];
+                foreach ($route['paramNames'] as $i => $name) {
+                    $params[$name] = $matches[$i] ?? '';
+                }
+
+                return [
+                    'handler'    => $route['handler'],
+                    'params'     => $params,
+                    'middleware'  => $route['middleware'],
+                ];
+            }
         }
 
         return null;
     }
 
     /**
-     * Invoke a route handler.
+     * Dispatch a matched route — instantiate controller and call method.
      *
-     * @param callable|array $handler [ClassName, methodName] or callable
-     * @param array $params Route parameters
+     * @param string $handler Format: 'Namespace\\Controller@method'
+     * @param Request $request
+     * @return Response
      */
-    private function invokeHandler(callable|array $handler, array $params): void
+    public function dispatch(string $handler, Request $request): Response
     {
-        if (is_array($handler) && count($handler) === 2) {
-            [$class, $method] = $handler;
-
-            if (is_string($class)) {
-                $instance = new $class();
-                $instance->$method($params);
-            } else {
-                $class->$method($params);
-            }
-        } else {
-            ($handler)($params);
+        if (!str_contains($handler, '@')) {
+            throw new RuntimeException("Invalid handler format: [{$handler}]. Expected 'Controller@method'.");
         }
+
+        [$controllerName, $methodName] = explode('@', $handler, 2);
+        $fqcn = 'OwnPay\\Controller\\' . $controllerName;
+
+        if (!class_exists($fqcn)) {
+            throw new RuntimeException("Controller class [{$fqcn}] not found.");
+        }
+
+        $controller = new $fqcn($this->container);
+
+        if (!method_exists($controller, $methodName)) {
+            throw new RuntimeException("Method [{$methodName}] not found on controller [{$fqcn}].");
+        }
+
+        $result = $controller->$methodName($request);
+
+        // If controller returns a Response, use it directly
+        if ($result instanceof Response) {
+            return $result;
+        }
+
+        // If array returned, wrap as JSON
+        if (is_array($result)) {
+            return Response::json($result);
+        }
+
+        // If string returned, wrap as HTML
+        if (is_string($result)) {
+            return Response::html($result);
+        }
+
+        throw new RuntimeException("Controller [{$fqcn}@{$methodName}] must return Response, array, or string.");
+    }
+
+    // ─── Introspection ─────────────────────────────────────────
+
+    /**
+     * Get all registered routes (for debugging / documentation).
+     *
+     * @return array<string, array<int, array{pattern: string, handler: string, middleware: string}>>
+     */
+    public function getRoutes(): array
+    {
+        $result = [];
+        foreach ($this->routes as $method => $routes) {
+            foreach ($routes as $route) {
+                $result[$method][] = [
+                    'pattern'    => $route['pattern'],
+                    'handler'    => $route['handler'],
+                    'middleware'  => $route['middleware'],
+                ];
+            }
+        }
+        return $result;
     }
 
     /**
-     * Get the clean request URI path (without query string).
+     * Count total registered routes.
      */
-    private function getRequestUri(): string
+    public function count(): int
     {
-        $uri = $_SERVER['REQUEST_URI'] ?? '/';
-        $uri = parse_url($uri, PHP_URL_PATH) ?: '/';
-        return '/' . trim($uri, '/');
+        $total = 0;
+        foreach ($this->routes as $routes) {
+            $total += count($routes);
+        }
+        return $total;
     }
 }

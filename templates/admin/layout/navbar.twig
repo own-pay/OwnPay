@@ -1,0 +1,47 @@
+<nav class="op-navbar">
+    <div class="op-navbar-left">
+        <button class="op-sidebar-toggle" id="sidebar-toggle" aria-label="Toggle sidebar">
+            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                <path d="M3 12h18M3 6h18M3 18h18"/>
+            </svg>
+        </button>
+        <div class="op-breadcrumb">
+            {% block breadcrumb %}{% endblock %}
+        </div>
+    </div>
+
+    <div class="op-navbar-right">
+        <div class="op-navbar-search">
+            <input type="search" placeholder="Search..." class="op-input op-input-sm" id="global-search">
+        </div>
+
+        <div class="op-navbar-alerts" id="alert-bell">
+            <button class="op-icon-btn" title="Alerts">
+                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+                    <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+                </svg>
+                {% if unread_alerts > 0 %}
+                <span class="op-badge op-badge-dot">{{ unread_alerts }}</span>
+                {% endif %}
+            </button>
+        </div>
+
+        <div class="op-navbar-user dropdown">
+            <button class="op-user-btn" id="user-menu-btn">
+                <div class="op-avatar op-avatar-sm">
+                    {{ current_user.name[0:1]|upper ?? 'A' }}
+                </div>
+                <span class="op-user-name">{{ current_user.name ?? 'Admin' }}</span>
+            </button>
+            <div class="op-dropdown-menu" id="user-menu">
+                <a href="/admin/my-account" class="op-dropdown-item">My Account</a>
+                <a href="/admin/settings" class="op-dropdown-item">Settings</a>
+                <hr class="op-dropdown-divider">
+                <form method="POST" action="/admin/logout">
+                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                    <button type="submit" class="op-dropdown-item op-text-danger">Logout</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</nav>

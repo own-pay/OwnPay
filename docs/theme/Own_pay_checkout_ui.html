@@ -1,0 +1,800 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>Secure Checkout — OwnPay</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script>
+tailwind.config={theme:{extend:{fontFamily:{sans:['Outfit','sans-serif'],mono:['JetBrains Mono','monospace']}}}}
+</script>
+<style>
+:root {
+  --ink: #080D1A;
+  --ink-2: #1A2038;
+  --ink-3: #2D3555;
+  --ink-4: #4A5578;
+  --mute: #7A84A0;
+  --faint: #A8B0C8;
+  --whisper: #D4D9E8;
+  --cloud: #ECEEF5;
+  --snow: #F5F6FA;
+  --white: #FFFFFF;
+  --teal: #0D9488;
+  --teal-deep: #0A7B70;
+  --teal-pale: #CCFBF1;
+  --teal-glow: rgba(13,148,136,0.10);
+  --red: #EF4444;
+  --green: #10B981;
+  --bkash: #E2136E;
+  --nagad: #F6921E;
+  --rocket: #8B2E86;
+  --upay: #EF3939;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Outfit',sans-serif;background:#ECEEF5;color:var(--ink);-webkit-font-smoothing:antialiased;overflow-x:hidden}
+::-webkit-scrollbar{width:3px}::-webkit-scrollbar-track{background:transparent}::-webkit-scrollbar-thumb{background:var(--whisper);border-radius:99px}
+
+/* ===== FLOAT LABEL ===== */
+.flt{position:relative}
+.flt input{width:100%;padding:26px 16px 10px;font-size:15px;border:1.5px solid var(--cloud);border-radius:14px;background:var(--snow);transition:all .25s;outline:none;font-family:'JetBrains Mono',monospace;letter-spacing:.5px;color:var(--ink)}
+.flt input:focus{border-color:var(--teal);background:var(--white);box-shadow:0 0 0 4px var(--teal-glow)}
+.flt label{position:absolute;left:17px;top:50%;transform:translateY(-50%);font-size:14px;color:var(--mute);pointer-events:none;transition:all .2s cubic-bezier(.4,0,.2,1);font-family:'Outfit',sans-serif}
+.flt input:focus+label,.flt input.hv+label{top:14px;transform:translateY(0);font-size:9.5px;color:var(--teal);font-weight:700;letter-spacing:1px;text-transform:uppercase}
+
+/* ===== GW CARD ===== */
+.gw{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:7px;padding:16px 8px;border:1.5px solid var(--cloud);border-radius:16px;cursor:pointer;transition:all .22s cubic-bezier(.4,0,.2,1);background:var(--white);position:relative;overflow:hidden;min-height:90px}
+.gw:hover{border-color:var(--whisper);transform:translateY(-2px);box-shadow:0 8px 28px rgba(0,0,0,.05)}
+.gw.on{border-color:var(--teal);background:var(--teal-pale);box-shadow:0 0 0 3px var(--teal-glow),0 4px 18px rgba(13,148,136,.08)}
+.gw.on::after{content:'';position:absolute;top:7px;right:7px;width:20px;height:20px;background:var(--teal);border-radius:50%;background-image:url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E");background-repeat:no-repeat;background-position:center;background-size:11px}
+.gw-badge{position:absolute;top:7px;left:7px;background:var(--ink);color:var(--white);font-size:8px;font-weight:800;padding:2px 6px;border-radius:6px;letter-spacing:.5px;text-transform:uppercase}
+.gw-ico{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.gw-nm{font-size:11.5px;font-weight:700;color:var(--ink);text-align:center;line-height:1.2}
+
+/* ===== TAB ===== */
+.ptab{padding:10px 6px;font-size:12.5px;font-weight:700;border-radius:12px;cursor:pointer;transition:all .25s;border:none;background:transparent;color:var(--mute);flex:1;text-align:center;display:flex;align-items:center;justify-content:center;gap:5px}
+.ptab.on{background:var(--ink);color:var(--white);box-shadow:0 2px 12px rgba(8,13,26,.18)}
+.ptab:not(.on):hover{background:var(--cloud);color:var(--ink-3)}
+
+/* ===== QPay ===== */
+.qpay{display:flex;align-items:center;justify-content:center;gap:8px;padding:15px;border-radius:14px;font-weight:700;font-size:13.5px;cursor:pointer;transition:all .2s;border:1.5px solid}
+.qpay:active{transform:scale(.97)}
+
+/* ===== STATUS ===== */
+.sovr{position:absolute;inset:0;border-radius:20px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;z-index:15;opacity:0;pointer-events:none;transition:all .4s cubic-bezier(.16,1,.3,1);backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px)}
+.sovr.vis{opacity:1;pointer-events:all}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ldr{width:32px;height:32px;border:3px solid var(--cloud);border-top-color:var(--teal);border-radius:50%;animation:spin .7s linear infinite}
+
+/* ===== FULL-SCREEN MANUAL POPUP ===== */
+.manual-overlay{position:fixed;inset:0;z-index:500;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .35s ease;padding:16px}
+.manual-overlay.vis{opacity:1;pointer-events:all}
+.manual-overlay .blur-bg{position:absolute;inset:0;background:rgba(8,13,26,.55);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.manual-panel{position:relative;z-index:1;width:100%;max-width:460px;max-height:92vh;overflow-y:auto;background:var(--white);border-radius:28px;box-shadow:0 40px 80px rgba(0,0,0,.18),0 0 0 1px rgba(0,0,0,.04);transform:translateY(30px) scale(.95);transition:transform .45s cubic-bezier(.16,1,.3,1)}
+.manual-overlay.vis .manual-panel{transform:translateY(0) scale(1)}
+
+/* ===== MODAL ===== */
+.mdl-bg{position:fixed;inset:0;background:rgba(8,13,26,.45);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);z-index:200;display:flex;align-items:center;justify-content:center;opacity:0;pointer-events:none;transition:opacity .3s}
+.mdl-bg.vis{opacity:1;pointer-events:all}
+.mdl-box{background:rgba(255,255,255,.96);backdrop-filter:blur(24px);border-radius:24px;padding:28px;max-width:400px;width:92%;box-shadow:0 32px 64px rgba(0,0,0,.14);transform:translateY(24px) scale(.95);transition:transform .4s cubic-bezier(.16,1,.3,1)}
+.mdl-bg.vis .mdl-box{transform:translateY(0) scale(1)}
+
+/* TIMER WARN */
+@keyframes pw{0%,100%{color:var(--red)}50%{color:#F87171;text-shadow:0 0 8px rgba(239,68,68,.2)}}
+.tw{animation:pw 1s ease infinite}
+
+/* FADE UP */
+@keyframes fu{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+.fi{animation:fu .5s ease forwards;opacity:0}
+
+/* COPY TOAST */
+.ctoast{position:fixed;bottom:28px;left:50%;transform:translateX(-50%) translateY(16px);background:var(--ink);color:#fff;padding:10px 22px;border-radius:14px;font-size:13px;font-weight:600;opacity:0;transition:all .3s;z-index:600;box-shadow:0 8px 28px rgba(0,0,0,.2);pointer-events:none}
+.ctoast.vis{opacity:1;transform:translateX(-50%) translateY(0)}
+
+/* LEFT SPLIT */
+.spl-l{background:linear-gradient(160deg,#080D1A 0%,#1A2038 55%,#2D3555 100%);color:#fff;position:relative;overflow:hidden}
+.spl-l::before{content:'';position:absolute;width:700px;height:700px;background:radial-gradient(circle,rgba(13,148,136,.08) 0%,transparent 60%);top:-250px;right:-250px;pointer-events:none}
+.spl-l::after{content:'';position:absolute;width:350px;height:350px;background:radial-gradient(circle,rgba(94,234,212,.04) 0%,transparent 70%);bottom:-80px;left:-100px;pointer-events:none}
+
+/* Responsive */
+@media(max-width:1024px){.spl-l{display:none!important}}
+@media(max-width:480px){.gw{min-height:80px;padding:14px 6px}.gw-ico{width:36px;height:36px;border-radius:10px}.gw-nm{font-size:10.5px}}
+
+/* ===== POST-TRANSACTION PAGES (injected via JS) ===== */
+.m-item{display:flex;align-items:flex-start;gap:14px;padding:16px 0;border-bottom:1px solid rgba(255,255,255,.15)}
+.m-item:last-child{border:none}
+.m-idx{width:26px;height:26px;border-radius:50%;background:rgba(255,255,255,.18);color:#fff;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px}
+.m-copy{display:inline-flex;align-items:center;gap:3px;padding:3px 9px;border-radius:7px;background:rgba(255,255,255,.18);color:#fff;font-size:10px;font-weight:700;cursor:pointer;border:none;transition:all .2s;margin-left:6px}
+.m-copy:hover{background:rgba(255,255,255,.3)}
+</style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-3 sm:p-4 lg:p-0">
+
+<div class="ctoast" id="cToast">Copied!</div>
+
+<!-- ============ CHECKOUT SHELL ============ -->
+<div id="checkoutShell" class="w-full max-w-[1120px] lg:min-h-[690px] flex rounded-[24px] overflow-hidden shadow-[0_40px_80px_rgba(0,0,0,.06),0_0_0_1px_rgba(0,0,0,.03)]">
+
+  <!-- LEFT: ORDER SUMMARY -->
+  <div class="spl-l hidden lg:flex flex-col w-[390px] flex-shrink-0 p-10 relative z-10">
+    <div class="fi" style="animation-delay:.05s">
+      <!-- Merchant -->
+      <div class="flex items-center gap-4 mb-12">
+        <div class="w-[52px] h-[52px] rounded-2xl bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/8 shadow-[0_4px_12px_rgba(0,0,0,.15)]">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5EEAD4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+        </div>
+        <div>
+          <p class="text-[11px] text-white/35 font-semibold uppercase tracking-[.15em]">Paying to</p>
+          <p class="text-[18px] font-extrabold text-white truncate whitespace-nowrap max-w-[250px] leading-tight mt-0.5">OwnPay Ltd.</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="fi flex-1" style="animation-delay:.12s">
+      <p class="text-[9.5px] font-bold text-white/25 uppercase tracking-[.2em] mb-5">Order Summary</p>
+      <div class="space-y-5">
+        <div class="flex justify-between items-start"><div><p class="text-[13px] font-semibold text-white/85">Pro Plan — Annual</p><p class="text-[10.5px] text-white/30 mt-0.5">Billed yearly · Auto-renewal</p></div><p class="text-[13px] font-bold text-white font-mono">৳12,000</p></div>
+        <div class="flex justify-between items-start"><div><p class="text-[13px] font-semibold text-white/85">Setup Fee</p><p class="text-[10.5px] text-white/30 mt-0.5">One-time</p></div><p class="text-[13px] font-bold text-white font-mono">৳500</p></div>
+        <div class="h-px bg-white/6"></div>
+        <div class="flex justify-between"><p class="text-[11px] text-white/30 font-medium">Subtotal</p><p class="text-[12px] text-white/50 font-mono">৳12,500.00</p></div>
+        <div class="flex justify-between"><p class="text-[11px] text-white/30 font-medium">VAT (5%)</p><p class="text-[12px] text-white/50 font-mono">৳625.00</p></div>
+      </div>
+    </div>
+
+    <div class="fi" style="animation-delay:.2s">
+      <div class="h-px bg-white/6 mb-5"></div>
+      <div class="flex justify-between items-end">
+        <p class="text-[12px] text-white/40 font-semibold">Total</p>
+        <div class="text-right"><p class="text-[30px] font-extrabold text-white font-mono leading-none tracking-tight">৳13,125</p><p class="text-[10px] text-white/25 font-mono mt-1">.00 BDT</p></div>
+      </div>
+      <div class="mt-7 flex items-center gap-2 text-[10px] text-white/25">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+        256-bit encryption · 3D Secure 2.0
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: PAYMENT -->
+  <div class="flex-1 bg-white flex flex-col relative">
+    <!-- TOP BAR -->
+    <div class="fi flex items-center justify-between px-5 sm:px-7 py-4 border-b border-[#ECEEF5]" style="animation-delay:.08s">
+      <button onclick="openMdl('mCancel')" class="w-9 h-9 rounded-xl border border-[#ECEEF5] flex items-center justify-center hover:bg-[#F5F6FA] transition-all group" title="Cancel" aria-label="Cancel payment"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" class="group-hover:stroke-[#080D1A] transition-colors"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      <div class="flex items-center gap-2 bg-[#F5F6FA] rounded-full px-4 py-[9px]" role="timer" aria-live="polite" aria-label="Transaction countdown timer">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+        <span id="timer" class="text-[13px] font-mono font-bold text-[#4A5578]">10:00</span>
+      </div>
+      <div class="flex items-center gap-0.5">
+        <button onclick="openMdl('mInfo')" class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#F5F6FA] transition" title="Info" aria-label="Transaction information"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg></button>
+        <button onclick="openMdl('mFaq')" class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#F5F6FA] transition" title="FAQ" aria-label="Frequently asked questions"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></button>
+        <button onclick="openMdl('mHelp')" class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#F5F6FA] transition" title="Support" aria-label="Contact support"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></button>
+        <button onclick="openMdl('mLang')" class="w-9 h-9 rounded-xl flex items-center justify-center hover:bg-[#F5F6FA] transition" title="Language" aria-label="Change language"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"/></svg></button>
+      </div>
+    </div>
+
+    <!-- SCROLLABLE -->
+    <div class="flex-1 overflow-y-auto px-5 sm:px-7 py-5 sm:py-6">
+
+      <!-- MOBILE: Merchant + Amount -->
+      <div class="lg:hidden fi mb-5" style="animation-delay:.1s">
+        <div class="bg-[#F5F6FA] rounded-2xl p-4">
+          <div class="flex items-center gap-3 mb-3">
+            <div class="w-10 h-10 rounded-xl bg-[#ECEEF5] flex items-center justify-center">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            </div>
+            <div>
+              <p class="text-[10px] text-[#7A84A0] font-semibold uppercase tracking-wider">Paying to</p>
+              <p class="text-[15px] font-extrabold text-[#080D1A] leading-tight">OwnPay</p>
+            </div>
+          </div>
+          <div class="flex items-end justify-between">
+            <p class="text-[22px] font-extrabold text-[#080D1A] font-mono">৳13,125<span class="text-[12px] text-[#7A84A0] font-semibold">.00</span></p>
+            <div class="flex items-center gap-1.5 text-[10px] text-[#A8B0C8]">
+              <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+              Encrypted
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- EXPRESS CHECKOUT -->
+      <div class="fi mb-5" style="animation-delay:.14s">
+        <p class="text-[9.5px] font-bold text-[#A8B0C8] uppercase tracking-[.12em] mb-3">Express Checkout</p>
+        <div class="grid grid-cols-2 gap-3">
+          <button onclick="doQP('Apple Pay')" class="qpay bg-[#080D1A] text-white border-[#080D1A] hover:bg-black"><svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M17.05 20.28c-.98.95-2.05.88-3.08.4-1.09-.5-2.08-.48-3.24 0-1.44.62-2.2.44-3.06-.4C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.54 4.09zM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25z"/></svg>Apple Pay</button>
+          <button onclick="doQP('Google Pay')" class="qpay bg-white text-[#080D1A] border-[#ECEEF5] hover:border-[#D4D9E8] hover:bg-[#FAFBFC]"><svg width="16" height="16" viewBox="0 0 24 24"><path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92a5.06 5.06 0 0 1-2.2 3.32v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.1z" fill="#4285F4"/><path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853"/><path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z" fill="#FBBC05"/><path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335"/></svg>Google Pay</button>
+        </div>
+      </div>
+
+      <!-- DIVIDER -->
+      <div class="fi flex items-center gap-4 mb-5" style="animation-delay:.17s">
+        <div class="flex-1 h-px bg-[#ECEEF5]"></div>
+        <span class="text-[9.5px] font-bold text-[#A8B0C8] uppercase tracking-[.12em]">Or pay with</span>
+        <div class="flex-1 h-px bg-[#ECEEF5]"></div>
+      </div>
+
+      <!-- TABS -->
+      <div class="fi flex gap-1.5 p-1.5 bg-[#F5F6FA] rounded-[16px] mb-5" style="animation-delay:.2s">
+        <button class="ptab on" data-t="cards" onclick="goT('cards')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>Cards</button>
+        <button class="ptab" data-t="mfs" onclick="goT('mfs')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>MFS</button>
+        <button class="ptab" data-t="bank" onclick="goT('bank')"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M3 10h18"/><path d="M5 6l7-3 7 3"/><line x1="4" y1="10" x2="4" y2="21"/><line x1="20" y1="10" x2="20" y2="21"/><line x1="8" y1="14" x2="8" y2="17"/><line x1="12" y1="14" x2="12" y2="17"/><line x1="16" y1="14" x2="16" y2="17"/></svg>Net Banking</button>
+      </div>
+
+      <!-- ====== TAB: CARDS ====== -->
+      <div id="t-cards" class="tc">
+        <div class="relative">
+          <div id="cardForm" class="space-y-3.5">
+            <div class="flt"><input type="text" id="iCN" maxlength="19" oninput="fmtCN(this)" onblur="cv(this)" onfocus="cv(this)"><label for="iCN">Card Number</label><div class="absolute right-4 top-1/2 -translate-y-1/2 flex gap-1" id="bIco"><svg width="30" height="20" viewBox="0 0 48 32" class="opacity-20 transition-opacity"><rect width="48" height="32" rx="4" fill="#1A1F71"/><circle cx="19" cy="16" r="7" fill="#EB001B"/><circle cx="29" cy="16" r="7" fill="#F79E1B"/><path d="M24 10.6a8.8 8.8 0 0 1 0 10.8 8.8 8.8 0 0 0 0-10.8z" fill="#FF5F00"/></svg><svg width="30" height="20" viewBox="0 0 48 32" class="opacity-20 transition-opacity"><rect width="48" height="32" rx="4" fill="#0058A0"/><text x="24" y="20" text-anchor="middle" fill="white" font-size="11" font-weight="800" font-family="sans-serif">VISA</text></svg></div></div>
+            <div class="flt"><input type="text" id="iNm" oninput="this.value=this.value.toUpperCase()" onblur="cv(this)" onfocus="cv(this)"><label for="iNm">Cardholder Name</label></div>
+            <div class="grid grid-cols-2 gap-3">
+              <div class="flt"><input type="text" id="iEx" maxlength="5" oninput="fmtEx(this)" onblur="cv(this)" onfocus="cv(this)"><label for="iEx">MM / YY</label></div>
+              <div class="flt"><input type="text" id="iCv" maxlength="4" oninput="this.value=this.value.replace(/\D/g,'')" onblur="cv(this)" onfocus="cv(this)"><label for="iCv">CVV</label></div>
+            </div>
+            <button onclick="payCard()" class="w-full py-[15px] rounded-2xl bg-[var(--teal)] text-white font-bold text-[14px] hover:bg-[var(--teal-deep)] active:scale-[.98] transition-all mt-1 flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(13,148,136,.22)]">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Pay ৳13,125.00
+            </button>
+          </div>
+          <div id="cOverlay" class="sovr rounded-2xl bg-white/95"><div id="cOI"></div><p id="cOT" class="text-[13px] font-bold"></p><p id="cOS" class="text-[11px]"></p></div>
+        </div>
+      </div>
+
+      <!-- ====== TAB: MFS ====== -->
+      <div id="t-mfs" class="tc hidden">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5" id="mfsG">
+          <!-- API gateways -->
+          <div class="gw" onclick="pickGW(this,'mfs','bKash','api')"><div class="gw-ico" style="background:#E2136E0F"><svg width="24" height="24" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#E2136E"/><text x="24" y="31" text-anchor="middle" fill="white" font-size="18" font-weight="900" font-family="sans-serif">b</text></svg></div><span class="gw-nm">bKash</span></div>
+          <div class="gw" onclick="pickGW(this,'mfs','Nagad','api')"><div class="gw-ico" style="background:#F6921E0F"><svg width="24" height="24" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#F6921E"/><text x="24" y="31" text-anchor="middle" fill="white" font-size="16" font-weight="900" font-family="sans-serif">N</text></svg></div><span class="gw-nm">Nagad</span></div>
+          <div class="gw" onclick="pickGW(this,'mfs','Rocket','api')"><div class="gw-ico" style="background:#8B2E860F"><svg width="24" height="24" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#8B2E86"/><text x="24" y="31" text-anchor="middle" fill="white" font-size="14" font-weight="900" font-family="sans-serif">R</text></svg></div><span class="gw-nm">Rocket</span></div>
+          <div class="gw" onclick="pickGW(this,'mfs','Upay','api')"><div class="gw-ico" style="background:#EF39390F"><svg width="24" height="24" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#EF3939"/><text x="24" y="31" text-anchor="middle" fill="white" font-size="14" font-weight="900" font-family="sans-serif">U</text></svg></div><span class="gw-nm">Upay</span></div>
+          <!-- Manual gateways -->
+          <div class="gw" onclick="pickGW(this,'mfs','bKash','manual')"><div class="gw-badge">Manual</div><div class="gw-ico" style="background:#E2136E0F"><svg width="24" height="24" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#E2136E"/><text x="24" y="31" text-anchor="middle" fill="white" font-size="18" font-weight="900" font-family="sans-serif">b</text></svg></div><span class="gw-nm">bKash</span></div>
+          <div class="gw" onclick="pickGW(this,'mfs','Nagad','manual')"><div class="gw-badge">Manual</div><div class="gw-ico" style="background:#F6921E0F"><svg width="24" height="24" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#F6921E"/><text x="24" y="31" text-anchor="middle" fill="white" font-size="16" font-weight="900" font-family="sans-serif">N</text></svg></div><span class="gw-nm">Nagad</span></div>
+        </div>
+        <button id="mfsBtn" disabled class="w-full py-[15px] rounded-2xl bg-[#ECEEF5] text-[#A8B0C8] font-bold text-[14px] cursor-not-allowed transition-all">Select a provider</button>
+      </div>
+
+      <!-- ====== TAB: NET BANKING ====== -->
+      <div id="t-bank" class="tc hidden">
+        <div class="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-5" id="bankG">
+          <div class="gw" onclick="pickGW(this,'bank','City Bank','api')"><div class="gw-ico bg-blue-50"><span class="text-[13px] font-extrabold text-blue-600">CB</span></div><span class="gw-nm">City Bank</span></div>
+          <div class="gw" onclick="pickGW(this,'bank','BRAC Bank','api')"><div class="gw-ico bg-red-50"><span class="text-[13px] font-extrabold text-red-600">BB</span></div><span class="gw-nm">BRAC Bank</span></div>
+          <div class="gw" onclick="pickGW(this,'bank','EBL','api')"><div class="gw-ico bg-emerald-50"><span class="text-[13px] font-extrabold text-emerald-600">EB</span></div><span class="gw-nm">EBL</span></div>
+          <div class="gw" onclick="pickGW(this,'bank','DBBL','api')"><div class="gw-ico bg-purple-50"><span class="text-[13px] font-extrabold text-purple-600">DB</span></div><span class="gw-nm">Dutch-Bangla</span></div>
+          <div class="gw" onclick="pickGW(this,'bank','Islami Bank','api')"><div class="gw-ico bg-teal-50"><span class="text-[13px] font-extrabold text-teal-700">IB</span></div><span class="gw-nm">Islami Bank</span></div>
+          <!-- Manual bank -->
+          <div class="gw" onclick="pickGW(this,'bank','City Bank','manual')"><div class="gw-badge">Manual</div><div class="gw-ico bg-blue-50"><span class="text-[13px] font-extrabold text-blue-600">CB</span></div><span class="gw-nm">City Bank</span></div>
+        </div>
+        <button id="bankBtn" disabled class="w-full py-[15px] rounded-2xl bg-[#ECEEF5] text-[#A8B0C8] font-bold text-[14px] cursor-not-allowed transition-all">Select a bank</button>
+      </div>
+
+    </div>
+
+    <!-- FOOTER -->
+    <div class="fi px-5 sm:px-7 py-3 border-t border-[#ECEEF5] flex items-center justify-center gap-2 text-[9.5px] text-[#A8B0C8]" style="animation-delay:.3s">
+      <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+      Secured by <span class="font-bold text-[#4A5578]">OwnPay</span> · 256-bit encryption · 3D Secure 2.0
+    </div>
+  </div>
+</div>
+
+<!-- ============ MANUAL PAYMENT FULLSCREEN POPUP ============ -->
+<div class="manual-overlay" id="manualPopup" role="dialog" aria-modal="true" aria-label="Manual Payment">
+  <div class="blur-bg" onclick="closeManual()"></div>
+  <div class="manual-panel">
+    <!-- Header -->
+    <div class="p-6 pb-0">
+      <div class="flex items-center justify-between mb-5">
+        <div class="flex items-center gap-3">
+          <div class="w-11 h-11 rounded-2xl flex items-center justify-center" id="mpLogo"></div>
+          <div>
+            <p class="text-[16px] font-extrabold text-[#080D1A]" id="mpName">bKash</p>
+            <p class="text-[11px] text-[#7A84A0] font-semibold">Manual Payment</p>
+          </div>
+        </div>
+        <button onclick="closeManual()" class="w-9 h-9 rounded-xl border border-[#ECEEF5] flex items-center justify-center hover:bg-[#F5F6FA] transition"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+      </div>
+    </div>
+    <!-- Steps Card -->
+    <div class="mx-6 rounded-2xl p-5 mb-5" id="mpCard" style="background:linear-gradient(135deg,#E2136E,#c41060)">
+      <div id="mpSteps"></div>
+    </div>
+    <!-- TXN Input -->
+    <div class="px-6 pb-6">
+      <label class="block text-[12px] font-bold text-[#080D1A] mb-2 uppercase tracking-wider">Transaction ID</label>
+      <input type="text" id="mpTxn" placeholder="Enter transaction ID from app" class="w-full px-4 py-[14px] rounded-2xl bg-[#F5F6FA] text-[14px] font-mono font-medium text-[#080D1A] outline-none transition-all placeholder:text-[#B0B8CC] mb-4" style="border:1.5px solid #ECEEF5" onfocus="this.style.borderColor='var(--teal)';this.style.boxShadow='0 0 0 4px var(--teal-glow)';this.style.background='#fff'" onblur="this.style.borderColor='#ECEEF5';this.style.boxShadow='none';this.style.background='#F5F6FA'">
+      <button onclick="verifyManual()" class="w-full py-[15px] rounded-2xl bg-[var(--teal)] text-white font-bold text-[14px] hover:bg-[var(--teal-deep)] active:scale-[.98] transition-all flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(13,148,136,.22)]">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+        Verify Payment
+      </button>
+      <div id="mpVerify" class="hidden mt-4">
+        <div class="bg-[#F5F6FA] border border-[#ECEEF5] rounded-2xl p-7 text-center">
+          <div class="ldr mx-auto mb-3"></div>
+          <p class="text-[14px] font-bold text-[#080D1A]">Verifying transaction...</p>
+          <p class="text-[11px] text-[#7A84A0] mt-1">Please wait</p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============ MODALS ============ -->
+
+<!-- Cancel -->
+<div class="mdl-bg" id="mCancel" onclick="closeOut(event,'mCancel')" role="dialog" aria-modal="true" aria-label="Cancel Payment">
+  <div class="mdl-box">
+    <div class="flex items-center gap-3 mb-4">
+      <div class="w-11 h-11 rounded-2xl bg-red-50 flex items-center justify-center"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#EF4444" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg></div>
+      <div><p class="text-[15px] font-extrabold">Cancel Payment?</p><p class="text-[11px] text-[#7A84A0]">This action cannot be undone</p></div>
+    </div>
+    <p class="text-[13px] text-[#4A5578] mb-5 leading-relaxed">You'll be redirected back to the merchant's website. Any progress will be lost.</p>
+    <div class="flex gap-3">
+      <button onclick="closeMdl('mCancel')" class="flex-1 py-3 rounded-xl border border-[#ECEEF5] text-[13px] font-bold text-[#4A5578] hover:bg-[#F5F6FA] transition">Go Back</button>
+      <button onclick="doCancel()" class="flex-1 py-3 rounded-xl bg-[#EF4444] text-white text-[13px] font-bold hover:bg-red-600 transition">Cancel Payment</button>
+    </div>
+  </div>
+</div>
+
+<!-- Info -->
+<div class="mdl-bg" id="mInfo" onclick="closeOut(event,'mInfo')" role="dialog" aria-modal="true" aria-label="Transaction Info"><div class="mdl-box"><div class="flex items-center justify-between mb-5"><p class="text-[15px] font-extrabold">Transaction Info</p><button onclick="closeMdl('mInfo')" class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F5F6FA]"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="space-y-3 text-[13px]"><div class="flex justify-between"><span class="text-[#7A84A0]">Merchant</span><span class="font-bold">OwnPay Ltd.</span></div><div class="flex justify-between"><span class="text-[#7A84A0]">Invoice</span><span class="font-mono">#INV-2026-0472</span></div><div class="flex justify-between"><span class="text-[#7A84A0]">Amount</span><span class="font-mono font-bold">৳13,125.00</span></div><div class="flex justify-between"><span class="text-[#7A84A0]">Gateway</span><span>OwnPay v3.0</span></div><div class="flex justify-between"><span class="text-[#7A84A0]">Encryption</span><span>TLS 1.3 / AES-256</span></div></div></div></div>
+
+<!-- FAQ -->
+<div class="mdl-bg" id="mFaq" onclick="closeOut(event,'mFaq')" role="dialog" aria-modal="true" aria-label="FAQ"><div class="mdl-box"><div class="flex items-center justify-between mb-5"><p class="text-[15px] font-extrabold">FAQ</p><button onclick="closeMdl('mFaq')" class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F5F6FA]"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="space-y-4"><div><p class="text-[13px] font-bold mb-1">Is my payment secure?</p><p class="text-[11px] text-[#7A84A0] leading-relaxed">Yes. All transactions use 256-bit encryption · 3D Secure 2.0</p></div><div><p class="text-[13px] font-bold mb-1">What is manual payment?</p><p class="text-[11px] text-[#7A84A0] leading-relaxed">Send money via your MFS/Banking app directly, then verify with the transaction ID.</p></div><div><p class="text-[13px] font-bold mb-1">Why is there a timer?</p><p class="text-[11px] text-[#7A84A0] leading-relaxed">Security measure. Expired sessions are invalidated to prevent unauthorized access.</p></div></div></div></div>
+
+<!-- Help -->
+<div class="mdl-bg" id="mHelp" onclick="closeOut(event,'mHelp')" role="dialog" aria-modal="true" aria-label="Support"><div class="mdl-box"><div class="flex items-center justify-between mb-5"><p class="text-[15px] font-extrabold">Support</p><button onclick="closeMdl('mHelp')" class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F5F6FA]"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="space-y-2"><a href="#" class="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F5F6FA] transition"><div class="w-9 h-9 rounded-lg bg-[#CCFBF1] flex items-center justify-center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg></div><div><p class="text-[13px] font-bold">Live Chat</p><p class="text-[10px] text-[#7A84A0]">~2 min response</p></div></a><a href="#" class="flex items-center gap-3 p-3 rounded-xl hover:bg-[#F5F6FA] transition"><div class="w-9 h-9 rounded-lg bg-blue-50 flex items-center justify-center"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#3B82F6" stroke-width="2"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg></div><div><p class="text-[13px] font-bold">Email</p><p class="text-[10px] text-[#7A84A0]">support@OwnPay.com</p></div></a></div></div></div>
+
+<!-- Lang -->
+<div class="mdl-bg" id="mLang" onclick="closeOut(event,'mLang')" role="dialog" aria-modal="true" aria-label="Language Selection"><div class="mdl-box"><div class="flex items-center justify-between mb-5"><p class="text-[15px] font-extrabold">Language</p><button onclick="closeMdl('mLang')" class="w-8 h-8 rounded-lg flex items-center justify-center hover:bg-[#F5F6FA]"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button></div><div class="space-y-2"><button class="w-full text-left p-3 rounded-xl bg-[var(--teal-pale)] border border-[var(--teal)] text-[13px] font-bold text-[var(--teal-deep)] flex items-center justify-between">English<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></button><button onclick="closeMdl('mLang')" class="w-full text-left p-3 rounded-xl hover:bg-[#F5F6FA] text-[13px] font-bold text-[#4A5578] transition">বাংলা</button></div></div></div>
+
+
+<!-- ============ JAVASCRIPT ============ -->
+<script>
+// ===== TIMER =====
+// 600 seconds = 10 Minutes
+let sec = 600; 
+const tEl = document.getElementById('timer');
+const timerInterval = setInterval(() => {
+  if(sec <= 0){
+    tEl.textContent = '00:00';
+    tEl.classList.add('tw');
+    clearInterval(timerInterval);
+    showExpired();
+    return;
+  }
+  sec--;
+  tEl.textContent = `${String(Math.floor(sec/60)).padStart(2,'0')}:${String(sec%60).padStart(2,'0')}`;
+  if(sec <= 60) { tEl.classList.add('tw'); } else { tEl.classList.remove('tw'); }
+}, 1000);
+
+// ===== TABS =====
+function goT(t){document.querySelectorAll('.ptab').forEach(b=>b.classList.remove('on'));document.querySelector(`.ptab[data-t="${t}"]`).classList.add('on');document.querySelectorAll('.tc').forEach(c=>c.classList.add('hidden'));document.getElementById(`t-${t}`).classList.remove('hidden')}
+
+// ===== FLOAT =====
+function cv(i){i.value.length>0?i.classList.add('hv'):i.classList.remove('hv')}
+function fmtCN(i){let v=i.value.replace(/\D/g,'').substring(0,16);i.value=v.replace(/(.{4})/g,'$1 ').trim();cv(i);const c=document.getElementById('bIco').children;if(v.startsWith('4')){c[0].style.opacity='.12';c[1].style.opacity='1'}else if(v.startsWith('5')||v.startsWith('2')){c[0].style.opacity='1';c[1].style.opacity='.12'}else{c[0].style.opacity='.2';c[1].style.opacity='.2'}}
+function fmtEx(i){let v=i.value.replace(/\D/g,'').substring(0,4);if(v.length>=3)v=v.substring(0,2)+'/'+v.substring(2);i.value=v;cv(i)}
+
+// ===== CARD PAY → REALISTIC FLOW =====
+// Demo: 4242... → Success | 4000... → Failed | 4111... → Pending | others → Success
+function payCard(){
+  // --- Client-side Validation ---
+  const cn = (document.getElementById('iCN').value||'').replace(/\s/g,'');
+  const nm = (document.getElementById('iNm').value||'').trim();
+  const ex = (document.getElementById('iEx').value||'').trim();
+  const cv = (document.getElementById('iCv').value||'').trim();
+  let errors = [];
+
+  // Card number: must be 13-19 digits
+  if(cn.length < 13 || cn.length > 19) errors.push('iCN');
+  // Luhn check
+  if(cn.length >= 13) {
+    let sum = 0, alt = false;
+    for(let i = cn.length - 1; i >= 0; i--) {
+      let n = parseInt(cn[i], 10);
+      if(alt) { n *= 2; if(n > 9) n -= 9; }
+      sum += n; alt = !alt;
+    }
+    if(sum % 10 !== 0) errors.push('iCN');
+  }
+  // Name: at least 2 characters
+  if(nm.length < 2) errors.push('iNm');
+  // Expiry: must be MM/YY format & in the future
+  if(!/^\d{2}\/\d{2}$/.test(ex)) { errors.push('iEx'); }
+  else {
+    const [mm, yy] = ex.split('/').map(Number);
+    const now = new Date();
+    const expDate = new Date(2000 + yy, mm);
+    if(mm < 1 || mm > 12 || expDate <= now) errors.push('iEx');
+  }
+  // CVV: 3-4 digits
+  if(cv.length < 3 || cv.length > 4) errors.push('iCv');
+
+  // Highlight errors
+  ['iCN','iNm','iEx','iCv'].forEach(id => {
+    const el = document.getElementById(id);
+    if(errors.includes(id)) {
+      el.style.borderColor = 'var(--red)';
+      el.style.boxShadow = '0 0 0 3px rgba(239,68,68,0.1)';
+    } else {
+      el.style.borderColor = '';
+      el.style.boxShadow = '';
+    }
+  });
+
+  if(errors.length > 0) return; // Stop if validation fails
+
+  // --- Process Payment ---
+  const o=document.getElementById('cOverlay'),ic=document.getElementById('cOI'),tx=document.getElementById('cOT'),sb=document.getElementById('cOS');
+  o.className='sovr vis rounded-2xl';o.style.background='rgba(255,255,255,.95)';
+  ic.innerHTML='<div class="ldr"></div>';tx.textContent='Processing payment...';tx.className='text-[13px] font-bold text-[#4A5578]';
+  sb.textContent='Do not close this window';sb.className='text-[11px] text-[#7A84A0]';
+  const txnId='TXN-'+Date.now().toString(36).toUpperCase();
+  if(cn.startsWith('4000')){
+    setTimeout(()=>showFailed(txnId),3000);
+  } else if(cn.startsWith('4111')){
+    setTimeout(()=>showPending(txnId),2500);
+  } else {
+    setTimeout(()=>showSuccess(txnId),2800);
+  }
+}
+
+// ===== GATEWAY PICK =====
+const gwState={mfs:{el:null,name:'',mode:''},bank:{el:null,name:'',mode:''}};
+function pickGW(el,tab,name,mode){
+  const grid=document.getElementById(tab==='mfs'?'mfsG':'bankG');
+  grid.querySelectorAll('.gw').forEach(c=>c.classList.remove('on'));
+  el.classList.add('on');
+  gwState[tab]={el,name,mode};
+  const btn=document.getElementById(tab==='mfs'?'mfsBtn':'bankBtn');
+  btn.disabled=false;
+  btn.className='w-full py-[15px] rounded-2xl bg-[var(--teal)] text-white font-bold text-[14px] cursor-pointer transition-all flex items-center justify-center gap-2 shadow-[0_4px_20px_rgba(13,148,136,.22)] hover:bg-[var(--teal-deep)] active:scale-[.98]';
+  btn.textContent=mode==='manual'?`Pay manually via ${name}`:`Continue with ${name}`;
+  btn.onclick=()=>executeGW(tab);
+}
+
+function executeGW(tab){
+  const s=gwState[tab];
+  if(!s.name)return;
+  if(s.mode==='manual'){openManualPopup(s.name);return}
+  // API redirect simulation
+  const btn=document.getElementById(tab==='mfs'?'mfsBtn':'bankBtn');
+  btn.innerHTML='<div class="ldr" style="width:20px;height:20px;border-width:2px"></div> Redirecting...';
+  btn.classList.add('pointer-events-none');
+  setTimeout(()=>showSuccess('TXN-'+Date.now().toString(36).toUpperCase()),2500);
+}
+
+// ===== MANUAL POPUP =====
+const provCfg={
+  bKash:{color:'#E2136E',num:'01954238569',type:'Send Money',logo:'<svg width="28" height="28" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#E2136E"/><text x="24" y="31" text-anchor="middle" fill="white" font-size="18" font-weight="900" font-family="sans-serif">b</text></svg>'},
+  Nagad:{color:'#F6921E',num:'01XXXXXXXXX',type:'Send Money',logo:'<svg width="28" height="28" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#F6921E"/><text x="24" y="31" text-anchor="middle" fill="white" font-size="16" font-weight="900" font-family="sans-serif">N</text></svg>'},
+  Rocket:{color:'#8B2E86',num:'01XXXXXXXXX',type:'Send Money',logo:'<svg width="28" height="28" viewBox="0 0 48 48"><circle cx="24" cy="24" r="22" fill="#8B2E86"/><text x="24" y="31" text-anchor="middle" fill="white" font-size="14" font-weight="900" font-family="sans-serif">R</text></svg>'},
+  'City Bank':{color:'#2563EB',num:'ACC-XXXXXXX',type:'Fund Transfer',logo:'<div class="text-[15px] font-extrabold text-blue-600">CB</div>'},
+};
+
+function openManualPopup(name){
+  const cfg=provCfg[name]||provCfg.bKash;
+  document.getElementById('mpName').textContent=name;
+  document.getElementById('mpLogo').innerHTML=cfg.logo;
+  document.getElementById('mpLogo').style.background=cfg.color+'12';
+  document.getElementById('mpCard').style.background=`linear-gradient(135deg,${cfg.color},${cfg.color}cc)`;
+  document.getElementById('mpTxn').value='';
+  document.getElementById('mpVerify').classList.add('hidden');
+
+  const steps=[
+    `Open your <strong>${name}</strong> App`,
+    `Choose "<strong>${cfg.type}</strong>"`,
+    {t:`Enter the Number:`,v:cfg.num,copy:true},
+    {t:`Enter the Amount:`,v:'13,125.00 BDT',copy:true},
+    `Enter your <strong>PIN</strong> to confirm`,
+    `Copy the <strong>Transaction ID</strong> and paste below`
+  ];
+  let h='';
+  steps.forEach((s,i)=>{
+    if(typeof s==='string'){h+=`<div class="m-item"><div class="m-idx">${i+1}</div><p class="text-[13px] leading-relaxed text-white/90">${s}</p></div>`}
+    else{h+=`<div class="m-item"><div class="m-idx">${i+1}</div><p class="text-[13px] leading-relaxed text-white/90">${s.t} <strong class="text-white font-mono">${s.v}</strong><button class="m-copy" onclick="doCopy('${s.v.replace(/,/g,'')}')"><svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>Copy</button></p></div>`}
+  });
+  document.getElementById('mpSteps').innerHTML=h;
+  document.getElementById('manualPopup').classList.add('vis');
+}
+
+function closeManual(){document.getElementById('manualPopup').classList.remove('vis')}
+
+function verifyManual(){
+  const txn=document.getElementById('mpTxn').value.trim();
+  if(!txn){document.getElementById('mpTxn').style.borderColor='var(--red)';document.getElementById('mpTxn').style.boxShadow='0 0 0 3px rgba(239,68,68,0.1)';return}
+  document.getElementById('mpTxn').style.borderColor='#ECEEF5';
+  document.getElementById('mpTxn').style.boxShadow='none';
+  document.getElementById('mpVerify').classList.remove('hidden');
+  // Simulate: TXN ID with 6+ chars = success, shorter = failed (invalid TXN)
+  if(txn.length >= 6){
+    setTimeout(()=>{closeManual();showSuccess(txn)},3000);
+  } else {
+    setTimeout(()=>{closeManual();showFailed(txn)},3000);
+  }
+}
+
+// ===== QUICK PAY =====
+function doQP(p){
+  goT('cards');
+  const o=document.getElementById('cOverlay'),ic=document.getElementById('cOI'),tx=document.getElementById('cOT'),sb=document.getElementById('cOS');
+  o.className='sovr vis rounded-2xl';o.style.background='rgba(255,255,255,.95)';
+  ic.innerHTML='<div class="ldr"></div>';tx.textContent=`Authenticating ${p}...`;tx.className='text-[13px] font-bold text-[#4A5578]';
+  sb.textContent='Confirm on your device';sb.className='text-[11px] text-[#7A84A0]';
+  setTimeout(()=>showSuccess('TXN-'+Date.now().toString(36).toUpperCase()),2200);
+}
+
+// ===================================================================
+// CLEAN, EXACT-MATCH POST-TRANSACTION STATE ENGINE
+// ===================================================================
+
+const PS = {
+  success: {
+    bg: 'linear-gradient(180deg, #ECFDF5 0%, #F6F8FA 40%, #F5F6FA 100%)',
+    iconBg1: 'rgba(16,185,129,0.06)',
+    iconBg2: 'rgba(16,185,129,0.12)',
+    iconColor: '#10B981',
+    iconSvg: '<path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/>',
+    title: 'Payment Successful',
+    subtitle: 'Your transaction was successful. The merchant has received your payment.',
+    statusColor: '#059669',
+    btn1: { label:'Download<br>Receipt', icon:'<path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>', action:'downloadReceipt()' },
+    btn2: { label:'Return to<br>Merchant', icon:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>', action:'location.reload()' }
+  },
+  cancelled: {
+    bg: 'linear-gradient(180deg, #FFF1F2 0%, #F6F8FA 40%, #F5F6FA 100%)',
+    iconBg1: 'rgba(244,63,94,0.06)',
+    iconBg2: 'rgba(244,63,94,0.12)',
+    iconColor: '#F43F5E',
+    iconSvg: '<circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>',
+    title: 'Payment Cancelled',
+    subtitle: 'Your transaction was cancelled. No charges were made to your account.',
+    statusColor: '#E11D48',
+    btn1: { label:'Try<br>Again', icon:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>', action:'location.reload()' },
+    btn2: { label:'Return to<br>Merchant', icon:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>', action:'' }
+  },
+  failed: {
+    bg: 'linear-gradient(180deg, #FEF2F2 0%, #F6F8FA 40%, #F5F6FA 100%)',
+    iconBg1: 'rgba(220,38,38,0.06)',
+    iconBg2: 'rgba(220,38,38,0.12)',
+    iconColor: '#DC2626',
+    iconSvg: '<circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>',
+    title: 'Payment Failed',
+    subtitle: 'We couldn\'t process your payment. Please try again or use a different method.',
+    statusColor: '#DC2626',
+    btn1: { label:'Try<br>Again', icon:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>', action:'location.reload()' },
+    btn2: { label:'Return to<br>Merchant', icon:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>', action:'' }
+  },
+  pending: {
+    bg: 'linear-gradient(180deg, #EFF6FF 0%, #F6F8FA 40%, #F5F6FA 100%)',
+    iconBg1: 'rgba(59,130,246,0.06)',
+    iconBg2: 'rgba(59,130,246,0.12)',
+    iconColor: '#3B82F6',
+    iconSvg: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    title: 'Payment Processing',
+    subtitle: 'Your transaction is being verified. This usually takes 1–3 minutes.',
+    statusColor: '#2563EB',
+    btn1: { label:'Check<br>Status', icon:'<path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/>', action:'location.reload()' },
+    btn2: { label:'Return to<br>Merchant', icon:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>', action:'' }
+  },
+  expired: {
+    bg: 'linear-gradient(180deg, #FFF7ED 0%, #F6F8FA 40%, #F5F6FA 100%)',
+    iconBg1: 'rgba(249,115,22,0.06)',
+    iconBg2: 'rgba(249,115,22,0.12)',
+    iconColor: '#F97316',
+    iconSvg: '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>',
+    title: 'Session Expired',
+    subtitle: 'Your session has expired due to inactivity. Please try making the payment again.',
+    statusColor: '#EA580C',
+    btn1: { label:'Try<br>Again', icon:'<path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/>', action:'location.reload()' },
+    btn2: { label:'Return to<br>Merchant', icon:'<path d="M5 12h14"/><path d="m12 5 7 7-7 7"/>', action:'' }
+  }
+};
+
+function renderPostPage(state, txnId) {
+  const S = PS[state];
+  const now = new Date();
+  const dateStr = now.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }); // Formats like "17 Mar 2026"
+
+  document.body.innerHTML = `
+  <style>
+    body { background: ${S.bg}; margin: 0; min-height: 100vh; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: 'Outfit', sans-serif; overflow-x: hidden; }
+    .pt-wrapper { width: 100%; max-width: 440px; padding: 24px; box-sizing: border-box; }
+
+    /* Animations */
+    @keyframes pulse-ring { 0% { transform: scale(0.6); opacity: 0; } 100% { transform: scale(1); opacity: 1; } }
+    @keyframes slide-up { 0% { opacity: 0; transform: translateY(20px); } 100% { opacity: 1; transform: translateY(0); } }
+
+    /* Hero Icon */
+    .pt-icon-wrap { position: relative; width: 110px; height: 110px; margin: 0 auto 28px; display: flex; align-items: center; justify-content: center; }
+    .pt-icon-bg1 { position: absolute; inset: 0; background: ${S.iconBg1}; border-radius: 50%; animation: pulse-ring 0.6s cubic-bezier(0.215, 0.61, 0.355, 1) forwards; }
+    .pt-icon-bg2 { position: absolute; inset: 18px; background: ${S.iconBg2}; border-radius: 50%; animation: pulse-ring 0.6s cubic-bezier(0.215, 0.61, 0.355, 1) 0.1s forwards; opacity: 0; }
+    .pt-icon { position: relative; z-index: 2; width: 36px; height: 36px; color: ${S.iconColor}; animation: pulse-ring 0.6s cubic-bezier(0.215, 0.61, 0.355, 1) 0.2s forwards; opacity: 0; }
+
+    /* Typography */
+    .pt-title { font-size: 26px; font-weight: 800; color: #080D1A; text-align: center; margin: 0 0 14px; animation: slide-up 0.5s ease 0.1s both; }
+    .pt-sub { font-size: 14px; color: #7A84A0; text-align: center; line-height: 1.6; margin: 0 auto 36px; max-width: 320px; animation: slide-up 0.5s ease 0.2s both; }
+
+    /* Main Card */
+    .pt-card { background: #FFFFFF; border-radius: 28px; padding: 28px; box-shadow: 0 12px 32px rgba(8, 13, 26, 0.04), 0 0 0 1px rgba(8, 13, 26, 0.02); margin-bottom: 24px; animation: slide-up 0.5s ease 0.3s both; }
+
+    .pt-merchant { display: flex; align-items: center; gap: 16px; margin-bottom: 24px; }
+    .pt-m-logo { width: 48px; height: 48px; border-radius: 14px; background: #F5F6FA; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    .pt-m-info { flex: 1; }
+    .pt-m-info h4 { margin: 0 0 4px; font-size: 16px; font-weight: 800; color: #080D1A; }
+    .pt-m-info p { margin: 0; font-size: 12px; color: #A8B0C8; font-weight: 500; }
+
+    .pt-divider { height: 1px; background: #ECEEF5; margin: 0 0 24px; }
+
+    .pt-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; }
+    .pt-row:last-child { margin-bottom: 0; }
+    .pt-label { font-size: 13.5px; color: #7A84A0; font-weight: 500; }
+    .pt-val { font-size: 14.5px; font-weight: 800; color: #080D1A; display: flex; align-items: center; gap: 6px; }
+    .pt-val.mono { font-family: 'JetBrains Mono', monospace; font-size: 15px; }
+
+    /* Timer Area */
+    .pt-timer-area { margin: 0 4px 24px; animation: slide-up 0.5s ease 0.4s both; }
+    .pt-timer-text { font-size: 13px; color: #7A84A0; font-weight: 600; text-align: center; margin: 0 0 8px; }
+    .pt-timer-bar-bg { width: 100%; height: 4px; background: #E2E6F0; border-radius: 4px; overflow: hidden; }
+    .pt-timer-bar-fg { height: 100%; width: 100%; background: ${S.statusColor}; transition: width 1s linear; }
+
+    /* Action Buttons (New Layout) */
+    .pt-actions { display: flex; gap: 12px; margin-bottom: 32px; animation: slide-up 0.5s ease 0.5s both; flex-wrap: wrap; }
+    .pt-btn { flex: 1; min-width: 140px; padding: 14px 18px; border-radius: 18px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s ease; font-family: 'Outfit', sans-serif; }
+    .pt-btn-text { text-align: center; flex: 1; font-size: 14.5px; font-weight: 800; line-height: 1.25; }
+    
+    .pt-btn-sec { background: #FFFFFF; border: 1.5px solid #E2E6F0; color: #4A5578; }
+    .pt-btn-sec:hover { background: #F5F6FA; border-color: #D4D9E8; color: #080D1A; }
+    .pt-btn-sec:active { transform: scale(0.98); }
+    
+    .pt-btn-pri { background: #080D1A; border: 1.5px solid #080D1A; color: #FFFFFF; }
+    .pt-btn-pri:hover { background: #1A2038; border-color: #1A2038; box-shadow: 0 12px 24px rgba(8,13,26,0.18); }
+    .pt-btn-pri:active { transform: scale(0.98); }
+
+    /* Footer */
+    .pt-footer { font-size: 11px; color: #A8B0C8; text-align: center; animation: slide-up 0.5s ease 0.6s both; line-height: 1.6; }
+    .pt-footer a { color: #7A84A0; text-decoration: none; font-weight: 600; transition: color 0.2s; }
+    .pt-footer a:hover { color: #080D1A; }
+  </style>
+
+  <div class="pt-wrapper">
+    <!-- Hero Icon -->
+    <div class="pt-icon-wrap">
+      <div class="pt-icon-bg1"></div>
+      <div class="pt-icon-bg2"></div>
+      <svg class="pt-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${S.iconSvg}</svg>
+    </div>
+    
+    <!-- Texts -->
+    <h1 class="pt-title">${S.title}</h1>
+    <p class="pt-sub">${S.subtitle}</p>
+
+    <!-- Details Card -->
+    <div class="pt-card">
+      <div class="pt-merchant">
+        <div class="pt-m-logo">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#7A84A0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 2L2 7l10 5 10-5-10-5z"/>
+            <path d="M2 17l10 5 10-5"/>
+            <path d="M2 12l10 5 10-5"/>
+          </svg>
+        </div>
+        <div class="pt-m-info">
+          <h4>OwnPay Ltd.</h4>
+          <p>Invoice #INV-2026-0472</p>
+        </div>
+      </div>
+      
+      <div class="pt-divider"></div>
+      
+      <div class="pt-row">
+        <span class="pt-label">Amount</span>
+        <span class="pt-val mono">৳13,125.00</span>
+      </div>
+      <div class="pt-row">
+        <span class="pt-label">Status</span>
+        <span class="pt-val" style="color: ${S.statusColor};">
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">${S.iconSvg}</svg>
+          ${S.title.split(' ')[1] || 'Expired'}
+        </span>
+      </div>
+      <div class="pt-row">
+        <span class="pt-label">Invoice ID</span>
+        <span class="pt-val mono">#INV-2026-0472</span>
+      </div>
+      <div class="pt-row">
+        <span class="pt-label">Transaction ID</span>
+        <span class="pt-val mono">${txnId || 'N/A'}</span>
+      </div>
+      <div class="pt-row">
+        <span class="pt-label">Date</span>
+        <span class="pt-val">${dateStr}</span>
+      </div>
+    </div>
+
+    <!-- Timer UI -->
+    <div class="pt-timer-area">
+      <p class="pt-timer-text">
+        Redirecting to merchant in <span id="cd-sec" style="color: ${S.statusColor};">5s</span>
+      </p>
+      <div class="pt-timer-bar-bg">
+        <div id="cd-bar" class="pt-timer-bar-fg"></div>
+      </div>
+    </div>
+
+    <!-- Actions -->
+    <div class="pt-actions">
+      <!-- Left Button (Outline) -->
+      <button class="pt-btn pt-btn-sec" onclick="${S.btn1.action}" aria-label="${S.btn1.label.replace(/<br>/g,' ')}">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${S.btn1.icon}</svg>
+        <div class="pt-btn-text">${S.btn1.label}</div>
+        <div style="width:20px"></div> <!-- For exact centering balance -->
+      </button>
+
+      <!-- Right Button (Solid Dark) -->
+      <button class="pt-btn pt-btn-pri" onclick="${S.btn2.action}" aria-label="${S.btn2.label.replace(/<br>/g,' ')}">
+        <div style="width:20px"></div> <!-- For exact centering balance -->
+        <div class="pt-btn-text">${S.btn2.label}</div>
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">${S.btn2.icon}</svg>
+      </button>
+    </div>
+
+    <!-- Footer -->
+    <p class="pt-footer" style="display:flex;align-items:center;justify-content:center;gap:6px;padding-bottom:10px">
+        <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+        Secured by <span style="font-weight:700;color:#7A84A0">OwnPay</span> · 256-bit encryption · 3D Secure 2.0
+    </p>
+  </div>
+  `;
+
+  // Start 5 Seconds Auto-Redirect Countdown
+  let cd = 5;
+  const cdSec = document.getElementById('cd-sec');
+  const cdBar = document.getElementById('cd-bar');
+  
+  if (cdSec && cdBar) {
+    // Force DOM reflow to ensure the transition happens smoothly from 100% to 0%
+    cdBar.getBoundingClientRect();
+    
+    const iv = setInterval(() => {
+      cd--;
+      if (cdSec) cdSec.textContent = cd + 's';
+      if (cdBar) cdBar.style.width = (cd / 5 * 100) + '%';
+      
+      if (cd <= 0) {
+        clearInterval(iv);
+        if(cdSec) cdSec.parentElement.innerHTML = 'Redirecting...';
+        // Simulate Redirect to merchant
+        setTimeout(() => location.reload(), 500);
+      }
+    }, 1000);
+  }
+}
+
+// ===== WRAPPER FUNCTIONS =====
+function showSuccess(txnId) { renderPostPage('success', txnId); }
+function doCancel() { closeMdl('mCancel'); renderPostPage('cancelled', 'N/A'); }
+function showFailed(txnId) { renderPostPage('failed', txnId || 'N/A'); }
+function showPending(txnId) { renderPostPage('pending', txnId || 'N/A'); }
+function showExpired() { renderPostPage('expired', 'N/A'); }
+
+// ===== DOWNLOAD RECEIPT =====
+function downloadReceipt() {
+  const btn = event.currentTarget;
+  const origHTML = btn.innerHTML;
+  btn.innerHTML = '<div style="display:flex;align-items:center;justify-content:center;gap:6px;width:100%"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg><span style="font-size:13px;font-weight:700">Receipt sent to email!</span></div>';
+  btn.style.borderColor = '#0D9488';
+  btn.style.color = '#0D9488';
+  setTimeout(() => { btn.innerHTML = origHTML; btn.style.borderColor = ''; btn.style.color = ''; }, 3000);
+}
+
+// ===== COPY =====
+function doCopy(v){navigator.clipboard.writeText(v).then(()=>{const t=document.getElementById('cToast');if(!t)return;t.textContent='Copied: '+v;t.classList.add('vis');setTimeout(()=>t.classList.remove('vis'),1800)})}
+
+// ===== MODALS =====
+function openMdl(id){document.getElementById(id).classList.add('vis')}
+function closeMdl(id){document.getElementById(id).classList.remove('vis')}
+function closeOut(e,id){if(e.target===document.getElementById(id))closeMdl(id)}
+</script>
+</body>
+</html>

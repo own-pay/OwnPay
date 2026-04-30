@@ -1,33 +1,38 @@
 {
     "name": "own-pay/ownpay",
-    "description": "Own Pay — Enterprise-grade Open-Source Payment Gateway",
+    "description": "Own Pay v0.1.0 — Enterprise-grade Open-Source Payment Gateway",
     "type": "project",
     "license": "AGPL-3.0-or-later",
     "require": {
         "php": "^8.2",
         "ext-bcmath": "*",
         "ext-json": "*",
+        "ext-mbstring": "*",
+        "ext-openssl": "*",
         "ext-pdo": "*",
         "chillerlan/php-qrcode": "^5.0",
         "firebase/php-jwt": "^7.0",
-        "monolog/monolog": "^3.10",
         "ramsey/uuid": "^4.7",
-        "vlucas/phpdotenv": "5.6"
+        "twig/twig": "3.14",
+        "vlucas/phpdotenv": "^5.6"
     },
     "autoload": {
         "psr-4": {
             "OwnPay\\": "src/"
         },
-        "files": [
-            "src/Core/helpers.php"
-        ],
         "exclude-from-classmap": ["src/**/*Test.php"]
+    },
+    "autoload-dev": {
+        "psr-4": {
+            "Tests\\": "tests/"
+        }
     },
     "config": {
         "optimize-autoloader": true,
         "sort-packages": true
     },
     "require-dev": {
+        "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^12.5"
     }
 }

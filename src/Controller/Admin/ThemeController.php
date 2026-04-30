@@ -3,124 +3,109 @@ declare(strict_types=1);
 
 namespace OwnPay\Controller\Admin;
 
-use OwnPay\Http\RequestContext;
-use OwnPay\Service\System\CrudService;
-use OwnPay\Service\System\EnvironmentService;
-use OwnPay\Service\Auth\PermissionGuard;
+use OwnPay\Container;
+use OwnPay\Http\Request;
+use OwnPay\Http\Response;
+use OwnPay\Plugin\PluginLoader;
+use OwnPay\Plugin\PluginManager;
+use OwnPay\Repository\PluginRepository;
+use OwnPay\Repository\SettingsRepository;
 
-class ThemeController
+/**
+ * Theme admin controller — list, activate, customize, uninstall.
+ */
+final class ThemeController
 {
-    public static function handle(string $action, ?RequestContext $ctx = null): void
+    private Container $container;
+    private PluginManager $manager;
+    private PluginRepository $repo;
+    private SettingsRepository $settings;
+
+    public function __construct(
+        Container $container,
+        PluginManager $manager,
+        PluginRepository $repo,
+        SettingsRepository $settings
+    ) {
+        $this->container = $container;
+        $this->manager = $manager;
+        $this->repo = $repo;
+        $this->settings = $settings;
+    }
+
+    public function index(Request $request): Response
     {
-        $ctx ??= $GLOBALS['requestContext'] ?? throw new \RuntimeException('RequestContext not available');
-        $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
-        $new_csrf_token = $ctx->csrfToken;
-        $db_prefix = $ctx->dbPrefix;
-        $global_response_brand = $ctx->brandResponse;
-        $site_url = $ctx->siteUrl;
+        $themes = $this->repo->listByType('theme');
+        $activeTheme = $this->settings->get('appearance', 'active_theme', 'default');
 
-        if ($action == "themes-new-active") {
-            if ($global_user_login == true) {
-                if (PermissionGuard::denyUnlessCanAccess($ctx, 'brand_settings')) { return; }
-
-                if (PermissionGuard::denyUnlessHas($ctx, 'theme_settings', 'edit')) { return; }
-
-                $request = \OwnPay\Http\Request::createFromGlobals();
-
-                $slug = $request->post('slug', '');
-
-                $values = [$slug, getCurrentDatetime('Y-m-d H:i:s')];
-
-                $condition = "id = :id";
-                $whereParams = [':id' => $global_response_brand['response'][0]['id']];
-
-                CrudService::update($db_prefix . 'brands', $columns, $values, $condition, $whereParams);
-
-                echo json_encode(['status' => 'true', 'title' => 'Theme Activated', 'message' => 'The theme has been activated successfully.', 'csrf_token' => $new_csrf_token]);
-            } else {
-                echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
+        // Also discover filesystem themes not yet in DB
+        /** @var PluginLoader $loader */
+        $loader = $this->container->get(PluginLoader::class);
+        $discovered = $loader->discover();
+        foreach ($discovered as $manifest) {
+            if ($manifest->type === 'theme' && !isset($themes[array_search($manifest->slug, array_column($themes, 'slug'))])) {
+                // Filesystem-only theme, not installed in DB yet
             }
         }
 
-        if ($action == "theme-setting-update") {
-            if ($global_user_login == true) {
-                if (PermissionGuard::denyUnlessCanAccess($ctx, 'brand_settings')) { return; }
+        return $this->render('admin/themes/index.twig', [
+            'themes' => $themes,
+            'active_theme' => $activeTheme,
+        ]);
+    }
 
-                if (PermissionGuard::denyUnlessHas($ctx, 'theme_settings', 'edit')) { return; }
-
-                $request = \OwnPay\Http\Request::createFromGlobals();
-
-                $themeSlug = $global_response_brand['response'][0]['theme'];
-                $postData = $request->postAll(false);
-
-                foreach ($postData as $key => $value) {
-                    if (in_array($key, ['action', 'csrf_token']))
-                        continue;
-
-                    $optionName = $themeSlug . '-' . $key;
-
-                    // Multi-select arrays -> JSON
-                    if (is_array($value)) {
-                        $value = json_encode($request->post($key, [])); // sanitize inner array
-                    } else {
-                        $value = $request->post($key); // sanitize string
-                    }
-
-                    // Checkbox unchecked -> 0
-                    if (!isset($postData[$key]) && strpos((string) $key, 'is_') === 0) {
-                        $value = 0;
-                    }
-
-                    EnvironmentService::set($optionName, $value, $global_response_brand['response'][0]['brand_id']);  // save in DB
-                }
-
-                foreach ($_FILES as $key => $file) {
-                    // Skip empty uploads
-                    if (empty($file['name']))
-                        continue;
-
-                    $max_file_size = 5 * 1024 * 1024;
-
-                    $optionName = $themeSlug . '-' . $key;
-
-                    $mediaUpload = json_decode(uploadImage($_FILES[$key] ?? null, $max_file_size), true);
-                    if ($mediaUpload['status'] == true) {
-                        EnvironmentService::set($optionName, $site_url . 'media/storage/' . $mediaUpload['file'], $global_response_brand['response'][0]['brand_id']);
-                    }
-                }
-
-                echo json_encode(['status' => 'true', 'title' => 'Theme Setting Updated', 'message' => 'The theme setting has been updated successfully.', 'csrf_token' => $new_csrf_token]);
-            } else {
-                echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
-            }
+    public function activate(Request $request, string $slug): Response
+    {
+        $plugin = $this->repo->findBySlug($slug);
+        if ($plugin === null) {
+            $_SESSION['flash_error'] = 'Theme not found';
+            return Response::redirect('/admin/themes');
         }
 
-        if (in_array($action, ["transaction-list", "transaction-bulk-action", "transaction-delete", "transaction-ipn", "transaction-verify"])) {
-            \OwnPay\Controller\Admin\TransactionController::handle($action);
-            exit;
+        // Activate plugin if not already
+        if ($plugin['status'] !== 'active') {
+            $this->manager->activate($slug);
         }
 
-        if (in_array($action, ["gateways-bulk-action", "gateway-setting-update", "gateway-setting-create"])) {
-            \OwnPay\Controller\Admin\GatewayController::handle($action);
-            exit;
+        // Set as active theme
+        $this->settings->set('appearance', 'active_theme', $slug);
+
+        $_SESSION['flash_success'] = "Theme '{$plugin['name']}' activated!";
+        return Response::redirect('/admin/themes');
+    }
+
+    public function uninstall(Request $request, string $slug): Response
+    {
+        $activeTheme = $this->settings->get('appearance', 'active_theme', 'default');
+        if ($slug === $activeTheme) {
+            $_SESSION['flash_error'] = 'Cannot uninstall the active theme. Switch to another theme first.';
+            return Response::redirect('/admin/themes');
         }
 
-        if (in_array($action, ["addons-create", "addons-list", "addons-delete", "addons-bulk-action", "addon-setting-update", "addon-configuration-update"])) {
-            \OwnPay\Controller\Admin\AddonController::handle($action, $ctx);
-            exit;
+        $result = $this->manager->uninstall($slug);
+        if ($result['success']) {
+            $_SESSION['flash_success'] = 'Theme removed.';
+        } else {
+            $_SESSION['flash_error'] = $result['error'] ?? 'Failed to remove theme';
         }
 
-        if (in_array($action, ["customer-list", "customers-create", "customers-bulk-action", "customers-delete", "customers-info-byID", "customers-edit"])) {
-            \OwnPay\Controller\Admin\CustomerController::handle($action);
-            exit;
-        }
+        return Response::redirect('/admin/themes');
+    }
 
-        if (in_array($action, ["invoice-list", "invoice-create", "invoice-edit", "invoice-manageStatus", "invoice-bulk-action", "invoice-delete"])) {
-            \OwnPay\Controller\Admin\InvoiceController::handle($action);
-            exit;
-        }
+    public function customize(Request $request, string $slug): Response
+    {
+        // Redirect to plugin settings page (themes use same settings system)
+        return Response::redirect("/admin/plugins/{$slug}/settings");
+    }
 
+    private function render(string $template, array $data = []): Response
+    {
+        /** @var \Twig\Environment $twig */
+        $twig = $this->container->get(\Twig\Environment::class);
+        $data['app_name'] = $this->container->get('config.app')['name'] ?? 'Own Pay';
+        $data['flash_success'] = $_SESSION['flash_success'] ?? null;
+        $data['flash_error'] = $_SESSION['flash_error'] ?? null;
+        unset($_SESSION['flash_success'], $_SESSION['flash_error']);
+        return Response::html($twig->render($template, $data));
     }
 }

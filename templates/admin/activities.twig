@@ -1,0 +1,30 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Activity Log — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header"><h1>Activity Log</h1></div>
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <table class="op-table">
+            <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>IP</th></tr></thead>
+            <tbody>
+                {% for log in activities %}
+                <tr>
+                    <td class="op-text-sm">{{ log.created_at }}</td>
+                    <td>{{ log.user_name ?? 'System' }}</td>
+                    <td><span class="op-badge op-badge-outline">{{ log.action }}</span></td>
+                    <td>{{ log.entity_type ?? '' }} <code>{{ log.entity_id ?? '' }}</code></td>
+                    <td class="op-text-sm"><code>{{ log.ip_address ?? '—' }}</code></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% if pagination.total_pages > 1 %}
+<nav class="op-pagination">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

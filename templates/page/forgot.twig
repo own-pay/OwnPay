@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forgot Password — {{ app_name ?? 'Own Pay' }}</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/auth.css">
+</head>
+<body class="op-auth-page">
+    <div class="op-auth-container">
+        <div class="op-auth-card">
+            <div class="op-auth-header">
+                <div class="op-logo"><span class="op-logo-icon">OP</span></div>
+                <h1>Reset Password</h1>
+                <p>Enter your email to receive a reset link.</p>
+            </div>
+
+            {% if success %}
+            <div class="op-alert op-alert-success">{{ success }}</div>
+            {% endif %}
+            {% if error %}
+            <div class="op-alert op-alert-danger">{{ error }}</div>
+            {% endif %}
+
+            <form method="POST" action="/forgot-password" class="op-form">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <div class="op-form-group">
+                    <label for="email">Email</label>
+                    <input type="email" id="email" name="email" class="op-input" required autofocus>
+                </div>
+                <button type="submit" class="op-btn op-btn-primary op-btn-lg op-btn-block">Send Reset Link</button>
+            </form>
+
+            <div class="op-auth-footer">
+                <a href="/login" class="op-link">← Back to Login</a>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

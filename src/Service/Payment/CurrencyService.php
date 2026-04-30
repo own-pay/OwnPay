@@ -3,85 +3,123 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\Payment;
 
-class CurrencyService
+/**
+ * Currency service — conversion, formatting, exchange rates.
+ *
+ * All amounts stored as DECIMAL(18,2) strings using bcmath.
+ */
+final class CurrencyService
 {
-    public static function moneyToInt(string $amount, int $decimals = 2): int
+    /** @var array<string, array{rate: string, symbol: string, decimals: int}> */
+    private array $currencies = [];
+    private string $baseCurrency = 'USD';
+
+    public function __construct(private readonly \OwnPay\Core\Database $db)
     {
-        $amount = self::money_sanitize($amount);
-        $multiplier = bcpow("10", (string) $decimals);
-        return (int) bcmul($amount, $multiplier, 0);
+        $this->loadCurrencies();
     }
 
-    public static function intToMoney(int $amount, int $decimals = 2): string
+    /**
+     * Convert amount between currencies.
+     */
+    public function convert(string $amount, string $from, string $to): string
     {
-        $divisor = bcpow("10", (string) $decimals);
-        return bcdiv((string) $amount, $divisor, $decimals);
-    }
-
-    public static function money_sanitize(string|int|float|null $value): string
-    {
-        if (is_numeric($value)) {
-            return (string) $value;
+        if ($from === $to) {
+            return $amount;
         }
-        return "0";
-    }
 
-    public static function money_add($a, $b, int $scale = 8): string
-    {
-        $a = self::money_sanitize($a);
-        $b = self::money_sanitize($b);
-        return bcadd($a, $b, $scale);
-    }
+        $fromRate = $this->getRate($from);
+        $toRate = $this->getRate($to);
 
-    public static function money_sub($a, $b, int $scale = 8): string
-    {
-        $a = self::money_sanitize($a);
-        $b = self::money_sanitize($b);
-        return bcsub($a, $b, $scale);
-    }
-
-    public static function money_mul($a, $b, int $scale = 8): string
-    {
-        $a = self::money_sanitize($a);
-        $b = self::money_sanitize($b);
-        return bcmul($a, $b, $scale);
-    }
-
-    public static function money_div($a, $b, int $scale = 8): string
-    {
-        $a = self::money_sanitize($a);
-        $b = self::money_sanitize($b);
-        if (bccomp($b, '0', $scale) === 0) {
-            return "0";
+        if ($fromRate === '0' || $toRate === '0') {
+            throw new \RuntimeException("Exchange rate not available for {$from}/{$to}");
         }
-        return bcdiv($a, $b, $scale);
+
+        // Convert to base, then to target
+        $baseAmount = bcdiv($amount, $fromRate, 8);
+        return bcmul($baseAmount, $toRate, $this->getDecimals($to));
     }
 
-    public static function money_round($amount, int $decimals = 2): string
+    /**
+     * Format amount with currency symbol.
+     */
+    public function format(string $amount, string $currency): string
     {
-        $amount = self::money_sanitize($amount);
-        $factor = bcpow('10', (string) ($decimals + 1));
-        $tmp = bcmul($amount, $factor, 0);
-        $tmp = bcdiv($tmp, '10', 0);
-        return bcdiv($tmp, bcpow('10', (string) $decimals), $decimals);
+        $symbol = $this->getSymbol($currency);
+        $decimals = $this->getDecimals($currency);
+        $formatted = number_format((float) $amount, $decimals, '.', ',');
+        return $symbol . $formatted;
     }
 
-    public static function verifyPaymentTolerance(string $checkout, string $paid, string $tolerance): bool
+    /**
+     * Get exchange rate to base currency.
+     */
+    public function getRate(string $currency): string
     {
-        $checkout = self::money_round($checkout);
-        $paid = self::money_round($paid);
-        $tolerance = self::money_round($tolerance);
+        return $this->currencies[$currency]['rate'] ?? '0';
+    }
 
-        if (bccomp($checkout, "0", 8) <= 0 || bccomp($paid, "0", 8) <= 0) {
+    public function getSymbol(string $currency): string
+    {
+        return $this->currencies[$currency]['symbol'] ?? $currency . ' ';
+    }
+
+    public function getDecimals(string $currency): int
+    {
+        return $this->currencies[$currency]['decimals'] ?? 2;
+    }
+
+    /**
+     * Get all supported currencies.
+     * @return string[]
+     */
+    public function supported(): array
+    {
+        return array_keys($this->currencies);
+    }
+
+    /**
+     * Validate amount is positive and has correct precision.
+     */
+    public function validateAmount(string $amount, string $currency): bool
+    {
+        if (!is_numeric($amount)) {
             return false;
         }
+        if (bccomp($amount, '0', 8) <= 0) {
+            return false;
+        }
+        // Check decimal places
+        $parts = explode('.', $amount);
+        if (isset($parts[1]) && strlen($parts[1]) > $this->getDecimals($currency)) {
+            return false;
+        }
+        return true;
+    }
 
-        // max allowed = checkout + tolerance
-        $maxAllowed = self::money_add($checkout, $tolerance);
+    private function loadCurrencies(): void
+    {
+        $rows = $this->db->fetchAll("SELECT code, symbol, decimals FROM op_currencies WHERE status = 'active'");
+        $rates = $this->db->fetchAll("SELECT from_currency, to_currency, rate FROM op_exchange_rates");
 
-        return (
-            bccomp($paid, $checkout, 8) >= 0 &&
-            bccomp($paid, $maxAllowed, 8) <= 0
-        );
+        foreach ($rows as $row) {
+            $this->currencies[$row['code']] = [
+                'rate' => '1.00000000', // Default
+                'symbol' => $row['symbol'],
+                'decimals' => (int) $row['decimals'],
+            ];
+        }
+
+        // Apply exchange rates
+        foreach ($rates as $rate) {
+            if ($rate['from_currency'] === $this->baseCurrency && isset($this->currencies[$rate['to_currency']])) {
+                $this->currencies[$rate['to_currency']]['rate'] = $rate['rate'];
+            }
+        }
+
+        // Base currency always rate 1
+        if (isset($this->currencies[$this->baseCurrency])) {
+            $this->currencies[$this->baseCurrency]['rate'] = '1.00000000';
+        }
     }
 }

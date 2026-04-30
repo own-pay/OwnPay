@@ -1,0 +1,42 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Customers — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Customers</h1>
+    <div class="op-header-actions">
+        <form method="GET" class="op-filter-bar">
+            <input type="search" name="q" value="{{ filters.q ?? '' }}" placeholder="Search name/email/phone..." class="op-input op-input-sm">
+            <button type="submit" class="op-btn op-btn-sm op-btn-primary">Search</button>
+        </form>
+    </div>
+</div>
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <table class="op-table">
+            <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Phone</th><th>Transactions</th><th>Total Spent</th><th>Joined</th></tr></thead>
+            <tbody>
+                {% for c in customers %}
+                <tr>
+                    <td><code>{{ c.id }}</code></td>
+                    <td><strong>{{ c.name }}</strong></td>
+                    <td>{{ c.email ?? '—' }}</td>
+                    <td>{{ c.phone ?? '—' }}</td>
+                    <td>{{ c.txn_count ?? 0 }}</td>
+                    <td>{{ c.currency ?? 'BDT' }} {{ c.total_spent ?? '0.00' }}</td>
+                    <td>{{ c.created_at|date("M d, Y") }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="op-text-center">No customers found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% if pagination.total_pages > 1 %}
+<nav class="op-pagination">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

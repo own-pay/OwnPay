@@ -1,241 +1,113 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Gateway;
 
-use OwnPay\Core\Database;
-use OwnPay\Service\Payment\PaymentService;
-use OwnPay\Service\Payment\LedgerService;
-use OwnPay\Service\System\AuditLogger;
-use OwnPay\Repository\TransactionRepository;
+use OwnPay\Event\EventManager;
 use OwnPay\Repository\GatewayConfigRepository;
+use OwnPay\Security\FieldEncryptor;
 
 /**
- * GatewayBridge — translates transaction events into
- * the unified service layer.
+ * Gateway bridge — routes payment operations to correct adapter.
  *
- * When a gateway callback updates the transaction,
- * this bridge syncs the event through PaymentService.
- *
- * Usage:
- *   $bridge = new GatewayBridge();
- *   $bridge->syncTransactionCreated($txnRow);
- *   $bridge->syncStatusChange($reference, 'completed', $gatewayResponse);
+ * Fires: gateway.capture.before (filter), gateway.capture.after (action)
  */
 final class GatewayBridge
 {
-    /**
-     * Legacy status → new FSM status mapping.
-     */
-    private const STATUS_MAP = [
-        'initiated' => 'initiated',
-        'pending' => 'pending',
-        'completed' => 'completed',
-        'cancelled' => 'canceled',
-        'canceled' => 'canceled',
-        'failed' => 'failed',
-        'refunded' => 'refunded',
-        'expired' => 'failed',
-        // Legacy statuses that don't map cleanly
-        'processing' => 'pending',
-        'waiting' => 'pending',
-    ];
+    private GatewayConfigRepository $configs;
+    private FieldEncryptor $encryptor;
+    private EventManager $events;
 
-    private Database $db;
-    private PaymentService $paymentService;
-    private TransactionRepository $transactions;
-    private GatewayConfigRepository $gatewayConfigs;
-    private LedgerService $ledger;
-    private AuditLogger $audit;
+    /** @var array<string, GatewayAdapterInterface> */
+    private array $adapters = [];
 
     public function __construct(
-        ?Database $db = null,
-        ?PaymentService $paymentService = null,
-        ?TransactionRepository $transactions = null,
-        ?GatewayConfigRepository $gatewayConfigs = null,
-        ?LedgerService $ledger = null,
-        ?AuditLogger $audit = null
+        GatewayConfigRepository $configs,
+        FieldEncryptor $encryptor,
+        EventManager $events
     ) {
-        $this->db = $db ?? Database::getInstance();
-        $this->paymentService = $paymentService ?? new PaymentService();
-        $this->transactions = $transactions ?? new TransactionRepository();
-        $this->gatewayConfigs = $gatewayConfigs ?? new GatewayConfigRepository();
-        $this->ledger = $ledger ?? new LedgerService();
-        $this->audit = $audit ?? new AuditLogger();
+        $this->configs = $configs;
+        $this->encryptor = $encryptor;
+        $this->events = $events;
     }
 
     /**
-     * Map a legacy status string to the new FSM status.
+     * Register gateway adapter.
      */
-    public function mapStatus(string $legacyStatus): string
+    public function registerAdapter(GatewayAdapterInterface $adapter): void
     {
-        $normalized = strtolower(trim($legacyStatus));
-        return self::STATUS_MAP[$normalized] ?? 'pending';
+        $this->adapters[$adapter->slug()] = $adapter;
     }
 
     /**
-     * Sync a newly created legacy transaction into op_transactions.
-     *
-     * Call this after a legacy INSERT into op_transaction succeeds.
-     *
-     * @param array $legacyTxn The legacy op_transaction row
-     * @return array|null The new op_transactions row, or null on failure
+     * Initiate payment via gateway.
      */
-    public function syncTransactionCreated(array $legacyTxn): ?array
+    public function initiate(string $gatewaySlug, int $merchantId, array $params): array
     {
-        try {
-            $merchantId = (int) ($legacyTxn['brand_id'] ?? 0);
-            $amount = $legacyTxn['amount'] ?? '0.0000';
-            $currency = $legacyTxn['currency'] ?? 'BDT';
-            $reference = $legacyTxn['ref'] ?? '';
+        $adapter = $this->resolveAdapter($gatewaySlug);
+        $credentials = $this->decryptCredentials($gatewaySlug, $merchantId);
 
-            if ($merchantId === 0 || $reference === '') {
-                error_log("[GatewayBridge] Cannot sync: missing brand_id or ref");
-                return null;
-            }
+        // Pre-capture filter
+        $params = $this->events->applyFilter('gateway.capture.before', $params, $gatewaySlug, $merchantId);
 
-            // Check if already synced (idempotent)
-            $existing = $this->transactions->findByReference($reference);
-            if ($existing !== null) {
-                return $existing;
-            }
+        $result = $adapter->initiate($params, $credentials);
 
-            // Parse customer info
-            $customerInfo = [];
-            if (!empty($legacyTxn['customer_info'])) {
-                $customerInfo = json_decode($legacyTxn['customer_info'], true) ?: [];
-            }
+        $this->events->doAction('gateway.capture.after', $gatewaySlug, $result, $params);
 
-            // Create payment intent + transaction via PaymentService
-            $intent = $this->paymentService->createIntent(
-                $merchantId,
-                number_format((float) $amount, 4, '.', ''),
-                $currency,
-                $customerInfo,
-                json_decode($legacyTxn['metadata'] ?? '{}', true) ?: []
-            );
+        return $result;
+    }
 
-            // Determine gateway config
-            $gatewayConfigId = 0;
-            if (!empty($legacyTxn['gateway_id'])) {
-                $config = $this->gatewayConfigs->findByGatewayId(
-                    $legacyTxn['gateway_id'],
-                    $merchantId
-                );
-                $gatewayConfigId = $config ? (int) $config['id'] : 0;
-            }
+    /**
+     * Verify payment callback.
+     */
+    public function verify(string $gatewaySlug, int $merchantId, array $callbackData): array
+    {
+        $adapter = $this->resolveAdapter($gatewaySlug);
+        $credentials = $this->decryptCredentials($gatewaySlug, $merchantId);
 
-            // Map the legacy status
-            $newStatus = $this->mapStatus($legacyTxn['status'] ?? 'initiated');
+        return $adapter->verify($callbackData, $credentials);
+    }
 
-            // Process payment through service
-            $txn = $this->paymentService->processPayment(
-                (int) $intent['id'],
-                $gatewayConfigId,
-                $newStatus,
-                [
-                    'legacy_ref' => $reference,
-                    'legacy_trx_id' => $legacyTxn['trx_id'] ?? '',
-                    'sender' => $legacyTxn['sender'] ?? '',
-                    'sender_type' => $legacyTxn['sender_type'] ?? '',
-                ]
-            );
+    /**
+     * Process refund via gateway.
+     */
+    public function refund(string $gatewaySlug, int $merchantId, string $gatewayTrxId, string $amount): array
+    {
+        $adapter = $this->resolveAdapter($gatewaySlug);
+        $credentials = $this->decryptCredentials($gatewaySlug, $merchantId);
 
-            $this->audit->log(
-                $merchantId,
-                'legacy_bridge.synced',
-                'transaction',
-                $txn['public_id'],
-                'system',
-                'legacy_bridge',
-                null,
-                ['legacy_ref' => $reference]
-            );
+        return $adapter->refund($gatewayTrxId, $amount, $credentials);
+    }
 
-            return $txn;
-        } catch (\Throwable $e) {
-            error_log("[GatewayBridge] syncTransactionCreated failed: " . $e->getMessage());
-            return null;
+    private function resolveAdapter(string $slug): GatewayAdapterInterface
+    {
+        if (!isset($this->adapters[$slug])) {
+            throw new \RuntimeException("Gateway adapter not found: {$slug}");
         }
+        return $this->adapters[$slug];
     }
 
     /**
-     * Sync a legacy status change to the new op_transactions FSM.
-     *
-     * Call this after a legacy UPDATE to op_transaction.status succeeds.
-     *
-     * @param string $reference       Legacy op_transaction.ref
-     * @param string $legacyStatus    New legacy status
-     * @param array  $gatewayResponse Gateway callback data
-     * @return array|null Updated op_transactions row, or null
+     * Decrypt gateway credentials from DB.
+     * @return array<string, string>
      */
-    public function syncStatusChange(
-        string $reference,
-        string $legacyStatus,
-        array $gatewayResponse = []
-    ): ?array {
-        try {
-            $txn = $this->transactions->findByReference($reference);
-            if ($txn === null) {
-                error_log("[GatewayBridge] syncStatusChange: ref '{$reference}' not found in op_transactions");
-                return null;
-            }
-
-            $newStatus = $this->mapStatus($legacyStatus);
-
-            // Skip if already in this state
-            if ($txn['status'] === $newStatus) {
-                return $txn;
-            }
-
-            // Transition through the state machine
-            $updated = $this->paymentService->transitionStatus(
-                (int) $txn['id'],
-                $newStatus
-            );
-
-            return $updated;
-        } catch (\Throwable $e) {
-            error_log("[LegacyBridge] syncStatusChange failed for ref '{$reference}': " . $e->getMessage());
-            return null;
-        }
-    }
-
-    /**
-     * Batch sync all legacy completed transactions that haven't been bridged yet.
-     *
-     * Useful for initial migration or catch-up.
-     *
-     * @param int $limit Max rows to process per batch
-     * @return int Number of rows synced
-     */
-    public function batchSync(int $limit = 100): int
+    private function decryptCredentials(string $gatewaySlug, int $merchantId): array
     {
-        // Database::execute() with emulate_prepares=false requires typed bind for LIMIT,
-        // so we use getPdo() for bindValue with explicit PDO::PARAM_INT on the LIMIT param.
-        $pdo = $this->db->getPdo();
+        $config = $this->configs->forTenant($merchantId);
 
-        // Find legacy transactions not yet synced
-        $stmt = $pdo->prepare("
-            SELECT pt.*
-            FROM op_transaction pt
-            LEFT JOIN op_transactions at2 ON at2.reference = pt.ref
-            WHERE at2.id IS NULL
-            ORDER BY pt.id ASC
-            LIMIT :lim
-        ");
-        $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
-        $stmt->execute();
-        $rows = $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        // Find gateway config by slug via JOIN
+        $row = $this->configs->getDb()->fetchOne(
+            "SELECT gc.credentials_enc FROM op_gateway_configs gc
+             JOIN op_gateways g ON g.id = gc.gateway_id
+             WHERE g.slug = :slug AND gc.merchant_id = :mid AND gc.status = 'active' LIMIT 1",
+            ['slug' => $gatewaySlug, 'mid' => $merchantId]
+        );
 
-        $synced = 0;
-        foreach ($rows as $row) {
-            if ($this->syncTransactionCreated($row) !== null) {
-                $synced++;
-            }
+        if ($row === null || empty($row['credentials_enc'])) {
+            return [];
         }
 
-        return $synced;
+        $decrypted = $this->encryptor->decrypt($row['credentials_enc']);
+        return json_decode($decrypted, true) ?: [];
     }
 }

@@ -1,85 +1,81 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Service\System;
 
+/**
+ * Pagination service — offset-based pagination with page metadata.
+ */
 final class PaginationService
 {
     /**
-     * Calculate pagination parameters from request values.
+     * Calculate pagination metadata.
      *
-     * @param  string|int $rawPage      The raw page value from the request (e.g. $request->post('page', '1'))
-     * @param  string|int $rawShowLimit The raw show_limit value from the request (e.g. $request->post('show_limit'))
-     * @param  int        $fallback     Fallback per-page value when show_limit is empty (default 999999)
-     * @return array{page: int, perPage: int, offset: int, isAll: bool}
+     * @return array{page: int, per_page: int, total: int, total_pages: int, offset: int, has_next: bool, has_prev: bool}
      */
-    public static function resolve($rawPage = '1', $rawShowLimit = '', int $fallback = 999999): array
+    public static function calculate(int $page, int $perPage, int $total): array
     {
-        $page    = max(1, (int) $rawPage);
-        $isAll   = ($rawShowLimit === 'all');
-        $perPage = ($rawShowLimit === '' || $rawShowLimit === null)
-            ? $fallback
-            : ($isAll ? $fallback : (int) $rawShowLimit);
-        $offset  = ($page - 1) * $perPage;
+        $page = max(1, $page);
+        $perPage = max(1, min($perPage, 200)); // Cap at 200
+        $totalPages = $total > 0 ? (int) ceil($total / $perPage) : 1;
+        $page = min($page, $totalPages);
+        $offset = ($page - 1) * $perPage;
 
         return [
-            'page'    => $page,
-            'perPage' => $perPage,
-            'offset'  => $offset,
-            'isAll'   => $isAll,
+            'page'        => $page,
+            'per_page'    => $perPage,
+            'total'       => $total,
+            'total_pages' => $totalPages,
+            'offset'      => $offset,
+            'has_next'    => $page < $totalPages,
+            'has_prev'    => $page > 1,
         ];
     }
 
     /**
-     * Build pagination HTML and datatable info string.
-     *
-     * Returns the exact same markup the controllers previously rendered inline:
-     * prev/next SVG buttons, numbered page buttons, and a "Showing X to Y of Z entries" line.
-     *
-     * @return array{pagination: string, datatableInfo: string}
+     * Generate page URL.
      */
-    public static function render(int $currentPage, int $totalRecords, int $perPage, int $offset): array
+    public static function pageUrl(string $baseUrl, int $page, array $params = []): string
     {
-        $totalPages = (int) ceil($totalRecords / max(1, $perPage));
+        $params['page'] = $page;
+        return $baseUrl . '?' . http_build_query($params);
+    }
 
-        $pagination = '<ul class="pagination m-0 ms-auto">';
-
-        // Prev button
-        $pagination .= '<li class="page-item' . ($currentPage <= 1 ? ' disabled' : '') . '">
-                        <button class="page-link" ' . ($currentPage > 1 ? 'data-page="' . ($currentPage - 1) . '"' : '') . '>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                <path d="M15 6l-6 6l6 6"></path>
-                            </svg>
-                        </button>
-                    </li>';
-
-        // Page numbers
-        for ($i = 1; $i <= $totalPages; $i++) {
-            $pagination .= '<li class="page-item' . ($i == $currentPage ? ' active' : '') . '">
-                            <button class="page-link" data-page="' . $i . '">' . $i . '</button>
-                        </li>';
+    /**
+     * Generate page range for UI rendering (e.g. [1,2,3,...,8,9,10]).
+     * @return int[]
+     */
+    public static function pageRange(int $currentPage, int $totalPages, int $window = 2): array
+    {
+        if ($totalPages <= 1) {
+            return [1];
         }
 
-        // Next button
-        $pagination .= '<li class="page-item' . ($currentPage >= $totalPages ? ' disabled' : '') . '">
-                        <button class="page-link" ' . ($currentPage < $totalPages ? 'data-page="' . ($currentPage + 1) . '"' : '') . '>
-                            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="icon icon-1">
-                                <path d="M9 6l6 6l-6 6"></path>
-                            </svg>
-                        </button>
-                    </li>';
+        $range = [];
 
-        $pagination .= '</ul>';
+        // Always include first page
+        $range[] = 1;
 
-        $start = ($offset + 1);
-        $end   = min($offset + $perPage, $totalRecords);
+        $start = max(2, $currentPage - $window);
+        $end = min($totalPages - 1, $currentPage + $window);
 
-        $datatableInfo = "Showing <strong>$start to $end</strong> of <strong>$totalRecords entries</strong>";
+        if ($start > 2) {
+            $range[] = -1; // Ellipsis marker
+        }
 
-        return [
-            'pagination'    => $pagination,
-            'datatableInfo' => $datatableInfo,
-        ];
+        for ($i = $start; $i <= $end; $i++) {
+            $range[] = $i;
+        }
+
+        if ($end < $totalPages - 1) {
+            $range[] = -1; // Ellipsis marker
+        }
+
+        // Always include last page
+        if ($totalPages > 1) {
+            $range[] = $totalPages;
+        }
+
+        return $range;
     }
 }

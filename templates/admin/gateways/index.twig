@@ -1,0 +1,128 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Gateways — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <h1>Payment Gateways</h1>
+    <div class="op-header-actions">
+        <a href="/admin/gateways/create-manual" class="op-btn op-btn-primary">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Add Manual Gateway
+        </a>
+    </div>
+</div>
+
+{% if flash_success %}
+<div class="op-alert op-alert-success">{{ flash_success }}</div>
+{% endif %}
+{% if flash_error %}
+<div class="op-alert op-alert-danger">{{ flash_error }}</div>
+{% endif %}
+
+{# --- API Gateways (Plugin-based) --- #}
+<div class="op-card op-mb-4">
+    <div class="op-card-header">
+        <h3>API Gateways</h3>
+        <span class="op-badge op-badge-info">{{ api_gateways|length }} installed</span>
+    </div>
+    <div class="op-card-body">
+        {% if api_gateways|length == 0 %}
+            <div class="op-empty-state">
+                <p>No API gateways installed. Install gateway plugins from the <a href="/admin/plugins">Plugin Store</a>.</p>
+            </div>
+        {% else %}
+            <div class="op-gateway-grid">
+                {% for gw in api_gateways %}
+                <div class="op-gateway-card {{ gw.status == 'active' ? 'op-gateway-active' : 'op-gateway-inactive' }}">
+                    <div class="op-gateway-logo">
+                        {% if gw.logo %}
+                            <img src="{{ gw.logo }}" alt="{{ gw.name }}" loading="lazy">
+                        {% else %}
+                            <div class="op-gateway-icon">{{ gw.name[0:2]|upper }}</div>
+                        {% endif %}
+                    </div>
+                    <div class="op-gateway-info">
+                        <h4>{{ gw.name }}</h4>
+                        <span class="op-badge {{ gw.status == 'active' ? 'op-badge-success' : 'op-badge-muted' }}">
+                            {{ gw.status }}
+                        </span>
+                        {% if gw.mode is defined %}
+                            <span class="op-badge op-badge-{{ gw.mode == 'live' ? 'primary' : 'warning' }}">{{ gw.mode }}</span>
+                        {% endif %}
+                    </div>
+                    <div class="op-gateway-actions">
+                        <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+{# --- Manual Gateways --- #}
+<div class="op-card">
+    <div class="op-card-header">
+        <h3>Manual Gateways</h3>
+        <span class="op-badge op-badge-info">{{ manual_gateways|length }} configured</span>
+    </div>
+    <div class="op-card-body">
+        {% if manual_gateways|length == 0 %}
+            <div class="op-empty-state">
+                <p>No manual gateways configured. <a href="/admin/gateways/create-manual">Create one</a>.</p>
+            </div>
+        {% else %}
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>Gateway</th>
+                        <th>Slug</th>
+                        <th>SMS Verify</th>
+                        <th>Min/Max</th>
+                        <th>Status</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mg in manual_gateways %}
+                    <tr>
+                        <td>
+                            <div class="op-flex op-items-center op-gap-2">
+                                {% if mg.logo_path %}
+                                    <img src="{{ mg.logo_path }}" alt="" width="32" height="32" class="op-rounded">
+                                {% endif %}
+                                <strong>{{ mg.name }}</strong>
+                            </div>
+                        </td>
+                        <td><code>{{ mg.slug }}</code></td>
+                        <td>
+                            <span class="op-badge {{ mg.sms_verification ? 'op-badge-success' : 'op-badge-muted' }}">
+                                {{ mg.sms_verification ? 'ON' : 'OFF' }}
+                            </span>
+                        </td>
+                        <td>{{ mg.min_amount ?? '—' }} / {{ mg.max_amount ?? '—' }}</td>
+                        <td>
+                            <span class="op-badge {{ mg.status == 'active' ? 'op-badge-success' : 'op-badge-muted' }}">
+                                {{ mg.status }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="op-btn-group">
+                                <a href="/admin/gateways/{{ mg.id }}/edit" class="op-btn op-btn-sm op-btn-outline">Edit</a>
+                                <form method="POST" action="/admin/gateways/{{ mg.id }}/toggle" class="op-inline">
+                                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-sm {{ mg.status == 'active' ? 'op-btn-warning' : 'op-btn-success' }}">
+                                        {{ mg.status == 'active' ? 'Disable' : 'Enable' }}
+                                    </button>
+                                </form>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

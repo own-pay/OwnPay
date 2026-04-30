@@ -1,111 +1,73 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Cron;
 
-use OwnPay\Service\System\CrudService;
-use OwnPay\Service\System\DateTimeService;
-use OwnPay\Service\System\EnvironmentService;
-use OwnPay\Service\Notification\NotificationService;
+use OwnPay\Service\Payment\WebhookService;
 
 /**
- * WebhookRetryJob — retry pending outbound webhook deliveries.
+ * Webhook retry job — retries failed webhook deliveries.
  *
- * Processes up to {@see self::BATCH_SIZE} pending webhook_log rows whose
- * attempt count is still below the configured limit. Each job is sent via
- * {@see NotificationService::sendIPNMulti()} and the row is marked as
- * completed (HTTP 200), canceled (attempts exhausted), or pending (retry
- * next cycle).
- *
- * Previously embedded in index.php (~35 lines).
+ * Exponential backoff: 1min, 5min, 30min, 2h, 12h (max 5 attempts).
  */
 final class WebhookRetryJob
 {
-    private const BATCH_SIZE = 15;
-    private const SUCCESS_HTTP_CODE = 200;
+    private WebhookService $webhookService;
+    private \OwnPay\Core\Database $db;
 
-    private string $dbPrefix;
+    private const MAX_RETRIES = 5;
+    private const BACKOFF_SECONDS = [60, 300, 1800, 7200, 43200];
 
-    public function __construct(?string $dbPrefix = null)
+    public function __construct(WebhookService $webhookService, \OwnPay\Core\Database $db)
     {
-        $this->dbPrefix = $dbPrefix ?? ($_ENV['DB_PREFIX'] ?? $_SERVER['DB_PREFIX'] ?? 'op_');
+        $this->webhookService = $webhookService;
+        $this->db = $db;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function run(): array
     {
-        $limitRaw = EnvironmentService::get('geneal-application-settings-webhook_attempts_limit');
-        $limit = empty($limitRaw) ? 1 : (int) $limitRaw;
-
-        $pending = CrudService::select(
-            $this->dbPrefix . 'webhook_log',
-            'WHERE status = :status AND attempts < :limit ORDER BY id ASC LIMIT ' . self::BATCH_SIZE,
-            '* FROM',
-            [':status' => 'pending', ':limit' => $limit]
+        $failedDeliveries = $this->db->fetchAll(
+            "SELECT cl.*, we.url, we.secret, we.merchant_id
+             FROM op_comm_log cl
+             JOIN op_webhook_endpoints we ON we.id = cl.entity_id
+             WHERE cl.channel = 'webhook'
+               AND cl.status = 'failed'
+               AND cl.retry_count < :max_retries
+               AND cl.next_retry_at <= NOW()
+             ORDER BY cl.created_at ASC
+             LIMIT 50",
+            ['max_retries' => self::MAX_RETRIES]
         );
 
-        if ($pending['status'] !== true || empty($pending['response'])) {
-            return ['retried' => 0, 'limit' => $limit];
-        }
+        $retried = 0;
+        $succeeded = 0;
 
-        $now = DateTimeService::getCurrentDatetime('Y-m-d H:i:s');
-        $jobs = [];
+        foreach ($failedDeliveries as $delivery) {
+            $retryCount = (int) ($delivery['retry_count'] ?? 0);
 
-        foreach ($pending['response'] as $row) {
-            CrudService::update(
-                $this->dbPrefix . 'webhook_log',
-                ['attempts', 'updated_date'],
-                [(int) $row['attempts'] + 1, $now],
-                'id = :where_id',
-                [':where_id' => $row['id']]
-            );
-
-            $jobs[] = [
-                'id' => $row['id'],
-                'url' => $row['url'],
-                'payload' => json_decode($row['payload'], true),
-                'attempts' => (int) $row['attempts'] + 1,
+            $webhook = [
+                'url'         => $delivery['url'],
+                'secret'      => $delivery['secret'],
+                'merchant_id' => $delivery['merchant_id'],
             ];
-        }
 
-        $results = NotificationService::sendIPNMulti($jobs);
+            $eventData = json_decode($delivery['content'] ?? '{}', true) ?: [];
+            $success = $this->webhookService->deliver($webhook, $delivery['event_type'] ?? '', $eventData);
 
-        $completed = 0;
-        $canceled = 0;
-        $stillPending = 0;
-
-        foreach ($jobs as $job) {
-            $code = (int) ($results[$job['id']] ?? 0);
-            $status = ($code === self::SUCCESS_HTTP_CODE) ? 'completed' : 'pending';
-
-            if ($job['attempts'] >= $limit && $code !== self::SUCCESS_HTTP_CODE) {
-                $status = 'canceled';
+            if ($success) {
+                $succeeded++;
+            } else {
+                // Schedule next retry with backoff
+                $nextBackoff = self::BACKOFF_SECONDS[$retryCount] ?? end(self::BACKOFF_SECONDS);
+                $this->db->update(
+                    "UPDATE op_comm_log SET retry_count = :rc, next_retry_at = DATE_ADD(NOW(), INTERVAL :secs SECOND) WHERE id = :id",
+                    ['rc' => $retryCount + 1, 'secs' => $nextBackoff, 'id' => $delivery['id']]
+                );
             }
 
-            CrudService::update(
-                $this->dbPrefix . 'webhook_log',
-                ['status', 'http_code', 'updated_date'],
-                [$status, $code, $now],
-                'id = :where_id',
-                [':where_id' => $job['id']]
-            );
-
-            match ($status) {
-                'completed' => $completed++,
-                'canceled' => $canceled++,
-                default => $stillPending++,
-            };
+            $retried++;
         }
 
-        return [
-            'retried' => count($jobs),
-            'completed' => $completed,
-            'canceled' => $canceled,
-            'still_pending' => $stillPending,
-            'limit' => $limit,
-        ];
+        return ['retried' => $retried, 'succeeded' => $succeeded];
     }
 }

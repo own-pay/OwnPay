@@ -1,0 +1,26 @@
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="robots" content="noindex,nofollow"><title>Setup · Own Pay</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="/assets/css/installer.css">
+</head><body>
+<header class="ins-header"><div class="ins-brand"><span class="ins-mark">OP</span><span class="ins-name">Own Pay <span>Setup</span></span></div><span class="ins-badge">Step <?= $step ?>/4</span></header>
+<main class="ins-main"><div class="ins-card">
+<h1>Server Requirements</h1>
+<p class="ins-sub">Checking your server meets the minimum requirements.</p>
+<div class="ins-req-list">
+<?php $allOk = true; foreach ($requirements as $r): $allOk = $allOk && $r['ok']; ?>
+<div class="ins-req <?= $r['ok'] ? 'ins-req-ok' : 'ins-req-fail' ?>">
+    <span class="ins-req-icon"><?= $r['ok'] ? '✓' : '✗' ?></span>
+    <span class="ins-req-name"><?= htmlspecialchars($r['name']) ?></span>
+    <span class="ins-req-val"><?= htmlspecialchars($r['current']) ?></span>
+    <span class="ins-req-need"><?= htmlspecialchars($r['required']) ?></span>
+</div>
+<?php endforeach; ?>
+</div>
+<?php if ($allOk): ?>
+<a href="?step=2" class="ins-btn">Continue →</a>
+<?php else: ?>
+<p class="ins-warn">⚠ Fix the failed requirements above and refresh.</p>
+<button onclick="location.reload()" class="ins-btn ins-btn-outline">Re-check</button>
+<?php endif; ?>
+</div></main>
+</body></html>

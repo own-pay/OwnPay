@@ -1,0 +1,65 @@
+{% extends "admin/base.twig" %}
+
+{% block title %}Addons — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <h1>Addons</h1>
+    <a href="{{ path('admin.plugins.install') }}" class="op-btn op-btn-primary">
+        <span class="op-icon">+</span> Install Addon
+    </a>
+</div>
+
+{% if flash_success %}
+<div class="op-alert op-alert-success">{{ flash_success }}</div>
+{% endif %}
+
+<div class="op-card">
+    {% if addons|length > 0 %}
+    <div class="op-addon-list">
+        {% for addon in addons %}
+        <div class="op-addon-item">
+            <div class="op-addon-icon">
+                {% if addon.logo_path %}
+                    <img src="{{ addon.logo_path }}" alt="{{ addon.name }}" width="48" height="48">
+                {% else %}
+                    <div class="op-addon-icon-placeholder">{{ addon.name|first|upper }}</div>
+                {% endif %}
+            </div>
+            <div class="op-addon-info">
+                <h4>{{ addon.name }}</h4>
+                <p class="op-text-muted">{{ addon.description|default('No description') }}</p>
+                <div class="op-addon-meta">
+                    <span>v{{ addon.version }}</span>
+                    <span class="op-dot"></span>
+                    <span>{{ addon.author|default('Unknown') }}</span>
+                    <span class="op-dot"></span>
+                    {% if addon.status == 'active' %}
+                        <span class="op-badge op-badge-success">Active</span>
+                    {% else %}
+                        <span class="op-badge op-badge-secondary">Inactive</span>
+                    {% endif %}
+                </div>
+            </div>
+            <div class="op-addon-actions">
+                {% if addon.status == 'active' %}
+                    <a href="{{ path('admin.plugins.settings', {slug: addon.slug}) }}" class="op-btn op-btn-sm op-btn-outline">Settings</a>
+                    <form method="POST" action="{{ path('admin.plugins.deactivate', {slug: addon.slug}) }}" class="op-inline-form">
+                        {{ csrf_field() }}
+                        <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
+                    </form>
+                {% else %}
+                    <form method="POST" action="{{ path('admin.plugins.activate', {slug: addon.slug}) }}" class="op-inline-form">
+                        {{ csrf_field() }}
+                        <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+    {% else %}
+        <p class="op-empty">No addons installed. <a href="{{ path('admin.plugins.install') }}">Install one</a>.</p>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Payment {{ status|capitalize }} — {{ brand.name ?? 'Own Pay' }}</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/checkout.css">
+</head>
+<body class="ck-body">
+    <div class="ck-status-shell">
+        {% if status == 'success' or status == 'completed' %}
+            {% include 'checkout/partials/_success.twig' %}
+        {% elseif status == 'failed' %}
+            {% include 'checkout/partials/_failed.twig' %}
+        {% elseif status == 'cancelled' or status == 'canceled' %}
+            {% include 'checkout/partials/_cancelled.twig' %}
+        {% elseif status == 'pending' %}
+            {% include 'checkout/partials/_pending.twig' %}
+        {% else %}
+            {% include 'checkout/partials/_expired.twig' %}
+        {% endif %}
+    </div>
+</body>
+</html>
