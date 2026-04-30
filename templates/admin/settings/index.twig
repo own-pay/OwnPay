@@ -1,0 +1,104 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Settings — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header"><h1>Settings</h1></div>
+
+<div class="op-tabs">
+    <button class="op-tab active" data-tab="general">General</button>
+    <button class="op-tab" data-tab="api">API</button>
+    <button class="op-tab" data-tab="currency">Currency</button>
+    <button class="op-tab" data-tab="faq">FAQ</button>
+    <button class="op-tab" data-tab="theme">Theme</button>
+    {{ fire_hook('admin.settings.tabs')|raw }}
+</div>
+
+<form method="POST" action="/admin/settings" class="op-form">
+    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+
+    <div class="op-tab-panel active" id="tab-general">
+        <div class="op-card">
+            <div class="op-card-body">
+                <div class="op-form-group"><label>App Name</label><input type="text" name="app_name" value="{{ settings.app_name ?? '' }}" class="op-input"></div>
+                <div class="op-form-group"><label>Base URL</label><input type="url" name="base_url" value="{{ settings.base_url ?? '' }}" class="op-input"></div>
+                <div class="op-form-group"><label>Timezone</label>
+                    <select name="timezone" class="op-input">
+                        {% for tz in timezones %}<option value="{{ tz }}" {{ (settings.timezone ?? 'Asia/Dhaka') == tz ? 'selected' : '' }}>{{ tz }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="op-form-group"><label class="op-checkbox-label"><input type="checkbox" name="maintenance_mode" value="1" {{ settings.maintenance_mode ? 'checked' : '' }}>Maintenance Mode</label></div>
+            </div>
+        </div>
+        {{ fire_hook('admin.settings.general')|raw }}
+    </div>
+
+    <div class="op-tab-panel" id="tab-api">
+        <div class="op-card">
+            <div class="op-card-body">
+                <div class="op-form-group"><label>Webhook URL</label><input type="url" name="webhook_url" value="{{ settings.webhook_url ?? '' }}" class="op-input"></div>
+                <div class="op-form-group"><label>API Rate Limit (per min)</label><input type="number" name="api_rate_limit" value="{{ settings.api_rate_limit ?? 60 }}" class="op-input"></div>
+            </div>
+        </div>
+        {{ fire_hook('admin.settings.api')|raw }}
+    </div>
+
+    <div class="op-tab-panel" id="tab-currency">
+        <div class="op-card">
+            <div class="op-card-body">
+                <div class="op-form-group"><label>Default Currency</label>
+                    <select name="default_currency" class="op-input">
+                        {% for cur in currencies %}<option value="{{ cur.code }}" {{ (settings.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} — {{ cur.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="op-form-group"><label>Exchange Rate Update</label>
+                    <select name="exchange_rate_mode" class="op-input">
+                        <option value="auto" {{ (settings.exchange_rate_mode ?? 'auto') == 'auto' ? 'selected' : '' }}>Automatic</option>
+                        <option value="manual" {{ (settings.exchange_rate_mode ?? '') == 'manual' ? 'selected' : '' }}>Manual</option>
+                    </select>
+                </div>
+            </div>
+        </div>
+        {{ fire_hook('admin.settings.currency')|raw }}
+    </div>
+
+    <div class="op-tab-panel" id="tab-faq">
+        <div class="op-card">
+            <div class="op-card-body" id="faq-container">
+                {% for i, faq in (settings.faqs ?? []) %}
+                <div class="op-faq-row op-card op-card-bordered op-mb-2 op-p-3">
+                    <div class="op-form-group"><label>Question</label><input type="text" name="faqs[{{ i }}][question]" value="{{ faq.question }}" class="op-input"></div>
+                    <div class="op-form-group"><label>Answer</label><textarea name="faqs[{{ i }}][answer]" rows="2" class="op-input">{{ faq.answer }}</textarea></div>
+                    <button type="button" class="op-btn op-btn-sm op-btn-danger" onclick="this.closest('.op-faq-row').remove()">Remove</button>
+                </div>
+                {% endfor %}
+            </div>
+            <button type="button" class="op-btn op-btn-outline op-mt-2" id="add-faq">+ Add FAQ</button>
+        </div>
+    </div>
+
+    <div class="op-tab-panel" id="tab-theme">
+        <div class="op-card">
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-4"><label>Primary Color</label><input type="color" name="theme_primary" value="{{ settings.theme_primary ?? '#6C5CE7' }}" class="op-input-color"></div>
+                    <div class="op-form-group op-col-4"><label>Accent Color</label><input type="color" name="theme_accent" value="{{ settings.theme_accent ?? '#00CEC9' }}" class="op-input-color"></div>
+                    <div class="op-form-group op-col-4"><label>Dark Mode</label><select name="theme_mode" class="op-input"><option value="dark" {{ (settings.theme_mode ?? 'dark') == 'dark' ? 'selected' : '' }}>Dark</option><option value="light" {{ (settings.theme_mode ?? '') == 'light' ? 'selected' : '' }}>Light</option></select></div>
+                </div>
+            </div>
+        </div>
+        {{ fire_hook('admin.settings.theme')|raw }}
+    </div>
+
+    <div class="op-form-actions op-mt-4"><button type="submit" class="op-btn op-btn-primary op-btn-lg">Save Settings</button></div>
+</form>
+
+<script>
+document.querySelectorAll('.op-tab').forEach(t=>t.addEventListener('click',function(){
+    document.querySelectorAll('.op-tab,.op-tab-panel').forEach(e=>e.classList.remove('active'));
+    this.classList.add('active');document.getElementById('tab-'+this.dataset.tab).classList.add('active');
+}));
+let faqIdx={{ (settings.faqs ?? [])|length }};
+document.getElementById('add-faq').onclick=function(){
+    document.getElementById('faq-container').insertAdjacentHTML('beforeend','<div class="op-faq-row op-card op-card-bordered op-mb-2 op-p-3"><div class="op-form-group"><label>Question</label><input type="text" name="faqs['+faqIdx+'][question]" class="op-input"></div><div class="op-form-group"><label>Answer</label><textarea name="faqs['+faqIdx+'][answer]" rows="2" class="op-input"></textarea></div><button type="button" class="op-btn op-btn-sm op-btn-danger" onclick="this.closest(\'.op-faq-row\').remove()">Remove</button></div>');faqIdx++;
+};
+</script>
+{% endblock %}

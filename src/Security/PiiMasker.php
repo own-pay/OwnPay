@@ -1,213 +1,90 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Security;
 
 /**
- * PiiMasker — masks PII in API response data.
+ * PII masker — mask sensitive data for display/logging.
  *
- * Masking rules:
- *   email:  john@example.com    → j***@e***.com
- *   phone:  +8801712345678      → +880***5678
- *   name:   John Doe            → J*** D***
- *   card:   4111111111111111    → ****1111
- *   ip:     192.168.1.100       → 192.168.*.*
+ * Per pci-compliance + security skills: never log raw PII.
  */
 final class PiiMasker
 {
     /**
-     * Default fields to mask and their masking type.
+     * Mask email: us**@ex****.com
      */
-    private const DEFAULT_RULES = [
-        'email' => 'email',
-        'customer_email' => 'email',
-        'phone' => 'phone',
-        'customer_phone' => 'phone',
-        'mobile' => 'phone',
-        'name' => 'name',
-        'customer_name' => 'name',
-        'first_name' => 'name',
-        'last_name' => 'name',
-        'card_number' => 'card',
-        'pan' => 'card',
-        'ip' => 'ip',
-        'ip_address' => 'ip',
-        'last_used_ip' => 'ip',
-        'source_ip' => 'ip',
-    ];
-
-    /** @var array<string, string> Field name → mask type */
-    private array $rules;
-
-    /**
-     * @param array<string, string> $additionalRules Extra masking rules to merge
-     */
-    public function __construct(array $additionalRules = [])
-    {
-        $this->rules = array_merge(self::DEFAULT_RULES, $additionalRules);
-    }
-
-    /**
-     * Mask PII fields in a single associative array.
-     *
-     * @param array $data The data to mask
-     * @return array Masked data
-     */
-    public function mask(array $data): array
-    {
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $data[$key] = $this->mask($value); // Recurse
-                continue;
-            }
-
-            if (!is_string($value) || $value === '') {
-                continue;
-            }
-
-            $maskType = $this->rules[$key] ?? null;
-            if ($maskType !== null) {
-                $data[$key] = $this->applyMask($value, $maskType);
-            }
-        }
-
-        return $data;
-    }
-
-    /**
-     * Mask an array of records (e.g. paginated list).
-     */
-    public function maskArray(array $records): array
-    {
-        return array_map(fn(array $record) => $this->mask($record), $records);
-    }
-
-    /**
-     * Mask a single value by type.
-     */
-    public function maskValue(string $value, string $type): string
-    {
-        return $this->applyMask($value, $type);
-    }
-
-    /**
-     * Apply masking based on type.
-     */
-    private function applyMask(string $value, string $type): string
-    {
-        return match ($type) {
-            'email' => $this->maskEmail($value),
-            'phone' => $this->maskPhone($value),
-            'name' => $this->maskName($value),
-            'card' => $this->maskCard($value),
-            'ip' => $this->maskIp($value),
-            'full' => '[REDACTED]',
-            default => $value,
-        };
-    }
-
-    /**
-     * Mask email: john@example.com → j***@e***.com
-     */
-    private function maskEmail(string $email): string
+    public static function email(string $email): string
     {
         $parts = explode('@', $email, 2);
         if (count($parts) !== 2) {
-            return '***@***.***';
-        }
-
-        [$local, $domain] = $parts;
-        $domainParts = explode('.', $domain);
-        $tld = array_pop($domainParts);
-        $domainBase = implode('.', $domainParts);
-
-        $maskedLocal = $this->maskString($local);
-        $maskedDomain = $this->maskString($domainBase);
-
-        return "{$maskedLocal}@{$maskedDomain}.{$tld}";
-    }
-
-    /**
-     * Mask phone: +8801712345678 → +880***5678
-     */
-    private function maskPhone(string $phone): string
-    {
-        // Strip non-digit except leading +
-        $hasPlus = str_starts_with($phone, '+');
-        $digits = preg_replace('/\D/', '', $phone);
-
-        if (strlen($digits) < 6) {
             return '***';
         }
-
-        $prefix = substr($digits, 0, 3);
-        $suffix = substr($digits, -4);
-        $masked = ($hasPlus ? '+' : '') . $prefix . '***' . $suffix;
-
-        return $masked;
+        [$local, $domain] = $parts;
+        $maskedLocal = mb_substr($local, 0, 2) . str_repeat('*', max(2, mb_strlen($local) - 2));
+        $domParts = explode('.', $domain);
+        $domName = $domParts[0];
+        $maskedDom = mb_substr($domName, 0, 2) . str_repeat('*', max(2, mb_strlen($domName) - 2));
+        $domParts[0] = $maskedDom;
+        return $maskedLocal . '@' . implode('.', $domParts);
     }
 
     /**
-     * Mask name: John Doe → J*** D***
+     * Mask phone: +880****1234
      */
-    private function maskName(string $name): string
+    public static function phone(string $phone): string
     {
-        $words = explode(' ', trim($name));
-        $masked = array_map(function (string $word) {
-            if (strlen($word) <= 1) {
-                return $word;
-            }
-            return $word[0] . str_repeat('*', min(3, strlen($word) - 1));
-        }, $words);
-
-        return implode(' ', $masked);
+        $len = mb_strlen($phone);
+        if ($len <= 4) {
+            return str_repeat('*', $len);
+        }
+        $visible = 4;
+        $prefix = mb_substr($phone, 0, max(1, $len - $visible - 4));
+        $suffix = mb_substr($phone, -$visible);
+        $masked = str_repeat('*', $len - mb_strlen($prefix) - $visible);
+        return $prefix . $masked . $suffix;
     }
 
     /**
-     * Mask card: 4111111111111111 → ****1111
+     * Mask card number: ****1234
      */
-    private function maskCard(string $card): string
+    public static function card(string $number): string
     {
-        $digits = preg_replace('/\D/', '', $card);
-        if (strlen($digits) < 4) {
+        $clean = preg_replace('/\D/', '', $number) ?? '';
+        if (strlen($clean) < 4) {
             return '****';
         }
-        return '****' . substr($digits, -4);
+        return str_repeat('*', strlen($clean) - 4) . substr($clean, -4);
     }
 
     /**
-     * Mask IP: 192.168.1.100 → 192.168.*.*
+     * Mask IP: 192.168.***.***
      */
-    private function maskIp(string $ip): string
+    public static function ip(string $ip): string
     {
-        // IPv4
-        if (str_contains($ip, '.')) {
-            $octets = explode('.', $ip);
-            if (count($octets) === 4) {
-                return "{$octets[0]}.{$octets[1]}.*.*";
-            }
+        $parts = explode('.', $ip);
+        if (count($parts) === 4) {
+            return $parts[0] . '.' . $parts[1] . '.***.' . '***';
         }
-
-        // IPv6 — mask the host portion
-        if (str_contains($ip, ':')) {
-            $parts = explode(':', $ip);
-            $keep = min(3, count($parts));
-            $masked = array_slice($parts, 0, $keep);
-            return implode(':', $masked) . '::***';
+        // IPv6 — mask last 4 groups
+        $parts6 = explode(':', $ip);
+        if (count($parts6) >= 4) {
+            $visible = array_slice($parts6, 0, 4);
+            return implode(':', $visible) . ':****:****:****:****';
         }
-
         return '***';
     }
 
     /**
-     * Mask a string: keep first char, replace rest with ***.
+     * Generic mask: show first N and last M chars.
      */
-    private function maskString(string $str): string
+    public static function mask(string $value, int $showFirst = 2, int $showLast = 2): string
     {
-        if (strlen($str) <= 1) {
-            return $str;
+        $len = mb_strlen($value);
+        if ($len <= $showFirst + $showLast) {
+            return str_repeat('*', $len);
         }
-        return $str[0] . str_repeat('*', min(3, strlen($str) - 1));
+        return mb_substr($value, 0, $showFirst)
+            . str_repeat('*', $len - $showFirst - $showLast)
+            . mb_substr($value, -$showLast);
     }
 }

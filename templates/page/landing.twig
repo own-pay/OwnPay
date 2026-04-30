@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name ?? 'Own Pay' }}</title>
+    <meta name="description" content="{{ landing_description ?? 'Self-hosted payment gateway platform' }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/landing.css">
+    {{ fire_hook('admin.landing.head')|raw }}
+</head>
+<body class="op-landing">
+    {{ fire_hook('admin.landing.render')|raw }}
+
+    <header class="op-landing-header">
+        <nav class="op-landing-nav">
+            <div class="op-logo"><span class="op-logo-icon">OP</span><span>{{ app_name ?? 'Own Pay' }}</span></div>
+            <a href="/login" class="op-btn op-btn-primary">Login</a>
+        </nav>
+    </header>
+
+    <section class="op-hero">
+        <div class="op-hero-content">
+            <h1>{{ landing_title ?? 'Accept Payments Your Way' }}</h1>
+            <p>{{ landing_subtitle ?? 'Self-hosted payment gateway with SMS verification, multi-gateway support, and complete control over your payment infrastructure.' }}</p>
+            <div class="op-hero-actions">
+                <a href="/login" class="op-btn op-btn-primary op-btn-lg">Get Started</a>
+                {% if faq_enabled %}<a href="#faq" class="op-btn op-btn-outline op-btn-lg">Learn More</a>{% endif %}
+            </div>
+        </div>
+    </section>
+
+    {% if features|length > 0 %}
+    <section class="op-features">
+        <h2>Features</h2>
+        <div class="op-feature-grid">
+            {% for feat in features %}
+            <div class="op-feature-card">
+                <h3>{{ feat.title }}</h3>
+                <p>{{ feat.description }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if faqs|length > 0 %}
+    <section class="op-faq" id="faq">
+        <h2>FAQ</h2>
+        <div class="op-faq-list">
+            {% for faq in faqs %}
+            <details class="op-faq-item">
+                <summary>{{ faq.question }}</summary>
+                <p>{{ faq.answer }}</p>
+            </details>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <footer class="op-landing-footer">
+        <p>&copy; {{ "now"|date("Y") }} {{ app_name ?? 'Own Pay' }}</p>
+    </footer>
+</body>
+</html>

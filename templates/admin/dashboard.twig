@@ -1,0 +1,97 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Dashboard — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <h1>Dashboard</h1>
+    <div class="op-header-actions">
+        <select class="op-input op-input-sm" id="date-range" onchange="location.href='?range='+this.value">
+            <option value="today" {{ range == 'today' ? 'selected' : '' }}>Today</option>
+            <option value="7d" {{ range == '7d' ? 'selected' : '' }}>Last 7 Days</option>
+            <option value="30d" {{ range == '30d' ? 'selected' : '' }}>Last 30 Days</option>
+            <option value="all" {{ range == 'all' ? 'selected' : '' }}>All Time</option>
+        </select>
+    </div>
+</div>
+
+{{ fire_hook('admin.dashboard.before')|raw }}
+
+{# Stats Cards #}
+<div class="op-stats-grid">
+    <div class="op-stat-card op-stat-primary">
+        <div class="op-stat-icon">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+        </div>
+        <div class="op-stat-content">
+            <span class="op-stat-value">{{ stats.total_revenue ?? '0.00' }}</span>
+            <span class="op-stat-label">Total Revenue</span>
+        </div>
+    </div>
+
+    <div class="op-stat-card op-stat-success">
+        <div class="op-stat-icon">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
+        </div>
+        <div class="op-stat-content">
+            <span class="op-stat-value">{{ stats.completed_count ?? 0 }}</span>
+            <span class="op-stat-label">Completed</span>
+        </div>
+    </div>
+
+    <div class="op-stat-card op-stat-warning">
+        <div class="op-stat-icon">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </div>
+        <div class="op-stat-content">
+            <span class="op-stat-value">{{ stats.pending_count ?? 0 }}</span>
+            <span class="op-stat-label">Pending</span>
+        </div>
+    </div>
+
+    <div class="op-stat-card op-stat-info">
+        <div class="op-stat-icon">
+            <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+        </div>
+        <div class="op-stat-content">
+            <span class="op-stat-value">{{ stats.customer_count ?? 0 }}</span>
+            <span class="op-stat-label">Customers</span>
+        </div>
+    </div>
+</div>
+
+{{ fire_hook('admin.dashboard.after_stats')|raw }}
+
+{# Recent Transactions #}
+<div class="op-card op-mt-4">
+    <div class="op-card-header">
+        <h3>Recent Transactions</h3>
+        <a href="/admin/transactions" class="op-btn op-btn-sm op-btn-outline">View All</a>
+    </div>
+    <div class="op-card-body">
+        {% if recent_transactions|length > 0 %}
+        <table class="op-table">
+            <thead>
+                <tr><th>TRX ID</th><th>Customer</th><th>Amount</th><th>Gateway</th><th>Status</th><th>Date</th></tr>
+            </thead>
+            <tbody>
+                {% for txn in recent_transactions %}
+                <tr>
+                    <td><code>{{ txn.trx_id }}</code></td>
+                    <td>{{ txn.customer_name ?? '—' }}</td>
+                    <td><strong>{{ txn.currency }} {{ txn.amount }}</strong></td>
+                    <td><span class="op-badge op-badge-outline">{{ txn.gateway }}</span></td>
+                    <td><span class="op-badge op-badge-{{ txn.status == 'completed' ? 'success' : (txn.status == 'pending' ? 'warning' : 'danger') }}">{{ txn.status }}</span></td>
+                    <td>{{ txn.created_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <div class="op-empty-state"><p>No transactions yet.</p></div>
+        {% endif %}
+    </div>
+</div>
+
+{{ fire_hook('admin.dashboard.bottom')|raw }}
+{% endblock %}

@@ -1,79 +1,62 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Service\Auth;
 
 /**
- * StatusGuard — Lightweight state machine guard for transaction status transitions.
- *
- * Mirrors the TRANSITIONS map from PaymentService but provides a simpler,
- * static API for use from the legacy adapter.php code.
- *
- * The legacy system uses these statuses:
- *   initiated, pending, processing, completed, failed, canceled, refunded
- *
- * Usage:
- *   \OwnPay\Service\Auth\StatusGuard::assertTransition('initiated', 'completed');
- *   // throws InvalidArgumentException if the transition is invalid
+ * Status guard — checks entity status for access control.
  */
 final class StatusGuard
 {
-    /**
-     * Allowed state transitions: from => [to, ...]
-     *
-     * Designed to prevent nonsensical transitions like:
-     *   failed → completed, refunded → initiated, completed → initiated
-     */
-    private const TRANSITIONS = [
-        'initiated' => ['pending', 'processing', 'completed', 'failed', 'canceled'],
-        'pending' => ['processing', 'completed', 'failed', 'canceled', 'refunded'],
-        'processing' => ['completed', 'failed', 'canceled'],
-        'completed' => ['refunded', 'partially_refunded'],
-        'failed' => ['initiated'],  // retry allowed
-        'canceled' => [],              // terminal state
-        'refunded' => [],              // terminal state
-        'partially_refunded' => ['refunded'],    // can complete refund
-    ];
+    /** Active statuses that allow operations */
+    private const ACTIVE_STATUSES = ['active'];
 
     /**
-     * Check if a status transition is allowed.
+     * Check if merchant is active.
      */
-    public static function canTransition(string $from, string $to): bool
+    public static function isMerchantActive(array $merchant): bool
     {
-        $from = strtolower(trim($from));
-        $to = strtolower(trim($to));
-
-        if (!isset(self::TRANSITIONS[$from])) {
-            return false; // unknown source status
-        }
-
-        return in_array($to, self::TRANSITIONS[$from], true);
+        return in_array($merchant['status'] ?? '', self::ACTIVE_STATUSES, true);
     }
 
     /**
-     * Assert that a status transition is allowed — throws if not.
-     *
-     * @throws \InvalidArgumentException
+     * Check if user account is active.
      */
-    public static function assertTransition(string $from, string $to): void
+    public static function isUserActive(array $user): bool
     {
-        if (!self::canTransition($from, $to)) {
-            throw new \InvalidArgumentException(
-                "Invalid transaction status transition: '{$from}' → '{$to}'. " .
-                "Allowed transitions from '{$from}': [" .
-                implode(', ', self::TRANSITIONS[$from] ?? []) . ']'
-            );
-        }
+        return in_array($user['status'] ?? '', self::ACTIVE_STATUSES, true);
     }
 
     /**
-     * Get all allowed target statuses from a given status.
-     *
-     * @return string[]
+     * Check if gateway config is live/test mode and active.
      */
-    public static function allowedFrom(string $status): array
+    public static function isGatewayUsable(array $gatewayConfig): bool
     {
-        return self::TRANSITIONS[strtolower(trim($status))] ?? [];
+        return ($gatewayConfig['status'] ?? '') === 'active';
+    }
+
+    /**
+     * Check if API key is valid (active + not expired).
+     */
+    public static function isApiKeyValid(array $apiKey): bool
+    {
+        if (($apiKey['status'] ?? '') !== 'active') {
+            return false;
+        }
+        if (!empty($apiKey['expires_at']) && strtotime($apiKey['expires_at']) < time()) {
+            return false;
+        }
+        return true;
+    }
+
+    /**
+     * Guard check — throws on inactive.
+     * @throws \RuntimeException
+     */
+    public static function requireActive(array $entity, string $label = 'Entity'): void
+    {
+        if (!in_array($entity['status'] ?? '', self::ACTIVE_STATUSES, true)) {
+            throw new \RuntimeException("{$label} is not active (status: {$entity['status']})");
+        }
     }
 }

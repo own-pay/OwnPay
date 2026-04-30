@@ -1,88 +1,89 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Service\System;
 
+use OwnPay\Event\EventManager;
 use OwnPay\Repository\AuditLogRepository;
 
 /**
- * AuditLogger — immutable event trail for security and compliance.
+ * Audit logger — structured audit trail for compliance.
  *
- * Every mutation in the system should be logged here:
- * - Who performed the action (actorType + actorId)
- * - What changed (entityType + entityId)
- * - Before/after state (oldPayload + newPayload)
- * - Request context (IP, user agent, request ID)
+ * Fires: audit.log.created
+ * Per PCI-DSS: immutable logs, actor attribution, before/after snapshots.
  */
 final class AuditLogger
 {
     private AuditLogRepository $repo;
+    private ?EventManager $events;
 
-    public function __construct(?AuditLogRepository $repo = null)
+    public function __construct(AuditLogRepository $repo, ?EventManager $events = null)
     {
-        $this->repo = $repo ?? new AuditLogRepository();
+        $this->repo = $repo;
+        $this->events = $events;
     }
 
     /**
-     * Log an audit event.
+     * Log an auditable event.
      *
-     * @param int|null $merchantId  Null for system-level events
-     * @param string   $action      e.g. 'api_key.created', 'transaction.status_changed'
-     * @param string   $entityType  e.g. 'transaction', 'merchant', 'api_key'
-     * @param string   $entityId    Public ID (UUID) of the entity
-     * @param string   $actorType   'admin', 'api_key', 'system', 'webhook'
-     * @param string   $actorId     Identifier of the actor
-     * @param array|null $oldPayload Previous state (for updates)
-     * @param array|null $newPayload New state (for creates/updates)
-     *
-     * @return int Auto-increment ID of the log entry
+     * @param int         $merchantId  Tenant ID
+     * @param int|null    $userId      Actor user ID (null = system)
+     * @param string      $action      Action performed (e.g. 'user.login', 'transaction.created')
+     * @param string      $entityType  Entity type (e.g. 'user', 'transaction', 'gateway')
+     * @param int|string  $entityId    Entity ID
+     * @param array|null  $before      State before change (null for create)
+     * @param array|null  $after       State after change (null for delete)
+     * @param string|null $ip          IP address
      */
     public function log(
-        ?int $merchantId,
+        int $merchantId,
+        ?int $userId,
         string $action,
         string $entityType,
-        string $entityId,
-        string $actorType = 'system',
-        string $actorId = 'unknown',
-        ?array $oldPayload = null,
-        ?array $newPayload = null
-    ): int {
-        // Auto-detect request context
-        $requestId = $_SERVER['HTTP_X_REQUEST_ID'] ?? bin2hex(random_bytes(8));
-        $ipAddress = $_SERVER['REMOTE_ADDR'] ?? null;
-        $userAgent = isset($_SERVER['HTTP_USER_AGENT'])
-            ? substr($_SERVER['HTTP_USER_AGENT'], 0, 500)
-            : null;
+        int|string $entityId,
+        ?array $before = null,
+        ?array $after = null,
+        ?string $ip = null
+    ): void {
+        $entry = [
+            'merchant_id' => $merchantId,
+            'user_id'     => $userId,
+            'action'      => $action,
+            'entity_type' => $entityType,
+            'entity_id'   => $entityId,
+            'before_data' => $before !== null ? json_encode($before) : null,
+            'after_data'  => $after !== null ? json_encode($after) : null,
+            'ip_address'  => $ip ?? ($_SERVER['REMOTE_ADDR'] ?? '0.0.0.0'),
+            'user_agent'  => $_SERVER['HTTP_USER_AGENT'] ?? '',
+        ];
 
-        return $this->repo->log(
+        $id = $this->repo->record(
             $merchantId,
+            $userId,
             $action,
             $entityType,
-            $entityId,
-            $actorType,
-            $actorId,
-            $oldPayload,
-            $newPayload,
-            $requestId,
-            $ipAddress,
-            $userAgent
+            (int) $entityId,
+            $before,
+            $after,
+            $ip
         );
+
+        $this->events?->doAction('audit.log.created', $entry);
     }
 
     /**
-     * Get audit trail for a specific entity.
+     * Log user action (convenience).
      */
-    public function trailForEntity(string $entityType, string $entityId, int $limit = 50): array
+    public function userAction(int $merchantId, int $userId, string $action, string $detail = ''): void
     {
-        return $this->repo->findByEntity($entityType, $entityId, $limit);
+        $this->log($merchantId, $userId, $action, 'user', $userId, null, ['detail' => $detail]);
     }
 
     /**
-     * Get audit trail for a merchant.
+     * Log system action (no user).
      */
-    public function trailForMerchant(int $merchantId, int $limit = 100): array
+    public function systemAction(int $merchantId, string $action, string $detail = ''): void
     {
-        return $this->repo->findByMerchant($merchantId, $limit);
+        $this->log($merchantId, null, $action, 'system', 0, null, ['detail' => $detail]);
     }
 }

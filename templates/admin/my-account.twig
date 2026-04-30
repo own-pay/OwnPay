@@ -1,0 +1,48 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}My Account — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header"><h1>My Account</h1></div>
+
+<div class="op-grid op-grid-2">
+    <div class="op-card">
+        <div class="op-card-header"><h3>Profile</h3></div>
+        <div class="op-card-body">
+            <form method="POST" action="/admin/my-account/profile" class="op-form">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <div class="op-form-group"><label>Name</label><input type="text" name="name" value="{{ current_user.name }}" class="op-input" required></div>
+                <div class="op-form-group"><label>Email</label><input type="email" name="email" value="{{ current_user.email }}" class="op-input" required></div>
+                <button type="submit" class="op-btn op-btn-primary">Update Profile</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="op-card">
+        <div class="op-card-header"><h3>Change Password</h3></div>
+        <div class="op-card-body">
+            <form method="POST" action="/admin/my-account/password" class="op-form">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <div class="op-form-group"><label>Current Password</label><input type="password" name="current_password" class="op-input" required></div>
+                <div class="op-form-group"><label>New Password</label><input type="password" name="new_password" class="op-input" required minlength="8"></div>
+                <div class="op-form-group"><label>Confirm</label><input type="password" name="confirm_password" class="op-input" required></div>
+                <button type="submit" class="op-btn op-btn-primary">Change Password</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>Two-Factor Authentication</h3></div>
+    <div class="op-card-body">
+        {% if current_user.two_fa_enabled %}
+            <p class="op-text-success">✓ 2FA is enabled</p>
+            <form method="POST" action="/admin/my-account/2fa/disable">
+                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <button type="submit" class="op-btn op-btn-danger">Disable 2FA</button>
+            </form>
+        {% else %}
+            <p class="op-text-muted">2FA adds extra security to your account.</p>
+            <a href="/admin/my-account/2fa/setup" class="op-btn op-btn-primary">Enable 2FA</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,84 @@
+{% extends "admin/base.twig" %}
+
+{% block title %}Install Plugin — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <h1>Install Plugin</h1>
+    <a href="{{ path('admin.plugins.index') }}" class="op-btn op-btn-outline">← Back to Plugins</a>
+</div>
+
+{% if flash_error %}
+<div class="op-alert op-alert-danger">{{ flash_error }}</div>
+{% endif %}
+
+<div class="op-card">
+    <form method="POST" action="{{ path('admin.plugins.upload') }}" enctype="multipart/form-data" id="plugin-upload-form">
+        {{ csrf_field() }}
+
+        <div class="op-dropzone" id="dropzone">
+            <div class="op-dropzone-content">
+                <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                    <polyline points="17 8 12 3 7 8"></polyline>
+                    <line x1="12" y1="3" x2="12" y2="15"></line>
+                </svg>
+                <p><strong>Drag & drop plugin ZIP here</strong></p>
+                <p class="op-text-muted">or click to browse</p>
+                <input type="file" name="plugin_zip" id="plugin-file" accept=".zip" class="op-file-input" required>
+            </div>
+            <div class="op-dropzone-status" id="dropzone-status" style="display:none">
+                <span class="op-spinner"></span>
+                <p id="upload-filename"></p>
+            </div>
+        </div>
+
+        <div class="op-form-actions">
+            <button type="submit" class="op-btn op-btn-primary" id="install-btn" disabled>Install Plugin</button>
+        </div>
+    </form>
+</div>
+
+<div class="op-card op-mt-4">
+    <h3>Plugin Requirements</h3>
+    <ul class="op-list">
+        <li>Plugin must be a <strong>.zip</strong> file</li>
+        <li>Must contain a valid <code>plugin.json</code> manifest</li>
+        <li>Must include an entrypoint PHP class implementing <code>PluginInterface</code></li>
+        <li>Maximum upload size: {{ max_upload_size }}</li>
+    </ul>
+</div>
+
+<script>
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('plugin-file');
+const installBtn = document.getElementById('install-btn');
+const status = document.getElementById('dropzone-status');
+const filename = document.getElementById('upload-filename');
+
+dropzone.addEventListener('click', () => fileInput.click());
+dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('op-dropzone-hover'); });
+dropzone.addEventListener('dragleave', () => dropzone.classList.remove('op-dropzone-hover'));
+dropzone.addEventListener('drop', e => {
+    e.preventDefault();
+    dropzone.classList.remove('op-dropzone-hover');
+    if (e.dataTransfer.files.length > 0) {
+        fileInput.files = e.dataTransfer.files;
+        onFileSelected(e.dataTransfer.files[0]);
+    }
+});
+fileInput.addEventListener('change', () => {
+    if (fileInput.files.length > 0) onFileSelected(fileInput.files[0]);
+});
+
+function onFileSelected(file) {
+    if (!file.name.endsWith('.zip')) {
+        alert('Only .zip files are allowed');
+        return;
+    }
+    filename.textContent = file.name + ' (' + (file.size / 1024).toFixed(1) + ' KB)';
+    status.style.display = 'block';
+    installBtn.disabled = false;
+}
+</script>
+{% endblock %}

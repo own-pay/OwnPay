@@ -1,147 +1,124 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Middleware;
 
-use OwnPay\Repository\RateLimitRepository;
+use OwnPay\Container;
+use OwnPay\Http\Request;
+use OwnPay\Http\Response;
 
 /**
- * RateLimiterMiddleware — sliding-window rate limiter.
+ * Rate limiter — sliding window via DB or Redis.
  *
- * Enforces per-key request limits with:
- *   - Configurable limits per window (default: 60 req/min)
- *   - Separate limits for read (GET) vs write (POST/PUT/DELETE)
- *   - Standard rate limit headers (X-RateLimit-*, Retry-After)
- *   - Whitelist for internal/admin keys
- *   - 429 Too Many Requests response on breach
+ * Per OWASP: prevent brute-force and DDoS.
+ * Auto-detects Redis; falls back to DB table op_rate_limits.
  */
 final class RateLimiterMiddleware
 {
-    private const DEFAULT_READ_LIMIT = 120;  // GET requests per window
-    private const DEFAULT_WRITE_LIMIT = 30;   // POST/PUT/DELETE per window
-    private const DEFAULT_WINDOW_SEC = 60;   // 1-minute window
+    private Container $container;
 
-    private RateLimitRepository $repo;
-
-    /** @var string[] Key prefixes exempt from rate limiting */
-    private array $whitelist = [];
-
-    public function __construct(
-        ?RateLimitRepository $repo = null,
-        array $whitelist = []
-    ) {
-        $this->repo = $repo ?? new RateLimitRepository();
-        $this->whitelist = $whitelist;
-    }
-
-    /**
-     * Check rate limit. Must be called AFTER authentication
-     * (needs the key ID to scope limits).
-     *
-     * @param int    $keyId       API key ID
-     * @param string $keyPrefix   Key prefix (for whitelist check)
-     * @param string $method      HTTP method
-     * @param int|null $customLimit Override limit for this key
-     * @return array{
-     *   allowed: bool,
-     *   limit: int,
-     *   remaining: int,
-     *   retryAfter: int,
-     *   headers: array<string, string>
-     * }
-     */
-    public function check(
-        int $keyId,
-        string $keyPrefix = '',
-        string $method = 'GET',
-        ?int $customLimit = null
-    ): array {
-        // Whitelist bypass
-        if ($this->isWhitelisted($keyPrefix)) {
-            return [
-                'allowed' => true,
-                'limit' => PHP_INT_MAX,
-                'remaining' => PHP_INT_MAX,
-                'retryAfter' => 0,
-                'headers' => [],
-            ];
-        }
-
-        $isWrite = in_array(strtoupper($method), ['POST', 'PUT', 'DELETE', 'PATCH'], true);
-        $limit = $customLimit ?? ($isWrite ? self::DEFAULT_WRITE_LIMIT : self::DEFAULT_READ_LIMIT);
-        $window = self::DEFAULT_WINDOW_SEC;
-
-        // Scope key: separate read/write counters
-        $rateKey = "api_key:{$keyId}:" . ($isWrite ? 'write' : 'read');
-
-        // Record hit and get current count
-        $currentCount = $this->repo->hit($rateKey, $window);
-        $remaining = max(0, $limit - $currentCount);
-
-        $headers = [
-            'X-RateLimit-Limit' => (string) $limit,
-            'X-RateLimit-Remaining' => (string) $remaining,
-            'X-RateLimit-Reset' => (string) (time() + $window),
-        ];
-
-        if ($currentCount > $limit) {
-            $headers['Retry-After'] = (string) $window;
-
-            return [
-                'allowed' => false,
-                'limit' => $limit,
-                'remaining' => 0,
-                'retryAfter' => $window,
-                'headers' => $headers,
-            ];
-        }
-
-        return [
-            'allowed' => true,
-            'limit' => $limit,
-            'remaining' => $remaining,
-            'retryAfter' => 0,
-            'headers' => $headers,
-        ];
-    }
-
-    /**
-     * Enforce rate limit — sends 429 response and exits if exceeded.
-     * Call this in the request pipeline; it sets headers on every valid request too.
-     */
-    public function enforce(int $keyId, string $keyPrefix = '', string $method = 'GET'): void
+    public function __construct(Container $container)
     {
-        $result = $this->check($keyId, $keyPrefix, $method);
-
-        // Always set rate limit headers
-        foreach ($result['headers'] as $name => $value) {
-            header("{$name}: {$value}");
-        }
-
-        if (!$result['allowed']) {
-            http_response_code(429);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'error' => [
-                    'code' => 'RATE_LIMIT_EXCEEDED',
-                    'message' => "Too many requests. Limit: {$result['limit']}/min. Retry after {$result['retryAfter']}s.",
-                ],
-            ]);
-            exit;
-        }
+        $this->container = $container;
     }
 
-    /**
-     * Check if key prefix is whitelisted.
-     */
-    private function isWhitelisted(string $keyPrefix): bool
+    public function handle(Request $request, callable $next): Response
     {
-        foreach ($this->whitelist as $prefix) {
-            if (str_starts_with($keyPrefix, $prefix)) {
-                return true;
+        $config = $this->container->get('config.app');
+        $limit = (int) ($config['rate_limit']['api_per_minute'] ?? 60);
+        $window = 60; // 1 minute
+
+        $key = $this->buildKey($request);
+        $now = time();
+
+        $hits = $this->getHits($key, $now, $window);
+
+        if ($hits >= $limit) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Rate limit exceeded. Try again later.',
+            ], 429)
+                ->withHeader('Retry-After', (string) $window)
+                ->withHeader('X-RateLimit-Limit', (string) $limit)
+                ->withHeader('X-RateLimit-Remaining', '0');
+        }
+
+        $this->increment($key, $now, $window);
+
+        $response = $next($request);
+        $response->withHeader('X-RateLimit-Limit', (string) $limit);
+        $response->withHeader('X-RateLimit-Remaining', (string) max(0, $limit - $hits - 1));
+
+        return $response;
+    }
+
+    private function buildKey(Request $request): string
+    {
+        // Rate limit by IP + path prefix
+        $ip = $request->ip();
+        $prefix = explode('/', trim($request->path(), '/'));
+        $pathKey = implode('.', array_slice($prefix, 0, 3));
+        return "rl:{$ip}:{$pathKey}";
+    }
+
+    private function getHits(string $key, int $now, int $window): int
+    {
+        // Try Redis first
+        if ($this->container->has(\OwnPay\Cache\RedisCache::class)) {
+            try {
+                /** @var \OwnPay\Cache\RedisCache $cache */
+                $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
+                return (int) ($cache->get($key) ?? 0);
+            } catch (\Throwable) {
+                // Fall through to DB
             }
         }
-        return false;
+
+        // DB fallback
+        $db = $this->container->get(\OwnPay\Core\Database::class);
+        $row = $db->fetchOne(
+            "SELECT hits FROM op_rate_limits WHERE key_name = :k AND expires_at > :now LIMIT 1",
+            ['k' => $key, 'now' => $now]
+        );
+        return $row ? (int) $row['hits'] : 0;
+    }
+
+    private function increment(string $key, int $now, int $window): void
+    {
+        // Try Redis
+        if ($this->container->has(\OwnPay\Cache\RedisCache::class)) {
+            try {
+                /** @var \OwnPay\Cache\RedisCache $cache */
+                $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
+                $current = (int) ($cache->get($key) ?? 0);
+                $cache->set($key, $current + 1, $window);
+                return;
+            } catch (\Throwable) {
+                // Fall through
+            }
+        }
+
+        // DB fallback — upsert
+        $db = $this->container->get(\OwnPay\Core\Database::class);
+        $expires = $now + $window;
+
+        $existing = $db->fetchOne(
+            "SELECT id, hits FROM op_rate_limits WHERE key_name = :k AND expires_at > :now LIMIT 1",
+            ['k' => $key, 'now' => $now]
+        );
+
+        if ($existing) {
+            $db->update(
+                "UPDATE op_rate_limits SET hits = hits + 1 WHERE id = :id",
+                ['id' => $existing['id']]
+            );
+        } else {
+            // Clean expired + insert
+            $db->delete("DELETE FROM op_rate_limits WHERE expires_at <= :now", ['now' => $now]);
+            $db->insert(
+                "INSERT INTO op_rate_limits (key_name, hits, window_start, expires_at) VALUES (:k, 1, :ws, :exp)",
+                ['k' => $key, 'ws' => $now, 'exp' => $expires]
+            );
+        }
     }
 }

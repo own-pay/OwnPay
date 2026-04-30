@@ -1,0 +1,37 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Invoices — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Invoices</h1>
+    <a href="/admin/invoices/create" class="op-btn op-btn-primary">+ Create Invoice</a>
+</div>
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <table class="op-table">
+            <thead><tr><th>#</th><th>Customer</th><th>Amount</th><th>Status</th><th>Due Date</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr>
+                    <td><code>{{ inv.invoice_number }}</code></td>
+                    <td>{{ inv.customer_name ?? '—' }}</td>
+                    <td><strong>{{ inv.currency }} {{ inv.total }}</strong></td>
+                    <td><span class="op-badge op-badge-{{ inv.status == 'paid' ? 'success' : (inv.status == 'overdue' ? 'danger' : 'warning') }}">{{ inv.status }}</span></td>
+                    <td>{{ inv.due_date }}</td>
+                    <td>
+                        <a href="/admin/invoices/{{ inv.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a>
+                        <a href="/admin/invoices/{{ inv.id }}/pdf" class="op-btn op-btn-xs op-btn-outline">PDF</a>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% if pagination.total_pages > 1 %}
+<nav class="op-pagination">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

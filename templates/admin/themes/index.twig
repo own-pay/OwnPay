@@ -1,0 +1,60 @@
+{% extends "admin/base.twig" %}
+
+{% block title %}Themes — {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <h1>Themes</h1>
+    <a href="{{ path('admin.themes.install') }}" class="op-btn op-btn-primary">
+        <span class="op-icon">+</span> Install Theme
+    </a>
+</div>
+
+{% if flash_success %}
+<div class="op-alert op-alert-success">{{ flash_success }}</div>
+{% endif %}
+
+<div class="op-theme-grid">
+    {% for theme in themes %}
+    <div class="op-theme-card {% if theme.slug == active_theme %}op-theme-active{% endif %}">
+        <div class="op-theme-preview">
+            {% if theme.screenshot %}
+                <img src="{{ asset('modules/themes/' ~ theme.slug ~ '/screenshot.png') }}" alt="{{ theme.name }} preview" loading="lazy">
+            {% else %}
+                <div class="op-theme-placeholder">
+                    <span>{{ theme.name|first }}</span>
+                </div>
+            {% endif %}
+            {% if theme.slug == active_theme %}
+                <span class="op-theme-badge">Active</span>
+            {% endif %}
+        </div>
+        <div class="op-theme-info">
+            <h3>{{ theme.name }}</h3>
+            <p class="op-text-muted">v{{ theme.version }} — {{ theme.author|default('Unknown') }}</p>
+            {% if theme.description %}
+                <p class="op-theme-desc">{{ theme.description|truncate(100) }}</p>
+            {% endif %}
+        </div>
+        <div class="op-theme-actions">
+            {% if theme.slug == active_theme %}
+                <a href="{{ path('admin.themes.customize', {slug: theme.slug}) }}" class="op-btn op-btn-sm op-btn-outline">Customize</a>
+            {% else %}
+                <form method="POST" action="{{ path('admin.themes.activate', {slug: theme.slug}) }}" class="op-inline-form">
+                    {{ csrf_field() }}
+                    <button type="submit" class="op-btn op-btn-sm op-btn-primary">Activate</button>
+                </form>
+            {% endif %}
+            {% if theme.slug != 'default' and theme.slug != active_theme %}
+                <form method="POST" action="{{ path('admin.themes.uninstall', {slug: theme.slug}) }}" class="op-inline-form" onsubmit="return confirm('Remove this theme?')">
+                    {{ csrf_field() }}
+                    <button type="submit" class="op-btn op-btn-sm op-btn-danger">Remove</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+        <p class="op-empty">No themes installed.</p>
+    {% endfor %}
+</div>
+{% endblock %}

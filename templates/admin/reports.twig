@@ -1,0 +1,44 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Reports — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Reports</h1>
+    <div class="op-header-actions">
+        <form method="GET" class="op-filter-bar">
+            <input type="date" name="from" value="{{ filters.from ?? '' }}" class="op-input op-input-sm">
+            <input type="date" name="to" value="{{ filters.to ?? '' }}" class="op-input op-input-sm">
+            <select name="gateway" class="op-input op-input-sm">
+                <option value="">All Gateways</option>
+                {% for gw in gateways %}<option value="{{ gw.slug }}" {{ (filters.gateway ?? '') == gw.slug ? 'selected' : '' }}>{{ gw.name }}</option>{% endfor %}
+            </select>
+            <button type="submit" class="op-btn op-btn-sm op-btn-primary">Generate</button>
+            <a href="/admin/reports/export?{{ query_string }}" class="op-btn op-btn-sm op-btn-outline">Export CSV</a>
+        </form>
+    </div>
+</div>
+
+<div class="op-stats-grid">
+    <div class="op-stat-card op-stat-primary"><div class="op-stat-content"><span class="op-stat-value">{{ report.total_revenue ?? '0.00' }}</span><span class="op-stat-label">Revenue</span></div></div>
+    <div class="op-stat-card op-stat-success"><div class="op-stat-content"><span class="op-stat-value">{{ report.total_transactions ?? 0 }}</span><span class="op-stat-label">Transactions</span></div></div>
+    <div class="op-stat-card op-stat-info"><div class="op-stat-content"><span class="op-stat-value">{{ report.avg_transaction ?? '0.00' }}</span><span class="op-stat-label">Avg Transaction</span></div></div>
+    <div class="op-stat-card op-stat-warning"><div class="op-stat-content"><span class="op-stat-value">{{ report.total_fees ?? '0.00' }}</span><span class="op-stat-label">Total Fees</span></div></div>
+</div>
+
+{{ fire_hook('report.data', report)|raw }}
+
+{% if report.by_gateway|length > 0 %}
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>By Gateway</h3></div>
+    <div class="op-card-body op-p-0">
+        <table class="op-table">
+            <thead><tr><th>Gateway</th><th>Count</th><th>Revenue</th><th>Fees</th></tr></thead>
+            <tbody>
+                {% for gw in report.by_gateway %}
+                <tr><td>{{ gw.name }}</td><td>{{ gw.count }}</td><td>{{ gw.revenue }}</td><td>{{ gw.fees }}</td></tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

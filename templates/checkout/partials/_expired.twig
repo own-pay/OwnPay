@@ -1,0 +1,9 @@
+{# EXPIRED STATUS #}
+<div class="ck-status ck-status-expired">
+    <div class="ck-status-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#636e72" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+    </div>
+    <h2>{{ lang.payment_expired ?? 'Payment Expired' }}</h2>
+    {% if txn.trx_id %}<p class="ck-status-ref">Ref: {{ txn.trx_id }}</p>{% endif %}
+    <p class="ck-status-msg">{{ lang.expired_msg ?? 'This payment link has expired. Please request a new payment.' }}</p>
+</div>

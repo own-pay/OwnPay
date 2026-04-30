@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ app_name }}{% endblock %}</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/admin.css">
+    {% block head %}{% endblock %}
+    {{ fire_hook('admin.head')|raw }}
+</head>
+<body class="op-admin">
+    <div class="op-layout">
+        {% include 'admin/layout/sidebar.twig' %}
+
+        <div class="op-main">
+            {% include 'admin/layout/navbar.twig' %}
+
+            <main class="op-content">
+                {% if flash_success %}
+                <div class="op-alert op-alert-success op-alert-dismissible">
+                    {{ flash_success }}
+                    <button type="button" class="op-alert-close" onclick="this.parentElement.remove()">×</button>
+                </div>
+                {% endif %}
+                {% if flash_error %}
+                <div class="op-alert op-alert-danger op-alert-dismissible">
+                    {{ flash_error }}
+                    <button type="button" class="op-alert-close" onclick="this.parentElement.remove()">×</button>
+                </div>
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </main>
+
+            {% include 'admin/layout/footer.twig' %}
+        </div>
+    </div>
+
+    {% include 'admin/layout/modals.twig' %}
+
+    <script src="/assets/js/admin.js"></script>
+    {% block scripts %}{% endblock %}
+    {{ fire_hook('admin.footer')|raw }}
+</body>
+</html>

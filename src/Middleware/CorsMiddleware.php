@@ -1,150 +1,65 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Middleware;
 
+use OwnPay\Container;
+use OwnPay\Http\Request;
+use OwnPay\Http\Response;
+
 /**
- * CorsMiddleware — centralized CORS handler.
+ * CORS middleware — handles preflight and CORS headers for API routes.
  *
- * Features:
- *   - Configurable allowed origins (list or wildcard)
- *   - Proper OPTIONS preflight handling (returns 204)
- *   - Standard Access-Control-Allow-* headers
- *   - Blocks wildcard '*' origin in production mode
- *   - Exposes rate limit headers to JavaScript clients
+ * Per OWASP: restrict origins, no wildcard with credentials.
  */
 final class CorsMiddleware
 {
-    /** @var string[] Allowed origin domains */
-    private array $allowedOrigins;
+    private Container $container;
 
-    /** @var string[] Allowed HTTP methods */
-    private array $allowedMethods;
+    public function __construct(Container $container)
+    {
+        $this->container = $container;
+    }
 
-    /** @var string[] Allowed request headers */
-    private array $allowedHeaders;
+    public function handle(Request $request, callable $next): Response
+    {
+        $origin = $request->header('Origin');
+        $allowedOrigins = $this->getAllowedOrigins();
 
-    /** @var string[] Headers exposed to the browser */
-    private array $exposedHeaders;
+        // Preflight
+        if ($request->isMethod('OPTIONS')) {
+            $response = Response::empty(204);
+            return $this->addCorsHeaders($response, $origin, $allowedOrigins);
+        }
 
-    private int $maxAge;
-    private bool $allowCredentials;
+        $response = $next($request);
+        return $this->addCorsHeaders($response, $origin, $allowedOrigins);
+    }
 
-    public function __construct(
-        array $allowedOrigins = [],
-        array $allowedMethods = ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-        array $allowedHeaders = [
-            'Authorization',
-            'Content-Type',
-            'Accept',
-            'X-Requested-With',
-            'X-OP-Signature',
-            'X-OP-Timestamp',
-            'Idempotency-Key',
-        ],
-        array $exposedHeaders = [
-            'X-RateLimit-Limit',
-            'X-RateLimit-Remaining',
-            'X-RateLimit-Reset',
-        ],
-        int $maxAge = 86400,
-        bool $allowCredentials = true
-    ) {
-        $this->allowedOrigins = $allowedOrigins;
-        $this->allowedMethods = $allowedMethods;
-        $this->allowedHeaders = $allowedHeaders;
-        $this->exposedHeaders = $exposedHeaders;
-        $this->maxAge = $maxAge;
-        $this->allowCredentials = $allowCredentials;
+    private function addCorsHeaders(Response $response, string $origin, array $allowedOrigins): Response
+    {
+        if ($origin === '') {
+            return $response;
+        }
+
+        // Strict origin check — no wildcards when credentials used
+        if (in_array($origin, $allowedOrigins, true) || in_array('*', $allowedOrigins, true)) {
+            $response->withHeader('Access-Control-Allow-Origin', $origin);
+            $response->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+            $response->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With');
+            $response->withHeader('Access-Control-Max-Age', '86400');
+            $response->withHeader('Vary', 'Origin');
+        }
+
+        return $response;
     }
 
     /**
-     * Handle CORS for the current request.
-     *
-     * Call this at the top of the request pipeline.
-     * Will exit with 204 on OPTIONS preflight.
+     * @return string[]
      */
-    public function handle(): void
+    private function getAllowedOrigins(): array
     {
-        $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
-
-        if (empty($origin)) {
-            return; // Not a CORS request
-        }
-
-        if (!$this->isOriginAllowed($origin)) {
-            // Don't set CORS headers — browser will block
-            return;
-        }
-
-        // Set CORS response headers
-        header("Access-Control-Allow-Origin: {$origin}");
-        header('Vary: Origin');
-
-        if ($this->allowCredentials) {
-            header('Access-Control-Allow-Credentials: true');
-        }
-
-        if (!empty($this->exposedHeaders)) {
-            header('Access-Control-Expose-Headers: ' . implode(', ', $this->exposedHeaders));
-        }
-
-        // Handle preflight
-        if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
-            header('Access-Control-Allow-Methods: ' . implode(', ', $this->allowedMethods));
-            header('Access-Control-Allow-Headers: ' . implode(', ', $this->allowedHeaders));
-            header("Access-Control-Max-Age: {$this->maxAge}");
-
-            http_response_code(204);
-            exit;
-        }
-    }
-
-    /**
-     * Check if an origin is allowed.
-     */
-    private function isOriginAllowed(string $origin): bool
-    {
-        // Empty config = allow all (development only)
-        if (empty($this->allowedOrigins)) {
-            return true;
-        }
-
-        // Wildcard — only in non-production
-        if (in_array('*', $this->allowedOrigins, true)) {
-            $env = getenv('APP_ENV') ?: 'production';
-            if ($env === 'production') {
-                error_log("[CORS] Wildcard origin blocked in production mode");
-                return false;
-            }
-            return true;
-        }
-
-        // Parse origin to compare domains
-        $originHost = parse_url($origin, PHP_URL_HOST);
-
-        foreach ($this->allowedOrigins as $allowed) {
-            // Exact match
-            if ($origin === $allowed) {
-                return true;
-            }
-
-            // Host-only match (ignore scheme/port)
-            $allowedHost = parse_url($allowed, PHP_URL_HOST) ?: $allowed;
-            if ($originHost === $allowedHost) {
-                return true;
-            }
-
-            // Subdomain wildcard (e.g. "*.example.com")
-            if (str_starts_with($allowed, '*.')) {
-                $baseDomain = substr($allowed, 2);
-                if ($originHost === $baseDomain || str_ends_with($originHost, ".{$baseDomain}")) {
-                    return true;
-                }
-            }
-        }
-
-        return false;
+        $env = getenv('CORS_ALLOWED_ORIGINS') ?: '*';
+        return array_map('trim', explode(',', $env));
     }
 }

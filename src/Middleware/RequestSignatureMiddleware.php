@@ -1,119 +1,104 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Middleware;
 
+use OwnPay\Container;
+use OwnPay\Http\Request;
+use OwnPay\Http\Response;
+
 /**
- * RequestSignatureMiddleware — HMAC request signing for high-value operations.
+ * Request signature middleware — validates HMAC signatures on webhook/IPN callbacks.
  *
- * Validates that the request body is signed with a per-key signing secret.
- * This provides an additional layer of authentication beyond Bearer tokens,
- * preventing stolen tokens from being used without the signing secret.
- *
- * Header format:
- *   X-OP-Signature: sha256=HMAC(timestamp.body, signing_secret)
- *   X-OP-Timestamp: Unix epoch seconds
- *
- * Signing secret is stored alongside the API key and returned once at creation.
+ * Per security skill: timing-safe compare, reject replay attacks.
+ * Used for incoming gateway callbacks (Stripe, SSLCommerz, etc).
  */
 final class RequestSignatureMiddleware
 {
-    private const MAX_TIMESTAMP_SKEW = 300; // 5 minutes
+    private Container $container;
 
-    /**
-     * Verify the request signature.
-     *
-     * @param string $rawBody       Raw request body
-     * @param string $signingSecret The key's signing secret
-     * @return array{valid: bool, error: string}
-     */
-    public function verify(string $rawBody, string $signingSecret): array
+    public function __construct(Container $container)
     {
-        // Extract headers
-        $signature = $this->getHeader('X-OP-Signature');
-        $timestamp = $this->getHeader('X-OP-Timestamp');
+        $this->container = $container;
+    }
 
-        // Both headers required
-        if (empty($signature) || empty($timestamp)) {
-            return [
-                'valid' => false,
-                'error' => 'Missing X-OP-Signature and/or X-OP-Timestamp headers.',
-            ];
+    public function handle(Request $request, callable $next): Response
+    {
+        $signature = $request->header('X-Signature')
+            ?? $request->header('X-Hub-Signature-256')
+            ?? $request->query('signature');
+
+        if ($signature === null || $signature === '') {
+            return Response::json([
+                'success' => false,
+                'message' => 'Missing request signature',
+            ], 401);
         }
 
-        // Validate timestamp freshness
-        if (!ctype_digit($timestamp) || abs(time() - (int) $timestamp) > self::MAX_TIMESTAMP_SKEW) {
-            return [
-                'valid' => false,
-                'error' => 'Request timestamp expired or invalid (±5 minute window).',
-            ];
+        $body = $request->rawBody();
+        $secret = $this->resolveSecret($request);
+
+        if ($secret === null) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Signature verification not configured',
+            ], 500);
         }
 
-        // Parse signature format: sha256=<hex>
-        if (!str_starts_with($signature, 'sha256=')) {
-            return [
-                'valid' => false,
-                'error' => 'Invalid signature format. Expected: sha256=<hex>',
-            ];
+        // Support both raw and "sha256=..." prefixed signatures
+        $algo = 'sha256';
+        $sigValue = $signature;
+        if (str_contains($signature, '=')) {
+            [$algo, $sigValue] = explode('=', $signature, 2);
         }
 
-        $providedHash = substr($signature, 7);
+        $expected = hash_hmac($algo, $body, $secret);
 
-        // Compute expected signature
-        $payload = "{$timestamp}.{$rawBody}";
-        $expectedHash = hash_hmac('sha256', $payload, $signingSecret);
-
-        // Timing-safe comparison
-        if (!hash_equals($expectedHash, $providedHash)) {
-            return [
-                'valid' => false,
-                'error' => 'Request signature verification failed.',
-            ];
+        // Timing-safe comparison (per OWASP)
+        if (!hash_equals($expected, $sigValue)) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Invalid request signature',
+            ], 401);
         }
 
-        return ['valid' => true, 'error' => ''];
+        // Replay protection: check timestamp if provided
+        $timestamp = $request->header('X-Timestamp');
+        if ($timestamp !== null) {
+            $requestTime = (int) $timestamp;
+            $tolerance = 300; // 5 minutes
+            if (abs(time() - $requestTime) > $tolerance) {
+                return Response::json([
+                    'success' => false,
+                    'message' => 'Request timestamp too old (replay rejected)',
+                ], 401);
+            }
+        }
+
+        return $next($request);
     }
 
     /**
-     * Enforce request signature — sends 401 and exits if invalid.
-     *
-     * @param string $rawBody       Raw request body
-     * @param string $signingSecret The key's signing secret
+     * Resolve signing secret from merchant webhook config or env.
      */
-    public function enforce(string $rawBody, string $signingSecret): void
+    private function resolveSecret(Request $request): ?string
     {
-        $result = $this->verify($rawBody, $signingSecret);
-
-        if (!$result['valid']) {
-            http_response_code(401);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'error' => [
-                    'code' => 'INVALID_SIGNATURE',
-                    'message' => $result['error'],
-                ],
-            ]);
-            exit;
+        // Try merchant webhook secret from route params
+        $merchantId = $request->getAttribute('merchant_id');
+        if ($merchantId !== null) {
+            try {
+                $repo = $this->container->get(\OwnPay\Repository\MerchantRepository::class);
+                $merchant = $repo->find($merchantId);
+                if ($merchant !== null && !empty($merchant['webhook_secret'])) {
+                    return $merchant['webhook_secret'];
+                }
+            } catch (\Throwable) {
+                // Fall through
+            }
         }
-    }
 
-    /**
-     * Check if the current request has signature headers present.
-     * Used to determine if signature verification should be applied.
-     */
-    public function hasSignatureHeaders(): bool
-    {
-        return !empty($this->getHeader('X-OP-Signature'));
-    }
-
-    /**
-     * Get a header value from $_SERVER.
-     */
-    private function getHeader(string $name): string
-    {
-        // Convert Header-Name to HTTP_HEADER_NAME
-        $serverKey = 'HTTP_' . strtoupper(str_replace('-', '_', $name));
-        return $_SERVER[$serverKey] ?? '';
+        // Fallback to env
+        $secret = getenv('WEBHOOK_SIGNING_SECRET') ?: null;
+        return $secret ?: null;
     }
 }

@@ -1,151 +1,110 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Middleware;
 
+use OwnPay\Container;
+use OwnPay\Http\Request;
+use OwnPay\Http\Response;
+
 /**
- * IpAllowlistMiddleware — per-key IP restriction.
+ * IP allowlist middleware — restricts access to configured IPs.
  *
- * If an API key has `allowed_ips` set, only requests from those
- * IPs/CIDRs are permitted. Empty/null = all IPs allowed.
- *
- * Supports:
- *   - Exact IPv4/IPv6 match
- *   - CIDR notation (e.g. "192.168.1.0/24", "10.0.0.0/8")
- *   - Mixed lists
+ * Per OWASP: defense-in-depth for admin/API routes.
+ * Supports IPv4, IPv6, CIDR notation.
  */
 final class IpAllowlistMiddleware
 {
-    /**
-     * Validate that the current request IP is allowed.
-     *
-     * @param array|null $allowedIps List of allowed IPs/CIDRs, or null for unrestricted
-     * @param string|null $clientIp  Override client IP (null = auto-detect)
-     * @return array{allowed: bool, clientIp: string, reason: string}
-     */
-    public function validate(?array $allowedIps = null, ?string $clientIp = null): array
-    {
-        $ip = $clientIp ?? $this->detectClientIp();
+    private Container $container;
 
-        // No restriction configured — allow all
-        if ($allowedIps === null || empty($allowedIps)) {
-            return ['allowed' => true, 'clientIp' => $ip, 'reason' => ''];
+    public function __construct(Container $container)
+    {
+        $this->container = $container;
+    }
+
+    public function handle(Request $request, callable $next): Response
+    {
+        $allowlist = $this->getAllowlist();
+
+        // Empty allowlist = feature disabled
+        if (empty($allowlist)) {
+            return $next($request);
         }
 
-        foreach ($allowedIps as $entry) {
-            $entry = trim($entry);
-            if ($entry === '')
-                continue;
+        $clientIp = $request->ip();
 
-            // CIDR match
-            if (str_contains($entry, '/')) {
-                if ($this->matchesCidr($ip, $entry)) {
-                    return ['allowed' => true, 'clientIp' => $ip, 'reason' => ''];
-                }
-            } else {
-                // Exact match
-                if ($ip === $entry) {
-                    return ['allowed' => true, 'clientIp' => $ip, 'reason' => ''];
-                }
+        foreach ($allowlist as $allowed) {
+            if ($this->matches($clientIp, trim($allowed))) {
+                return $next($request);
             }
         }
 
-        return [
-            'allowed' => false,
-            'clientIp' => $ip,
-            'reason' => "IP address {$ip} is not in the allowlist for this API key.",
-        ];
-    }
-
-    /**
-     * Enforce IP allowlist — sends 403 and exits if blocked.
-     */
-    public function enforce(?array $allowedIps = null): void
-    {
-        $result = $this->validate($allowedIps);
-
-        if (!$result['allowed']) {
-            http_response_code(403);
-            header('Content-Type: application/json');
-            echo json_encode([
-                'error' => [
-                    'code' => 'IP_NOT_ALLOWED',
-                    'message' => $result['reason'],
-                ],
-            ]);
-            exit;
+        if ($request->expectsJson()) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Access denied: IP not allowed',
+            ], 403);
         }
+
+        return Response::html('<h1>403 Forbidden</h1><p>Your IP address is not authorized.</p>', 403);
     }
 
     /**
-     * Check if an IP matches a CIDR block.
+     * Check if IP matches allowed entry (exact or CIDR).
      */
-    private function matchesCidr(string $ip, string $cidr): bool
+    private function matches(string $ip, string $allowed): bool
+    {
+        // Exact match
+        if ($ip === $allowed) {
+            return true;
+        }
+
+        // CIDR match
+        if (str_contains($allowed, '/')) {
+            return $this->cidrMatch($ip, $allowed);
+        }
+
+        return false;
+    }
+
+    private function cidrMatch(string $ip, string $cidr): bool
     {
         [$subnet, $bits] = explode('/', $cidr, 2);
         $bits = (int) $bits;
 
-        // IPv4
-        $ipLong = ip2long($ip);
-        $subnetLong = ip2long($subnet);
+        $ipBin = inet_pton($ip);
+        $subnetBin = inet_pton($subnet);
 
-        if ($ipLong === false || $subnetLong === false) {
-            // IPv6 or invalid — try inet_pton
-            return $this->matchesCidrIpv6($ip, $subnet, $bits);
-        }
-
-        if ($bits === 0) {
-            return true; // /0 matches everything
-        }
-
-        $mask = -1 << (32 - $bits);
-        return ($ipLong & $mask) === ($subnetLong & $mask);
-    }
-
-    /**
-     * IPv6 CIDR matching using inet_pton.
-     */
-    private function matchesCidrIpv6(string $ip, string $subnet, int $bits): bool
-    {
-        $ipBin = @inet_pton($ip);
-        $subBin = @inet_pton($subnet);
-
-        if ($ipBin === false || $subBin === false) {
+        if ($ipBin === false || $subnetBin === false) {
             return false;
         }
 
-        // Compare bit-by-bit
-        $ipHex = bin2hex($ipBin);
-        $subHex = bin2hex($subBin);
-
-        // Full hex digit comparison
-        $fullDigits = intdiv($bits, 4);
-        if (substr($ipHex, 0, $fullDigits) !== substr($subHex, 0, $fullDigits)) {
+        // Must be same family (IPv4/IPv6)
+        if (strlen($ipBin) !== strlen($subnetBin)) {
             return false;
         }
 
-        // Remaining bits
-        $remainBits = $bits % 4;
-        if ($remainBits > 0 && $fullDigits < strlen($ipHex)) {
-            $ipNibble = intval($ipHex[$fullDigits], 16);
-            $subNibble = intval($subHex[$fullDigits], 16);
-            $mask = (0xF << (4 - $remainBits)) & 0xF;
-            if (($ipNibble & $mask) !== ($subNibble & $mask)) {
-                return false;
-            }
+        // Build mask
+        $fullBytes = intdiv($bits, 8);
+        $remainBits = $bits % 8;
+        $mask = str_repeat("\xff", $fullBytes);
+        if ($remainBits > 0) {
+            $mask .= chr(0xff << (8 - $remainBits) & 0xff);
         }
+        $mask = str_pad($mask, strlen($ipBin), "\x00");
 
-        return true;
+        return ($ipBin & $mask) === ($subnetBin & $mask);
     }
 
     /**
-     * Detect the client's real IP.
+     * @return string[]
      */
-    private function detectClientIp(): string
+    private function getAllowlist(): array
     {
-        // Trust X-Forwarded-For only behind known reverse proxies
-        // For production, configure trusted proxies explicitly
-        return $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+        $raw = getenv('IP_ALLOWLIST') ?: '';
+        if ($raw === '') {
+            return [];
+        }
+        return array_filter(array_map('trim', explode(',', $raw)));
     }
 }

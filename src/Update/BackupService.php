@@ -1,0 +1,212 @@
+<?php
+declare(strict_types=1);
+
+namespace OwnPay\Update;
+
+/**
+ * Backup service — DB dump + code ZIP for update rollback.
+ *
+ * Per security skill: backups include DB schema + data, code files.
+ */
+final class BackupService
+{
+    private string $backupDir;
+
+    public function __construct(?string $backupDir = null)
+    {
+        $this->backupDir = $backupDir ?? dirname(__DIR__, 2) . '/storage/backups';
+        if (!is_dir($this->backupDir)) {
+            @mkdir($this->backupDir, 0755, true);
+        }
+    }
+
+    /**
+     * Create full backup (DB + code).
+     * @return string Path to backup directory
+     */
+    public function createFullBackup(): string
+    {
+        $timestamp = date('Y-m-d_His');
+        $backupPath = $this->backupDir . '/backup_' . $timestamp;
+        @mkdir($backupPath, 0755, true);
+
+        // 1. Database dump
+        $this->dumpDatabase($backupPath . '/database.sql');
+
+        // 2. Code backup (ZIP key directories)
+        $this->backupCode($backupPath . '/code.zip');
+
+        // 3. Write manifest
+        file_put_contents($backupPath . '/manifest.json', json_encode([
+            'timestamp'  => $timestamp,
+            'version'    => getenv('APP_VERSION') ?: '0.1.0',
+            'php'        => PHP_VERSION,
+            'db_file'    => 'database.sql',
+            'code_file'  => 'code.zip',
+        ]));
+
+        return $backupPath;
+    }
+
+    /**
+     * Restore from backup directory.
+     */
+    public function restore(string $backupPath): void
+    {
+        $manifest = json_decode(file_get_contents($backupPath . '/manifest.json') ?: '{}', true);
+
+        // 1. Restore code
+        $codeZip = $backupPath . '/code.zip';
+        if (file_exists($codeZip)) {
+            $zip = new \ZipArchive();
+            if ($zip->open($codeZip) === true) {
+                $zip->extractTo(dirname(__DIR__, 2));
+                $zip->close();
+            }
+        }
+
+        // 2. Restore database
+        $dbFile = $backupPath . '/database.sql';
+        if (file_exists($dbFile)) {
+            $this->restoreDatabase($dbFile);
+        }
+    }
+
+    /**
+     * Cleanup old backups (keep last N).
+     */
+    public function cleanup(int $keepLast = 5): void
+    {
+        $backups = glob($this->backupDir . '/backup_*');
+        if ($backups === false) {
+            return;
+        }
+
+        rsort($backups); // Newest first
+        $toDelete = array_slice($backups, $keepLast);
+
+        foreach ($toDelete as $dir) {
+            $this->removeDir($dir);
+        }
+    }
+
+    private function dumpDatabase(string $outputPath): void
+    {
+        $host = getenv('DB_HOST') ?: 'localhost';
+        $name = getenv('DB_NAME') ?: '';
+        $user = getenv('DB_USER') ?: '';
+        $pass = getenv('DB_PASS') ?: '';
+        $port = getenv('DB_PORT') ?: '3306';
+
+        // Try mysqldump first
+        $cmd = sprintf(
+            'mysqldump --host=%s --port=%s --user=%s --password=%s --single-transaction --routines %s > %s 2>&1',
+            escapeshellarg($host),
+            escapeshellarg($port),
+            escapeshellarg($user),
+            escapeshellarg($pass),
+            escapeshellarg($name),
+            escapeshellarg($outputPath)
+        );
+
+        $output = [];
+        $exitCode = 0;
+        exec($cmd, $output, $exitCode);
+
+        if ($exitCode !== 0) {
+            // Fallback: PDO-based dump
+            $this->pdoDump($outputPath);
+        }
+    }
+
+    private function pdoDump(string $outputPath): void
+    {
+        $db = \OwnPay\Core\Database::getInstance();
+        $tables = $db->fetchAll("SHOW TABLES");
+        $sql = "-- OwnPay Database Backup\n-- Generated: " . date('Y-m-d H:i:s') . "\n\n";
+
+        foreach ($tables as $row) {
+            $tableName = array_values($row)[0];
+
+            // CREATE TABLE
+            $createRow = $db->fetchOne("SHOW CREATE TABLE `{$tableName}`");
+            $sql .= ($createRow['Create Table'] ?? '') . ";\n\n";
+
+            // INSERT data
+            $rows = $db->fetchAll("SELECT * FROM `{$tableName}`");
+            foreach ($rows as $dataRow) {
+                $values = array_map(function ($v) {
+                    if ($v === null) {
+                        return 'NULL';
+                    }
+                    return "'" . addslashes((string) $v) . "'";
+                }, array_values($dataRow));
+
+                $sql .= "INSERT INTO `{$tableName}` VALUES (" . implode(',', $values) . ");\n";
+            }
+            $sql .= "\n";
+        }
+
+        file_put_contents($outputPath, $sql);
+    }
+
+    private function restoreDatabase(string $sqlFile): void
+    {
+        $sql = file_get_contents($sqlFile);
+        if ($sql === false || trim($sql) === '') {
+            return;
+        }
+
+        $db = \OwnPay\Core\Database::getInstance();
+        $statements = array_filter(array_map('trim', explode(";\n", $sql)), fn($s) => $s !== '' && !str_starts_with($s, '--'));
+
+        foreach ($statements as $stmt) {
+            try {
+                $db->execute($stmt);
+            } catch (\Throwable) {
+                // Continue — some statements may fail on re-import
+            }
+        }
+    }
+
+    private function backupCode(string $outputPath): void
+    {
+        $appRoot = dirname(__DIR__, 2);
+        $zip = new \ZipArchive();
+        if ($zip->open($outputPath, \ZipArchive::CREATE) !== true) {
+            return;
+        }
+
+        $dirs = ['src', 'config', 'templates', 'public'];
+        foreach ($dirs as $dir) {
+            $fullDir = $appRoot . '/' . $dir;
+            if (!is_dir($fullDir)) {
+                continue;
+            }
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($fullDir, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+            foreach ($iterator as $item) {
+                if ($item->isFile()) {
+                    $relativePath = $dir . '/' . $iterator->getSubPathname();
+                    $zip->addFile($item->getPathname(), $relativePath);
+                }
+            }
+        }
+
+        $zip->close();
+    }
+
+    private function removeDir(string $dir): void
+    {
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($items as $item) {
+            $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+        }
+        @rmdir($dir);
+    }
+}

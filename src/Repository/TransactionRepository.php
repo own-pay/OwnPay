@@ -1,90 +1,76 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
-/**
- * Repository for op_transactions — payment execution records.
- *
- * NOTE: This table is PARTITIONED by created_at. The primary key is
- * composite (id, created_at). Cross-partition lookups should use
- * public_id (UUID) via findByPublicId().
- */
-class TransactionRepository extends BaseRepository
+use Ramsey\Uuid\Uuid;
+
+final class TransactionRepository extends BaseRepository
 {
     use TenantScope;
 
     protected string $table = 'op_transactions';
+    protected array $fillable = [
+        'merchant_id', 'uuid', 'trx_id', 'payment_intent_id', 'customer_id',
+        'gateway_slug', 'amount', 'fee', 'net_amount', 'currency',
+        'sender_account', 'reference', 'gateway_trx_id', 'method',
+        'status', 'metadata', 'completed_at',
+    ];
 
     /**
-     * Find transaction by its unique reference.
+     * Generate unique TRX ID: OP-XXXXXXXXXX
      */
-    public function findByReference(string $reference): ?array
+    public function generateTrxId(): string
     {
-        $tc = $this->tenantCondition();
-        return $this->findOneWhere(
-            '`reference` = :ref' . $tc,
-            array_merge(['ref' => $reference], $this->tenantParams())
-        );
+        do {
+            $trxId = 'OP-' . strtoupper(bin2hex(random_bytes(5)));
+        } while ($this->db->exists($this->table, "trx_id = :t", ['t' => $trxId]));
+        return $trxId;
     }
 
-    /**
-     * Find transactions for a merchant with optional status filter.
-     */
-    public function findByMerchant(
-        int $merchantId,
-        ?string $status = null,
-        int $limit = 50,
-        string $orderBy = 'created_at DESC'
-    ): array {
-        $where = '`merchant_id` = :mid';
-        $params = ['mid' => $merchantId];
-
-        if ($status !== null) {
-            $where .= ' AND `status` = :status';
-            $params['status'] = $status;
-        }
-
-        $tc = $this->tenantCondition();
-        $where .= $tc;
-        $params = array_merge($params, $this->tenantParams());
-
-        return $this->findWhere($where, $params, $orderBy, $limit);
-    }
-
-    /**
-     * Find transaction by payment intent.
-     */
-    public function findByPaymentIntent(int $paymentIntentId): ?array
+    public function createTransaction(array $data): string
     {
-        $tc = $this->tenantCondition();
-        return $this->findOneWhere(
-            '`payment_intent_id` = :piid' . $tc,
-            array_merge(['piid' => $paymentIntentId], $this->tenantParams())
+        $data['uuid'] = Uuid::uuid4()->toString();
+        $data['trx_id'] = $data['trx_id'] ?? $this->generateTrxId();
+        $data['net_amount'] = $data['net_amount'] ?? bcsub((string) $data['amount'], (string) ($data['fee'] ?? '0'), 2);
+        return $this->createScoped($data);
+    }
+
+    public function findByTrxId(string $trxId): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE trx_id = :t AND merchant_id = :mid LIMIT 1",
+            ['t' => $trxId, 'mid' => $this->requireTenant()]
         );
     }
 
-    /**
-     * Update transaction status with gateway response.
-     */
-    public function updateStatus(
-        int $id,
-        string $createdAt,
-        string $newStatus,
-        ?array $gatewayResponse = null
-    ): int {
-        $data = ['status' => $newStatus];
-        if ($gatewayResponse !== null) {
-            $data['gateway_response'] = json_encode($gatewayResponse);
-        }
+    public function markCompleted(int $id): int
+    {
+        return $this->updateScoped($id, [
+            'status' => 'completed',
+            'completed_at' => date('Y-m-d H:i:s.u'),
+        ]);
+    }
 
-        $tc = $this->tenantCondition();
-        // Partitioned table — must include created_at in WHERE
-        return $this->update(
-            $data,
-            '`id` = :where_id AND `created_at` = :where_ca' . $tc,
-            array_merge(['where_id' => $id, 'where_ca' => $createdAt], $this->tenantParams())
-        );
+    /**
+     * Dashboard stats: total volume + count by status for date range.
+     * Uses composite index idx_merchant_created.
+     */
+    public function stats(string $from, string $to): array
+    {
+        $mid = $this->requireTenant();
+        return $this->db->fetchOne(
+            "SELECT
+                COUNT(*) as total_count,
+                COALESCE(SUM(amount), 0) as total_volume,
+                COALESCE(SUM(fee), 0) as total_fees,
+                COALESCE(SUM(net_amount), 0) as total_net,
+                SUM(CASE WHEN status = 'completed' THEN 1 ELSE 0 END) as completed_count,
+                SUM(CASE WHEN status = 'pending' THEN 1 ELSE 0 END) as pending_count,
+                SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed_count
+            FROM {$this->table}
+            WHERE merchant_id = :mid AND created_at BETWEEN :from AND :to",
+            ['mid' => $mid, 'from' => $from, 'to' => $to]
+        ) ?? [];
     }
 }

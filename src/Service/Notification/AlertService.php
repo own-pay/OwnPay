@@ -1,170 +1,74 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Service\Notification;
 
-use OwnPay\Core\Database;
-
 /**
- * AlertService — mismatch notification system.
- *
- * Severity levels: info, warning, critical
- * Channels: DB log (always), outbound webhook (configurable)
- * Rate-limited: max 10 alerts per type per hour to prevent floods.
+ * Alert service — admin alerts (low balance, failed webhooks, security events).
  */
 final class AlertService
 {
-    private const MAX_ALERTS_PER_HOUR = 10;
+    private \OwnPay\Core\Database $db;
 
-    private Database $db;
-    private ?WebhookService $webhooks;
-
-    public function __construct(?Database $db = null, ?WebhookService $webhooks = null)
+    public function __construct(\OwnPay\Core\Database $db)
     {
-        $this->db = $db ?? Database::getInstance();
-        $this->webhooks = $webhooks;
+        $this->db = $db;
     }
 
     /**
-     * Fire an alert.
-     *
-     * @param string $type     Alert type (e.g. 'reconciliation.mismatch')
-     * @param string $severity 'info', 'warning', 'critical'
-     * @param string $message  Human-readable description
-     * @param array  $context  Additional data
-     * @param int    $merchantId
-     * @return bool Whether the alert was recorded (false if rate-limited)
+     * Create alert for merchant admin.
      */
-    public function fire(
-        string $type,
-        string $severity,
-        string $message,
-        array $context = [],
-        int $merchantId = 0
-    ): bool {
-        // Rate limiting check
-        if ($this->isRateLimited($type, $merchantId)) {
-            return false;
-        }
-
-        try {
-            // Store in DB
-            $this->db->execute("
-                INSERT INTO op_alerts
-                    (merchant_id, alert_type, severity, message, context, status, created_at)
-                VALUES (:mid, :type, :sev, :msg, :ctx, 'open', NOW(6))
-            ", [
-                ':mid' => $merchantId,
-                ':type' => $type,
-                ':sev' => $severity,
-                ':msg' => $message,
-                ':ctx' => json_encode($context),
-            ]);
-
-            // Critical alerts → webhook notification
-            if ($severity === 'critical' && $this->webhooks !== null && $merchantId > 0) {
-                $this->webhooks->dispatch($merchantId, 'alert.critical', [
-                    'type' => $type,
-                    'message' => $message,
-                    'context' => $context,
-                ]);
-            }
-
-            return true;
-        } catch (\PDOException $e) {
-            error_log("[Alert] Failed to record alert: " . $e->getMessage());
-            return false;
-        }
+    public function create(int $merchantId, string $type, string $title, string $message, string $severity = 'info'): void
+    {
+        $this->db->insert(
+            "INSERT INTO op_alerts (merchant_id, type, title, message, severity, status, created_at)
+             VALUES (:mid, :type, :title, :msg, :sev, 'unread', NOW())",
+            ['mid' => $merchantId, 'type' => $type, 'title' => $title, 'msg' => $message, 'sev' => $severity]
+        );
     }
 
     /**
-     * Convenience: fire reconciliation mismatch alerts from a report.
+     * Get unread alerts.
      */
-    public function fireFromReconciliation(array $report): int
+    public function getUnread(int $merchantId, int $limit = 20): array
     {
-        $fired = 0;
-        $merchantId = (int) ($report['merchant_id'] ?? 0);
-
-        foreach ($report['mismatches'] ?? [] as $mismatch) {
-            $this->fire(
-                'reconciliation.' . ($mismatch['type'] ?? 'unknown'),
-                $mismatch['severity'] ?? 'warning',
-                $mismatch['detail'] ?? json_encode($mismatch),
-                $mismatch,
-                $merchantId
-            );
-            $fired++;
-        }
-
-        return $fired;
+        return $this->db->fetchAll(
+            "SELECT * FROM op_alerts WHERE merchant_id = :mid AND status = 'unread'
+             ORDER BY created_at DESC LIMIT {$limit}",
+            ['mid' => $merchantId]
+        );
     }
 
     /**
-     * Acknowledge (close) an alert.
+     * Mark alert as read.
      */
-    public function acknowledge(int $alertId, string $acknowledgedBy = 'system'): void
+    public function markRead(int $alertId, int $merchantId): void
     {
-        $this->db->execute("
-            UPDATE op_alerts
-            SET status = 'acknowledged', acknowledged_by = :by, acknowledged_at = NOW(6)
-            WHERE id = :id AND status = 'open'
-        ", [':by' => $acknowledgedBy, ':id' => $alertId]);
+        $this->db->update(
+            "UPDATE op_alerts SET status = 'read' WHERE id = :id AND merchant_id = :mid",
+            ['id' => $alertId, 'mid' => $merchantId]
+        );
     }
 
     /**
-     * Get open alerts for a merchant.
+     * Mark all as read for merchant.
      */
-    public function getOpenAlerts(int $merchantId, int $limit = 50): array
+    public function markAllRead(int $merchantId): void
     {
-        // Database::execute() with emulate_prepares=false requires typed bind for LIMIT,
-        // so we use getPdo() for bindValue with explicit PDO::PARAM_INT on the LIMIT param.
-        $pdo = $this->db->getPdo();
-        $stmt = $pdo->prepare("
-            SELECT * FROM op_alerts
-            WHERE (merchant_id = :mid OR merchant_id = 0) AND status = 'open'
-            ORDER BY FIELD(severity, 'critical', 'warning', 'info'), created_at DESC
-            LIMIT :lim
-        ");
-        $stmt->bindValue(':mid', $merchantId, \PDO::PARAM_INT);
-        $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        $this->db->update(
+            "UPDATE op_alerts SET status = 'read' WHERE merchant_id = :mid AND status = 'unread'",
+            ['mid' => $merchantId]
+        );
     }
 
     /**
-     * Count open alerts by severity.
+     * Cleanup old alerts (cron).
      */
-    public function countBySeverity(int $merchantId = 0): array
+    public function cleanup(int $daysOld = 30): int
     {
-        $rows = $this->db->fetchAll("
-            SELECT severity, COUNT(*) AS cnt
-            FROM op_alerts
-            WHERE (merchant_id = :mid OR merchant_id = 0) AND status = 'open'
-            GROUP BY severity
-        ", [':mid' => $merchantId]);
-
-        $counts = ['critical' => 0, 'warning' => 0, 'info' => 0];
-        foreach ($rows as $row) {
-            $counts[$row['severity']] = (int) $row['cnt'];
-        }
-        return $counts;
-    }
-
-    /**
-     * Check if alert type is rate-limited.
-     */
-    private function isRateLimited(string $type, int $merchantId): bool
-    {
-        try {
-            $count = $this->db->fetchColumn("
-                SELECT COUNT(*) FROM op_alerts
-                WHERE alert_type = :type AND merchant_id = :mid
-                  AND created_at >= DATE_SUB(NOW(), INTERVAL 1 HOUR)
-            ", [':type' => $type, ':mid' => $merchantId]);
-            return (int) $count >= self::MAX_ALERTS_PER_HOUR;
-        } catch (\PDOException $e) {
-            return false;
-        }
+        return $this->db->delete(
+            "DELETE FROM op_alerts WHERE created_at < DATE_SUB(NOW(), INTERVAL :days DAY) AND status = 'read'",
+            ['days' => $daysOld]
+        );
     }
 }

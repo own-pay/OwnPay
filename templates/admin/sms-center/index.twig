@@ -1,0 +1,59 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}SMS Center — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header"><h1>SMS Center</h1></div>
+
+<div class="op-tabs">
+    <button class="op-tab active" data-tab="templates">Templates</button>
+    <button class="op-tab" data-tab="queue">Queue</button>
+</div>
+
+<div class="op-tab-panel active" id="tab-templates">
+    <div class="op-card">
+        <div class="op-card-header"><h3>SMS Templates</h3></div>
+        <div class="op-card-body op-p-0">
+            <table class="op-table">
+                <thead><tr><th>Event</th><th>Template</th><th>Status</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for tpl in sms_templates %}
+                    <tr>
+                        <td><code>{{ tpl.event }}</code></td>
+                        <td class="op-text-sm">{{ tpl.body|slice(0,80) }}...</td>
+                        <td><span class="op-badge op-badge-{{ tpl.enabled ? 'success' : 'muted' }}">{{ tpl.enabled ? 'ON' : 'OFF' }}</span></td>
+                        <td><a href="/admin/sms-center/{{ tpl.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<div class="op-tab-panel" id="tab-queue">
+    <div class="op-card">
+        <div class="op-card-header"><h3>SMS Queue</h3><span class="op-badge op-badge-info">{{ queue_stats.pending ?? 0 }} pending</span></div>
+        <div class="op-card-body op-p-0">
+            <table class="op-table">
+                <thead><tr><th>To</th><th>Message</th><th>Status</th><th>Sent At</th></tr></thead>
+                <tbody>
+                    {% for sms in sms_queue %}
+                    <tr>
+                        <td>{{ sms.to }}</td>
+                        <td class="op-text-sm">{{ sms.body|slice(0,60) }}...</td>
+                        <td><span class="op-badge op-badge-{{ sms.status == 'sent' ? 'success' : (sms.status == 'failed' ? 'danger' : 'warning') }}">{{ sms.status }}</span></td>
+                        <td>{{ sms.sent_at ?? '—' }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<script>
+document.querySelectorAll('.op-tab').forEach(t=>t.addEventListener('click',function(){
+    document.querySelectorAll('.op-tab,.op-tab-panel').forEach(e=>e.classList.remove('active'));
+    this.classList.add('active');document.getElementById('tab-'+this.dataset.tab).classList.add('active');
+}));
+</script>
+{% endblock %}

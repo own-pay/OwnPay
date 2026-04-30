@@ -1,138 +1,73 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Service\Auth;
 
 use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
-use Firebase\JWT\ExpiredException;
-use Firebase\JWT\SignatureInvalidException;
 
 /**
- * JwtService — Encode, decode, and validate JWTs for mobile companion devices.
+ * JWT service — issue and verify tokens for mobile companion app.
  *
- * Each paired device has its own HMAC-SHA256 secret (`jwt_secret` in `op_paired_devices`),
- * so a compromised token from one device cannot be used on another.
- *
- * Access tokens are short-lived (15 min). Refresh tokens are opaque strings
- * managed by DevicePairingService.
+ * Claims: sub (user_id), mid (merchant_id), did (device_id), exp, iat, iss.
  */
 final class JwtService
 {
-    private const ALGORITHM = 'HS256';
-    private const ISSUER    = 'ownpay';
+    private string $secret;
+    private string $issuer;
+    private int $ttl;
 
-    /** Default access token lifetime: 15 minutes */
-    private const DEFAULT_TTL = 900;
+    public function __construct(?string $secret = null, string $issuer = 'ownpay', int $ttl = 86400)
+    {
+        $this->secret = $secret ?? (getenv('JWT_SECRET') ?: '');
+        $this->issuer = $issuer;
+        $this->ttl = $ttl;
 
-    /**
-     * Encode a JWT access token for a paired device.
-     *
-     * @param string $deviceUuid  The device's UUID (becomes `sub`)
-     * @param int    $brandId     The brand this device belongs to
-     * @param string $jwtSecret   Per-device HMAC secret (hex string)
-     * @param array  $scopes      Allowed scopes (e.g. ['sms:submit', 'dashboard:read'])
-     * @param int    $ttl         Token lifetime in seconds (default 900)
-     * @return array{token: string, expires_at: int}
-     */
-    public function encode(
-        string $deviceUuid,
-        int    $brandId,
-        string $jwtSecret,
-        array  $scopes = ['sms:submit', 'dashboard:read', 'notifications:poll'],
-        int    $ttl = self::DEFAULT_TTL
-    ): array {
-        $now = time();
-        $exp = $now + $ttl;
-
-        $payload = [
-            'sub'      => "device:{$deviceUuid}",
-            'iss'      => self::ISSUER,
-            'iat'      => $now,
-            'exp'      => $exp,
-            'brand_id' => $brandId,
-            'scopes'   => $scopes,
-        ];
-
-        $token = JWT::encode($payload, $jwtSecret, self::ALGORITHM);
-
-        return [
-            'token'      => $token,
-            'expires_at' => $exp,
-            'expires_in' => $ttl,
-        ];
+        if ($this->secret === '') {
+            throw new \RuntimeException('JWT_SECRET not configured');
+        }
     }
 
     /**
-     * Decode and validate a JWT access token.
-     *
-     * @param string $token     The raw JWT string
-     * @param string $jwtSecret The per-device HMAC secret
-     * @return array{valid: bool, payload: ?object, error: ?string}
+     * Issue JWT for device.
      */
-    public function decode(string $token, string $jwtSecret): array
+    public function issue(int $userId, int $merchantId, string $deviceId, ?int $ttl = null): string
+    {
+        $now = time();
+        $payload = [
+            'iss' => $this->issuer,
+            'sub' => $userId,
+            'mid' => $merchantId,
+            'did' => $deviceId,
+            'iat' => $now,
+            'exp' => $now + ($ttl ?? $this->ttl),
+        ];
+
+        return JWT::encode($payload, $this->secret, 'HS256');
+    }
+
+    /**
+     * Verify and decode JWT.
+     * @return array{sub: int, mid: int, did: string, exp: int, iat: int, iss: string}
+     * @throws \RuntimeException
+     */
+    public function verify(string $token): array
     {
         try {
-            $decoded = JWT::decode($token, new Key($jwtSecret, self::ALGORITHM));
-
-            // Verify issuer
-            if (($decoded->iss ?? '') !== self::ISSUER) {
-                return [
-                    'valid'   => false,
-                    'payload' => null,
-                    'error'   => 'Invalid token issuer.',
-                ];
-            }
-
-            return [
-                'valid'   => true,
-                'payload' => $decoded,
-                'error'   => null,
-            ];
-        } catch (ExpiredException $e) {
-            return [
-                'valid'   => false,
-                'payload' => null,
-                'error'   => 'TOKEN_EXPIRED',
-            ];
-        } catch (SignatureInvalidException $e) {
-            return [
-                'valid'   => false,
-                'payload' => null,
-                'error'   => 'INVALID_SIGNATURE',
-            ];
+            $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
+            return (array) $decoded;
+        } catch (\Firebase\JWT\ExpiredException $e) {
+            throw new \RuntimeException('Token expired', 401, $e);
         } catch (\Throwable $e) {
-            return [
-                'valid'   => false,
-                'payload' => null,
-                'error'   => 'INVALID_TOKEN',
-            ];
+            throw new \RuntimeException('Invalid token', 401, $e);
         }
     }
 
     /**
-     * Extract the device UUID from a decoded JWT subject claim.
-     *
-     * @param string $sub The `sub` claim value (e.g. "device:abc-123")
-     * @return string|null The UUID portion, or null if malformed
+     * Issue refresh token (longer TTL).
      */
-    public function extractDeviceUuid(string $sub): ?string
+    public function issueRefreshToken(int $userId, int $merchantId, string $deviceId): string
     {
-        if (str_starts_with($sub, 'device:')) {
-            $uuid = substr($sub, 7);
-            return $uuid !== '' ? $uuid : null;
-        }
-        return null;
-    }
-
-    /**
-     * Generate a cryptographically secure per-device HMAC secret.
-     *
-     * @return string 64-char hex string (256-bit key)
-     */
-    public static function generateSecret(): string
-    {
-        return bin2hex(random_bytes(32));
+        return $this->issue($userId, $merchantId, $deviceId, 2592000); // 30 days
     }
 }

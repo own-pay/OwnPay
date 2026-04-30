@@ -1,181 +1,60 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Service\Payment;
 
+use OwnPay\Http\Request;
+
 /**
- * IdempotencyBridge — Replay prevention for API endpoints.
- *
- * Uses CrudService to interact with the `op_idempotency_keys` table.
- *
- * Schema (op_idempotency_keys):
- *   id, scope, merchant_id, idempotency_key, request_hash,
- *   response_code, response_body, locked_at, locked_until,
- *   created_at, expires_at
- *
- * Usage:
- *   $idem = new \OwnPay\Service\Payment\IdempotencyBridge($db_prefix);
- *   $result = $idem->acquire('checkout', $brandId, $key, $requestHash);
- *   if ($result['replay']) { echo $result['cached_response']; exit; }
- *   if ($result['conflict']) { http_response_code(409); exit; }
- *   // ... process request ...
- *   $idem->complete($result['row_id'], $responseBody, $httpStatus);
+ * Idempotency bridge — middleware helper to extract and enforce idempotency.
  */
 final class IdempotencyBridge
 {
-    private string $table;
+    private IdempotencyService $service;
 
-    public function __construct(string $dbPrefix)
+    public function __construct(IdempotencyService $service)
     {
-        $this->table = $dbPrefix . 'idempotency_keys';
+        $this->service = $service;
     }
 
     /**
-     * Attempt to acquire an idempotency lock.
-     *
-     * @param string $scope     e.g. 'checkout', 'refund'
-     * @param string $merchantId Brand/merchant ID from the legacy system
-     * @param string $key       Client-provided idempotency key
-     * @param string $requestHash SHA-256 of the request body
-     * @param int    $ttlHours  Key expiry in hours (default: 24)
-     * @return array{replay: bool, conflict: bool, cached_response: ?string, cached_status: ?int, row_id: ?int}
+     * Extract idempotency key from request.
      */
-    public function acquire(
-        string $scope,
-        string $merchantId,
-        string $key,
-        string $requestHash,
-        int $ttlHours = 24
-    ): array {
-        // Check for existing key
-        $params = [
-            ':scope' => $scope,
-            ':merchant_id' => $merchantId,
-            ':idempotency_key' => $key,
-        ];
-
-        $existing = CrudService::select(
-            $this->table,
-            'WHERE scope = :scope AND merchant_id = :merchant_id AND idempotency_key = :idempotency_key',
-            '* FROM',
-            $params
-        );
-
-        if ($existing['status'] === true && !empty($existing['response'])) {
-            $row = $existing['response'][0];
-
-            // Key exists with a cached response — replay
-            if ($row['response_code'] !== null && $row['response_code'] !== '') {
-                return [
-                    'replay' => true,
-                    'conflict' => false,
-                    'cached_response' => $row['response_body'],
-                    'cached_status' => (int) $row['response_code'],
-                    'row_id' => (int) $row['id'],
-                ];
-            }
-
-            // Key exists but no response yet — check lock
-            if ($row['locked_until'] !== null) {
-                $lockExpiry = strtotime($row['locked_until']);
-                if ($lockExpiry !== false && $lockExpiry > time()) {
-                    // Lock is still active — conflict
-                    return [
-                        'replay' => false,
-                        'conflict' => true,
-                        'cached_response' => null,
-                        'cached_status' => null,
-                        'row_id' => (int) $row['id'],
-                    ];
-                }
-            }
-
-            // Lock expired — re-acquire the lock
-            $now = gmdate('Y-m-d H:i:s');
-            $lockUntil = gmdate('Y-m-d H:i:s', time() + 30); // 30-second lock
-            CrudService::update(
-                $this->table,
-                ['locked_at', 'locked_until', 'request_hash'],
-                [$now, $lockUntil, $requestHash],
-                "id = :id",
-                [':id' => $row['id']]
-            );
-
-            return [
-                'replay' => false,
-                'conflict' => false,
-                'cached_response' => null,
-                'cached_status' => null,
-                'row_id' => (int) $row['id'],
-            ];
-        }
-
-        // New key — insert with lock
-        $now = gmdate('Y-m-d H:i:s');
-        $lockUntil = gmdate('Y-m-d H:i:s', time() + 30);
-        $expiresAt = gmdate('Y-m-d H:i:s', time() + ($ttlHours * 3600));
-
-        $columns = [
-            'scope',
-            'merchant_id',
-            'idempotency_key',
-            'request_hash',
-            'locked_at',
-            'locked_until',
-            'created_at',
-            'expires_at',
-        ];
-        $values = [
-            $scope,
-            $merchantId,
-            $key,
-            $requestHash,
-            $now,
-            $lockUntil,
-            $now,
-            $expiresAt,
-        ];
-
-        CrudService::insert($this->table, $columns, $values);
-
-        // Retrieve the inserted row to get the ID
-        $inserted = CrudService::select(
-            $this->table,
-            'WHERE scope = :scope AND merchant_id = :merchant_id AND idempotency_key = :idempotency_key',
-            '* FROM',
-            $params
-        );
-
-        $rowId = 0;
-        if ($inserted['status'] === true && !empty($inserted['response'])) {
-            $rowId = (int) $inserted['response'][0]['id'];
-        }
-
-        return [
-            'replay' => false,
-            'conflict' => false,
-            'cached_response' => null,
-            'cached_status' => null,
-            'row_id' => $rowId,
-        ];
+    public function extractKey(Request $request): ?string
+    {
+        return $request->header('Idempotency-Key')
+            ?? $request->header('X-Idempotency-Key');
     }
 
     /**
-     * Mark an idempotency key as completed with the response.
-     *
-     * @param int    $rowId        The idempotency key row ID
-     * @param string $responseBody The JSON response payload to cache
-     * @param int    $httpStatus   The HTTP status code
+     * Check idempotency for API request.
+     * @return array{is_duplicate: bool, cached_response?: array}|null Null if no key provided
      */
-    public function complete(int $rowId, string $responseBody, int $httpStatus): void
+    public function checkRequest(Request $request): ?array
     {
-        CrudService::update(
-            $this->table,
-            ['response_code', 'response_body', 'locked_at', 'locked_until'],
-            [$httpStatus, $responseBody, null, null],
-            "id = :id",
-            [':id' => $rowId]
-        );
+        $key = $this->extractKey($request);
+        if ($key === null || $key === '') {
+            return null; // No idempotency requested
+        }
+
+        $merchantId = $request->getAttribute('merchant_id');
+        if ($merchantId === null) {
+            return null;
+        }
+
+        return $this->service->check($key, (int) $merchantId);
+    }
+
+    /**
+     * Store response for future duplicate requests.
+     */
+    public function storeResponse(Request $request, int $statusCode, array $response): void
+    {
+        $key = $this->extractKey($request);
+        $merchantId = $request->getAttribute('merchant_id');
+
+        if ($key !== null && $merchantId !== null) {
+            $this->service->storeResponse($key, (int) $merchantId, $statusCode, $response);
+        }
     }
 }

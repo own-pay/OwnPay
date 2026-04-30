@@ -3,155 +3,92 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\System;
 
-use OwnPay\Core\Database;
-use PDO;
-use PDOException;
-
 /**
- * Modern replacement for procedural get_env() and set_env().
- *
- * Reads/writes settings from the op_env table. Includes an in-memory
- * cache to avoid repeated DB queries within the same request.
- *
- * Key difference from legacy get_env(): does NOT auto-create missing rows
- * on read. Use set() explicitly to create entries.
+ * Environment service — runtime environment detection and checks.
  */
 final class EnvironmentService
 {
-    /** @var array<string, string> In-memory cache keyed by "{brand_id}:{option_name}" */
-    private static array $cache = [];
-
-    /** @var bool Whether the full cache has been warmed */
-    private static bool $warmed = false;
-
     /**
-     * Get an environment setting value.
-     *
-     * Replaces: get_env()
-     *
-     * @param string $optionName Setting key (e.g. 'my-plugin-api_key')
-     * @param string $brandId    Brand scope ('both' for global)
-     * @return string Setting value, or '' if not found
+     * Get current environment mode.
      */
-    public static function get(string $optionName, string $brandId = 'both'): string
+    public static function mode(): string
     {
-        $cacheKey = "{$brandId}:{$optionName}";
+        return getenv('APP_ENV') ?: 'production';
+    }
 
-        if (isset(self::$cache[$cacheKey])) {
-            return self::$cache[$cacheKey];
-        }
+    public static function isProduction(): bool
+    {
+        return self::mode() === 'production';
+    }
 
-        $dbPrefix = $_ENV['DB_PREFIX'] ?? $_SERVER['DB_PREFIX'] ?? 'op_';
+    public static function isDevelopment(): bool
+    {
+        return in_array(self::mode(), ['development', 'dev', 'local'], true);
+    }
 
-        try {
-            $pdo = Database::getInstance()->getPdo();
-            $stmt = $pdo->prepare(
-                "SELECT `value` FROM `{$dbPrefix}env` WHERE `brand_id` = :brand_id AND `option_name` = :option_name LIMIT 1"
-            );
-            $stmt->execute([':brand_id' => $brandId, ':option_name' => $optionName]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-
-            $value = $row ? ($row['value'] ?? '') : '';
-            self::$cache[$cacheKey] = $value;
-
-            return $value;
-        } catch (PDOException $e) {
-            error_log("EnvironmentService::get error: " . $e->getMessage());
-            return '';
-        }
+    public static function isStaging(): bool
+    {
+        return self::mode() === 'staging';
     }
 
     /**
-     * Set an environment setting value (upsert).
-     *
-     * Replaces: set_env()
-     *
-     * @param string $optionName Setting key
-     * @param string $value      Setting value
-     * @param string $brandId    Brand scope ('both' for global)
-     * @return string The value that was set
+     * Check if debug mode is enabled.
      */
-    public static function set(string $optionName, string $value, string $brandId = 'both'): string
+    public static function debugEnabled(): bool
     {
-        $dbPrefix = $_ENV['DB_PREFIX'] ?? $_SERVER['DB_PREFIX'] ?? 'op_';
-        $now = date('Y-m-d H:i:s');
+        return (getenv('APP_DEBUG') ?: 'false') === 'true';
+    }
 
-        try {
-            $pdo = Database::getInstance()->getPdo();
+    /**
+     * Get app version.
+     */
+    public static function version(): string
+    {
+        return getenv('APP_VERSION') ?: '0.1.0';
+    }
 
-            // Check if row exists
-            $stmt = $pdo->prepare(
-                "SELECT `id` FROM `{$dbPrefix}env` WHERE `brand_id` = :brand_id AND `option_name` = :option_name LIMIT 1"
-            );
-            $stmt->execute([':brand_id' => $brandId, ':option_name' => $optionName]);
-            $existing = $stmt->fetch(PDO::FETCH_ASSOC);
+    /**
+     * Check PHP requirements.
+     * @return string[] Errors (empty = OK)
+     */
+    public static function checkRequirements(): array
+    {
+        $errors = [];
 
-            if ($existing) {
-                $stmt = $pdo->prepare(
-                    "UPDATE `{$dbPrefix}env` SET `value` = :value, `updated_date` = :updated WHERE `id` = :id"
-                );
-                $stmt->execute([':value' => $value, ':updated' => $now, ':id' => $existing['id']]);
-            } else {
-                $stmt = $pdo->prepare(
-                    "INSERT INTO `{$dbPrefix}env` (`brand_id`, `option_name`, `value`, `created_date`, `updated_date`) VALUES (:brand_id, :option_name, :value, :created, :updated)"
-                );
-                $stmt->execute([
-                    ':brand_id'    => $brandId,
-                    ':option_name' => $optionName,
-                    ':value'       => $value,
-                    ':created'     => $now,
-                    ':updated'     => $now,
-                ]);
+        if (version_compare(PHP_VERSION, '8.1.0', '<')) {
+            $errors[] = 'PHP 8.1+ required (current: ' . PHP_VERSION . ')';
+        }
+
+        $requiredExtensions = ['pdo', 'pdo_mysql', 'openssl', 'mbstring', 'json', 'curl', 'bcmath'];
+        foreach ($requiredExtensions as $ext) {
+            if (!extension_loaded($ext)) {
+                $errors[] = "PHP extension required: {$ext}";
             }
-
-            // Update cache
-            $cacheKey = "{$brandId}:{$optionName}";
-            self::$cache[$cacheKey] = $value;
-
-            return $value;
-        } catch (PDOException $e) {
-            error_log("EnvironmentService::set error: " . $e->getMessage());
-            return $value;
         }
+
+        $optionalExtensions = ['redis', 'imagick', 'zip'];
+        foreach ($optionalExtensions as $ext) {
+            if (!extension_loaded($ext)) {
+                // Log warning but don't fail
+            }
+        }
+
+        return $errors;
     }
 
     /**
-     * Delete an environment setting.
-     *
-     * @param string $optionName Setting key
-     * @param string $brandId    Brand scope
-     * @return bool True on success
+     * Get server info.
      */
-    public static function delete(string $optionName, string $brandId = 'both'): bool
+    public static function serverInfo(): array
     {
-        $dbPrefix = $_ENV['DB_PREFIX'] ?? $_SERVER['DB_PREFIX'] ?? 'op_';
-
-        try {
-            $pdo = Database::getInstance()->getPdo();
-            $stmt = $pdo->prepare(
-                "DELETE FROM `{$dbPrefix}env` WHERE `brand_id` = :brand_id AND `option_name` = :option_name"
-            );
-            $result = $stmt->execute([':brand_id' => $brandId, ':option_name' => $optionName]);
-
-            // Evict from cache
-            $cacheKey = "{$brandId}:{$optionName}";
-            unset(self::$cache[$cacheKey]);
-
-            return $result;
-        } catch (PDOException $e) {
-            error_log("EnvironmentService::delete error: " . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * Clear the in-memory cache.
-     *
-     * @internal For testing only.
-     */
-    public static function clearCache(): void
-    {
-        self::$cache = [];
-        self::$warmed = false;
+        return [
+            'php_version'  => PHP_VERSION,
+            'os'           => PHP_OS,
+            'sapi'         => PHP_SAPI,
+            'memory_limit' => ini_get('memory_limit'),
+            'max_upload'   => ini_get('upload_max_filesize'),
+            'timezone'     => date_default_timezone_get(),
+            'extensions'   => get_loaded_extensions(),
+        ];
     }
 }

@@ -1,0 +1,31 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Devices — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header"><h1>Paired Devices</h1></div>
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <table class="op-table">
+            <thead><tr><th>Device</th><th>Platform</th><th>Status</th><th>Last Seen</th><th>Paired</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for d in devices %}
+                <tr>
+                    <td><strong>{{ d.device_name ?? 'Unknown' }}</strong><br><code class="op-text-xs">{{ d.device_id|slice(0,12) }}...</code></td>
+                    <td>{{ d.platform ?? '—' }}</td>
+                    <td><span class="op-badge op-badge-{{ d.status == 'active' ? 'success' : (d.status == 'revoked' ? 'danger' : 'muted') }}">{{ d.status }}</span></td>
+                    <td>{{ d.last_heartbeat ?? 'Never' }}</td>
+                    <td>{{ d.created_at|date("M d, Y") }}</td>
+                    <td>
+                        {% if d.status == 'active' %}
+                        <form method="POST" action="/admin/devices/{{ d.id }}/revoke" class="op-inline">
+                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                            <button type="submit" class="op-btn op-btn-xs op-btn-danger">Revoke</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

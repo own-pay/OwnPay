@@ -3,299 +3,121 @@ declare(strict_types=1);
 
 namespace OwnPay\Controller\Checkout;
 
-use OwnPay\Http\RequestContext;
-use OwnPay\Service\System\CrudService;
-use OwnPay\Service\System\EnvironmentService;
+use OwnPay\Container;
+use OwnPay\Http\Request;
+use OwnPay\Http\Response;
+use OwnPay\Event\EventManager;
 
 /**
- * Checkout Controller
- *
- * Handles public-facing checkout actions (action-v2):
- * - invoice: Create transaction from invoice
- * - payment-link: Create transaction from payment link
- * - payment-link-default: Create transaction from default payment link
+ * Checkout controller — renders checkout page, handles gateway selection.
+ * Fires: checkout.before, checkout.render, checkout.gateway.selected
  */
-class CheckoutController
+final class CheckoutController
 {
-    public static function handle(string $action, ?RequestContext $ctx = null): void
-    {
-        $ctx ??= $GLOBALS['requestContext'] ?? throw new \RuntimeException('RequestContext not available');
-        $controller = new self();
+    private Container $c;
+    private EventManager $events;
 
-        switch ($action) {
-            case 'invoice':
-                $controller->processInvoice($ctx);
-                break;
-            case 'payment-link':
-                $controller->processPaymentLink($ctx);
-                break;
-            case 'payment-link-default':
-                $controller->processPaymentLinkDefault($ctx);
-                break;
-        }
+    public function __construct(Container $c, EventManager $events)
+    {
+        $this->c = $c;
+        $this->events = $events;
     }
 
-    private function processInvoice(RequestContext $ctx): void
+    /**
+     * GET /checkout/{ref}
+     */
+    public function show(Request $req, string $ref): Response
     {
-        $db_prefix = $ctx->dbPrefix;
-        $site_url = $ctx->siteUrl;
-        $path_payment = $ctx->pathPayment;
-        $path_invoice = $ctx->pathInvoice;
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $txn = $db->fetchOne(
+            "SELECT t.*, m.business_name as merchant_name, m.id as merchant_id FROM op_transactions t JOIN op_merchants m ON m.id = t.merchant_id WHERE t.trx_id = :ref AND t.status IN ('pending','created')",
+            ['ref' => $ref]
+        );
 
-        $request = \OwnPay\Http\Request::createFromGlobals();
-
-        $itemid = $request->post('itemid', '');
-
-        if ($itemid == "") {
-            echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.']);
-        } else {
-            $params = [':invoiceID' => $itemid, ':status' => 'unpaid'];
-
-            $response = CrudService::select($db_prefix . 'invoice', 'WHERE ref = :invoiceID AND status = :status', '* FROM', $params);
-            if ($response['status'] == true) {
-                $invoiceRow = $response['response'][0];
-
-                $subTotal = "0";
-                $totalDiscount = "0";
-                $totalVat = "0";
-
-                $params = [':invoice_id' => $invoiceRow['ref'], ':brand_id' => $invoiceRow['brand_id']];
-
-                $response_invoiceItem = CrudService::select($db_prefix . 'invoice_items', 'WHERE invoice_id = :invoice_id AND brand_id = :brand_id', '* FROM', $params);
-
-                if ($response_invoiceItem['status'] == true) {
-
-                    foreach ($response_invoiceItem['response'] as $row) {
-                        $amount = money_sanitize($row['amount']);
-                        $quantity = money_sanitize($row['quantity']);
-                        $discount = money_sanitize($row['discount']);
-                        $vatRate = money_sanitize($row['vat']);
-
-                        $grossAmount = money_mul($amount, $quantity);
-
-                        $netAmount = money_sub($grossAmount, $discount);
-
-                        $vatAmount = money_div(money_mul($netAmount, $vatRate), "100");
-
-                        $lineTotal = money_add($netAmount, $vatAmount);
-
-                        $invoiceItems[] = [
-                            'description' => $row['description'],
-                            'unitPrice' => money_round($amount, 2),
-                            'quantity' => $quantity,
-                            'discount' => money_round($discount, 2),
-                            'vat' => money_round($vatAmount, 2),
-                            'total' => money_round($lineTotal, 2),
-                        ];
-
-                        $subTotal = money_add($subTotal, $grossAmount);
-                        $totalDiscount = money_add($totalDiscount, $discount);
-                        $totalVat = money_add($totalVat, $vatAmount);
-                    }
-                }
-
-                $customerInfo = json_decode($invoiceRow['customer_info'], true);
-
-                $customer_name = $customerInfo['name'] ?? '';
-                $customer_email = $customerInfo['email'] ?? '';
-                $customer_mobile = $customerInfo['mobile'] ?? '';
-
-                $source_info = '[{ "label": "Invoice Id", "value": "' . $itemid . '" }]';
-                $metadata = '{"invoice_id": "' . $itemid . '"}';
-
-                $amount = money_add(money_add(money_sub($subTotal, $totalDiscount), $totalVat), money_sanitize($invoiceRow['shipping']));
-
-                $currency = $invoiceRow['currency'];
-
-                $return_url = $site_url . $path_invoice . '/' . $itemid;
-                $webhook_url = $site_url . $path_invoice . '/webhook';
-
-                $payment_id = generateItemID(27, 27);
-
-                $columns = ['brand_id', 'source', 'ref', 'customer_info', 'amount', 'currency', 'source_info', 'metadata', 'return_url', 'webhook_url', 'created_date', 'updated_date'];
-                $values = [$invoiceRow['brand_id'], 'invoice', $payment_id, '{ "name": "' . $customer_name . '", "email": "' . $customer_email . '", "mobile": "' . $customer_mobile . '" }', money_sanitize($amount), $currency, $source_info, $metadata, $return_url, $webhook_url, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
-
-                CrudService::insert($db_prefix . 'transaction', $columns, $values);
-
-                echo json_encode(['status' => "true", 'redirect' => $site_url . $path_payment . '/' . $payment_id]);
-            } else {
-                echo json_encode(['status' => "false", 'title' => 'Invalid Invoice ID', 'message' => 'Please fill in all required fields before proceeding.']);
-            }
+        if (!$txn) {
+            return $this->renderStatus($ref, 'expired');
         }
+
+        $mid = (int) $txn['merchant_id'];
+        $this->events->doAction('checkout.before', $txn);
+
+        // Load gateways
+        $manualGateways = $db->fetchAll("SELECT * FROM op_manual_gateways WHERE merchant_id = :mid AND status = 'active' ORDER BY sort_order", ['mid' => $mid]);
+        $apiGateways = $db->fetchAll("SELECT g.slug, g.name, g.logo, gc.config, g.type FROM op_gateway_configs gc JOIN op_gateways g ON g.id = gc.gateway_id WHERE gc.merchant_id = :mid AND gc.status = 'active'", ['mid' => $mid]);
+
+        // Categorize gateways
+        $gateways = ['mfs' => [], 'bank' => [], 'global' => []];
+        foreach ($manualGateways as $gw) {
+            $cat = $gw['category'] ?? 'mfs';
+            $gateways[$cat][] = array_merge($gw, ['mode' => 'manual']);
+        }
+        foreach ($apiGateways as $gw) {
+            $cat = $gw['type'] ?? 'global';
+            $gateways[$cat][] = array_merge($gw, ['mode' => 'api']);
+        }
+
+        // Load merchant settings
+        $brand = $this->loadBrand($mid);
+        $faqs = json_decode($db->fetchOne("SELECT setting_value FROM op_settings WHERE setting_key = 'faqs'")['setting_value'] ?? '[]', true);
+
+        // Invoice items if applicable
+        $items = [];
+        if (!empty($txn['invoice_id'])) {
+            $items = $db->fetchAll("SELECT * FROM op_invoice_items WHERE invoice_id = :iid", ['iid' => $txn['invoice_id']]);
+        }
+
+        $data = [
+            'txn'      => $txn,
+            'gateways' => $gateways,
+            'brand'    => $brand,
+            'items'    => $items,
+            'faqs'     => $faqs,
+            'config'   => $this->buildJsConfig($txn, $brand),
+        ];
+
+        $data = $this->events->applyFilters('checkout.render', $data);
+
+        $twig = $this->c->get(\Twig\Environment::class);
+        return Response::html($twig->render('checkout/checkout.twig', $data));
     }
 
-    private function processPaymentLink(RequestContext $ctx): void
+    private function renderStatus(string $ref, string $status): Response
     {
-        $db_prefix = $ctx->dbPrefix;
-        $site_url = $ctx->siteUrl;
-        $path_payment = $ctx->pathPayment;
-
-        $request = \OwnPay\Http\Request::createFromGlobals();
-
-        $itemid = $request->post('itemid', '');
-
-        if ($itemid == "") {
-            echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.']);
-        } else {
-            $params = [':ref' => $itemid];
-
-            $response_payment_link = CrudService::select($db_prefix . 'payment_link', 'WHERE ref = :ref', '* FROM', $params);
-            if ($response_payment_link['status'] == true) {
-                $paymentRow = $response_payment_link['response'][0];
-
-                if ($paymentRow['quantity'] > 0) {
-                    $columns = ['quantity'];
-                    $values = [$paymentRow['quantity'] - 1];
-                    $params_link = [':ref' => $paymentRow['ref']];
-                    CrudService::update($db_prefix . 'payment_link', $columns, $values, 'ref = :ref', $params_link);
-                } else {
-                    echo json_encode(['status' => "false", 'title' => 'Product Not Available', 'message' => 'Cannot generate payment link because the product is out of stock.']);
-                    exit();
-                }
-
-                if (empty($paymentRow['expired_date'])) {
-                    $status = $paymentRow['status'];
-                } else {
-                    if (isExpired($paymentRow['expired_date'])) {
-                        $status = 'expired';
-                    } else {
-                        $status = $paymentRow['status'];
-                    }
-                }
-
-                if ($status !== "active") {
-                    echo json_encode(['status' => "false", 'title' => 'Product Not Active', 'message' => 'This payment link cannot be generated because the product is currently inactive.']);
-                    exit();
-                }
-
-                $form_data = [];
-
-                $customFields = [];
-
-                $params = [':paymentLinkID' => $paymentRow['ref']];
-
-                $response_PaymentLinkItem = CrudService::select($db_prefix . 'payment_link_field', 'WHERE paymentLinkID = :paymentLinkID', '* FROM', $params);
-                if ($response_PaymentLinkItem['status'] == true) {
-                    foreach ($response_PaymentLinkItem['response'] as $row) {
-                        $Inputoptions = [];
-                        if ($row['formType'] === 'select' && ($row['value'] !== null && $row['value'] !== '') || $row['formType'] === 'file' && ($row['value'] !== null && $row['value'] !== '')) {
-                            $Inputoptions = array_map('trim', explode(',', $row['value']));
-                        }
-
-                        $customFields[] = [
-                            'type' => $row['formType'],
-                            'name' => strtolower(preg_replace('/[^a-z0-9_]/i', '_', $row['fieldName'])),
-                            'label' => $row['fieldName'],
-                            'options' => $Inputoptions,
-                            'required' => $row['required'],
-                        ];
-                    }
-                }
-
-                foreach ($customFields as $field) {
-                    $name = $field['name'];
-                    $label = $field['label'];
-                    $type = $field['type'];
-
-                    if ($type === 'file' && isset($_FILES[$name]) && $_FILES[$name]['error'] === 0) {
-                        $max_file_size = 5 * 1024 * 1024;
-
-                        $mediaUpload = json_decode(uploadImage($_FILES[$name] ?? null, $max_file_size), true);
-                        if ($mediaUpload['status'] == true) {
-                            $url = $site_url . 'media/storage/' . $mediaUpload['file'];
-
-                            $form_data[] = [
-                                'label' => $label,
-                                'value' => $url
-                            ];
-                        }
-                    } elseif ($type === 'checkbox') {
-
-                        $val = $request->post($name);
-                        $value = $val !== null
-                            ? implode(', ', (array) $val)
-                            : '';
-
-                        $form_data[] = [
-                            'label' => $label,
-                            'value' => $value
-                        ];
-                    } elseif ($request->post($name) !== null) {
-
-                        $val = $request->post($name);
-                        $value = is_array($val)
-                            ? implode(', ', $val)
-                            : trim((string) $val);
-
-                        $form_data[] = [
-                            'label' => $label,
-                            'value' => $value
-                        ];
-                    }
-                }
-
-                $customer_name = trim($request->post('full-name', ''));
-                $customer_email = trim($request->post('email-address', ''));
-                $customer_mobile = trim($request->post('mobile-number', ''));
-
-                $source_info = json_encode($form_data);
-                $metadata = '{"paymentLink_id": "' . $itemid . '"}';
-
-                $currency = $paymentRow['currency'];
-
-                $payment_id = generateItemID(27, 27);
-
-                $columns = ['brand_id', 'source', 'ref', 'customer_info', 'amount', 'currency', 'source_info', 'metadata', 'created_date', 'updated_date'];
-                $values = [$paymentRow['brand_id'], 'payment-link', $payment_id, '{ "name": "' . $customer_name . '", "email": "' . $customer_email . '", "mobile": "' . $customer_mobile . '" }', money_sanitize($paymentRow['amount']), $currency, $source_info, $metadata, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
-
-                CrudService::insert($db_prefix . 'transaction', $columns, $values);
-
-                echo json_encode(['status' => "true", 'redirect' => $site_url . $path_payment . '/' . $payment_id]);
-            } else {
-                echo json_encode(['status' => "false", 'title' => 'Invalid Payment Link ID', 'message' => 'Please fill in all required fields before proceeding.']);
-            }
-        }
+        $twig = $this->c->get(\Twig\Environment::class);
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $txn = $db->fetchOne("SELECT * FROM op_transactions WHERE trx_id = :ref", ['ref' => $ref]);
+        return Response::html($twig->render('checkout/checkout-status.twig', [
+            'txn'    => $txn ?? ['trx_id' => $ref],
+            'status' => $status ?: ($txn['status'] ?? 'expired'),
+        ]));
     }
 
-    private function processPaymentLinkDefault(RequestContext $ctx): void
+    private function loadBrand(int $mid): array
     {
-        $db_prefix = $ctx->dbPrefix;
-        $site_url = $ctx->siteUrl;
-        $path_payment = $ctx->pathPayment;
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $merchant = $db->fetchOne("SELECT * FROM op_merchants WHERE id = :mid", ['mid' => $mid]);
+        $settings = $db->fetchAll("SELECT setting_key, setting_value FROM op_settings WHERE setting_key IN ('app_name','theme_primary','theme_accent','support_email')");
+        $s = [];
+        foreach ($settings as $r) { $s[$r['setting_key']] = $r['setting_value']; }
+        return [
+            'name'          => $merchant['business_name'] ?? $s['app_name'] ?? 'Own Pay',
+            'logo'          => $merchant['logo'] ?? '',
+            'color'         => $s['theme_primary'] ?? '#0D9488',
+            'support_email' => $s['support_email'] ?? '',
+        ];
+    }
 
-        $request = \OwnPay\Http\Request::createFromGlobals();
-
-        $itemid = $request->post('itemid', '');
-
-        if ($itemid == "") {
-            echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.']);
-        } else {
-            $params = [':brand_id' => $itemid];
-
-            $response_brand = CrudService::select($db_prefix . 'brands', 'WHERE brand_id = :brand_id', '* FROM', $params);
-            if ($response_brand['status'] == true) {
-                $brandRow = $response_brand['response'][0];
-
-                $customer_name = trim($request->post('full-name', ''));
-                $customer_email = trim($request->post('email-address', ''));
-                $customer_mobile = trim($request->post('mobile-number', ''));
-
-                $metadata = '{"paymentLink_id": "' . $itemid . '"}';
-
-                $amount = trim($request->post('amount', ''));
-                $currency = (($v = EnvironmentService::get('payment-link-default-currency', $response_brand['response'][0]['brand_id'])) && $v !== null && $v !== '') ? $v : $brandRow['currency_code'];
-
-                $payment_id = generateItemID(27, 27);
-
-                $columns = ['brand_id', 'source', 'ref', 'customer_info', 'amount', 'currency', 'created_date', 'updated_date'];
-                $values = [$brandRow['brand_id'], 'payment-link-default', $payment_id, '{ "name": "' . $customer_name . '", "email": "' . $customer_email . '", "mobile": "' . $customer_mobile . '" }', money_sanitize($amount), $currency, getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
-
-                CrudService::insert($db_prefix . 'transaction', $columns, $values);
-
-                echo json_encode(['status' => "true", 'redirect' => $site_url . $path_payment . '/' . $payment_id]);
-            } else {
-                echo json_encode(['status' => "false", 'title' => 'Invalid Payment Link ID', 'message' => 'Please fill in all required fields before proceeding.']);
-            }
-        }
+    private function buildJsConfig(array $txn, array $brand): array
+    {
+        return [
+            'txnRef'         => $txn['trx_id'],
+            'timeoutEnabled' => true,
+            'timeoutSeconds' => 600,
+            'gatewayMeta'    => [
+                'bkash'  => ['color' => '#E2136E', 'type' => 'Send Money', 'logoText' => 'b'],
+                'nagad'  => ['color' => '#F6921E', 'type' => 'Send Money', 'logoText' => 'N'],
+                'rocket' => ['color' => '#8B2E86', 'type' => 'Send Money', 'logoText' => 'R'],
+            ],
+        ];
     }
 }

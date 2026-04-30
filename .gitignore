@@ -1,8 +1,9 @@
-docs/
-
 # Environment & secrets
 .env
 .env.*
+!.env.example
+op-config.php
+op-temp-config.php
 
 # PHPUnit cache
 .phpunit.cache/
@@ -29,11 +30,15 @@ Thumbs.db
 .vscode/
 *.swp
 *.swo
-README.md
 
-# Installer lock file (generated at runtime, contains environment-specific data)
+# Installer lock file (generated at runtime)
 app/install/.installed
 
-# Local agent/AI tool configuration (may contain secrets)
+# Agent/AI tool configuration
 .claude/
-LICENSE
+.gemini/
+.agents/skills/*/scripts/__pycache__/
+
+# Build artifacts
+public/assets/build/
+*.map

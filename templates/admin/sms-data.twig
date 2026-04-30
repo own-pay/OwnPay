@@ -1,0 +1,42 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}SMS Data — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header"><h1>SMS Data</h1></div>
+<div class="op-card">
+    <div class="op-card-header">
+        <h3>Parsed SMS</h3>
+        <form method="GET" class="op-filter-bar">
+            <select name="status" class="op-input op-input-sm">
+                <option value="">All</option>
+                <option value="matched" {{ (filters.status ?? '') == 'matched' ? 'selected' : '' }}>Matched</option>
+                <option value="unmatched" {{ (filters.status ?? '') == 'unmatched' ? 'selected' : '' }}>Unmatched</option>
+            </select>
+            <button type="submit" class="op-btn op-btn-sm op-btn-primary">Filter</button>
+        </form>
+    </div>
+    <div class="op-card-body op-p-0">
+        <table class="op-table">
+            <thead><tr><th>Sender</th><th>Amount</th><th>TRX ID</th><th>Gateway</th><th>Matched</th><th>Received</th></tr></thead>
+            <tbody>
+                {% for sms in sms_data %}
+                <tr>
+                    <td>{{ sms.sender }}</td>
+                    <td>{{ sms.parsed_amount ?? '—' }}</td>
+                    <td><code>{{ sms.parsed_trx_id ?? '—' }}</code></td>
+                    <td>{{ sms.gateway_slug ?? '—' }}</td>
+                    <td><span class="op-badge op-badge-{{ sms.transaction_id ? 'success' : 'muted' }}">{{ sms.transaction_id ? 'Yes' : 'No' }}</span></td>
+                    <td>{{ sms.received_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% if pagination.total_pages > 1 %}
+<nav class="op-pagination">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

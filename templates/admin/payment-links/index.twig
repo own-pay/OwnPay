@@ -1,0 +1,30 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Payment Links — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Payment Links</h1>
+    <a href="/admin/payment-links/create" class="op-btn op-btn-primary">+ Create Link</a>
+</div>
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <table class="op-table">
+            <thead><tr><th>Title</th><th>Amount</th><th>Uses</th><th>Status</th><th>Link</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for pl in payment_links %}
+                <tr>
+                    <td><strong>{{ pl.title }}</strong></td>
+                    <td>{{ pl.currency }} {{ pl.amount ?? 'Custom' }}</td>
+                    <td>{{ pl.use_count ?? 0 }}{% if pl.max_uses %}/{{ pl.max_uses }}{% endif %}</td>
+                    <td><span class="op-badge op-badge-{{ pl.status == 'active' ? 'success' : 'muted' }}">{{ pl.status }}</span></td>
+                    <td><code class="op-text-sm">{{ pl.short_url ?? pl.url }}</code></td>
+                    <td>
+                        <a href="/admin/payment-links/{{ pl.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a>
+                        <button onclick="navigator.clipboard.writeText('{{ pl.url }}')" class="op-btn op-btn-xs op-btn-outline">Copy</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

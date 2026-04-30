@@ -32,7 +32,7 @@ class DevicePairingIntegrationTest extends TestCase
     {
         // Bootstrap DB connection
         $host = $_ENV['DB_HOST'] ?? 'localhost';
-        $name = $_ENV['DB_NAME'] ?? 'anirbanpay';
+        $name = $_ENV['DB_NAME'] ?? 'ownpay_test';
         $user = $_ENV['DB_USER'] ?? 'root';
         $pass = $_ENV['DB_PASS'] ?? 'root';
         $port = (int) ($_ENV['DB_PORT'] ?? 3306);

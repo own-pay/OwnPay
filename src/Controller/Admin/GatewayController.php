@@ -3,291 +3,221 @@ declare(strict_types=1);
 
 namespace OwnPay\Controller\Admin;
 
-use OwnPay\Http\RequestContext;
-use OwnPay\Service\System\CrudService;
-use OwnPay\Service\Auth\PermissionGuard;
+use OwnPay\Container;
+use OwnPay\Http\Request;
+use OwnPay\Http\Response;
+use OwnPay\Repository\GatewayConfigRepository;
+use OwnPay\Repository\ManualGatewayRepository;
+use OwnPay\Service\System\FilesystemService;
+use OwnPay\Service\System\InputSanitizer;
 
-class GatewayController
+/**
+ * Gateway admin controller — CRUD for manual gateways, list API gateways.
+ */
+final class GatewayController
 {
-    public static function handle(string $action, RequestContext $ctx): void
-    {
-        $controller = new self();
+    private Container $container;
+    private ManualGatewayRepository $manualGateways;
+    private GatewayConfigRepository $apiConfigs;
+    private FilesystemService $fs;
 
-        switch ($action) {
-            case 'gateway-create':
-                $controller->createGateway($ctx);
-                break;
-            case 'gateways-list':
-                $controller->listGateways($ctx);
-                break;
-            case 'gateways-delete':
-                $controller->deleteGateway($ctx);
-                break;
-            case 'gateway-install':
-                $controller->installGateway($ctx);
-                break;
-            case 'gateway-uninstall':
-                $controller->uninstallGateway($ctx);
-                break;
-        }
+    public function __construct(
+        Container $container,
+        ManualGatewayRepository $manualGateways,
+        GatewayConfigRepository $apiConfigs,
+        FilesystemService $fs
+    ) {
+        $this->container = $container;
+        $this->manualGateways = $manualGateways;
+        $this->apiConfigs = $apiConfigs;
+        $this->fs = $fs;
     }
 
-    private function createGateway(RequestContext $ctx): void
+    public function index(Request $request): Response
     {
-        $db_prefix = $ctx->dbPrefix;
-        $site_url = $ctx->siteUrl;
-        $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
-        $global_response_brand = $ctx->brandResponse;
-        $new_csrf_token = $ctx->csrfToken;
+        $merchantId = (int) $request->getAttribute('merchant_id');
 
-        if ($global_user_login == true) {
-            if (PermissionGuard::denyUnlessCanAccess($ctx, 'gateways')) { return; }
+        $apiGateways = $this->apiConfigs->forTenant($merchantId)->listActiveWithGateway();
+        $manualGateways = $this->manualGateways->forTenant($merchantId)->listAll();
 
-            if (PermissionGuard::denyUnlessHas($ctx, 'gateways', 'create')) { return; }
-
-            $request = \OwnPay\Http\Request::createFromGlobals();
-
-            $gateway = $request->post('gateway', '');
-
-            if ($gateway == "") {
-                echo json_encode(['status' => "false", 'title' => 'Incomplete Information', 'message' => 'Please fill in all required fields before proceeding.', 'csrf_token' => $new_csrf_token]);
-            } else {
-                $gatewayPath = safeModulePath($gateway, __DIR__ . '/../../app/modules/gateways');
-                if ($gatewayPath === false) {
-                    echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
-                } else {
-                    require_once $gatewayPath;
-
-                    $slug = $gateway; // Already validated as safe slug by safeModulePath()
-
-                    // own-pay → OwnPayGateway
-                    $class = str_replace(' ', '', ucwords(str_replace('-', ' ', $slug))) . 'Gateway';
-
-                    if (!class_exists($class)) {
-                        echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
-                    } else {
-                        $gatewayObj = new $class();
-
-                        $gatewayInfo = $gatewayObj->info();
-                        $gatewayColor = $gatewayObj->color();
-
-                        $gateway_id = generateItemID();
-
-                        $columns = ['gateway_id', 'brand_id', 'slug', 'name', 'display', 'logo', 'currency', 'primary_color', 'text_color', 'btn_color', 'btn_text_color', 'tab', 'created_date', 'updated_date'];
-                        $values = [$gateway_id, $global_response_brand['response'][0]['brand_id'], $slug, $gatewayInfo['title'], $gatewayInfo['title'], $site_url . 'app/modules/gateways/' . $gateway . '/' . $gatewayInfo['logo'], $gatewayInfo['currency'], $gatewayColor['primary_color'], $gatewayColor['text_color'], $gatewayColor['btn_color'], $gatewayColor['btn_text_color'], $gatewayInfo['tab'], getCurrentDatetime('Y-m-d H:i:s'), getCurrentDatetime('Y-m-d H:i:s')];
-
-                        CrudService::insert($db_prefix . 'gateways', $columns, $values);
-
-                        echo json_encode(['status' => 'true', 'title' => 'Gateway Created', 'message' => 'The gateway has been created successfully.', 'csrf_token' => $new_csrf_token]);
-
-                    }
-                }
-            }
-        } else {
-            echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
+        // Decode JSON fields for template
+        foreach ($manualGateways as &$mg) {
+            $mg['input_fields'] = json_decode($mg['input_fields'] ?? '[]', true);
+            $mg['colors'] = json_decode($mg['colors'] ?? '{}', true);
         }
+
+        return $this->render('admin/gateways/index.twig', [
+            'api_gateways'    => $apiGateways,
+            'manual_gateways' => $manualGateways,
+        ]);
     }
 
-    private function listGateways(RequestContext $ctx): void
+    public function createManual(Request $request): Response
     {
-        $db_prefix = $ctx->dbPrefix;
-        $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
-        $global_response_brand = $ctx->brandResponse;
-        $new_csrf_token = $ctx->csrfToken;
-
-        if ($global_user_login == true) {
-            if (PermissionGuard::denyUnlessCanAccess($ctx, 'gateways')) { return; }
-
-            $request = \OwnPay\Http\Request::createFromGlobals();
-
-            $search_input = $request->post('search_input', '');
-            $show_limit = $request->post('show_limit', '5');
-
-            $tabType = $request->post('tabType', '');
-
-            /* Filters */
-            $filter_status = $request->post('filter_status', '');
-            $filter_start = $request->post('filter_start', '');
-            $filter_end = $request->post('filter_end', '');
-
-            $where = [];
-            $params_gw = [':brand_id' => $global_response_brand['response'][0]['brand_id']];
-
-            if ($tabType !== "all") {
-                $where[] = "tab = :tab_type";
-                $params_gw[':tab_type'] = $tabType;
-            }
-
-            if ($filter_start !== '') {
-                $where[] = "created_date >= :filter_start";
-                $params_gw[':filter_start'] = "{$filter_start} 00:00:00";
-            }
-
-            if ($filter_end !== '') {
-                $where[] = "created_date <= :filter_end";
-                $params_gw[':filter_end'] = "{$filter_end} 23:59:59";
-            }
-
-            if ($filter_status !== '') {
-                $where[] = "status = :filter_status";
-                $params_gw[':filter_status'] = $filter_status;
-            }
-
-            $where_sql = $where ? implode(' AND ', $where) . ' AND ' : '';
-            /* Filters */
-
-            $pag = \OwnPay\Service\System\PaginationService::resolve($request->post('page', '1'), $request->post('show_limit'));
-            $page = $pag['page'];
-            $show_limit_val = $pag['perPage'];
-            $offset = $pag['offset'];
-
-            $sql_query = '';
-
-            if ($search_input !== '') {
-                $sql_query .= " AND ( name LIKE :search OR display LIKE :search )";
-                $params_gw[':search'] = "%$search_input%";
-            }
-
-            $sql_limit = '';
-            if ($pag['isAll']) {
-
-            } else {
-                $sql_limit = " LIMIT $offset, $show_limit_val";
-            }
-
-            $response_result = CrudService::select($db_prefix . 'gateways', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query . ' ORDER BY 1 DESC ' . $sql_limit, '* FROM', $params_gw);
-            if ($response_result['status'] == true) {
-                $response = [];
-
-                foreach ($response_result['response'] as $row) {
-                    $response[] = [
-                        "id" => $row['gateway_id'],
-                        "name" => $row['name'],
-                        "display" => $row['display'],
-                        "currency" => $row['currency'],
-                        "status" => $row['status']
-                    ];
-                }
-
-                $count_data = CrudService::select($db_prefix . 'gateways', ' WHERE ' . $where_sql . ' brand_id = :brand_id ' . $sql_query, '* FROM', $params_gw);
-
-                $total_records = count($count_data['response'] ?? []);
-                $pagHtml = \OwnPay\Service\System\PaginationService::render($page, $total_records, $show_limit_val, $offset);
-                $pagination = $pagHtml['pagination'];
-                $datatableInfo = $pagHtml['datatableInfo'];
-
-                echo json_encode(['status' => "true", 'response' => $response, 'datatableInfo' => $datatableInfo, 'pagination' => $pagination, 'csrf_token' => $new_csrf_token]);
-            } else {
-                echo json_encode(['status' => "false", 'title' => 'Nothing Here Yet', 'message' => 'No data is available at the moment.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-        } else {
-            echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
+        if ($request->method() === 'GET') {
+            return $this->render('admin/gateways/create-manual.twig', ['old' => []]);
         }
-    }
 
-    private function deleteGateway(RequestContext $ctx): void
-    {
-        $db_prefix = $ctx->dbPrefix;
-        $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
-        $global_response_brand = $ctx->brandResponse;
-        $new_csrf_token = $ctx->csrfToken;
+        // POST
+        $merchantId = (int) $request->getAttribute('merchant_id');
+        $data = $request->post();
+        $errors = $this->validateManualGateway($data);
 
-        if ($global_user_login == true) {
-            if (PermissionGuard::denyUnlessCanAccess($ctx, 'gateways')) { return; }
-
-            if (PermissionGuard::denyUnlessHas($ctx, 'gateways', 'delete')) { return; }
-
-            $request = \OwnPay\Http\Request::createFromGlobals();
-
-            $ItemID = $request->post('ItemID', '');
-            $params_item = [':gw_id' => $ItemID, ':brand_id' => $global_response_brand['response'][0]['brand_id']];
-
-            $response_brand = CrudService::select($db_prefix . 'gateways', 'WHERE gateway_id = :gw_id AND brand_id = :brand_id', '* FROM', $params_item);
-            if ($response_brand['status'] == true) {
-                $condition = "gateway_id = :gw_id";
-                $whereParams = [':gw_id' => $ItemID];
-
-                CrudService::delete($db_prefix . 'gateways', $condition, $whereParams);
-
-                $condition = "gateway_id = :gw_id";
-                $whereParams = [':gw_id' => $ItemID];
-
-                CrudService::delete($db_prefix . 'gateways_parameter', $condition, $whereParams);
-            }
-
-            echo json_encode(['status' => 'true', 'title' => 'Gateway Deleted', 'message' => 'The selected gateway have been deleted successfully.', 'csrf_token' => $new_csrf_token]);
-        } else {
-            echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
-        }
-    }
-
-    private function installGateway(RequestContext $ctx): void
-    {
-        $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
-        $new_csrf_token = $ctx->csrfToken;
-
-        if ($global_user_login == true) {
-            if (PermissionGuard::denyUnlessCanAccess($ctx, 'gateways')) { return; }
-
-            if (PermissionGuard::denyUnlessHas($ctx, 'gateways', 'create')) { return; }
-
-            if (!isset($_FILES['plugin_zip']) || $_FILES['plugin_zip']['error'] !== UPLOAD_ERR_OK) {
-                echo json_encode(['status' => 'false', 'title' => 'Upload Failed', 'message' => 'Please select a valid ZIP file.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $result = \OwnPay\Plugin\PluginManager::install('gateway', $_FILES['plugin_zip']);
-
-            echo json_encode([
-                'status' => $result['status'] ? 'true' : 'false',
-                'title' => $result['status'] ? 'Gateway Installed' : 'Installation Failed',
-                'message' => $result['message'],
-                'csrf_token' => $new_csrf_token
+        if (!empty($errors)) {
+            return $this->render('admin/gateways/create-manual.twig', [
+                'old'    => $data,
+                'errors' => $errors,
             ]);
-        } else {
-            echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
         }
+
+        // Handle file uploads
+        $logoPath = null;
+        $qrPath = null;
+        if (!empty($_FILES['logo']['tmp_name'])) {
+            $logoPath = $this->fs->storeUpload($_FILES['logo'], 'gateways');
+        }
+        if (!empty($_FILES['qr_code']['tmp_name'])) {
+            $qrPath = $this->fs->storeUpload($_FILES['qr_code'], 'gateways');
+        }
+
+        // Build input fields JSON
+        $fields = $this->buildFieldsJson($data['fields'] ?? []);
+
+        // Build colors JSON
+        $colors = json_encode([
+            'primary'   => $data['color_primary'] ?? '#E2136E',
+            'secondary' => $data['color_secondary'] ?? '#FFFFFF',
+            'text'      => $data['color_text'] ?? '#FFFFFF',
+        ]);
+
+        $this->manualGateways->forTenant($merchantId)->createScoped([
+            'name'             => InputSanitizer::string($data['name']),
+            'slug'             => InputSanitizer::slug($data['slug']),
+            'instructions'     => InputSanitizer::string($data['instructions'] ?? ''),
+            'logo_path'        => $logoPath,
+            'qr_code_path'     => $qrPath,
+            'colors'           => $colors,
+            'input_fields'     => $fields,
+            'min_amount'       => InputSanitizer::decimal($data['min_amount'] ?? '0'),
+            'max_amount'       => InputSanitizer::decimal($data['max_amount'] ?? '0'),
+            'sms_verification' => isset($data['sms_verification']) ? 1 : 0,
+            'status'           => 'active',
+        ]);
+
+        $_SESSION['flash_success'] = 'Gateway created!';
+        return Response::redirect('/admin/gateways');
     }
 
-    private function uninstallGateway(RequestContext $ctx): void
+    public function editManual(Request $request, int $id): Response
     {
-        $global_user_login = $ctx->isLoggedIn;
-        $global_response_permission = $ctx->permissionResponse;
-        $global_user_response = $ctx->userResponse;
-        $new_csrf_token = $ctx->csrfToken;
+        $merchantId = (int) $request->getAttribute('merchant_id');
+        $gateway = $this->manualGateways->forTenant($merchantId)->findScoped($id);
 
-        if ($global_user_login == true) {
-            if (PermissionGuard::denyUnlessCanAccess($ctx, 'gateways')) { return; }
-
-            if (PermissionGuard::denyUnlessHas($ctx, 'gateways', 'delete')) { return; }
-
-            $request = \OwnPay\Http\Request::createFromGlobals();
-
-            $slug = $request->post('slug', '');
-            if ($slug === '') {
-                echo json_encode(['status' => 'false', 'title' => 'Incomplete Information', 'message' => 'Please specify the gateway to uninstall.', 'csrf_token' => $new_csrf_token]);
-                exit();
-            }
-
-            $result = \OwnPay\Plugin\PluginManager::uninstall('gateway', $slug);
-
-            echo json_encode([
-                'status' => $result['status'] ? 'true' : 'false',
-                'title' => $result['status'] ? 'Gateway Uninstalled' : 'Uninstall Failed',
-                'message' => $result['message'],
-                'csrf_token' => $new_csrf_token
-            ]);
-        } else {
-            echo json_encode(['status' => 'false', 'title' => 'Request Failed', 'message' => 'Invalid request', 'csrf_token' => $new_csrf_token]);
+        if ($gateway === null) {
+            $_SESSION['flash_error'] = 'Gateway not found';
+            return Response::redirect('/admin/gateways');
         }
+
+        $gateway['input_fields'] = json_decode($gateway['input_fields'] ?? '[]', true);
+        $gateway['colors'] = json_decode($gateway['colors'] ?? '{}', true);
+
+        if ($request->method() === 'GET') {
+            return $this->render('admin/gateways/edit-manual.twig', ['gateway' => $gateway]);
+        }
+
+        // POST — update
+        $data = $request->post();
+        $errors = $this->validateManualGateway($data, true);
+
+        if (!empty($errors)) {
+            return $this->render('admin/gateways/edit-manual.twig', [
+                'gateway' => array_merge($gateway, $data),
+                'errors'  => $errors,
+            ]);
+        }
+
+        $update = [
+            'name'             => InputSanitizer::string($data['name']),
+            'instructions'     => InputSanitizer::string($data['instructions'] ?? ''),
+            'input_fields'     => $this->buildFieldsJson($data['fields'] ?? []),
+            'min_amount'       => InputSanitizer::decimal($data['min_amount'] ?? '0'),
+            'max_amount'       => InputSanitizer::decimal($data['max_amount'] ?? '0'),
+            'sms_verification' => isset($data['sms_verification']) ? 1 : 0,
+            'colors'           => json_encode([
+                'primary'   => $data['color_primary'] ?? '#E2136E',
+                'secondary' => $data['color_secondary'] ?? '#FFFFFF',
+                'text'      => $data['color_text'] ?? '#FFFFFF',
+            ]),
+        ];
+
+        // Handle file uploads (optional on edit)
+        if (!empty($_FILES['logo']['tmp_name'])) {
+            $update['logo_path'] = $this->fs->storeUpload($_FILES['logo'], 'gateways');
+        }
+        if (!empty($_FILES['qr_code']['tmp_name'])) {
+            $update['qr_code_path'] = $this->fs->storeUpload($_FILES['qr_code'], 'gateways');
+        }
+
+        $this->manualGateways->forTenant($merchantId)->updateScoped($id, $update);
+
+        $_SESSION['flash_success'] = 'Gateway updated!';
+        return Response::redirect('/admin/gateways');
+    }
+
+    public function toggleStatus(Request $request, int $id): Response
+    {
+        $merchantId = (int) $request->getAttribute('merchant_id');
+        $gateway = $this->manualGateways->forTenant($merchantId)->findScoped($id);
+
+        if ($gateway !== null) {
+            $newStatus = $gateway['status'] === 'active' ? 'inactive' : 'active';
+            $this->manualGateways->forTenant($merchantId)->updateScoped($id, ['status' => $newStatus]);
+            $_SESSION['flash_success'] = "Gateway {$newStatus}!";
+        }
+
+        return Response::redirect('/admin/gateways');
+    }
+
+    private function validateManualGateway(array $data, bool $isEdit = false): array
+    {
+        $errors = [];
+        if (empty($data['name'])) {
+            $errors[] = 'Gateway name is required';
+        }
+        if (!$isEdit && empty($data['slug'])) {
+            $errors[] = 'Slug is required';
+        }
+        if (!$isEdit && !empty($data['slug']) && !preg_match('/^[a-z0-9\-]+$/', $data['slug'])) {
+            $errors[] = 'Slug must be lowercase alphanumeric with hyphens only';
+        }
+        return $errors;
+    }
+
+    private function buildFieldsJson(array $fields): string
+    {
+        $clean = [];
+        foreach ($fields as $field) {
+            if (!empty($field['name']) && !empty($field['label'])) {
+                $clean[] = [
+                    'name'     => InputSanitizer::slug($field['name']),
+                    'label'    => InputSanitizer::string($field['label']),
+                    'type'     => $field['type'] ?? 'text',
+                    'required' => !empty($field['required']),
+                ];
+            }
+        }
+        return json_encode($clean);
+    }
+
+    private function render(string $template, array $data = []): Response
+    {
+        /** @var \Twig\Environment $twig */
+        $twig = $this->container->get(\Twig\Environment::class);
+        $data['app_name'] = $this->container->get('config.app')['name'] ?? 'Own Pay';
+        $data['csrf_token'] = $_SESSION['csrf_token'] ?? '';
+        $data['flash_success'] = $_SESSION['flash_success'] ?? null;
+        $data['flash_error'] = $_SESSION['flash_error'] ?? null;
+        unset($_SESSION['flash_success'], $_SESSION['flash_error']);
+        return Response::html($twig->render($template, $data));
     }
 }

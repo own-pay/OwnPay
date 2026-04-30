@@ -1,61 +1,34 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
-/**
- * Repository for op_gateway_configs table.
- */
 final class GatewayConfigRepository extends BaseRepository
 {
     use TenantScope;
 
     protected string $table = 'op_gateway_configs';
+    protected array $fillable = [
+        'merchant_id', 'gateway_id', 'credentials_enc', 'settings', 'mode', 'status',
+    ];
 
-    /**
-     * Find a gateway config by its gateway slug and merchant.
-     */
-    public function findByGatewayId(string $gatewaySlug, int $merchantId): ?array
+    public function findForGateway(int $gatewayId): ?array
     {
-        $tc = $this->tenantCondition();
-        $pdo = $this->db->getPdo();
-        $stmt = $pdo->prepare("
-            SELECT * FROM {$this->table}
-            WHERE gateway_slug = :slug AND merchant_id = :mid AND is_active = 1{$tc}
-            LIMIT 1
-        ");
-        $stmt->execute(array_merge([':slug' => $gatewaySlug, ':mid' => $merchantId], $this->tenantParams()));
-        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return $row ?: null;
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE gateway_id = :gid AND merchant_id = :mid LIMIT 1",
+            ['gid' => $gatewayId, 'mid' => $this->requireTenant()]
+        );
     }
 
-    /**
-     * List all active gateways for a merchant.
-     */
-    public function findActiveByMerchant(int $merchantId): array
+    public function listActive(): array
     {
-        $tc = $this->tenantCondition();
-        $pdo = $this->db->getPdo();
-        $stmt = $pdo->prepare("
-            SELECT * FROM {$this->table}
-            WHERE merchant_id = :mid AND is_active = 1{$tc}
-            ORDER BY priority ASC
-        ");
-        $stmt->execute(array_merge([':mid' => $merchantId], $this->tenantParams()));
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
-    }
-
-    /**
-     * Find by public ID.
-     */
-    public function findByPublicId(string $publicId): ?array
-    {
-        $tc = $this->tenantCondition();
-        $pdo = $this->db->getPdo();
-        $stmt = $pdo->prepare("SELECT * FROM {$this->table} WHERE public_id = :pid{$tc} LIMIT 1");
-        $stmt->execute(array_merge([':pid' => $publicId], $this->tenantParams()));
-        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return $row ?: null;
+        return $this->db->fetchAll(
+            "SELECT gc.*, g.slug, g.name, g.type, g.logo_path
+             FROM {$this->table} gc
+             JOIN op_gateways g ON g.id = gc.gateway_id
+             WHERE gc.merchant_id = :mid AND gc.status = 'active'
+             ORDER BY g.sort_order ASC",
+            ['mid' => $this->requireTenant()]
+        );
     }
 }

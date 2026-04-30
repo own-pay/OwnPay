@@ -4,113 +4,81 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * PDF Service
- *
- * Handles PDF generation for transaction receipts.
+ * PDF service — invoice/receipt generation using TCPDF or DomPDF.
  */
-class PdfService
+final class PdfService
 {
-    public static function op_downloadReceiptPDF($data = [])
-{
+    private string $outputDir;
 
-    if (!$data) {
-        die('Invalid transaction');
+    public function __construct(?string $outputDir = null)
+    {
+        $this->outputDir = $outputDir ?? dirname(__DIR__, 3) . '/storage/pdf';
+        if (!is_dir($this->outputDir)) {
+            @mkdir($this->outputDir, 0755, true);
+        }
     }
 
-    $tx = $data['transaction'];
-    $brand = $data['brand'];
+    /**
+     * Generate PDF from HTML template.
+     *
+     * @return string File path to generated PDF
+     */
+    public function generateFromHtml(string $html, string $filename, array $options = []): string
+    {
+        $orientation = $options['orientation'] ?? 'portrait';
+        $paperSize = $options['paper'] ?? 'A4';
 
-    $amountPaid = money_add(money_sub($tx['amount'], $tx['discount_amount']), $tx['processing_fee']);
+        // Use DomPDF if available
+        if (class_exists('\Dompdf\Dompdf')) {
+            return $this->generateWithDompdf($html, $filename, $orientation, $paperSize);
+        }
 
-    $pdf = new FPDF('P', 'mm', 'A4');
-    $pdf->AddPage();
-    $pdf->SetAutoPageBreak(true, 15);
-
-    if (!empty($brand['logo'])) {
-        $pdf->Image($brand['logo'], 10, 10, 35);
+        // Fallback: save HTML as-is with .html extension
+        $path = $this->outputDir . '/' . $filename . '.html';
+        file_put_contents($path, $html);
+        return $path;
     }
 
-    $pdf->SetFont('Arial', 'B', 14);
-    $pdf->SetXY(50, 12);
-    $pdf->Cell(0, 8, $brand['name'], 0, 1);
+    /**
+     * Generate invoice PDF.
+     */
+    public function generateInvoice(array $invoiceData, string $templateHtml): string
+    {
+        // Replace template variables
+        $html = $templateHtml;
+        foreach ($invoiceData as $key => $value) {
+            if (is_string($value) || is_numeric($value)) {
+                $html = str_replace('{{' . $key . '}}', htmlspecialchars((string) $value, ENT_QUOTES), $html);
+            }
+        }
 
-    $pdf->SetFont('Arial', '', 10);
-    $pdf->SetX(50);
-    $pdf->Cell(0, 6, $brand['address']['city'] . ', ' . $brand['address']['country'], 0, 1);
+        // Build items table
+        if (isset($invoiceData['items']) && is_array($invoiceData['items'])) {
+            $itemsHtml = '';
+            foreach ($invoiceData['items'] as $item) {
+                $itemsHtml .= '<tr>';
+                $itemsHtml .= '<td>' . htmlspecialchars($item['description'] ?? '') . '</td>';
+                $itemsHtml .= '<td>' . htmlspecialchars($item['quantity'] ?? '1') . '</td>';
+                $itemsHtml .= '<td>' . htmlspecialchars($item['amount'] ?? '0.00') . '</td>';
+                $itemsHtml .= '</tr>';
+            }
+            $html = str_replace('{{items_rows}}', $itemsHtml, $html);
+        }
 
-    $pdf->Ln(10);
+        $filename = 'invoice_' . ($invoiceData['invoice_number'] ?? date('YmdHis'));
+        return $this->generateFromHtml($html, $filename);
+    }
 
-    $pdf->SetFont('Arial', 'B', 16);
-    $pdf->Cell(0, 10, 'Payment Receipt', 0, 1, 'C');
+    private function generateWithDompdf(string $html, string $filename, string $orientation, string $paperSize): string
+    {
+        $dompdf = new \Dompdf\Dompdf();
+        $dompdf->loadHtml($html);
+        $dompdf->setPaper($paperSize, $orientation);
+        $dompdf->render();
 
-    $status = strtoupper($tx['status']);
+        $path = $this->outputDir . '/' . $filename . '.pdf';
+        file_put_contents($path, $dompdf->output());
 
-    $statusColors = [
-        'COMPLETED' => [46, 204, 113],
-        'PENDING' => [241, 196, 15],
-        'REFUNDED' => [52, 152, 219],
-        'CANCELED' => [231, 76, 60],
-    ];
-
-    $color = $statusColors[$status] ?? [120, 120, 120];
-
-    $pdf->Ln(3);
-    $pdf->SetFont('Arial', 'B', 12);
-    $pdf->SetTextColor($color[0], $color[1], $color[2]);
-    $pdf->Cell(0, 8, 'STATUS: ' . $status, 0, 1, 'C');
-    $pdf->SetTextColor(0, 0, 0);
-
-    $pdf->Ln(6);
-    $pdf->SetFont('Arial', '', 11);
-    $pdf->Cell(0, 6, 'Amount Paid', 0, 1, 'C');
-
-    $pdf->SetFont('Arial', 'B', 22);
-    $pdf->Cell(0, 12, money_round($amountPaid, 2), 0, 1, 'C');
-
-    $pdf->Ln(2);
-    $pdf->SetFont('Arial', '', 11);
-    $pdf->Cell(0, 6, 'Local Net Amount: ' . money_round($tx['local_net_amount'], 2) . ' ' . $tx['local_currency'], 0, 1, 'C');
-
-    $pdf->Ln(6);
-    $pdf->Line(10, $pdf->GetY(), 200, $pdf->GetY());
-    $pdf->Ln(6);
-
-    sectionTitle($pdf, 'Transaction Details');
-    infoRow($pdf, 'Transaction Ref', $tx['ref']);
-    infoRow($pdf, 'Payment Method', $tx['payment_method']);
-    infoRow($pdf, 'Created Date', convertUTCtoUserTZ($tx['created_date'], empty($brand['locale']['timezone']) ? 'Asia/Dhaka' : $brand['locale']['timezone'], "M d, Y h:i A"));
-
-    $pdf->Ln(3);
-    sectionTitle($pdf, 'Customer Details');
-    infoRow($pdf, 'Name', $tx['customer']['name']);
-    infoRow($pdf, 'Email', $tx['customer']['email']);
-    infoRow($pdf, 'Mobile', $tx['customer']['mobile']);
-
-    $pdf->Ln(3);
-    sectionTitle($pdf, 'Payment Breakdown');
-    infoRow($pdf, 'Amount', money_round($tx['amount'], 2) . ' ' . $tx['currency']);
-    infoRow($pdf, 'Discount', money_round($tx['discount_amount'], 2) . ' ' . $tx['currency']);
-    infoRow($pdf, 'Processing Fee', money_round($tx['processing_fee'], 2) . ' ' . $tx['currency']);
-
-
-    $pdf->Ln(10);
-    $pdf->SetFont('Arial', 'I', 9);
-    $pdf->Cell(0, 6, 'This is a system generated receipt.', 0, 1, 'C');
-
-    $pdf->Output('D', 'Receipt-' . $tx['ref'] . '.pdf');
-}
-
-    private static function sectionTitle($pdf, $title)
-{
-    $pdf->SetFont('Arial', 'B', 13);
-    $pdf->Cell(0, 8, $title, 0, 1);
-}
-
-    private static function infoRow($pdf, $label, $value)
-{
-    $pdf->SetFont('Arial', 'B', 11);
-    $pdf->Cell(60, 8, $label, 0);
-    $pdf->SetFont('Arial', '', 11);
-    $pdf->Cell(0, 8, $value, 0, 1);
-}
+        return $path;
+    }
 }

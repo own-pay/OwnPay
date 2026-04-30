@@ -4,82 +4,100 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * Modern replacement for procedural sanitize_html() and clean_input().
+ * Input sanitizer — centralized XSS/injection prevention.
  *
- * Provides static methods for input sanitization:
- *   - html(): XSS-safe output encoding (strip_tags + htmlspecialchars)
- *   - trim(): Whitespace trimming for DB-bound values (PDO handles escaping)
+ * Per OWASP: context-aware output encoding, SQL param binding (in DB layer).
  */
 final class InputSanitizer
 {
     /**
-     * Sanitize a value for safe HTML output (XSS prevention).
-     *
-     * Strips HTML tags and encodes special characters. Use when displaying
-     * user input in HTML templates.
-     *
-     * Replaces: sanitize_html()
-     *
-     * @param mixed $value String, array, or other value
-     * @return mixed Sanitized value (same type as input)
+     * Sanitize string for HTML output (XSS prevention).
      */
-    public static function html(mixed $value): mixed
+    public static function html(string $input): string
     {
-        if (is_array($value)) {
-            return array_map([self::class, 'html'], $value);
-        }
-
-        if (is_string($value)) {
-            return htmlspecialchars(strip_tags(trim($value)), ENT_QUOTES | ENT_HTML5, 'UTF-8');
-        }
-
-        return $value;
+        return htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     /**
-     * Trim whitespace from input for use with parameterized queries.
-     *
-     * Only trims — PDO handles SQL escaping via prepared statements.
-     *
-     * Replaces: clean_input()
-     *
-     * @param mixed $value String, array, or other value
-     * @return mixed Trimmed value (same type as input)
+     * Sanitize for attribute output.
      */
-    public static function trim(mixed $value): mixed
+    public static function attr(string $input): string
     {
-        if (is_array($value)) {
-            return array_map([self::class, 'trim'], $value);
-        }
-
-        if (is_string($value)) {
-            return trim($value);
-        }
-
-        return $value;
+        return htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
     }
 
     /**
-     * Validate that a value is strictly alphanumeric with hyphens/underscores.
-     *
-     * Returns the sanitized value or null if it contains invalid characters.
-     * Useful for slug/ID validation.
-     *
-     * @param string $value Input to validate
-     * @return string|null Validated value or null
+     * Sanitize string — strip HTML tags, trim.
      */
-    public static function alphanumeric(string $value): ?string
+    public static function string(string $input): string
     {
-        $value = trim($value);
+        return trim(strip_tags($input));
+    }
 
-        if ($value === '') {
-            return null;
-        }
+    /**
+     * Sanitize email address.
+     */
+    public static function email(string $input): string
+    {
+        return filter_var(trim($input), FILTER_SANITIZE_EMAIL) ?: '';
+    }
 
-        if (!preg_match('/^[a-zA-Z0-9_\-]+$/', $value)) {
-            return null;
-        }
+    /**
+     * Sanitize integer.
+     */
+    public static function int(mixed $input): int
+    {
+        return (int) filter_var($input, FILTER_SANITIZE_NUMBER_INT);
+    }
 
-        return self::html($value);
+    /**
+     * Sanitize float/decimal.
+     */
+    public static function decimal(mixed $input): string
+    {
+        $cleaned = preg_replace('/[^0-9.\-]/', '', (string) $input);
+        return is_numeric($cleaned) ? $cleaned : '0.00';
+    }
+
+    /**
+     * Sanitize URL.
+     */
+    public static function url(string $input): string
+    {
+        return filter_var(trim($input), FILTER_SANITIZE_URL) ?: '';
+    }
+
+    /**
+     * Sanitize slug (alphanumeric + hyphens).
+     */
+    public static function slug(string $input): string
+    {
+        $slug = strtolower(trim($input));
+        $slug = preg_replace('/[^a-z0-9\-_]/', '-', $slug);
+        return preg_replace('/-+/', '-', trim($slug, '-'));
+    }
+
+    /**
+     * Sanitize phone number.
+     */
+    public static function phone(string $input): string
+    {
+        return preg_replace('/[^0-9+\-() ]/', '', $input) ?: '';
+    }
+
+    /**
+     * Sanitize array recursively.
+     */
+    public static function array(array $input, string $method = 'string'): array
+    {
+        return array_map(function ($value) use ($method) {
+            if (is_array($value)) {
+                return self::array($value, $method);
+            }
+            if (is_string($value)) {
+                return self::$method($value);
+            }
+            return $value;
+        }, $input);
     }
 }

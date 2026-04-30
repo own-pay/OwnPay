@@ -6,15 +6,25 @@
     cacheDirectory=".phpunit.cache">
     <testsuites>
         <testsuite name="Unit">
-            <directory>src</directory>
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
         </testsuite>
     </testsuites>
+    <source>
+        <include>
+            <directory>src</directory>
+        </include>
+    </source>
     <php>
         <env name="DB_HOST" value="localhost"/>
-        <env name="DB_NAME" value="anirbanpay"/>
+        <env name="DB_NAME" value="ownpay_test"/>
         <env name="DB_USER" value="root"/>
-        <env name="DB_PASS" value="root"/>
+        <env name="DB_PASS" value=""/>
+        <env name="DB_PREFIX" value="op_"/>
         <env name="PII_ENCRYPTION_KEY" value="cd4c6edf857c4ad19cb41784e849adf79ec3fc20319c28e735bd3fbd801eca33"/>
         <env name="JWT_SECRET" value="a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"/>
+        <env name="APP_ENV" value="testing"/>
     </php>
 </phpunit>

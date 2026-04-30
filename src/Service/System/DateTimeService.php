@@ -3,83 +3,78 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\System;
 
-use DateTime;
-use DateTimeZone;
-
-class DateTimeService
+/**
+ * DateTime service — timezone-aware date formatting.
+ */
+final class DateTimeService
 {
-    public static function timeAgo(string $datetime): string
-    {
-        global $global_response_brand;
+    private string $timezone;
+    private string $dateFormat;
+    private string $timeFormat;
 
-        // Determine user timezone or default to Dhaka
-        $userTimezone = !empty($global_response_brand['response'][0]['timezone'])
-            ? $global_response_brand['response'][0]['timezone']
-            : 'Asia/Dhaka';
-
-        // Create DateTime objects in the user's timezone
-        $tz = new DateTimeZone($userTimezone);
-
-        // Convert the input datetime (assumed UTC) to user's timezone
-        $past = new DateTime($datetime, new DateTimeZone('UTC'));
-        $past->setTimezone($tz);
-
-        // Get current time in user's timezone
-        $now = new DateTime('now', $tz);
-
-        // Calculate difference
-        $diff = $now->diff($past);
-
-        if ($diff->y > 0) {
-            return $diff->y . ' year' . ($diff->y > 1 ? 's' : '') . ' ago';
-        } elseif ($diff->m > 0) {
-            return $diff->m . ' month' . ($diff->m > 1 ? 's' : '') . ' ago';
-        } elseif ($diff->d > 0) {
-            return $diff->d . ' day' . ($diff->d > 1 ? 's' : '') . ' ago';
-        } elseif ($diff->h > 0) {
-            return $diff->h . ' hour' . ($diff->h > 1 ? 's' : '') . ' ago';
-        } elseif ($diff->i > 0) {
-            return $diff->i . ' minute' . ($diff->i > 1 ? 's' : '') . ' ago';
-        } else {
-            return 'Just now';
-        }
+    public function __construct(
+        ?string $timezone = null,
+        string $dateFormat = 'Y-m-d',
+        string $timeFormat = 'H:i:s'
+    ) {
+        $this->timezone = $timezone ?? (getenv('APP_TIMEZONE') ?: 'UTC');
+        $this->dateFormat = $dateFormat;
+        $this->timeFormat = $timeFormat;
     }
 
-    public static function getCurrentDatetime(string $format = 'Y-m-d H:i:s'): string
+    public function now(): \DateTimeImmutable
     {
-        $currentDatetime = new DateTime();
-        return $currentDatetime->format($format);
+        return new \DateTimeImmutable('now', new \DateTimeZone($this->timezone));
     }
 
-    public static function dateformat(string $date, string $format = 'd/m/Y'): bool
+    public function format(\DateTimeInterface $dt, ?string $format = null): string
     {
-        $d = DateTime::createFromFormat($format, $date);
-        return $d && $d->format($format) === $date;
+        $tz = new \DateTimeZone($this->timezone);
+        $local = \DateTimeImmutable::createFromInterface($dt)->setTimezone($tz);
+        return $local->format($format ?? $this->dateFormat . ' ' . $this->timeFormat);
     }
 
-    public static function convertUTCtoUserTZ(string $utc_time, string $user_tz = 'UTC', string $format = 'Y-m-d H:i:s'): string
+    public function formatDate(\DateTimeInterface $dt): string
     {
-        $dt = new DateTime($utc_time, new DateTimeZone('UTC'));
-        $dt->setTimezone(new DateTimeZone($user_tz));
-        return $dt->format($format);
+        return $this->format($dt, $this->dateFormat);
     }
 
-    public static function isExpired(string $expires_at): bool
+    public function formatTime(\DateTimeInterface $dt): string
     {
-        if (empty($expires_at)) {
-            return false;
+        return $this->format($dt, $this->timeFormat);
+    }
+
+    /**
+     * Parse string to DateTimeImmutable.
+     */
+    public function parse(string $datetime): \DateTimeImmutable
+    {
+        return new \DateTimeImmutable($datetime, new \DateTimeZone($this->timezone));
+    }
+
+    /**
+     * Human-readable relative time (e.g. "3 minutes ago").
+     */
+    public function ago(\DateTimeInterface $dt): string
+    {
+        $now = $this->now();
+        $diff = $now->getTimestamp() - $dt->getTimestamp();
+
+        if ($diff < 60) {
+            return 'just now';
         }
-
-        $timestamp = strtotime($expires_at);
-
-        if ($timestamp === false) {
-            return true;
+        if ($diff < 3600) {
+            $m = intdiv($diff, 60);
+            return "{$m} minute" . ($m > 1 ? 's' : '') . ' ago';
         }
-
-        if (preg_match('/^\d{1,4}[-\/]\d{1,2}[-\/]\d{1,4}$/', $expires_at)) {
-            $timestamp = strtotime(date('Y-m-d 23:59:59', $timestamp));
+        if ($diff < 86400) {
+            $h = intdiv($diff, 3600);
+            return "{$h} hour" . ($h > 1 ? 's' : '') . ' ago';
         }
-
-        return time() > $timestamp;
+        if ($diff < 2592000) {
+            $d = intdiv($diff, 86400);
+            return "{$d} day" . ($d > 1 ? 's' : '') . ' ago';
+        }
+        return $this->formatDate($dt);
     }
 }

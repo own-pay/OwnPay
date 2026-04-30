@@ -1,0 +1,12 @@
+{
+    "name": "bKash API",
+    "slug": "bkash-api",
+    "version": "1.0.0",
+    "description": "bKash tokenized checkout API integration",
+    "author": "OwnPay Core",
+    "type": "gateway",
+    "entrypoint": "BkashApiGateway.php",
+    "capabilities": ["gateway"],
+    "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+    "permissions": ["gateway.process"]
+}

@@ -1,0 +1,25 @@
+{# MOBILE SUMMARY — shown only on small screens #}
+<div class="ck-mobile-summary">
+    <div class="ck-mobile-card">
+        <div class="ck-mobile-brand">
+            <div class="ck-mobile-logo">
+                {% if brand.logo %}
+                    <img src="{{ brand.logo }}" alt="" class="ck-brand-img-sm">
+                {% else %}
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                {% endif %}
+            </div>
+            <div>
+                <p class="ck-label-xs">{{ lang.paying_to ?? 'Paying to' }}</p>
+                <p class="ck-mobile-merchant">{{ brand.name }}</p>
+            </div>
+        </div>
+        <div class="ck-mobile-amount-row">
+            <p class="ck-mobile-amount">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }}</p>
+            <div class="ck-encrypted-badge">
+                <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                {{ lang.encrypted ?? 'Encrypted' }}
+            </div>
+        </div>
+    </div>
+</div>

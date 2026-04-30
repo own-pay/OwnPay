@@ -3,248 +3,204 @@ declare(strict_types=1);
 
 namespace OwnPay\Plugin;
 
+use OwnPay\Container;
+use OwnPay\Event\EventManager;
+use OwnPay\Repository\PluginRepository;
+
 /**
- * Universal Plugin Manager
+ * Plugin manager — high-level API for install/activate/deactivate/uninstall.
  *
- * Handles scanning, installing, uninstalling, activating, and deactivating
- * plugins (gateways, addons, themes) in a WordPress-style architecture.
+ * Orchestrates PluginInstaller, PluginMigrator, PluginRegistry.
+ * Fires lifecycle hooks at each step for other plugins to react.
  */
-class PluginManager
+final class PluginManager
 {
-    private const TYPE_DIRS = [
-        'gateway' => 'app/modules/gateways',
-        'addon' => 'app/modules/addons',
-        'theme' => 'app/modules/themes',
-    ];
+    private Container $container;
+    private EventManager $events;
+    private PluginRepository $repo;
+    private PluginInstaller $installer;
+    private PluginMigrator $migrator;
+    private PluginRegistry $registry;
 
-    private static function getBasePath(): string
-    {
-        return realpath(__DIR__ . '/../../') . '/';
+    public function __construct(
+        Container $container,
+        EventManager $events,
+        PluginRepository $repo,
+        PluginInstaller $installer,
+        PluginMigrator $migrator,
+        PluginRegistry $registry
+    ) {
+        $this->container = $container;
+        $this->events = $events;
+        $this->repo = $repo;
+        $this->installer = $installer;
+        $this->migrator = $migrator;
+        $this->registry = $registry;
     }
 
     /**
-     * Get the filesystem directory for a given plugin type.
+     * Install plugin from ZIP.
+     * @return array{success: bool, slug?: string, error?: string}
      */
-    public static function getTypeDir(string $type): string
+    public function install(string $zipPath): array
     {
-        if (!isset(self::TYPE_DIRS[$type])) {
-            throw new \InvalidArgumentException("Unknown plugin type: $type");
+        $this->events->doAction('plugin.before_install', $zipPath);
+
+        $result = $this->installer->installFromZip($zipPath);
+        if (!$result['success']) {
+            return $result;
         }
-        return self::getBasePath() . self::TYPE_DIRS[$type];
+
+        $slug = $result['slug'];
+
+        // Discover manifest for DB record
+        $loader = $this->container->get(PluginLoader::class);
+        $manifests = $loader->discover();
+        $manifest = $manifests[$slug] ?? null;
+
+        if ($manifest === null) {
+            return ['success' => false, 'error' => 'Plugin installed but manifest not found'];
+        }
+
+        // Register in DB
+        $this->repo->create([
+            'slug'         => $manifest->slug,
+            'name'         => $manifest->name,
+            'type'         => $manifest->type,
+            'version'      => $manifest->version,
+            'entrypoint'   => $manifest->entrypoint,
+            'capabilities' => json_encode($manifest->capabilities),
+            'manifest'     => json_encode($manifest->toArray()),
+            'status'       => 'inactive',
+        ]);
+
+        $this->events->doAction('plugin.installed', $slug, $manifest);
+
+        return ['success' => true, 'slug' => $slug];
     }
 
     /**
-     * Scan all installed plugins of a given type.
-     *
-     * @return array List of plugin info from info.json
+     * Activate plugin — run migrations, load it.
      */
-    public static function scan(string $type): array
+    public function activate(string $slug): array
     {
-        $dir = self::getTypeDir($type);
-        if (!is_dir($dir)) {
-            return [];
+        $plugin = $this->repo->findBySlug($slug);
+        if ($plugin === null) {
+            return ['success' => false, 'error' => 'Plugin not found'];
         }
 
-        $plugins = [];
-        $entries = scandir($dir);
-
-        foreach ($entries as $entry) {
-            if ($entry === '.' || $entry === '..')
-                continue;
-            $pluginDir = $dir . '/' . $entry;
-            if (!is_dir($pluginDir))
-                continue;
-
-            $infoFile = $pluginDir . '/info.json';
-            if (file_exists($infoFile)) {
-                $info = json_decode(file_get_contents($infoFile), true);
-                if ($info) {
-                    $info['_dir'] = $entry;
-                    $info['_path'] = $pluginDir;
-                    $plugins[] = $info;
-                }
-            } else {
-                // Fallback for gateways that have class.php but no info.json
-                if ($type === 'gateway' && file_exists($pluginDir . '/class.php')) {
-                    $plugins[] = [
-                        'name' => ucwords(str_replace('-', ' ', $entry)),
-                        'slug' => $entry,
-                        'type' => 'gateway',
-                        'version' => '1.0.0',
-                        'author' => 'OwnPay',
-                        'entrypoint' => 'class.php',
-                        '_dir' => $entry,
-                        '_path' => $pluginDir,
-                        '_generated' => true,
-                    ];
-                }
-            }
+        if ($plugin['status'] === 'active') {
+            return ['success' => true, 'message' => 'Already active'];
         }
 
-        return $plugins;
+        $this->events->doAction('plugin.before_activate', $slug);
+
+        // Run migrations
+        $migrationsDir = $this->resolveDir($plugin) . '/migrations';
+        $ran = $this->migrator->migrate($slug, $migrationsDir);
+
+        // Activate in DB
+        $this->repo->activate($slug);
+
+        $this->events->doAction('plugin.activated', $slug, $ran);
+
+        return ['success' => true, 'migrations_run' => count($ran)];
     }
 
     /**
-     * Get a single plugin's info.
+     * Deactivate plugin.
      */
-    public static function get(string $type, string $slug): ?array
+    public function deactivate(string $slug): array
     {
-        $dir = self::getTypeDir($type) . '/' . $slug;
-        if (!is_dir($dir))
-            return null;
-
-        $infoFile = $dir . '/info.json';
-        if (file_exists($infoFile)) {
-            $info = json_decode(file_get_contents($infoFile), true);
-            if ($info) {
-                $info['_dir'] = $slug;
-                $info['_path'] = $dir;
-                return $info;
-            }
+        $plugin = $this->repo->findBySlug($slug);
+        if ($plugin === null) {
+            return ['success' => false, 'error' => 'Plugin not found'];
         }
 
-        return null;
+        $this->events->doAction('plugin.before_deactivate', $slug);
+
+        // Call deactivate on instance if loaded
+        $instance = $this->registry->get($slug);
+        if ($instance !== null) {
+            $instance->deactivate($this->container);
+        }
+
+        $this->repo->deactivate($slug);
+
+        $this->events->doAction('plugin.deactivated', $slug);
+
+        return ['success' => true];
     }
 
     /**
-     * Install a plugin from a ZIP file.
-     *
-     * @param string $type Plugin type (gateway, addon, theme)
-     * @param array  $file $_FILES entry
-     * @return array ['status' => bool, 'message' => string, 'slug' => string|null]
+     * Uninstall plugin — deactivate, rollback migrations, remove files.
      */
-    public static function install(string $type, array $file): array
+    public function uninstall(string $slug): array
     {
-        if ($file['error'] !== UPLOAD_ERR_OK) {
-            return ['status' => false, 'message' => 'Upload failed.'];
+        $plugin = $this->repo->findBySlug($slug);
+        if ($plugin === null) {
+            return ['success' => false, 'error' => 'Plugin not found'];
         }
 
-        // Validate file type
-        $ext = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-        if ($ext !== 'zip') {
-            return ['status' => false, 'message' => 'Only ZIP files are allowed.'];
+        $this->events->doAction('plugin.before_uninstall', $slug);
+
+        // Deactivate first
+        if ($plugin['status'] === 'active') {
+            $this->deactivate($slug);
         }
 
-        // Create temp extraction dir
-        $tmpDir = sys_get_temp_dir() . '/op_plugin_' . uniqid();
-        mkdir($tmpDir, 0755, true);
-
-        $zip = new \ZipArchive();
-        if ($zip->open($file['tmp_name']) !== true) {
-            return ['status' => false, 'message' => 'Cannot open ZIP file.'];
+        // Call uninstall on instance if available
+        $instance = $this->registry->get($slug);
+        if ($instance !== null) {
+            $instance->uninstall($this->container);
         }
 
-        // Security: check for path traversal
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $entry = $zip->getNameIndex($i);
-            $normalized = str_replace('\\', '/', $entry);
-            if (str_contains($normalized, '../') || str_starts_with($normalized, '/')) {
-                $zip->close();
-                self::deleteDir($tmpDir);
-                return ['status' => false, 'message' => 'Security violation: path traversal detected in ZIP.'];
-            }
+        // Rollback all migrations
+        $migrationsDir = $this->resolveDir($plugin) . '/migrations';
+        while (!empty($this->migrator->rollback($slug, $migrationsDir))) {
+            // Keep rolling back batches
         }
 
-        $zip->extractTo($tmpDir);
-        $zip->close();
+        // Remove files
+        $this->installer->uninstall($slug, $plugin['type']);
 
-        // Detect the plugin folder (may be nested under one root dir)
-        $contents = array_diff(scandir($tmpDir), ['.', '..']);
-        $extractDir = $tmpDir;
+        // Remove DB record
+        $this->repo->delete((int) $plugin['id']);
 
-        if (count($contents) === 1) {
-            $single = $tmpDir . '/' . reset($contents);
-            if (is_dir($single)) {
-                $extractDir = $single;
-            }
-        }
+        $this->events->doAction('plugin.uninstalled', $slug);
 
-        // Validate: must have info.json or class.php (for gateways)
-        $infoFile = $extractDir . '/info.json';
-        if (!file_exists($infoFile)) {
-            if ($type === 'gateway' && file_exists($extractDir . '/class.php')) {
-                // Auto-generate info.json from directory name
-                $slug = basename($extractDir);
-                $info = [
-                    'name' => ucwords(str_replace('-', ' ', $slug)),
-                    'slug' => $slug,
-                    'type' => 'gateway',
-                    'version' => '1.0.0',
-                    'author' => 'Unknown',
-                    'entrypoint' => 'class.php',
-                ];
-                file_put_contents($infoFile, json_encode($info, JSON_PRETTY_PRINT | JSON_UNESCAPED_UNICODE));
-            } else {
-                self::deleteDir($tmpDir);
-                return ['status' => false, 'message' => 'Missing info.json in the plugin package.'];
-            }
-        }
-
-        $info = json_decode(file_get_contents($infoFile), true);
-        if (!$info || empty($info['slug'])) {
-            self::deleteDir($tmpDir);
-            return ['status' => false, 'message' => 'Invalid info.json: missing slug.'];
-        }
-
-        // Validate type matches
-        if (isset($info['type']) && $info['type'] !== $type) {
-            self::deleteDir($tmpDir);
-            return ['status' => false, 'message' => "Plugin type mismatch: expected '$type', got '{$info['type']}'."];
-        }
-
-        $slug = preg_replace('/[^a-z0-9\-_]/', '', strtolower($info['slug']));
-        $targetDir = self::getTypeDir($type) . '/' . $slug;
-
-        // If already exists, remove first (update)
-        if (is_dir($targetDir)) {
-            self::deleteDir($targetDir);
-        }
-
-        // Move extracted plugin to target directory
-        rename($extractDir, $targetDir);
-        self::deleteDir($tmpDir);
-
-        return ['status' => true, 'message' => "Plugin '$slug' installed successfully.", 'slug' => $slug];
+        return ['success' => true];
     }
 
     /**
-     * Uninstall (delete) a plugin.
+     * Get plugin info for admin UI.
+     * @return array{installed: array, available: array}
      */
-    public static function uninstall(string $type, string $slug): array
+    public function listAll(): array
     {
-        $slug = preg_replace('/[^a-z0-9\-_]/', '', strtolower($slug));
-        $dir = self::getTypeDir($type) . '/' . $slug;
+        $loader = $this->container->get(PluginLoader::class);
+        $discovered = $loader->discover();
+        $installed = [];
 
-        if (!is_dir($dir)) {
-            return ['status' => false, 'message' => "Plugin '$slug' not found."];
+        $dbPlugins = $this->repo->paginate(1, 100);
+        foreach ($dbPlugins['items'] as $p) {
+            $installed[$p['slug']] = $p;
         }
 
-        self::deleteDir($dir);
-
-        return ['status' => true, 'message' => "Plugin '$slug' has been uninstalled."];
+        return [
+            'installed'  => $installed,
+            'discovered' => $discovered,
+        ];
     }
 
-    /**
-     * Recursively delete a directory.
-     */
-    private static function deleteDir(string $dir): void
+    private function resolveDir(array $plugin): string
     {
-        if (!is_dir($dir))
-            return;
-        $realDir = realpath($dir);
-        $realBase = realpath(self::getBasePath());
-        if ($realDir === false || $realBase === false || strpos($realDir, $realBase . DIRECTORY_SEPARATOR) !== 0) {
-            return; // Refuse to delete outside project boundaries
-        }
-        $items = array_diff(scandir($dir), ['.', '..']);
-        foreach ($items as $item) {
-            $path = $dir . '/' . $item;
-            $realPath = realpath($path);
-            if ($realPath === false || strpos($realPath, $realBase . DIRECTORY_SEPARATOR) !== 0) {
-                continue; // Skip symlinks or paths escaping boundaries
-            }
-            is_dir($realPath) ? self::deleteDir($realPath) : unlink($realPath);
-        }
-        rmdir($realDir);
+        $paths = $this->container->get('config.app')['paths'];
+        $typeDir = match ($plugin['type']) {
+            'gateway' => 'gateways',
+            'theme'   => 'themes',
+            default   => 'addons',
+        };
+        return $paths['modules'] . '/' . $typeDir . '/' . $plugin['slug'];
     }
 }

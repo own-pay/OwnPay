@@ -1,66 +1,32 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
-/**
- * Repository for op_merchants — tenant/business entity management.
- */
-class MerchantRepository extends BaseRepository
+use Ramsey\Uuid\Uuid;
+
+final class MerchantRepository extends BaseRepository
 {
-    use TenantScope;
-
     protected string $table = 'op_merchants';
+    protected array $fillable = [
+        'uuid', 'name', 'slug', 'email', 'phone', 'logo_path',
+        'timezone', 'default_currency', 'webhook_secret', 'settings', 'status',
+    ];
 
-    /**
-     * Find merchant by business name (case-insensitive).
-     */
-    public function findByBusinessName(string $name): ?array
+    public function findBySlug(string $slug): ?array
     {
-        $tc = $this->tenantCondition();
-        return $this->findOneWhere(
-            '`business_name` = :name AND `deleted_at` IS NULL' . $tc,
-            array_merge(['name' => $name], $this->tenantParams())
-        );
+        return $this->findBy('slug', $slug);
     }
 
-    /**
-     * Find all active merchants.
-     */
-    public function findActive(): array
+    public function findByEmail(string $email): ?array
     {
-        $tc = $this->tenantCondition();
-        return $this->findWhere(
-            '`status` = :status AND `deleted_at` IS NULL' . $tc,
-            array_merge(['status' => 'active'], $this->tenantParams()),
-            'created_at DESC'
-        );
+        return $this->findBy('email', $email);
     }
 
-    /**
-     * Activate a merchant.
-     */
-    public function activate(int $id): int
+    public function createMerchant(array $data): string
     {
-        $tc = $this->tenantCondition();
-        return $this->update(
-            ['status' => 'active'],
-            '`id` = :where_id' . $tc,
-            array_merge(['where_id' => $id], $this->tenantParams())
-        );
-    }
-
-    /**
-     * Suspend a merchant.
-     */
-    public function suspend(int $id, string $reason = ''): int
-    {
-        $tc = $this->tenantCondition();
-        return $this->update(
-            ['status' => 'suspended', 'suspend_reason' => $reason],
-            '`id` = :where_id' . $tc,
-            array_merge(['where_id' => $id], $this->tenantParams())
-        );
+        $data['uuid'] = Uuid::uuid4()->toString();
+        $data['webhook_secret'] = bin2hex(random_bytes(32));
+        return $this->create($data);
     }
 }

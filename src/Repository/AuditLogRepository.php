@@ -1,112 +1,40 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
-/**
- * Repository for op_audit_logs — immutable audit trail.
- *
- * NOTE: This table is PARTITIONED by created_at and is
- * intentionally immutable — no update() or delete() methods.
- */
-class AuditLogRepository extends BaseRepository
+final class AuditLogRepository extends BaseRepository
 {
-    use TenantScope;
-
     protected string $table = 'op_audit_logs';
-
-    protected function hasUpdatedAt(): bool
-    {
-        return false; // Audit logs are immutable — no updated_at
-    }
+    protected array $fillable = [
+        'merchant_id', 'user_id', 'action', 'entity_type', 'entity_id',
+        'old_values', 'new_values', 'ip_address', 'user_agent',
+    ];
 
     /**
-     * Insert an audit log entry. This is the ONLY write operation.
+     * Record audit event. Never use tenant scope — audit logs cross-tenant for superadmin.
      */
-    public function log(
+    public function record(
         ?int $merchantId,
+        ?int $userId,
         string $action,
-        string $entityType,
-        string $entityId,
-        string $actorType,
-        string $actorId,
-        ?array $oldPayload = null,
-        ?array $newPayload = null,
-        ?string $requestId = null,
-        ?string $ipAddress = null,
+        ?string $entityType = null,
+        ?int $entityId = null,
+        ?array $oldValues = null,
+        ?array $newValues = null,
+        ?string $ip = null,
         ?string $userAgent = null
-    ): int {
-        $now = gmdate('Y-m-d H:i:s.u');
-
-        $this->db->execute(
-            "INSERT INTO `{$this->table}`
-             (`merchant_id`, `action`, `entity_type`, `entity_id`,
-              `actor_type`, `actor_id`, `old_payload`, `new_payload`,
-              `request_id`, `ip_address`, `user_agent`, `created_at`)
-             VALUES (:mid, :act, :et, :eid, :at, :aid,
-                     :old, :new, :rid, :ip, :ua, :ca)",
-            [
-                'mid' => $merchantId,
-                'act' => $action,
-                'et' => $entityType,
-                'eid' => $entityId,
-                'at' => $actorType,
-                'aid' => $actorId,
-                'old' => $oldPayload !== null ? json_encode($oldPayload) : null,
-                'new' => $newPayload !== null ? json_encode($newPayload) : null,
-                'rid' => $requestId,
-                'ip' => $ipAddress,
-                'ua' => $userAgent,
-                'ca' => $now,
-            ]
-        );
-
-        return (int) $this->db->lastInsertId();
-    }
-
-    /**
-     * Find audit trail for a specific entity.
-     */
-    public function findByEntity(string $entityType, string $entityId, int $limit = 50): array
-    {
-        $tc = $this->tenantCondition();
-        return $this->findWhere(
-            '`entity_type` = :et AND `entity_id` = :eid' . $tc,
-            array_merge(['et' => $entityType, 'eid' => $entityId], $this->tenantParams()),
-            'created_at DESC',
-            $limit
-        );
-    }
-
-    /**
-     * Find audit trail for a merchant.
-     */
-    public function findByMerchant(int $merchantId, int $limit = 100): array
-    {
-        $tc = $this->tenantCondition();
-        return $this->findWhere(
-            '`merchant_id` = :mid' . $tc,
-            array_merge(['mid' => $merchantId], $this->tenantParams()),
-            'created_at DESC',
-            $limit
-        );
-    }
-
-    // ─── Disabled mutations ──────────────────────────────────────────
-
-    public function updateById(int $id, array $data): int
-    {
-        throw new \LogicException('Audit logs are immutable — updates are not allowed.');
-    }
-
-    public function delete(int $id): int
-    {
-        throw new \LogicException('Audit logs are immutable — deletes are not allowed.');
-    }
-
-    public function softDelete(int $id): int
-    {
-        throw new \LogicException('Audit logs are immutable — deletes are not allowed.');
+    ): string {
+        return $this->create([
+            'merchant_id' => $merchantId,
+            'user_id'     => $userId,
+            'action'      => $action,
+            'entity_type' => $entityType,
+            'entity_id'   => $entityId,
+            'old_values'  => $oldValues !== null ? json_encode($oldValues) : null,
+            'new_values'  => $newValues !== null ? json_encode($newValues) : null,
+            'ip_address'  => $ip,
+            'user_agent'  => $userAgent ? mb_substr($userAgent, 0, 500) : null,
+        ]);
     }
 }

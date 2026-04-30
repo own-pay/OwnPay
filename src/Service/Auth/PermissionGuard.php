@@ -3,105 +3,64 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\Auth;
 
-use OwnPay\Http\RequestContext;
+use OwnPay\Repository\RoleRepository;
 
 /**
- * Context-aware permission checking.
- *
- * Wraps PermissionService with RequestContext extraction, providing a
- * cleaner API for controllers:
- *
- *   // Before (legacy):
- *   canAccessPage(json_decode($perms['response'][0]['permission'], true), 'dashboard', $user['role']);
- *
- *   // After:
- *   PermissionGuard::canAccess($ctx, 'dashboard');
+ * Permission guard — checks if user has specific permission.
  */
 final class PermissionGuard
 {
-    /**
-     * Check if the current user can access a page.
-     *
-     * Replaces: canAccessPage(json_decode($global_response_permission['response'][0]['permission'], true), $page, $role)
-     *
-     * @param RequestContext $ctx  Current request context
-     * @param string         $page Page slug to check
-     * @return bool True if access is allowed
-     */
-    public static function canAccess(RequestContext $ctx, string $page): bool
+    private RoleRepository $roles;
+
+    /** @var array<int, string[]> Cached permissions by role_id */
+    private array $cache = [];
+
+    public function __construct(RoleRepository $roles)
     {
-        return PermissionService::canAccessPage(
-            $ctx->permissions,
-            $page,
-            $ctx->user['role'] ?? 'staff',
-        );
+        $this->roles = $roles;
     }
 
     /**
-     * Check if the current user has a specific permission.
-     *
-     * Replaces: hasPermission(json_decode($global_response_permission['response'][0]['permission'], true), $module, $action, $role)
-     *
-     * @param RequestContext $ctx    Current request context
-     * @param string         $module Permission module (e.g. 'gateways')
-     * @param string         $action Permission action ('view', 'create', 'edit', 'delete')
-     * @return bool True if the user has the permission
+     * Check if role has permission.
      */
-    public static function has(RequestContext $ctx, string $module, string $action = 'view'): bool
+    public function can(int $roleId, string $permission): bool
     {
-        return PermissionService::hasPermission(
-            $ctx->permissions,
-            $module,
-            $action,
-            $ctx->user['role'] ?? 'staff',
-        );
+        $perms = $this->permissionsFor($roleId);
+        return in_array($permission, $perms, true) || in_array('*', $perms, true);
     }
 
     /**
-     * Deny access with a JSON error response if the user lacks page access.
-     *
-     * Common pattern extracted from controllers — returns true if denied
-     * (so the caller can `return` early), false if access is granted.
-     *
-     * @param RequestContext $ctx   Current request context
-     * @param string         $page  Page slug to check
-     * @return bool True if access was DENIED (caller should return)
+     * Check if role has ANY of the given permissions.
      */
-    public static function denyUnlessCanAccess(RequestContext $ctx, string $page): bool
+    public function canAny(int $roleId, array $permissions): bool
     {
-        if (!self::canAccess($ctx, $page)) {
-            echo json_encode([
-                'status'     => 'false',
-                'title'      => 'Access denied',
-                'message'    => 'You need permission to perform this action. Please contact the admin.',
-                'csrf_token' => $ctx->csrfToken,
-            ]);
+        $perms = $this->permissionsFor($roleId);
+        if (in_array('*', $perms, true)) {
             return true;
         }
-
-        return false;
+        return !empty(array_intersect($permissions, $perms));
     }
 
     /**
-     * Deny access with a JSON error response if the user lacks a specific permission.
-     *
-     * @param RequestContext $ctx    Current request context
-     * @param string         $module Permission module
-     * @param string         $action Permission action
-     * @return bool True if access was DENIED (caller should return)
+     * Check if role has ALL of the given permissions.
      */
-    public static function denyUnlessHas(RequestContext $ctx, string $module, string $action = 'view'): bool
+    public function canAll(int $roleId, array $permissions): bool
     {
-        if (!self::has($ctx, $module, $action)) {
-            echo json_encode([
-                'status'     => 'false',
-                'title'      => 'Access denied',
-                'message'    => 'You need permission to perform this action. Please contact the admin.',
-                'csrf_token' => $ctx->csrfToken,
-            ]);
+        $perms = $this->permissionsFor($roleId);
+        if (in_array('*', $perms, true)) {
             return true;
         }
+        return empty(array_diff($permissions, $perms));
+    }
 
-        return false;
+    /**
+     * @return string[]
+     */
+    public function permissionsFor(int $roleId): array
+    {
+        if (!isset($this->cache[$roleId])) {
+            $this->cache[$roleId] = $this->roles->getPermissions($roleId);
+        }
+        return $this->cache[$roleId];
     }
 }

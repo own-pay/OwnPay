@@ -1,57 +1,71 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Cron;
 
-use OwnPay\Service\System\CrudService;
-use OwnPay\Service\Payment\MfsService;
+use OwnPay\Service\Payment\ReconciliationService;
+use OwnPay\Service\Notification\AlertService;
 
 /**
- * BalanceVerificationJob — reconcile active balance-verification records.
- *
- * Iterates over every active `balance_verification` row and calls
- * {@see MfsService::reconcileByLongestChain()} to match the SMS chain
- * against recorded transactions.
- *
- * Previously embedded in index.php (~6 lines plus surrounding glue).
+ * Balance verification job — runs reconciliation and alerts on mismatch.
  */
 final class BalanceVerificationJob
 {
-    private string $dbPrefix;
+    private ReconciliationService $reconciliation;
+    private AlertService $alerts;
+    private \OwnPay\Core\Database $db;
 
-    public function __construct(?string $dbPrefix = null)
-    {
-        $this->dbPrefix = $dbPrefix ?? ($_ENV['DB_PREFIX'] ?? $_SERVER['DB_PREFIX'] ?? 'op_');
+    public function __construct(
+        ReconciliationService $reconciliation,
+        AlertService $alerts,
+        \OwnPay\Core\Database $db
+    ) {
+        $this->reconciliation = $reconciliation;
+        $this->alerts = $alerts;
+        $this->db = $db;
     }
 
-    /**
-     * @return array<string, mixed>
-     */
     public function run(): array
     {
-        $active = CrudService::select(
-            $this->dbPrefix . 'balance_verification',
-            'WHERE status = :status',
-            '* FROM',
-            [':status' => 'active']
+        $merchants = $this->db->fetchAll(
+            "SELECT id, business_name FROM op_merchants WHERE status = 'active'"
         );
 
-        if ($active['status'] !== true || empty($active['response'])) {
-            return ['reconciled' => 0];
-        }
+        $results = [];
+        $mismatches = 0;
 
-        $reconciled = 0;
+        foreach ($merchants as $merchant) {
+            $mid = (int) $merchant['id'];
 
-        foreach ($active['response'] as $row) {
-            MfsService::reconcileByLongestChain(
-                (string) $row['device_id'],
-                (string) $row['sender_key'],
-                (string) $row['type']
+            // Get currencies with transactions
+            $currencies = $this->db->fetchAll(
+                "SELECT DISTINCT currency FROM op_transactions WHERE merchant_id = :mid",
+                ['mid' => $mid]
             );
-            $reconciled++;
+
+            foreach ($currencies as $cur) {
+                $result = $this->reconciliation->reconcile($mid, $cur['currency']);
+
+                if (!$result['balanced']) {
+                    $mismatches++;
+                    $this->alerts->create(
+                        $mid,
+                        'balance_mismatch',
+                        'Balance Mismatch Detected',
+                        "Currency: {$cur['currency']}, Difference: {$result['difference']}",
+                        'warning'
+                    );
+                }
+
+                $results[] = [
+                    'merchant_id' => $mid,
+                    'currency'    => $cur['currency'],
+                    'balanced'    => $result['balanced'],
+                    'difference'  => $result['difference'],
+                ];
+            }
         }
 
-        return ['reconciled' => $reconciled];
+        return ['total_checks' => count($results), 'mismatches' => $mismatches];
     }
 }

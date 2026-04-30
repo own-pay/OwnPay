@@ -1,67 +1,45 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
-/**
- * Repository for op_payment_intents — checkout session lifecycle.
- */
-class PaymentIntentRepository extends BaseRepository
+use Ramsey\Uuid\Uuid;
+
+final class PaymentIntentRepository extends BaseRepository
 {
     use TenantScope;
 
     protected string $table = 'op_payment_intents';
+    protected array $fillable = [
+        'merchant_id', 'uuid', 'token', 'customer_id', 'amount', 'currency',
+        'description', 'metadata', 'redirect_url', 'cancel_url', 'webhook_url',
+        'status', 'expires_at',
+    ];
 
-    /**
-     * Find intent by idempotency key.
-     */
-    public function findByIdempotencyKey(string $key): ?array
+    public function createIntent(array $data): string
     {
-        $tc = $this->tenantCondition();
-        return $this->findOneWhere(
-            '`idempotency_key` = :key' . $tc,
-            array_merge(['key' => $key], $this->tenantParams())
+        $data['uuid'] = Uuid::uuid4()->toString();
+        $data['token'] = bin2hex(random_bytes(32));
+        $data['expires_at'] = $data['expires_at'] ?? date('Y-m-d H:i:s', time() + 600);
+        return $this->createScoped($data);
+    }
+
+    public function findByToken(string $token): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE token = :t LIMIT 1",
+            ['t' => $token]
         );
     }
 
     /**
-     * Find active intents for a merchant.
+     * Expire stale intents. Uses idx_expires index.
      */
-    public function findByMerchant(int $merchantId, int $limit = 50): array
+    public function expireStale(): int
     {
-        $tc = $this->tenantCondition();
-        return $this->findWhere(
-            '`merchant_id` = :mid' . $tc,
-            array_merge(['mid' => $merchantId], $this->tenantParams()),
-            'created_at DESC',
-            $limit
-        );
-    }
-
-    /**
-     * Update intent status.
-     */
-    public function updateStatus(int $id, string $newStatus): int
-    {
-        $tc = $this->tenantCondition();
-        return $this->update(
-            ['status' => $newStatus],
-            '`id` = :where_id' . $tc,
-            array_merge(['where_id' => $id], $this->tenantParams())
-        );
-    }
-
-    /**
-     * Mark intent as expired.
-     */
-    public function expire(int $id): int
-    {
-        $tc = $this->tenantCondition();
-        return $this->update(
-            ['status' => 'expired', 'expired_at' => gmdate('Y-m-d H:i:s.u')],
-            '`id` = :where_id' . $tc,
-            array_merge(['where_id' => $id], $this->tenantParams())
+        return $this->db->update(
+            "UPDATE {$this->table} SET status = 'expired' WHERE status = 'pending' AND expires_at < NOW(6)",
+            []
         );
     }
 }

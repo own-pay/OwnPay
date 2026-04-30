@@ -1,0 +1,9 @@
+{# CANCELLED STATUS #}
+<div class="ck-status ck-status-cancelled">
+    <div class="ck-status-icon">
+        <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#fdcb6e" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+    </div>
+    <h2>{{ lang.payment_cancelled ?? 'Payment Cancelled' }}</h2>
+    {% if txn.trx_id %}<p class="ck-status-ref">Ref: {{ txn.trx_id }}</p>{% endif %}
+    <p class="ck-status-msg">{{ lang.cancelled_msg ?? 'This payment was cancelled. No charges were made.' }}</p>
+</div>

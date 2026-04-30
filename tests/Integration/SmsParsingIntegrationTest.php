@@ -36,7 +36,7 @@ final class SmsParsingIntegrationTest extends TestCase
     protected function setUp(): void
     {
         $host = getenv('DB_HOST') ?: '127.0.0.1';
-        $name = getenv('DB_NAME') ?: 'anirbanpay';
+        $name = getenv('DB_NAME') ?: 'ownpay_test';
         $user = getenv('DB_USER') ?: 'root';
         $pass = getenv('DB_PASS') ?: 'root';
         Database::init($host, $name, $user, $pass);
