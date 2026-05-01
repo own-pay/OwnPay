@@ -3,7 +3,7 @@
 Thank you for your interest in contributing to **Own Pay**! As an enterprise-grade, self-hosted payment gateway automation platform, we value high-quality contributions that maintain the stability and security of the system.
 
 ## ⚖️ License
-By contributing to this repository, you agree that your contributions will be licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**.
+By contributing to this repository, you agree that your contributions will be licensed under the **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)**.
 
 ## 🛠️ Getting Started
 
