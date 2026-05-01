@@ -1,87 +1,39 @@
-## Summary
-<!-- What does this PR change and why? Keep it concise. -->
+## Description
+Please include a summary of the changes and the related issue. Please also include relevant motivation and context. List any dependencies that are required for this change.
+
+Fixes # (issue)
 
 ## Type of Change
-- [ ] Bug fix
-- [ ] New feature
-- [ ] Refactor
-- [ ] Security hardening
-- [ ] Performance improvement
-- [ ] Documentation
-- [ ] Chore/maintenance
+Please delete options that are not relevant.
+- [ ] Bug fix (non-breaking change which fixes an issue)
+- [ ] New feature (non-breaking change which adds functionality)
+- [ ] Breaking change (fix or feature that would cause existing functionality to not work as expected)
+- [ ] This change requires a documentation update
 
-## Scope
-- [ ] Core (`src/`)
-- [ ] Gateway module (`app/modules/gateways`)
-- [ ] Addon module (`app/modules/addons`)
-- [ ] Plugin module (`app/modules/plugins`)
-- [ ] Theme module (`app/modules/themes`)
-- [ ] Other (describe below)
+## 🎨 Design / UI Changes
+(If applicable, add screenshots or screen recordings of the changes)
 
-### Scope Details
-<!-- List primary files/directories changed -->
+## 🧪 How Has This Been Tested?
+Please describe the tests that you ran to verify your changes. Provide instructions so we can reproduce. Please also list any relevant details for your test configuration.
+- [ ] Test A
+- [ ] Test B
 
-## Security Checklist (Required)
-- [ ] No dynamic file operations (`include`, `require`, `unlink`, `rmdir`, etc.) using untrusted paths.
-- [ ] Any path-based file operation uses `realpath()` and enforces allowed-directory boundaries.
-- [ ] All untrusted/user-supplied output rendered in HTML is escaped with `htmlspecialchars(..., ENT_QUOTES, 'UTF-8')`.
-- [ ] No unsafe command execution (`shell_exec`, `exec`, `system`, backticks) with user-controlled input.
-- [ ] Dynamic class/module loading uses strict allowlist validation for identifiers/slugs.
-- [ ] No secrets/tokens/credentials introduced in code, configs, logs, or screenshots.
+**Test Configuration**:
+* Own Pay Version:
+* PHP Version:
+* Database:
+* Environment:
 
-## OwnPay Architecture Checklist (Required)
-- [ ] No legacy `pp-` or `pp_` naming introduced.
-- [ ] Feature logic is placed in the correct module/core location.
-- [ ] No module-specific leakage into core unless explicitly justified.
-- [ ] New dependencies (if any) are added via Composer (not raw vendored code/submodules).
+## Checklist:
+- [ ] My code follows the [PSR-12 coding standards](https://github.com/own-pay/ownpay/blob/main/CONTRIBUTING.md#coding-standards).
+- [ ] I have performed a self-review of my code.
+- [ ] I have commented my code, particularly in hard-to-understand areas.
+- [ ] I have made corresponding changes to the documentation.
+- [ ] My changes generate no new warnings.
+- [ ] I have added tests that prove my fix is effective or that my feature works.
+- [ ] New and existing unit tests pass locally with my changes.
+- [ ] Any dependent changes have been merged and published in downstream modules.
+- [ ] I have checked my code and corrected any misspellings.
 
-## Database & Standards Checklist (Required)
-- [ ] No hardcoded legacy table prefixes; DB prefixing remains dynamic (default `op_`).
-- [ ] PHP 8.2+ compatible code with strict typing where applicable.
-- [ ] No inline JS/CSS unless explicitly justified and securely handled.
-
-## Backward Compatibility / Migration
-- [ ] No breaking changes
-- [ ] Breaking change (describe below)
-- [ ] Migration required (describe steps below)
-- [ ] Config/env changes required (describe below)
-
-### Migration / Upgrade Notes
-<!-- Required if schema/contracts/config changed -->
-
-## Testing & Verification
-### Automated Tests
-- [ ] Existing tests pass
-- [ ] New tests added/updated
-- [ ] Not applicable (explain why)
-
-### Manual Verification
-<!-- Provide exact steps to validate behavior -->
-1.
-2.
-3.
-
-### Security Verification
-<!-- If security-sensitive code changed, explain attack paths considered and mitigations -->
-- Threats considered:
-- Mitigations implemented:
-
-## Screenshots / Logs (if applicable)
-<!-- UI/API evidence, sanitized logs only -->
-
-## Risk Assessment
-- **Risk level:** Low / Medium / High
-- **Primary risk areas:** <!-- e.g., payments flow, auth, module loader -->
-- **Rollback plan:** <!-- how to safely revert -->
-
-## Reviewer Focus Areas
-<!-- Point reviewers to highest-risk files/lines -->
-
-## Linked Issues
-<!-- e.g., Closes #123 -->
-
-## Author Declaration (Required)
-- [ ] I confirmed this PR does **not** introduce legacy `pp-` / `pp_` patterns.
-- [ ] I validated security-critical paths (input validation, output encoding, path boundaries, auth checks).
-- [ ] I did not include secrets or sensitive payment/PII data.
-- [ ] I verified the change follows `.github/copilot-instructions.md` and `.github/instructions/*.instructions.md`.
+## ⚖️ License
+- [ ] I agree that my contributions will be licensed under the **AGPL-3.0 License**.
