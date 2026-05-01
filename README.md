@@ -33,11 +33,16 @@ OwnPay is not just a payment gateway; it is a **Universal Fintech Operating Syst
 
 OwnPay is designed to WOW. We believe fintech should be as beautiful as it is functional.
 
-````carousel
-![Admin Dashboard Mockup](docs/images/ownpay_dashboard_mockup.png)
-<!-- slide -->
-![Checkout UI Mockup](docs/images/ownpay_checkout_mockup.png)
-````
+<table>
+  <tr>
+    <td align="center">
+      <img src="docs/images/ownpay_dashboard_mockup.png" alt="Admin Dashboard Mockup" />
+    </td>
+    <td align="center">
+      <img src="docs/images/ownpay_checkout_mockup.png" alt="Checkout UI Mockup" />
+    </td>
+  </tr>
+</table>
 
 ---
 
