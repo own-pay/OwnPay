@@ -146,7 +146,7 @@ We love contributors! Whether you're fixing a bug or suggesting a feature, pleas
 
 ## 📄 License
 
-Distributed under the **AGPL-3.0 License**. See `LICENSE` for more information.
+Distributed under the **AGPL-3.0-or-later License**. See `LICENSE` for more information.
 
 <div align="center">
   <p>Built with ❤️ by the OwnPay Community</p>
