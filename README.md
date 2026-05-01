@@ -1,6 +1,6 @@
-# Own Pay
+# OwnPay
 
-![Own Pay Banner](docs/images/own_pay_banner.png)
+![OwnPay Banner](docs/images/own_pay_banner.png)
 
 <div align="center">
 
