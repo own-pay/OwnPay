@@ -1,12 +1,12 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}{{ link.id ? 'Edit' : 'Create' }} Payment Link — {{ app_name }}{% endblock %}
+{% block title %}{{ link is not empty and link.id is defined and link.id ? 'Edit' : 'Create' }} Payment Link — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
-    <h1>{{ link.id ? 'Edit' : 'Create' }} Payment Link</h1>
+    <h1>{{ link is not empty and link.id is defined and link.id ? 'Edit' : 'Create' }} Payment Link</h1>
     <a href="/admin/payment-links" class="op-btn op-btn-outline">← Back</a>
 </div>
-<form method="POST" action="/admin/payment-links/{{ link.id ? link.id ~ '/edit' : 'create' }}" class="op-form">
-    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+<form method="POST" action="/admin/payment-links/{{ link is not empty and link.id is defined and link.id ? link.id ~ '/update' : 'store' }}" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <div class="op-grid op-grid-2">
         <div class="op-card">
             <div class="op-card-header"><h3>Link Details</h3></div>
@@ -46,11 +46,11 @@
                 </div>
                 <div class="op-form-group">
                     <label class="op-checkbox-label">
-                        <input type="checkbox" name="require_address" value="1" {{ link.require_address ? 'checked' : '' }}>
+                        <input type="checkbox" name="require_address" value="1" {{ (link.require_address is defined and link.require_address) ? 'checked' : '' }}>
                         Require Shipping Address
                     </label>
                 </div>
-                {% if link.id %}
+                {% if link is not empty and link.id is defined and link.id %}
                 <div class="op-form-group">
                     <label>Status</label>
                     <select name="status" class="op-input">
@@ -63,7 +63,7 @@
         </div>
     </div>
     <div class="op-form-actions op-mt-4">
-        <button type="submit" class="op-btn op-btn-primary op-btn-lg">{{ link.id ? 'Save Changes' : 'Create Link' }}</button>
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg">{{ link is not empty and link.id is defined and link.id ? 'Save Changes' : 'Create Link' }}</button>
     </div>
 </form>
 {% endblock %}

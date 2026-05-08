@@ -4,67 +4,93 @@ declare(strict_types=1);
 namespace OwnPay\Controller\Admin;
 
 use OwnPay\Container;
+use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Domain\DomainService;
 
 final class DomainController
 {
+    use AdminPageTrait;
+
     private Container $c;
+    private AdminSession $session;
     private DomainService $domains;
 
-    public function __construct(Container $c, DomainService $domains) { $this->c = $c; $this->domains = $domains; }
+    public function __construct(Container $c, AdminSession $session, DomainService $domains)
+    {
+        $this->c = $c;
+        $this->session = $session;
+        $this->domains = $domains;
+    }
 
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
-        $list = $this->domains->listForMerchant($mid);
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        // Enrich with merchant names
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+
+        $repo = $this->c->get(\OwnPay\Repository\DomainRepository::class);
+        $list = $repo->forTenant($mid)->listAllScoped();
+
         foreach ($list as &$d) {
-            $m = $db->fetchOne("SELECT business_name FROM op_merchants WHERE id = :id", ['id' => $d['merchant_id']]);
-            $d['merchant_name'] = $m['business_name'] ?? '—';
+            $m = $this->c->get(\OwnPay\Repository\MerchantRepository::class)->find($d['merchant_id']);
+            $d['merchant_name'] = $m['name'] ?? '—';
         }
-        return $this->render('admin/domains/index.twig', ['domains' => $list, 'active_page' => 'domains']);
+
+        return $this->renderAdminPage('admin/domains/index.twig', [
+            'domains'     => $list,
+            'active_page' => 'domains',
+            'server_ip'   => gethostbyname($_SERVER['HTTP_HOST'] ?? '127.0.0.1'),
+        ]);
     }
 
-    public function add(Request $req): Response
+    public function store(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+
         $domain = $req->post('domain', '');
-        if (empty($domain)) { $_SESSION['flash_error'] = 'Domain required'; return Response::redirect('/admin/domains'); }
+        if (empty($domain)) {
+            $this->session->flashError('Domain required');
+            return Response::redirect('/admin/domains');
+        }
 
-        try {
-            $this->domains->addDomain($mid, $domain);
-            $_SESSION['flash_success'] = 'Domain added. Configure DNS then verify.';
-        } catch (\Throwable $e) {
-            $_SESSION['flash_error'] = $e->getMessage();
+        $result = $this->domains->map($mid, $domain);
+        if (!empty($result['success'])) {
+            $this->session->flashSuccess('Domain added. ' . ($result['instructions'] ?? 'Configure DNS then verify.'));
+        } else {
+            $this->session->flashError($result['error'] ?? 'Failed to add domain');
         }
         return Response::redirect('/admin/domains');
     }
 
-    public function verify(Request $req, int $id): Response
+    public function verify(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
-        $result = $this->domains->verifyDomain($mid, $id);
-        $_SESSION[$result ? 'flash_success' : 'flash_error'] = $result ? 'DNS verified!' : 'DNS not yet pointing correctly';
+        $id = (int) $req->param('id');
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+
+        $result = $this->domains->verify($id, $mid);
+        if (!empty($result['success'])) {
+            $this->session->flashSuccess('DNS verified!');
+        } else {
+            $this->session->flashError($result['error'] ?? 'DNS not yet pointing correctly');
+        }
         return Response::redirect('/admin/domains');
     }
 
-    public function delete(Request $req, int $id): Response
+    public function delete(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
-        $this->domains->removeDomain($mid, $id);
-        $_SESSION['flash_success'] = 'Domain removed';
-        return Response::redirect('/admin/domains');
-    }
+        $id = (int) $req->param('id');
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
 
-    private function render(string $tpl, array $data = []): Response
-    {
-        $twig = $this->c->get(\Twig\Environment::class);
-        $data['csrf_token'] = $_SESSION['csrf_token'] ?? ''; $data['app_name'] = $this->c->get('config.app')['name'] ?? 'Own Pay'; $data['current_user'] = $_SESSION['user'] ?? [];
-        $data['flash_success'] = $_SESSION['flash_success'] ?? null; $data['flash_error'] = $_SESSION['flash_error'] ?? null;
-        unset($_SESSION['flash_success'], $_SESSION['flash_error']);
-        return Response::html($twig->render($tpl, $data));
+        $this->domains->remove($id, $mid);
+        $this->session->flashSuccess('Domain removed');
+        return Response::redirect('/admin/domains');
     }
 }

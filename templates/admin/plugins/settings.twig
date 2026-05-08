@@ -1,11 +1,17 @@
-{% extends "admin/base.twig" %}
+{% extends "admin/layout/base.twig" %}
 
 {% block title %}{{ plugin.name }} Settings — {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
     <h1>{{ plugin.name }} Settings</h1>
-    <a href="{{ path('admin.plugins.index') }}" class="op-btn op-btn-outline">← Back to Plugins</a>
+    {% if plugin.type == 'addon' %}
+        <a href="/admin/addons" class="op-btn op-btn-outline">← Back to Addons</a>
+    {% elseif plugin.type == 'gateway' %}
+        <a href="/admin/gateways" class="op-btn op-btn-outline">← Back to Gateways</a>
+    {% else %}
+        <a href="/admin/plugins" class="op-btn op-btn-outline">← Back to Plugins</a>
+    {% endif %}
 </div>
 
 {% if flash_success %}

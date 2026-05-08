@@ -6,7 +6,7 @@ namespace OwnPay\Service\Notification;
 use OwnPay\Event\EventManager;
 
 /**
- * Notification service — orchestrates multi-channel notifications.
+ * Notification service â€” orchestrates multi-channel notifications.
  *
  * Channels: push (mobile), email, sms, admin alert.
  * Plugins add channels via communication.channels filter.

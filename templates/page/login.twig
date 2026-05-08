@@ -9,7 +9,7 @@
     <link rel="stylesheet" href="/assets/css/auth.css">
 </head>
 <body class="op-auth-page">
-    {{ fire_hook('admin.login.render')|raw }}
+    {{ hook('admin.login.render')|raw }}
 
     <div class="op-auth-container">
         <div class="op-auth-card">
@@ -24,7 +24,7 @@
             {% endif %}
 
             <form method="POST" action="{{ login_url ?? '/login' }}" class="op-form">
-                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 
                 <div class="op-form-group">
                     <label for="email">Email</label>

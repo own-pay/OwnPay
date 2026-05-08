@@ -258,18 +258,175 @@ small { color: var(--op-text-dim); font-size: 0.8rem; }
 .op-footer { padding: 16px 24px; border-top: 1px solid var(--op-border); display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--op-text-dim); }
 
 /* ========================= RESPONSIVE ========================= */
+.op-table-responsive { width: 100%; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+
 @media (max-width: 1024px) { .op-grid-2 { grid-template-columns: 1fr; } }
 @media (max-width: 768px) {
-    .op-sidebar { transform: translateX(-100%); width: var(--op-sidebar-width); }
-    .op-sidebar:not(.op-sidebar-collapsed) { transform: translateX(0); }
-    .op-main { margin-left: 0; }
+    /* Sidebar slides off-canvas on mobile, toggled via op-sidebar-open */
+    .op-sidebar { transform: translateX(-100%); width: var(--op-sidebar-width); z-index: 1000; }
+    .op-sidebar.op-sidebar-open { transform: translateX(0); box-shadow: 4px 0 24px rgba(0,0,0,0.5); }
+    .op-main { margin-left: 0 !important; width: 100%; }
     .op-form-row { flex-direction: column; }
     .op-col-2, .op-col-3, .op-col-4, .op-col-5, .op-col-6, .op-col-8 { flex: 1 1 100%; }
     .op-page-header { flex-direction: column; align-items: flex-start; }
     .op-stats-grid { grid-template-columns: repeat(2, 1fr); }
+    /* Navbar — hide less important items */
+    .op-breadcrumb { display: none; }
+    .op-navbar-search { display: none; }
+    .op-user-name { display: none; }
+    .op-navbar-brand-selector select { max-width: 120px; }
 }
 @media (max-width: 480px) {
     .op-stats-grid { grid-template-columns: 1fr; }
     .op-content { padding: 16px; }
     .op-navbar { padding: 0 12px; }
+    .op-navbar-brand-selector select { max-width: 100px; font-size: 0.75rem; padding: 4px 8px; }
 }
+
+/* ========================= SUB-NAV ========================= */
+.op-sub-nav { list-style: none; padding: 0; margin: 0; }
+.op-sub-nav li { margin: 0; }
+.op-nav-link-sub { padding: 7px 20px 7px 50px !important; font-size: 0.82rem !important; color: var(--op-text-dim) !important; border-left: none !important; }
+.op-nav-link-sub:hover { color: var(--op-text-muted) !important; background: var(--op-bg-hover) !important; }
+.op-nav-link-sub.active { color: var(--op-primary) !important; }
+
+/* ========================= ADDON/PLUGIN CARDS ========================= */
+.op-addon-list { display: flex; flex-direction: column; gap: 12px; }
+.op-addon-item { display: flex; align-items: center; gap: 16px; padding: 16px 20px; border: 1px solid var(--op-border); border-radius: var(--op-radius-lg); transition: all var(--op-transition); }
+.op-addon-item:hover { border-color: var(--op-primary); box-shadow: 0 2px 16px rgba(108,92,231,0.08); transform: translateY(-1px); }
+.op-addon-icon { flex-shrink: 0; }
+.op-addon-icon-placeholder { width: 48px; height: 48px; background: linear-gradient(135deg, var(--op-primary), #a29bfe); border-radius: var(--op-radius); display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 1.1rem; color: #fff; }
+.op-addon-info { flex: 1; min-width: 0; }
+.op-addon-info h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 4px; }
+.op-addon-info p { margin: 0 0 6px; font-size: 0.82rem; color: var(--op-text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 400px; }
+.op-addon-meta { display: flex; align-items: center; gap: 6px; font-size: 0.75rem; color: var(--op-text-dim); }
+.op-addon-meta .op-dot { width: 3px; height: 3px; background: var(--op-text-dim); border-radius: 50%; }
+.op-addon-actions { display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+.op-inline-form { display: inline; }
+
+/* ========================= SIDEBAR SCROLL ========================= */
+.op-sidebar::-webkit-scrollbar { width: 4px; }
+.op-sidebar::-webkit-scrollbar-track { background: transparent; }
+.op-sidebar::-webkit-scrollbar-thumb { background: var(--op-border); border-radius: 4px; }
+.op-sidebar::-webkit-scrollbar-thumb:hover { background: var(--op-text-dim); }
+
+/* ========================= STAT CARD PREMIUM ========================= */
+.op-stat-card { position: relative; overflow: hidden; }
+.op-stat-card::before { content: ''; position: absolute; top: -20px; right: -20px; width: 100px; height: 100px; border-radius: 50%; opacity: 0.04; }
+.op-stat-primary::before { background: var(--op-primary); }
+.op-stat-success::before { background: var(--op-success); }
+.op-stat-warning::before { background: var(--op-warning); }
+.op-stat-info::before { background: var(--op-info); }
+
+/* ========================= EMPTY STATE PREMIUM ========================= */
+.op-empty-state { padding: 60px 40px; text-align: center; }
+.op-empty-state::before { content: ''; display: block; width: 64px; height: 64px; margin: 0 auto 16px; background: var(--op-bg-input); border-radius: 50%; border: 2px dashed var(--op-border); }
+.op-empty-state p { color: var(--op-text-muted); font-size: 0.9rem; max-width: 400px; margin: 0 auto; }
+
+/* ========================= BRAND SWITCHER PREMIUM ========================= */
+.op-navbar-brand-selector select { background: var(--op-bg-input); border: 1px solid var(--op-border); border-radius: var(--op-radius); color: var(--op-text); padding: 6px 32px 6px 12px; font-size: 0.82rem; cursor: pointer; appearance: none; background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='%2394a3b8' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: right 10px center; }
+.op-navbar-brand-selector select:focus { outline: none; border-color: var(--op-primary); box-shadow: 0 0 0 3px rgba(108,92,231,0.2); }
+
+/* ========================= GLOBAL SEARCH ========================= */
+.op-navbar-search input { background: var(--op-bg-input); border: 1px solid var(--op-border); border-radius: var(--op-radius); color: var(--op-text); padding: 6px 12px; font-size: 0.82rem; width: 180px; transition: width var(--op-transition), border-color var(--op-transition); }
+.op-navbar-search input:focus { width: 260px; border-color: var(--op-primary); outline: none; }
+.op-navbar-search input::placeholder { color: var(--op-text-dim); }
+
+/* ========================= CARD HEADER ACTIONS ========================= */
+.op-header-actions { display: flex; gap: 8px; align-items: center; }
+.op-d-flex { display: flex; }
+.op-align-end { align-items: flex-end; }
+.op-mb-0 { margin-bottom: 0; }
+
+/* ========================= BADGE DOT / SECONDARY ========================= */
+.op-badge-secondary { background: rgba(100,116,139,0.15); color: var(--op-text-dim); }
+
+/* ========================= ANIMATION ========================= */
+@keyframes opFadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+.op-card, .op-stat-card, .op-addon-item, .op-gateway-card { animation: opFadeIn 0.3s ease-out; }
+.op-alert { animation: opFadeIn 0.25s ease-out; }
+
+/* ========================= SCROLLBAR GLOBAL ========================= */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--op-bg); }
+::-webkit-scrollbar-thumb { background: var(--op-border); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--op-text-dim); }
+
+/* ========================= THEME CARDS ========================= */
+.op-theme-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 20px; }
+.op-theme-card { background: var(--op-bg-card); border: 1px solid var(--op-border); border-radius: var(--op-radius-lg); overflow: hidden; transition: all var(--op-transition); }
+.op-theme-card:hover { border-color: var(--op-primary); box-shadow: 0 4px 20px rgba(108,92,231,0.1); transform: translateY(-2px); }
+.op-theme-active { border-color: var(--op-success); box-shadow: 0 0 0 1px var(--op-success); }
+.op-theme-preview { position: relative; height: 160px; background: var(--op-bg-input); display: flex; align-items: center; justify-content: center; overflow: hidden; }
+.op-theme-preview img { width: 100%; height: 100%; object-fit: cover; }
+.op-theme-placeholder { width: 80px; height: 80px; background: linear-gradient(135deg, var(--op-primary), #a29bfe); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 2rem; font-weight: 700; color: #fff; }
+.op-theme-badge { position: absolute; top: 10px; right: 10px; background: var(--op-success); color: #fff; padding: 3px 10px; border-radius: 20px; font-size: 0.7rem; font-weight: 600; }
+.op-theme-info { padding: 16px; }
+.op-theme-info h3 { font-size: 1rem; font-weight: 600; margin-bottom: 4px; }
+.op-theme-desc { font-size: 0.82rem; color: var(--op-text-muted); margin-top: 6px; }
+.op-theme-actions { display: flex; gap: 8px; padding: 0 16px 16px; }
+
+/* ========================= TOGGLE SWITCH ========================= */
+.op-toggle-label { display: flex; align-items: center; gap: 12px; cursor: pointer; font-size: 0.875rem; user-select: none; }
+.op-toggle-label input[type="checkbox"] { display: none; }
+.op-toggle-switch { position: relative; width: 44px; height: 24px; background: var(--op-border); border-radius: 12px; transition: all var(--op-transition); flex-shrink: 0; }
+.op-toggle-switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform var(--op-transition), background var(--op-transition); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.op-toggle-label input:checked + .op-toggle-switch { background: var(--op-primary); }
+.op-toggle-label input:checked + .op-toggle-switch::after { transform: translateX(20px); }
+.op-text-warning { color: var(--op-warning); }
+
+/* ========================= DROPZONE ========================= */
+.op-dropzone { border: 2px dashed var(--op-border); border-radius: var(--op-radius-lg); padding: 40px 20px; text-align: center; cursor: pointer; transition: all var(--op-transition); background: var(--op-bg); }
+.op-dropzone:hover { border-color: var(--op-primary); background: rgba(108,92,231,0.03); }
+.op-dropzone-hover { border-color: var(--op-primary) !important; background: rgba(108,92,231,0.06) !important; }
+.op-dropzone svg { color: var(--op-text-dim); }
+.op-dropzone p { margin: 4px 0; }
+.op-file-input { position: absolute; opacity: 0; pointer-events: none; }
+.op-dropzone-selected { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.op-text-bold { font-weight: 600; }
+
+/* ========================= LIST INFO ========================= */
+.op-list-info { padding: 16px 20px; }
+.op-list-info-item { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-size: 0.875rem; color: var(--op-text); }
+.op-list-info-item svg { flex-shrink: 0; }
+
+/* ========================= CODE BLOCK ========================= */
+.op-code-block { background: var(--op-bg); border: 1px solid var(--op-border); border-radius: var(--op-radius); padding: 16px 20px; margin: 16px 20px 20px; font-size: 0.82rem; line-height: 1.6; overflow-x: auto; color: var(--op-text-muted); font-family: 'JetBrains Mono', monospace; }
+
+/* ========================= PLUGIN META ========================= */
+.op-plugin-meta { display: flex; align-items: center; gap: 12px; padding: 16px 20px; }
+.op-plugin-desc { padding: 0 20px 16px; color: var(--op-text-muted); font-size: 0.875rem; }
+.op-plugin-info { display: flex; flex-direction: column; gap: 2px; }
+.op-plugin-info strong { font-size: 0.95rem; }
+.op-plugin-info small { font-size: 0.75rem; }
+
+/* ========================= SPINNER ========================= */
+.op-spinner-sm { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: #fff; border-radius: 50%; animation: opSpin 0.6s linear infinite; vertical-align: middle; }
+@keyframes opSpin { to { transform: rotate(360deg); } }
+
+/* ========================= FIELD GROUPS (plugin settings) ========================= */
+.op-settings-form { padding: 16px 20px; }
+.op-field-group { margin-bottom: 16px; }
+.op-field-group label { display: block; margin-bottom: 6px; font-size: 0.85rem; font-weight: 500; color: var(--op-text-muted); }
+.op-field-group .op-input, .op-field-group .op-textarea, .op-field-group .op-select { width: 100%; padding: 10px 14px; background: var(--op-bg-input); border: 1px solid var(--op-border); border-radius: var(--op-radius); color: var(--op-text); font-size: 0.9rem; font-family: var(--op-font); transition: border-color var(--op-transition); }
+.op-field-group .op-input:focus, .op-field-group .op-textarea:focus, .op-field-group .op-select:focus { outline: none; border-color: var(--op-primary); box-shadow: 0 0 0 3px rgba(108,92,231,0.2); }
+.op-field-help { display: block; margin-top: 4px; font-size: 0.78rem; color: var(--op-text-dim); }
+.op-settings-form .op-form-actions { padding: 12px 0 0; }
+.op-settings-empty { color: var(--op-text-muted); padding: 20px; }
+.op-toggle { display: inline-flex; align-items: center; cursor: pointer; gap: 8px; }
+.op-toggle input[type="checkbox"] { display: none; }
+.op-toggle-slider { position: relative; width: 44px; height: 24px; background: var(--op-border); border-radius: 12px; transition: all var(--op-transition); }
+.op-toggle-slider::after { content: ''; position: absolute; top: 2px; left: 2px; width: 20px; height: 20px; background: #fff; border-radius: 50%; transition: transform var(--op-transition); box-shadow: 0 1px 3px rgba(0,0,0,0.3); }
+.op-toggle input:checked + .op-toggle-slider { background: var(--op-primary); }
+.op-toggle input:checked + .op-toggle-slider::after { transform: translateX(20px); }
+
+/* ========================= BADGE TYPE COLORS ========================= */
+.op-badge-gateway { background: rgba(116,185,255,0.15); color: var(--op-info); }
+.op-badge-addon { background: rgba(108,92,231,0.15); color: var(--op-primary); }
+.op-badge-theme { background: rgba(0,184,148,0.15); color: var(--op-success); }
+.op-badge-plugin { background: rgba(253,203,110,0.15); color: var(--op-warning); }
+
+/* ========================= MISC UTILITIES ========================= */
+.op-mt-3 { margin-top: 12px; }
+.op-card-header p { margin: 4px 0 0; font-size: 0.82rem; color: var(--op-text-muted); }
+.op-empty { padding: 40px 20px; text-align: center; color: var(--op-text-muted); font-size: 0.9rem; }

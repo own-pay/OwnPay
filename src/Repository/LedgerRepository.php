@@ -6,60 +6,55 @@ namespace OwnPay\Repository;
 
 use OwnPay\Core\Database;
 use OwnPay\Core\UuidGenerator;
+use OwnPay\Support\DateHelper;
 
 /**
  * Repository for the double-entry ledger system:
  *   - op_ledger_accounts
  *   - op_ledger_transactions (journal headers)
- *   - op_ledger_entries (debit/credit lines) — PARTITIONED
+ *   - op_ledger_entries (debit/credit lines)
  */
-class LedgerRepository extends BaseRepository
+final class LedgerRepository extends BaseRepository
 {
     use TenantScope;
 
     protected string $table = 'op_ledger_accounts';
 
-    // ─── Accounts ────────────────────────────────────────────────────
+    // ——— Accounts ————————————————————————————————————————
 
     /**
-     * Find or create a ledger account.
+     * Find or create a ledger account by name and type.
      */
     public function findOrCreateAccount(
-        string $code,
         string $name,
-        string $accountType,
+        string $type,
         string $currency = 'BDT',
         ?int $merchantId = null
     ): array {
-        $where = '`code` = :code';
-        $params = ['code' => $code];
+        $mid = $merchantId ?? $this->tenantId;
 
-        if ($merchantId !== null) {
+        $where = '`name` = :name AND `type` = :type AND `currency` = :cur';
+        $params = ['name' => $name, 'type' => $type, 'cur' => $currency];
+
+        if ($mid !== null) {
             $where .= ' AND `merchant_id` = :mid';
-            $params['mid'] = $merchantId;
+            $params['mid'] = $mid;
         } else {
             $where .= ' AND `merchant_id` IS NULL';
         }
 
-        $tc = $this->tenantCondition();
-        $where .= $tc;
-        $params = array_merge($params, $this->tenantParams());
-
-        $account = $this->findOneWhere($where, $params);
+        $account = $this->db->fetchOne("SELECT * FROM {$this->table} WHERE {$where} LIMIT 1", $params);
 
         if ($account !== null) {
             return $account;
         }
 
-        // Create new account
         $id = $this->insert([
-            'code' => $code,
             'name' => $name,
-            'account_type' => $accountType,
+            'type' => $type,
             'currency' => $currency,
-            'merchant_id' => $merchantId,
-            'balance' => '0.0000',
-            'status' => 'active',
+            'merchant_id' => $mid,
+            'balance' => '0.00',
         ]);
 
         return $this->findById($id);
@@ -71,56 +66,50 @@ class LedgerRepository extends BaseRepository
     public function getBalance(int $accountId): string
     {
         $row = $this->findById($accountId);
-        return $row['balance'] ?? '0.0000';
+        return $row['balance'] ?? '0.00';
     }
 
     /**
-     * Atomically update account balance using bcmath addition.
-     * Locks the row with FOR UPDATE inside a transaction.
+     * Atomically adjust account balance.
      */
     public function adjustBalance(int $accountId, string $amount): void
     {
-        $tc = $this->tenantCondition();
+        $where = "`id` = :id";
+        $params = ['amount' => $amount, 'id' => $accountId];
+        if ($this->tenantId !== null) {
+            $where .= " AND `merchant_id` = :mid";
+            $params['mid'] = $this->requireTenant();
+        }
         $this->db->execute(
-            "UPDATE `op_ledger_accounts`
-             SET `balance` = `balance` + :amount,
-                 `updated_at` = NOW(6)
-             WHERE `id` = :id{$tc}",
-            array_merge(['amount' => $amount, 'id' => $accountId], $this->tenantParams())
+            "UPDATE `op_ledger_accounts` SET `balance` = `balance` + :amount WHERE {$where}",
+            $params
         );
     }
 
-    // ─── Journal Transactions ────────────────────────────────────────
+    // ——— Journal Transactions ————————————————————————————
 
     /**
      * Create a ledger transaction (journal header).
-     *
-     * @return int The auto-increment ID
      */
     public function createTransaction(
-        string $eventType,
         string $referenceType,
-        string $referenceId,
-        string $totalAmount,
-        string $currency = 'BDT',
+        int $referenceId,
         ?string $description = null
     ): int {
-        $publicId = UuidGenerator::generate();
-        $now = gmdate('Y-m-d H:i:s.u');
+        $uuid = UuidGenerator::generate();
+        $now = DateHelper::nowMicro();
+        $mid = $this->tenantId;
 
         $this->db->execute(
             "INSERT INTO `op_ledger_transactions`
-             (`public_id`, `event_type`, `reference_type`, `reference_id`,
-              `total_amount`, `currency`, `description`, `status`, `created_at`)
-             VALUES (:pid, :et, :rt, :ri, :ta, :cur, :desc, 'posted', :ca)",
+             (`merchant_id`, `uuid`, `description`, `reference_type`, `reference_id`, `created_at`)
+             VALUES (:mid, :uuid, :desc, :rt, :ri, :ca)",
             [
-                'pid' => $publicId,
-                'et' => $eventType,
+                'mid' => $mid,
+                'uuid' => $uuid,
+                'desc' => $description,
                 'rt' => $referenceType,
                 'ri' => $referenceId,
-                'ta' => $totalAmount,
-                'cur' => $currency,
-                'desc' => $description,
                 'ca' => $now,
             ]
         );
@@ -128,32 +117,28 @@ class LedgerRepository extends BaseRepository
         return (int) $this->db->lastInsertId();
     }
 
-    // ─── Ledger Entries ──────────────────────────────────────────────
+    // ——— Ledger Entries ——————————————————————————————————
 
     /**
      * Create a ledger entry (debit or credit line).
-     * Table is PARTITIONED — created_at is part of the PK.
      */
     public function createEntry(
         int $ledgerTransactionId,
         int $accountId,
-        string $entryType,
-        string $amount,
-        string $currency = 'BDT'
+        string $type,
+        string $amount
     ): int {
-        $now = gmdate('Y-m-d H:i:s.u');
+        $now = DateHelper::nowMicro();
 
         $this->db->execute(
             "INSERT INTO `op_ledger_entries`
-             (`ledger_transaction_id`, `account_id`, `entry_type`,
-              `amount`, `currency`, `created_at`)
-             VALUES (:ltid, :aid, :et, :amt, :cur, :ca)",
+             (`ledger_transaction_id`, `account_id`, `type`, `amount`, `created_at`)
+             VALUES (:ltid, :aid, :type, :amt, :ca)",
             [
                 'ltid' => $ledgerTransactionId,
                 'aid' => $accountId,
-                'et' => $entryType,
+                'type' => $type,
                 'amt' => $amount,
-                'cur' => $currency,
                 'ca' => $now,
             ]
         );
@@ -163,8 +148,6 @@ class LedgerRepository extends BaseRepository
 
     /**
      * Get all entries for a journal transaction.
-     * NOTE: op_ledger_entries has no merchant_id column — scoping is
-     * enforced at the journal-transaction level rather than per-entry.
      */
     public function getEntries(int $ledgerTransactionId): array
     {
@@ -177,17 +160,14 @@ class LedgerRepository extends BaseRepository
     }
 
     /**
-     * Verify the balanced invariant for a journal transaction.
-     * Returns true if sum(debit) === sum(credit).
-     * NOTE: op_ledger_entries has no merchant_id column — scoping is
-     * enforced at the journal-transaction level rather than per-entry.
+     * Verify balanced invariant for a journal transaction.
      */
     public function isBalanced(int $ledgerTransactionId): bool
     {
         $row = $this->db->fetchOne(
             "SELECT
-                SUM(CASE WHEN `entry_type` = 'debit'  THEN `amount` ELSE 0 END) AS total_debit,
-                SUM(CASE WHEN `entry_type` = 'credit' THEN `amount` ELSE 0 END) AS total_credit
+                SUM(CASE WHEN `type` = 'debit'  THEN `amount` ELSE 0 END) AS total_debit,
+                SUM(CASE WHEN `type` = 'credit' THEN `amount` ELSE 0 END) AS total_credit
              FROM `op_ledger_entries`
              WHERE `ledger_transaction_id` = :ltid",
             ['ltid' => $ledgerTransactionId]
@@ -198,5 +178,45 @@ class LedgerRepository extends BaseRepository
         }
 
         return bccomp($row['total_debit'] ?? '0', $row['total_credit'] ?? '0', 4) === 0;
+    }
+
+    /**
+     * Paginated ledger entries for a merchant.
+     */
+    public function entriesPaginated(int $merchantId, int $page = 1, int $limit = 50): array
+    {
+        $offset = ($page - 1) * $limit;
+
+        $total = (int) $this->db->fetchColumn(
+            "SELECT COUNT(*) FROM op_ledger_transactions WHERE merchant_id = :mid",
+            ['mid' => $merchantId]
+        );
+
+        $items = $this->db->fetchAll(
+            "SELECT lt.id, lt.uuid, lt.description, lt.reference_type, lt.reference_id, lt.created_at,
+                    GROUP_CONCAT(CONCAT(le.type, ':', le.amount) ORDER BY le.id) as entries_summary
+             FROM op_ledger_transactions lt
+             LEFT JOIN op_ledger_entries le ON le.ledger_transaction_id = lt.id
+             WHERE lt.merchant_id = :mid
+             GROUP BY lt.id
+             ORDER BY lt.created_at DESC
+             LIMIT {$limit} OFFSET {$offset}",
+            ['mid' => $merchantId]
+        );
+
+        return ['items' => $items, 'total' => $total];
+    }
+
+    /**
+     * Calculate total balance for a merchant in a given currency.
+     */
+    public function merchantBalance(int $merchantId, string $currency = 'BDT'): string
+    {
+        $row = $this->db->fetchOne(
+            "SELECT COALESCE(SUM(balance), 0) as total FROM op_ledger_accounts
+             WHERE merchant_id = :mid AND currency = :cur",
+            ['mid' => $merchantId, 'cur' => $currency]
+        );
+        return $row['total'] ?? '0.00';
     }
 }

@@ -6,7 +6,7 @@ namespace OwnPay\Cron;
 use OwnPay\Service\Payment\WebhookService;
 
 /**
- * Webhook retry job — retries failed webhook deliveries.
+ * Webhook retry job â€” retries failed webhook deliveries.
  *
  * Exponential backoff: 1min, 5min, 30min, 2h, 12h (max 5 attempts).
  */

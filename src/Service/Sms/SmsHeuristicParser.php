@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Sms;
 
 /**
- * SmsHeuristicParser — Tier 2: Lexical/keyword-based SMS analysis.
+ * SmsHeuristicParser â€” Tier 2: Lexical/keyword-based SMS analysis.
  *
  * Pure PHP engine using proximity-based keyword analysis:
  *   1. Amount detection: Tk/BDT/Taka followed by numeric

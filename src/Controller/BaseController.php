@@ -10,7 +10,7 @@ use OwnPay\Http\Response;
 use Twig\Environment as Twig;
 
 /**
- * Base controller — all controllers extend this.
+ * Base controller â€” all controllers extend this.
  *
  * Provides:
  * - DI container access
@@ -28,7 +28,7 @@ abstract class BaseController
         $this->container = $container;
     }
 
-    // ─── Rendering ─────────────────────────────────────────────
+    // â”€â”€â”€ Rendering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Render a Twig template.
@@ -48,6 +48,25 @@ abstract class BaseController
         // Inject global template vars
         $data['app_name'] = $this->container->get('config.app')['name'] ?? 'Own Pay';
         $data['app_version'] = $this->container->get('config.app')['version'] ?? '0.1.0';
+        $data['csrf_token'] = \OwnPay\Security\SecurityHelpers::csrfToken();
+        
+        $data['current_user'] = [
+            'id' => $_SESSION['auth_user_id'] ?? null,
+            'name' => $_SESSION['auth_name'] ?? 'Admin',
+            'email' => $_SESSION['auth_email'] ?? '',
+        ];
+        $data['is_superadmin'] = (bool) ($_SESSION['is_superadmin'] ?? false);
+        
+        if ($this->container->has(\OwnPay\Service\Brand\BrandContext::class)) {
+            $brandCtx = $this->container->get(\OwnPay\Service\Brand\BrandContext::class);
+            $data['brands'] = $brandCtx->getAllBrands();
+            $data['active_brand'] = $brandCtx->getActiveBrand();
+            $data['active_brand_id'] = $brandCtx->getActiveBrandId();
+        }
+
+        $data['flash_success'] = $_SESSION['flash_success'] ?? null;
+        $data['flash_error'] = $_SESSION['flash_error'] ?? null;
+        unset($_SESSION['flash_success'], $_SESSION['flash_error']);
 
         // Allow plugins to modify data before render
         $data = $events->applyFilter('admin.page.before_render', $data, $template);
@@ -71,7 +90,7 @@ abstract class BaseController
         return Response::html($html);
     }
 
-    // ─── JSON ──────────────────────────────────────────────────
+    // â”€â”€â”€ JSON â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Return a JSON success response.
@@ -121,14 +140,14 @@ abstract class BaseController
         ])->withApiVersion();
     }
 
-    // ─── Redirect ──────────────────────────────────────────────
+    // â”€â”€â”€ Redirect â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     protected function redirect(string $url, int $status = 302): Response
     {
         return Response::redirect($url, $status);
     }
 
-    // ─── Session Helpers ───────────────────────────────────────
+    // â”€â”€â”€ Session Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Set a flash message (stored in session, shown once).
@@ -152,7 +171,7 @@ abstract class BaseController
         return $flash;
     }
 
-    // ─── DI Helpers ────────────────────────────────────────────
+    // â”€â”€â”€ DI Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Get the EventManager instance.

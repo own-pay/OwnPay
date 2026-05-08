@@ -18,10 +18,10 @@ final class CspReportController
 
     public function handle(Request $req): Response
     {
-        $report = $req->jsonBody();
+        $report = $req->json();
         $cspReport = $report['csp-report'] ?? $report;
 
-        $this->c->get(\OwnPay\Core\Logger::class)->warning('CSP Violation', [
+        $this->c->get(\OwnPay\Service\System\Logger::class)->warning('CSP Violation', [
             'document_uri'    => $cspReport['document-uri'] ?? '',
             'violated_directive' => $cspReport['violated-directive'] ?? '',
             'blocked_uri'     => $cspReport['blocked-uri'] ?? '',

@@ -1,0 +1,19 @@
+# Dependencies
+vendor/
+node_modules/
+
+# IDE & OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Storage (logs, cache, sessions, user uploads)
+storage/
+
+# Temporary / Build
+graphify-out/
+*.log
+*.sqlite
+.phpunit.cache/
+tests/

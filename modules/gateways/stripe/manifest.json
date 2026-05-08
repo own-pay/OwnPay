@@ -1,0 +1,16 @@
+{
+    "name": "Stripe",
+    "slug": "stripe",
+    "version": "1.0.0",
+    "description": "Stripe payment gateway — cards, wallets, international payments",
+    "author": "OwnPay Core",
+    "type": "gateway",
+    "entrypoint": "StripeGateway.php",
+    "namespace": "OwnPay\\Modules\\Gateways\\Stripe",
+    "capabilities": ["gateway"],
+    "requires": {
+        "core": ">=0.1.0",
+        "php": ">=8.1"
+    },
+    "permissions": ["gateway.process", "gateway.refund"]
+}

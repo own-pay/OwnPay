@@ -5,9 +5,10 @@ namespace OwnPay\Cron;
 
 use OwnPay\Repository\DomainRepository;
 use OwnPay\Service\Domain\DnsVerifier;
+use OwnPay\Support\DateHelper;
 
 /**
- * DNS verification job — re-checks pending domains every 6 hours.
+ * DNS verification job â€” re-checks pending domains every 6 hours.
  */
 final class DnsVerificationJob
 {
@@ -26,9 +27,7 @@ final class DnsVerificationJob
      */
     public function run(): array
     {
-        $pending = $this->domains->getDb()->fetchAll(
-            "SELECT * FROM op_domains WHERE dns_verified = 0 AND status = 'pending'"
-        );
+        $pending = $this->domains->findPendingVerification();
 
         $verified = 0;
         $failed = 0;
@@ -43,13 +42,13 @@ final class DnsVerificationJob
                 $this->domains->update((int) $domain['id'], [
                     'dns_verified' => 1,
                     'status'       => 'active',
-                    'verified_at'  => date('Y-m-d H:i:s'),
+                    'verified_at'  => DateHelper::now(),
                 ]);
                 $verified++;
             } else {
                 $failed++;
                 // Auto-remove after 7 days unverified
-                $createdAt = strtotime($domain['created_at']);
+                $createdAt = (new \DateTimeImmutable($domain['created_at']))->getTimestamp();
                 if ($createdAt !== false && (time() - $createdAt) > 604800) {
                     $this->domains->delete((int) $domain['id']);
                 }

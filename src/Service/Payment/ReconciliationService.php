@@ -4,15 +4,17 @@ declare(strict_types=1);
 namespace OwnPay\Service\Payment;
 
 /**
- * Reconciliation service — verify ledger vs transactions integrity.
+ * Reconciliation service â€” verify ledger vs transactions integrity.
  */
 final class ReconciliationService
 {
     private \OwnPay\Core\Database $db;
+    private LedgerService $ledger;
 
-    public function __construct(\OwnPay\Core\Database $db)
+    public function __construct(\OwnPay\Core\Database $db, LedgerService $ledger)
     {
         $this->db = $db;
+        $this->ledger = $ledger;
     }
 
     /**
@@ -54,13 +56,7 @@ final class ReconciliationService
         $expectedBalance = bcsub(bcsub($txnTotal, $refundTotal, 2), $settlementTotal, 2);
 
         // Ledger balance
-        $ledgerRow = $this->db->fetchOne(
-            "SELECT balance FROM op_ledger
-             WHERE merchant_id = :mid AND currency = :cur
-             ORDER BY id DESC LIMIT 1",
-            ['mid' => $merchantId, 'cur' => $currency]
-        );
-        $ledgerBalance = $ledgerRow['balance'] ?? '0.00';
+        $ledgerBalance = $this->ledger->calculateBalance($merchantId, $currency);
 
         $difference = bcsub($expectedBalance, $ledgerBalance, 2);
 

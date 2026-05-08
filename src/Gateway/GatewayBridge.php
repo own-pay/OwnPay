@@ -8,7 +8,7 @@ use OwnPay\Repository\GatewayConfigRepository;
 use OwnPay\Security\FieldEncryptor;
 
 /**
- * Gateway bridge — routes payment operations to correct adapter.
+ * Gateway bridge â€” routes payment operations to correct adapter.
  *
  * Fires: gateway.capture.before (filter), gateway.capture.after (action)
  */
@@ -93,21 +93,13 @@ final class GatewayBridge
      */
     private function decryptCredentials(string $gatewaySlug, int $merchantId): array
     {
-        $config = $this->configs->forTenant($merchantId);
+        $credentialsEnc = $this->configs->forTenant($merchantId)->findCredentialsBySlug($gatewaySlug);
 
-        // Find gateway config by slug via JOIN
-        $row = $this->configs->getDb()->fetchOne(
-            "SELECT gc.credentials_enc FROM op_gateway_configs gc
-             JOIN op_gateways g ON g.id = gc.gateway_id
-             WHERE g.slug = :slug AND gc.merchant_id = :mid AND gc.status = 'active' LIMIT 1",
-            ['slug' => $gatewaySlug, 'mid' => $merchantId]
-        );
-
-        if ($row === null || empty($row['credentials_enc'])) {
+        if ($credentialsEnc === null || $credentialsEnc === '') {
             return [];
         }
 
-        $decrypted = $this->encryptor->decrypt($row['credentials_enc']);
+        $decrypted = $this->encryptor->decrypt($credentialsEnc);
         return json_decode($decrypted, true) ?: [];
     }
 }

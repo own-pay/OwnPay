@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * Input sanitizer — centralized XSS/injection prevention.
+ * Input sanitizer â€” centralized XSS/injection prevention.
  *
  * Per OWASP: context-aware output encoding, SQL param binding (in DB layer).
  */
@@ -27,7 +27,7 @@ final class InputSanitizer
     }
 
     /**
-     * Sanitize string — strip HTML tags, trim.
+     * Sanitize string â€” strip HTML tags, trim.
      */
     public static function string(string $input): string
     {

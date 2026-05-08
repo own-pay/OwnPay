@@ -6,7 +6,7 @@ namespace OwnPay\Queue;
 use Ramsey\Uuid\Uuid;
 
 /**
- * File-based queue driver — shared hosting compatible.
+ * File-based queue driver â€” shared hosting compatible.
  *
  * Each job is a JSON file in storage/queue/{queue_name}/.
  * Files named: {timestamp}_{jobId}.json
@@ -66,7 +66,7 @@ final class FileQueue implements QueueInterface
         $now = time();
 
         foreach ($files as $file) {
-            // Try exclusive lock — prevents double-processing
+            // Try exclusive lock â€” prevents double-processing
             $fp = @fopen($file, 'r');
             if ($fp === false) {
                 continue;
@@ -217,7 +217,7 @@ final class FileQueue implements QueueInterface
         }
     }
 
-    // ─── Private ───────────────────────────────────────────────
+    // â”€â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private function queueDir(string $queue): string
     {

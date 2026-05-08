@@ -40,8 +40,20 @@
                     <span>Gateways</span>
                 </a>
             </li>
+            <li class="op-nav-item">
+                <a href="/admin/currencies" class="op-nav-link {{ active_page == 'currencies' ? 'active' : '' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v20M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6"/></svg>
+                    <span>Currencies</span>
+                </a>
+            </li>
 
             <li class="op-nav-section">People</li>
+            <li class="op-nav-item">
+                <a href="/admin/brands" class="op-nav-link {{ active_page == 'brands' ? 'active' : '' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 21v-2a4 4 0 014-4h10a4 4 0 014 4v2"/><circle cx="12" cy="7" r="4"/><path d="M21 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                    <span>Brands</span>
+                </a>
+            </li>
             <li class="op-nav-item">
                 <a href="/admin/customers" class="op-nav-link {{ active_page == 'customers' ? 'active' : '' }}">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
@@ -68,12 +80,50 @@
                     <span>SMS Data</span>
                 </a>
             </li>
+            <li class="op-nav-item">
+                <a href="/admin/sms-center" class="op-nav-link {{ active_page == 'sms-center' ? 'active' : '' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z"/></svg>
+                    <span>SMS Center</span>
+                </a>
+            </li>
+            
+            <li class="op-nav-section">Reports &amp; Activities</li>
+            <li class="op-nav-item">
+                <a href="/admin/reports" class="op-nav-link {{ active_page == 'reports' ? 'active' : '' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                    <span>Reports</span>
+                </a>
+            </li>
+            <li class="op-nav-item">
+                <a href="/admin/ledger" class="op-nav-link {{ active_page == 'ledger' ? 'active' : '' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 2v20l2-1 2 1 2-1 2 1 2-1 2 1 2-1 2 1V2l-2 1-2-1-2 1-2-1-2 1-2-1-2 1z"/><path d="M8 10h8M8 14h4"/></svg>
+                    <span>Ledger</span>
+                </a>
+            </li>
+            <li class="op-nav-item">
+                <a href="/admin/balance-verification" class="op-nav-link {{ active_page == 'balance-verification' ? 'active' : '' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                    <span>Balance Verification</span>
+                </a>
+            </li>
+            <li class="op-nav-item">
+                <a href="/admin/activities" class="op-nav-link {{ active_page == 'activities' ? 'active' : '' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M2 12h4l2-9 5 18 3-9h6"/></svg>
+                    <span>Activities</span>
+                </a>
+            </li>
 
             <li class="op-nav-section">System</li>
             <li class="op-nav-item">
                 <a href="/admin/plugins" class="op-nav-link {{ active_page == 'plugins' ? 'active' : '' }}">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                     <span>Plugins</span>
+                </a>
+            </li>
+            <li class="op-nav-item">
+                <a href="/admin/addons" class="op-nav-link {{ active_page == 'addons' ? 'active' : '' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7"/><rect x="14" y="3" width="7" height="7"/><rect x="14" y="14" width="7" height="7"/><rect x="3" y="14" width="7" height="7"/></svg>
+                    <span>Addons</span>
                 </a>
             </li>
             <li class="op-nav-item">
@@ -93,10 +143,23 @@
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
                     <span>Settings</span>
                 </a>
+                <ul class="op-sub-nav">
+                    <li><a href="/admin/settings#tab-api" class="op-nav-link op-nav-link-sub">API Keys</a></li>
+                    <li><a href="/admin/faq" class="op-nav-link op-nav-link-sub {{ active_page == 'faq' ? 'active' : '' }}">FAQ</a></li>
+                    <li><a href="/admin/system-update" class="op-nav-link op-nav-link-sub {{ active_page == 'system-update' ? 'active' : '' }}">System Update</a></li>
+                </ul>
+            </li>
+
+            <li class="op-nav-section">Account</li>
+            <li class="op-nav-item">
+                <a href="/admin/my-account" class="op-nav-link {{ active_page == 'profile' ? 'active' : '' }}">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    <span>My Account</span>
+                </a>
             </li>
 
             {# Plugin-registered menu items #}
-            {{ fire_hook('admin.menu.register')|raw }}
+            {{ hook('admin.menu.register')|raw }}
         </ul>
     </nav>
 

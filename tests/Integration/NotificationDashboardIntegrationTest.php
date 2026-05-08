@@ -7,7 +7,7 @@ namespace OwnPay\Tests\Integration;
 use OwnPay\Core\Database;
 use OwnPay\Repository\MobileNotificationRepository;
 use OwnPay\Service\Notification\MobileNotificationService;
-use PHPUnit\Framework\TestCase;
+use Tests\Integration\IntegrationTestCase;
 
 /**
  * NotificationDashboardIntegrationTest — End-to-end tests for Part 4.
@@ -21,7 +21,7 @@ use PHPUnit\Framework\TestCase;
  *
  * @group Integration
  */
-final class NotificationDashboardIntegrationTest extends TestCase
+final class NotificationDashboardIntegrationTest extends IntegrationTestCase
 {
     private const TEST_DEVICE_UUID = 'integ-notif-test-0000';
 
@@ -30,11 +30,7 @@ final class NotificationDashboardIntegrationTest extends TestCase
 
     protected function setUp(): void
     {
-        $host = getenv('DB_HOST') ?: '127.0.0.1';
-        $name = getenv('DB_NAME') ?: 'ownpay_test';
-        $user = getenv('DB_USER') ?: 'root';
-        $pass = getenv('DB_PASS') ?: 'root';
-        Database::init($host, $name, $user, $pass);
+        parent::setUp(); // triggers DB-available skip check
 
         $this->notifRepo = new MobileNotificationRepository();
         $this->notifService = new MobileNotificationService();
@@ -42,6 +38,10 @@ final class NotificationDashboardIntegrationTest extends TestCase
 
     protected function tearDown(): void
     {
+        if (!static::$dbAvailable) {
+            return;
+        }
+
         $pdo = Database::getInstance()->getPdo();
         $pdo->exec("DELETE FROM op_mobile_notifications WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
     }

@@ -7,9 +7,10 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\PairedDeviceRepository;
 use OwnPay\Security\FieldEncryptor;
 use OwnPay\Service\Auth\JwtService;
+use OwnPay\Support\DateHelper;
 
 /**
- * Device pairing service — manages companion app device lifecycle.
+ * Device pairing service â€” manages companion app device lifecycle.
  *
  * Fires: mobile.device.paired, mobile.device.revoked
  * Per PCI-DSS: device AES keys encrypted at rest.
@@ -48,13 +49,13 @@ final class DevicePairingService
         $aesKeyEncrypted = $this->encryptor->encrypt($aesKey);
 
         $this->devices->forTenant($merchantId)->createScoped([
-            'uuid'              => $deviceUuid,
+            'device_id'         => $deviceUuid,
             'user_id'           => $userId,
             'device_name'       => $deviceName,
             'push_token'        => $pushToken,
             'aes_key_encrypted' => $aesKeyEncrypted,
             'status'            => 'active',
-            'last_heartbeat'    => date('Y-m-d H:i:s'),
+            'last_heartbeat'    => DateHelper::now(),
         ]);
 
         // Issue JWT tokens
@@ -72,12 +73,12 @@ final class DevicePairingService
     }
 
     /**
-     * Revoke device — deactivate and invalidate.
+     * Revoke device â€” deactivate and invalidate.
      */
     public function revoke(string $deviceUuid, int $merchantId): bool
     {
-        $device = $this->devices->findByUuid($deviceUuid);
-        if ($device === null || (int) $device['merchant_id'] !== $merchantId) {
+        $device = $this->devices->forTenant($merchantId)->findByDeviceId($deviceUuid);
+        if ($device === null) {
             return false;
         }
 

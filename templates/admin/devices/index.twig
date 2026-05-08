@@ -2,9 +2,14 @@
 {% block title %}Devices — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header"><h1>Paired Devices</h1></div>
+{% if config_error is defined and config_error %}
+<div class="op-alert op-alert-warning op-mb-4">
+    <strong>Configuration Required:</strong> {{ config_error }}
+</div>
+{% endif %}
 <div class="op-card">
     <div class="op-card-body op-p-0">
-        <table class="op-table">
+        <div class="op-table-responsive"><table class="op-table">
             <thead><tr><th>Device</th><th>Platform</th><th>Status</th><th>Last Seen</th><th>Paired</th><th>Actions</th></tr></thead>
             <tbody>
                 {% for d in devices %}
@@ -17,7 +22,7 @@
                     <td>
                         {% if d.status == 'active' %}
                         <form method="POST" action="/admin/devices/{{ d.id }}/revoke" class="op-inline">
-                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                             <button type="submit" class="op-btn op-btn-xs op-btn-danger">Revoke</button>
                         </form>
                         {% endif %}
@@ -25,7 +30,7 @@
                 </tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
     </div>
 </div>
 {% endblock %}

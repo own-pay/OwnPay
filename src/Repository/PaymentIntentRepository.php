@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Repository;
 
 use Ramsey\Uuid\Uuid;
+use OwnPay\Support\DateHelper;
 
 final class PaymentIntentRepository extends BaseRepository
 {
@@ -20,7 +21,7 @@ final class PaymentIntentRepository extends BaseRepository
     {
         $data['uuid'] = Uuid::uuid4()->toString();
         $data['token'] = bin2hex(random_bytes(32));
-        $data['expires_at'] = $data['expires_at'] ?? date('Y-m-d H:i:s', time() + 600);
+        $data['expires_at'] = $data['expires_at'] ?? DateHelper::future(600);
         return $this->createScoped($data);
     }
 

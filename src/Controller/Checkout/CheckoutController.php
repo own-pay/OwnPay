@@ -7,6 +7,12 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
+use OwnPay\Repository\TransactionRepository;
+use OwnPay\Repository\ManualGatewayRepository;
+use OwnPay\Repository\GatewayConfigRepository;
+use OwnPay\Repository\MerchantRepository;
+use OwnPay\Repository\SettingsRepository;
+use OwnPay\Support\DateHelper;
 
 /**
  * Checkout controller — renders checkout page, handles gateway selection.
@@ -16,23 +22,37 @@ final class CheckoutController
 {
     private Container $c;
     private EventManager $events;
+    private TransactionRepository $txnRepo;
+    private ManualGatewayRepository $manualGw;
+    private GatewayConfigRepository $apiGw;
+    private MerchantRepository $merchants;
+    private SettingsRepository $settings;
 
-    public function __construct(Container $c, EventManager $events)
-    {
+    public function __construct(
+        Container $c,
+        EventManager $events,
+        TransactionRepository $txnRepo,
+        ManualGatewayRepository $manualGw,
+        GatewayConfigRepository $apiGw,
+        MerchantRepository $merchants,
+        SettingsRepository $settings
+    ) {
         $this->c = $c;
         $this->events = $events;
+        $this->txnRepo = $txnRepo;
+        $this->manualGw = $manualGw;
+        $this->apiGw = $apiGw;
+        $this->merchants = $merchants;
+        $this->settings = $settings;
     }
 
     /**
      * GET /checkout/{ref}
      */
-    public function show(Request $req, string $ref): Response
+    public function show(Request $req): Response
     {
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $txn = $db->fetchOne(
-            "SELECT t.*, m.business_name as merchant_name, m.id as merchant_id FROM op_transactions t JOIN op_merchants m ON m.id = t.merchant_id WHERE t.trx_id = :ref AND t.status IN ('pending','created')",
-            ['ref' => $ref]
-        );
+        $ref = (string) $req->param('token');
+        $txn = $this->txnRepo->findActiveForCheckout($ref);
 
         if (!$txn) {
             return $this->renderStatus($ref, 'expired');
@@ -41,11 +61,11 @@ final class CheckoutController
         $mid = (int) $txn['merchant_id'];
         $this->events->doAction('checkout.before', $txn);
 
-        // Load gateways
-        $manualGateways = $db->fetchAll("SELECT * FROM op_manual_gateways WHERE merchant_id = :mid AND status = 'active' ORDER BY sort_order", ['mid' => $mid]);
-        $apiGateways = $db->fetchAll("SELECT g.slug, g.name, g.logo, gc.config, g.type FROM op_gateway_configs gc JOIN op_gateways g ON g.id = gc.gateway_id WHERE gc.merchant_id = :mid AND gc.status = 'active'", ['mid' => $mid]);
+        // Load gateways via repos
+        $manualGateways = $this->manualGw->forTenant($mid)->listActive();
+        $apiGateways = $this->apiGw->forTenant($mid)->listActive();
 
-        // Categorize gateways
+        // Categorize
         $gateways = ['mfs' => [], 'bank' => [], 'global' => []];
         foreach ($manualGateways as $gw) {
             $cat = $gw['category'] ?? 'mfs';
@@ -56,14 +76,15 @@ final class CheckoutController
             $gateways[$cat][] = array_merge($gw, ['mode' => 'api']);
         }
 
-        // Load merchant settings
+        // Brand + settings
         $brand = $this->loadBrand($mid);
-        $faqs = json_decode($db->fetchOne("SELECT setting_value FROM op_settings WHERE setting_key = 'faqs'")['setting_value'] ?? '[]', true);
+        $faqs = json_decode($this->settings->get('general', 'faqs', '[]'), true);
 
-        // Invoice items if applicable
+        // Invoice items
         $items = [];
         if (!empty($txn['invoice_id'])) {
-            $items = $db->fetchAll("SELECT * FROM op_invoice_items WHERE invoice_id = :iid", ['iid' => $txn['invoice_id']]);
+            $invoiceRepo = $this->c->get(\OwnPay\Repository\InvoiceRepository::class);
+            $items = $invoiceRepo->listItems($txn['invoice_id']);
         }
 
         $data = [
@@ -75,18 +96,19 @@ final class CheckoutController
             'config'   => $this->buildJsConfig($txn, $brand),
         ];
 
-        $data = $this->events->applyFilters('checkout.render', $data);
+        $data = $this->events->applyFilter('checkout.render', $data);
 
+        $tplName = $this->events->applyFilter('checkout.template', 'checkout/checkout.twig');
         $twig = $this->c->get(\Twig\Environment::class);
-        return Response::html($twig->render('checkout/checkout.twig', $data));
+        return Response::html($twig->render($tplName, $data));
     }
 
     private function renderStatus(string $ref, string $status): Response
     {
         $twig = $this->c->get(\Twig\Environment::class);
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $txn = $db->fetchOne("SELECT * FROM op_transactions WHERE trx_id = :ref", ['ref' => $ref]);
-        return Response::html($twig->render('checkout/checkout-status.twig', [
+        $txn = $this->txnRepo->findAnyByTrxId($ref);
+        $tplName = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
+        return Response::html($twig->render($tplName, [
             'txn'    => $txn ?? ['trx_id' => $ref],
             'status' => $status ?: ($txn['status'] ?? 'expired'),
         ]));
@@ -94,13 +116,10 @@ final class CheckoutController
 
     private function loadBrand(int $mid): array
     {
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $merchant = $db->fetchOne("SELECT * FROM op_merchants WHERE id = :mid", ['mid' => $mid]);
-        $settings = $db->fetchAll("SELECT setting_key, setting_value FROM op_settings WHERE setting_key IN ('app_name','theme_primary','theme_accent','support_email')");
-        $s = [];
-        foreach ($settings as $r) { $s[$r['setting_key']] = $r['setting_value']; }
+        $merchant = $this->merchants->find($mid);
+        $s = $this->settings->getGroup('general');
         return [
-            'name'          => $merchant['business_name'] ?? $s['app_name'] ?? 'Own Pay',
+            'name'          => $merchant['name'] ?? $s['app_name'] ?? 'Own Pay',
             'logo'          => $merchant['logo'] ?? '',
             'color'         => $s['theme_primary'] ?? '#0D9488',
             'support_email' => $s['support_email'] ?? '',
@@ -119,5 +138,105 @@ final class CheckoutController
                 'rocket' => ['color' => '#8B2E86', 'type' => 'Send Money', 'logoText' => 'R'],
             ],
         ];
+    }
+
+    /**
+     * POST /checkout/{token}/pay — gateway selection + manual payment submission.
+     */
+    public function pay(Request $req): Response
+    {
+        $token = (string) $req->param('token');
+        $txn = $this->txnRepo->findActiveForCheckout($token);
+
+        if (!$txn) {
+            return $this->renderStatus($token, 'expired');
+        }
+
+        $gateway = $req->post('gateway', '');
+        $gatewayMode = $req->post('gateway_mode', 'manual');
+
+        $this->events->doAction('checkout.gateway.selected', $txn, $gateway);
+
+        if ($gatewayMode === 'manual') {
+            $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'awaiting_verification');
+
+            $details = $req->post('payment_details', []);
+            if (!empty($details)) {
+                $this->txnRepo->updateMetadata((int) $txn['id'], [
+                    'payment_details' => $details,
+                    'submitted_at'    => DateHelper::now(),
+                ]);
+            }
+            return Response::redirect("/checkout/{$token}/status");
+        }
+
+        // API gateway — delegate to GatewayApiService
+        if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
+            try {
+                $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
+                $result = $svc->initiatePayment((int) $txn['merchant_id'], $gateway, [
+                    'amount'   => $txn['amount'],
+                    'currency' => $txn['currency'],
+                    'trx_id'   => $txn['trx_id'],
+                ]);
+                if ($result['success'] && !empty($result['redirect_url'])) {
+                    return Response::redirect($result['redirect_url']);
+                }
+            } catch (\Throwable $e) {
+                $this->c->get(\OwnPay\Service\System\Logger::class)->error('Gateway error: ' . $e->getMessage());
+            }
+        }
+
+        return Response::redirect("/checkout/{$token}/status");
+    }
+
+    /**
+     * POST /checkout/{token}/cancel
+     */
+    public function cancel(Request $req): Response
+    {
+        $token = (string) $req->param('token');
+        $this->txnRepo->cancelByTrxId($token);
+        $this->events->doAction('checkout.cancelled', $token);
+        return $this->renderStatus($token, 'cancelled');
+    }
+
+    /**
+     * GET /checkout/{token}/status
+     */
+    public function status(Request $req): Response
+    {
+        $token = (string) $req->param('token');
+        $txn = $this->txnRepo->findAnyByTrxId($token);
+        $status = $txn['status'] ?? 'expired';
+        return $this->renderStatus($token, $status);
+    }
+
+    /**
+     * POST /checkout/{token}/manual-verify — customer submits manual payment proof.
+     */
+    public function manualVerify(Request $req): Response
+    {
+        $token = (string) $req->param('token');
+        $txn = $this->txnRepo->findAwaitingVerification($token);
+
+        if (!$txn) {
+            return $this->renderStatus($token, 'expired');
+        }
+
+        $verifyData = [
+            'sender_number'  => $req->post('sender_number', ''),
+            'transaction_id' => $req->post('transaction_id', ''),
+            'submitted_at'   => DateHelper::now(),
+        ];
+
+        $existingMeta = json_decode($txn['metadata'] ?? '{}', true);
+        $existingMeta['verification'] = $verifyData;
+
+        $this->txnRepo->setStatusWithMeta((int) $txn['id'], 'pending_review', $existingMeta);
+
+        $this->events->doAction('checkout.manual_verify.submitted', $txn, $verifyData);
+
+        return $this->renderStatus($token, 'pending_review');
     }
 }

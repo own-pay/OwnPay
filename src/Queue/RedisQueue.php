@@ -6,7 +6,7 @@ namespace OwnPay\Queue;
 use Ramsey\Uuid\Uuid;
 
 /**
- * Redis-based queue driver — VPS/dedicated with Supervisor worker.
+ * Redis-based queue driver â€” VPS/dedicated with Supervisor worker.
  *
  * Uses Redis lists for O(1) push/pop.
  * Delayed jobs stored in sorted sets, moved to ready queue by worker.
@@ -155,7 +155,7 @@ final class RedisQueue implements QueueInterface
         $this->redis->del($this->prefix . $queue . ':delayed');
     }
 
-    // ─── Private ───────────────────────────────────────────────
+    // â”€â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Move delayed jobs whose availability time has passed to the ready queue.

@@ -7,7 +7,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 /**
- * JWT service — issue and verify tokens for mobile companion app.
+ * JWT service â€” issue and verify tokens for mobile companion app.
  *
  * Claims: sub (user_id), mid (merchant_id), did (device_id), exp, iat, iss.
  */

@@ -4,7 +4,7 @@
 <div class="op-page-header"><h1>Activity Log</h1></div>
 <div class="op-card">
     <div class="op-card-body op-p-0">
-        <table class="op-table">
+        <div class="op-table-responsive"><table class="op-table">
             <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>IP</th></tr></thead>
             <tbody>
                 {% for log in activities %}
@@ -17,7 +17,7 @@
                 </tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
     </div>
 </div>
 {% if pagination.total_pages > 1 %}

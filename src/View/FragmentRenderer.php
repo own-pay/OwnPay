@@ -6,7 +6,7 @@ namespace OwnPay\View;
 use Twig\Environment;
 
 /**
- * Content loader — renders Twig fragments for SPA-style AJAX loading.
+ * Content loader â€” renders Twig fragments for SPA-style AJAX loading.
  * Replaces old ContentLoader.php.
  */
 final class FragmentRenderer

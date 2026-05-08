@@ -4,9 +4,10 @@ declare(strict_types=1);
 namespace OwnPay\Service\Payment;
 
 use OwnPay\Repository\SettlementRepository;
+use OwnPay\Support\DateHelper;
 
 /**
- * Settlement service — batch payouts to merchant bank accounts.
+ * Settlement service â€” batch payouts to merchant bank accounts.
  */
 final class SettlementService
 {
@@ -53,7 +54,7 @@ final class SettlementService
 
         $this->settlements->update($settlementId, [
             'status' => 'completed',
-            'completed_at' => date('Y-m-d H:i:s'),
+            'completed_at' => DateHelper::now(),
         ]);
 
         $this->ledger->recordSettlement(

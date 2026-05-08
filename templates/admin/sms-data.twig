@@ -15,7 +15,7 @@
         </form>
     </div>
     <div class="op-card-body op-p-0">
-        <table class="op-table">
+        <div class="op-table-responsive"><table class="op-table">
             <thead><tr><th>Sender</th><th>Amount</th><th>TRX ID</th><th>Gateway</th><th>Matched</th><th>Received</th></tr></thead>
             <tbody>
                 {% for sms in sms_data %}
@@ -29,7 +29,7 @@
                 </tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
     </div>
 </div>
 {% if pagination.total_pages > 1 %}

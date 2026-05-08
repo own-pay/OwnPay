@@ -19,11 +19,22 @@ final class PaymentLinkRepository extends BaseRepository
         return $this->findBy('slug', $slug);
     }
 
+    /**
+     * Find active payment link by slug (public checkout).
+     */
+    public function findActiveBySlug(string $slug): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE slug = :slug AND status = 'active'",
+            ['slug' => $slug]
+        );
+    }
+
     public function incrementUseCount(int $id): void
     {
         $this->db->update(
-            "UPDATE {$this->table} SET use_count = use_count + 1 WHERE id = :id AND merchant_id = :mid",
-            ['id' => $id, 'mid' => $this->requireTenant()]
+            "UPDATE {$this->table} SET use_count = use_count + 1 WHERE id = :id",
+            ['id' => $id]
         );
     }
 }

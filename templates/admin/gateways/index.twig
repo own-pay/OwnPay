@@ -13,12 +13,7 @@
     </div>
 </div>
 
-{% if flash_success %}
-<div class="op-alert op-alert-success">{{ flash_success }}</div>
-{% endif %}
-{% if flash_error %}
-<div class="op-alert op-alert-danger">{{ flash_error }}</div>
-{% endif %}
+{# Flash handled by base.twig layout #}
 
 {# --- API Gateways (Plugin-based) --- #}
 <div class="op-card op-mb-4">
@@ -36,7 +31,7 @@
                 {% for gw in api_gateways %}
                 <div class="op-gateway-card {{ gw.status == 'active' ? 'op-gateway-active' : 'op-gateway-inactive' }}">
                     <div class="op-gateway-logo">
-                        {% if gw.logo %}
+                        {% if gw.logo is defined and gw.logo %}
                             <img src="{{ gw.logo }}" alt="{{ gw.name }}" loading="lazy">
                         {% else %}
                             <div class="op-gateway-icon">{{ gw.name[0:2]|upper }}</div>
@@ -52,7 +47,25 @@
                         {% endif %}
                     </div>
                     <div class="op-gateway-actions">
-                        <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
+                        {% if gw.status == 'uninstalled' %}
+                            <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
+                            </form>
+                        {% else %}
+                            <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
+                            {% if gw.status == 'active' %}
+                                <form method="POST" action="/admin/plugins/{{ gw.slug }}/deactivate" class="op-inline-form">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
+                                </form>
+                            {% else %}
+                                <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
+                                </form>
+                            {% endif %}
+                        {% endif %}
                     </div>
                 </div>
                 {% endfor %}
@@ -73,7 +86,7 @@
                 <p>No manual gateways configured. <a href="/admin/gateways/create-manual">Create one</a>.</p>
             </div>
         {% else %}
-            <table class="op-table">
+            <div class="op-table-responsive"><table class="op-table">
                 <thead>
                     <tr>
                         <th>Gateway</th>
@@ -89,7 +102,7 @@
                     <tr>
                         <td>
                             <div class="op-flex op-items-center op-gap-2">
-                                {% if mg.logo_path %}
+                                {% if mg.logo_path is defined and mg.logo_path %}
                                     <img src="{{ mg.logo_path }}" alt="" width="32" height="32" class="op-rounded">
                                 {% endif %}
                                 <strong>{{ mg.name }}</strong>
@@ -111,7 +124,7 @@
                             <div class="op-btn-group">
                                 <a href="/admin/gateways/{{ mg.id }}/edit" class="op-btn op-btn-sm op-btn-outline">Edit</a>
                                 <form method="POST" action="/admin/gateways/{{ mg.id }}/toggle" class="op-inline">
-                                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                     <button type="submit" class="op-btn op-btn-sm {{ mg.status == 'active' ? 'op-btn-warning' : 'op-btn-success' }}">
                                         {{ mg.status == 'active' ? 'Disable' : 'Enable' }}
                                     </button>
@@ -121,7 +134,7 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-            </table>
+            </table></div>
         {% endif %}
     </div>
 </div>

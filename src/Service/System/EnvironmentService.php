@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * Environment service — runtime environment detection and checks.
+ * Environment service â€” runtime environment detection and checks.
  */
 final class EnvironmentService
 {

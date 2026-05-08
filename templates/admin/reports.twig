@@ -24,20 +24,20 @@
     <div class="op-stat-card op-stat-warning"><div class="op-stat-content"><span class="op-stat-value">{{ report.total_fees ?? '0.00' }}</span><span class="op-stat-label">Total Fees</span></div></div>
 </div>
 
-{{ fire_hook('report.data', report)|raw }}
+{{ hook('report.data', report)|raw }}
 
-{% if report.by_gateway|length > 0 %}
+{% if report.by_gateway is defined and report.by_gateway|length > 0 %}
 <div class="op-card op-mt-4">
     <div class="op-card-header"><h3>By Gateway</h3></div>
     <div class="op-card-body op-p-0">
-        <table class="op-table">
+        <div class="op-table-responsive"><table class="op-table">
             <thead><tr><th>Gateway</th><th>Count</th><th>Revenue</th><th>Fees</th></tr></thead>
             <tbody>
                 {% for gw in report.by_gateway %}
                 <tr><td>{{ gw.name }}</td><td>{{ gw.count }}</td><td>{{ gw.revenue }}</td><td>{{ gw.fees }}</td></tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
     </div>
 </div>
 {% endif %}

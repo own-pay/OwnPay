@@ -7,11 +7,12 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Repository\ApiKeyRepository;
+use OwnPay\Support\DateHelper;
 
 /**
- * Bearer auth middleware — authenticates API requests via API key.
+ * Bearer auth middleware â€” authenticates API requests via API key.
  *
- * Flow: Extract prefix → lookup by prefix → timing-safe hash compare.
+ * Flow: Extract prefix â†’ lookup by prefix â†’ timing-safe hash compare.
  * Per security skill: never log raw keys, use constant-time comparison.
  */
 final class BearerAuthMiddleware
@@ -60,7 +61,7 @@ final class BearerAuthMiddleware
         }
 
         // Check expiry
-        if ($apiKey['expires_at'] !== null && strtotime($apiKey['expires_at']) < time()) {
+        if ($apiKey['expires_at'] !== null && DateHelper::isPast($apiKey['expires_at'])) {
             return Response::json(['success' => false, 'message' => 'API key expired'], 401);
         }
 

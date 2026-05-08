@@ -12,7 +12,7 @@
     <div class="op-card">
         <div class="op-card-header"><h3>SMS Templates</h3></div>
         <div class="op-card-body op-p-0">
-            <table class="op-table">
+            <div class="op-table-responsive"><table class="op-table">
                 <thead><tr><th>Event</th><th>Template</th><th>Status</th><th>Actions</th></tr></thead>
                 <tbody>
                     {% for tpl in sms_templates %}
@@ -24,7 +24,7 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-            </table>
+            </table></div>
         </div>
     </div>
 </div>
@@ -33,7 +33,7 @@
     <div class="op-card">
         <div class="op-card-header"><h3>SMS Queue</h3><span class="op-badge op-badge-info">{{ queue_stats.pending ?? 0 }} pending</span></div>
         <div class="op-card-body op-p-0">
-            <table class="op-table">
+            <div class="op-table-responsive"><table class="op-table">
                 <thead><tr><th>To</th><th>Message</th><th>Status</th><th>Sent At</th></tr></thead>
                 <tbody>
                     {% for sms in sms_queue %}
@@ -45,7 +45,7 @@
                     </tr>
                     {% endfor %}
                 </tbody>
-            </table>
+            </table></div>
         </div>
     </div>
 </div>

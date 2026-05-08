@@ -8,9 +8,10 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Device\DevicePairingService;
 use OwnPay\Service\System\InputSanitizer;
+use OwnPay\Support\DateHelper;
 
 /**
- * Mobile Device API — pair, heartbeat, revoke.
+ * Mobile Device API â€” pair, heartbeat, revoke.
  * OWASP: JWT auth, device fingerprint validation.
  */
 final class DeviceController
@@ -30,7 +31,7 @@ final class DeviceController
      */
     public function pair(Request $req): Response
     {
-        $body = $req->jsonBody();
+        $body = $req->json();
         if (empty($body['pairing_code']) || empty($body['device_id'])) {
             return Response::json(['success' => false, 'error' => 'pairing_code and device_id required'], 422);
         }
@@ -60,7 +61,7 @@ final class DeviceController
     {
         $deviceId = $req->getAttribute('device_id');
         $this->devices->heartbeat((int) $deviceId);
-        return Response::json(['success' => true, 'server_time' => date('c')]);
+        return Response::json(['success' => true, 'server_time' => DateHelper::iso()]);
     }
 
     /**
@@ -81,7 +82,7 @@ final class DeviceController
     public function bulkRevoke(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $body = $req->jsonBody();
+        $body = $req->json();
         $ids = array_filter(array_map('intval', $body['device_ids'] ?? []));
         if (empty($ids)) return Response::json(['success' => false, 'error' => 'device_ids required'], 422);
 

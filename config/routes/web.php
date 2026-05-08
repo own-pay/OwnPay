@@ -14,13 +14,15 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // ─── Public Pages ──────────────────────────────────────────
     $router->get('/', 'Page\\LandingController@index', 'web');
-    $router->get('/login', 'Page\\LoginController@show', 'web');
-    $router->post('/login', 'Page\\LoginController@login', 'web');
-    $router->get('/logout', 'Page\\LoginController@logout', 'web');
-    $router->get('/forgot-password', 'Page\\LoginController@forgotShow', 'web');
-    $router->post('/forgot-password', 'Page\\LoginController@forgotSubmit', 'web');
-    $router->get('/2fa', 'Page\\LoginController@twoFactorShow', 'web');
-    $router->post('/2fa', 'Page\\LoginController@twoFactorVerify', 'web');
+    $router->get('/login', 'Admin\\AuthController@loginForm', 'web');
+    $router->post('/login', 'Admin\\AuthController@login', 'web');
+    $router->get('/logout', 'Admin\\AuthController@logout', 'web');
+    $router->post('/logout', 'Admin\\AuthController@logout', 'web');
+    $router->post('/admin/logout', 'Admin\\AuthController@logout', 'admin');
+    $router->get('/forgot-password', 'Admin\\AuthController@forgotForm', 'web');
+    $router->post('/forgot-password', 'Admin\\AuthController@forgotSubmit', 'web');
+    $router->get('/2fa', 'Admin\\AuthController@twoFactorForm', 'web');
+    $router->post('/2fa', 'Admin\\AuthController@twoFactorVerify', 'web');
 
     // ─── Checkout (public, minimal middleware) ─────────────────
     $router->get('/checkout/{token}', 'Checkout\\CheckoutController@show', 'checkout');
@@ -31,7 +33,6 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // Invoice checkout
     $router->get('/invoice/{token}', 'Checkout\\InvoiceCheckoutController@show', 'checkout');
-    $router->post('/invoice/{token}/pay', 'Checkout\\InvoiceCheckoutController@pay', 'checkout');
 
     // Payment link checkout
     $router->get('/pay/{slug}', 'Checkout\\PaymentLinkCheckoutController@show', 'checkout');
@@ -46,7 +47,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // Transactions
     $router->get('/admin/transactions', 'Admin\\TransactionController@index', 'admin');
     $router->get('/admin/transactions/{id}', 'Admin\\TransactionController@show', 'admin');
-    $router->post('/admin/transactions/{id}/update', 'Admin\\TransactionController@update', 'admin');
+    $router->post('/admin/transactions/{id}/update', 'Admin\\TransactionController@updateStatus', 'admin');
 
     // Invoices
     $router->get('/admin/invoices', 'Admin\\InvoiceController@index', 'admin');
@@ -64,14 +65,18 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // Customers
     $router->get('/admin/customers', 'Admin\\CustomerController@index', 'admin');
+    $router->get('/admin/customers/create', 'Admin\\CustomerController@create', 'admin');
+    $router->post('/admin/customers/store', 'Admin\\CustomerController@store', 'admin');
     $router->get('/admin/customers/{id}', 'Admin\\CustomerController@show', 'admin');
 
-    // Merchants
-    $router->get('/admin/merchants', 'Admin\\MerchantController@index', 'admin');
-    $router->get('/admin/merchants/create', 'Admin\\MerchantController@create', 'admin');
-    $router->post('/admin/merchants/store', 'Admin\\MerchantController@store', 'admin');
-    $router->get('/admin/merchants/{id}', 'Admin\\MerchantController@show', 'admin');
-    $router->post('/admin/merchants/{id}/update', 'Admin\\MerchantController@update', 'admin');
+    // Brands (formerly Merchants)
+    $router->get('/admin/brands', 'Admin\\BrandController@index', 'admin');
+    $router->get('/admin/brands/create', 'Admin\\BrandController@create', 'admin');
+    $router->post('/admin/brands/store', 'Admin\\BrandController@store', 'admin');
+    $router->post('/admin/brands/switch', 'Admin\\BrandController@switchBrand', 'admin');
+    $router->get('/admin/brands/{id}', 'Admin\\BrandController@show', 'admin');
+    $router->get('/admin/brands/{id}/edit', 'Admin\\BrandController@show', 'admin');
+    $router->post('/admin/brands/{id}/update', 'Admin\\BrandController@update', 'admin');
 
     // Staff
     $router->get('/admin/staff', 'Admin\\StaffController@index', 'admin');
@@ -110,6 +115,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/sms-center/templates', 'Admin\\SmsTemplateAdminController@templates', 'admin');
     $router->post('/admin/sms-center/templates/save', 'Admin\\SmsTemplateAdminController@save', 'admin');
     $router->get('/admin/sms-center/queue', 'Admin\\SmsTemplateAdminController@queue', 'admin');
+    $router->get('/admin/sms-center/{id}/edit', 'Admin\\SmsTemplateAdminController@edit', 'admin');
+    $router->post('/admin/sms-center/{id}/edit', 'Admin\\SmsTemplateAdminController@edit', 'admin');
     $router->get('/admin/sms-data', 'Admin\\SmsDataController@index', 'admin');
 
     // Devices
@@ -123,12 +130,17 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/api-keys/{id}/revoke', 'Admin\\ApiKeyController@revoke', 'admin');
 
     // Reports & Activities
+    $router->get('/admin/ledger', 'Admin\\LedgerController@index', 'admin');
     $router->get('/admin/reports', 'Admin\\DashboardController@reports', 'admin');
+    $router->get('/admin/reports/export', 'Admin\\DashboardController@exportCsv', 'admin');
     $router->get('/admin/activities', 'Admin\\DashboardController@activities', 'admin');
 
     // My Account
     $router->get('/admin/my-account', 'Admin\\DashboardController@myAccount', 'admin');
     $router->post('/admin/my-account/update', 'Admin\\DashboardController@updateAccount', 'admin');
+    $router->get('/admin/my-account/2fa', 'Admin\\TwoFactorSetupController@index', 'admin');
+    $router->post('/admin/my-account/2fa/enable', 'Admin\\TwoFactorSetupController@enable', 'admin');
+    $router->post('/admin/my-account/2fa/disable', 'Admin\\TwoFactorSetupController@disable', 'admin');
 
     // FAQ
     $router->get('/admin/faq', 'Admin\\FaqController@index', 'admin');
@@ -137,7 +149,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // Plugins, Themes, Addons
     $router->get('/admin/plugins', 'Admin\\PluginController@index', 'admin');
     $router->get('/admin/plugins/install', 'Admin\\PluginController@installForm', 'admin');
-    $router->post('/admin/plugins/install', 'Admin\\PluginController@install', 'admin');
+    $router->post('/admin/plugins/upload', 'Admin\\PluginController@upload', 'admin');
     $router->post('/admin/plugins/{slug}/activate', 'Admin\\PluginController@activate', 'admin');
     $router->post('/admin/plugins/{slug}/deactivate', 'Admin\\PluginController@deactivate', 'admin');
     $router->post('/admin/plugins/{slug}/uninstall', 'Admin\\PluginController@uninstall', 'admin');
@@ -145,14 +157,17 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/plugins/{slug}/settings', 'Admin\\PluginController@saveSettings', 'admin');
 
     $router->get('/admin/themes', 'Admin\\ThemeController@index', 'admin');
+    $router->get('/admin/themes/install', 'Admin\\ThemeController@installForm', 'admin');
+    $router->post('/admin/themes/upload', 'Admin\\ThemeController@upload', 'admin');
     $router->post('/admin/themes/{slug}/activate', 'Admin\\ThemeController@activate', 'admin');
+    $router->post('/admin/themes/{slug}/uninstall', 'Admin\\ThemeController@uninstall', 'admin');
 
     $router->get('/admin/addons', 'Admin\\AddonController@index', 'admin');
 
     // System Update
     $router->get('/admin/system-update', 'Admin\\SystemUpdateController@index', 'admin');
     $router->post('/admin/system-update/check', 'Admin\\SystemUpdateController@check', 'admin');
-    $router->post('/admin/system-update/install', 'Admin\\SystemUpdateController@install', 'admin');
+    $router->post('/admin/system-update/apply', 'Admin\\SystemUpdateController@install', 'admin');
 
     // Balance Verification
     $router->get('/admin/balance-verification', 'Admin\\BalanceVerificationController@index', 'admin');
@@ -168,6 +183,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/csp-report', 'Page\\CspReportController@handle', 'global');
 
     // ─── Install wizard (only when not installed) ──────────────
-    $router->get('/install', 'Page\\InstallController@index', 'global');
-    $router->post('/install/step/{step}', 'Page\\InstallController@step', 'global');
+    $router->get('/install', 'Install\\InstallerController@show', 'global');
+    $router->post('/install/test-db', 'Install\\InstallerController@testDatabase', 'global');
+    $router->post('/install/create-admin', 'Install\\InstallerController@createAdmin', 'global');
+    $router->post('/install/finalize', 'Install\\InstallerController@finalize', 'global');
 };

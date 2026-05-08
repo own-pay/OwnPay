@@ -5,9 +5,10 @@ namespace OwnPay\Service\Domain;
 
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\DomainRepository;
+use OwnPay\Support\DateHelper;
 
 /**
- * Domain service — custom domain CRUD, DNS verification, URL generation.
+ * Domain service â€” custom domain CRUD, DNS verification, URL generation.
  *
  * Fires: domain.mapped, domain.verified, domain.removed
  */
@@ -30,7 +31,7 @@ final class DomainService
     /**
      * Map custom domain to merchant.
      */
-    public function map(int $merchantId, string $domain, string $type = 'custom'): array
+    public function map(int $merchantId, string $domain, string $type = 'checkout'): array
     {
         // Validate domain format
         if (!$this->isValidDomain($domain)) {
@@ -83,7 +84,7 @@ final class DomainService
             $this->domains->forTenant($merchantId)->updateScoped($domainId, [
                 'dns_verified' => 1,
                 'status'       => 'active',
-                'verified_at'  => date('Y-m-d H:i:s'),
+                'dns_verified_at' => DateHelper::nowMicro(),
             ]);
             $this->events->doAction('domain.verified', $domain['domain'], $merchantId);
             return ['success' => true];

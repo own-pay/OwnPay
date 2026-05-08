@@ -6,23 +6,31 @@
     <button class="op-btn op-btn-primary" onclick="document.getElementById('add-domain-form').hidden=!document.getElementById('add-domain-form').hidden">+ Add Domain</button>
 </div>
 
-<form method="POST" action="/admin/domains/add" class="op-card op-mb-4" id="add-domain-form" hidden>
+{% if flash_success %}
+<div class="op-alert op-alert-success">{{ flash_success }}<button class="op-alert-close" onclick="this.parentElement.remove()">×</button></div>
+{% endif %}
+{% if flash_error %}
+<div class="op-alert op-alert-danger">{{ flash_error }}<button class="op-alert-close" onclick="this.parentElement.remove()">×</button></div>
+{% endif %}
+
+<form method="POST" action="/admin/domains/store" class="op-card op-mb-4" id="add-domain-form" hidden>
     <div class="op-card-body">
-        <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
         <div class="op-form-row">
             <div class="op-form-group op-col-8"><label>Domain</label><input type="text" name="domain" class="op-input" placeholder="pay.example.com" required></div>
             <div class="op-form-group op-col-4 op-flex op-items-end"><button type="submit" class="op-btn op-btn-primary">Add Domain</button></div>
         </div>
         <div class="op-alert op-alert-info op-mt-2">
-            <strong>DNS Setup:</strong> Point your domain to <code>{{ server_ip ?? 'YOUR_SERVER_IP' }}</code> with an A record.
+            <strong>DNS Setup:</strong> After adding, create a TXT record: <code>_ownpay-verification.yourdomain.com</code> with the verification token shown below.<br>
+            Also point your domain to <code>{{ server_ip ?? 'YOUR_SERVER_IP' }}</code> with an A record.
         </div>
     </div>
 </form>
 
 <div class="op-card">
     <div class="op-card-body op-p-0">
-        <table class="op-table">
-            <thead><tr><th>Domain</th><th>Merchant</th><th>DNS</th><th>SSL</th><th>Added</th><th>Actions</th></tr></thead>
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>Domain</th><th>Brand</th><th>DNS</th><th>Verification Token</th><th>Added</th><th>Actions</th></tr></thead>
             <tbody>
                 {% for d in domains %}
                 <tr>
@@ -32,20 +40,31 @@
                         <span class="op-badge op-badge-{{ d.dns_verified ? 'success' : 'warning' }}">{{ d.dns_verified ? 'Verified' : 'Pending' }}</span>
                         {% if not d.dns_verified %}
                         <form method="POST" action="/admin/domains/{{ d.id }}/verify" class="op-inline op-ml-1">
-                            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                             <button type="submit" class="op-btn op-btn-xs op-btn-outline">Re-check</button>
                         </form>
                         {% endif %}
                     </td>
-                    <td><span class="op-badge op-badge-{{ d.ssl_active ? 'success' : 'muted' }}">{{ d.ssl_active ? 'Active' : 'N/A' }}</span></td>
+                    <td>
+                        {% if d.verification_token and not d.dns_verified %}
+                            <code class="op-text-xs">{{ d.verification_token }}</code>
+                        {% elseif d.dns_verified %}
+                            <span class="op-text-muted">—</span>
+                        {% endif %}
+                    </td>
                     <td>{{ d.created_at|date("M d, Y") }}</td>
                     <td>
-                        <button onclick="openDeleteModal('/admin/domains/{{ d.id }}/delete','{{ d.domain }}')" class="op-btn op-btn-xs op-btn-danger">Remove</button>
+                        <form method="POST" action="/admin/domains/{{ d.id }}/delete" class="op-inline-form" onsubmit="return confirm('Remove domain {{ d.domain }}?')">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="op-btn op-btn-xs op-btn-danger">Remove</button>
+                        </form>
                     </td>
                 </tr>
+                {% else %}
+                <tr><td colspan="6" class="op-empty">No custom domains configured. Click "Add Domain" to map one.</td></tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
     </div>
 </div>
 {% endblock %}

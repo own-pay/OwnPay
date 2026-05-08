@@ -3,6 +3,9 @@ declare(strict_types=1);
 
 namespace OwnPay\Update;
 
+use OwnPay\Service\System\Logger;
+use OwnPay\Support\DateHelper;
+
 /**
  * Backup service — DB dump + code ZIP for update rollback.
  *
@@ -11,10 +14,12 @@ namespace OwnPay\Update;
 final class BackupService
 {
     private string $backupDir;
+    private ?Logger $logger;
 
-    public function __construct(?string $backupDir = null)
+    public function __construct(?string $backupDir = null, ?Logger $logger = null)
     {
         $this->backupDir = $backupDir ?? dirname(__DIR__, 2) . '/storage/backups';
+        $this->logger = $logger;
         if (!is_dir($this->backupDir)) {
             @mkdir($this->backupDir, 0755, true);
         }
@@ -26,7 +31,7 @@ final class BackupService
      */
     public function createFullBackup(): string
     {
-        $timestamp = date('Y-m-d_His');
+        $timestamp = DateHelper::backupTimestamp();
         $backupPath = $this->backupDir . '/backup_' . $timestamp;
         @mkdir($backupPath, 0755, true);
 
@@ -98,7 +103,6 @@ final class BackupService
         $pass = getenv('DB_PASS') ?: '';
         $port = getenv('DB_PORT') ?: '3306';
 
-        // Try mysqldump first
         $cmd = sprintf(
             'mysqldump --host=%s --port=%s --user=%s --password=%s --single-transaction --routines %s > %s 2>&1',
             escapeshellarg($host),
@@ -114,7 +118,6 @@ final class BackupService
         exec($cmd, $output, $exitCode);
 
         if ($exitCode !== 0) {
-            // Fallback: PDO-based dump
             $this->pdoDump($outputPath);
         }
     }
@@ -122,26 +125,20 @@ final class BackupService
     private function pdoDump(string $outputPath): void
     {
         $db = \OwnPay\Core\Database::getInstance();
+        $pdo = $db->pdo();
         $tables = $db->fetchAll("SHOW TABLES");
-        $sql = "-- OwnPay Database Backup\n-- Generated: " . date('Y-m-d H:i:s') . "\n\n";
+        $sql = "-- OwnPay Database Backup\n-- Generated: " . DateHelper::now() . "\n\n";
 
         foreach ($tables as $row) {
             $tableName = array_values($row)[0];
-
-            // CREATE TABLE
             $createRow = $db->fetchOne("SHOW CREATE TABLE `{$tableName}`");
             $sql .= ($createRow['Create Table'] ?? '') . ";\n\n";
 
-            // INSERT data
             $rows = $db->fetchAll("SELECT * FROM `{$tableName}`");
             foreach ($rows as $dataRow) {
-                $values = array_map(function ($v) {
-                    if ($v === null) {
-                        return 'NULL';
-                    }
-                    return "'" . addslashes((string) $v) . "'";
+                $values = array_map(function ($v) use ($pdo) {
+                    return $v === null ? 'NULL' : $pdo->quote((string) $v);
                 }, array_values($dataRow));
-
                 $sql .= "INSERT INTO `{$tableName}` VALUES (" . implode(',', $values) . ");\n";
             }
             $sql .= "\n";
@@ -163,8 +160,8 @@ final class BackupService
         foreach ($statements as $stmt) {
             try {
                 $db->execute($stmt);
-            } catch (\Throwable) {
-                // Continue — some statements may fail on re-import
+            } catch (\Throwable $e) {
+                $this->logger?->warning('SQL restore failed: ' . $e->getMessage());
             }
         }
     }
@@ -180,9 +177,7 @@ final class BackupService
         $dirs = ['src', 'config', 'templates', 'public'];
         foreach ($dirs as $dir) {
             $fullDir = $appRoot . '/' . $dir;
-            if (!is_dir($fullDir)) {
-                continue;
-            }
+            if (!is_dir($fullDir)) continue;
             $iterator = new \RecursiveIteratorIterator(
                 new \RecursiveDirectoryIterator($fullDir, \FilesystemIterator::SKIP_DOTS),
                 \RecursiveIteratorIterator::SELF_FIRST

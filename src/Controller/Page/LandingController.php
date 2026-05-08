@@ -7,20 +7,24 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
+use OwnPay\Repository\SettingsRepository;
 
 final class LandingController
 {
     private Container $c;
     private EventManager $events;
+    private SettingsRepository $settingsRepo;
 
-    public function __construct(Container $c, EventManager $events) { $this->c = $c; $this->events = $events; }
+    public function __construct(Container $c, EventManager $events, SettingsRepository $settingsRepo)
+    {
+        $this->c            = $c;
+        $this->events       = $events;
+        $this->settingsRepo = $settingsRepo;
+    }
 
     public function index(Request $req): Response
     {
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $settings = [];
-        $rows = $db->fetchAll("SELECT setting_key, setting_value FROM op_settings WHERE setting_key IN ('app_name','landing_title','landing_subtitle','landing_description','faqs')");
-        foreach ($rows as $r) { $settings[$r['setting_key']] = $r['setting_value']; }
+        $settings = $this->settingsRepo->getGroup('general');
 
         $faqs = json_decode($settings['faqs'] ?? '[]', true);
         $features = [
@@ -29,7 +33,7 @@ final class LandingController
             ['title' => 'Self-Hosted', 'description' => 'Complete control. Your server, your data, your rules.'],
             ['title' => 'Plugin System', 'description' => 'Extend with custom gateways, themes, and integrations.'],
         ];
-        $features = $this->events->applyFilters('landing.features', $features);
+        $features = $this->events->applyFilter('landing.features', $features);
 
         $twig = $this->c->get(\Twig\Environment::class);
         return Response::html($twig->render('page/landing.twig', [

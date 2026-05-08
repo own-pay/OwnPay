@@ -8,7 +8,7 @@ use OwnPay\Repository\WebhookRepository;
 use OwnPay\Repository\CommLogRepository;
 
 /**
- * Webhook service — dispatches outbound webhooks to merchant endpoints.
+ * Webhook service â€” dispatches outbound webhooks to merchant endpoints.
  *
  * Fires: webhook.delivery.success, webhook.delivery.failed
  * Per security skill: HMAC signing, timeout, no private IPs.

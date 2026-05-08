@@ -4,173 +4,100 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
-use OwnPay\Core\Database;
+use OwnPay\Support\DateHelper;
 
 /**
  * SmsDataRepository — CRUD for `op_sms_parsed`.
  *
  * Stores parsed SMS data submitted by mobile companion devices.
  */
-final class SmsDataRepository
+final class SmsDataRepository extends BaseRepository
 {
-    private const TABLE = 'op_sms_parsed';
+    use TenantScope;
 
-    private \PDO $pdo;
-
-    public function __construct()
-    {
-        $this->pdo = Database::getInstance()->getPdo();
-    }
-
-    /**
-     * Insert a parsed SMS record.
-     *
-     * @return int The inserted row ID
-     */
-    public function create(array $data): int
-    {
-        $sql = "INSERT INTO " . self::TABLE . " (
-            device_uuid, brand_id, local_id, sender, received_at,
-            encrypted_raw, raw_message, parsed_amount, parsed_trx_id,
-            parsed_sender, parsed_balance, parsed_type, parse_method,
-            template_id, parse_confidence, status, processed_at
-        ) VALUES (
-            :device_uuid, :brand_id, :local_id, :sender, :received_at,
-            :encrypted_raw, :raw_message, :parsed_amount, :parsed_trx_id,
-            :parsed_sender, :parsed_balance, :parsed_type, :parse_method,
-            :template_id, :parse_confidence, :status, NOW()
-        )";
-
-        $stmt = $this->pdo->prepare($sql);
-        $stmt->execute([
-            ':device_uuid'      => $data['device_uuid'],
-            ':brand_id'         => $data['brand_id'],
-            ':local_id'         => $data['local_id'] ?? null,
-            ':sender'           => $data['sender'],
-            ':received_at'      => $data['received_at'],
-            ':encrypted_raw'    => $data['encrypted_raw'],
-            ':raw_message'      => $data['raw_message'] ?? null,
-            ':parsed_amount'    => $data['parsed_amount'] ?? null,
-            ':parsed_trx_id'    => $data['parsed_trx_id'] ?? null,
-            ':parsed_sender'    => $data['parsed_sender'] ?? null,
-            ':parsed_balance'   => $data['parsed_balance'] ?? null,
-            ':parsed_type'      => $data['parsed_type'] ?? 'unknown',
-            ':parse_method'     => $data['parse_method'] ?? 'unparsed',
-            ':template_id'      => $data['template_id'] ?? null,
-            ':parse_confidence' => $data['parse_confidence'] ?? 'low',
-            ':status'           => $data['status'] ?? 'accepted',
-        ]);
-
-        return (int) $this->pdo->lastInsertId();
-    }
+    protected string $table = 'op_sms_parsed';
+    protected array $fillable = [
+        'merchant_id', 'device_id', 'sender', 'body', 'amount',
+        'trx_id', 'gateway_slug', 'parser_type', 'match_status',
+        'transaction_id', 'raw_data', 'received_at',
+    ];
 
     /**
      * Check for duplicate: same device + sender + received_at within 1-second window.
      */
-    public function isDuplicate(string $deviceUuid, string $sender, string $receivedAt): bool
+    public function isDuplicate(int $deviceId, string $sender, string $receivedAt): bool
     {
-        $stmt = $this->pdo->prepare(
-            "SELECT COUNT(*) FROM " . self::TABLE . "
-             WHERE device_uuid = :uuid AND sender = :sender
+        $row = $this->db->fetchOne(
+            "SELECT COUNT(*) as cnt FROM {$this->table}
+             WHERE device_id = :did AND sender = :sender
                AND ABS(TIMESTAMPDIFF(SECOND, received_at, :received_at)) <= 1
-             LIMIT 1"
+               AND merchant_id = :mid
+             LIMIT 1",
+            [
+                'did'         => $deviceId,
+                'sender'      => $sender,
+                'received_at' => $receivedAt,
+                'mid'         => $this->requireTenant(),
+            ]
         );
-        $stmt->execute([
-            ':uuid'        => $deviceUuid,
-            ':sender'      => $sender,
-            ':received_at' => $receivedAt,
-        ]);
-        return ((int) $stmt->fetchColumn()) > 0;
+        return ((int) ($row['cnt'] ?? 0)) > 0;
     }
 
     /**
-     * Find by ID.
+     * List parsed SMS for merchant with pagination.
      */
-    public function findById(int $id): ?array
+    public function listPaginated(int $limit = 20, int $offset = 0, ?string $status = null): array
     {
-        $stmt = $this->pdo->prepare("SELECT * FROM " . self::TABLE . " WHERE id = :id LIMIT 1");
-        $stmt->execute([':id' => $id]);
-        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return $row ?: null;
-    }
-
-    /**
-     * List parsed SMS for a brand with pagination.
-     */
-    public function listByBrand(int $brandId, int $limit = 20, int $offset = 0, ?string $status = null): array
-    {
-        $where = "brand_id = :bid";
-        $params = [':bid' => $brandId];
+        $where = "merchant_id = :mid";
+        $params = ['mid' => $this->requireTenant()];
 
         if ($status !== null) {
-            $where .= " AND status = :status";
-            $params[':status'] = $status;
+            $where .= " AND match_status = :status";
+            $params['status'] = $status;
         }
 
-        $countStmt = $this->pdo->prepare("SELECT COUNT(*) FROM " . self::TABLE . " WHERE {$where}");
-        $countStmt->execute($params);
-        $total = (int) $countStmt->fetchColumn();
+        $total = $this->db->count($this->table, $where, $params);
 
-        $stmt = $this->pdo->prepare(
-            "SELECT id, device_uuid, sender, received_at, parsed_amount, parsed_trx_id,
-                    parsed_type, parse_method, parse_confidence, status, created_at
-             FROM " . self::TABLE . "
+        $items = $this->db->fetchAll(
+            "SELECT id, device_id, sender, received_at, amount, trx_id,
+                    gateway_slug, parser_type, match_status, created_at
+             FROM {$this->table}
              WHERE {$where}
              ORDER BY received_at DESC
-             LIMIT :lim OFFSET :off"
+             LIMIT {$limit} OFFSET {$offset}",
+            $params
         );
-        foreach ($params as $k => $v) {
-            $stmt->bindValue($k, $v);
-        }
-        $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
-        $stmt->bindValue(':off', $offset, \PDO::PARAM_INT);
-        $stmt->execute();
 
-        return [
-            'items' => $stmt->fetchAll(\PDO::FETCH_ASSOC),
-            'total' => $total,
-        ];
+        return ['items' => $items, 'total' => $total];
     }
 
     /**
-     * Count unparsed entries for a brand (admin review queue).
+     * Count unparsed entries for merchant (admin review queue).
      */
-    public function countUnparsed(int $brandId): int
+    public function countUnparsed(): int
     {
-        $stmt = $this->pdo->prepare(
-            "SELECT COUNT(*) FROM " . self::TABLE . "
-             WHERE brand_id = :bid AND status = 'admin_review'"
+        return $this->db->count(
+            $this->table,
+            "merchant_id = :mid AND match_status = 'pending'",
+            ['mid' => $this->requireTenant()]
         );
-        $stmt->execute([':bid' => $brandId]);
-        return (int) $stmt->fetchColumn();
     }
 
     /**
-     * Update parsed data on an existing SMS record (admin reprocess/resolve).
+     * Update parsed data on existing SMS record (admin reprocess/resolve).
      */
-    public function updateParsedData(int $id, array $data): bool
+    public function updateParsedData(int $id, array $data): int
     {
         $allowed = [
-            'parsed_amount', 'parsed_trx_id', 'parsed_sender', 'parsed_balance',
-            'parsed_type', 'parse_method', 'template_id', 'parse_confidence', 'status',
+            'amount', 'trx_id', 'gateway_slug',
+            'parser_type', 'match_status', 'transaction_id',
         ];
 
-        $fields = [];
-        $params = [':id' => $id];
-
-        foreach ($allowed as $field) {
-            if (array_key_exists($field, $data)) {
-                $fields[] = "{$field} = :{$field}";
-                $params[":{$field}"] = $data[$field];
-            }
+        $update = array_intersect_key($data, array_flip($allowed));
+        if (empty($update)) {
+            return 0;
         }
 
-        if (empty($fields)) {
-            return false;
-        }
-
-        $fields[] = 'processed_at = NOW()';
-        $sql = "UPDATE " . self::TABLE . " SET " . implode(', ', $fields) . " WHERE id = :id";
-        return $this->pdo->prepare($sql)->execute($params);
+        return $this->updateScoped($id, $update);
     }
 }

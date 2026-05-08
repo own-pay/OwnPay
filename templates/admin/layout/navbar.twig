@@ -11,6 +11,20 @@
     </div>
 
     <div class="op-navbar-right">
+        {% if is_superadmin %}
+        <div class="op-navbar-brand-selector">
+            <form method="POST" action="/admin/brands/switch" id="brand-switcher-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <select name="brand_id" class="op-input op-input-sm" onchange="document.getElementById('brand-switcher-form').submit()">
+                    <option value="global" {% if active_brand_id is empty %}selected{% endif %}>Global View</option>
+                    {% for b in brands %}
+                        <option value="{{ b.id }}" {% if active_brand_id == b.id %}selected{% endif %}>{{ b.name }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+        {% endif %}
+        
         <div class="op-navbar-search">
             <input type="search" placeholder="Search..." class="op-input op-input-sm" id="global-search">
         </div>
@@ -20,25 +34,31 @@
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
                 </svg>
-                {% if unread_alerts > 0 %}
+                {% if (unread_alerts|default(0)) > 0 %}
                 <span class="op-badge op-badge-dot">{{ unread_alerts }}</span>
                 {% endif %}
+            </button>
+        </div>
+
+        <div class="op-navbar-theme">
+            <button class="op-icon-btn" id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">
+                <span id="theme-toggle-icon">&#9728;</span>
             </button>
         </div>
 
         <div class="op-navbar-user dropdown">
             <button class="op-user-btn" id="user-menu-btn">
                 <div class="op-avatar op-avatar-sm">
-                    {{ current_user.name[0:1]|upper ?? 'A' }}
+                    {{ current_user.name is not empty ? current_user.name|slice(0, 1)|upper : 'A' }}
                 </div>
-                <span class="op-user-name">{{ current_user.name ?? 'Admin' }}</span>
+                <span class="op-user-name">{{ current_user.name|default('Admin') }}</span>
             </button>
             <div class="op-dropdown-menu" id="user-menu">
                 <a href="/admin/my-account" class="op-dropdown-item">My Account</a>
                 <a href="/admin/settings" class="op-dropdown-item">Settings</a>
                 <hr class="op-dropdown-divider">
                 <form method="POST" action="/admin/logout">
-                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="op-dropdown-item op-text-danger">Logout</button>
                 </form>
             </div>

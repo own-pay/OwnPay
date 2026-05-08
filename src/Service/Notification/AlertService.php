@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Notification;
 
 /**
- * Alert service — admin alerts (low balance, failed webhooks, security events).
+ * Alert service â€” admin alerts (low balance, failed webhooks, security events).
  */
 final class AlertService
 {

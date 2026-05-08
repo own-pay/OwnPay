@@ -7,7 +7,7 @@
 </div>
 <div class="op-card">
     <div class="op-card-body op-p-0">
-        <table class="op-table">
+        <div class="op-table-responsive"><table class="op-table">
             <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>2FA</th><th>Last Login</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody>
                 {% for s in staff %}
@@ -15,14 +15,14 @@
                     <td><strong>{{ s.name }}</strong></td>
                     <td>{{ s.email }}</td>
                     <td><span class="op-badge op-badge-{{ s.role == 'admin' ? 'primary' : 'outline' }}">{{ s.role }}</span></td>
-                    <td><span class="op-badge op-badge-{{ s.two_fa_enabled ? 'success' : 'muted' }}">{{ s.two_fa_enabled ? 'ON' : 'OFF' }}</span></td>
+                    <td><span class="op-badge op-badge-{{ s.two_factor_enabled ? 'success' : 'muted' }}">{{ s.two_factor_enabled ? 'ON' : 'OFF' }}</span></td>
                     <td>{{ s.last_login ?? 'Never' }}</td>
                     <td><span class="op-badge op-badge-{{ s.status == 'active' ? 'success' : 'muted' }}">{{ s.status }}</span></td>
                     <td><a href="/admin/staff/{{ s.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a></td>
                 </tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
     </div>
 </div>
 {% endblock %}

@@ -21,11 +21,11 @@ final class PairedDeviceRepository extends BaseRepository
         );
     }
 
-    public function heartbeat(int $id): void
+    public function updateHeartbeat(string $deviceId): void
     {
         $this->db->update(
-            "UPDATE {$this->table} SET last_heartbeat = NOW(6) WHERE id = :id",
-            ['id' => $id]
+            "UPDATE {$this->table} SET last_heartbeat = NOW() WHERE device_id = :did",
+            ['did' => $deviceId]
         );
     }
 
@@ -37,7 +37,7 @@ final class PairedDeviceRepository extends BaseRepository
     public function listActive(): array
     {
         return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE merchant_id = :mid AND status = 'active' ORDER BY paired_at DESC",
+            "SELECT * FROM {$this->table} WHERE merchant_id = :mid AND status = 'active' ORDER BY created_at DESC",
             ['mid' => $this->requireTenant()]
         );
     }

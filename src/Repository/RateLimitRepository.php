@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
-use OwnPay\Core\Database;
+use OwnPay\Support\DateHelper;
 
 /**
  * DB-backed sliding window storage for rate limiting.
@@ -17,47 +17,32 @@ use OwnPay\Core\Database;
  * rate_key (which already encodes the tenant context, e.g. "api_key:123")
  * and has no merchant_id column.
  */
-final class RateLimitRepository
+final class RateLimitRepository extends BaseRepository
 {
     use TenantScope;
 
-    private Database $db;
-
-    public function __construct(?Database $db = null)
-    {
-        $this->db = $db ?? Database::getInstance();
-    }
+    protected string $table = 'op_rate_limits';
 
     /**
      * Record a request hit and return the current window count.
-     *
-     * @param string $key       Rate limit key (e.g. "api_key:123")
-     * @param int    $windowSec Window size in seconds
-     * @return int Current hit count within the window
      */
     public function hit(string $key, int $windowSec = 60): int
     {
-        $pdo = $this->db->getPdo();
-        $windowStart = date('Y-m-d H:i:s', time() - $windowSec);
+        $windowStart = DateHelper::ago($windowSec);
 
         try {
-            // Insert the hit
-            $stmt = $pdo->prepare("
-                INSERT INTO op_rate_limits (rate_key, hit_at)
-                VALUES (:rk, NOW(6))
-            ");
-            $stmt->execute([':rk' => $key]);
+            $this->db->execute(
+                "INSERT INTO {$this->table} (rate_key, hit_at) VALUES (:rk, NOW(6))",
+                ['rk' => $key]
+            );
 
-            // Count hits in current window
-            $countStmt = $pdo->prepare("
-                SELECT COUNT(*) FROM op_rate_limits
-                WHERE rate_key = :rk AND hit_at >= :ws
-            ");
-            $countStmt->execute([':rk' => $key, ':ws' => $windowStart]);
+            $row = $this->db->fetchOne(
+                "SELECT COUNT(*) as cnt FROM {$this->table} WHERE rate_key = :rk AND hit_at >= :ws",
+                ['rk' => $key, 'ws' => $windowStart]
+            );
 
-            return (int) $countStmt->fetchColumn();
+            return (int) ($row['cnt'] ?? 0);
         } catch (\PDOException $e) {
-            // Table might not exist — degrade gracefully
             error_log("[RateLimit] DB error: " . $e->getMessage());
             return 0;
         }
@@ -68,38 +53,36 @@ final class RateLimitRepository
      */
     public function remaining(string $key, int $limit, int $windowSec = 60): int
     {
-        $pdo = $this->db->getPdo();
-        $windowStart = date('Y-m-d H:i:s', time() - $windowSec);
+        $windowStart = DateHelper::ago($windowSec);
 
         try {
-            $stmt = $pdo->prepare("
-                SELECT COUNT(*) FROM op_rate_limits
-                WHERE rate_key = :rk AND hit_at >= :ws
-            ");
-            $stmt->execute([':rk' => $key, ':ws' => $windowStart]);
-            $count = (int) $stmt->fetchColumn();
-
+            $row = $this->db->fetchOne(
+                "SELECT COUNT(*) as cnt FROM {$this->table} WHERE rate_key = :rk AND hit_at >= :ws",
+                ['rk' => $key, 'ws' => $windowStart]
+            );
+            $count = (int) ($row['cnt'] ?? 0);
             return max(0, $limit - $count);
         } catch (\PDOException $e) {
-            return $limit; // Degrade: allow all
+            return $limit;
         }
     }
 
     /**
      * Purge expired entries (housekeeping).
-     * Call this periodically (e.g. via cron).
      */
     public function purgeExpired(int $olderThanSec = 300): int
     {
-        $pdo = $this->db->getPdo();
-        $cutoff = date('Y-m-d H:i:s', time() - $olderThanSec);
+        $cutoff = DateHelper::ago($olderThanSec);
 
         try {
-            $stmt = $pdo->prepare("DELETE FROM op_rate_limits WHERE hit_at < :cutoff");
-            $stmt->execute([':cutoff' => $cutoff]);
+            $stmt = $this->db->execute(
+                "DELETE FROM {$this->table} WHERE hit_at < :cutoff",
+                ['cutoff' => $cutoff]
+            );
             return $stmt->rowCount();
         } catch (\PDOException $e) {
             return 0;
         }
     }
 }
+

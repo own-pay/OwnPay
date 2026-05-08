@@ -8,7 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Request signature middleware — validates HMAC signatures on webhook/IPN callbacks.
+ * Request signature middleware â€” validates HMAC signatures on webhook/IPN callbacks.
  *
  * Per security skill: timing-safe compare, reject replay attacks.
  * Used for incoming gateway callbacks (Stripe, SSLCommerz, etc).
@@ -92,8 +92,10 @@ final class RequestSignatureMiddleware
                 if ($merchant !== null && !empty($merchant['webhook_secret'])) {
                     return $merchant['webhook_secret'];
                 }
-            } catch (\Throwable) {
-                // Fall through
+            } catch (\Throwable $e) {
+                if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
+                    $this->container->get(\OwnPay\Service\System\Logger::class)->warning('Signature secret resolve failed: ' . $e->getMessage());
+                }
             }
         }
 

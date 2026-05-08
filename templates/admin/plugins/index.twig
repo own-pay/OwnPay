@@ -1,11 +1,11 @@
-{% extends "admin/base.twig" %}
+{% extends 'admin/layout/base.twig' %}
 
 {% block title %}Plugins — {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
     <h1>Plugins</h1>
-    <a href="{{ path('admin.plugins.install') }}" class="op-btn op-btn-primary">
+    <a href="/admin/plugins/install" class="op-btn op-btn-primary">
         <span class="op-icon">+</span> Install Plugin
     </a>
 </div>
@@ -56,25 +56,25 @@
                 </td>
                 <td class="op-actions">
                     {% if plugin.status == 'active' %}
-                        <a href="{{ path('admin.plugins.settings', {slug: plugin.slug}) }}" class="op-btn op-btn-sm op-btn-outline">Settings</a>
-                        <form method="POST" action="{{ path('admin.plugins.deactivate', {slug: plugin.slug}) }}" class="op-inline-form">
-                            {{ csrf_field() }}
+                        <a href="/admin/plugins/{{ plugin.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Settings</a>
+                        <form method="POST" action="/admin/plugins/{{ plugin.slug }}/deactivate" class="op-inline-form">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                             <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
                         </form>
                     {% elseif plugin.status == 'inactive' %}
-                        <form method="POST" action="{{ path('admin.plugins.activate', {slug: plugin.slug}) }}" class="op-inline-form">
-                            {{ csrf_field() }}
+                        <form method="POST" action="/admin/plugins/{{ plugin.slug }}/activate" class="op-inline-form">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                             <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
                         </form>
                     {% endif %}
-                    <form method="POST" action="{{ path('admin.plugins.uninstall', {slug: plugin.slug}) }}" class="op-inline-form" onsubmit="return confirm('Permanently remove this plugin?')">
-                        {{ csrf_field() }}
+                    <form method="POST" action="/admin/plugins/{{ plugin.slug }}/uninstall" class="op-inline-form" onsubmit="return confirm('Permanently remove this plugin?')">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="op-btn op-btn-sm op-btn-danger">Uninstall</button>
                     </form>
                 </td>
             </tr>
         {% else %}
-            <tr><td colspan="5" class="op-empty">No plugins installed. <a href="{{ path('admin.plugins.install') }}">Install one</a>.</td></tr>
+            <tr><td colspan="5" class="op-empty">No plugins installed. <a href="/admin/plugins/install">Install one</a>.</td></tr>
         {% endfor %}
         </tbody>
     </table>

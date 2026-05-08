@@ -41,7 +41,7 @@ class SmokeTest extends TestCase
 
     public function testSchemaFileExists(): void
     {
-        $this->assertFileExists($this->root . '/app/install/master_install.sql');
+        $this->assertFileExists($this->root . '/database/schema.sql');
     }
 
     public function testModulesStructure(): void

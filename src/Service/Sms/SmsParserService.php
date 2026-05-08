@@ -8,6 +8,10 @@ use OwnPay\Repository\PairedDeviceRepository;
 use OwnPay\Repository\SmsDataRepository;
 use OwnPay\Repository\SmsTemplateRepository;
 use OwnPay\Security\FieldEncryptor;
+use OwnPay\Service\Notification\MobileNotificationService;
+use OwnPay\Service\System\Logger;
+use OwnPay\Event\EventManager;
+use OwnPay\Support\DateHelper;
 
 /**
  * SmsParserService — Orchestrator for the 2-tier SMS parsing engine.
@@ -24,157 +28,178 @@ use OwnPay\Security\FieldEncryptor;
  */
 final class SmsParserService
 {
-    private mixed $deviceRepo;
-    private mixed $templateRepo;
-    private mixed $dataRepo;
+    private PairedDeviceRepository $deviceRepo;
+    private SmsTemplateRepository $templateRepo;
+    private SmsDataRepository $dataRepo;
     private SmsRegexParser $regexParser;
     private SmsHeuristicParser $heuristicParser;
-    private mixed $encryptor;
-    private mixed $notifService;
+    private FieldEncryptor $encryptor;
+    private MobileNotificationService $notifService;
+    private EventManager $events;
+    private Logger $logger;
 
     public function __construct(
-        mixed $deviceRepo = null,
-        mixed $templateRepo = null,
-        mixed $dataRepo = null,
-        ?SmsRegexParser $regexParser = null,
-        ?SmsHeuristicParser $heuristicParser = null,
-        mixed $encryptor = null,
-        mixed $notifService = null,
+        PairedDeviceRepository $deviceRepo,
+        SmsTemplateRepository $templateRepo,
+        SmsDataRepository $dataRepo,
+        SmsRegexParser $regexParser,
+        SmsHeuristicParser $heuristicParser,
+        FieldEncryptor $encryptor,
+        MobileNotificationService $notifService,
+        EventManager $events,
+        Logger $logger
     ) {
-        $this->deviceRepo      = $deviceRepo      ?? new PairedDeviceRepository();
-        $this->templateRepo    = $templateRepo     ?? new SmsTemplateRepository();
-        $this->dataRepo        = $dataRepo         ?? new SmsDataRepository();
-        $this->regexParser     = $regexParser      ?? new SmsRegexParser();
-        $this->heuristicParser = $heuristicParser  ?? new SmsHeuristicParser();
-        $this->encryptor       = $encryptor        ?? new FieldEncryptor();
-        $this->notifService    = $notifService     ?? new MobileNotificationService();
+        $this->deviceRepo      = $deviceRepo;
+        $this->templateRepo    = $templateRepo;
+        $this->dataRepo        = $dataRepo;
+        $this->regexParser     = $regexParser;
+        $this->heuristicParser = $heuristicParser;
+        $this->encryptor       = $encryptor;
+        $this->notifService    = $notifService;
+        $this->events          = $events;
+        $this->logger          = $logger;
     }
 
     /**
      * Process a batch of SMS messages from a mobile device.
-     *
-     * @param string $deviceUuid  Authenticated device UUID
-     * @param int    $brandId     Brand/merchant ID from JWT claims
-     * @param array  $messages    Array of message payloads:
-     *                            [{local_id, encrypted_payload, sender, received_at}, ...]
-     * @return array Results per message: [{local_id, status, server_ref, error?}, ...]
      */
     public function processBatch(string $deviceUuid, int $brandId, array $messages): array
     {
-        // 1. Look up device to get AES key
         $device = $this->deviceRepo->findByUuid($deviceUuid);
         if ($device === null) {
-            return array_map(fn ($m) => [
-                'local_id'   => $m['local_id'] ?? null,
-                'status'     => 'rejected',
-                'server_ref' => null,
-                'error'      => 'DEVICE_NOT_FOUND',
-            ], $messages);
+            return $this->rejectAll($messages, 'DEVICE_NOT_FOUND');
         }
 
-        // 2. Decrypt the device's stored AES key
-        $deviceAesKey = null;
         try {
             $deviceAesKey = $this->encryptor->decrypt($device['aes_key_encrypted']);
         } catch (\Throwable) {
-            return array_map(fn ($m) => [
-                'local_id'   => $m['local_id'] ?? null,
-                'status'     => 'rejected',
-                'server_ref' => null,
-                'error'      => 'KEY_DECRYPTION_FAILED',
-            ], $messages);
+            return $this->rejectAll($messages, 'KEY_DECRYPTION_FAILED');
         }
 
-        // 3. Process each message
         $results = [];
         foreach ($messages as $msg) {
             $results[] = $this->processOne($deviceUuid, $brandId, $deviceAesKey, $msg);
         }
-
         return $results;
     }
 
     /**
      * Process a single SMS message.
-     *
-     * @return array{local_id: ?int, status: string, server_ref: ?string, error?: string}
+     * Decomposed into: validate → dedup → decrypt → parse → store → notify.
      */
     private function processOne(string $deviceUuid, int $brandId, string $aesKeyHex, array $msg): array
     {
-        $localId        = $msg['local_id'] ?? null;
-        $encryptedPayload = $msg['encrypted_payload'] ?? '';
-        $sender         = trim($msg['sender'] ?? '');
-        $receivedAt     = $msg['received_at'] ?? date('Y-m-d H:i:s');
+        $localId    = $msg['local_id'] ?? null;
+        $encrypted  = $msg['encrypted_payload'] ?? '';
+        $sender     = trim($msg['sender'] ?? '');
+        $receivedAt = $this->normalizeTimestamp($msg['received_at'] ?? DateHelper::now());
 
-        // Validate required fields
-        if ($encryptedPayload === '' || $sender === '') {
-            return [
-                'local_id'   => $localId,
-                'status'     => 'rejected',
-                'server_ref' => null,
-                'error'      => 'MISSING_FIELDS',
-            ];
+        // Step 1: Validate
+        if ($encrypted === '' || $sender === '') {
+            return $this->makeResult($localId, 'rejected', null, 'MISSING_FIELDS');
         }
 
-        // Normalize received_at to MySQL datetime
-        $receivedAt = $this->normalizeTimestamp($receivedAt);
-
-        // Dedup check
+        // Step 2: Dedup
         if ($this->dataRepo->isDuplicate($deviceUuid, $sender, $receivedAt)) {
-            return [
-                'local_id'   => $localId,
-                'status'     => 'duplicate',
-                'server_ref' => null,
-            ];
+            return $this->makeResult($localId, 'duplicate');
         }
 
-        // Decrypt SMS payload
-        $rawMessage = null;
+        // Step 3: Decrypt
+        $rawMessage = $this->tryDecrypt($encrypted, $aesKeyHex);
+        if ($rawMessage === null) {
+            $id = $this->storeFailedDecryption($deviceUuid, $brandId, $localId, $sender, $receivedAt, $encrypted);
+            return $this->makeResult($localId, 'accepted', 'sms_' . $id, 'DECRYPTION_FAILED');
+        }
+
+        // Step 4: Parse (tier 1 regex → tier 2 heuristic)
+        $parsed = $this->attemptParse($rawMessage, $sender);
+
+        // Step 5: Store
+        $record = $this->buildRecord($deviceUuid, $brandId, $localId, $sender, $receivedAt, $encrypted, $rawMessage, $parsed);
+        $id = $this->dataRepo->create($record);
+
+        // Step 6: Notify
+        $this->notifyDevice($parsed, $deviceUuid, $sender);
+
+        return $this->makeResult($localId, 'accepted', 'sms_' . $id);
+    }
+
+    // ── Extracted Methods ─────────────────────────────────────────
+
+    /**
+     * Reject all messages in a batch with same error.
+     */
+    private function rejectAll(array $messages, string $error): array
+    {
+        return array_map(fn($m) => $this->makeResult($m['local_id'] ?? null, 'rejected', null, $error), $messages);
+    }
+
+    /**
+     * Build a standardized result array.
+     */
+    private function makeResult(?int $localId, string $status, ?string $serverRef = null, ?string $error = null): array
+    {
+        $r = ['local_id' => $localId, 'status' => $status, 'server_ref' => $serverRef];
+        if ($error !== null) $r['error'] = $error;
+        return $r;
+    }
+
+    /**
+     * Attempt AES-256-GCM decryption; return null on failure.
+     */
+    private function tryDecrypt(string $encryptedB64, string $aesKeyHex): ?string
+    {
         try {
-            $rawMessage = $this->decryptSmsPayload($encryptedPayload, $aesKeyHex);
-        } catch (\Throwable $e) {
-            // Store as unparsed with encrypted_raw for admin review
-            $id = $this->dataRepo->create([
-                'device_uuid'      => $deviceUuid,
-                'brand_id'         => $brandId,
-                'local_id'         => $localId,
-                'sender'           => $sender,
-                'received_at'      => $receivedAt,
-                'encrypted_raw'    => $encryptedPayload,
-                'raw_message'      => null,
-                'parsed_type'      => 'unknown',
-                'parse_method'     => 'unparsed',
-                'parse_confidence' => 'low',
-                'status'           => 'parse_error',
-            ]);
-
-            return [
-                'local_id'   => $localId,
-                'status'     => 'accepted',
-                'server_ref' => 'sms_' . $id,
-                'error'      => 'DECRYPTION_FAILED',
-            ];
+            return $this->decryptSmsPayload($encryptedB64, $aesKeyHex);
+        } catch (\Throwable) {
+            return null;
         }
+    }
 
-        // Tier 1: Regex templates
-        $templates = $this->templateRepo->findBySender($sender);
-        $templates = apply_filters('mfs.templates', $templates);
-        $parsed = $this->regexParser->parse($rawMessage, $templates);
-
-        // Tier 2: Heuristic fallback
-        if ($parsed === null) {
-            $parsed = $this->heuristicParser->parse($rawMessage);
-        }
-
-        // Build record
-        $record = [
+    /**
+     * Store record for failed decryption (admin review).
+     */
+    private function storeFailedDecryption(string $deviceUuid, int $brandId, ?int $localId, string $sender, string $receivedAt, string $encrypted): string
+    {
+        return $this->dataRepo->create([
             'device_uuid'      => $deviceUuid,
             'brand_id'         => $brandId,
             'local_id'         => $localId,
             'sender'           => $sender,
             'received_at'      => $receivedAt,
-            'encrypted_raw'    => $encryptedPayload,
-            'raw_message'      => $rawMessage,
+            'encrypted_raw'    => $encrypted,
+            'raw_message'      => null,
+            'parsed_type'      => 'unknown',
+            'parse_method'     => 'unparsed',
+            'parse_confidence' => 'low',
+            'status'           => 'parse_error',
+        ]);
+    }
+
+    /**
+     * Run 2-tier parse: regex templates → heuristic fallback.
+     */
+    private function attemptParse(string $rawMessage, string $sender): ?array
+    {
+        $templates = $this->templateRepo->findBySender($sender);
+        $templates = $this->events->applyFilter('mfs.templates', $templates);
+        $parsed = $this->regexParser->parse($rawMessage, $templates);
+        return $parsed ?? $this->heuristicParser->parse($rawMessage);
+    }
+
+    /**
+     * Build op_sms_parsed record from parsed result.
+     */
+    private function buildRecord(string $deviceUuid, int $brandId, ?int $localId, string $sender, string $receivedAt, string $encrypted, string $raw, ?array $parsed): array
+    {
+        return [
+            'device_uuid'      => $deviceUuid,
+            'brand_id'         => $brandId,
+            'local_id'         => $localId,
+            'sender'           => $sender,
+            'received_at'      => $receivedAt,
+            'encrypted_raw'    => $encrypted,
+            'raw_message'      => $raw,
             'parsed_amount'    => $parsed['parsed_amount'] ?? null,
             'parsed_trx_id'    => $parsed['parsed_trx_id'] ?? null,
             'parsed_sender'    => $parsed['parsed_sender'] ?? null,
@@ -185,47 +210,38 @@ final class SmsParserService
             'parse_confidence' => $parsed['parse_confidence'] ?? 'low',
             'status'           => ($parsed === null) ? 'admin_review' : 'accepted',
         ];
-
-        $id = $this->dataRepo->create($record);
-
-        // Queue notification for device if parsed successfully
-        if ($parsed !== null && ($parsed['parsed_amount'] ?? null) !== null) {
-            try {
-                $this->notifService->queuePaymentNotification(
-                    $deviceUuid,
-                    $parsed['parsed_type'] ?? 'unknown',
-                    $parsed['parsed_amount'] ?? null,
-                    $parsed['parsed_sender'] ?? null,
-                    $parsed['parsed_trx_id'] ?? null,
-                    $sender,
-                );
-            } catch (\Throwable) {
-                // Notification failure must not break SMS processing
-            }
-        }
-
-        return [
-            'local_id'   => $localId,
-            'status'     => 'accepted',
-            'server_ref' => 'sms_' . $id,
-        ];
     }
 
     /**
+     * Queue mobile notification on successful parse.
+     */
+    private function notifyDevice(?array $parsed, string $deviceUuid, string $sender): void
+    {
+        if ($parsed === null || !isset($parsed['parsed_amount'])) return;
+        try {
+            $this->notifService->queuePaymentNotification(
+                $deviceUuid,
+                $parsed['parsed_type'] ?? 'unknown',
+                $parsed['parsed_amount'] ?? null,
+                $parsed['parsed_sender'] ?? null,
+                $parsed['parsed_trx_id'] ?? null,
+                $sender,
+            );
+        } catch (\Throwable $e) {
+            $this->logger->error('Notification failed: ' . $e->getMessage());
+        }
+    }
+
+    // ── Crypto Helpers ────────────────────────────────────────────
+
+    /**
      * Decrypt an SMS payload encrypted with the device's AES-256 key.
-     *
-     * Expected format: base64(IV + ciphertext + auth_tag)
-     * The device encrypts with AES-256-GCM using the shared key.
-     *
-     * @param string $encryptedB64 Base64-encoded encrypted payload
-     * @param string $aesKeyHex    64-char hex device AES key
-     * @return string Decrypted plaintext
-     * @throws \RuntimeException On decryption failure
+     * Format: base64(IV(12) + ciphertext + auth_tag(16))
      */
     private function decryptSmsPayload(string $encryptedB64, string $aesKeyHex): string
     {
         $raw = base64_decode($encryptedB64, true);
-        if ($raw === false || strlen($raw) < 28) { // 12 IV + 16 tag minimum
+        if ($raw === false || strlen($raw) < 28) {
             throw new \RuntimeException('Invalid encrypted payload format.');
         }
 
@@ -234,40 +250,26 @@ final class SmsParserService
             throw new \RuntimeException('Invalid AES key.');
         }
 
-        // AES-256-GCM: IV(12) + ciphertext(variable) + tag(16)
-        $ivLen = 12;
-        $tagLen = 16;
+        $iv         = substr($raw, 0, 12);
+        $tag        = substr($raw, -16);
+        $ciphertext = substr($raw, 12, strlen($raw) - 28);
 
-        $iv         = substr($raw, 0, $ivLen);
-        $tag        = substr($raw, -$tagLen);
-        $ciphertext = substr($raw, $ivLen, strlen($raw) - $ivLen - $tagLen);
-
-        $plaintext = openssl_decrypt(
-            $ciphertext,
-            'aes-256-gcm',
-            $key,
-            OPENSSL_RAW_DATA,
-            $iv,
-            $tag
-        );
-
+        $plaintext = openssl_decrypt($ciphertext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
         if ($plaintext === false) {
             throw new \RuntimeException('AES-256-GCM decryption failed.');
         }
-
         return $plaintext;
     }
 
     /**
-     * Normalize an ISO 8601 timestamp to MySQL DATETIME format.
+     * Normalize ISO 8601 timestamp → MySQL DATETIME.
      */
     private function normalizeTimestamp(string $ts): string
     {
         try {
-            $dt = new \DateTimeImmutable($ts);
-            return $dt->format('Y-m-d H:i:s');
+            return (new \DateTimeImmutable($ts))->format('Y-m-d H:i:s');
         } catch (\Throwable) {
-            return date('Y-m-d H:i:s');
+            return DateHelper::now();
         }
     }
 }

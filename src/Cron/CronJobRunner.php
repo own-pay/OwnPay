@@ -7,7 +7,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Service\System\Logger;
 
 /**
- * Cron job runner — central dispatcher for scheduled tasks.
+ * Cron job runner â€” central dispatcher for scheduled tasks.
  *
  * Fires: system.cron.before, system.cron.after
  */

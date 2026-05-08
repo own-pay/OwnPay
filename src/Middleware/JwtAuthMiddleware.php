@@ -10,7 +10,7 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 /**
- * JWT auth middleware — authenticates mobile/companion app requests.
+ * JWT auth middleware â€” authenticates mobile/companion app requests.
  *
  * Per security skill: validate exp, iss, aud, device fingerprint.
  */

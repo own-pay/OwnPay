@@ -7,7 +7,7 @@ namespace OwnPay\Http;
  * Immutable HTTP request wrapper.
  *
  * Encapsulates $_GET, $_POST, $_SERVER, $_FILES, $_COOKIE.
- * Controllers MUST use this — no direct superglobal access.
+ * Controllers MUST use this â€” no direct superglobal access.
  */
 final class Request
 {
@@ -64,7 +64,7 @@ final class Request
         );
     }
 
-    // ─── Getters ───────────────────────────────────────────────
+    // â”€â”€â”€ Getters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function method(): string
     {
@@ -103,15 +103,26 @@ final class Request
             || str_starts_with($this->path, '/api/');
     }
 
-    // ─── Input Access ──────────────────────────────────────────
+    // â”€â”€â”€ Input Access â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function query(string $key, mixed $default = null): mixed
     {
         return $this->query[$key] ?? $default;
     }
 
-    public function post(string $key, mixed $default = null): mixed
+    /**
+     * Alias for query() â€” backward compat for controllers using $req->get().
+     */
+    public function get(string $key, mixed $default = null): mixed
     {
+        return $this->query[$key] ?? $default;
+    }
+
+    public function post(string $key = null, mixed $default = null): mixed
+    {
+        if ($key === null) {
+            return $this->post;
+        }
         return $this->post[$key] ?? $default;
     }
 
@@ -157,7 +168,7 @@ final class Request
         return $this->rawBody;
     }
 
-    // ─── Files ─────────────────────────────────────────────────
+    // â”€â”€â”€ Files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function file(string $key): ?array
     {
@@ -170,7 +181,7 @@ final class Request
             && ($this->files[$key]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
     }
 
-    // ─── Headers ───────────────────────────────────────────────
+    // â”€â”€â”€ Headers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function header(string $key, string $default = ''): string
     {
@@ -187,7 +198,7 @@ final class Request
         return null;
     }
 
-    // ─── Server ────────────────────────────────────────────────
+    // â”€â”€â”€ Server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function server(string $key, string $default = ''): string
     {
@@ -220,14 +231,14 @@ final class Request
         return $this->scheme() === 'https';
     }
 
-    // ─── Cookies ───────────────────────────────────────────────
+    // â”€â”€â”€ Cookies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function cookie(string $key, string $default = ''): string
     {
         return $this->cookies[$key] ?? $default;
     }
 
-    // ─── Route Parameters ──────────────────────────────────────
+    // â”€â”€â”€ Route Parameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * @param array<string, string> $params
@@ -250,7 +261,7 @@ final class Request
         return $this->routeParams;
     }
 
-    // ─── Attributes (middleware-injected) ───────────────────────
+    // â”€â”€â”€ Attributes (middleware-injected) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function setAttribute(string $key, mixed $value): void
     {
@@ -262,7 +273,7 @@ final class Request
         return $this->attributes[$key] ?? $default;
     }
 
-    // ─── Private ───────────────────────────────────────────────
+    // â”€â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * @return array<string, string>

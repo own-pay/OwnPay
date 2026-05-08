@@ -7,7 +7,7 @@ use OwnPay\Plugin\PluginInterface;
 use OwnPay\Repository\PluginRepository;
 
 /**
- * Settings auto-renderer — generates admin settings form from plugin fields().
+ * Settings auto-renderer â€” generates admin settings form from plugin fields().
  *
  * Plugins define fields as:
  *   [['name' => 'api_key', 'label' => 'API Key', 'type' => 'text', 'default' => '']]
@@ -32,7 +32,8 @@ final class SettingsRenderer
         }
 
         $html = '<form method="POST" action="' . htmlspecialchars($action, ENT_QUOTES, 'UTF-8') . '" class="op-settings-form">';
-        $html .= '<input type="hidden" name="_csrf_token" value="">';
+        $csrfToken = \OwnPay\Security\SecurityHelpers::csrfToken();
+        $html .= '<input type="hidden" name="_csrf_token" value="' . self::e($csrfToken) . '">';
 
         foreach ($fields as $field) {
             $name = $field['name'] ?? '';

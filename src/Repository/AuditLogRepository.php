@@ -12,7 +12,7 @@ final class AuditLogRepository extends BaseRepository
     ];
 
     /**
-     * Record audit event. Never use tenant scope — audit logs cross-tenant for superadmin.
+     * Record audit event. Never use tenant scope â€” audit logs cross-tenant for superadmin.
      */
     public function record(
         ?int $merchantId,
@@ -36,5 +36,48 @@ final class AuditLogRepository extends BaseRepository
             'ip_address'  => $ip,
             'user_agent'  => $userAgent ? mb_substr($userAgent, 0, 500) : null,
         ]);
+    }
+
+    /**
+     * Paginated activity listing with user names.
+     * @param ?int $merchantId null = global (superadmin)
+     */
+    public function listPaginated(?int $merchantId, int $limit, int $offset): array
+    {
+        $where = $merchantId !== null ? 'WHERE l.merchant_id = :mid' : '';
+        $params = $merchantId !== null ? ['mid' => $merchantId] : [];
+
+        return $this->db->fetchAll(
+            "SELECT l.*, u.name as user_name
+             FROM {$this->table} l
+             LEFT JOIN op_merchant_users u ON u.id = l.user_id
+             {$where}
+             ORDER BY l.created_at DESC
+             LIMIT {$limit} OFFSET {$offset}",
+            $params
+        );
+    }
+
+    /**
+     * Count audit logs.
+     * @param ?int $merchantId null = global (superadmin)
+     */
+    public function countFiltered(?int $merchantId): int
+    {
+        $where = $merchantId !== null ? 'merchant_id = :mid' : '1=1';
+        $params = $merchantId !== null ? ['mid' => $merchantId] : [];
+
+        return $this->db->count($this->table, $where, $params);
+    }
+
+    /**
+     * List audit log entries for a specific entity.
+     */
+    public function listForEntity(string $entityType, int $entityId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE entity_type = :et AND entity_id = :eid ORDER BY created_at DESC",
+            ['et' => $entityType, 'eid' => $entityId]
+        );
     }
 }

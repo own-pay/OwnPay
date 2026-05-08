@@ -23,7 +23,7 @@
 
 <div class="op-card">
     <div class="op-card-body op-p-0">
-        <table class="op-table">
+        <div class="op-table-responsive"><table class="op-table">
             <thead>
                 <tr><th>TRX ID</th><th>Customer</th><th>Amount</th><th>Gateway</th><th>Status</th><th>Date</th><th>Actions</th></tr>
             </thead>
@@ -33,7 +33,7 @@
                     <td><code>{{ txn.trx_id }}</code></td>
                     <td>{{ txn.customer_name ?? '—' }}</td>
                     <td><strong>{{ txn.currency }} {{ txn.amount }}</strong></td>
-                    <td><span class="op-badge op-badge-outline">{{ txn.gateway }}</span></td>
+                    <td><span class="op-badge op-badge-outline">{{ txn.gateway_slug }}</span></td>
                     <td><span class="op-badge op-badge-{{ txn.status == 'completed' ? 'success' : (txn.status == 'pending' ? 'warning' : 'danger') }}">{{ txn.status }}</span></td>
                     <td>{{ txn.created_at }}</td>
                     <td>
@@ -42,15 +42,19 @@
                 </tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
     </div>
 </div>
 
 {% if pagination.total_pages > 1 %}
 <nav class="op-pagination">
-    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
-    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
-    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+    {% set qs = '' %}
+    {% if filters.q is not empty %}{% set qs = qs ~ '&q=' ~ filters.q|url_encode %}{% endif %}
+    {% if filters.status is not empty %}{% set qs = qs ~ '&status=' ~ filters.status|url_encode %}{% endif %}
+    {% if filters.gateway is not empty %}{% set qs = qs ~ '&gateway=' ~ filters.gateway|url_encode %}{% endif %}
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}{{ qs }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total }} total)</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}{{ qs }}" class="op-page-link">Next →</a>{% endif %}
 </nav>
 {% endif %}
 {% endblock %}

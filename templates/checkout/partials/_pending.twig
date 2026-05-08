@@ -4,7 +4,7 @@
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#74b9ff" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
     </div>
     <h2>{{ lang.payment_pending ?? 'Payment Pending' }}</h2>
-    {% if txn.trx_id %}<p class="ck-status-ref">Ref: {{ txn.trx_id }}</p>{% endif %}
-    <p class="ck-status-msg">{{ lang.pending_msg ?? 'Your payment is being verified. You'll receive a confirmation once processed.' }}</p>
+    {% if txn is defined and txn.trx_id is defined and txn.trx_id %}<p class="ck-status-ref">Ref: {{ txn.trx_id }}</p>{% endif %}
+    <p class="ck-status-msg">{{ lang.pending_msg ?? 'Your payment is being verified. You will receive a confirmation once processed.' }}</p>
     <meta http-equiv="refresh" content="15">
 </div>

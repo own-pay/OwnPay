@@ -5,6 +5,6 @@
     </div>
     <h2>{{ lang.payment_success ?? 'Payment Successful!' }}</h2>
     <p class="ck-status-amount">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|default(0)|number_format(2) }}</p>
-    {% if txn.trx_id %}<p class="ck-status-ref">Ref: {{ txn.trx_id }}</p>{% endif %}
+    {% if txn is defined and txn.trx_id is defined and txn.trx_id %}<p class="ck-status-ref">Ref: {{ txn.trx_id }}</p>{% endif %}
     <p class="ck-status-msg">{{ lang.success_msg ?? 'Your payment has been processed successfully.' }}</p>
 </div>

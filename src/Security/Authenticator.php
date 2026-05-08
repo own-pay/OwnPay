@@ -7,7 +7,7 @@ use OwnPay\Repository\LoginAttemptRepository;
 use OwnPay\Repository\MerchantUserRepository;
 
 /**
- * Authenticator — handles login, password verification, 2FA check.
+ * Authenticator â€” handles login, password verification, 2FA check.
  *
  * Per OWASP: Argon2id hashing, timing-safe compare, brute-force protection.
  * Per pci-compliance skill: constant-time password verify.
@@ -42,7 +42,7 @@ final class Authenticator
         $user = $this->users->findActiveByEmail($email);
 
         if ($user === null) {
-            // Log failed attempt (constant time — don't reveal whether email exists)
+            // Log failed attempt (constant time â€” don't reveal whether email exists)
             password_verify($password, '$argon2id$v=19$m=65536,t=4,p=1$dummy$dummy');
             $this->logAttempt($email, $ip, $userAgent, false);
             return ['success' => false, 'error' => 'Invalid credentials'];
@@ -92,8 +92,12 @@ final class Authenticator
             session_regenerate_id(true);
             $_SESSION['auth_user_id'] = $user['id'];
             $_SESSION['auth_merchant_id'] = $user['merchant_id'];
+            $_SESSION['active_brand_id'] = $user['merchant_id'];
             $_SESSION['auth_role_id'] = $user['role_id'];
             $_SESSION['auth_email'] = $user['email'];
+            $_SESSION['auth_name'] = $user['name'];
+            $_SESSION['is_superadmin'] = (bool) ($user['is_superadmin'] ?? false);
+            $_SESSION['two_fa_enabled'] = (bool) ($user['two_factor_enabled'] ?? false);
             $_SESSION['auth_at'] = time();
         }
     }

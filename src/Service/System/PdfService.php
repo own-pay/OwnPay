@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * PDF service — invoice/receipt generation using TCPDF or DomPDF.
+ * PDF service â€” invoice/receipt generation using TCPDF or DomPDF.
  */
 final class PdfService
 {
@@ -65,7 +65,7 @@ final class PdfService
             $html = str_replace('{{items_rows}}', $itemsHtml, $html);
         }
 
-        $filename = 'invoice_' . ($invoiceData['invoice_number'] ?? date('YmdHis'));
+        $filename = 'invoice_' . ($invoiceData['invoice_number'] ?? (new \DateTimeImmutable())->format('YmdHis'));
         return $this->generateFromHtml($html, $filename);
     }
 

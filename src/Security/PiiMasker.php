@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Security;
 
 /**
- * PII masker — mask sensitive data for display/logging.
+ * PII masker â€” mask sensitive data for display/logging.
  *
  * Per pci-compliance + security skills: never log raw PII.
  */
@@ -65,7 +65,7 @@ final class PiiMasker
         if (count($parts) === 4) {
             return $parts[0] . '.' . $parts[1] . '.***.' . '***';
         }
-        // IPv6 — mask last 4 groups
+        // IPv6 â€” mask last 4 groups
         $parts6 = explode(':', $ip);
         if (count($parts6) >= 4) {
             $visible = array_slice($parts6, 0, 4);

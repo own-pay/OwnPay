@@ -7,8 +7,9 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
-use OwnPay\Service\Auth\AuthService;
-use OwnPay\Service\Auth\TwoFactorService;
+use OwnPay\Service\Admin\AdminSession;
+use OwnPay\Service\Auth\AuthSessionService;
+use OwnPay\Repository\MerchantUserRepository;
 
 /**
  * Auth controller — login, logout, forgot password, 2FA.
@@ -16,78 +17,99 @@ use OwnPay\Service\Auth\TwoFactorService;
  */
 final class AuthController
 {
-    private Container $c;
-    private AuthService $auth;
-    private EventManager $events;
+    use AdminPageTrait;
 
-    public function __construct(Container $c, AuthService $auth, EventManager $events)
-    {
-        $this->c = $c;
-        $this->auth = $auth;
-        $this->events = $events;
+    private Container $c;
+    private AdminSession $session;
+    private AuthSessionService $auth;
+    private EventManager $events;
+    private MerchantUserRepository $userRepo;
+
+    public function __construct(
+        Container $c,
+        AdminSession $session,
+        AuthSessionService $auth,
+        EventManager $events,
+        MerchantUserRepository $userRepo
+    ) {
+        $this->c        = $c;
+        $this->session  = $session;
+        $this->auth     = $auth;
+        $this->events   = $events;
+        $this->userRepo = $userRepo;
     }
 
     public function loginForm(Request $req): Response
     {
-        return $this->render('page/login.twig', [
+        return $this->renderAdminPage('page/login.twig', [
             'login_url' => $this->c->get('config.app')['login_url'] ?? '/login',
+            'error'     => null,
+            'old_email' => null,
         ]);
     }
 
     public function login(Request $req): Response
     {
-        $email = $req->post('email', '');
+        $email    = $req->post('email', '');
         $password = $req->post('password', '');
 
         $this->events->doAction('auth.login.attempt', ['email' => $email, 'ip' => $req->ip()]);
 
-        $user = $this->auth->attempt($email, $password);
-        if ($user === null) {
-            $this->events->doAction('auth.login.failed', ['email' => $email, 'ip' => $req->ip()]);
-            return $this->render('page/login.twig', [
-                'error' => 'Invalid credentials',
+        $result = $this->auth->login($email, $password, $req->ip(), $req->userAgent());
+        if (!$result['success']) {
+            return $this->renderAdminPage('page/login.twig', [
+                'error'     => $result['error'] ?? 'Invalid credentials',
                 'old_email' => $email,
             ]);
         }
 
         // Check 2FA
-        if (!empty($user['two_fa_secret'])) {
-            $_SESSION['2fa_user_id'] = $user['id'];
+        if (!empty($result['requires_2fa'])) {
+            $this->session->set('2fa_user_id', $result['user']['id']);
             return Response::redirect('/2fa');
         }
-
-        $this->auth->loginUser($user);
-        $this->events->doAction('auth.login.success', $user);
 
         return Response::redirect('/admin');
     }
 
     public function twoFactorForm(Request $req): Response
     {
-        if (empty($_SESSION['2fa_user_id'])) {
+        if ($this->session->get('2fa_user_id') === null) {
             return Response::redirect('/login');
         }
-        return $this->render('page/2fa.twig');
+        return $this->renderAdminPage('page/2fa.twig');
     }
 
     public function twoFactorVerify(Request $req): Response
     {
-        $userId = $_SESSION['2fa_user_id'] ?? null;
+        $userId = $this->session->get('2fa_user_id');
         if ($userId === null) {
             return Response::redirect('/login');
         }
 
-        $code = $req->post('code', '');
-        /** @var TwoFactorService $tfa */
-        $tfa = $this->c->get(TwoFactorService::class);
-        $user = $this->auth->findById((int) $userId);
+        $code = preg_replace('/\D/', '', $req->post('code', ''));
+        $user = $this->userRepo->findActiveByEmail(
+            $this->userRepo->findById((int) $userId)['email'] ?? ''
+        );
 
-        if ($user === null || !$tfa->verify($user['two_fa_secret'], $code)) {
-            return $this->render('page/2fa.twig', ['error' => 'Invalid code']);
+        if (!$user || empty($user['totp_secret_enc'])) {
+            return $this->renderAdminPage('page/2fa.twig', ['error' => '2FA is not properly configured on this account.']);
         }
 
+        if (!\OwnPay\Middleware\TwoFactorMiddleware::verifyTotp($user['totp_secret_enc'], $code)) {
+            return $this->renderAdminPage('page/2fa.twig', ['error' => 'Invalid or expired 2FA code. Please try again.']);
+        }
+
+        // Full session bootstrap via Authenticator
+        $authenticator = $this->c->get(\OwnPay\Security\Authenticator::class);
+        $authenticator->startSession($user);
+        $this->userRepo->updateLastLogin((int) $user['id'], $req->ip());
+
+        // 2FA-specific session flags
+        $_SESSION['two_fa_enabled'] = true;
+        $_SESSION['2fa_verified'] = true;
         unset($_SESSION['2fa_user_id']);
-        $this->auth->loginUser($user);
+
         $this->events->doAction('auth.login.success', $user);
 
         return Response::redirect('/admin');
@@ -95,30 +117,31 @@ final class AuthController
 
     public function forgotForm(Request $req): Response
     {
-        return $this->render('page/forgot.twig');
+        return $this->renderAdminPage('page/forgot.twig');
     }
 
     public function forgotSubmit(Request $req): Response
     {
-        $email = $req->post('email', '');
-        $this->auth->sendPasswordReset($email);
-        return $this->render('page/forgot.twig', [
-            'success' => 'If that email exists, a reset link has been sent.',
+        $email = trim($req->post('email', ''));
+
+        if ($email === '') {
+            return $this->renderAdminPage('page/forgot.twig', [
+                'error' => 'Please enter your email address.',
+            ]);
+        }
+
+        // Always show success to prevent email enumeration (OWASP best practice)
+        $this->events->doAction('auth.forgot_password', ['email' => $email]);
+
+        return $this->renderAdminPage('page/forgot.twig', [
+            'success' => 'If that email exists in our system, a password reset link has been sent.',
         ]);
     }
 
     public function logout(Request $req): Response
     {
-        $this->events->doAction('auth.logout', $_SESSION['user'] ?? []);
+        $this->events->doAction('auth.logout', $this->session->currentUser());
         $this->auth->logout();
         return Response::redirect('/login');
-    }
-
-    private function render(string $tpl, array $data = []): Response
-    {
-        $twig = $this->c->get(\Twig\Environment::class);
-        $data['csrf_token'] = $_SESSION['csrf_token'] ?? '';
-        $data['app_name'] = $this->c->get('config.app')['name'] ?? 'Own Pay';
-        return Response::html($twig->render($tpl, $data));
     }
 }

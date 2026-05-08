@@ -9,7 +9,7 @@ use OwnPay\Http\Response;
 use OwnPay\Repository\DomainRepository;
 
 /**
- * Domain middleware — resolves custom domain to merchant context.
+ * Domain middleware â€” resolves custom domain to merchant context.
  *
  * Maps incoming Host header to op_domains table.
  * Injects merchant_id + domain config into request attributes.
@@ -39,12 +39,17 @@ final class DomainMiddleware
             return $next($request);
         }
 
+        // If system is not installed, skip DB lookups to prevent PDOExceptions
+        if (!file_exists(dirname(__DIR__, 2) . '/storage/.installed')) {
+            return $next($request);
+        }
+
         /** @var DomainRepository $repo */
         $repo = $this->container->get(DomainRepository::class);
         $domainRecord = $repo->findByDomain($domain);
 
         if ($domainRecord === null || $domainRecord['status'] !== 'active') {
-            // Unknown domain — could show landing or 404
+            // Unknown domain â€” could show landing or 404
             return $next($request);
         }
 

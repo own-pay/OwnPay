@@ -27,7 +27,7 @@
                 </div>
             </div>
             <form method="POST" action="/admin/system-update/apply">
-                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="op-btn op-btn-success op-btn-lg op-btn-block" onclick="return confirm('This will backup your system, apply the update, and run migrations. Continue?')">
                     Update to v{{ latest_version }}
                 </button>
@@ -40,7 +40,7 @@
                 </div>
             </div>
             <form method="POST" action="/admin/system-update/check">
-                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <button type="submit" class="op-btn op-btn-outline">Check for Updates</button>
             </form>
             {% endif %}
@@ -51,13 +51,13 @@
 <div class="op-card op-mt-4">
     <div class="op-card-header"><h3>Update History</h3></div>
     <div class="op-card-body op-p-0">
-        <table class="op-table">
+        <div class="op-table-responsive"><table class="op-table">
             <thead><tr><th>Version</th><th>Date</th><th>Status</th><th>Duration</th></tr></thead>
             <tbody>
                 {% for entry in update_history %}
                 <tr>
                     <td><code>v{{ entry.from_version }}</code> → <code>v{{ entry.to_version }}</code></td>
-                    <td>{{ entry.created_at }}</td>
+                    <td>{{ entry.started_at }}</td>
                     <td><span class="op-badge op-badge-{{ entry.status == 'completed' ? 'success' : (entry.status == 'failed' ? 'danger' : 'warning') }}">{{ entry.status }}</span></td>
                     <td>{{ entry.duration ?? '—' }}s</td>
                 </tr>
@@ -65,7 +65,7 @@
                 <tr><td colspan="4" class="op-text-center">No update history.</td></tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
     </div>
 </div>
 
@@ -73,7 +73,7 @@
     <div class="op-card-header"><h3>Settings</h3></div>
     <div class="op-card-body">
         <form method="POST" action="/admin/system-update/settings" class="op-form">
-            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <div class="op-form-group">
                 <label class="op-checkbox-label"><input type="checkbox" name="auto_update" value="1" {{ auto_update ? 'checked' : '' }}>Enable Auto-Update (applies during 2-5 AM window)</label>
             </div>

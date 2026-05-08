@@ -5,9 +5,9 @@ declare(strict_types=1);
 namespace OwnPay\Repository;
 
 /**
- * Repository for op_idempotency_keys — API replay prevention.
+ * Repository for op_idempotency_keys â€” API replay prevention.
  */
-class IdempotencyRepository extends BaseRepository
+final class IdempotencyRepository extends BaseRepository
 {
     use TenantScope;
 
@@ -24,33 +24,27 @@ class IdempotencyRepository extends BaseRepository
      */
     public function findByKey(string $scope, string $key): ?array
     {
-        $tc = $this->tenantCondition();
-        return $this->findOneWhere(
-            '`scope` = :scope AND `idempotency_key` = :key' . $tc,
-            array_merge(['scope' => $scope, 'key' => $key], $this->tenantParams())
+        return $this->db->fetchOne(
+            "SELECT * FROM `{$this->table}` WHERE `scope` = :scope AND `idempotency_key` = :key AND `merchant_id` = :mid LIMIT 1",
+            ['scope' => $scope, 'key' => $key, 'mid' => $this->requireTenant()]
         );
     }
 
     /**
      * Store the response payload for a completed request.
      */
-    public function complete(int $id, string $responsePayload, int $httpStatus): int
+    public function complete(int|string $id, string $responsePayload, int $httpStatus): int
     {
-        $tc = $this->tenantCondition();
-        return $this->update(
-            [
-                'response_payload' => $responsePayload,
-                'http_status' => $httpStatus,
-                'status' => 'completed',
-            ],
-            '`id` = :where_id' . $tc,
-            array_merge(['where_id' => $id], $this->tenantParams())
-        );
+        return $this->updateScoped($id, [
+            'response_payload' => $responsePayload,
+            'http_status' => $httpStatus,
+            'status' => 'completed',
+        ]);
     }
 
     /**
      * Clean up expired keys (older than $hours).
-     * NOTE: This is a global housekeeping operation — no tenant scoping applied.
+     * NOTE: This is a global housekeeping operation â€” no tenant scoping applied.
      */
     public function cleanup(int $hours = 24): int
     {

@@ -1,0 +1,38 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Edit SMS Template — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Edit SMS Template</h1>
+    <div class="op-header-actions">
+        <a href="/admin/sms-center" class="op-btn op-btn-outline op-btn-sm">← Back to SMS Center</a>
+    </div>
+</div>
+
+<form method="POST" action="/admin/sms-center/{{ template.id }}/edit" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+    <div class="op-card">
+        <div class="op-card-header"><h3>{{ template.event ?? 'Template' }}</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-group">
+                <label>Event</label>
+                <input type="text" value="{{ template.event ?? '' }}" class="op-input" disabled>
+            </div>
+            <div class="op-form-group">
+                <label>Message Body</label>
+                <textarea name="body" rows="4" class="op-input">{{ template.body ?? '' }}</textarea>
+                <small class="op-text-muted">Variables: {customer_name}, {amount}, {currency}, {transaction_id}, {merchant_name}</small>
+            </div>
+            <div class="op-form-group">
+                <label class="op-checkbox-label">
+                    <input type="checkbox" name="enabled" value="1" {{ (template.enabled ?? 0) ? 'checked' : '' }}> Enabled
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-form-actions op-mt-4">
+        <button type="submit" class="op-btn op-btn-primary">Save Template</button>
+    </div>
+</form>
+{% endblock %}

@@ -3,39 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ app_name ?? 'Own Pay' }}</title>
-    <meta name="description" content="{{ landing_description ?? 'Self-hosted payment gateway platform' }}">
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>{{ app_name ?? 'Own Pay' }} | Next-Gen Payment Infrastructure</title>
+    <meta name="description" content="{{ landing_description ?? 'Self-hosted payment gateway platform with multi-brand support and SMS verification.' }}">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/landing.css">
-    {{ fire_hook('admin.landing.head')|raw }}
+    {{ hook('landing.head')|raw }}
 </head>
 <body class="op-landing">
-    {{ fire_hook('admin.landing.render')|raw }}
+    <!-- Ambient Background Elements -->
+    <div class="op-ambient-bg">
+        <div class="op-blob op-blob-1"></div>
+        <div class="op-blob op-blob-2"></div>
+    </div>
+
+    {{ hook('admin.landing.render')|raw }}
 
     <header class="op-landing-header">
         <nav class="op-landing-nav">
-            <div class="op-logo"><span class="op-logo-icon">OP</span><span>{{ app_name ?? 'Own Pay' }}</span></div>
-            <a href="/login" class="op-btn op-btn-primary">Login</a>
+            <a href="/" class="op-logo">
+                <span class="op-logo-icon">OP</span>
+                <span>{{ app_name ?? 'Own Pay' }}</span>
+            </a>
+            <a href="https://github.com/own-pay/ownpay" class="op-btn op-btn-outline" target="_blank" rel="external">GitHub</a>
         </nav>
     </header>
 
     <section class="op-hero">
-        <div class="op-hero-content">
-            <h1>{{ landing_title ?? 'Accept Payments Your Way' }}</h1>
-            <p>{{ landing_subtitle ?? 'Self-hosted payment gateway with SMS verification, multi-gateway support, and complete control over your payment infrastructure.' }}</p>
-            <div class="op-hero-actions">
-                <a href="/login" class="op-btn op-btn-primary op-btn-lg">Get Started</a>
-                {% if faq_enabled %}<a href="#faq" class="op-btn op-btn-outline op-btn-lg">Learn More</a>{% endif %}
+        <div class="op-hero-badge">v0.1.0 Multi-Brand Edition</div>
+        <h1>{{ landing_title ?? 'The Payment Gateway You Actually Own' }}</h1>
+        <p>{{ landing_subtitle ?? 'A fully self-hosted infrastructure. Process payments your way, eliminate third-party lock-in, and manage multiple brands from a single dashboard.' }}</p>
+        
+        <div class="op-hero-actions">
+            <a href="https://ownpay.org" class="op-btn op-btn-primary op-btn-lg" target="_blank" rel="external">Implemented Own Pay</a>
+            {% if faq_enabled %}
+                <a href="#faq" class="op-btn op-btn-outline op-btn-lg">View FAQs</a>
+            {% endif %}
+        </div>
+
+        <!-- Faux UI Preview to make it feel 'software-ey' -->
+        <div class="op-hero-preview" aria-hidden="true">
+            <div style="background: rgba(13,10,31,0.6); height: 300px; border-radius: 8px; display: flex; flex-direction: column; padding: 20px;">
+                <div style="display:flex; gap: 10px; margin-bottom: 20px;">
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56;"></div>
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e;"></div>
+                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f;"></div>
+                </div>
+                <div style="display: flex; gap: 20px; height: 100%;">
+                    <div style="width: 200px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 15px;">
+                        <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; margin-bottom: 15px;"></div>
+                        <div style="width: 80%; height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; margin-bottom: 10px;"></div>
+                        <div style="width: 90%; height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; margin-bottom: 10px;"></div>
+                    </div>
+                    <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
+                        <div style="display: flex; gap: 15px;">
+                            <div style="flex: 1; height: 80px; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 8px;"></div>
+                            <div style="flex: 1; height: 80px; background: rgba(112, 0, 255, 0.05); border: 1px solid rgba(112, 0, 255, 0.2); border-radius: 8px;"></div>
+                            <div style="flex: 1; height: 80px; background: rgba(255, 0, 127, 0.05); border: 1px solid rgba(255, 0, 127, 0.2); border-radius: 8px;"></div>
+                        </div>
+                        <div style="flex: 1; background: rgba(255,255,255,0.03); border-radius: 8px;"></div>
+                    </div>
+                </div>
             </div>
         </div>
     </section>
 
     {% if features|length > 0 %}
     <section class="op-features">
-        <h2>Features</h2>
+        <h2 class="op-section-title">Everything You Need to <span>Scale</span></h2>
         <div class="op-feature-grid">
-            {% for feat in features %}
+            {% for idx, feat in features %}
             <div class="op-feature-card">
+                <div class="op-feature-icon">
+                    {% if idx == 0 %}
+                        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3"/></svg>
+                    {% elseif idx == 1 %}
+                        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    {% elseif idx == 2 %}
+                        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    {% else %}
+                        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    {% endif %}
+                </div>
                 <h3>{{ feat.title }}</h3>
                 <p>{{ feat.description }}</p>
             </div>
@@ -46,10 +94,10 @@
 
     {% if faqs|length > 0 %}
     <section class="op-faq" id="faq">
-        <h2>FAQ</h2>
+        <h2 class="op-section-title">Frequently Asked <span>Questions</span></h2>
         <div class="op-faq-list">
             {% for faq in faqs %}
-            <details class="op-faq-item">
+            <details class="op-faq-item" name="faq-accordion">
                 <summary>{{ faq.question }}</summary>
                 <p>{{ faq.answer }}</p>
             </details>
@@ -59,7 +107,26 @@
     {% endif %}
 
     <footer class="op-landing-footer">
-        <p>&copy; {{ "now"|date("Y") }} {{ app_name ?? 'Own Pay' }}</p>
+        <div class="op-footer-content">
+            <div class="op-logo op-footer-logo">
+                <span class="op-logo-icon" style="width:32px;height:32px;font-size:14px;border-radius:8px;">OP</span>
+                <span>{{ app_name ?? 'Own Pay' }}</span>
+            </div>
+            <p class="op-footer-text">&copy; {{ "now"|date("Y") }} {{ app_name ?? 'Own Pay' }}. Self-hosted & Free.</p>
+        </div>
     </footer>
+
+    <script>
+        // Smooth hover effect for feature cards
+        document.querySelectorAll('.op-feature-card').forEach(card => {
+            card.addEventListener('mousemove', e => {
+                const rect = card.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                card.style.setProperty('--mouse-x', `${x}px`);
+                card.style.setProperty('--mouse-y', `${y}px`);
+            });
+        });
+    </script>
 </body>
 </html>

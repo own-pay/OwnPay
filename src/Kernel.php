@@ -9,7 +9,7 @@ use OwnPay\Http\Response;
 use OwnPay\Http\Router;
 
 /**
- * Application kernel — the central orchestrator.
+ * Application kernel â€” the central orchestrator.
  *
  * Boot sequence:
  *   1. Load .env (phpdotenv)
@@ -19,7 +19,7 @@ use OwnPay\Http\Router;
  *   5. Boot plugins (PluginLoader::boot)
  *   6. Fire 'system.boot' hook
  *   7. Load routes (config/routes/*.php + plugin routes)
- *   8. Match request → run middleware → dispatch controller
+ *   8. Match request â†’ run middleware â†’ dispatch controller
  *   9. Send response
  *  10. Fire 'system.shutdown' hook
  */
@@ -58,7 +58,7 @@ final class Kernel
     }
 
     /**
-     * Boot sequence: .env → container → timezone → middleware → plugins → routes.
+     * Boot sequence: .env â†’ container â†’ timezone â†’ middleware â†’ plugins â†’ routes.
      */
     private function boot(): void
     {
@@ -100,7 +100,7 @@ final class Kernel
                 $pluginLoader->boot();
             } catch (\Throwable $e) {
                 // Plugin boot failure must not crash the system
-                error_log('[OwnPay] Plugin boot error: ' . $e->getMessage());
+                $this->safeLog('Plugin boot error: ' . $e->getMessage(), 'error');
             }
         }
 
@@ -114,7 +114,7 @@ final class Kernel
     }
 
     /**
-     * Process a request: match → middleware → dispatch.
+     * Process a request: match â†’ middleware â†’ dispatch.
      */
     private function processRequest(Request $request): Response
     {
@@ -124,6 +124,28 @@ final class Kernel
         // Check install lock
         if (!$this->isInstalled() && !str_starts_with($request->path(), '/install')) {
             return Response::redirect('/install');
+        }
+
+        // Check maintenance mode â€” let /admin routes pass through for operators
+        $maintenanceLock = dirname(__DIR__) . '/storage/.maintenance';
+        if (file_exists($maintenanceLock) && !str_starts_with($request->path(), '/admin') && !str_starts_with($request->path(), '/login')) {
+            $info = json_decode(file_get_contents($maintenanceLock) ?: '{}', true);
+            $retryAfter = (int) ($info['retry_after'] ?? 300);
+            $reason     = $info['reason'] ?? 'System maintenance in progress. Please try again shortly.';
+            if ($request->expectsJson()) {
+                return Response::maintenance($reason, $retryAfter);
+            }
+            http_response_code(503);
+            header("Retry-After: {$retryAfter}");
+            // Try to render a Twig 503 template if available
+            if ($this->container->has(\Twig\Environment::class)) {
+                try {
+                    $twig = $this->container->get(\Twig\Environment::class);
+                    $html = $twig->render('error/503.twig', ['reason' => $reason, 'retry_after' => $retryAfter]);
+                    return Response::html($html, 503);
+                } catch (\Throwable) { /* fall through */ }
+            }
+            return Response::html("<h1>Maintenance</h1><p>{$reason}</p>", 503);
         }
 
         // Match route
@@ -216,8 +238,8 @@ final class Kernel
                     'path' => $request->path(),
                 ]);
                 return Response::html($html, 404);
-            } catch (\Throwable) {
-                // Template not found, fall through
+            } catch (\Throwable $e) {
+                $this->safeLog('404 template render failed: ' . $e->getMessage(), 'warning');
             }
         }
 
@@ -229,14 +251,14 @@ final class Kernel
      */
     private function handleException(\Throwable $e): void
     {
-        $debug = filter_var(getenv('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN);
+        $debug = filter_var($_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN);
 
-        error_log(sprintf(
-            '[OwnPay] Fatal: %s in %s:%d',
+        $this->safeLog(sprintf(
+            'Fatal: %s in %s:%d',
             $e->getMessage(),
             $e->getFile(),
             $e->getLine()
-        ));
+        ), 'critical');
 
         http_response_code(500);
         header('Content-Type: application/json; charset=UTF-8');
@@ -255,6 +277,23 @@ final class Kernel
                 'message' => 'Internal Server Error',
             ]);
         }
+    }
+
+    /**
+     * Log via PSR-3 Logger when available, fallback to error_log during early boot.
+     */
+    private function safeLog(string $message, string $level = 'error'): void
+    {
+        try {
+            if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
+                $logger = $this->container->get(\OwnPay\Service\System\Logger::class);
+                $logger->{$level}($message);
+                return;
+            }
+        } catch (\Throwable) {
+            // Logger not available yet
+        }
+        error_log("[OwnPay] {$message}");
     }
 
     /**

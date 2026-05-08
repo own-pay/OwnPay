@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Core;
 
-class RequestHelper
+final class RequestHelper
 {
     public static function getAuthorizationHeader(): ?string
     {

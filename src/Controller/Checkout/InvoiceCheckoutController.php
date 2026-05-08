@@ -6,31 +6,61 @@ namespace OwnPay\Controller\Checkout;
 use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Event\EventManager;
+use OwnPay\Repository\InvoiceRepository;
+use OwnPay\Repository\TransactionRepository;
+use Ramsey\Uuid\Uuid;
 
 final class InvoiceCheckoutController
 {
     private Container $c;
-    public function __construct(Container $c) { $this->c = $c; }
+    private EventManager $events;
+    private InvoiceRepository $invoiceRepo;
+    private TransactionRepository $txnRepo;
 
-    public function show(Request $req, string $invoiceNumber): Response
+    public function __construct(Container $c, EventManager $events, InvoiceRepository $invoiceRepo, TransactionRepository $txnRepo)
     {
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $invoice = $db->fetchOne("SELECT * FROM op_invoices WHERE invoice_number = :num AND status != 'paid'", ['num' => $invoiceNumber]);
+        $this->c           = $c;
+        $this->events      = $events;
+        $this->invoiceRepo = $invoiceRepo;
+        $this->txnRepo     = $txnRepo;
+    }
+
+    public function show(Request $req): Response
+    {
+        $invoiceNumber = (string) $req->param('token');
+        $invoice = $this->invoiceRepo->findUnpaidByNumber($invoiceNumber);
+        $twig = $this->c->get(\Twig\Environment::class);
+
         if (!$invoice) {
-            $twig = $this->c->get(\Twig\Environment::class);
-            return Response::html($twig->render('checkout/checkout-status.twig', ['status' => 'expired', 'txn' => []]));
+            $tpl = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
+            return Response::html($twig->render($tpl, ['status' => 'expired', 'txn' => []]));
         }
 
-        // Create transaction from invoice if needed, redirect to checkout
-        $txn = $db->fetchOne("SELECT trx_id FROM op_transactions WHERE invoice_id = :iid AND status = 'pending'", ['iid' => $invoice['id']]);
-        if ($txn) return Response::redirect("/checkout/{$txn['trx_id']}");
+        // Reuse existing pending transaction
+        $existingTxn = $this->invoiceRepo->findPendingTransaction($invoice['id']);
+        if ($existingTxn) {
+            return Response::redirect("/checkout/{$existingTxn['trx_id']}");
+        }
 
-        // Create new transaction
+        // Create new transaction with ALL required NOT NULL fields
         $trxId = 'TXN-' . strtoupper(bin2hex(random_bytes(8)));
-        $db->insert("INSERT INTO op_transactions (trx_id, merchant_id, invoice_id, amount, currency, status, created_at) VALUES (:trx, :mid, :iid, :amt, :cur, 'pending', NOW())", [
-            'trx' => $trxId, 'mid' => $invoice['merchant_id'], 'iid' => $invoice['id'],
-            'amt' => $invoice['total'], 'cur' => $invoice['currency'],
+        $total = (float) $invoice['total'];
+        $this->txnRepo->create([
+            'uuid'         => Uuid::uuid4()->toString(),
+            'trx_id'       => $trxId,
+            'merchant_id'  => $invoice['merchant_id'],
+            'payment_intent_id' => null,
+            'customer_id'  => $invoice['customer_id'] ?? null,
+            'gateway_slug' => 'invoice',
+            'amount'       => $total,
+            'net_amount'   => $total,
+            'currency'     => $invoice['currency'],
+            'method'       => 'invoice',
+            'status'       => 'pending',
+            'metadata'     => json_encode(['invoice_id' => $invoice['id'], 'invoice_number' => $invoice['invoice_number']]),
         ]);
+
         return Response::redirect("/checkout/{$trxId}");
     }
 }

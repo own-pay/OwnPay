@@ -3,13 +3,15 @@ declare(strict_types=1);
 
 namespace OwnPay\Event;
 
+use OwnPay\Service\System\Logger;
+
 /**
- * Hook/Filter event engine — sole event API for Own Pay.
+ * Hook/Filter event engine â€” sole event API for Own Pay.
  *
  * Actions: fire-and-forget callbacks.
  * Filters: pass data through callbacks, each can modify and return it.
  *
- * Every callback is wrapped in try/catch — a broken plugin never crashes the system.
+ * Every callback is wrapped in try/catch â€” a broken plugin never crashes the system.
  */
 final class EventManager
 {
@@ -26,7 +28,14 @@ final class EventManager
     /** @var array<string, int> Hook fire counters for debugging */
     private array $fireCounts = [];
 
-    // ─── Actions ───────────────────────────────────────────────
+    private ?Logger $logger = null;
+
+    public function setLogger(Logger $logger): void
+    {
+        $this->logger = $logger;
+    }
+
+    // â”€â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Register an action callback.
@@ -73,13 +82,13 @@ final class EventManager
         }
     }
 
-    // ─── Filters ───────────────────────────────────────────────
+    // â”€â”€â”€ Filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Register a filter callback.
      *
      * @param string   $hook     Filter name (e.g., 'payment.amount.calculate')
-     * @param callable $callback fn($value, ...$args): mixed — must return modified value
+     * @param callable $callback fn($value, ...$args): mixed â€” must return modified value
      * @param int      $priority Lower = earlier. Default 10.
      * @param string   $owner    Plugin slug or 'core'
      */
@@ -124,7 +133,7 @@ final class EventManager
         return $value;
     }
 
-    // ─── Removal ───────────────────────────────────────────────
+    // â”€â”€â”€ Removal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Remove all action/filter callbacks for a given hook.
@@ -160,7 +169,7 @@ final class EventManager
         unset($listeners);
     }
 
-    // ─── Introspection ─────────────────────────────────────────
+    // â”€â”€â”€ Introspection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Check if any callbacks are registered for a hook (action or filter).
@@ -198,7 +207,7 @@ final class EventManager
         return $hooks;
     }
 
-    // ─── Error Handling ────────────────────────────────────────
+    // â”€â”€â”€ Error Handling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private function logHookError(string $hook, string $owner, \Throwable $e): void
     {
@@ -210,6 +219,10 @@ final class EventManager
             $e->getFile(),
             $e->getLine()
         );
-        error_log($message);
+        if ($this->logger !== null) {
+            $this->logger->error($message);
+        } else {
+            error_log($message);
+        }
     }
 }

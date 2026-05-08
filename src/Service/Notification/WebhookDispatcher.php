@@ -4,11 +4,12 @@ declare(strict_types=1);
 namespace OwnPay\Service\Notification;
 
 use OwnPay\Core\Database;
-use OwnPay\Core\Logger;
+use OwnPay\Service\System\Logger;
 use OwnPay\Event\EventManager;
+use OwnPay\Support\DateHelper;
 
 /**
- * Outbound webhook dispatcher — sends signed POST to merchant webhook_url.
+ * Outbound webhook dispatcher â€” sends signed POST to merchant webhook_url.
  *
  * Universal for ALL gateway types (api, manual, bank).
  * HMAC-SHA256 signed. Retry with exponential backoff.
@@ -84,7 +85,7 @@ final class WebhookDispatcher
                 'phone' => $data['customer_phone'] ?? '',
             ],
             'metadata'       => $data['metadata'] ?? [],
-            'timestamp'      => date('c'),
+            'timestamp'      => DateHelper::iso(),
         ];
     }
 
@@ -212,6 +213,18 @@ final class WebhookDispatcher
                 'attempt' => $attempt,
                 'status' => $result['success'] ? 'delivered' : 'failed',
             ]
+        );
+    }
+
+    /**
+     * List recent webhook deliveries for merchant.
+     */
+    public function listDeliveries(int $merchantId, int $limit = 50): array
+    {
+        return $this->db->fetchAll(
+            "SELECT id, event, url, status_code, response_time_ms, attempt, status, created_at
+             FROM op_webhook_deliveries WHERE merchant_id = :mid ORDER BY created_at DESC LIMIT {$limit}",
+            ['mid' => $merchantId]
         );
     }
 }

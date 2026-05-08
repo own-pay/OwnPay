@@ -7,24 +7,28 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Payment\PaymentService;
+use OwnPay\Service\Payment\GatewayApiService;
+use OwnPay\Repository\TransactionRepository;
 use OwnPay\Event\EventManager;
 use OwnPay\Service\System\InputSanitizer;
 
 /**
- * Payment API — initiate and query payments.
+ * Payment API â€” initiate and query payments.
  * OWASP: Input validation, no PII in error responses.
  * PCI: Never logs/stores card data. Tokenized via gateway.
  */
 final class PaymentController
 {
     private Container $c;
-    private PaymentService $payments;
+    private GatewayApiService $gatewayApi;
+    private TransactionRepository $transactions;
     private EventManager $events;
 
-    public function __construct(Container $c, PaymentService $payments, EventManager $events)
+    public function __construct(Container $c, GatewayApiService $gatewayApi, TransactionRepository $transactions, EventManager $events)
     {
         $this->c = $c;
-        $this->payments = $payments;
+        $this->gatewayApi = $gatewayApi;
+        $this->transactions = $transactions;
         $this->events = $events;
     }
 
@@ -35,7 +39,7 @@ final class PaymentController
     public function initiate(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $body = $req->jsonBody();
+        $body = $req->json();
 
         // OWASP: Validate required fields
         $errors = [];
@@ -62,20 +66,24 @@ final class PaymentController
         $this->events->doAction('api.payment.before', $data);
 
         try {
-            $result = $this->payments->initiate($data);
-            $this->events->doAction('api.payment.initiated', $result);
+            $result = $this->gatewayApi->initiatePayment($mid, $body['gateway'], $data);
+            if (!$result['success']) {
+                throw new \InvalidArgumentException($result['error']);
+            }
+            $transaction = $result['transaction'];
+            $this->events->doAction('api.payment.initiated', $transaction);
             return Response::json([
                 'success'      => true,
-                'payment_id'   => $result['id'],
-                'trx_id'       => $result['trx_id'],
-                'checkout_url' => $result['checkout_url'] ?? null,
-                'status'       => $result['status'],
+                'payment_id'   => $transaction['id'],
+                'trx_id'       => $transaction['trx_id'],
+                'checkout_url' => $result['redirect_url'] ?? null,
+                'status'       => $transaction['status'],
             ], 201);
         } catch (\InvalidArgumentException $e) {
             return Response::json(['success' => false, 'error' => $e->getMessage()], 400);
         } catch (\Throwable $e) {
             // OWASP: Don't leak internal errors
-            $this->c->get(\OwnPay\Core\Logger::class)->error('Payment initiation failed', ['error' => $e->getMessage(), 'merchant' => $mid]);
+            $this->c->get(\OwnPay\Service\System\Logger::class)->error('Payment initiation failed', ['error' => $e->getMessage(), 'merchant' => $mid]);
             return Response::json(['success' => false, 'error' => 'Payment processing failed'], 500);
         }
     }
@@ -83,10 +91,11 @@ final class PaymentController
     /**
      * GET /api/v1/payments/{id}
      */
-    public function show(Request $req, int $id): Response
+    public function show(Request $req): Response
     {
+        $id = (int) $req->param('id');
         $mid = (int) $req->getAttribute('merchant_id');
-        $payment = $this->payments->findForMerchant($mid, $id);
+        $payment = $this->transactions->forTenant($mid)->findScoped($id);
 
         if ($payment === null) {
             return Response::json(['success' => false, 'error' => 'Payment not found'], 404);

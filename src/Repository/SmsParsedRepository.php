@@ -30,4 +30,15 @@ final class SmsParsedRepository extends BaseRepository
             'match_status' => 'matched',
         ]);
     }
+
+    /**
+     * List SMS data linked to a transaction.
+     */
+    public function listForTransaction(int $transactionId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE transaction_id = :tid",
+            ['tid' => $transactionId]
+        );
+    }
 }

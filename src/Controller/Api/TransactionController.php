@@ -10,7 +10,7 @@ use OwnPay\Repository\TransactionRepository;
 use OwnPay\Service\System\PaginationService;
 
 /**
- * Transaction API — list and show transactions.
+ * Transaction API â€” list and show transactions.
  * OWASP: Tenant-scoped queries, field whitelisting.
  */
 final class TransactionController
@@ -56,8 +56,9 @@ final class TransactionController
         ]);
     }
 
-    public function show(Request $req, int $id): Response
+    public function show(Request $req): Response
     {
+        $id = (int) $req->param('id');
         $mid = (int) $req->getAttribute('merchant_id');
         $txn = $this->txns->forTenant($mid)->findScoped($id);
 

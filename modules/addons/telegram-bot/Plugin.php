@@ -3,10 +3,10 @@ declare(strict_types=1);
 
 namespace OwnPay\Modules\Addons\TelegramBot;
 
+use OwnPay\Container;
 use OwnPay\Plugin\PluginInterface;
+use OwnPay\Plugin\Capability;
 use OwnPay\Event\EventManager;
-use OwnPay\Core\Logger;
-use OwnPay\Core\Database;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
@@ -17,28 +17,91 @@ use OwnPay\Http\Response;
 final class Plugin implements PluginInterface
 {
     private array $settings = [];
-    private ?Logger $logger = null;
-    private ?Database $db = null;
+    private ?Container $container = null;
 
-    public function register(EventManager $events): void
+    public static function metadata(): array
+    {
+        return [
+            'name'        => 'Telegram Bot',
+            'slug'        => 'telegram-bot',
+            'version'     => '1.0.0',
+            'description' => 'Telegram bot for transaction alerts and admin commands.',
+            'author'      => 'Own Pay',
+            'type'        => 'addon',
+        ];
+    }
+
+    public function capabilities(): array
+    {
+        return [Capability::NOTIFICATION, Capability::WEBHOOK];
+    }
+
+    public function register(EventManager $events, Container $container): void
     {
         $events->addAction('payment.transaction.completed', [$this, 'onCompleted'], 20);
         $events->addAction('payment.transaction.failed', [$this, 'onFailed'], 20);
     }
 
-    public function setSettings(array $s): void { $this->settings = $s; }
-    public function setLogger(Logger $l): void { $this->logger = $l; }
-    public function setDatabase(Database $db): void { $this->db = $db; }
+    public function boot(Container $container): void
+    {
+        $this->container = $container;
+        if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
+            $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
+            $this->settings = $repo->getGroup('plugin.telegram-bot');
+        }
+    }
+
+    public function deactivate(Container $container): void {}
+
+    public function uninstall(Container $container): void
+    {
+        if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
+            $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
+            $repo->deleteGroup('plugin.telegram-bot');
+        }
+    }
+
+    public function fields(): array
+    {
+        return [
+            [
+                'name'    => 'bot_token',
+                'label'   => 'Bot Token',
+                'type'    => 'password',
+                'default' => '',
+                'help'    => 'Get this from @BotFather on Telegram.',
+            ],
+            [
+                'name'    => 'chat_id',
+                'label'   => 'Chat ID',
+                'type'    => 'text',
+                'default' => '',
+                'help'    => 'Telegram chat ID for notifications. Use @userinfobot to find yours.',
+            ],
+            [
+                'name'    => 'alert_on_success',
+                'label'   => 'Alert on Successful Payment',
+                'type'    => 'toggle',
+                'default' => '1',
+            ],
+            [
+                'name'    => 'alert_on_failure',
+                'label'   => 'Alert on Failed Payment',
+                'type'    => 'toggle',
+                'default' => '1',
+            ],
+        ];
+    }
 
     public function onCompleted(array $txn): void
     {
-        if (!($this->settings['alert_on_success'] ?? true)) return;
+        if (empty($this->settings['alert_on_success']) || $this->settings['alert_on_success'] === '0') return;
         $this->sendMessage($this->formatAlert('✅ Payment Received', $txn));
     }
 
     public function onFailed(array $txn): void
     {
-        if (!($this->settings['alert_on_failure'] ?? true)) return;
+        if (empty($this->settings['alert_on_failure']) || $this->settings['alert_on_failure'] === '0') return;
         $this->sendMessage($this->formatAlert('❌ Payment Failed', $txn));
     }
 
@@ -60,7 +123,6 @@ final class Plugin implements PluginInterface
 
     /**
      * Webhook handler — /plugins/telegram-bot/webhook
-     * Processes commands: /status, /today, /recent
      */
     public function handleWebhook(Request $req): Response
     {
@@ -69,7 +131,6 @@ final class Plugin implements PluginInterface
         $text = trim($message['text'] ?? '');
         $chatId = (string) ($message['chat']['id'] ?? '');
 
-        // Verify chat ID matches configured
         if ($chatId !== ($this->settings['chat_id'] ?? '')) {
             return Response::json(['ok' => false], 403);
         }
@@ -94,37 +155,30 @@ final class Plugin implements PluginInterface
         $parts = explode(' ', $text, 2);
         $ref = trim($parts[1] ?? '');
         if ($ref === '') return '⚠️ Usage: /status TXN-ID';
+        if (!$this->container) return '⚠️ Not initialized';
 
-        if (!$this->db) return '⚠️ Database not available';
-        $txn = $this->db->fetchOne("SELECT trx_id, amount, currency, status, gateway, created_at FROM op_transactions WHERE trx_id = :ref", ['ref' => $ref]);
+        $db = $this->container->get(\OwnPay\Core\Database::class);
+        $txn = $db->fetchOne("SELECT trx_id, amount, currency, status, gateway, created_at FROM op_transactions WHERE trx_id = :ref", ['ref' => $ref]);
         if (!$txn) return "❌ Transaction `{$ref}` not found.";
 
-        return "📋 Transaction Status\n\n"
-            . "🆔 `{$txn['trx_id']}`\n"
-            . "💰 {$txn['currency']} {$txn['amount']}\n"
-            . "📊 Status: {$txn['status']}\n"
-            . "🏦 Gateway: {$txn['gateway']}\n"
-            . "🕐 {$txn['created_at']}";
+        return "📋 Transaction Status\n\n🆔 `{$txn['trx_id']}`\n💰 {$txn['currency']} {$txn['amount']}\n📊 Status: {$txn['status']}\n🏦 Gateway: {$txn['gateway']}\n🕐 {$txn['created_at']}";
     }
 
     private function cmdToday(): string
     {
-        if (!$this->db) return '⚠️ Database not available';
-        $stats = $this->db->fetchOne(
+        if (!$this->container) return '⚠️ Not initialized';
+        $db = $this->container->get(\OwnPay\Core\Database::class);
+        $stats = $db->fetchOne(
             "SELECT COUNT(*) as total, COALESCE(SUM(CASE WHEN status='completed' THEN amount ELSE 0 END),0) as revenue, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COUNT(CASE WHEN status='pending' THEN 1 END) as pending FROM op_transactions WHERE DATE(created_at) = CURDATE()"
         );
-
-        return "📊 Today's Summary\n\n"
-            . "📦 Total: {$stats['total']}\n"
-            . "✅ Completed: {$stats['completed']}\n"
-            . "⏳ Pending: {$stats['pending']}\n"
-            . "💰 Revenue: BDT {$stats['revenue']}";
+        return "📊 Today's Summary\n\n📦 Total: {$stats['total']}\n✅ Completed: {$stats['completed']}\n⏳ Pending: {$stats['pending']}\n💰 Revenue: BDT {$stats['revenue']}";
     }
 
     private function cmdRecent(): string
     {
-        if (!$this->db) return '⚠️ Database not available';
-        $txns = $this->db->fetchAll("SELECT trx_id, amount, currency, status, created_at FROM op_transactions ORDER BY created_at DESC LIMIT 5");
+        if (!$this->container) return '⚠️ Not initialized';
+        $db = $this->container->get(\OwnPay\Core\Database::class);
+        $txns = $db->fetchAll("SELECT trx_id, amount, currency, status FROM op_transactions ORDER BY created_at DESC LIMIT 5");
         if (empty($txns)) return '📭 No recent transactions.';
 
         $lines = ["📋 Last 5 Transactions\n"];
@@ -156,10 +210,5 @@ final class Plugin implements PluginInterface
         ]);
         curl_exec($ch);
         curl_close($ch);
-    }
-
-    public function getInfo(): array
-    {
-        return json_decode(file_get_contents(__DIR__ . '/manifest.json'), true) ?: [];
     }
 }

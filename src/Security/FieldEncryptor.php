@@ -18,7 +18,7 @@ final class FieldEncryptor
 
     public function __construct(?string $key = null)
     {
-        $this->key = $key ?? (getenv('ENCRYPTION_KEY') ?: '');
+        $this->key = $key ?? ($_ENV['ENCRYPTION_KEY'] ?? $_ENV['APP_KEY'] ?? (getenv('ENCRYPTION_KEY') ?: (getenv('APP_KEY') ?: '')));
         if ($this->key === '') {
             throw new \RuntimeException('ENCRYPTION_KEY not configured');
         }
@@ -27,7 +27,7 @@ final class FieldEncryptor
     }
 
     /**
-     * Encrypt plaintext → base64(iv + tag + ciphertext).
+     * Encrypt plaintext â†’ base64(iv + tag + ciphertext).
      */
     public function encrypt(string $plaintext): string
     {
@@ -54,7 +54,7 @@ final class FieldEncryptor
     }
 
     /**
-     * Decrypt base64(iv + tag + ciphertext) → plaintext.
+     * Decrypt base64(iv + tag + ciphertext) â†’ plaintext.
      */
     public function decrypt(string $encoded): string
     {
@@ -82,7 +82,7 @@ final class FieldEncryptor
         );
 
         if ($plaintext === false) {
-            throw new \RuntimeException('Decryption failed — data may be tampered');
+            throw new \RuntimeException('Decryption failed â€” data may be tampered');
         }
 
         return $plaintext;

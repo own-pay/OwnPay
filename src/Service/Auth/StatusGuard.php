@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\Auth;
 
+use OwnPay\Support\DateHelper;
+
 /**
- * Status guard — checks entity status for access control.
+ * Status guard â€” checks entity status for access control.
  */
 final class StatusGuard
 {
@@ -43,14 +45,14 @@ final class StatusGuard
         if (($apiKey['status'] ?? '') !== 'active') {
             return false;
         }
-        if (!empty($apiKey['expires_at']) && strtotime($apiKey['expires_at']) < time()) {
+        if (!empty($apiKey['expires_at']) && DateHelper::isPast($apiKey['expires_at'])) {
             return false;
         }
         return true;
     }
 
     /**
-     * Guard check — throws on inactive.
+     * Guard check â€” throws on inactive.
      * @throws \RuntimeException
      */
     public static function requireActive(array $entity, string $label = 'Entity'): void

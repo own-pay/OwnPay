@@ -3,7 +3,7 @@
     <div class="ck-fi">
         <div class="ck-brand">
             <div class="ck-brand-logo">
-                {% if brand.logo %}
+                {% if brand.logo is defined and brand.logo %}
                     <img src="{{ brand.logo }}" alt="" class="ck-brand-img">
                 {% else %}
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5EEAD4" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
@@ -24,7 +24,7 @@
             <div class="ck-item">
                 <div>
                     <p class="ck-item-name">{{ item.name ?? item.description ?? 'Payment' }}</p>
-                    {% if item.description %}<p class="ck-item-desc">{{ item.description }}</p>{% endif %}
+                    {% if item.description is defined and item.description %}<p class="ck-item-desc">{{ item.description }}</p>{% endif %}
                 </div>
                 <p class="ck-item-price">{{ txn.currency_symbol ?? '৳' }}{{ item.price|default(item.amount)|number_format(2) }}</p>
             </div>
@@ -32,7 +32,7 @@
             {% endfor %}
             <div class="ck-divider"></div>
             <div class="ck-row"><span class="ck-text-muted">{{ lang.subtotal ?? 'Subtotal' }}</span><span class="ck-text-mono">{{ txn.currency_symbol ?? '৳' }}{{ subtotal|number_format(2) }}</span></div>
-            {% if txn.tax_amount and txn.tax_amount > 0 %}
+            {% if txn.tax_amount|default(0) > 0 %}
             <div class="ck-row"><span class="ck-text-muted">{{ lang.vat ?? 'VAT' }}</span><span class="ck-text-mono">{{ txn.currency_symbol ?? '৳' }}{{ txn.tax_amount|number_format(2) }}</span></div>
             {% endif %}
         </div>

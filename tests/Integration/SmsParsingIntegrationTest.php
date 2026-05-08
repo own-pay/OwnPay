@@ -10,7 +10,7 @@ use OwnPay\Repository\SmsTemplateRepository;
 use OwnPay\Service\Sms\SmsParserService;
 use OwnPay\Service\Sms\SmsRegexParser;
 use OwnPay\Service\Sms\SmsHeuristicParser;
-use PHPUnit\Framework\TestCase;
+use Tests\Integration\IntegrationTestCase;
 
 /**
  * SmsParsingIntegrationTest — End-to-end integration test for the SMS parsing pipeline.
@@ -23,7 +23,7 @@ use PHPUnit\Framework\TestCase;
  *
  * @group Integration
  */
-final class SmsParsingIntegrationTest extends TestCase
+final class SmsParsingIntegrationTest extends IntegrationTestCase
 {
     private const AES_KEY_HEX = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
     private const TEST_DEVICE_UUID = 'integ-sms-test-' . '0000-0000';
@@ -35,11 +35,7 @@ final class SmsParsingIntegrationTest extends TestCase
 
     protected function setUp(): void
     {
-        $host = getenv('DB_HOST') ?: '127.0.0.1';
-        $name = getenv('DB_NAME') ?: 'ownpay_test';
-        $user = getenv('DB_USER') ?: 'root';
-        $pass = getenv('DB_PASS') ?: 'root';
-        Database::init($host, $name, $user, $pass);
+        parent::setUp(); // triggers DB-available skip check
 
         $this->templateRepo = new SmsTemplateRepository();
         $this->dataRepo = new SmsDataRepository();
@@ -52,6 +48,10 @@ final class SmsParsingIntegrationTest extends TestCase
 
     protected function tearDown(): void
     {
+        if (!static::$dbAvailable) {
+            return;
+        }
+
         // Clean up test data
         $pdo = Database::getInstance()->getPdo();
         $pdo->exec("DELETE FROM op_sms_parsed WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");

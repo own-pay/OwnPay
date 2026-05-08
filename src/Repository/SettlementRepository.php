@@ -18,22 +18,16 @@ final class SettlementRepository extends BaseRepository
      */
     public function findByMerchant(int $merchantId, int $limit = 20, int $offset = 0): array
     {
-        $tc = $this->tenantCondition();
-        $pdo = $this->db->getPdo();
-        $stmt = $pdo->prepare("
+        return $this->db->fetchAll("
             SELECT * FROM {$this->table}
-            WHERE merchant_id = :mid{$tc}
+            WHERE merchant_id = :mid
             ORDER BY created_at DESC
             LIMIT :lim OFFSET :off
-        ");
-        $stmt->bindValue(':mid', $merchantId, \PDO::PARAM_INT);
-        foreach ($this->tenantParams() as $k => $v) {
-            $stmt->bindValue($k, $v);
-        }
-        $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
-        $stmt->bindValue(':off', $offset, \PDO::PARAM_INT);
-        $stmt->execute();
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        ", [
+            'mid' => $merchantId,
+            'lim' => $limit,
+            'off' => $offset
+        ]);
     }
 
     /**
@@ -41,12 +35,10 @@ final class SettlementRepository extends BaseRepository
      */
     public function findByPublicId(string $publicId): ?array
     {
-        $tc = $this->tenantCondition();
-        $pdo = $this->db->getPdo();
-        $stmt = $pdo->prepare("SELECT * FROM {$this->table} WHERE public_id = :pid{$tc} LIMIT 1");
-        $stmt->execute(array_merge([':pid' => $publicId], $this->tenantParams()));
-        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return $row ?: null;
+        return $this->db->fetchOne("SELECT * FROM {$this->table} WHERE public_id = :pid AND merchant_id = :mid LIMIT 1", [
+            'pid' => $publicId,
+            'mid' => $this->requireTenant()
+        ]);
     }
 
     /**
@@ -54,10 +46,11 @@ final class SettlementRepository extends BaseRepository
      */
     public function updateStatus(int $id, string $status): void
     {
-        $tc = $this->tenantCondition();
-        $pdo = $this->db->getPdo();
-        $pdo->prepare("UPDATE {$this->table} SET status = :st, updated_at = NOW(6) WHERE id = :id{$tc}")
-            ->execute(array_merge([':st' => $status, ':id' => $id], $this->tenantParams()));
+        $this->db->execute("UPDATE {$this->table} SET status = :st, updated_at = NOW(6) WHERE id = :id AND merchant_id = :mid", [
+            'st' => $status,
+            'id' => $id,
+            'mid' => $this->requireTenant()
+        ]);
     }
 
     /**
@@ -65,10 +58,6 @@ final class SettlementRepository extends BaseRepository
      */
     public function countByMerchant(int $merchantId): int
     {
-        $tc = $this->tenantCondition();
-        $pdo = $this->db->getPdo();
-        $stmt = $pdo->prepare("SELECT COUNT(*) FROM {$this->table} WHERE merchant_id = :mid{$tc}");
-        $stmt->execute(array_merge([':mid' => $merchantId], $this->tenantParams()));
-        return (int) $stmt->fetchColumn();
+        return $this->db->count($this->table, "merchant_id = :mid", ['mid' => $merchantId]);
     }
 }

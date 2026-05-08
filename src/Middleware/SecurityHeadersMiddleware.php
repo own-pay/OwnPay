@@ -8,7 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Security headers middleware — adds all hardening headers.
+ * Security headers middleware â€” adds all hardening headers.
  *
  * Per OWASP configuration & headers rules.
  */
@@ -31,12 +31,12 @@ final class SecurityHeadersMiddleware
         $response->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
         $response->withHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
 
-        // HSTS — only on HTTPS
+        // HSTS â€” only on HTTPS
         if ($request->isSecure()) {
             $response->withHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        // CSP — strict policy, report-only in debug mode
+        // CSP â€” strict policy, report-only in debug mode
         $debug = $this->container->get('config.app')['debug'] ?? false;
         $cspHeader = $debug ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
         $csp = implode('; ', [

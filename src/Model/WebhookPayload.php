@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Model;
 
 /**
- * Immutable webhook payload — passed to gateway plugin listeners.
+ * Immutable webhook payload â€” passed to gateway plugin listeners.
  * Contains raw body for HMAC verification, parsed helpers for convenience.
  */
 final readonly class WebhookPayload
@@ -51,7 +51,7 @@ final readonly class WebhookPayload
     }
 
     /**
-     * SHA-256 hash of raw body — for idempotency / dedup.
+     * SHA-256 hash of raw body â€” for idempotency / dedup.
      */
     public function bodyHash(): string
     {

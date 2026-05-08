@@ -1,17 +1,20 @@
-{% extends "admin/base.twig" %}
+{% extends 'admin/layout/base.twig' %}
 
 {% block title %}Addons — {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
     <h1>Addons</h1>
-    <a href="{{ path('admin.plugins.install') }}" class="op-btn op-btn-primary">
+    <a href="/admin/plugins/install" class="op-btn op-btn-primary">
         <span class="op-icon">+</span> Install Addon
     </a>
 </div>
 
 {% if flash_success %}
 <div class="op-alert op-alert-success">{{ flash_success }}</div>
+{% endif %}
+{% if flash_error %}
+<div class="op-alert op-alert-danger">{{ flash_error }}</div>
 {% endif %}
 
 <div class="op-card">
@@ -20,7 +23,7 @@
         {% for addon in addons %}
         <div class="op-addon-item">
             <div class="op-addon-icon">
-                {% if addon.logo_path %}
+                {% if addon.logo_path is defined and addon.logo_path %}
                     <img src="{{ addon.logo_path }}" alt="{{ addon.name }}" width="48" height="48">
                 {% else %}
                     <div class="op-addon-icon-placeholder">{{ addon.name|first|upper }}</div>
@@ -43,14 +46,14 @@
             </div>
             <div class="op-addon-actions">
                 {% if addon.status == 'active' %}
-                    <a href="{{ path('admin.plugins.settings', {slug: addon.slug}) }}" class="op-btn op-btn-sm op-btn-outline">Settings</a>
-                    <form method="POST" action="{{ path('admin.plugins.deactivate', {slug: addon.slug}) }}" class="op-inline-form">
-                        {{ csrf_field() }}
+                    <a href="/admin/plugins/{{ addon.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Settings</a>
+                    <form method="POST" action="/admin/plugins/{{ addon.slug }}/deactivate" class="op-inline-form">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
                     </form>
                 {% else %}
-                    <form method="POST" action="{{ path('admin.plugins.activate', {slug: addon.slug}) }}" class="op-inline-form">
-                        {{ csrf_field() }}
+                    <form method="POST" action="/admin/plugins/{{ addon.slug }}/activate" class="op-inline-form">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                         <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
                     </form>
                 {% endif %}
@@ -59,7 +62,7 @@
         {% endfor %}
     </div>
     {% else %}
-        <p class="op-empty">No addons installed. <a href="{{ path('admin.plugins.install') }}">Install one</a>.</p>
+        <p class="op-empty">No addons installed. <a href="/admin/plugins/install">Install one</a>.</p>
     {% endif %}
 </div>
 {% endblock %}

@@ -10,7 +10,7 @@ use RuntimeException;
 /**
  * HTTP router with named parameters, middleware groups, and plugin route injection.
  *
- * Route format: METHOD /path/{param} → Controller@method
+ * Route format: METHOD /path/{param} â†’ Controller@method
  * Supports: GET, POST, PUT, DELETE, PATCH
  * Fires 'system.routes.register' hook to allow plugins to register routes.
  */
@@ -37,7 +37,7 @@ final class Router
         $this->container = $container;
     }
 
-    // ─── Route Registration ────────────────────────────────────
+    // â”€â”€â”€ Route Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function get(string $pattern, string $handler, string $middleware = 'web'): void
     {
@@ -97,7 +97,7 @@ final class Router
         ];
     }
 
-    // ─── Route Loading ─────────────────────────────────────────
+    // â”€â”€â”€ Route Loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Load route files and fire plugin hook.
@@ -138,7 +138,7 @@ final class Router
         $this->loaded = true;
     }
 
-    // ─── Dispatching ───────────────────────────────────────────
+    // â”€â”€â”€ Dispatching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Match and dispatch a request.
@@ -180,7 +180,7 @@ final class Router
     }
 
     /**
-     * Dispatch a matched route — instantiate controller and call method.
+     * Dispatch a matched route â€” instantiate controller and call method.
      *
      * @param string $handler Format: 'Namespace\\Controller@method'
      * @param Request $request
@@ -199,7 +199,7 @@ final class Router
             throw new RuntimeException("Controller class [{$fqcn}] not found.");
         }
 
-        $controller = new $fqcn($this->container);
+        $controller = $this->container->get($fqcn);
 
         if (!method_exists($controller, $methodName)) {
             throw new RuntimeException("Method [{$methodName}] not found on controller [{$fqcn}].");
@@ -225,7 +225,7 @@ final class Router
         throw new RuntimeException("Controller [{$fqcn}@{$methodName}] must return Response, array, or string.");
     }
 
-    // ─── Introspection ─────────────────────────────────────────
+    // â”€â”€â”€ Introspection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Get all registered routes (for debugging / documentation).

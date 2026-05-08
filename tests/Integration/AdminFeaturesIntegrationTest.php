@@ -8,7 +8,7 @@ use OwnPay\Core\Database;
 use OwnPay\Repository\SmsTemplateRepository;
 use OwnPay\Repository\SmsDataRepository;
 use OwnPay\Repository\MobileNotificationRepository;
-use PHPUnit\Framework\TestCase;
+use Tests\Integration\IntegrationTestCase;
 
 /**
  * AdminFeaturesIntegrationTest — Integration tests for Part 5 admin features.
@@ -21,7 +21,7 @@ use PHPUnit\Framework\TestCase;
  *
  * @group Integration
  */
-final class AdminFeaturesIntegrationTest extends TestCase
+final class AdminFeaturesIntegrationTest extends IntegrationTestCase
 {
     private const TEST_DEVICE_UUID = 'integ-admin-test-0000';
 
@@ -30,11 +30,7 @@ final class AdminFeaturesIntegrationTest extends TestCase
 
     protected function setUp(): void
     {
-        $host = getenv('DB_HOST') ?: '127.0.0.1';
-        $name = getenv('DB_NAME') ?: 'ownpay_test';
-        $user = getenv('DB_USER') ?: 'root';
-        $pass = getenv('DB_PASS') ?: 'root';
-        Database::init($host, $name, $user, $pass);
+        parent::setUp(); // triggers DB-available skip check
 
         $this->templateRepo = new SmsTemplateRepository();
         $this->dataRepo = new SmsDataRepository();
@@ -60,6 +56,10 @@ final class AdminFeaturesIntegrationTest extends TestCase
 
     protected function tearDown(): void
     {
+        if (!static::$dbAvailable) {
+            return;
+        }
+
         $pdo = Database::getInstance()->getPdo();
         $pdo->exec("DELETE FROM op_sms_parsed WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
         $pdo->exec("DELETE FROM op_mobile_notifications WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");

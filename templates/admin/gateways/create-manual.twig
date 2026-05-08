@@ -14,8 +14,8 @@
 </div>
 {% endif %}
 
-<form method="POST" action="/admin/gateways/create-manual" enctype="multipart/form-data" class="op-form">
-    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+<form method="POST" action="/admin/gateways/store-manual" enctype="multipart/form-data" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 
     <div class="op-card op-mb-4">
         <div class="op-card-header"><h3>Basic Info</h3></div>

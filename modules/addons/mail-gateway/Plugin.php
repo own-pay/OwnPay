@@ -3,9 +3,10 @@ declare(strict_types=1);
 
 namespace OwnPay\Modules\Addons\MailGateway;
 
+use OwnPay\Container;
 use OwnPay\Plugin\PluginInterface;
+use OwnPay\Plugin\Capability;
 use OwnPay\Event\EventManager;
-use OwnPay\Core\Logger;
 
 /**
  * Mail Gateway Addon — SMTP, Mailgun, SendGrid.
@@ -15,37 +16,153 @@ use OwnPay\Core\Logger;
 final class Plugin implements PluginInterface
 {
     private array $settings = [];
-    private ?Logger $logger = null;
-    private ?\Twig\Environment $twig = null;
 
-    public function register(EventManager $events): void
+    public static function metadata(): array
+    {
+        return [
+            'name'        => 'Mail Gateway',
+            'slug'        => 'mail-gateway',
+            'version'     => '1.0.0',
+            'description' => 'Send emails via SMTP, Mailgun, or SendGrid.',
+            'author'      => 'Own Pay',
+            'type'        => 'addon',
+        ];
+    }
+
+    public function capabilities(): array
+    {
+        return [Capability::ADDON];
+    }
+
+    public function register(EventManager $events, Container $container): void
     {
         $events->addAction('mail.send', [$this, 'send'], 10);
     }
 
-    public function setSettings(array $settings): void { $this->settings = $settings; }
-    public function setLogger(Logger $logger): void { $this->logger = $logger; }
-    public function setTwig(\Twig\Environment $twig): void { $this->twig = $twig; }
+    public function boot(Container $container): void
+    {
+        // Load saved settings
+        if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
+            $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
+            $this->settings = $repo->getGroup('plugin.mail-gateway');
+        }
+    }
+
+    public function deactivate(Container $container): void
+    {
+        // No cleanup needed
+    }
+
+    public function uninstall(Container $container): void
+    {
+        // Clear saved settings
+        if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
+            $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
+            $repo->deleteGroup('plugin.mail-gateway');
+        }
+    }
+
+    public function fields(): array
+    {
+        return [
+            [
+                'name'    => 'provider',
+                'label'   => 'Email Provider',
+                'type'    => 'select',
+                'default' => 'smtp',
+                'options' => ['smtp' => 'SMTP', 'mailgun' => 'Mailgun', 'sendgrid' => 'SendGrid'],
+                'help'    => 'Select your email delivery provider.',
+            ],
+            [
+                'name'    => 'from_email',
+                'label'   => 'From Email',
+                'type'    => 'email',
+                'default' => 'noreply@example.com',
+                'help'    => 'Sender email address for outgoing emails.',
+            ],
+            [
+                'name'    => 'from_name',
+                'label'   => 'From Name',
+                'type'    => 'text',
+                'default' => 'Own Pay',
+                'help'    => 'Sender display name.',
+            ],
+            [
+                'name'    => 'smtp_host',
+                'label'   => 'SMTP Host',
+                'type'    => 'text',
+                'default' => '',
+                'help'    => 'e.g., smtp.gmail.com, smtp.mailgun.org',
+            ],
+            [
+                'name'    => 'smtp_port',
+                'label'   => 'SMTP Port',
+                'type'    => 'number',
+                'default' => '587',
+                'help'    => 'Common ports: 587 (TLS), 465 (SSL), 25 (unsecured)',
+            ],
+            [
+                'name'    => 'smtp_user',
+                'label'   => 'SMTP Username',
+                'type'    => 'text',
+                'default' => '',
+            ],
+            [
+                'name'    => 'smtp_password',
+                'label'   => 'SMTP Password',
+                'type'    => 'password',
+                'default' => '',
+            ],
+            [
+                'name'    => 'smtp_encryption',
+                'label'   => 'SMTP Encryption',
+                'type'    => 'select',
+                'default' => 'tls',
+                'options' => ['tls' => 'TLS', 'ssl' => 'SSL', 'none' => 'None'],
+            ],
+            [
+                'name'    => 'mailgun_domain',
+                'label'   => 'Mailgun Domain',
+                'type'    => 'text',
+                'default' => '',
+                'help'    => 'Your Mailgun sending domain.',
+            ],
+            [
+                'name'    => 'mailgun_key',
+                'label'   => 'Mailgun API Key',
+                'type'    => 'password',
+                'default' => '',
+            ],
+            [
+                'name'    => 'sendgrid_key',
+                'label'   => 'SendGrid API Key',
+                'type'    => 'password',
+                'default' => '',
+            ],
+            [
+                'name'    => 'enabled',
+                'label'   => 'Enable Email Sending',
+                'type'    => 'toggle',
+                'default' => '1',
+                'help'    => 'Turn off to disable all outgoing emails.',
+            ],
+        ];
+    }
 
     /**
      * @param array{to: string, subject: string, template?: string, body?: string, data?: array} $payload
      */
     public function send(array $payload): array
     {
+        if (empty($this->settings['enabled']) || $this->settings['enabled'] === '0') {
+            return ['success' => false, 'error' => 'Email sending disabled'];
+        }
+
         $to = $payload['to'] ?? '';
         $subject = $payload['subject'] ?? '';
         if ($to === '' || $subject === '') return ['success' => false, 'error' => 'Missing to/subject'];
 
-        // Render template or use raw body
         $body = $payload['body'] ?? '';
-        if (!empty($payload['template']) && $this->twig) {
-            try {
-                $body = $this->twig->render("email/{$payload['template']}.twig", $payload['data'] ?? []);
-            } catch (\Throwable $e) {
-                $this->logger?->warning('Mail template render failed', ['template' => $payload['template']]);
-            }
-        }
-
         $provider = $this->settings['provider'] ?? 'smtp';
 
         try {
@@ -55,22 +172,15 @@ final class Plugin implements PluginInterface
                 default    => $this->sendSmtp($to, $subject, $body),
             };
         } catch (\Throwable $e) {
-            $this->logger?->error('Mail send failed', ['provider' => $provider, 'error' => $e->getMessage()]);
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
 
     private function sendSmtp(string $to, string $subject, string $body): array
     {
-        $host = $this->settings['smtp_host'] ?? '';
-        $port = (int) ($this->settings['smtp_port'] ?? 587);
-        $user = $this->settings['smtp_user'] ?? '';
-        $pass = $this->settings['smtp_password'] ?? '';
-        $encryption = $this->settings['smtp_encryption'] ?? 'tls';
         $fromEmail = $this->settings['from_email'] ?? 'noreply@example.com';
         $fromName = $this->settings['from_name'] ?? 'Own Pay';
 
-        // Use PHP's mail() as fallback, SMTP via socket for production
         $headers = [
             "From: {$fromName} <{$fromEmail}>",
             "Reply-To: {$fromEmail}",
@@ -101,7 +211,7 @@ final class Plugin implements PluginInterface
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        return ['success' => $httpCode >= 200 && $httpCode < 300, 'provider' => 'mailgun', 'response' => json_decode((string) $response, true)];
+        return ['success' => $httpCode >= 200 && $httpCode < 300, 'provider' => 'mailgun'];
     }
 
     private function sendSendGrid(string $to, string $subject, string $body): array
@@ -124,15 +234,10 @@ final class Plugin implements PluginInterface
             CURLOPT_HTTPHEADER => ['Content-Type: application/json', "Authorization: Bearer {$key}"],
             CURLOPT_TIMEOUT => 15,
         ]);
-        $response = curl_exec($ch);
+        curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
         return ['success' => $httpCode >= 200 && $httpCode < 300, 'provider' => 'sendgrid'];
-    }
-
-    public function getInfo(): array
-    {
-        return json_decode(file_get_contents(__DIR__ . '/manifest.json'), true) ?: [];
     }
 }

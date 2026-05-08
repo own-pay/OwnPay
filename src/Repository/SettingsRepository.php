@@ -58,4 +58,15 @@ final class SettingsRepository extends BaseRepository
             }
         });
     }
+
+    /**
+     * Delete all settings in a group (used by plugin uninstall).
+     */
+    public function deleteGroup(string $group): int
+    {
+        return $this->db->update(
+            "DELETE FROM {$this->table} WHERE group_name = :g",
+            ['g' => $group]
+        );
+    }
 }

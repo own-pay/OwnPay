@@ -8,7 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * IP allowlist middleware — restricts access to configured IPs.
+ * IP allowlist middleware â€” restricts access to configured IPs.
  *
  * Per OWASP: defense-in-depth for admin/API routes.
  * Supports IPv4, IPv6, CIDR notation.

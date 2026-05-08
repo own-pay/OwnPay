@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Plugin;
 
 /**
- * Plugin sandbox — restricts what plugins can access.
+ * Plugin sandbox â€” restricts what plugins can access.
  *
  * Per security skill: plugins cannot access raw DB, filesystem outside their dir,
  * or core internals directly. They interact through provided APIs only.
@@ -27,7 +27,7 @@ final class PluginSandbox
     {
         $real = realpath($path);
         if ($real === false) {
-            // File doesn't exist yet — check parent
+            // File doesn't exist yet â€” check parent
             $real = realpath(dirname($path));
             if ($real === false) {
                 return false;
@@ -45,7 +45,7 @@ final class PluginSandbox
     }
 
     /**
-     * Validate SQL — plugins can only use whitelisted table prefixes.
+     * Validate SQL â€” plugins can only use whitelisted table prefixes.
      * Prevents direct access to core tables.
      */
     public function validateSql(string $sql): bool
@@ -62,7 +62,7 @@ final class PluginSandbox
 
         // Plugins can only access op_plugin_* tables or their own prefixed tables
         if (preg_match_all('/\bop_(?!plugin)[a-z_]+\b/', $sql, $matches)) {
-            // Accessing core tables directly — blocked
+            // Accessing core tables directly â€” blocked
             return false;
         }
 
@@ -70,7 +70,7 @@ final class PluginSandbox
     }
 
     /**
-     * Validate function call — block dangerous PHP functions.
+     * Validate function call â€” block dangerous PHP functions.
      */
     public static function isDangerousFunction(string $function): bool
     {

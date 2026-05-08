@@ -8,7 +8,7 @@
     function getCsrfToken() {
         const meta = document.querySelector('meta[name="csrf-token"]');
         if (meta) return meta.getAttribute('content');
-        const input = document.querySelector('input[name="_csrf"]');
+        const input = document.querySelector('input[name="_csrf_token"]');
         return input ? input.value : '';
     }
 

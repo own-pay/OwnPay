@@ -8,7 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Maintenance mode middleware — returns 503 when maintenance lock active.
+ * Maintenance mode middleware â€” returns 503 when maintenance lock active.
  * Checks op_maintenance_locks table.
  */
 final class MaintenanceMiddleware
@@ -24,6 +24,16 @@ final class MaintenanceMiddleware
     {
         // Skip for install route
         if (str_starts_with($request->path(), '/install')) {
+            return $next($request);
+        }
+
+        // Skip for admin routes when authenticated (allows disabling maintenance from admin)
+        if (str_starts_with($request->path(), '/admin') && !empty($_SESSION['auth_user_id'])) {
+            return $next($request);
+        }
+
+        // Skip for /admin/system-update route even without session (escape hatch)
+        if ($request->path() === '/admin/system-update') {
             return $next($request);
         }
 

@@ -1,0 +1,51 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Ledger — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Ledger & Accounting</h1>
+    <div class="op-header-actions">
+        <div class="op-stats-badge">Current Balance: <strong>{{ current_balance }} BDT</strong></div>
+    </div>
+</div>
+
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Reference</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Description</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in ledger.items %}
+                    <tr>
+                        <td>{{ item.created_at|date("M d, Y H:i") }}</td>
+                        <td><code>{{ item.reference_id }}</code><br><small>{{ item.reference_type }}</small></td>
+                        <td><span class="op-badge op-badge-{{ item.event_type == 'payment_received' ? 'success' : 'warning' }}">{{ item.event_type|replace({'_': ' '})|capitalize }}</span></td>
+                        <td><strong>{{ item.currency }} {{ item.total_amount }}</strong></td>
+                        <td>{{ item.status|capitalize }}</td>
+                        <td>{{ item.description }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="op-text-center">No ledger entries found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if ledger.total_pages > 1 %}
+<nav class="op-pagination">
+    {% if ledger.page > 1 %}<a href="?page={{ ledger.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ ledger.page }} of {{ ledger.total_pages }}</span>
+    {% if ledger.page < ledger.total_pages %}<a href="?page={{ ledger.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

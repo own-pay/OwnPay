@@ -26,14 +26,15 @@ final class ApiKeyController
     public function generate(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $label = $req->jsonBody()['label'] ?? 'Default';
+        $label = $req->json()['label'] ?? 'Default';
         $key = $this->keys->generate($mid, $label);
         // PCI: Show key only once
         return Response::json(['success' => true, 'key' => $key['key'], 'id' => $key['id'], 'warning' => 'Store this key securely. It cannot be retrieved again.'], 201);
     }
 
-    public function revoke(Request $req, int $id): Response
+    public function revoke(Request $req): Response
     {
+        $id = (int) $req->param('id');
         $mid = (int) $req->getAttribute('merchant_id');
         $this->keys->revoke($mid, $id);
         return Response::json(['success' => true, 'message' => 'Key revoked']);

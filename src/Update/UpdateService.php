@@ -8,10 +8,10 @@ use OwnPay\Repository\UpdateHistoryRepository;
 use OwnPay\Service\System\EnvironmentService;
 
 /**
- * Update service — full 9-step update flow with rollback.
+ * Update service â€” full 9-step update flow with rollback.
  *
- * Steps: 1.check → 2.backup → 3.maintenance ON → 4.download →
- *        5.extract → 6.migrate → 7.clear_cache → 8.health_check → 9.maintenance OFF
+ * Steps: 1.check â†’ 2.backup â†’ 3.maintenance ON â†’ 4.download â†’
+ *        5.extract â†’ 6.migrate â†’ 7.clear_cache â†’ 8.health_check â†’ 9.maintenance OFF
  *
  * Fires: update.before, update.after, update.failed, update.rollback
  * Per security skill: verify package signature, integrity check.
@@ -46,26 +46,28 @@ final class UpdateService
     public function check(): array
     {
         $currentVersion = EnvironmentService::version();
-        $updateUrl = getenv('UPDATE_CHECK_URL') ?: 'https://updates.ownpay.dev/api/v1/check';
+        $updateUrl = getenv('UPDATE_CHECK_URL') ?: 'https://update.ownpay.org/update.json';
 
         try {
             $ch = curl_init($updateUrl . '?v=' . urlencode($currentVersion));
             curl_setopt_array($ch, [
                 CURLOPT_RETURNTRANSFER => true,
-                CURLOPT_TIMEOUT        => 10,
+                CURLOPT_TIMEOUT        => 3,
+                CURLOPT_CONNECTTIMEOUT => 3,
                 CURLOPT_HTTPHEADER     => ['Accept: application/json'],
             ]);
             $response = curl_exec($ch);
             $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlError = curl_error($ch);
             curl_close($ch);
 
-            if ($httpCode !== 200 || $response === false) {
-                return ['available' => false];
+            if ($response === false || $httpCode !== 200) {
+                return ['available' => false, 'error' => 'connection_failed', 'message' => $curlError ?: "HTTP {$httpCode}"];
             }
 
             $data = json_decode($response, true);
             if (!is_array($data) || !isset($data['version'])) {
-                return ['available' => false];
+                return ['available' => false, 'error' => 'invalid_response'];
             }
 
             $hasUpdate = version_compare($data['version'], $currentVersion, '>');
@@ -80,8 +82,8 @@ final class UpdateService
                 'changelog' => $data['changelog'] ?? null,
             ];
 
-        } catch (\Throwable) {
-            return ['available' => false];
+        } catch (\Throwable $e) {
+            return ['available' => false, 'error' => 'connection_failed', 'message' => $e->getMessage()];
         }
     }
 

@@ -6,9 +6,10 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\PaymentIntentRepository;
 use Ramsey\Uuid\Uuid;
+use OwnPay\Support\DateHelper;
 
 /**
- * Payment service — creates and manages payment intents.
+ * Payment service â€” creates and manages payment intents.
  *
  * Fires: payment.intent.created, payment.intent.expired, payment.amount.calculate
  */
@@ -61,7 +62,7 @@ final class PaymentService
         }
 
         // Check expiry
-        if ($intent['status'] === 'pending' && strtotime($intent['expires_at']) < time()) {
+        if ($intent['status'] === 'pending' && DateHelper::isPast($intent['expires_at'])) {
             $this->intents->forTenant((int) $intent['merchant_id'])
                 ->updateScoped((int) $intent['id'], ['status' => 'expired']);
             $intent['status'] = 'expired';

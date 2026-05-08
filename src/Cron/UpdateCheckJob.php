@@ -4,9 +4,10 @@ declare(strict_types=1);
 namespace OwnPay\Cron;
 
 use OwnPay\Update\UpdateService;
+use OwnPay\Support\DateHelper;
 
 /**
- * Update check cron job — runs daily, triggers update during night window.
+ * Update check cron job â€” runs daily, triggers update during night window.
  */
 final class UpdateCheckJob
 {
@@ -29,7 +30,7 @@ final class UpdateCheckJob
         }
 
         $autoUpdate = (getenv('AUTO_UPDATE') ?: 'false') === 'true';
-        $hour = (int) date('G');
+        $hour = DateHelper::currentHour();
         $inNightWindow = ($hour >= 2 && $hour <= 5);
 
         if ($autoUpdate && $inNightWindow && !empty($check['url'])) {

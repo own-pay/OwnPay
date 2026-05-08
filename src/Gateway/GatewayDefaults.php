@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Gateway;
 
 /**
- * Gateway defaults trait — provides sensible defaults for GatewayAdapterInterface.
+ * Gateway defaults trait â€” provides sensible defaults for GatewayAdapterInterface.
  *
  * API gateways override: initiate(), verify()
  * All gateways can progressively add refund() and supports() capabilities.

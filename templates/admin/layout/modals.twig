@@ -12,7 +12,7 @@
         <div class="op-modal-footer">
             <button type="button" class="op-btn op-btn-outline" onclick="closeModal('confirm-delete-modal')">Cancel</button>
             <form method="POST" id="delete-form" class="op-inline">
-                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="_method" value="DELETE">
                 <button type="submit" class="op-btn op-btn-danger">Delete</button>
             </form>

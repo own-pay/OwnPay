@@ -21,8 +21,8 @@
             <div class="op-alert op-alert-danger">{{ error }}</div>
             {% endif %}
 
-            <form method="POST" action="/2fa/verify" class="op-form">
-                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <form method="POST" action="/2fa" class="op-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <div class="op-form-group">
                     <label for="code">Verification Code</label>
                     <input type="text" id="code" name="code" class="op-input op-input-lg op-text-center" 
@@ -35,7 +35,7 @@
 
             <div class="op-auth-footer">
                 <form method="POST" action="/logout" class="op-inline">
-                    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="op-link op-btn-link">Cancel & Logout</button>
                 </form>
             </div>

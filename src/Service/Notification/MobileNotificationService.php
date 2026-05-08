@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\Notification;
 
+use OwnPay\Support\DateHelper;
+
 /**
- * Mobile notification service — sends push notifications to paired devices.
+ * Mobile notification service â€” sends push notifications to paired devices.
  */
 final class MobileNotificationService
 {
@@ -84,7 +86,7 @@ final class MobileNotificationService
         if (file_exists($file)) {
             $queue = json_decode(file_get_contents($file) ?: '[]', true) ?: [];
         }
-        $payload['queued_at'] = date('Y-m-d H:i:s');
+        $payload['queued_at'] = DateHelper::now();
         $queue[] = $payload;
         file_put_contents($file, json_encode($queue));
     }

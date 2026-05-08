@@ -1,0 +1,27 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Brands — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Brands</h1>
+    <a href="/admin/brands/create" class="op-btn op-btn-primary">+ Add Brand</a>
+</div>
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>ID</th><th>Business</th><th>Domain</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for m in brand_list %}
+                <tr>
+                    <td>{{ m.id }}</td>
+                    <td><strong>{{ m.name }}</strong></td>
+                    <td><code>{{ m.domain ?? '—' }}</code></td>
+                    <td><span class="op-badge op-badge-{{ m.status == 'active' ? 'success' : 'muted' }}">{{ m.status }}</span></td>
+                    <td>{{ m.created_at|date("M d, Y") }}</td>
+                    <td><a href="/admin/brands/{{ m.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% endblock %}

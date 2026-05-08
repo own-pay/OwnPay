@@ -9,7 +9,7 @@ use OwnPay\Repository\DevicePairingTokenRepository;
 use OwnPay\Repository\PairedDeviceRepository;
 use OwnPay\Service\Device\DevicePairingService;
 use OwnPay\Service\Auth\JwtService;
-use PHPUnit\Framework\TestCase;
+use Tests\Integration\IntegrationTestCase;
 
 /**
  * Integration test: Full device pairing lifecycle against live DB.
@@ -18,7 +18,7 @@ use PHPUnit\Framework\TestCase;
  *
  * Requires: DB tables from migration 008_mobile_companion_tables.sql
  */
-class DevicePairingIntegrationTest extends TestCase
+class DevicePairingIntegrationTest extends IntegrationTestCase
 {
     private DevicePairingService $pairingService;
     private PairedDeviceRepository $deviceRepo;
@@ -30,14 +30,7 @@ class DevicePairingIntegrationTest extends TestCase
 
     protected function setUp(): void
     {
-        // Bootstrap DB connection
-        $host = $_ENV['DB_HOST'] ?? 'localhost';
-        $name = $_ENV['DB_NAME'] ?? 'ownpay_test';
-        $user = $_ENV['DB_USER'] ?? 'root';
-        $pass = $_ENV['DB_PASS'] ?? 'root';
-        $port = (int) ($_ENV['DB_PORT'] ?? 3306);
-
-        Database::init($host, $name, $user, $pass, $port);
+        parent::setUp(); // triggers DB-available skip check
 
         $this->tokenRepo = new DevicePairingTokenRepository();
         $this->deviceRepo = new PairedDeviceRepository();
@@ -52,6 +45,10 @@ class DevicePairingIntegrationTest extends TestCase
 
     protected function tearDown(): void
     {
+        if (!static::$dbAvailable) {
+            return;
+        }
+
         // Clean up test data
         $pdo = Database::getInstance()->getPdo();
 

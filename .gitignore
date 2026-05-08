@@ -32,13 +32,18 @@ Thumbs.db
 *.swo
 
 # Installer lock file (generated at runtime)
-app/install/.installed
+storage/.installed
 
 # Agent/AI tool configuration
 .claude/
 .gemini/
 .agents/skills/*/scripts/__pycache__/
+.superpowers
+graphify-out/
 
 # Build artifacts
 public/assets/build/
 *.map
+storage/cache/*
+storage/logs/*
+

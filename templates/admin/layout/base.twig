@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="dark" id="html-root">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,8 +8,11 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/admin.css">
+    <script>/* Prevent FOUC: apply saved theme before paint */
+    (function(){var t=localStorage.getItem('op-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}})();
+    </script>
     {% block head %}{% endblock %}
-    {{ fire_hook('admin.head')|raw }}
+    {{ hook('admin.head')|raw }}
 </head>
 <body class="op-admin">
     <div class="op-layout">
@@ -19,13 +22,13 @@
             {% include 'admin/layout/navbar.twig' %}
 
             <main class="op-content">
-                {% if flash_success %}
+                {% if flash_success is defined and flash_success %}
                 <div class="op-alert op-alert-success op-alert-dismissible">
                     {{ flash_success }}
                     <button type="button" class="op-alert-close" onclick="this.parentElement.remove()">×</button>
                 </div>
                 {% endif %}
-                {% if flash_error %}
+                {% if flash_error is defined and flash_error %}
                 <div class="op-alert op-alert-danger op-alert-dismissible">
                     {{ flash_error }}
                     <button type="button" class="op-alert-close" onclick="this.parentElement.remove()">×</button>
@@ -43,6 +46,6 @@
 
     <script src="/assets/js/admin.js"></script>
     {% block scripts %}{% endblock %}
-    {{ fire_hook('admin.footer')|raw }}
+    {{ hook('admin.footer')|raw }}
 </body>
 </html>

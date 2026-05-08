@@ -8,7 +8,7 @@ use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\TransactionRepository;
 
 /**
- * SMS verification job — matches parsed SMS to pending transactions.
+ * SMS verification job â€” matches parsed SMS to pending transactions.
  *
  * Fires: mobile.sms.matched
  */
@@ -29,7 +29,7 @@ final class SmsVerificationJob
     }
 
     /**
-     * Run matching cycle — find unmatched SMS and try to link to transactions.
+     * Run matching cycle â€” find unmatched SMS and try to link to transactions.
      */
     public function run(): array
     {
