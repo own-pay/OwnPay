@@ -247,12 +247,14 @@ small { color: var(--op-text-dim); font-size: 0.8rem; }
 .op-gateway-card { display: flex; align-items: center; gap: 16px; padding: 16px; border: 1px solid var(--op-border); border-radius: var(--op-radius-lg); transition: all var(--op-transition); }
 .op-gateway-card:hover { border-color: var(--op-primary); box-shadow: 0 2px 12px rgba(108,92,231,0.1); }
 .op-gateway-active { border-left: 3px solid var(--op-success); }
+.op-gateway-installed { border-left: 3px solid var(--op-info); }
 .op-gateway-inactive { opacity: 0.6; }
 .op-gateway-logo img { width: 48px; height: 48px; border-radius: var(--op-radius); object-fit: contain; }
 .op-gateway-icon { width: 48px; height: 48px; background: var(--op-bg-input); border-radius: var(--op-radius); display: flex; align-items: center; justify-content: center; font-weight: 700; color: var(--op-primary); }
-.op-gateway-info { flex: 1; }
+.op-gateway-info { flex: 1; min-width: 0; }
 .op-gateway-info h4 { font-size: 0.95rem; margin-bottom: 4px; }
-.op-gateway-actions { flex-shrink: 0; }
+.op-gateway-actions { flex-shrink: 0; display: flex; gap: 6px; align-items: center; }
+.op-nowrap { white-space: nowrap; }
 
 /* ========================= FOOTER ========================= */
 .op-footer { padding: 16px 24px; border-top: 1px solid var(--op-border); display: flex; justify-content: space-between; font-size: 0.8rem; color: var(--op-text-dim); }

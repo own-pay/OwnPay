@@ -2,23 +2,18 @@
 .env
 .env.*
 !.env.example
-op-config.php
-op-temp-config.php
 
 # PHPUnit cache
 .phpunit.cache/
-
-# Logs
-logs/
-!logs/.gitignore
 
 # Debug / test artifacts
 cookie.txt
 test_*.php
 check_db.php
+phpstan_report*.txt
+phpstan_results.json
 
 # Dependencies
-node_modules/
 vendor/
 
 # OS files
@@ -41,9 +36,10 @@ storage/.installed
 .superpowers
 graphify-out/
 
-# Build artifacts
-public/assets/build/
-*.map
+# Runtime storage (keep structure, ignore contents)
 storage/cache/*
 storage/logs/*
-
+storage/pdf/*
+storage/sessions/*
+storage/backups/*
+!storage/*/.gitkeep

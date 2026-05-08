@@ -125,9 +125,15 @@ final class InvoiceService
         $discount = (float) ($data['discount'] ?? 0);
         $total    = $subtotal + $tax - $discount;
 
+        $status = $data['status'] ?? 'draft';
+        $allowedStatuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
+        if (!in_array($status, $allowedStatuses, true)) {
+            $status = 'draft';
+        }
+
         $this->db->update(
-            "UPDATE op_invoices SET customer_id = :cust, subtotal = :sub, tax = :tax, discount = :dis, total = :total, currency = :cur, notes = :notes, due_date = :due, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
-            ['cust' => $data['customer_id'] ?? null, 'sub' => $subtotal, 'tax' => $tax, 'dis' => $discount, 'total' => $total, 'cur' => $data['currency'] ?? 'BDT', 'notes' => $data['notes'] ?? null, 'due' => $data['due_date'] ?? null, 'id' => $id, 'mid' => $merchantId]
+            "UPDATE op_invoices SET customer_id = :cust, subtotal = :sub, tax = :tax, discount = :dis, total = :total, currency = :cur, notes = :notes, due_date = :due, status = :status, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
+            ['cust' => $data['customer_id'] ?? null, 'sub' => $subtotal, 'tax' => $tax, 'dis' => $discount, 'total' => $total, 'cur' => $data['currency'] ?? 'BDT', 'notes' => $data['notes'] ?? null, 'due' => $data['due_date'] ?? null, 'status' => $status, 'id' => $id, 'mid' => $merchantId]
         );
 
         return $this->find($merchantId, $id) ?? [];

@@ -38,6 +38,16 @@
                     <label>Notes</label>
                     <textarea name="notes" rows="3" class="op-input">{{ invoice.notes ?? '' }}</textarea>
                 </div>
+                {% if invoice is not empty and invoice.id is defined and invoice.id %}
+                <div class="op-form-group">
+                    <label>Status</label>
+                    <select name="status" class="op-input">
+                        {% for s in ['draft','sent','paid','overdue','cancelled'] %}
+                            <option value="{{ s }}" {{ (invoice.status ?? 'draft') == s ? 'selected' : '' }}>{{ s|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
             </div>
         </div>
         <div class="op-card">
