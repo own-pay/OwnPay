@@ -1,6 +1,7 @@
 # Dependencies
 vendor/
 node_modules/
+docs/
 
 # IDE & OS
 .idea/
