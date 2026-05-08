@@ -13,23 +13,21 @@
     </div>
 </div>
 
-{# Flash handled by base.twig layout #}
-
 {# --- API Gateways (Plugin-based) --- #}
 <div class="op-card op-mb-4">
     <div class="op-card-header">
         <h3>API Gateways</h3>
-        <span class="op-badge op-badge-info">{{ api_gateways|length }} installed</span>
+        <span class="op-badge op-badge-info">{{ api_gateways|length }} available</span>
     </div>
     <div class="op-card-body">
         {% if api_gateways|length == 0 %}
             <div class="op-empty-state">
-                <p>No API gateways installed. Install gateway plugins from the <a href="/admin/plugins">Plugin Store</a>.</p>
+                <p>No API gateways found. Install gateway plugins from the <a href="/admin/plugins">Plugin Store</a>.</p>
             </div>
         {% else %}
             <div class="op-gateway-grid">
                 {% for gw in api_gateways %}
-                <div class="op-gateway-card {{ gw.status == 'active' ? 'op-gateway-active' : 'op-gateway-inactive' }}">
+                <div class="op-gateway-card {% if gw.status == 'active' %}op-gateway-active{% elseif gw.status == 'installed' %}op-gateway-installed{% else %}op-gateway-inactive{% endif %}">
                     <div class="op-gateway-logo">
                         {% if gw.logo is defined and gw.logo %}
                             <img src="{{ gw.logo }}" alt="{{ gw.name }}" loading="lazy">
@@ -39,32 +37,36 @@
                     </div>
                     <div class="op-gateway-info">
                         <h4>{{ gw.name }}</h4>
-                        <span class="op-badge {{ gw.status == 'active' ? 'op-badge-success' : 'op-badge-muted' }}">
-                            {{ gw.status }}
-                        </span>
-                        {% if gw.mode is defined %}
-                            <span class="op-badge op-badge-{{ gw.mode == 'live' ? 'primary' : 'warning' }}">{{ gw.mode }}</span>
+                        {% if gw.status == 'active' %}
+                            <span class="op-badge op-badge-success">active</span>
+                            {% if gw.mode %}<span class="op-badge op-badge-{{ gw.mode == 'live' ? 'primary' : 'warning' }}">{{ gw.mode }}</span>{% endif %}
+                        {% elseif gw.status == 'installed' %}
+                            <span class="op-badge op-badge-info">installed</span>
+                        {% elseif gw.status == 'inactive' %}
+                            <span class="op-badge op-badge-muted">inactive</span>
+                        {% else %}
+                            <span class="op-badge op-badge-muted">not installed</span>
                         {% endif %}
                     </div>
                     <div class="op-gateway-actions">
                         {% if gw.status == 'uninstalled' %}
                             <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
                                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
+                                <button type="submit" class="op-btn op-btn-sm op-btn-success">Install</button>
+                            </form>
+                        {% elseif gw.status == 'installed' %}
+                            <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
+                        {% elseif gw.status == 'active' %}
+                            <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
+                            <form method="POST" action="/admin/plugins/{{ gw.slug }}/deactivate" class="op-inline-form">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
                             </form>
                         {% else %}
-                            <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
-                            {% if gw.status == 'active' %}
-                                <form method="POST" action="/admin/plugins/{{ gw.slug }}/deactivate" class="op-inline-form">
-                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                    <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
-                                </form>
-                            {% else %}
-                                <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
-                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                    <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
-                                </form>
-                            {% endif %}
+                            <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
+                            </form>
                         {% endif %}
                     </div>
                 </div>
@@ -114,20 +116,24 @@
                                 {{ mg.sms_verification ? 'ON' : 'OFF' }}
                             </span>
                         </td>
-                        <td>{{ mg.min_amount ?? '—' }} / {{ mg.max_amount ?? '—' }}</td>
+                        <td>{{ mg.min_amount|default('0.00') }} / {{ mg.max_amount|default('0.00') }}</td>
                         <td>
                             <span class="op-badge {{ mg.status == 'active' ? 'op-badge-success' : 'op-badge-muted' }}">
                                 {{ mg.status }}
                             </span>
                         </td>
                         <td>
-                            <div class="op-btn-group">
+                            <div class="op-btn-group op-nowrap">
                                 <a href="/admin/gateways/{{ mg.id }}/edit" class="op-btn op-btn-sm op-btn-outline">Edit</a>
-                                <form method="POST" action="/admin/gateways/{{ mg.id }}/toggle" class="op-inline">
+                                <form method="POST" action="/admin/gateways/{{ mg.id }}/toggle" class="op-inline-form">
                                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                     <button type="submit" class="op-btn op-btn-sm {{ mg.status == 'active' ? 'op-btn-warning' : 'op-btn-success' }}">
                                         {{ mg.status == 'active' ? 'Disable' : 'Enable' }}
                                     </button>
+                                </form>
+                                <form method="POST" action="/admin/gateways/{{ mg.id }}/delete" class="op-inline-form" onsubmit="return confirm('Delete gateway {{ mg.name }}?')">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-sm op-btn-danger">Delete</button>
                                 </form>
                             </div>
                         </td>

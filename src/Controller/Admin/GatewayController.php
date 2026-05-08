@@ -45,31 +45,61 @@ final class GatewayController
         $brand->resolveFromRequest($request);
         $merchantId = $brand->getActiveBrandId();
 
-        $apiGateways = $this->apiConfigs->forTenant($merchantId)->listActive();
         $manualGateways = $this->manualGateways->forTenant($merchantId)->listAll();
-
-        /** @var \OwnPay\Plugin\PluginLoader $loader */
-        $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
-        $discovered = $loader->discover();
-        foreach ($discovered as $manifest) {
-            if ($manifest->type === 'gateway') {
-                $found = false;
-                foreach ($apiGateways as $g) {
-                    if ($g['slug'] === $manifest->slug) { $found = true; break; }
-                }
-                if (!$found) {
-                    $apiGateways[] = [
-                        'slug' => $manifest->slug, 'name' => $manifest->name,
-                        'description' => $manifest->description, 'version' => $manifest->version,
-                        'status' => 'uninstalled', 'logo' => '', 'mode' => '',
-                    ];
-                }
-            }
-        }
 
         foreach ($manualGateways as &$mg) {
             $mg['input_fields'] = json_decode($mg['input_fields'] ?? '[]', true);
             $mg['colors'] = json_decode($mg['colors'] ?? '{}', true);
+        }
+        unset($mg);
+
+        // Build API gateway list: filesystem discovery + op_plugins status
+        /** @var \OwnPay\Repository\PluginRepository $pluginRepo */
+        $pluginRepo = $this->c->get(\OwnPay\Repository\PluginRepository::class);
+
+        /** @var \OwnPay\Plugin\PluginLoader $loader */
+        $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
+        $discovered = $loader->discover();
+
+        // Index installed plugins by slug for O(1) lookup
+        $installedPlugins = [];
+        foreach ($pluginRepo->paginate(1, 200)['items'] as $p) {
+            $installedPlugins[$p['slug']] = $p;
+        }
+
+        // Also get gateway configs (credentials) per slug
+        $configuredGateways = [];
+        foreach ($this->apiConfigs->forTenant($merchantId)->listActive() as $g) {
+            $configuredGateways[$g['slug']] = $g;
+        }
+
+        $apiGateways = [];
+        foreach ($discovered as $manifest) {
+            if ($manifest->type !== 'gateway') {
+                continue;
+            }
+
+            $installed = $installedPlugins[$manifest->slug] ?? null;
+            $configured = $configuredGateways[$manifest->slug] ?? null;
+
+            // Determine display status
+            if ($installed === null) {
+                $status = 'uninstalled';
+            } elseif ($installed['status'] === 'active') {
+                $status = $configured ? 'active' : 'installed'; // active+configured vs just activated
+            } else {
+                $status = $installed['status']; // inactive, etc.
+            }
+
+            $apiGateways[] = [
+                'slug'        => $manifest->slug,
+                'name'        => $manifest->name,
+                'description' => $manifest->description,
+                'version'     => $manifest->version,
+                'status'      => $status,
+                'logo'        => $configured['logo_path'] ?? '',
+                'mode'        => $configured['mode'] ?? '',
+            ];
         }
 
         return $this->renderAdminPage('admin/gateways/index.twig', [
@@ -78,6 +108,7 @@ final class GatewayController
             'active_page'     => 'gateways',
         ]);
     }
+
 
     public function createManual(Request $request): Response
     {
