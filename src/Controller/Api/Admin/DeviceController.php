@@ -21,8 +21,9 @@ final class DeviceController
         return Response::json(['success' => true, 'data' => $list]);
     }
 
-    public function revoke(Request $req, int $id): Response
+    public function revoke(Request $req): Response
     {
+        $id = (int) $req->param('id');
         $mid = (int) $req->getAttribute('merchant_id');
         $this->devices->revoke($mid, $id);
         return Response::json(['success' => true]);

@@ -7,7 +7,7 @@ use OwnPay\Service\Payment\ReconciliationService;
 use OwnPay\Service\Notification\AlertService;
 
 /**
- * Balance verification job — runs reconciliation and alerts on mismatch.
+ * Balance verification job â€” runs reconciliation and alerts on mismatch.
  */
 final class BalanceVerificationJob
 {
@@ -28,7 +28,7 @@ final class BalanceVerificationJob
     public function run(): array
     {
         $merchants = $this->db->fetchAll(
-            "SELECT id, business_name FROM op_merchants WHERE status = 'active'"
+            "SELECT id, name FROM op_merchants WHERE status = 'active'"
         );
 
         $results = [];

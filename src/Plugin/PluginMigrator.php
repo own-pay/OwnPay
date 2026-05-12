@@ -6,7 +6,7 @@ namespace OwnPay\Plugin;
 use OwnPay\Core\Database;
 
 /**
- * Plugin migrator — runs plugin-specific SQL migrations.
+ * Plugin migrator â€” runs plugin-specific SQL migrations.
  *
  * Migrations stored in: modules/{type}/{slug}/migrations/
  * Tracked in: op_plugin_migrations table.

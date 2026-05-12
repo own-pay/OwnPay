@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * DateTime service — timezone-aware date formatting.
+ * DateTime service â€” timezone-aware date formatting.
  */
 final class DateTimeService
 {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Core;
 
-class RouteHelper
+final class RouteHelper
 {
     public static function siteUrl(string $type = "Full"): string
     {

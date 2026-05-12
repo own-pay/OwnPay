@@ -1,0 +1,488 @@
+openapi: 3.0.3
+info:
+  title: OwnPay API
+  description: |
+    Enterprise payment gateway API for OwnPay.
+    
+    ## Authentication
+    
+    ### Merchant API (Bearer API Key)
+    All `/api/v1/*` endpoints require a Bearer API key:
+    ```
+    Authorization: Bearer opk_live_xxxxxxxxxx
+    ```
+    
+    ### Mobile API (Bearer JWT)
+    All `/api/mobile/v1/*` endpoints require a JWT token from device pairing:
+    ```
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+    ```
+    
+    ### Admin API (Bearer API Key)
+    All `/api/admin/v1/*` endpoints require a Bearer API key with admin scope.
+    
+    ## Rate Limiting
+    Default: 60 requests/minute per API key.
+    
+    ## Errors
+    ```json
+    { "success": false, "error": "message", "code": "ERROR_CODE" }
+    ```
+  version: 0.1.0
+  license:
+    name: AGPL-3.0-or-later
+
+servers:
+  - url: https://pay.example.com
+    description: Production
+  - url: https://ownpay.test
+    description: Local Development
+
+tags:
+  - name: Health
+  - name: Payments
+  - name: Transactions
+  - name: Refunds
+  - name: Customers
+  - name: API Keys
+  - name: Webhooks
+  - name: Mobile - Devices
+  - name: Mobile - SMS
+  - name: Mobile - Notifications
+  - name: Mobile - Dashboard
+  - name: Mobile - Config
+  - name: Admin - SMS
+  - name: Admin - Devices
+  - name: Admin - Domains
+
+paths:
+  /api/v1/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      security: [{ BearerApiKey: [] }]
+      responses:
+        '200':
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  version: { type: string }
+                  server_time: { type: string, format: date-time }
+
+  /api/v1/payments/initiate:
+    post:
+      tags: [Payments]
+      summary: Initiate payment
+      security: [{ BearerApiKey: [] }]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, currency]
+              properties:
+                amount: { type: number, example: 500.00 }
+                currency: { type: string, example: BDT }
+                description: { type: string }
+                redirect_url: { type: string, format: uri }
+                cancel_url: { type: string, format: uri }
+                webhook_url: { type: string, format: uri }
+                metadata: { type: object }
+      responses:
+        '201':
+          description: Payment intent created
+
+  /api/v1/payments/{id}:
+    get:
+      tags: [Payments]
+      summary: Get payment status
+      security: [{ BearerApiKey: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Payment details }
+
+  /api/v1/transactions:
+    get:
+      tags: [Transactions]
+      summary: List transactions
+      security: [{ BearerApiKey: [] }]
+      parameters:
+        - { name: page, in: query, schema: { type: integer, default: 1 } }
+        - { name: per_page, in: query, schema: { type: integer, default: 20 } }
+        - { name: status, in: query, schema: { type: string } }
+      responses:
+        '200': { description: Paginated list }
+
+  /api/v1/transactions/{id}:
+    get:
+      tags: [Transactions]
+      summary: Get transaction
+      security: [{ BearerApiKey: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Transaction details }
+
+  /api/v1/refunds:
+    post:
+      tags: [Refunds]
+      summary: Create refund
+      security: [{ BearerApiKey: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transaction_id, amount]
+              properties:
+                transaction_id: { type: string }
+                amount: { type: number }
+                reason: { type: string }
+      responses:
+        '201': { description: Refund created }
+
+  /api/v1/refunds/{id}:
+    get:
+      tags: [Refunds]
+      summary: Get refund
+      security: [{ BearerApiKey: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Refund details }
+
+  /api/v1/customers:
+    get:
+      tags: [Customers]
+      summary: List customers
+      security: [{ BearerApiKey: [] }]
+      responses:
+        '200': { description: Customer list }
+    post:
+      tags: [Customers]
+      summary: Create customer
+      security: [{ BearerApiKey: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                name: { type: string }
+                email: { type: string }
+                phone: { type: string }
+      responses:
+        '201': { description: Customer created }
+
+  /api/v1/customers/{id}:
+    get:
+      tags: [Customers]
+      summary: Get customer
+      security: [{ BearerApiKey: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: string } }
+      responses:
+        '200': { description: Customer details }
+
+  /api/v1/api-keys:
+    get:
+      tags: [API Keys]
+      summary: List API keys
+      security: [{ BearerApiKey: [] }]
+      responses:
+        '200': { description: Key list (masked) }
+    post:
+      tags: [API Keys]
+      summary: Generate API key
+      security: [{ BearerApiKey: [] }]
+      responses:
+        '201': { description: Key generated (shown once) }
+
+  /api/v1/api-keys/{id}/revoke:
+    post:
+      tags: [API Keys]
+      summary: Revoke API key
+      security: [{ BearerApiKey: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Revoked }
+
+  /api/v1/webhooks/test:
+    post:
+      tags: [Webhooks]
+      summary: Test webhook
+      security: [{ BearerApiKey: [] }]
+      responses:
+        '200': { description: Test dispatched }
+
+  /api/v1/webhooks/deliveries:
+    get:
+      tags: [Webhooks]
+      summary: Delivery logs
+      security: [{ BearerApiKey: [] }]
+      responses:
+        '200': { description: Log list }
+
+  # Mobile API
+  /api/mobile/v1/devices/pair:
+    post:
+      tags: [Mobile - Devices]
+      summary: Pair device
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pairing_code, device_id]
+              properties:
+                pairing_code: { type: string }
+                device_id: { type: string }
+                device_name: { type: string }
+                platform: { type: string, enum: [android, ios] }
+      responses:
+        '201': { description: Paired with JWT }
+
+  /api/mobile/v1/devices/heartbeat:
+    post:
+      tags: [Mobile - Devices]
+      summary: Heartbeat
+      security: [{ BearerJWT: [] }]
+      responses:
+        '200': { description: OK }
+
+  /api/mobile/v1/devices/revoke:
+    post:
+      tags: [Mobile - Devices]
+      summary: Revoke device
+      security: [{ BearerJWT: [] }]
+      responses:
+        '200': { description: Revoked }
+
+  /api/mobile/v1/devices/bulk-revoke:
+    post:
+      tags: [Mobile - Devices]
+      summary: Bulk revoke
+      security: [{ BearerJWT: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                device_ids: { type: array, items: { type: integer } }
+      responses:
+        '200': { description: Revoked }
+
+  /api/mobile/v1/devices/refresh:
+    post:
+      tags: [Mobile - Devices]
+      summary: Refresh JWT
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token: { type: string }
+      responses:
+        '200':
+          description: New tokens
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  access_token: { type: string }
+                  refresh_token: { type: string }
+                  expires_in: { type: integer }
+
+  /api/mobile/v1/devices/status:
+    get:
+      tags: [Mobile - Devices]
+      summary: Device status
+      security: [{ BearerJWT: [] }]
+      responses:
+        '200':
+          description: Status info
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  device_id: { type: string }
+                  device_name: { type: string }
+                  status: { type: string, enum: [active, revoked] }
+                  last_heartbeat: { type: string, format: date-time, nullable: true }
+
+  /api/mobile/v1/sms:
+    post:
+      tags: [Mobile - SMS]
+      summary: Submit SMS
+      security: [{ BearerJWT: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sender, body]
+              properties:
+                sender: { type: string, example: bKash }
+                body: { type: string }
+                received_at: { type: string, format: date-time }
+      responses:
+        '200':
+          description: Parsed result
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  parsed: { type: boolean }
+                  matched: { type: boolean }
+                  trx_id: { type: string, nullable: true }
+
+  /api/mobile/v1/sms/queue:
+    get:
+      tags: [Mobile - SMS]
+      summary: Pending SMS queue
+      security: [{ BearerJWT: [] }]
+      responses:
+        '200': { description: Queue list }
+
+  /api/mobile/v1/notifications:
+    get:
+      tags: [Mobile - Notifications]
+      summary: List notifications
+      security: [{ BearerJWT: [] }]
+      responses:
+        '200': { description: Notification list }
+
+  /api/mobile/v1/notifications/ack:
+    post:
+      tags: [Mobile - Notifications]
+      summary: Acknowledge
+      security: [{ BearerJWT: [] }]
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                ids: { type: array, items: { type: integer } }
+      responses:
+        '200': { description: Acknowledged }
+
+  /api/mobile/v1/dashboard:
+    get:
+      tags: [Mobile - Dashboard]
+      summary: Dashboard data
+      security: [{ BearerJWT: [] }]
+      responses:
+        '200': { description: Today stats + recent txns }
+
+  /api/mobile/v1/config/filter-rules:
+    get:
+      tags: [Mobile - Config]
+      summary: SMS filter rules
+      security: [{ BearerJWT: [] }]
+      responses:
+        '200':
+          description: Filter rules for mobile app
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success: { type: boolean }
+                  version: { type: integer }
+                  updated_at: { type: string, format: date-time }
+                  allowed_senders: { type: array, items: { type: string } }
+                  positive_keywords: { type: array, items: { type: string } }
+                  negative_keywords: { type: array, items: { type: string } }
+                  check_interval_hours: { type: integer }
+
+  # Admin API
+  /api/admin/v1/sms-templates:
+    get:
+      tags: [Admin - SMS]
+      summary: List SMS templates
+      security: [{ BearerApiKey: [] }]
+      responses:
+        '200': { description: Template list }
+
+  /api/admin/v1/sms-templates/{id}:
+    put:
+      tags: [Admin - SMS]
+      summary: Update template
+      security: [{ BearerApiKey: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Updated }
+
+  /api/admin/v1/sms-queue:
+    get:
+      tags: [Admin - SMS]
+      summary: SMS queue
+      security: [{ BearerApiKey: [] }]
+      responses:
+        '200': { description: Queue }
+
+  /api/admin/v1/sms-queue/{id}/retry:
+    post:
+      tags: [Admin - SMS]
+      summary: Retry SMS
+      security: [{ BearerApiKey: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Retried }
+
+  /api/admin/v1/devices:
+    get:
+      tags: [Admin - Devices]
+      summary: List devices (admin)
+      security: [{ BearerApiKey: [] }]
+      responses:
+        '200': { description: Device list }
+
+  /api/admin/v1/devices/{id}/revoke:
+    post:
+      tags: [Admin - Devices]
+      summary: Revoke device (admin)
+      security: [{ BearerApiKey: [] }]
+      parameters:
+        - { name: id, in: path, required: true, schema: { type: integer } }
+      responses:
+        '200': { description: Revoked }
+
+  /api/admin/v1/domains/verify:
+    post:
+      tags: [Admin - Domains]
+      summary: Verify domain DNS
+      security: [{ BearerApiKey: [] }]
+      responses:
+        '200': { description: Verification result }
+
+components:
+  securitySchemes:
+    BearerApiKey:
+      type: http
+      scheme: bearer
+      description: API key (opk_live_xxx)
+    BearerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT from device pairing

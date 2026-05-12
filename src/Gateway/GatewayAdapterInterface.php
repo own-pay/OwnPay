@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Gateway;
 
 /**
- * Gateway adapter interface — every API gateway plugin implements this.
+ * Gateway adapter interface â€” every API gateway plugin implements this.
  */
 interface GatewayAdapterInterface
 {
@@ -14,7 +14,7 @@ interface GatewayAdapterInterface
     public function slug(): string;
 
     /**
-     * Initialize payment — returns redirect URL or form data.
+     * Initialize payment â€” returns redirect URL or form data.
      *
      * @param array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url: string, metadata?: array} $params
      * @return array{redirect_url?: string, form_html?: string, session_id?: string}

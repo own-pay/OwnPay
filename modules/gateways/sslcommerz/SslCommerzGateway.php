@@ -6,6 +6,9 @@ namespace OwnPay\Modules\Gateways\SslCommerz;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
 use OwnPay\Plugin\PluginInterface;
+use OwnPay\Plugin\Capability;
+use OwnPay\Container;
+use OwnPay\Event\EventManager;
 
 /**
  * SSLCommerz gateway — Bangladesh payment gateway.
@@ -17,19 +20,28 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
     private const SANDBOX_URL = 'https://sandbox.sslcommerz.com';
     private const LIVE_URL    = 'https://securepay.sslcommerz.com';
 
+    public static function metadata(): array
+    {
+        return [
+            'name' => 'SSLCommerz', 'slug' => 'sslcommerz', 'version' => '1.0.0',
+            'description' => 'SSLCommerz payment gateway for Bangladesh',
+            'author' => 'OwnPay Core', 'type' => 'gateway',
+        ];
+    }
+
     public function slug(): string { return 'sslcommerz'; }
     public function name(): string { return 'SSLCommerz'; }
     public function version(): string { return '1.0.0'; }
     public function description(): string { return 'SSLCommerz payment gateway for Bangladesh'; }
 
-    public function boot(): void {}
-    public function activate(): void {}
-    public function deactivate(): void {}
-    public function uninstall(): void {}
+    public function register(EventManager $events, Container $container): void {}
+    public function boot(Container $container): void {}
+    public function deactivate(Container $container): void {}
+    public function uninstall(Container $container): void {}
 
     public function capabilities(): array
     {
-        return [\OwnPay\Plugin\Capability::GATEWAY];
+        return [Capability::GATEWAY];
     }
 
     public function fields(): array

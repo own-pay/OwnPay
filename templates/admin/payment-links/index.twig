@@ -7,7 +7,7 @@
 </div>
 <div class="op-card">
     <div class="op-card-body op-p-0">
-        <table class="op-table">
+        <div class="op-table-responsive"><table class="op-table">
             <thead><tr><th>Title</th><th>Amount</th><th>Uses</th><th>Status</th><th>Link</th><th>Actions</th></tr></thead>
             <tbody>
                 {% for pl in payment_links %}
@@ -16,15 +16,17 @@
                     <td>{{ pl.currency }} {{ pl.amount ?? 'Custom' }}</td>
                     <td>{{ pl.use_count ?? 0 }}{% if pl.max_uses %}/{{ pl.max_uses }}{% endif %}</td>
                     <td><span class="op-badge op-badge-{{ pl.status == 'active' ? 'success' : 'muted' }}">{{ pl.status }}</span></td>
-                    <td><code class="op-text-sm">{{ pl.short_url ?? pl.url }}</code></td>
+                    <td><code class="op-text-sm">/pay/{{ pl.slug }}</code></td>
                     <td>
-                        <a href="/admin/payment-links/{{ pl.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a>
-                        <button onclick="navigator.clipboard.writeText('{{ pl.url }}')" class="op-btn op-btn-xs op-btn-outline">Copy</button>
+                        <a href="/admin/payment-links/{{ pl.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
+                        <button onclick="navigator.clipboard.writeText(location.origin+'/pay/{{ pl.slug }}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Link',1500)" class="op-btn op-btn-xs op-btn-outline">Copy Link</button>
                     </td>
                 </tr>
+                {% else %}
+                <tr><td colspan="6" class="op-text-center op-text-muted op-py-8">No payment links yet. <a href="/admin/payment-links/create">Create one</a>.</td></tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
     </div>
 </div>
 {% endblock %}

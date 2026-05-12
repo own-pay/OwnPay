@@ -8,7 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Session middleware — configures and starts PHP session.
+ * Session middleware â€” configures and starts PHP session.
  *
  * Per OWASP session management:
  *  - Strict mode, httponly, secure, samesite

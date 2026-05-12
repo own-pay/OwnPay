@@ -12,23 +12,69 @@ use PDOStatement;
  * Provides convenience methods for common queries while maintaining
  * full prepared-statement safety. No raw string interpolation ever.
  *
- * Injected via DI container — never instantiate directly.
+ * Injected via DI container â€” never instantiate directly.
  */
 final class Database
 {
     private PDO $pdo;
+
+    /** @var static|null */
+    private static ?self $instance = null;
 
     public function __construct(PDO $pdo)
     {
         $this->pdo = $pdo;
     }
 
+    // â”€â”€â”€ Static Bootstrap (integration-test / legacy compat) â”€â”€â”€â”€â”€â”€â”€
+
+    /**
+     * Create and store a singleton instance from connection parameters.
+     * Used by integration tests that cannot access the DI container.
+     */
+    public static function init(
+        string $host,
+        string $name,
+        string $user,
+        string $pass,
+        int $port = 3306
+    ): self {
+        $dsn = "mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4";
+        $pdo = new PDO($dsn, $user, $pass, [
+            PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+            PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+            PDO::ATTR_EMULATE_PREPARES   => false,
+        ]);
+        self::$instance = new self($pdo);
+        return self::$instance;
+    }
+
+    /**
+     * Retrieve the singleton set by init().
+     *
+     * @throws \RuntimeException if init() was never called.
+     */
+    public static function getInstance(): self
+    {
+        if (self::$instance === null) {
+            throw new \RuntimeException('Database::init() must be called before getInstance().');
+        }
+        return self::$instance;
+    }
+
+    /** Return the underlying PDO (used by legacy integration tests). */
+    public function getPdo(): PDO
+    {
+        return $this->pdo;
+    }
+
+    /** Alias of getPdo() â€” used by DI-injected services. */
     public function pdo(): PDO
     {
         return $this->pdo;
     }
 
-    // ─── Query Methods ─────────────────────────────────────────
+    // â”€â”€â”€ Query Methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * @return array<int, array<string, mixed>>
@@ -79,7 +125,7 @@ final class Database
         return $this->execute($sql, $params)->rowCount();
     }
 
-    // ─── Transactions ──────────────────────────────────────────
+    // â”€â”€â”€ Transactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * @template T
@@ -119,7 +165,7 @@ final class Database
         return $this->pdo->inTransaction();
     }
 
-    // ─── Helpers ───────────────────────────────────────────────
+    // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function exists(string $table, string $where, array $params = []): bool
     {

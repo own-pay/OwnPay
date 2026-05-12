@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Security;
 
 /**
- * Log sanitizer — strips sensitive fields before logging.
+ * Log sanitizer â€” strips sensitive fields before logging.
  *
  * Per OWASP + security skill: never log passwords, tokens, keys, PII.
  */
@@ -13,7 +13,7 @@ final class LogSanitizer
     /** Fields to completely redact */
     private const REDACT_KEYS = [
         'password', 'password_hash', 'password_confirm',
-        'totp_secret', 'totp_secret_enc',
+        'totp_secret',
         'secret', 'key_hash', 'api_key', 'bearer_token',
         'jwt', 'token', 'refresh_token',
         'credentials_enc', 'webhook_secret',

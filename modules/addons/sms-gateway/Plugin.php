@@ -3,9 +3,10 @@ declare(strict_types=1);
 
 namespace OwnPay\Modules\Addons\SmsGateway;
 
+use OwnPay\Container;
 use OwnPay\Plugin\PluginInterface;
+use OwnPay\Plugin\Capability;
 use OwnPay\Event\EventManager;
-use OwnPay\Core\Logger;
 
 /**
  * SMS Gateway Addon — Twilio, Vonage, custom HTTP API.
@@ -15,25 +16,126 @@ use OwnPay\Core\Logger;
 final class Plugin implements PluginInterface
 {
     private array $settings = [];
-    private ?Logger $logger = null;
 
-    public function register(EventManager $events): void
+    public static function metadata(): array
+    {
+        return [
+            'name'        => 'SMS Gateway',
+            'slug'        => 'sms-gateway',
+            'version'     => '1.0.0',
+            'description' => 'Send SMS via Twilio, Vonage, or custom HTTP API.',
+            'author'      => 'Own Pay',
+            'type'        => 'addon',
+        ];
+    }
+
+    public function capabilities(): array
+    {
+        return [Capability::COMMUNICATION];
+    }
+
+    public function register(EventManager $events, Container $container): void
     {
         $events->addAction('sms.send', [$this, 'send'], 10);
     }
 
-    public function setSettings(array $settings): void
+    public function boot(Container $container): void
     {
-        $this->settings = $settings;
+        if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
+            $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
+            $this->settings = $repo->getGroup('plugin.sms-gateway');
+        }
     }
 
-    public function setLogger(Logger $logger): void
+    public function deactivate(Container $container): void {}
+
+    public function uninstall(Container $container): void
     {
-        $this->logger = $logger;
+        if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
+            $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
+            $repo->deleteGroup('plugin.sms-gateway');
+        }
+    }
+
+    public function fields(): array
+    {
+        return [
+            [
+                'name'    => 'provider',
+                'label'   => 'SMS Provider',
+                'type'    => 'select',
+                'default' => 'custom',
+                'options' => ['twilio' => 'Twilio', 'vonage' => 'Vonage', 'custom' => 'Custom HTTP API'],
+                'help'    => 'Select your SMS provider.',
+            ],
+            [
+                'name'    => 'twilio_sid',
+                'label'   => 'Twilio Account SID',
+                'type'    => 'text',
+                'default' => '',
+            ],
+            [
+                'name'    => 'twilio_token',
+                'label'   => 'Twilio Auth Token',
+                'type'    => 'password',
+                'default' => '',
+            ],
+            [
+                'name'    => 'twilio_from',
+                'label'   => 'Twilio From Number',
+                'type'    => 'text',
+                'default' => '',
+                'help'    => 'Your Twilio phone number (e.g., +1234567890)',
+            ],
+            [
+                'name'    => 'vonage_key',
+                'label'   => 'Vonage API Key',
+                'type'    => 'text',
+                'default' => '',
+            ],
+            [
+                'name'    => 'vonage_secret',
+                'label'   => 'Vonage API Secret',
+                'type'    => 'password',
+                'default' => '',
+            ],
+            [
+                'name'    => 'vonage_from',
+                'label'   => 'Vonage From Name',
+                'type'    => 'text',
+                'default' => 'OwnPay',
+            ],
+            [
+                'name'    => 'custom_api_url',
+                'label'   => 'Custom API URL',
+                'type'    => 'text',
+                'default' => '',
+                'help'    => 'HTTPS endpoint for your SMS API.',
+            ],
+            [
+                'name'    => 'custom_api_key',
+                'label'   => 'Custom API Key',
+                'type'    => 'password',
+                'default' => '',
+            ],
+            [
+                'name'    => 'custom_api_method',
+                'label'   => 'Custom API Method',
+                'type'    => 'select',
+                'default' => 'POST',
+                'options' => ['POST' => 'POST', 'GET' => 'GET'],
+            ],
+            [
+                'name'    => 'custom_api_body_template',
+                'label'   => 'Custom Body Template',
+                'type'    => 'textarea',
+                'default' => '{"to":"{{to}}","message":"{{message}}"}',
+                'help'    => 'Use {{to}} and {{message}} placeholders.',
+            ],
+        ];
     }
 
     /**
-     * Send SMS via configured provider.
      * @param array{to: string, body: string, merchant_id?: int} $payload
      */
     public function send(array $payload): array
@@ -53,7 +155,6 @@ final class Plugin implements PluginInterface
                 default   => $this->sendCustom($to, $body),
             };
         } catch (\Throwable $e) {
-            $this->logger?->error('SMS send failed', ['provider' => $provider, 'error' => $e->getMessage()]);
             return ['success' => false, 'error' => $e->getMessage()];
         }
     }
@@ -77,11 +178,7 @@ final class Plugin implements PluginInterface
         curl_close($ch);
 
         $data = json_decode((string) $response, true);
-        return [
-            'success' => $httpCode >= 200 && $httpCode < 300,
-            'sid'     => $data['sid'] ?? null,
-            'status'  => $data['status'] ?? 'unknown',
-        ];
+        return ['success' => $httpCode >= 200 && $httpCode < 300, 'sid' => $data['sid'] ?? null];
     }
 
     private function sendVonage(string $to, string $body): array
@@ -103,16 +200,12 @@ final class Plugin implements PluginInterface
 
         $data = json_decode((string) $response, true);
         $msg = $data['messages'][0] ?? [];
-        return [
-            'success' => ($msg['status'] ?? '1') === '0',
-            'message_id' => $msg['message-id'] ?? null,
-        ];
+        return ['success' => ($msg['status'] ?? '1') === '0'];
     }
 
     private function sendCustom(string $to, string $body): array
     {
         $url = $this->settings['custom_api_url'] ?? '';
-        // OWASP/SSRF: Validate URL — must be HTTPS, no internal IPs
         if ($url === '' || !preg_match('#^https://#i', $url)) {
             return ['success' => false, 'error' => 'Custom API URL must be HTTPS'];
         }
@@ -137,18 +230,10 @@ final class Plugin implements PluginInterface
             ],
             CURLOPT_TIMEOUT => 15,
         ]);
-        $response = curl_exec($ch);
+        curl_exec($ch);
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        return [
-            'success' => $httpCode >= 200 && $httpCode < 300,
-            'response' => json_decode((string) $response, true),
-        ];
-    }
-
-    public function getInfo(): array
-    {
-        return json_decode(file_get_contents(__DIR__ . '/manifest.json'), true) ?: [];
+        return ['success' => $httpCode >= 200 && $httpCode < 300];
     }
 }

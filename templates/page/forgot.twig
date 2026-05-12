@@ -17,15 +17,15 @@
                 <p>Enter your email to receive a reset link.</p>
             </div>
 
-            {% if success %}
+            {% if success is defined and success %}
             <div class="op-alert op-alert-success">{{ success }}</div>
             {% endif %}
-            {% if error %}
+            {% if error is defined and error %}
             <div class="op-alert op-alert-danger">{{ error }}</div>
             {% endif %}
 
             <form method="POST" action="/forgot-password" class="op-form">
-                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <div class="op-form-group">
                     <label for="email">Email</label>
                     <input type="email" id="email" name="email" class="op-input" required autofocus>

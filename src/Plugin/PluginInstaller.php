@@ -8,11 +8,13 @@ use OwnPay\Security\SecurityHelpers;
 /**
  * Plugin installer — handles ZIP upload, extraction, validation.
  *
- * Per security skill: validate ZIP contents, check for path traversal,
+ * Per security: validate ZIP contents, check for path traversal,
  * verify manifest before activation.
  */
 final class PluginInstaller
 {
+    private const BLOCKED_EXTENSIONS = ['phar', 'sh', 'bat', 'exe', 'dll'];
+
     private string $modulesDir;
 
     public function __construct(string $modulesDir)
@@ -22,91 +24,33 @@ final class PluginInstaller
 
     /**
      * Install plugin from uploaded ZIP file.
-     *
-     * @return array{success: bool, slug?: string, error?: string}
+     * Decomposed: openZip → scanSecurity → extract → validateManifest → deploy.
      */
     public function installFromZip(string $zipPath): array
     {
         if (!file_exists($zipPath)) {
-            return ['success' => false, 'error' => 'ZIP file not found'];
+            return $this->fail('ZIP file not found');
         }
 
-        $zip = new \ZipArchive();
-        $result = $zip->open($zipPath);
-        if ($result !== true) {
-            return ['success' => false, 'error' => 'Invalid ZIP file'];
-        }
+        // Step 1: Open + scan
+        $zip = $this->openZip($zipPath);
+        if (is_array($zip)) return $zip; // error result
 
-        // Security: scan for path traversal
-        for ($i = 0; $i < $zip->numFiles; $i++) {
-            $name = $zip->getNameIndex($i);
-            if ($name === false) {
-                continue;
-            }
-            if (str_contains($name, '..') || str_starts_with($name, '/')) {
-                $zip->close();
-                return ['success' => false, 'error' => 'ZIP contains path traversal attempt'];
-            }
-            // Block dangerous file types
-            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
-            if (in_array($ext, ['phar', 'sh', 'bat', 'exe', 'dll'], true)) {
-                $zip->close();
-                return ['success' => false, 'error' => "Blocked file type: .{$ext}"];
-            }
-        }
+        $scanResult = $this->scanZipSecurity($zip);
+        if ($scanResult !== null) { $zip->close(); return $scanResult; }
 
-        // Extract to temp dir first
-        $tempDir = sys_get_temp_dir() . '/op_plugin_' . bin2hex(random_bytes(8));
-        if (!mkdir($tempDir, 0755, true)) {
-            $zip->close();
-            return ['success' => false, 'error' => 'Failed to create temp directory'];
-        }
+        // Step 2: Extract to temp
+        $tempDir = $this->extractToTemp($zip);
+        if (is_array($tempDir)) return $tempDir; // error result
 
-        $zip->extractTo($tempDir);
-        $zip->close();
+        // Step 3: Validate manifest
+        $manifest = $this->loadAndValidateManifest($tempDir);
+        if (is_array($manifest)) { $this->removeDir($tempDir); return $manifest; }
 
-        // Find plugin.json (may be in root or first subdirectory)
-        $pluginDir = $this->findPluginRoot($tempDir);
-        if ($pluginDir === null) {
-            $this->removeDir($tempDir);
-            return ['success' => false, 'error' => 'No plugin.json found in ZIP'];
-        }
-
-        $manifest = PluginManifest::fromDirectory($pluginDir);
-        if ($manifest === null) {
-            $this->removeDir($tempDir);
-            return ['success' => false, 'error' => 'Invalid plugin.json'];
-        }
-
-        $errors = $manifest->validate();
-        if (!empty($errors)) {
-            $this->removeDir($tempDir);
-            return ['success' => false, 'error' => 'Manifest errors: ' . implode(', ', $errors)];
-        }
-
-        // Determine target directory
-        $typeDir = match ($manifest->type) {
-            'gateway' => 'gateways',
-            'theme'   => 'themes',
-            default   => 'addons',
-        };
-        $targetDir = $this->modulesDir . '/' . $typeDir . '/' . $manifest->slug;
-
-        // Check if already installed
-        if (is_dir($targetDir)) {
-            $this->removeDir($tempDir);
-            return ['success' => false, 'error' => "Plugin '{$manifest->slug}' already installed. Uninstall first."];
-        }
-
-        // Move to target
-        if (!rename($pluginDir, $targetDir)) {
-            // Fallback: copy
-            $this->copyDir($pluginDir, $targetDir);
-        }
-
+        // Step 4: Deploy
+        $deployResult = $this->deployPlugin($tempDir, $manifest);
         $this->removeDir($tempDir);
-
-        return ['success' => true, 'slug' => $manifest->slug];
+        return $deployResult;
     }
 
     /**
@@ -114,49 +58,146 @@ final class PluginInstaller
      */
     public function uninstall(string $slug, string $type = 'addon'): bool
     {
-        $typeDir = match ($type) {
+        $typeDir = $this->resolveTypeDir($type);
+        $dir = $this->modulesDir . '/' . $typeDir . '/' . SecurityHelpers::sanitizeSlug($slug);
+        return is_dir($dir) ? $this->removeDir($dir) : false;
+    }
+
+    // ── Extracted Steps ───────────────────────────────────────────
+
+    /**
+     * Open and validate ZIP archive.
+     * @return \ZipArchive|array Error result if invalid
+     */
+    private function openZip(string $zipPath): \ZipArchive|array
+    {
+        $zip = new \ZipArchive();
+        return $zip->open($zipPath) === true ? $zip : $this->fail('Invalid ZIP file');
+    }
+
+    /**
+     * Security scan: path traversal + blocked extensions.
+     * @return array|null null if safe, error result otherwise
+     */
+    private function scanZipSecurity(\ZipArchive $zip): ?array
+    {
+        for ($i = 0; $i < $zip->numFiles; $i++) {
+            $name = $zip->getNameIndex($i);
+            if ($name === false) continue;
+
+            if (str_contains($name, '..') || str_starts_with($name, '/')) {
+                return $this->fail('ZIP contains path traversal attempt');
+            }
+
+            $ext = strtolower(pathinfo($name, PATHINFO_EXTENSION));
+            if (in_array($ext, self::BLOCKED_EXTENSIONS, true)) {
+                return $this->fail("Blocked file type: .{$ext}");
+            }
+        }
+        return null;
+    }
+
+    /**
+     * Extract ZIP to temporary directory.
+     * @return string|array Temp dir path or error result
+     */
+    private function extractToTemp(\ZipArchive $zip): string|array
+    {
+        $tempDir = sys_get_temp_dir() . '/op_plugin_' . bin2hex(random_bytes(8));
+        if (!mkdir($tempDir, 0755, true)) {
+            $zip->close();
+            return $this->fail('Failed to create temp directory');
+        }
+        $zip->extractTo($tempDir);
+        $zip->close();
+        return $tempDir;
+    }
+
+    /**
+     * Load and validate plugin manifest.
+     * @return PluginManifest|array Manifest or error result
+     */
+    private function loadAndValidateManifest(string $tempDir): PluginManifest|array
+    {
+        $pluginDir = $this->findPluginRoot($tempDir);
+        if ($pluginDir === null) {
+            return $this->fail('No plugin.json found in ZIP');
+        }
+
+        $manifest = PluginManifest::fromDirectory($pluginDir);
+        if ($manifest === null) {
+            return $this->fail('Invalid plugin.json');
+        }
+
+        $errors = $manifest->validate();
+        if (!empty($errors)) {
+            return $this->fail('Manifest errors: ' . implode(', ', $errors));
+        }
+
+        // Stash the resolved plugin dir on the manifest for deploy step
+        $manifest->_resolvedDir = $pluginDir;
+        return $manifest;
+    }
+
+    /**
+     * Deploy plugin files to modules directory.
+     */
+    private function deployPlugin(string $tempDir, PluginManifest $manifest): array
+    {
+        $typeDir = $this->resolveTypeDir($manifest->type);
+        $modulesTypeDir = $this->modulesDir . '/' . $typeDir;
+        $targetDir = $modulesTypeDir . '/' . $manifest->slug;
+
+        if (!is_dir($modulesTypeDir)) @mkdir($modulesTypeDir, 0755, true);
+
+        if (!is_writable($modulesTypeDir)) {
+            return $this->fail("Target directory '{$typeDir}' is not writable. Check permissions.");
+        }
+
+        if (is_dir($targetDir)) {
+            return $this->fail("Plugin '{$manifest->slug}' already installed. Uninstall first.");
+        }
+
+        $pluginDir = $manifest->_resolvedDir ?? $tempDir;
+        if (!rename($pluginDir, $targetDir)) {
+            $this->copyDir($pluginDir, $targetDir);
+        }
+
+        return ['success' => true, 'slug' => $manifest->slug];
+    }
+
+    // ── Helpers ────────────────────────────────────────────────────
+
+    private function fail(string $error): array
+    {
+        return ['success' => false, 'error' => $error];
+    }
+
+    private function resolveTypeDir(string $type): string
+    {
+        return match ($type) {
             'gateway' => 'gateways',
             'theme'   => 'themes',
             default   => 'addons',
         };
-        $dir = $this->modulesDir . '/' . $typeDir . '/' . SecurityHelpers::sanitizeSlug($slug);
-
-        if (!is_dir($dir)) {
-            return false;
-        }
-
-        return $this->removeDir($dir);
     }
 
     private function findPluginRoot(string $dir): ?string
     {
-        if (file_exists($dir . '/plugin.json')) {
-            return $dir;
-        }
-
+        if (file_exists($dir . '/plugin.json')) return $dir;
         $entries = scandir($dir);
-        if ($entries === false) {
-            return null;
-        }
-
+        if ($entries === false) return null;
         foreach ($entries as $entry) {
-            if ($entry === '.' || $entry === '..') {
-                continue;
-            }
+            if ($entry === '.' || $entry === '..') continue;
             $subDir = $dir . '/' . $entry;
-            if (is_dir($subDir) && file_exists($subDir . '/plugin.json')) {
-                return $subDir;
-            }
+            if (is_dir($subDir) && file_exists($subDir . '/plugin.json')) return $subDir;
         }
-
         return null;
     }
 
     private function removeDir(string $dir): bool
     {
-        if (!is_dir($dir)) {
-            return false;
-        }
+        if (!is_dir($dir)) return false;
         $items = new \RecursiveIteratorIterator(
             new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
             \RecursiveIteratorIterator::CHILD_FIRST

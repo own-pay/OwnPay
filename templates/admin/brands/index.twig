@@ -1,0 +1,36 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Brands — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Brands</h1>
+    <a href="/admin/brands/create" class="op-btn op-btn-primary">+ Add Brand</a>
+</div>
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>ID</th><th>Business</th><th>Domain</th><th>Currency</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for m in brand_list %}
+                <tr>
+                    <td>{{ m.id }}</td>
+                    <td><strong>{{ m.name }}</strong></td>
+                    <td><code>{{ m.domain is defined and m.domain ? m.domain : '—' }}</code></td>
+                    <td>{{ m.default_currency ?? 'BDT' }}</td>
+                    <td><span class="op-badge op-badge-{{ m.status == 'active' ? 'success' : 'muted' }}">{{ m.status }}</span></td>
+                    <td>{{ m.created_at|date("M d, Y") }}</td>
+                    <td class="op-nowrap">
+                        <a href="/admin/brands/{{ m.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
+                        {% if brand_list|length > 1 %}
+                        <form method="POST" action="/admin/brands/{{ m.id }}/delete" class="op-inline-form" onsubmit="return confirm('⚠️ DELETE brand \'{{ m.name|e('js') }}\'? This removes ALL associated data (transactions, customers, gateways). This action is IRREVERSIBLE.')">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="op-btn op-btn-xs op-btn-danger">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% endblock %}

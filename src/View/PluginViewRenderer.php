@@ -6,7 +6,7 @@ namespace OwnPay\View;
 use Twig\Environment;
 
 /**
- * Plugin view renderer — resolves .twig first, .php fallback.
+ * Plugin view renderer â€” resolves .twig first, .php fallback.
  *
  * Plugins provide views under @slug namespace.
  * Core admin templates can also be overridden by active theme.
@@ -62,7 +62,7 @@ final class PluginViewRenderer
     /**
      * Render core admin template with plugin/theme override support.
      *
-     * Resolution: active theme → core templates
+     * Resolution: active theme â†’ core templates
      * (TwigFactory already handles this via path priority)
      */
     public function renderAdmin(string $template, array $data = []): string

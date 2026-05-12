@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Cache;
 
 /**
- * Redis-based cache driver — VPS/dedicated server.
+ * Redis-based cache driver â€” VPS/dedicated server.
  *
  * Requires ext-redis. Falls back gracefully if Redis unavailable.
  * Prefix isolates Own Pay keys from other apps sharing same Redis.
@@ -66,7 +66,7 @@ final class RedisCache implements CacheInterface
 
     public function flush(): void
     {
-        // Only flush keys with our prefix — not the entire Redis
+        // Only flush keys with our prefix â€” not the entire Redis
         $cursor = null;
         $pattern = $this->prefix . '*';
 

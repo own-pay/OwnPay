@@ -8,9 +8,10 @@ use OwnPay\Event\EventManager;
 use OwnPay\Service\System\DateTimeService;
 use OwnPay\Service\System\EnvironmentService;
 use OwnPay\Service\System\HttpClient;
+use OwnPay\Support\DateHelper;
 
 /**
- * SystemUpdateJob — periodic check for new OwnPay releases.
+ * SystemUpdateJob â€” periodic check for new OwnPay releases.
  *
  * Fetches the update manifest at most once every 10 hours, compares the
  * current version against the configured channel (stable|beta), and fires
@@ -54,7 +55,7 @@ final class SystemUpdateJob
             return ['initialized' => 'last-auto-update-check'];
         }
 
-        if (strtotime($now) - strtotime($lastCheck) < self::CHECK_INTERVAL_SECONDS) {
+        if (DateHelper::secondsSince($lastCheck) < self::CHECK_INTERVAL_SECONDS) {
             return ['skipped' => 'within check interval'];
         }
 

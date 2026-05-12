@@ -14,8 +14,8 @@
 </div>
 {% endif %}
 
-<form method="POST" action="/admin/gateways/{{ gateway.id }}/edit" enctype="multipart/form-data" class="op-form">
-    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+<form method="POST" action="/admin/gateways/{{ gateway.id }}/update" enctype="multipart/form-data" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 
     <div class="op-card op-mb-4">
         <div class="op-card-header"><h3>Basic Info</h3></div>
@@ -44,14 +44,14 @@
             <div class="op-form-row">
                 <div class="op-form-group op-col-6">
                     <label>Logo</label>
-                    {% if gateway.logo_path %}
+                    {% if gateway.logo_path is defined and gateway.logo_path %}
                         <div class="op-mb-2"><img src="{{ gateway.logo_path }}" alt="" width="64" class="op-rounded"></div>
                     {% endif %}
                     <input type="file" name="logo" accept="image/*" class="op-input-file">
                 </div>
                 <div class="op-form-group op-col-6">
                     <label>QR Code</label>
-                    {% if gateway.qr_code_path %}
+                    {% if gateway.qr_code_path is defined and gateway.qr_code_path %}
                         <div class="op-mb-2"><img src="{{ gateway.qr_code_path }}" alt="" width="64" class="op-rounded"></div>
                     {% endif %}
                     <input type="file" name="qr_code" accept="image/*" class="op-input-file">
@@ -160,20 +160,7 @@
     </div>
 </template>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    let fieldIdx = {{ existing_fields|length }};
-    const container = document.getElementById('input-fields-container');
-    const template = document.getElementById('field-template');
-    document.getElementById('add-field-btn').addEventListener('click', function() {
-        const html = template.innerHTML.replace(/__IDX__/g, fieldIdx++);
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        container.appendChild(div.firstElementChild);
-    });
-    container.addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-field-btn')) e.target.closest('.op-field-row').remove();
-    });
-});
-</script>
+
 {% endblock %}
+{% block scripts %}<script src="/assets/js/pages/gateway-manual.js"></script>{% endblock %}
+

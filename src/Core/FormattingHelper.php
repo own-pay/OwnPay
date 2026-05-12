@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Core;
 
-class FormattingHelper
+final class FormattingHelper
 {
     public static function generateStrongPassword(int $length = 16): string
     {

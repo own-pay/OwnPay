@@ -8,7 +8,7 @@ use OwnPay\Repository\GatewayConfigRepository;
 use OwnPay\Repository\GatewayRepository;
 
 /**
- * Gateway API service — public API for gateway operations.
+ * Gateway API service â€” public API for gateway operations.
  *
  * Orchestrates GatewayBridge + TransactionService for full payment flow.
  */

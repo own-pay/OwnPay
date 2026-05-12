@@ -6,7 +6,7 @@ namespace OwnPay\Repository;
 use OwnPay\Core\Database;
 
 /**
- * Base repository — shared CRUD + pagination for all repositories.
+ * Base repository â€” shared CRUD + pagination for all repositories.
  *
  * Subclasses define $table, $fillable, $primaryKey.
  * All queries parameterized. No string interpolation.
@@ -28,7 +28,7 @@ abstract class BaseRepository
         $this->db = $db;
     }
 
-    // ─── Read ──────────────────────────────────────────────────
+    // â”€â”€â”€ Read â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function find(int|string $id): ?array
     {
@@ -97,7 +97,7 @@ abstract class BaseRepository
     }
 
     /**
-     * Cursor pagination — better for large tables (per sql-optimization skill).
+     * Cursor pagination â€” better for large tables (per sql-optimization skill).
      * @return array{items: array, next_cursor: string|null}
      */
     public function cursorPaginate(int $perPage = 20, ?string $afterId = null, string $where = '1=1', array $params = []): array
@@ -124,7 +124,7 @@ abstract class BaseRepository
         ];
     }
 
-    // ─── Write ─────────────────────────────────────────────────
+    // â”€â”€â”€ Write â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function create(array $data): string
     {
@@ -166,7 +166,12 @@ abstract class BaseRepository
         );
     }
 
-    // ─── Helpers ───────────────────────────────────────────────
+    // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+    public function getDatabase(): Database
+    {
+        return $this->db;
+    }
 
     public function exists(int|string $id): bool
     {

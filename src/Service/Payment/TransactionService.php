@@ -8,7 +8,7 @@ use OwnPay\Repository\AuditLogRepository;
 use OwnPay\Repository\TransactionRepository;
 
 /**
- * Transaction service — create, complete, fail, cancel transactions.
+ * Transaction service â€” create, complete, fail, cancel transactions.
  *
  * Fires: payment.transaction.before_create, .created, .completed, .failed, .cancelled
  */
@@ -33,7 +33,7 @@ final class TransactionService
      */
     public function create(int $merchantId, array $data): array
     {
-        // Pre-create filter — plugins can modify data
+        // Pre-create filter â€” plugins can modify data
         $data = $this->events->applyFilter('payment.transaction.before_create', $data, $merchantId);
 
         $repo = $this->transactions->forTenant($merchantId);

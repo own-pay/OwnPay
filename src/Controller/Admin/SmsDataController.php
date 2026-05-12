@@ -6,36 +6,46 @@ namespace OwnPay\Controller\Admin;
 use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Service\Admin\AdminSession;
+use OwnPay\Repository\SmsDataRepository;
 use OwnPay\Service\System\PaginationService;
 
 final class SmsDataController
 {
+    use AdminPageTrait;
+
     private Container $c;
-    public function __construct(Container $c) { $this->c = $c; }
+    private AdminSession $session;
+    private SmsDataRepository $smsRepo;
+
+    public function __construct(Container $c, AdminSession $session, SmsDataRepository $smsRepo)
+    {
+        $this->c       = $c;
+        $this->session = $session;
+        $this->smsRepo = $smsRepo;
+    }
 
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $page = max(1, (int) $req->get('page', '1'));
-        $status = $req->get('status', '');
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
 
-        $where = "WHERE merchant_id = :mid";
-        $params = ['mid' => $mid];
-        if ($status === 'matched') { $where .= " AND transaction_id IS NOT NULL"; }
-        elseif ($status === 'unmatched') { $where .= " AND transaction_id IS NULL"; }
+        $page   = max(1, (int) $req->get('page', '1'));
+        $status = $req->get('status', '') ?: null;
 
-        $total = (int) ($db->fetchOne("SELECT COUNT(*) as cnt FROM op_sms_parsed {$where}", $params)['cnt'] ?? 0);
-        $pagination = PaginationService::calculate($page, $total);
-        $data = $db->fetchAll("SELECT * FROM op_sms_parsed {$where} ORDER BY received_at DESC LIMIT {$pagination['limit']} OFFSET {$pagination['offset']}", $params);
+        $repo   = $this->smsRepo->forTenant($mid);
+        $perPage = 20;
+        $offset  = ($page - 1) * $perPage;
+        $result  = $repo->listPaginated($perPage, $offset, $status);
 
-        return $this->render('admin/sms-data.twig', ['sms_data' => $data, 'filters' => ['status' => $status], 'pagination' => $pagination, 'active_page' => 'sms-data']);
-    }
+        $pagination = PaginationService::calculate($page, $perPage, $result['total']);
 
-    private function render(string $tpl, array $data = []): Response
-    {
-        $twig = $this->c->get(\Twig\Environment::class);
-        $data['csrf_token'] = $_SESSION['csrf_token'] ?? ''; $data['app_name'] = $this->c->get('config.app')['name'] ?? 'Own Pay'; $data['current_user'] = $_SESSION['user'] ?? [];
-        return Response::html($twig->render($tpl, $data));
+        return $this->renderAdminPage('admin/sms-data.twig', [
+            'sms_data'    => $result['items'],
+            'filters'     => ['status' => $status ?? ''],
+            'pagination'  => $pagination,
+            'active_page' => 'sms-data',
+        ]);
     }
 }

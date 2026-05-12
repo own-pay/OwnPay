@@ -7,7 +7,7 @@
 </div>
 <div class="op-card">
     <div class="op-card-body op-p-0">
-        <table class="op-table">
+        <div class="op-table-responsive"><table class="op-table">
             <thead><tr><th>#</th><th>Customer</th><th>Amount</th><th>Status</th><th>Due Date</th><th>Actions</th></tr></thead>
             <tbody>
                 {% for inv in invoices %}
@@ -18,20 +18,20 @@
                     <td><span class="op-badge op-badge-{{ inv.status == 'paid' ? 'success' : (inv.status == 'overdue' ? 'danger' : 'warning') }}">{{ inv.status }}</span></td>
                     <td>{{ inv.due_date }}</td>
                     <td>
-                        <a href="/admin/invoices/{{ inv.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a>
-                        <a href="/admin/invoices/{{ inv.id }}/pdf" class="op-btn op-btn-xs op-btn-outline">PDF</a>
+                        <a href="/admin/invoices/{{ inv.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
+                        <button onclick="navigator.clipboard.writeText(location.origin+'/invoice/{{ inv.token }}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Link',1500)" class="op-btn op-btn-xs op-btn-outline">Copy Link</button>
                     </td>
                 </tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
     </div>
 </div>
-{% if pagination.total_pages > 1 %}
+{% if pagination.pages > 1 %}
 <nav class="op-pagination">
-    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
-    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
-    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+    {% if pagination.page > 1 %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    {% if pagination.page < pagination.pages %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
 </nav>
 {% endif %}
 {% endblock %}

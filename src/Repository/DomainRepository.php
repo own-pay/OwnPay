@@ -19,12 +19,29 @@ final class DomainRepository extends BaseRepository
         return $this->findBy('domain', $domain);
     }
 
-    public function markVerified(int $id): int
+    public function findActiveDomain(): ?array
     {
-        return $this->updateScoped($id, [
-            'dns_verified' => 1,
-            'dns_verified_at' => date('Y-m-d H:i:s.u'),
-            'status' => 'active',
-        ]);
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE merchant_id = :mid AND status = 'active' AND dns_verified = 1 ORDER BY is_primary DESC, id DESC LIMIT 1",
+            ['mid' => $this->requireTenant()]
+        );
+    }
+
+    public function listAllScoped(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE merchant_id = :mid ORDER BY created_at DESC",
+            ['mid' => $this->requireTenant()]
+        );
+    }
+
+    /**
+     * Find all domains pending DNS verification (global — used by cron).
+     */
+    public function findPendingVerification(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE dns_verified = 0 AND status = 'pending'"
+        );
     }
 }

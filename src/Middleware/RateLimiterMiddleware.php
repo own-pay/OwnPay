@@ -54,7 +54,6 @@ final class RateLimiterMiddleware
 
     private function buildKey(Request $request): string
     {
-        // Rate limit by IP + path prefix
         $ip = $request->ip();
         $prefix = explode('/', trim($request->path(), '/'));
         $pathKey = implode('.', array_slice($prefix, 0, 3));
@@ -69,8 +68,8 @@ final class RateLimiterMiddleware
                 /** @var \OwnPay\Cache\RedisCache $cache */
                 $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
                 return (int) ($cache->get($key) ?? 0);
-            } catch (\Throwable) {
-                // Fall through to DB
+            } catch (\Throwable $e) {
+                $this->logWarning('Redis getHits failed: ' . $e->getMessage());
             }
         }
 
@@ -93,8 +92,8 @@ final class RateLimiterMiddleware
                 $current = (int) ($cache->get($key) ?? 0);
                 $cache->set($key, $current + 1, $window);
                 return;
-            } catch (\Throwable) {
-                // Fall through
+            } catch (\Throwable $e) {
+                $this->logWarning('Redis increment failed: ' . $e->getMessage());
             }
         }
 
@@ -113,12 +112,20 @@ final class RateLimiterMiddleware
                 ['id' => $existing['id']]
             );
         } else {
-            // Clean expired + insert
             $db->delete("DELETE FROM op_rate_limits WHERE expires_at <= :now", ['now' => $now]);
             $db->insert(
                 "INSERT INTO op_rate_limits (key_name, hits, window_start, expires_at) VALUES (:k, 1, :ws, :exp)",
                 ['k' => $key, 'ws' => $now, 'exp' => $expires]
             );
         }
+    }
+
+    private function logWarning(string $message): void
+    {
+        try {
+            if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
+                $this->container->get(\OwnPay\Service\System\Logger::class)->warning($message);
+            }
+        } catch (\Throwable) {}
     }
 }

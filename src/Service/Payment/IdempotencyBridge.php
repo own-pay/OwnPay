@@ -6,7 +6,7 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Http\Request;
 
 /**
- * Idempotency bridge — middleware helper to extract and enforce idempotency.
+ * Idempotency bridge â€” middleware helper to extract and enforce idempotency.
  */
 final class IdempotencyBridge
 {
@@ -30,7 +30,7 @@ final class IdempotencyBridge
      * Check idempotency for API request.
      * @return array{is_duplicate: bool, cached_response?: array}|null Null if no key provided
      */
-    public function checkRequest(Request $request): ?array
+    public function checkRequest(Request $request, string $scope = 'api'): ?array
     {
         $key = $this->extractKey($request);
         if ($key === null || $key === '') {
@@ -42,19 +42,19 @@ final class IdempotencyBridge
             return null;
         }
 
-        return $this->service->check($key, (int) $merchantId);
+        return $this->service->check($scope, $key, (int) $merchantId);
     }
 
     /**
      * Store response for future duplicate requests.
      */
-    public function storeResponse(Request $request, int $statusCode, array $response): void
+    public function storeResponse(Request $request, int $statusCode, array $response, string $scope = 'api'): void
     {
         $key = $this->extractKey($request);
         $merchantId = $request->getAttribute('merchant_id');
 
         if ($key !== null && $merchantId !== null) {
-            $this->service->storeResponse($key, (int) $merchantId, $statusCode, $response);
+            $this->service->storeResponse($scope, $key, (int) $merchantId, $statusCode, $response);
         }
     }
 }

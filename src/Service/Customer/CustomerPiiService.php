@@ -9,7 +9,7 @@ use OwnPay\Security\FieldEncryptor;
 use OwnPay\Security\PiiMasker;
 
 /**
- * Customer PII service — encrypted CRUD with PII masking.
+ * Customer PII service â€” encrypted CRUD with PII masking.
  *
  * Per PCI-DSS: all PII encrypted at rest (AES-256-GCM).
  * Fires: customer.created, customer.updated, customer.deleted
@@ -101,7 +101,7 @@ final class CustomerPiiService
     }
 
     /**
-     * Delete customer (soft delete — zero PII fields).
+     * Delete customer (soft delete â€” zero PII fields).
      */
     public function delete(int $merchantId, int $customerId): void
     {

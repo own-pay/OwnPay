@@ -4,9 +4,9 @@ declare(strict_types=1);
 namespace OwnPay\Plugin;
 
 /**
- * Plugin manifest — parsed from plugin.json.
+ * Plugin manifest â€” parsed from manifest.json.
  *
- * Every plugin must have a plugin.json at its root:
+ * Every plugin must have a manifest.json at its root:
  * {
  *   "name": "My Plugin",
  *   "slug": "my-plugin",
@@ -36,13 +36,13 @@ final class PluginManifest
 
     private function __construct(array $data, string $path)
     {
-        $this->name = $data['name'] ?? '';
-        $this->slug = $data['slug'] ?? '';
+        $this->name = $data['name'] ?? basename($path);
+        $this->slug = $data['slug'] ?? $data['name'] ?? basename($path);
         $this->version = $data['version'] ?? '0.0.0';
         $this->description = $data['description'] ?? '';
         $this->author = $data['author'] ?? '';
         $this->type = $data['type'] ?? 'addon';
-        $this->entrypoint = $data['entrypoint'] ?? '';
+        $this->entrypoint = $data['entrypoint'] ?? $data['entry'] ?? '';
         $this->capabilities = $data['capabilities'] ?? [];
         $this->requires = $data['requires'] ?? [];
         $this->permissions = $data['permissions'] ?? [];
@@ -54,7 +54,9 @@ final class PluginManifest
      */
     public static function fromDirectory(string $dir): ?self
     {
-        $file = rtrim($dir, '/\\') . '/plugin.json';
+        $base = rtrim($dir, '/\\');
+        $file = $base . '/manifest.json';
+
         if (!file_exists($file)) {
             return null;
         }

@@ -10,11 +10,11 @@ use OwnPay\Http\Response;
 use OwnPay\Model\WebhookPayload;
 
 /**
- * Unified webhook controller — single dynamic endpoint for ALL gateways.
+ * Unified webhook controller â€” single dynamic endpoint for ALL gateways.
  *
  * Route: POST /webhook/{gateway}
  *
- * Fires: webhook.incoming.{gateway} hook → plugin handles verification + processing.
+ * Fires: webhook.incoming.{gateway} hook â†’ plugin handles verification + processing.
  * Zero core modification required to add new gateways.
  *
  * OWASP: No user input trust. Raw body preserved for HMAC verification.
@@ -40,7 +40,7 @@ final class UnifiedWebhookController
     {
         $gateway = $req->param('gateway') ?? '';
 
-        // Sanitize gateway slug — alphanumeric + hyphens only
+        // Sanitize gateway slug â€” alphanumeric + hyphens only
         if (!preg_match('/^[a-z0-9][a-z0-9\-]{0,49}$/', $gateway)) {
             $this->logAttempt($gateway, 'invalid_slug', $req);
             return Response::json(['error' => 'Invalid gateway identifier'], 400);
@@ -54,7 +54,7 @@ final class UnifiedWebhookController
             return Response::json(['error' => 'Unknown gateway'], 404);
         }
 
-        // Resolve merchant ID — injected by DomainResolverMiddleware or fallback
+        // Resolve merchant ID â€” injected by DomainResolverMiddleware or fallback
         $merchantId = $req->getAttribute('merchant_id') ?? $this->resolveMerchantFromPayload($req);
 
         // Build immutable payload for plugin consumption
@@ -67,7 +67,7 @@ final class UnifiedWebhookController
             method: $req->method(),
         );
 
-        // Fire hook — plugin handles verification + processing
+        // Fire hook â€” plugin handles verification + processing
         $this->events->doAction($hookName, $payload);
 
         // Log delivery (PCI: payload hash only, never raw card data)
@@ -105,7 +105,7 @@ final class UnifiedWebhookController
             }
         }
 
-        return 0; // Unknown merchant — plugin must handle
+        return 0; // Unknown merchant â€” plugin must handle
     }
 
     /**
@@ -113,8 +113,8 @@ final class UnifiedWebhookController
      */
     private function logAttempt(string $gateway, string $reason, Request $req): void
     {
-        if ($this->c->has(\OwnPay\Core\Logger::class)) {
-            $this->c->get(\OwnPay\Core\Logger::class)->warning(
+        if ($this->c->has(\OwnPay\Service\System\Logger::class)) {
+            $this->c->get(\OwnPay\Service\System\Logger::class)->warning(
                 "Webhook rejected: gateway={$gateway} reason={$reason} ip={$req->ip()}"
             );
         }

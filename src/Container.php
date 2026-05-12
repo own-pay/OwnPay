@@ -28,7 +28,7 @@ final class Container
     /** @var array<string, bool> Whether a binding should be treated as singleton */
     private array $singletons = [];
 
-    /** @var array<string, string> Alias → concrete mapping */
+    /** @var array<string, string> Alias â†’ concrete mapping */
     private array $aliases = [];
 
     /** @var array<string, mixed> Raw parameter values */
@@ -37,7 +37,7 @@ final class Container
     /** @var array<string, bool> Guard against circular dependencies */
     private array $resolving = [];
 
-    // ─── Binding ───────────────────────────────────────────────
+    // â”€â”€â”€ Binding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Register a factory closure. Transient by default.
@@ -101,7 +101,7 @@ final class Container
         $this->parameters[$key] = $value;
     }
 
-    // ─── Resolution ────────────────────────────────────────────
+    // â”€â”€â”€ Resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Resolve a service from the container. PSR-11 `get()`.
@@ -119,6 +119,19 @@ final class Container
         }
 
         if (!isset($this->bindings[$abstract])) {
+            // Basic autowiring for Repositories
+            if (class_exists($abstract) && str_ends_with($abstract, 'Repository') && is_subclass_of($abstract, \OwnPay\Repository\BaseRepository::class)) {
+                $db = $this->get(\OwnPay\Core\Database::class);
+                $instance = new $abstract($db);
+                $this->instances[$abstract] = $instance;
+                return $instance;
+            }
+
+            // Generic Autowiring via Reflection
+            if (class_exists($abstract)) {
+                return $this->autowire($abstract);
+            }
+
             throw new RuntimeException(
                 "No binding registered for [{$abstract}]."
             );
@@ -199,7 +212,45 @@ final class Container
         return $abstract;
     }
 
-    // ─── Introspection ─────────────────────────────────────────
+    // â”€â”€â”€ Autowiring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+    private function autowire(string $class): mixed
+    {
+        $reflector = new \ReflectionClass($class);
+        if (!$reflector->isInstantiable()) {
+            throw new RuntimeException("Class [{$class}] is not instantiable.");
+        }
+
+        $constructor = $reflector->getConstructor();
+        if ($constructor === null) {
+            return new $class();
+        }
+
+        $parameters = $constructor->getParameters();
+        $dependencies = [];
+
+        foreach ($parameters as $parameter) {
+            $type = $parameter->getType();
+            if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
+                $dependencyClass = $type->getName();
+                if ($dependencyClass === self::class) {
+                    $dependencies[] = $this;
+                } else {
+                    $dependencies[] = $this->get($dependencyClass);
+                }
+            } else {
+                if ($parameter->isDefaultValueAvailable()) {
+                    $dependencies[] = $parameter->getDefaultValue();
+                } else {
+                    throw new RuntimeException("Cannot resolve primitive parameter \${$parameter->getName()} in class {$class}.");
+                }
+            }
+        }
+
+        return $reflector->newInstanceArgs($dependencies);
+    }
+
+    // â”€â”€â”€ Introspection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Get all registered binding keys (excluding aliases).

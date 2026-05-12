@@ -6,7 +6,7 @@ namespace OwnPay\Cron;
 use OwnPay\Service\System\HttpClient;
 
 /**
- * Currency update job — fetches exchange rates from external API.
+ * Currency update job â€” fetches exchange rates from external API.
  */
 final class CurrencyUpdateJob
 {
@@ -35,19 +35,19 @@ final class CurrencyUpdateJob
 
             foreach ($rates as $currency => $rate) {
                 $exists = $this->db->fetchOne(
-                    "SELECT id FROM op_exchange_rates WHERE from_currency = 'USD' AND to_currency = :cur",
+                    "SELECT id FROM op_exchange_rates WHERE base_currency = 'USD' AND target_currency = :cur",
                     ['cur' => $currency]
                 );
 
                 if ($exists) {
                     $this->db->update(
                         "UPDATE op_exchange_rates SET rate = :rate, updated_at = NOW()
-                         WHERE from_currency = 'USD' AND to_currency = :cur",
+                         WHERE base_currency = 'USD' AND target_currency = :cur",
                         ['rate' => (string) $rate, 'cur' => $currency]
                     );
                 } else {
                     $this->db->insert(
-                        "INSERT INTO op_exchange_rates (from_currency, to_currency, rate, updated_at)
+                        "INSERT INTO op_exchange_rates (base_currency, target_currency, rate, updated_at)
                          VALUES ('USD', :cur, :rate, NOW())",
                         ['cur' => $currency, 'rate' => (string) $rate]
                     );

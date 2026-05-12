@@ -7,7 +7,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\AuditLogRepository;
 
 /**
- * Audit logger — structured audit trail for compliance.
+ * Audit logger â€” structured audit trail for compliance.
  *
  * Fires: audit.log.created
  * Per PCI-DSS: immutable logs, actor attribution, before/after snapshots.

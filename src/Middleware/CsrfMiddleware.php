@@ -8,7 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * CSRF middleware — validates token on state-changing requests.
+ * CSRF middleware â€” validates token on state-changing requests.
  *
  * Per OWASP: synchronizer token pattern.
  * Skips GET/HEAD/OPTIONS. API routes use bearer auth instead.
@@ -24,7 +24,7 @@ final class CsrfMiddleware
 
     public function handle(Request $request, callable $next): Response
     {
-        // Safe methods — no CSRF check needed
+        // Safe methods â€” no CSRF check needed
         if (in_array($request->method(), ['GET', 'HEAD', 'OPTIONS'], true)) {
             return $next($request);
         }

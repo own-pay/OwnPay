@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Domain;
 
 /**
- * DNS verifier — checks TXT and A/CNAME records for domain verification.
+ * DNS verifier â€” checks TXT and A/CNAME records for domain verification.
  */
 final class DnsVerifier
 {

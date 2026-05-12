@@ -3,7 +3,9 @@ declare(strict_types=1);
 
 namespace OwnPay\Modules\Themes\OwnPay;
 
+use OwnPay\Container;
 use OwnPay\Plugin\PluginInterface;
+use OwnPay\Plugin\Capability;
 use OwnPay\Event\EventManager;
 
 /**
@@ -12,7 +14,24 @@ use OwnPay\Event\EventManager;
  */
 final class Theme implements PluginInterface
 {
-    public function register(EventManager $events): void
+    public static function metadata(): array
+    {
+        return [
+            'name'        => 'Own Pay Theme',
+            'slug'        => 'own-pay-theme',
+            'version'     => '1.0.0',
+            'description' => 'Default OwnPay checkout and landing page theme.',
+            'author'      => 'Own Pay',
+            'type'        => 'theme',
+        ];
+    }
+
+    public function capabilities(): array
+    {
+        return [Capability::THEME];
+    }
+
+    public function register(EventManager $events, Container $container): void
     {
         // Register checkout template paths
         $events->addFilter('checkout.template', function (string $template): string {
@@ -23,9 +42,13 @@ final class Theme implements PluginInterface
             return 'checkout/checkout-status.twig';
         });
 
+        $events->addFilter('checkout.payment_link.template', function (string $template): string {
+            return 'checkout/payment-link-amount.twig';
+        });
+
         // Register landing page features
         $events->addFilter('landing.features', function (array $features): array {
-            return $features; // Default features from LandingController
+            return $features;
         });
 
         // Enqueue assets
@@ -39,10 +62,41 @@ final class Theme implements PluginInterface
         });
     }
 
-    public function getInfo(): array
+    public function boot(Container $container): void {}
+    public function deactivate(Container $container): void {}
+    public function uninstall(Container $container): void {}
+
+    public function fields(): array
     {
-        $manifest = json_decode(file_get_contents(__DIR__ . '/manifest.json'), true);
-        return $manifest ?: [];
+        return [
+            [
+                'name'    => 'primary_color',
+                'label'   => 'Primary Color',
+                'type'    => 'color',
+                'default' => '#0D9488',
+                'help'    => 'Main brand color for checkout pages.',
+            ],
+            [
+                'name'    => 'accent_color',
+                'label'   => 'Accent Color',
+                'type'    => 'color',
+                'default' => '#6C5CE7',
+                'help'    => 'Accent color for buttons and highlights.',
+            ],
+            [
+                'name'    => 'checkout_logo',
+                'label'   => 'Checkout Logo URL',
+                'type'    => 'text',
+                'default' => '',
+                'help'    => 'URL to logo displayed on checkout pages.',
+            ],
+            [
+                'name'    => 'show_powered_by',
+                'label'   => 'Show "Powered by OwnPay"',
+                'type'    => 'toggle',
+                'default' => '1',
+            ],
+        ];
     }
 
     /**

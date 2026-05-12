@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Security;
 
 /**
- * Security helpers — CSRF token gen, secure random, input sanitization.
+ * Security helpers â€” CSRF token gen, secure random, input sanitization.
  *
  * Per OWASP: cryptographically secure random, output encoding.
  */
@@ -58,7 +58,7 @@ final class SecurityHelpers
     }
 
     /**
-     * Sanitize filename — remove path traversal, special chars.
+     * Sanitize filename â€” remove path traversal, special chars.
      */
     public static function sanitizeFilename(string $filename): string
     {
@@ -73,7 +73,7 @@ final class SecurityHelpers
     }
 
     /**
-     * Sanitize slug — lowercase, alphanumeric + dashes only.
+     * Sanitize slug â€” lowercase, alphanumeric + dashes only.
      */
     public static function sanitizeSlug(string $value): string
     {

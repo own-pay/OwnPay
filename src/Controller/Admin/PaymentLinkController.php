@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Controller\Admin;
 
 use OwnPay\Container;
+use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Payment\PaymentLinkService;
@@ -14,63 +15,77 @@ use OwnPay\Event\EventManager;
  */
 final class PaymentLinkController
 {
+    use AdminPageTrait;
+
     private Container $c;
+    private AdminSession $session;
     private PaymentLinkService $links;
     private EventManager $events;
 
-    public function __construct(Container $c, PaymentLinkService $links, EventManager $events)
+    public function __construct(Container $c, AdminSession $session, PaymentLinkService $links, EventManager $events)
     {
         $this->c = $c;
+        $this->session = $session;
         $this->links = $links;
         $this->events = $events;
     }
 
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class); $brand->resolveFromRequest($req); $mid = $brand->getActiveBrandId();
         $list = $this->links->listForMerchant($mid);
-        return $this->render('admin/payment-links/index.twig', ['payment_links' => $list, 'active_page' => 'payment-links']);
+        return $this->renderAdminPage('admin/payment-links/index.twig', ['payment_links' => $list, 'active_page' => 'payment-links']);
     }
 
     public function create(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class); $brand->resolveFromRequest($req); $mid = $brand->getActiveBrandId();
         if ($req->method() === 'GET') {
-            return $this->render('admin/payment-links/edit.twig', ['link' => [], 'currencies' => $this->getCurrencies(), 'active_page' => 'payment-links']);
+            return $this->renderAdminPage('admin/payment-links/edit.twig', ['link' => [], 'currencies' => $this->getCurrencies(), 'active_page' => 'payment-links']);
         }
         $link = $this->links->create($mid, $req->post());
         $this->events->doAction('payment_link.created', $link);
-        $_SESSION['flash_success'] = 'Payment link created';
+        $this->session->flashSuccess('Payment link created');
         return Response::redirect('/admin/payment-links');
     }
 
-    public function edit(Request $req, int $id): Response
+    public function edit(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class); $brand->resolveFromRequest($req); $mid = $brand->getActiveBrandId();
+        $id = (int) $req->param('id');
         $link = $this->links->find($mid, $id);
-        if (!$link) { $_SESSION['flash_error'] = 'Not found'; return Response::redirect('/admin/payment-links'); }
+        if (!$link) { $this->session->flashError('Not found'); return Response::redirect('/admin/payment-links'); }
         if ($req->method() === 'GET') {
-            return $this->render('admin/payment-links/edit.twig', ['link' => $link, 'currencies' => $this->getCurrencies(), 'active_page' => 'payment-links']);
+            return $this->renderAdminPage('admin/payment-links/edit.twig', ['link' => $link, 'currencies' => $this->getCurrencies(), 'active_page' => 'payment-links']);
         }
         $updated = $this->links->update($mid, $id, $req->post());
         $this->events->doAction('payment_link.updated', $updated);
-        $_SESSION['flash_success'] = 'Updated';
+        $this->session->flashSuccess('Updated');
         return Response::redirect('/admin/payment-links');
+    }
+
+    /** POST /admin/payment-links/store â€” alias for POST branch of create() */
+    public function store(Request $req): Response
+    {
+        return $this->create($req);
+    }
+
+    /** GET /admin/payment-links/{id} â€” show edit form for existing payment link */
+    public function show(Request $req): Response
+    {
+        return $this->edit($req);
+    }
+
+    /** POST /admin/payment-links/{id}/update â€” process edit form */
+    public function update(Request $req): Response
+    {
+        return $this->edit($req);
     }
 
     private function getCurrencies(): array
     {
-        return $this->c->get(\OwnPay\Core\Database::class)->fetchAll("SELECT code, name FROM op_currencies WHERE status='active' ORDER BY code");
+        return $this->c->get(\OwnPay\Service\Payment\CurrencyService::class)->listAll();
     }
 
-    private function render(string $tpl, array $data = []): Response
-    {
-        $twig = $this->c->get(\Twig\Environment::class);
-        $data['csrf_token'] = $_SESSION['csrf_token'] ?? '';
-        $data['app_name'] = $this->c->get('config.app')['name'] ?? 'Own Pay';
-        $data['current_user'] = $_SESSION['user'] ?? [];
-        $data['flash_success'] = $_SESSION['flash_success'] ?? null; $data['flash_error'] = $_SESSION['flash_error'] ?? null;
-        unset($_SESSION['flash_success'], $_SESSION['flash_error']);
-        return Response::html($twig->render($tpl, $data));
-    }
 }
+

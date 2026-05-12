@@ -30,4 +30,12 @@ final class ManualGatewayRepository extends BaseRepository
             ['mid' => $this->requireTenant()]
         );
     }
+
+    public function listAll(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE merchant_id = :mid ORDER BY sort_order ASC, id DESC",
+            ['mid' => $this->requireTenant()]
+        );
+    }
 }

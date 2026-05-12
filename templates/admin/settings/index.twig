@@ -3,65 +3,524 @@
 {% block content %}
 <div class="op-page-header"><h1>Settings</h1></div>
 
-<div class="op-tabs">
-    <button class="op-tab active" data-tab="general">General</button>
-    <button class="op-tab" data-tab="api">API</button>
-    <button class="op-tab" data-tab="currency">Currency</button>
-    <button class="op-tab" data-tab="faq">FAQ</button>
-    <button class="op-tab" data-tab="theme">Theme</button>
-    {{ fire_hook('admin.settings.tabs')|raw }}
+<div class="op-tabs" id="settings-tabs">
+    <button class="op-tab {{ default_tab == 'general' ? 'active' : '' }}" data-tab="general">General</button>
+    <button class="op-tab {{ default_tab == 'branding' ? 'active' : '' }}" data-tab="branding">Branding</button>
+    <button class="op-tab {{ default_tab == 'landing' ? 'active' : '' }}" data-tab="landing">Landing Page</button>
+    <button class="op-tab {{ default_tab == 'payment' ? 'active' : '' }}" data-tab="payment">Payment</button>
+    <button class="op-tab {{ default_tab == 'email' ? 'active' : '' }}" data-tab="email">Email / SMTP</button>
+    <button class="op-tab {{ default_tab == 'security' ? 'active' : '' }}" data-tab="security">Security</button>
+    <button class="op-tab {{ default_tab == 'checkout' ? 'active' : '' }}" data-tab="checkout">Checkout</button>
+    <button class="op-tab {{ default_tab == 'notification' ? 'active' : '' }}" data-tab="notification">Notifications</button>
+    <button class="op-tab {{ default_tab == 'faq' ? 'active' : '' }}" data-tab="faq">FAQ</button>
+    <button class="op-tab {{ default_tab == 'mobile' ? 'active' : '' }}" data-tab="mobile">Mobile App</button>
+    <button class="op-tab {{ default_tab == 'api' ? 'active' : '' }}" data-tab="api">API</button>
+    {{ hook('admin.settings.tabs')|raw }}
 </div>
 
-<form method="POST" action="/admin/settings" class="op-form">
-    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+<form method="POST" action="/admin/settings/save" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="_tab" id="active-tab-input" value="{{ default_tab ?? 'general' }}">
 
-    <div class="op-tab-panel active" id="tab-general">
+    {# ── General Tab ────────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'general' ? 'active' : '' }}" id="tab-general">
         <div class="op-card">
+            <div class="op-card-header"><h3>Application Settings</h3></div>
             <div class="op-card-body">
-                <div class="op-form-group"><label>App Name</label><input type="text" name="app_name" value="{{ settings.app_name ?? '' }}" class="op-input"></div>
-                <div class="op-form-group"><label>Base URL</label><input type="url" name="base_url" value="{{ settings.base_url ?? '' }}" class="op-input"></div>
-                <div class="op-form-group"><label>Timezone</label>
-                    <select name="timezone" class="op-input">
-                        {% for tz in timezones %}<option value="{{ tz }}" {{ (settings.timezone ?? 'Asia/Dhaka') == tz ? 'selected' : '' }}>{{ tz }}</option>{% endfor %}
-                    </select>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>App Name *</label>
+                        <input type="text" name="app_name" value="{{ settings.app_name ?? '' }}" class="op-input" required>
+                        <small class="op-text-muted">Shown in header, emails, and receipts</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Base URL</label>
+                        <input type="url" name="base_url" value="{{ settings.base_url ?? '' }}" class="op-input" placeholder="https://pay.example.com">
+                        <small class="op-text-muted">Public-facing URL of your payment gateway</small>
+                    </div>
                 </div>
-                <div class="op-form-group"><label class="op-checkbox-label"><input type="checkbox" name="maintenance_mode" value="1" {{ settings.maintenance_mode ? 'checked' : '' }}>Maintenance Mode</label></div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Timezone</label>
+                        <select name="timezone" class="op-input">
+                            {% for tz in timezones %}<option value="{{ tz }}" {{ (settings.timezone ?? 'Asia/Dhaka') == tz ? 'selected' : '' }}>{{ tz }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Support Email</label>
+                        <input type="email" name="support_email" value="{{ settings.support_email ?? '' }}" class="op-input" placeholder="support@example.com">
+                        <small class="op-text-muted">Shown on checkout and error pages</small>
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label>Footer Text</label>
+                    <input type="text" name="footer_text" value="{{ settings.footer_text ?? '' }}" class="op-input" placeholder="© 2026 Your Company. All rights reserved.">
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="maintenance_mode" value="1" {{ (settings.maintenance_mode ?? 0)|raw ? 'checked' : '' }} id="maintenance-toggle">
+                        <span class="op-toggle-switch"></span>
+                        <span>Maintenance Mode</span>
+                    </label>
+                    <small class="op-text-muted op-text-warning" id="maintenance-warning" style="display:{{ (settings.maintenance_mode ?? 0)|raw ? 'block' : 'none' }}">
+                        ⚠ Site is in maintenance mode. Public users see a 503 page. Admin panel stays accessible.
+                    </small>
+                </div>
             </div>
         </div>
-        {{ fire_hook('admin.settings.general')|raw }}
+        {{ hook('admin.settings.general')|raw }}
     </div>
 
-    <div class="op-tab-panel" id="tab-api">
-        <div class="op-card">
+    {# ── Branding Tab ────────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'branding' ? 'active' : '' }}" id="tab-branding">
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>Logo & Favicon</h3></div>
             <div class="op-card-body">
-                <div class="op-form-group"><label>Webhook URL</label><input type="url" name="webhook_url" value="{{ settings.webhook_url ?? '' }}" class="op-input"></div>
-                <div class="op-form-group"><label>API Rate Limit (per min)</label><input type="number" name="api_rate_limit" value="{{ settings.api_rate_limit ?? 60 }}" class="op-input"></div>
+                <div class="op-form-row">
+                    {# ── Site Logo ─────────────── #}
+                    <div class="op-form-group op-col-6">
+                        <label>Site Logo</label>
+                        <p class="op-text-muted op-text-sm op-mb-2">Recommended: 200×60px PNG or SVG</p>
+                        {% if branding.site_logo is defined and branding.site_logo %}
+                        <div class="op-upload-current">
+                            <img src="{{ branding.site_logo }}" alt="Current Logo" class="op-upload-preview-img">
+                            <div>
+                                <span class="op-badge op-badge-success">Uploaded</span>
+                                <div class="op-text-xs op-text-muted op-mt-1">{{ branding.site_logo }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <form method="POST" action="/admin/settings/upload" enctype="multipart/form-data" id="logo-upload-form">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <div class="op-upload-zone" id="logo-drop-zone" onclick="document.getElementById('logo-file-input').click()">
+                                <input type="file" name="site_logo" accept="image/*" id="logo-file-input" onchange="document.getElementById('logo-upload-form').submit()">
+                                <div class="op-upload-icon">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                                </div>
+                                <div class="op-upload-text">
+                                    <strong>Click to upload</strong> or drag and drop<br>
+                                    PNG, SVG, JPEG, WebP
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+
+                    {# ── Favicon ───────────────── #}
+                    <div class="op-form-group op-col-6">
+                        <label>Favicon</label>
+                        <p class="op-text-muted op-text-sm op-mb-2">Recommended: 32×32px ICO or PNG</p>
+                        {% if branding.site_favicon is defined and branding.site_favicon %}
+                        <div class="op-upload-current">
+                            <img src="{{ branding.site_favicon }}" alt="Current Favicon" style="width:32px;height:32px;border-radius:4px;padding:4px;background:var(--op-bg-input);border:1px solid var(--op-border)">
+                            <div>
+                                <span class="op-badge op-badge-success">Uploaded</span>
+                                <div class="op-text-xs op-text-muted op-mt-1">{{ branding.site_favicon }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <form method="POST" action="/admin/settings/upload" enctype="multipart/form-data" id="favicon-upload-form">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <div class="op-upload-zone" id="favicon-drop-zone" onclick="document.getElementById('favicon-file-input').click()">
+                                <input type="file" name="site_favicon" accept="image/*,.ico" id="favicon-file-input" onchange="document.getElementById('favicon-upload-form').submit()">
+                                <div class="op-upload-icon">
+                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                                </div>
+                                <div class="op-upload-text">
+                                    <strong>Click to upload</strong> or drag and drop<br>
+                                    ICO, PNG, SVG
+                                </div>
+                            </div>
+                        </form>
+                    </div>
+                </div>
             </div>
         </div>
-        {{ fire_hook('admin.settings.api')|raw }}
-    </div>
-
-    <div class="op-tab-panel" id="tab-currency">
         <div class="op-card">
+            <div class="op-card-header"><h3>Site Identity &amp; SEO</h3></div>
             <div class="op-card-body">
-                <div class="op-form-group"><label>Default Currency</label>
-                    <select name="default_currency" class="op-input">
-                        {% for cur in currencies %}<option value="{{ cur.code }}" {{ (settings.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} — {{ cur.name }}</option>{% endfor %}
-                    </select>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Admin Panel Title</label>
+                        <input type="text" name="admin_panel_title" value="{{ branding.admin_panel_title ?? '' }}" class="op-input" placeholder="{{ app_name }} Admin">
+                        <small class="op-text-muted">Shown in browser tab for admin panel</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Site Title (SEO)</label>
+                        <input type="text" name="site_seo_title" value="{{ branding.site_seo_title ?? '' }}" class="op-input" placeholder="{{ app_name }} — Secure Payments">
+                        <small class="op-text-muted">Used in landing page &lt;title&gt; tag</small>
+                    </div>
                 </div>
-                <div class="op-form-group"><label>Exchange Rate Update</label>
-                    <select name="exchange_rate_mode" class="op-input">
-                        <option value="auto" {{ (settings.exchange_rate_mode ?? 'auto') == 'auto' ? 'selected' : '' }}>Automatic</option>
-                        <option value="manual" {{ (settings.exchange_rate_mode ?? '') == 'manual' ? 'selected' : '' }}>Manual</option>
-                    </select>
+                <div class="op-form-group">
+                    <label>Site Meta Description</label>
+                    <textarea name="site_meta_description" rows="2" class="op-input" placeholder="Self-hosted payment gateway platform…">{{ branding.site_meta_description ?? '' }}</textarea>
+                    <small class="op-text-muted">150–160 chars. Shown in search engine results.</small>
+                </div>
+                <div class="op-form-group">
+                    <label>Site Keywords</label>
+                    <input type="text" name="site_keywords" value="{{ branding.site_keywords ?? '' }}" class="op-input" placeholder="payment gateway, fintech, self-hosted">
+                </div>
+                <div class="op-form-group">
+                    <label>Brand Tagline</label>
+                    <input type="text" name="brand_tagline" value="{{ branding.brand_tagline ?? '' }}" class="op-input" placeholder="Payments you actually own">
                 </div>
             </div>
         </div>
-        {{ fire_hook('admin.settings.currency')|raw }}
+        {{ hook('admin.settings.branding')|raw }}
     </div>
 
-    <div class="op-tab-panel" id="tab-faq">
+    {# ── Landing Page Tab ─────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'landing' ? 'active' : '' }}" id="tab-landing">
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>Landing Page Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="landing_enabled" value="1" {{ (landing.landing_enabled ?? '1') == '1' ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Enable Landing Page at <code>/</code></span>
+                    </label>
+                    <small class="op-text-muted">When disabled, visiting <code>/</code> redirects to the admin login page</small>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Hero Title</label>
+                        <input type="text" name="landing_title" value="{{ landing.landing_title ?? '' }}" class="op-input" placeholder="The Payment Gateway You Actually Own">
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Hero Subtitle</label>
+                        <input type="text" name="landing_subtitle" value="{{ landing.landing_subtitle ?? '' }}" class="op-input" placeholder="Self-hosted, multi-brand…">
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>CTA Button Text</label>
+                        <input type="text" name="landing_cta_text" value="{{ landing.landing_cta_text ?? 'Get Started' }}" class="op-input">
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>CTA Button URL</label>
+                        <input type="url" name="landing_cta_url" value="{{ landing.landing_cta_url ?? '' }}" class="op-input" placeholder="https://ownpay.org">
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label class="op-toggle-label">
+                            <input type="checkbox" name="landing_show_features" value="1" {{ (landing.landing_show_features ?? '1') == '1' ? 'checked' : '' }}>
+                            <span class="op-toggle-switch"></span>
+                            <span>Show Features Section</span>
+                        </label>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label class="op-toggle-label">
+                            <input type="checkbox" name="landing_show_faq" value="1" {{ (landing.landing_show_faq ?? '1') == '1' ? 'checked' : '' }}>
+                            <span class="op-toggle-switch"></span>
+                            <span>Show FAQ Section</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label>Admin Login URL Slug <span class="op-badge op-badge-warning">Security</span></label>
+                    <div class="op-input-group">
+                        <span class="op-input-prefix">{{ settings.base_url ?? '' }}/</span>
+                        <input type="text" name="admin_login_slug" value="{{ landing.admin_login_slug ?? 'login' }}" class="op-input" placeholder="login" pattern="[a-z0-9\-]+" title="Lowercase letters, numbers, hyphens only">
+                    </div>
+                    <small class="op-text-muted op-text-warning">⚠ Change this to make your admin login URL harder to guess. Default: <code>/login</code>. After saving, bookmark the new URL — old URL stops working.</small>
+                </div>
+            </div>
+        </div>
         <div class="op-card">
+            <div class="op-card-header"><h3>Feature Cards</h3></div>
+            <div class="op-card-body" id="features-container">
+                {% for i, feat in (landing.features ?? []) %}
+                <div class="op-faq-row op-card op-card-bordered op-mb-2 op-p-3">
+                    <div class="op-form-row">
+                        <div class="op-form-group op-col-6"><label>Title</label><input type="text" name="features[{{ i }}][title]" value="{{ feat.title ?? '' }}" class="op-input"></div>
+                        <div class="op-form-group op-col-6"><label>Description</label><input type="text" name="features[{{ i }}][description]" value="{{ feat.description ?? '' }}" class="op-input"></div>
+                    </div>
+                    <button type="button" class="op-btn op-btn-sm op-btn-danger" onclick="this.closest('.op-faq-row').remove()">Remove</button>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="op-card-body op-p-3">
+                <button type="button" class="op-btn op-btn-outline" id="add-feature">+ Add Feature Card</button>
+            </div>
+        </div>
+        {{ hook('admin.settings.landing')|raw }}
+    </div>
+
+    {# ── Payment Tab ────────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'payment' ? 'active' : '' }}" id="tab-payment">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Payment Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Default Currency</label>
+                        <select name="default_currency" class="op-input">
+                            {% for cur in currencies %}<option value="{{ cur.code }}" {{ (settings.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} — {{ cur.name }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Exchange Rate Update</label>
+                        <select name="exchange_rate_mode" class="op-input">
+                            <option value="auto" {{ (settings.exchange_rate_mode ?? 'auto') == 'auto' ? 'selected' : '' }}>Automatic</option>
+                            <option value="manual" {{ (settings.exchange_rate_mode ?? '') == 'manual' ? 'selected' : '' }}>Manual</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Payment Expiry (minutes)</label>
+                        <input type="number" name="payment_expiry_minutes" value="{{ settings.payment_expiry_minutes ?? 30 }}" class="op-input" min="5" max="1440">
+                        <small class="op-text-muted">How long before unpaid checkout sessions expire</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Invoice Due Days (default)</label>
+                        <input type="number" name="invoice_due_days" value="{{ settings.invoice_due_days ?? 7 }}" class="op-input" min="1" max="365">
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="auto_approve_payments" value="1" {{ (settings.auto_approve_payments ?? 0)|raw ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Auto-approve verified payments</span>
+                    </label>
+                    <small class="op-text-muted">When enabled, SMS-verified payments are approved automatically</small>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.payment')|raw }}
+    </div>
+
+    {# ── Email Tab ──────────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'email' ? 'active' : '' }}" id="tab-email">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Email / SMTP Configuration</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-8">
+                        <label>SMTP Host</label>
+                        <input type="text" name="smtp_host" value="{{ settings.smtp_host ?? '' }}" class="op-input" placeholder="smtp.gmail.com">
+                    </div>
+                    <div class="op-form-group op-col-4">
+                        <label>SMTP Port</label>
+                        <input type="number" name="smtp_port" value="{{ settings.smtp_port ?? 587 }}" class="op-input">
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Encryption</label>
+                        <select name="smtp_encryption" class="op-input">
+                            <option value="tls" {{ (settings.smtp_encryption ?? 'tls') == 'tls' ? 'selected' : '' }}>TLS</option>
+                            <option value="ssl" {{ (settings.smtp_encryption ?? '') == 'ssl' ? 'selected' : '' }}>SSL</option>
+                            <option value="none" {{ (settings.smtp_encryption ?? '') == 'none' ? 'selected' : '' }}>None</option>
+                        </select>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>SMTP Username</label>
+                        <input type="text" name="smtp_username" value="{{ settings.smtp_username ?? '' }}" class="op-input">
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label>SMTP Password</label>
+                    <input type="password" name="smtp_password" value="{{ settings.smtp_password ?? '' }}" class="op-input" autocomplete="new-password">
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>From Email</label>
+                        <input type="email" name="mail_from_email" value="{{ settings.mail_from_email ?? '' }}" class="op-input" placeholder="noreply@yourdomain.com">
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>From Name</label>
+                        <input type="text" name="mail_from_name" value="{{ settings.mail_from_name ?? '' }}" class="op-input" placeholder="Own Pay">
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.email')|raw }}
+    </div>
+
+    {# ── API Tab ────────────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'api' ? 'active' : '' }}" id="tab-api">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Webhook & Rate Limits</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label>Webhook URL</label>
+                    <input type="url" name="webhook_url" value="{{ settings.webhook_url ?? '' }}" class="op-input" placeholder="https://yoursite.com/webhook">
+                    <small class="op-text-muted">Receive payment event notifications at this URL</small>
+                </div>
+                <div class="op-form-group">
+                    <label>API Rate Limit (requests/min)</label>
+                    <input type="number" name="api_rate_limit" value="{{ settings.api_rate_limit ?? 60 }}" class="op-input" min="10" max="1000">
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>API Keys</h3></div>
+            <div class="op-card-body">
+                <table class="op-table">
+                    <thead><tr><th>Label</th><th>Prefix</th><th>Created</th><th>Actions</th></tr></thead>
+                    <tbody>
+                        {% for key in api_keys %}
+                        <tr>
+                            <td>{{ key.name }}</td>
+                            <td><code>{{ key.key_prefix }}****</code></td>
+                            <td>{{ key.created_at|date('Y-m-d H:i') }}</td>
+                            <td>
+                                <button type="submit" form="revoke-form-{{ key.id }}" class="op-btn op-btn-sm op-btn-danger" onclick="return confirm('Revoke this key?')">Revoke</button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="4" class="op-text-center op-text-muted">No API keys found.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+
+                <div class="op-mt-3 op-d-flex op-align-end">
+                    <div class="op-form-group op-mr-2 op-mb-0">
+                        <input type="text" name="label" form="generate-form" class="op-input op-input-sm" placeholder="New Key Label" required>
+                    </div>
+                    <button type="submit" form="generate-form" class="op-btn op-btn-sm op-btn-primary">Generate New Key</button>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.api')|raw }}
+    </div>
+
+    {# ── Security Tab ───────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'security' ? 'active' : '' }}" id="tab-security">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Security Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Session Timeout (minutes)</label>
+                        <input type="number" name="session_timeout" value="{{ settings.session_timeout ?? 120 }}" class="op-input" min="5" max="1440">
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Max Login Attempts (per 5 min)</label>
+                        <input type="number" name="max_login_attempts" value="{{ settings.max_login_attempts ?? 5 }}" class="op-input" min="1" max="20">
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label>IP Allowlist</label>
+                    <textarea name="ip_allowlist" rows="3" class="op-input" placeholder="One IP per line (leave empty = allow all)">{{ settings.ip_allowlist ?? '' }}</textarea>
+                    <small class="op-text-muted">Leave empty to allow all IPs. One IP per line.</small>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="force_https" value="1" {{ (settings.force_https ?? 1)|raw ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Force HTTPS</span>
+                    </label>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="require_2fa" value="1" {{ (settings.require_2fa ?? 0)|raw ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Require 2FA for all staff</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.security')|raw }}
+    </div>
+
+    {# ── Checkout Tab ───────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'checkout' ? 'active' : '' }}" id="tab-checkout">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Checkout Page Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label>Checkout Page Title</label>
+                    <input type="text" name="checkout_title" value="{{ settings.checkout_title ?? 'Complete Payment' }}" class="op-input">
+                </div>
+                <div class="op-form-group">
+                    <label>Success Message</label>
+                    <textarea name="checkout_success_msg" rows="2" class="op-input">{{ settings.checkout_success_msg ?? 'Payment completed successfully! Thank you for your payment.' }}</textarea>
+                </div>
+                <div class="op-form-group">
+                    <label>Pending Message</label>
+                    <textarea name="checkout_pending_msg" rows="2" class="op-input">{{ settings.checkout_pending_msg ?? 'Your payment is being verified. You will receive a confirmation shortly.' }}</textarea>
+                </div>
+                <div class="op-form-group">
+                    <label>Failed/Expired Message</label>
+                    <textarea name="checkout_failed_msg" rows="2" class="op-input">{{ settings.checkout_failed_msg ?? 'This payment session has expired or was cancelled.' }}</textarea>
+                </div>
+                <div class="op-form-group">
+                    <label>Terms & Conditions URL</label>
+                    <input type="url" name="terms_url" value="{{ settings.terms_url ?? '' }}" class="op-input" placeholder="https://example.com/terms">
+                </div>
+                <div class="op-form-group">
+                    <label>Privacy Policy URL</label>
+                    <input type="url" name="privacy_url" value="{{ settings.privacy_url ?? '' }}" class="op-input" placeholder="https://example.com/privacy">
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.checkout')|raw }}
+    </div>
+
+    {# ── Notifications Tab ──────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'notification' ? 'active' : '' }}" id="tab-notification">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Notification Preferences</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label>Admin Notification Email</label>
+                    <input type="email" name="admin_notification_email" value="{{ settings.admin_notification_email ?? '' }}" class="op-input" placeholder="admin@example.com">
+                    <small class="op-text-muted">Receive payment notifications at this email</small>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="email_on_payment" value="1" {{ (settings.email_on_payment ?? 0)|raw ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Email on new payment</span>
+                    </label>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="email_on_refund" value="1" {{ (settings.email_on_refund ?? 0)|raw ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Email on refund</span>
+                    </label>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.notification')|raw }}
+    </div>
+
+    {# ── Theme Tab ──────────────────────────────────────────── #}
+    <div class="op-tab-panel" id="tab-theme">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Theme Customization</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-4">
+                        <label>Primary Color</label>
+                        <input type="color" name="theme_primary" value="{{ settings.theme_primary ?? '#6C5CE7' }}" class="op-input-color">
+                    </div>
+                    <div class="op-form-group op-col-4">
+                        <label>Accent Color</label>
+                        <input type="color" name="theme_accent" value="{{ settings.theme_accent ?? '#00CEC9' }}" class="op-input-color">
+                    </div>
+                    <div class="op-form-group op-col-4">
+                        <label>Admin Theme</label>
+                        <select name="theme_mode" class="op-input">
+                            <option value="dark" {{ (settings.theme_mode ?? 'dark') == 'dark' ? 'selected' : '' }}>Dark</option>
+                            <option value="light" {{ (settings.theme_mode ?? '') == 'light' ? 'selected' : '' }}>Light</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.theme')|raw }}
+    </div>
+
+    {# ── FAQ Tab ─────────────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'faq' ? 'active' : '' }}" id="tab-faq">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Checkout FAQ</h3></div>
             <div class="op-card-body" id="faq-container">
                 {% for i, faq in (settings.faqs ?? []) %}
                 <div class="op-faq-row op-card op-card-bordered op-mb-2 op-p-3">
@@ -71,34 +530,77 @@
                 </div>
                 {% endfor %}
             </div>
-            <button type="button" class="op-btn op-btn-outline op-mt-2" id="add-faq">+ Add FAQ</button>
+            <div class="op-card-body op-p-3"><button type="button" class="op-btn op-btn-outline" id="add-faq">+ Add FAQ</button></div>
         </div>
+        {{ hook('admin.settings.faq')|raw }}
     </div>
 
-    <div class="op-tab-panel" id="tab-theme">
+    {# ── Mobile App Tab ────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'mobile' ? 'active' : '' }}" id="tab-mobile">
         <div class="op-card">
+            <div class="op-card-header"><h3>Mobile Companion App Settings</h3></div>
             <div class="op-card-body">
+                <div class="op-alert op-alert-info op-mb-3">
+                    These settings control how the OwnPay mobile companion app filters and forwards SMS messages. The app uses a whitelist of approved senders and keyword filters to ensure only payment-related messages reach the server.
+                </div>
+
+                <h4 class="op-mb-2">SMS Filter Keywords</h4>
                 <div class="op-form-row">
-                    <div class="op-form-group op-col-4"><label>Primary Color</label><input type="color" name="theme_primary" value="{{ settings.theme_primary ?? '#6C5CE7' }}" class="op-input-color"></div>
-                    <div class="op-form-group op-col-4"><label>Accent Color</label><input type="color" name="theme_accent" value="{{ settings.theme_accent ?? '#00CEC9' }}" class="op-input-color"></div>
-                    <div class="op-form-group op-col-4"><label>Dark Mode</label><select name="theme_mode" class="op-input"><option value="dark" {{ (settings.theme_mode ?? 'dark') == 'dark' ? 'selected' : '' }}>Dark</option><option value="light" {{ (settings.theme_mode ?? '') == 'light' ? 'selected' : '' }}>Light</option></select></div>
+                    <div class="op-form-group op-col-6">
+                        <label>Positive Keywords <small class="op-text-muted">(one per line)</small></label>
+                        <textarea name="sms_positive_keywords" rows="5" class="op-input" placeholder="received&#10;credited&#10;TrxID&#10;deposited&#10;Tk">{{ settings.sms_positive_keywords ?? '' }}</textarea>
+                        <small class="op-text-muted">SMS containing these words are forwarded to OwnPay</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Negative Keywords <small class="op-text-muted">(one per line)</small></label>
+                        <textarea name="sms_negative_keywords" rows="5" class="op-input" placeholder="OTP&#10;PIN&#10;password&#10;verify&#10;code">{{ settings.sms_negative_keywords ?? '' }}</textarea>
+                        <small class="op-text-muted">SMS containing these words are <strong>blocked</strong> (privacy protection)</small>
+                    </div>
+                </div>
+
+                <div class="op-form-group">
+                    <label>Filter Rules Refresh Interval (hours)</label>
+                    <input type="number" name="sms_filter_rules_check_interval_hours" value="{{ settings.sms_filter_rules_check_interval_hours ?? 24 }}" class="op-input" min="1" max="168" style="max-width:200px">
+                    <small class="op-text-muted">How often the mobile app re-fetches filter rules from the server</small>
+                </div>
+
+                <hr class="op-divider">
+
+                <h4 class="op-mb-2">Quick Links</h4>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-4">
+                        <a href="/admin/sms-center" class="op-btn op-btn-outline op-btn-block">📱 SMS Center & Templates</a>
+                    </div>
+                    <div class="op-form-group op-col-4">
+                        <a href="/admin/devices" class="op-btn op-btn-outline op-btn-block">📲 Paired Devices</a>
+                    </div>
+                    <div class="op-form-group op-col-4">
+                        <a href="/admin/developer#endpoints" class="op-btn op-btn-outline op-btn-block">🔗 API Endpoints</a>
+                    </div>
+                </div>
+
+                <div class="op-alert op-alert-warning op-mt-2">
+                    <strong>Sender Whitelist:</strong> The sender whitelist is managed in <a href="/admin/sms-center" class="op-link">SMS Center → Templates</a>. Only senders defined there will be forwarded by the mobile app.
                 </div>
             </div>
         </div>
-        {{ fire_hook('admin.settings.theme')|raw }}
+        {{ hook('admin.settings.mobile')|raw }}
     </div>
 
     <div class="op-form-actions op-mt-4"><button type="submit" class="op-btn op-btn-primary op-btn-lg">Save Settings</button></div>
 </form>
 
-<script>
-document.querySelectorAll('.op-tab').forEach(t=>t.addEventListener('click',function(){
-    document.querySelectorAll('.op-tab,.op-tab-panel').forEach(e=>e.classList.remove('active'));
-    this.classList.add('active');document.getElementById('tab-'+this.dataset.tab).classList.add('active');
-}));
-let faqIdx={{ (settings.faqs ?? [])|length }};
-document.getElementById('add-faq').onclick=function(){
-    document.getElementById('faq-container').insertAdjacentHTML('beforeend','<div class="op-faq-row op-card op-card-bordered op-mb-2 op-p-3"><div class="op-form-group"><label>Question</label><input type="text" name="faqs['+faqIdx+'][question]" class="op-input"></div><div class="op-form-group"><label>Answer</label><textarea name="faqs['+faqIdx+'][answer]" rows="2" class="op-input"></textarea></div><button type="button" class="op-btn op-btn-sm op-btn-danger" onclick="this.closest(\'.op-faq-row\').remove()">Remove</button></div>');faqIdx++;
-};
-</script>
+<form id="generate-form" method="POST" action="/admin/api-keys/generate">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+{% for key in api_keys %}
+<form id="revoke-form-{{ key.id }}" method="POST" action="/admin/api-keys/{{ key.id }}/revoke">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+{% endfor %}
+
+
 {% endblock %}
+{% block scripts %}<script src="/assets/js/pages/settings.js"></script>{% endblock %}
+

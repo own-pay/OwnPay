@@ -3,31 +3,33 @@ declare(strict_types=1);
 
 namespace OwnPay\Controller\Api\Admin;
 
-use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Repository\SmsTemplateRepository;
 
 final class SmsTemplateController
 {
-    private Container $c;
-    public function __construct(Container $c) { $this->c = $c; }
+    private SmsTemplateRepository $tplRepo;
+
+    public function __construct(SmsTemplateRepository $tplRepo)
+    {
+        $this->tplRepo = $tplRepo;
+    }
 
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $templates = $db->fetchAll("SELECT id, event, body, enabled, created_at FROM op_sms_templates WHERE merchant_id = :mid ORDER BY event", ['mid' => $mid]);
+        $templates = $this->tplRepo->listForAdmin($mid, 'event ASC');
         return Response::json(['success' => true, 'data' => $templates]);
     }
 
-    public function update(Request $req, int $id): Response
+    public function update(Request $req): Response
     {
+        $id  = (int) $req->param('id');
         $mid = (int) $req->getAttribute('merchant_id');
-        $body = $req->jsonBody();
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $db->update("UPDATE op_sms_templates SET body = :body, enabled = :en WHERE id = :id AND merchant_id = :mid", [
-            'body' => $body['body'] ?? '', 'en' => ($body['enabled'] ?? true) ? 1 : 0, 'id' => $id, 'mid' => $mid,
-        ]);
+        $body = $req->json();
+
+        $this->tplRepo->updateTemplate($id, $mid, $body['body'] ?? '', (bool) ($body['enabled'] ?? true));
         return Response::json(['success' => true]);
     }
 }

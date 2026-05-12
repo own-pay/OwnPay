@@ -15,13 +15,13 @@
         .op-retry { margin-top: 32px; display: inline-block; padding: 12px 24px; background: #6C5CE7; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600; }
         .op-retry:hover { background: #7c6df7; }
     </style>
-    <meta http-equiv="refresh" content="30">
+    <meta http-equiv="refresh" content="{{ retry_after|default(300) }}">
 </head>
 <body>
     <div class="op-error">
         <div class="op-error-code">503</div>
-        <p class="op-error-msg">Service temporarily unavailable.</p>
-        <p class="op-error-sub">We're working on it. This page refreshes automatically.</p>
+        <p class="op-error-msg">{{ reason|default('Service temporarily unavailable.') }}</p>
+        <p class="op-error-sub">We're working on it. This page refreshes automatically in ~{{ (retry_after|default(300) / 60)|round }} min.</p>
         <a href="/" class="op-retry">Try Again</a>
     </div>
 </body>

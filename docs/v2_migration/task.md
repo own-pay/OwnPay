@@ -34,6 +34,10 @@
 - [x] A26. Update `composer.json`
 - [x] A27. Create `.env.example`
 - [x] A28. Build `src/View/TwigFactory.php` — Template loader with plugin path injection
+- [x] A29. Repair Test Bootstrap (update `tests/bootstrap.php` and/or test classes to use the new DI container/`Database` initialization).
+- [x] A30. Relocate Test Assets (ensure `database/schema.sql` replaces the old `master_install.sql`).
+- [x] A31. CI Workflow Adjustment (update `phpunit.xml` and CI configurations to reflect structural changes).
+- [x] A32. Verify PHPStan/PHPUnit execution without fatal errors.
 
 ## Phase B: Database & Data Layer
 

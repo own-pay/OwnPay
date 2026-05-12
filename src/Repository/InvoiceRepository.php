@@ -38,4 +38,37 @@ final class InvoiceRepository extends BaseRepository
         $count = $this->countScoped() + 1;
         return 'INV-' . str_pad((string) $count, 6, '0', STR_PAD_LEFT);
     }
+
+    /**
+     * Find unpaid invoice by number (public checkout).
+     */
+    public function findUnpaidByNumber(string $invoiceNumber): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE invoice_number = :num AND status != 'paid'",
+            ['num' => $invoiceNumber]
+        );
+    }
+
+    /**
+     * Find pending transaction for invoice.
+     */
+    public function findPendingTransaction(int $invoiceId): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT trx_id FROM op_transactions WHERE invoice_id = :iid AND status = 'pending'",
+            ['iid' => $invoiceId]
+        );
+    }
+
+    /**
+     * List invoice items.
+     */
+    public function listItems(int $invoiceId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM op_invoice_items WHERE invoice_id = :iid",
+            ['iid' => $invoiceId]
+        );
+    }
 }

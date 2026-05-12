@@ -37,4 +37,15 @@ final class ApiKeyRepository extends BaseRepository
     {
         return $this->updateScoped($id, ['status' => 'revoked']);
     }
+
+    public function listActiveKeys(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT id, name, key_prefix, scopes, last_used_at, expires_at, status, created_at
+             FROM {$this->table}
+             WHERE merchant_id = :mid AND status = 'active'
+             ORDER BY created_at DESC",
+            ['mid' => $this->requireTenant()]
+        );
+    }
 }

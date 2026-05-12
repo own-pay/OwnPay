@@ -33,7 +33,7 @@
 
         <form method="POST" action="/checkout/{{ transaction.token }}/submit" 
               enctype="multipart/form-data" class="op-checkout-form">
-            <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="gateway_slug" value="{{ gateway.slug }}">
 
             {% for field in gateway.input_fields %}

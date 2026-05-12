@@ -6,7 +6,7 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Repository\IdempotencyRepository;
 
 /**
- * Idempotency service — prevents duplicate transaction processing.
+ * Idempotency service â€” prevents duplicate transaction processing.
  *
  * Uses idempotency key (client-provided) to deduplicate API requests.
  */
@@ -24,20 +24,21 @@ final class IdempotencyService
      *
      * @return array{is_duplicate: bool, cached_response?: array}
      */
-    public function check(string $key, int $merchantId): array
+    public function check(string $scope, string $key, int $merchantId): array
     {
-        $existing = $this->repo->findByKey($key, $merchantId);
+        $repo = $this->repo->forTenant($merchantId);
+        $existing = $repo->findByKey($scope, $key);
 
         if ($existing !== null) {
             return [
                 'is_duplicate' => true,
-                'cached_response' => json_decode($existing['response_body'] ?? '{}', true),
+                'cached_response' => json_decode($existing['response_payload'] ?? '{}', true),
             ];
         }
 
         // Lock the key
-        $this->repo->create([
-            'merchant_id'     => $merchantId,
+        $repo->createScoped([
+            'scope'           => $scope,
             'idempotency_key' => $key,
             'status'          => 'processing',
         ]);
@@ -48,15 +49,12 @@ final class IdempotencyService
     /**
      * Store response for idempotency key.
      */
-    public function storeResponse(string $key, int $merchantId, int $statusCode, array $response): void
+    public function storeResponse(string $scope, string $key, int $merchantId, int $statusCode, array $response): void
     {
-        $existing = $this->repo->findByKey($key, $merchantId);
+        $repo = $this->repo->forTenant($merchantId);
+        $existing = $repo->findByKey($scope, $key);
         if ($existing !== null) {
-            $this->repo->update((int) $existing['id'], [
-                'response_code' => $statusCode,
-                'response_body' => json_encode($response),
-                'status'        => 'completed',
-            ]);
+            $repo->complete((int) $existing['id'], json_encode($response), $statusCode);
         }
     }
 
@@ -65,6 +63,6 @@ final class IdempotencyService
      */
     public function cleanup(int $hoursOld = 24): int
     {
-        return $this->repo->cleanOlderThan($hoursOld);
+        return $this->repo->cleanup($hoursOld);
     }
 }

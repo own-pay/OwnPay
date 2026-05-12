@@ -6,7 +6,7 @@ namespace OwnPay\Service\Auth;
 use OwnPay\Repository\RoleRepository;
 
 /**
- * Permission guard — checks if user has specific permission.
+ * Permission guard â€” checks if user has specific permission.
  */
 final class PermissionGuard
 {

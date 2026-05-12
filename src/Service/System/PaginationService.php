@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * Pagination service — offset-based pagination with page metadata.
+ * Pagination service â€” offset-based pagination with page metadata.
  */
 final class PaginationService
 {

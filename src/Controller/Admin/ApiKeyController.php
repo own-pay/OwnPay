@@ -6,43 +6,48 @@ namespace OwnPay\Controller\Admin;
 use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Customer\ApiKeyService;
 
 final class ApiKeyController
 {
+    use AdminPageTrait;
+
     private Container $c;
+    private AdminSession $session;
     private ApiKeyService $keys;
 
-    public function __construct(Container $c, ApiKeyService $keys) { $this->c = $c; $this->keys = $keys; }
+    public function __construct(Container $c, AdminSession $session, ApiKeyService $keys)
+    {
+        $this->c       = $c;
+        $this->session = $session;
+        $this->keys    = $keys;
+    }
 
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
-        $list = $this->keys->listForMerchant($mid);
-        return $this->render('admin/settings/index.twig', ['api_keys' => $list, 'active_page' => 'settings']);
+        return Response::redirect('/admin/settings#tab-api');
     }
 
     public function generate(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
         $label = $req->post('label', 'Default');
         $key = $this->keys->generate($mid, $label);
-        $_SESSION['flash_success'] = "API Key generated: {$key['key']}. Copy it now — it won't be shown again.";
+        $this->session->flashSuccess("API Key generated: {$key['key']}. Copy it now — it won't be shown again.");
         return Response::redirect('/admin/settings#tab-api');
     }
 
-    public function revoke(Request $req, int $id): Response
+    public function revoke(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $id = (int) $req->param('id');
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
         $this->keys->revoke($mid, $id);
-        $_SESSION['flash_success'] = 'API key revoked';
+        $this->session->flashSuccess('API key revoked');
         return Response::redirect('/admin/settings#tab-api');
-    }
-
-    private function render(string $tpl, array $data = []): Response
-    {
-        $twig = $this->c->get(\Twig\Environment::class);
-        $data['csrf_token'] = $_SESSION['csrf_token'] ?? ''; $data['app_name'] = $this->c->get('config.app')['name'] ?? 'Own Pay'; $data['current_user'] = $_SESSION['user'] ?? [];
-        return Response::html($twig->render($tpl, $data));
     }
 }

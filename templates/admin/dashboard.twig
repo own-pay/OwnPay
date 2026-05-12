@@ -15,7 +15,7 @@
     </div>
 </div>
 
-{{ fire_hook('admin.dashboard.before')|raw }}
+{{ hook('admin.dashboard.before')|raw }}
 
 {# Stats Cards #}
 <div class="op-stats-grid">
@@ -60,7 +60,7 @@
     </div>
 </div>
 
-{{ fire_hook('admin.dashboard.after_stats')|raw }}
+{{ hook('admin.dashboard.after_stats')|raw }}
 
 {# Recent Transactions #}
 <div class="op-card op-mt-4">
@@ -70,7 +70,7 @@
     </div>
     <div class="op-card-body">
         {% if recent_transactions|length > 0 %}
-        <table class="op-table">
+        <div class="op-table-responsive"><table class="op-table">
             <thead>
                 <tr><th>TRX ID</th><th>Customer</th><th>Amount</th><th>Gateway</th><th>Status</th><th>Date</th></tr>
             </thead>
@@ -80,18 +80,18 @@
                     <td><code>{{ txn.trx_id }}</code></td>
                     <td>{{ txn.customer_name ?? '—' }}</td>
                     <td><strong>{{ txn.currency }} {{ txn.amount }}</strong></td>
-                    <td><span class="op-badge op-badge-outline">{{ txn.gateway }}</span></td>
+                    <td><span class="op-badge op-badge-outline">{{ txn.gateway_slug }}</span></td>
                     <td><span class="op-badge op-badge-{{ txn.status == 'completed' ? 'success' : (txn.status == 'pending' ? 'warning' : 'danger') }}">{{ txn.status }}</span></td>
                     <td>{{ txn.created_at }}</td>
                 </tr>
                 {% endfor %}
             </tbody>
-        </table>
+        </table></div>
         {% else %}
         <div class="op-empty-state"><p>No transactions yet.</p></div>
         {% endif %}
     </div>
 </div>
 
-{{ fire_hook('admin.dashboard.bottom')|raw }}
+{{ hook('admin.dashboard.bottom')|raw }}
 {% endblock %}

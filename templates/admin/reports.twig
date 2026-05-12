@@ -2,43 +2,155 @@
 {% block title %}Reports — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
-    <h1>Reports</h1>
+    <div>
+        <h1>📊 Reports</h1>
+        <p class="op-text-muted op-mt-1">Transaction analytics and revenue insights.</p>
+    </div>
     <div class="op-header-actions">
-        <form method="GET" class="op-filter-bar">
-            <input type="date" name="from" value="{{ filters.from ?? '' }}" class="op-input op-input-sm">
-            <input type="date" name="to" value="{{ filters.to ?? '' }}" class="op-input op-input-sm">
-            <select name="gateway" class="op-input op-input-sm">
-                <option value="">All Gateways</option>
-                {% for gw in gateways %}<option value="{{ gw.slug }}" {{ (filters.gateway ?? '') == gw.slug ? 'selected' : '' }}>{{ gw.name }}</option>{% endfor %}
-            </select>
-            <button type="submit" class="op-btn op-btn-sm op-btn-primary">Generate</button>
-            <a href="/admin/reports/export?{{ query_string }}" class="op-btn op-btn-sm op-btn-outline">Export CSV</a>
+        <a href="/admin/reports/export?{{ query_string }}" class="op-btn op-btn-outline">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
+        </a>
+    </div>
+</div>
+
+{# ── Filter Bar ──────────────────────────────────────────── #}
+<div class="op-card op-mb-4">
+    <div class="op-card-body">
+        <form method="GET" class="op-filter-form">
+            <div class="op-form-row op-align-end">
+                <div class="op-form-group op-col-3">
+                    <label class="op-text-sm op-text-muted">From</label>
+                    <input type="date" name="from" value="{{ filters.from ?? '' }}" class="op-input">
+                </div>
+                <div class="op-form-group op-col-3">
+                    <label class="op-text-sm op-text-muted">To</label>
+                    <input type="date" name="to" value="{{ filters.to ?? '' }}" class="op-input">
+                </div>
+                <div class="op-form-group op-col-3">
+                    <label class="op-text-sm op-text-muted">Gateway</label>
+                    <select name="gateway" class="op-input">
+                        <option value="">All Gateways</option>
+                        {% for gw in gateways %}<option value="{{ gw.slug }}" {{ (filters.gateway ?? '') == gw.slug ? 'selected' : '' }}>{{ gw.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="op-form-group op-col-3">
+                    <button type="submit" class="op-btn op-btn-primary" style="width:100%">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Generate Report
+                    </button>
+                </div>
+            </div>
         </form>
     </div>
 </div>
 
-<div class="op-stats-grid">
-    <div class="op-stat-card op-stat-primary"><div class="op-stat-content"><span class="op-stat-value">{{ report.total_revenue ?? '0.00' }}</span><span class="op-stat-label">Revenue</span></div></div>
-    <div class="op-stat-card op-stat-success"><div class="op-stat-content"><span class="op-stat-value">{{ report.total_transactions ?? 0 }}</span><span class="op-stat-label">Transactions</span></div></div>
-    <div class="op-stat-card op-stat-info"><div class="op-stat-content"><span class="op-stat-value">{{ report.avg_transaction ?? '0.00' }}</span><span class="op-stat-label">Avg Transaction</span></div></div>
-    <div class="op-stat-card op-stat-warning"><div class="op-stat-content"><span class="op-stat-value">{{ report.total_fees ?? '0.00' }}</span><span class="op-stat-label">Total Fees</span></div></div>
+{# ── Stats Grid ──────────────────────────────────────────── #}
+<div class="op-stats-grid op-mb-4">
+    <div class="op-stat-card op-stat-primary">
+        <div class="op-stat-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        </div>
+        <div class="op-stat-content">
+            <span class="op-stat-value">{{ report.total_revenue ?? '0.00' }}</span>
+            <span class="op-stat-label">Total Revenue</span>
+        </div>
+    </div>
+    <div class="op-stat-card op-stat-success">
+        <div class="op-stat-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        </div>
+        <div class="op-stat-content">
+            <span class="op-stat-value">{{ report.total_transactions ?? 0 }}</span>
+            <span class="op-stat-label">Transactions</span>
+        </div>
+    </div>
+    <div class="op-stat-card op-stat-info">
+        <div class="op-stat-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        </div>
+        <div class="op-stat-content">
+            <span class="op-stat-value">{{ report.avg_transaction ?? '0.00' }}</span>
+            <span class="op-stat-label">Avg Transaction</span>
+        </div>
+    </div>
+    <div class="op-stat-card op-stat-warning">
+        <div class="op-stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        </div>
+        <div class="op-stat-content">
+            <span class="op-stat-value">{{ report.total_fees ?? '0.00' }}</span>
+            <span class="op-stat-label">Total Fees</span>
+        </div>
+    </div>
 </div>
 
-{{ fire_hook('report.data', report)|raw }}
+{{ hook('report.data', report)|raw }}
 
-{% if report.by_gateway|length > 0 %}
-<div class="op-card op-mt-4">
-    <div class="op-card-header"><h3>By Gateway</h3></div>
-    <div class="op-card-body op-p-0">
-        <table class="op-table">
-            <thead><tr><th>Gateway</th><th>Count</th><th>Revenue</th><th>Fees</th></tr></thead>
-            <tbody>
-                {% for gw in report.by_gateway %}
-                <tr><td>{{ gw.name }}</td><td>{{ gw.count }}</td><td>{{ gw.revenue }}</td><td>{{ gw.fees }}</td></tr>
-                {% endfor %}
-            </tbody>
-        </table>
+{# ── Status Breakdown ────────────────────────────────────── #}
+{% if report.by_status is defined and report.by_status|length > 0 %}
+<div class="op-card op-mb-4">
+    <div class="op-card-header"><h3>Transaction Status Breakdown</h3></div>
+    <div class="op-card-body">
+        <div class="op-status-bars">
+            {% for status in report.by_status %}
+            <div class="op-status-bar-item">
+                <div class="op-status-bar-header">
+                    <span class="op-badge op-badge-{{ status.status == 'completed' ? 'success' : (status.status == 'pending' ? 'warning' : (status.status == 'failed' ? 'danger' : 'muted')) }}">{{ status.status|capitalize }}</span>
+                    <span class="op-text-muted op-text-sm">{{ status.count }} transactions</span>
+                </div>
+                <div class="op-progress-bar">
+                    <div class="op-progress-fill op-progress-{{ status.status == 'completed' ? 'success' : (status.status == 'pending' ? 'warning' : 'danger') }}" style="width:{{ report.total_transactions > 0 ? ((status.count / report.total_transactions) * 100)|round : 0 }}%"></div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
     </div>
 </div>
 {% endif %}
+
+{# ── Gateway Breakdown ───────────────────────────────────── #}
+{% if report.by_gateway is defined and report.by_gateway|length > 0 %}
+<div class="op-card op-mb-4">
+    <div class="op-card-header"><h3>Revenue by Gateway</h3></div>
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead>
+                <tr>
+                    <th>Gateway</th>
+                    <th class="op-text-right">Transactions</th>
+                    <th class="op-text-right">Revenue</th>
+                    <th class="op-text-right">Fees</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for gw in report.by_gateway %}
+                <tr>
+                    <td>
+                        <div class="op-gateway-name">
+                            <span class="op-gateway-dot" style="background:var(--op-primary)"></span>
+                            <strong>{{ gw.name }}</strong>
+                        </div>
+                    </td>
+                    <td class="op-text-right">{{ gw.count }}</td>
+                    <td class="op-text-right"><strong>{{ gw.revenue }}</strong></td>
+                    <td class="op-text-right op-text-muted">{{ gw.fees }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% else %}
+<div class="op-card">
+    <div class="op-card-body">
+        <div class="op-empty-state">
+            <div class="op-empty-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+            </div>
+            <p class="op-empty-title">No transaction data for this period</p>
+            <p class="op-text-muted op-text-sm">Adjust the date range or gateway filter above to see analytics.</p>
+        </div>
+    </div>
+</div>
+{% endif %}
+
 {% endblock %}

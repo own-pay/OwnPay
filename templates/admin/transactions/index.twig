@@ -1,56 +1,143 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}Transactions — {{ app_name }}{% endblock %}
 {% block content %}
+
 <div class="op-page-header">
-    <h1>Transactions</h1>
+    <div>
+        <h1>Transactions</h1>
+        <p class="op-text-muted op-mt-1">All payment transactions across your active brand.</p>
+    </div>
     <div class="op-header-actions">
-        <form method="GET" class="op-filter-bar">
-            <input type="search" name="q" value="{{ filters.q ?? '' }}" placeholder="Search TRX ID..." class="op-input op-input-sm">
-            <select name="status" class="op-input op-input-sm">
-                <option value="">All Status</option>
-                {% for s in ['pending','completed','failed','refunded','canceled'] %}
-                <option value="{{ s }}" {{ (filters.status ?? '') == s ? 'selected' : '' }}>{{ s|capitalize }}</option>
-                {% endfor %}
-            </select>
-            <select name="gateway" class="op-input op-input-sm">
-                <option value="">All Gateways</option>
-                {% for gw in gateways %}<option value="{{ gw.slug }}" {{ (filters.gateway ?? '') == gw.slug ? 'selected' : '' }}>{{ gw.name }}</option>{% endfor %}
-            </select>
-            <button type="submit" class="op-btn op-btn-sm op-btn-primary">Filter</button>
-        </form>
+        <span class="op-text-muted op-text-sm">{{ pagination.total_items ?? 0 }} total</span>
     </div>
 </div>
 
+{# ── Status Chips ──────────────────────────────────────────────── #}
+<div class="op-filter-chips-row op-mb-3">
+    {% set statuses = [
+        {key: '',          label: 'All'},
+        {key: 'completed', label: 'Completed'},
+        {key: 'pending',   label: 'Pending'},
+        {key: 'failed',    label: 'Failed'},
+        {key: 'refunded',  label: 'Refunded'},
+        {key: 'canceled',  label: 'Canceled'},
+    ] %}
+    {% for s in statuses %}
+    <a href="?status={{ s.key }}&q={{ filters.q|default('') }}&gateway={{ filters.gateway|default('') }}&date_from={{ filters.date_from|default('') }}&date_to={{ filters.date_to|default('') }}"
+       class="op-chip {{ (filters.status|default('')) == s.key ? 'op-chip-active' : '' }}
+              {% if s.key == 'completed' %}op-chip-success{% elseif s.key == 'pending' %}op-chip-warning{% elseif s.key == 'failed' or s.key == 'canceled' %}op-chip-danger{% elseif s.key == 'refunded' %}op-chip-info{% endif %}">
+        {{ s.label }}
+    </a>
+    {% endfor %}
+</div>
+
+{# ── Advanced Filters ──────────────────────────────────────────── #}
+<div class="op-card op-mb-4">
+    <div class="op-card-body">
+        <form method="GET" class="op-advanced-filters" id="txn-filter-form">
+            <input type="hidden" name="status" value="{{ filters.status|default('') }}">
+            <div class="op-filter-field">
+                <div class="op-filter-search-wrap">
+                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input type="search" name="q" value="{{ filters.q|default('') }}" placeholder="TrxID, amount…" class="op-input op-input-sm op-search-input">
+                </div>
+            </div>
+            <div class="op-filter-field">
+                <select name="gateway" class="op-input op-input-sm">
+                    <option value="">All Gateways</option>
+                    {% for gw in gateways %}
+                    <option value="{{ gw.slug }}" {{ (filters.gateway|default('')) == gw.slug ? 'selected' : '' }}>{{ gw.name }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="op-filter-field">
+                <input type="date" name="date_from" value="{{ filters.date_from|default('') }}" class="op-input op-input-sm" placeholder="From date">
+            </div>
+            <div class="op-filter-field">
+                <input type="date" name="date_to" value="{{ filters.date_to|default('') }}" class="op-input op-input-sm" placeholder="To date">
+            </div>
+            <button type="submit" class="op-btn op-btn-sm op-btn-primary">
+                <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="op-mr-1" style="vertical-align:middle"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>
+                Filter
+            </button>
+            {% if filters.q or filters.gateway or filters.date_from or filters.date_to %}
+            <a href="?status={{ filters.status|default('') }}" class="op-btn op-btn-sm op-btn-outline">✕ Clear</a>
+            {% endif %}
+        </form>
+
+        {# Active filter badges #}
+        {% if filters.q or filters.gateway or filters.date_from or filters.date_to %}
+        <div class="op-active-filters op-mt-2">
+            <span class="op-text-xs op-text-muted">Active filters:</span>
+            {% if filters.q %}<span class="op-filter-badge">Search: {{ filters.q }}<a href="?status={{ filters.status|default('') }}&gateway={{ filters.gateway|default('') }}" class="op-filter-badge-remove">×</a></span>{% endif %}
+            {% if filters.gateway %}<span class="op-filter-badge">Gateway: {{ filters.gateway }}<a href="?status={{ filters.status|default('') }}&q={{ filters.q|default('') }}" class="op-filter-badge-remove">×</a></span>{% endif %}
+            {% if filters.date_from %}<span class="op-filter-badge">From: {{ filters.date_from }}</span>{% endif %}
+            {% if filters.date_to %}<span class="op-filter-badge">To: {{ filters.date_to }}</span>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# ── Transactions Table ────────────────────────────────────────── #}
 <div class="op-card">
     <div class="op-card-body op-p-0">
-        <table class="op-table">
-            <thead>
-                <tr><th>TRX ID</th><th>Customer</th><th>Amount</th><th>Gateway</th><th>Status</th><th>Date</th><th>Actions</th></tr>
-            </thead>
-            <tbody>
-                {% for txn in transactions %}
-                <tr>
-                    <td><code>{{ txn.trx_id }}</code></td>
-                    <td>{{ txn.customer_name ?? '—' }}</td>
-                    <td><strong>{{ txn.currency }} {{ txn.amount }}</strong></td>
-                    <td><span class="op-badge op-badge-outline">{{ txn.gateway }}</span></td>
-                    <td><span class="op-badge op-badge-{{ txn.status == 'completed' ? 'success' : (txn.status == 'pending' ? 'warning' : 'danger') }}">{{ txn.status }}</span></td>
-                    <td>{{ txn.created_at }}</td>
-                    <td>
-                        <a href="/admin/transactions/{{ txn.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>TRX ID</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Gateway</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in transactions %}
+                    <tr>
+                        <td><code class="op-trx-id">{{ txn.trx_id }}</code></td>
+                        <td>{{ txn.customer_name|default('—') }}</td>
+                        <td><strong>{{ txn.currency }} {{ txn.amount }}</strong></td>
+                        <td><span class="op-badge op-badge-outline">{{ txn.gateway_slug }}</span></td>
+                        <td>
+                            <span class="op-badge op-badge-{{ txn.status == 'completed' ? 'success' : (txn.status == 'pending' ? 'warning' : (txn.status == 'refunded' ? 'info' : 'danger')) }}">
+                                {{ txn.status|capitalize }}
+                            </span>
+                        </td>
+                        <td class="op-text-muted op-text-sm">{{ txn.created_at|date("M d, Y H:i") }}</td>
+                        <td>
+                            <a href="/admin/transactions/{{ txn.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="op-empty">
+                            No transactions found for current filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
     </div>
 </div>
 
-{% if pagination.total_pages > 1 %}
-<nav class="op-pagination">
-    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
-    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
-    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+{# ── Pagination ────────────────────────────────────────────────── #}
+{% if pagination is defined and pagination.total_pages > 1 %}
+{% set qs = '' %}
+{% if filters.q is not empty %}{% set qs = qs ~ '&q=' ~ filters.q|url_encode %}{% endif %}
+{% if filters.status is not empty %}{% set qs = qs ~ '&status=' ~ filters.status|url_encode %}{% endif %}
+{% if filters.gateway is not empty %}{% set qs = qs ~ '&gateway=' ~ filters.gateway|url_encode %}{% endif %}
+{% if filters.date_from is not empty %}{% set qs = qs ~ '&date_from=' ~ filters.date_from|url_encode %}{% endif %}
+{% if filters.date_to is not empty %}{% set qs = qs ~ '&date_to=' ~ filters.date_to|url_encode %}{% endif %}
+<nav class="op-pagination op-mt-4">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}{{ qs }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total_items }} total)</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}{{ qs }}" class="op-page-link">Next →</a>{% endif %}
 </nav>
 {% endif %}
+
 {% endblock %}
+

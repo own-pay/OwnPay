@@ -7,10 +7,10 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * Plugin loader — discovers, validates, and loads active plugins.
+ * Plugin loader â€” discovers, validates, and loads active plugins.
  *
  * Scan order: modules/gateways/, modules/themes/, modules/addons/
- * Each plugin dir must contain plugin.json + entrypoint class.
+ * Each plugin dir must contain manifest.json + entrypoint class.
  */
 final class PluginLoader
 {
@@ -93,7 +93,7 @@ final class PluginLoader
             }
         }
 
-        // Boot phase — all plugins registered, now boot
+        // Boot phase â€” all plugins registered, now boot
         foreach ($this->registry->getLoaded() as $slug => $instance) {
             try {
                 $instance->boot($this->container);
@@ -107,7 +107,7 @@ final class PluginLoader
     }
 
     /**
-     * Load single plugin: validate → require → instantiate → register.
+     * Load single plugin: validate â†’ require â†’ instantiate â†’ register.
      */
     private function loadPlugin(array $pluginData): void
     {
@@ -170,8 +170,20 @@ final class PluginLoader
 
     private function resolveClassName(PluginManifest $manifest): string
     {
-        // Convention: OwnPay\Plugins\{PascalSlug}\{PascalSlug}Plugin
+        // 1) Try manifest.json "namespace" field (most reliable)
+        $manifestPath = $manifest->path . '/manifest.json';
+        if (file_exists($manifestPath)) {
+            $raw = json_decode((string) file_get_contents($manifestPath), true);
+            if (!empty($raw['namespace'])) {
+                // Entry class name from entrypoint filename (e.g., Plugin.php → Plugin)
+                $className = pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
+                return rtrim($raw['namespace'], '\\') . '\\' . $className;
+            }
+        }
+
+        // 2) Fallback: convention-based PSR-4
         $pascal = str_replace('-', '', ucwords($manifest->slug, '-'));
-        return "OwnPay\\Plugins\\{$pascal}\\{$pascal}Plugin";
+        $entryClass = pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
+        return "OwnPay\\Plugins\\{$pascal}\\{$entryClass}";
     }
 }

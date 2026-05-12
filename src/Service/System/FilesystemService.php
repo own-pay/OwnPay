@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\System;
 
+use OwnPay\Support\DateHelper;
+
 /**
- * Filesystem service — safe file operations with path validation.
+ * Filesystem service â€” safe file operations with path validation.
  *
  * Per OWASP: path traversal prevention, extension whitelist.
  */
@@ -43,7 +45,7 @@ final class FilesystemService
             throw new \RuntimeException('File MIME type mismatch');
         }
 
-        $targetDir = $this->baseDir . '/' . $subDir . '/' . date('Y/m');
+        $targetDir = $this->baseDir . '/' . $subDir . '/' . DateHelper::yearMonthPath();
         if (!is_dir($targetDir)) {
             @mkdir($targetDir, 0755, true);
         }
@@ -55,7 +57,7 @@ final class FilesystemService
             throw new \RuntimeException('Failed to move uploaded file');
         }
 
-        return $subDir . '/' . date('Y/m') . '/' . $filename;
+        return $subDir . '/' . DateHelper::yearMonthPath() . '/' . $filename;
     }
 
     /**
@@ -95,14 +97,14 @@ final class FilesystemService
     }
 
     /**
-     * Resolve path safely — prevent directory traversal.
+     * Resolve path safely â€” prevent directory traversal.
      * @throws \RuntimeException
      */
     private function resolveSafe(string $relativePath): string
     {
         $fullPath = realpath($this->baseDir . '/' . $relativePath);
         if ($fullPath === false) {
-            // File doesn't exist yet — validate parent
+            // File doesn't exist yet â€” validate parent
             $fullPath = $this->baseDir . '/' . $relativePath;
             $normalized = str_replace(['../', '..\\'], '', $fullPath);
             if ($normalized !== $fullPath) {

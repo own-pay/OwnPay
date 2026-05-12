@@ -5,9 +5,10 @@ namespace OwnPay\Service\Payment;
 
 use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Service\Sms\SmsParserService;
+use OwnPay\Support\DateHelper;
 
 /**
- * MFS (Mobile Financial Service) — orchestrates SMS→Transaction matching.
+ * MFS (Mobile Financial Service) â€” orchestrates SMSâ†’Transaction matching.
  */
 final class MfsService
 {
@@ -42,7 +43,7 @@ final class MfsService
             'parser_type'  => $parsed['parser_type'] ?? 'none',
             'match_status' => 'pending',
             'raw_data'     => json_encode($parsed),
-            'received_at'  => date('Y-m-d H:i:s'),
+            'received_at'  => DateHelper::now(),
         ]);
 
         // Try auto-match to pending transaction

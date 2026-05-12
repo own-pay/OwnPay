@@ -10,8 +10,20 @@ final class PairedDeviceRepository extends BaseRepository
     protected string $table = 'op_paired_devices';
     protected array $fillable = [
         'merchant_id', 'device_id', 'device_name', 'platform',
-        'jwt_fingerprint', 'last_heartbeat', 'status',
+        'jwt_fingerprint', 'aes_key_encrypted', 'last_heartbeat', 'status',
     ];
+
+    /**
+     * Find device by UUID string (overrides BaseRepository::findByUuid
+     * which looks for a `uuid` column that doesn't exist on this table).
+     */
+    public function findByUuid(string $uuid): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE device_id = :did LIMIT 1",
+            ['did' => $uuid]
+        );
+    }
 
     public function findByDeviceId(string $deviceId): ?array
     {
@@ -21,11 +33,11 @@ final class PairedDeviceRepository extends BaseRepository
         );
     }
 
-    public function heartbeat(int $id): void
+    public function updateHeartbeat(string $deviceId): void
     {
         $this->db->update(
-            "UPDATE {$this->table} SET last_heartbeat = NOW(6) WHERE id = :id",
-            ['id' => $id]
+            "UPDATE {$this->table} SET last_heartbeat = NOW() WHERE device_id = :did",
+            ['did' => $deviceId]
         );
     }
 
@@ -38,6 +50,14 @@ final class PairedDeviceRepository extends BaseRepository
     {
         return $this->db->fetchAll(
             "SELECT * FROM {$this->table} WHERE merchant_id = :mid AND status = 'active' ORDER BY paired_at DESC",
+            ['mid' => $this->requireTenant()]
+        );
+    }
+
+    public function listAllForMerchant(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE merchant_id = :mid ORDER BY paired_at DESC",
             ['mid' => $this->requireTenant()]
         );
     }

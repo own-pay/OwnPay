@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Communication;
 
 /**
- * Mail provider interface — plugins implement this for email delivery.
+ * Mail provider interface â€” plugins implement this for email delivery.
  */
 interface MailProviderInterface
 {

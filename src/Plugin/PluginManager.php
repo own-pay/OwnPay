@@ -8,7 +8,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\PluginRepository;
 
 /**
- * Plugin manager — high-level API for install/activate/deactivate/uninstall.
+ * Plugin manager â€” high-level API for install/activate/deactivate/uninstall.
  *
  * Orchestrates PluginInstaller, PluginMigrator, PluginRegistry.
  * Fires lifecycle hooks at each step for other plugins to react.
@@ -80,13 +80,34 @@ final class PluginManager
     }
 
     /**
-     * Activate plugin — run migrations, load it.
+     * Activate plugin â€” run migrations, load it.
      */
     public function activate(string $slug): array
     {
         $plugin = $this->repo->findBySlug($slug);
         if ($plugin === null) {
-            return ['success' => false, 'error' => 'Plugin not found'];
+            // Discover manifest for DB record
+            $loader = $this->container->get(PluginLoader::class);
+            $manifests = $loader->discover();
+            $manifest = $manifests[$slug] ?? null;
+
+            if ($manifest === null) {
+                return ['success' => false, 'error' => 'Plugin not found'];
+            }
+
+            // Register in DB
+            $this->repo->create([
+                'slug'         => $manifest->slug,
+                'name'         => $manifest->name,
+                'type'         => $manifest->type,
+                'version'      => $manifest->version,
+                'entrypoint'   => $manifest->entrypoint,
+                'capabilities' => json_encode($manifest->capabilities),
+                'manifest'     => json_encode($manifest->toArray()),
+                'status'       => 'inactive',
+            ]);
+
+            $plugin = $this->repo->findBySlug($slug);
         }
 
         if ($plugin['status'] === 'active') {
@@ -133,7 +154,7 @@ final class PluginManager
     }
 
     /**
-     * Uninstall plugin — deactivate, rollback migrations, remove files.
+     * Uninstall plugin â€” deactivate, rollback migrations, remove files.
      */
     public function uninstall(string $slug): array
     {

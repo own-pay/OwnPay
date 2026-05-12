@@ -12,7 +12,7 @@
         <div class="op-modal-footer">
             <button type="button" class="op-btn op-btn-outline" onclick="closeModal('confirm-delete-modal')">Cancel</button>
             <form method="POST" id="delete-form" class="op-inline">
-                <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="_method" value="DELETE">
                 <button type="submit" class="op-btn op-btn-danger">Delete</button>
             </form>
@@ -34,25 +34,4 @@
     </div>
 </div>
 
-<script>
-function openDeleteModal(action, itemName) {
-    document.getElementById('delete-form').action = action;
-    document.getElementById('delete-item-name').textContent = itemName;
-    document.getElementById('confirm-delete-modal').hidden = false;
-}
-function closeModal(id) {
-    document.getElementById(id).hidden = true;
-}
-function openDetailModal(title, url) {
-    document.getElementById('detail-modal-title').textContent = title;
-    document.getElementById('detail-modal').hidden = false;
-    const content = document.getElementById('detail-modal-content');
-    content.innerHTML = '<div class="op-loading">Loading...</div>';
-    fetch(url).then(r => r.text()).then(html => { content.innerHTML = html; });
-}
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        document.querySelectorAll('.op-modal:not([hidden])').forEach(m => m.hidden = true);
-    }
-});
-</script>
+

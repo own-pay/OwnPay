@@ -6,6 +6,9 @@ namespace OwnPay\Modules\Gateways\BkashApi;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
 use OwnPay\Plugin\PluginInterface;
+use OwnPay\Plugin\Capability;
+use OwnPay\Container;
+use OwnPay\Event\EventManager;
 
 /**
  * bKash API gateway — tokenized checkout flow.
@@ -17,19 +20,28 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
     private const SANDBOX_URL = 'https://tokenized.sandbox.bka.sh/v1.2.0-beta';
     private const LIVE_URL    = 'https://tokenized.pay.bka.sh/v1.2.0-beta';
 
+    public static function metadata(): array
+    {
+        return [
+            'name' => 'bKash API', 'slug' => 'bkash-api', 'version' => '1.0.0',
+            'description' => 'bKash tokenized checkout API integration',
+            'author' => 'OwnPay Core', 'type' => 'gateway',
+        ];
+    }
+
     public function slug(): string { return 'bkash-api'; }
     public function name(): string { return 'bKash API'; }
     public function version(): string { return '1.0.0'; }
     public function description(): string { return 'bKash tokenized checkout API integration'; }
 
-    public function boot(): void {}
-    public function activate(): void {}
-    public function deactivate(): void {}
-    public function uninstall(): void {}
+    public function register(EventManager $events, Container $container): void {}
+    public function boot(Container $container): void {}
+    public function deactivate(Container $container): void {}
+    public function uninstall(Container $container): void {}
 
     public function capabilities(): array
     {
-        return [\OwnPay\Plugin\Capability::GATEWAY];
+        return [Capability::GATEWAY];
     }
 
     public function fields(): array

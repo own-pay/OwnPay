@@ -6,6 +6,9 @@ namespace OwnPay\Modules\Gateways\Stripe;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Gateway\GatewayDefaults;
 use OwnPay\Plugin\PluginInterface;
+use OwnPay\Plugin\Capability;
+use OwnPay\Container;
+use OwnPay\Event\EventManager;
 
 /**
  * Stripe gateway plugin — PluginInterface + GatewayAdapterInterface.
@@ -14,19 +17,28 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
 {
     use GatewayDefaults;
 
+    public static function metadata(): array
+    {
+        return [
+            'name' => 'Stripe', 'slug' => 'stripe', 'version' => '1.0.0',
+            'description' => 'Stripe payment gateway — cards, wallets, international payments',
+            'author' => 'OwnPay Core', 'type' => 'gateway',
+        ];
+    }
+
     public function slug(): string { return 'stripe'; }
     public function name(): string { return 'Stripe'; }
     public function version(): string { return '1.0.0'; }
     public function description(): string { return 'Stripe payment gateway integration'; }
 
-    public function boot(): void {}
-    public function activate(): void {}
-    public function deactivate(): void {}
-    public function uninstall(): void {}
+    public function register(EventManager $events, Container $container): void {}
+    public function boot(Container $container): void {}
+    public function deactivate(Container $container): void {}
+    public function uninstall(Container $container): void {}
 
     public function capabilities(): array
     {
-        return [\OwnPay\Plugin\Capability::GATEWAY];
+        return [Capability::GATEWAY];
     }
 
     public function fields(): array

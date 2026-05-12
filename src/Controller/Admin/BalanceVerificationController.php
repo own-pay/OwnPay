@@ -4,35 +4,66 @@ declare(strict_types=1);
 namespace OwnPay\Controller\Admin;
 
 use OwnPay\Container;
+use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Payment\ReconciliationService;
+use OwnPay\Repository\TransactionRepository;
 
 final class BalanceVerificationController
 {
-    private Container $c;
-    private ReconciliationService $recon;
+    use AdminPageTrait;
 
-    public function __construct(Container $c, ReconciliationService $recon) { $this->c = $c; $this->recon = $recon; }
+    private Container $c;
+    private AdminSession $session;
+    private ReconciliationService $recon;
+    private TransactionRepository $txnRepo;
+
+    public function __construct(Container $c, AdminSession $session, ReconciliationService $recon, TransactionRepository $txnRepo)
+    {
+        $this->c       = $c;
+        $this->session = $session;
+        $this->recon   = $recon;
+        $this->txnRepo = $txnRepo;
+    }
 
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $currencies = $db->fetchAll("SELECT DISTINCT currency FROM op_transactions WHERE merchant_id = :mid", ['mid' => $mid]);
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
 
+        $currencies = $this->txnRepo->getDistinctCurrencies($mid);
         $results = [];
         foreach ($currencies as $cur) {
             $results[] = array_merge(['currency' => $cur['currency']], $this->recon->reconcile($mid, $cur['currency']));
         }
 
-        return $this->render('admin/reports.twig', ['balance_results' => $results, 'active_page' => 'reports']);
+        $gateways = $this->txnRepo->getDistinctGateways($mid);
+
+        return $this->renderAdminPage('admin/balance-verification.twig', [
+            'balance_results' => $results,
+            'gateways'        => $gateways,
+            'active_page'     => 'balance-verification',
+        ]);
     }
 
-    private function render(string $tpl, array $data = []): Response
+    public function run(Request $req): Response
     {
-        $twig = $this->c->get(\Twig\Environment::class);
-        $data['csrf_token'] = $_SESSION['csrf_token'] ?? ''; $data['app_name'] = $this->c->get('config.app')['name'] ?? 'Own Pay'; $data['current_user'] = $_SESSION['user'] ?? [];
-        return Response::html($twig->render($tpl, $data));
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+        $currency = $req->post('currency', 'BDT');
+
+        try {
+            $result = $this->recon->reconcile($mid, $currency);
+            $this->session->flashSuccess(sprintf(
+                'Verification complete — %s: Expected %.2f, Actual %.2f',
+                $currency, $result['expected'] ?? 0, $result['actual'] ?? 0
+            ));
+        } catch (\Throwable $e) {
+            $this->session->flashError('Verification failed: ' . $e->getMessage());
+        }
+        return Response::redirect('/admin/balance-verification');
     }
 }

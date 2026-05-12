@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Communication;
 
 /**
- * SMS provider interface — plugins implement this for SMS delivery.
+ * SMS provider interface â€” plugins implement this for SMS delivery.
  */
 interface SmsProviderInterface
 {

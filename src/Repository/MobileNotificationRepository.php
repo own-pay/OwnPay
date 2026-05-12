@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
-use OwnPay\Core\Database;
+use OwnPay\Support\DateHelper;
 
 /**
  * MobileNotificationRepository — CRUD for `op_mobile_notifications`.
@@ -12,85 +12,57 @@ use OwnPay\Core\Database;
  * Self-hosted notification queue polled by mobile devices.
  * Replaces third-party push services (FCM/APNs).
  */
-final class MobileNotificationRepository
+final class MobileNotificationRepository extends BaseRepository
 {
-    private const TABLE = 'op_mobile_notifications';
+    use TenantScope;
 
-    private \PDO $pdo;
-
-    public function __construct()
-    {
-        $this->pdo = Database::getInstance()->getPdo();
-    }
+    protected string $table = 'op_mobile_notifications';
+    protected array $fillable = [
+        'merchant_id', 'device_uuid', 'type', 'title', 'body', 'payload',
+        'is_read', 'read_at',
+    ];
 
     /**
      * Queue a notification for a device.
-     *
-     * @param string $deviceUuid Target device UUID
-     * @param string $type       Notification type (e.g. 'sms_parsed', 'payment_received')
-     * @param string $title      Notification title
-     * @param string $body       Notification body text
-     * @param array  $payload    Optional JSON payload for deep linking
-     * @return int Inserted row ID
      */
-    public function create(string $deviceUuid, string $type, string $title, string $body = '', array $payload = []): int
+    public function queue(string $deviceUuid, string $type, string $title, string $body = '', array $payload = []): string
     {
-        $stmt = $this->pdo->prepare(
-            "INSERT INTO " . self::TABLE . " (device_uuid, type, title, body, payload, created_at)
-             VALUES (:uuid, :type, :title, :body, :payload, NOW())"
-        );
-        $stmt->execute([
-            ':uuid'    => $deviceUuid,
-            ':type'    => $type,
-            ':title'   => $title,
-            ':body'    => $body,
-            ':payload' => !empty($payload) ? json_encode($payload) : null,
+        return $this->createScoped([
+            'device_uuid' => $deviceUuid,
+            'type'        => $type,
+            'title'       => $title,
+            'body'        => $body,
+            'payload'     => !empty($payload) ? json_encode($payload) : null,
         ]);
-
-        return (int) $this->pdo->lastInsertId();
     }
 
     /**
      * Poll for unread notifications since a given timestamp.
-     * Used by: GET /api/v1/notifications/poll?since=<timestamp>
-     *
-     * @param string      $deviceUuid Device UUID
-     * @param string|null $since      ISO 8601 timestamp (fetch newer than this)
-     * @param int         $limit      Max notifications to return
-     * @return array List of notification records
      */
     public function pollSince(string $deviceUuid, ?string $since = null, int $limit = 50): array
     {
-        $sql = "SELECT id, type, title, body, payload, is_read, created_at
-                FROM " . self::TABLE . "
-                WHERE device_uuid = :uuid";
-        $params = [':uuid' => $deviceUuid];
+        $where = "device_uuid = :uuid AND merchant_id = :mid";
+        $params = ['uuid' => $deviceUuid, 'mid' => $this->requireTenant()];
 
         if ($since !== null) {
-            $sql .= " AND created_at > :since";
-            $params[':since'] = $since;
+            $where .= " AND created_at > :since";
+            $params['since'] = $since;
         } else {
-            $sql .= " AND is_read = 0";
+            $where .= " AND is_read = 0";
         }
 
-        $sql .= " ORDER BY created_at DESC LIMIT :lim";
-
-        $stmt = $this->pdo->prepare($sql);
-        foreach ($params as $k => $v) {
-            $stmt->bindValue($k, $v);
-        }
-        $stmt->bindValue(':lim', $limit, \PDO::PARAM_INT);
-        $stmt->execute();
-
-        return $stmt->fetchAll(\PDO::FETCH_ASSOC);
+        return $this->db->fetchAll(
+            "SELECT id, type, title, body, payload, is_read, created_at
+             FROM {$this->table}
+             WHERE {$where}
+             ORDER BY created_at DESC
+             LIMIT {$limit}",
+            $params
+        );
     }
 
     /**
      * Mark notifications as read.
-     *
-     * @param string $deviceUuid Device UUID
-     * @param array  $ids        Array of notification IDs to mark read
-     * @return int Number of rows updated
      */
     public function markRead(string $deviceUuid, array $ids): int
     {
@@ -99,60 +71,68 @@ final class MobileNotificationRepository
         }
 
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
-        $stmt = $this->pdo->prepare(
-            "UPDATE " . self::TABLE . "
+        $stmt = $this->db->execute(
+            "UPDATE {$this->table}
              SET is_read = 1, read_at = NOW()
-             WHERE device_uuid = ? AND id IN ({$placeholders})"
+             WHERE device_uuid = ? AND merchant_id = ? AND id IN ({$placeholders})",
+            array_merge([$deviceUuid, $this->requireTenant()], array_map('intval', $ids))
         );
-
-        $params = array_merge([$deviceUuid], array_map('intval', $ids));
-        $stmt->execute($params);
 
         return $stmt->rowCount();
     }
 
     /**
-     * Count unread notifications for a device.
-     */
-    public function countUnread(string $deviceUuid): int
-    {
-        $stmt = $this->pdo->prepare(
-            "SELECT COUNT(*) FROM " . self::TABLE . "
-             WHERE device_uuid = :uuid AND is_read = 0"
-        );
-        $stmt->execute([':uuid' => $deviceUuid]);
-        return (int) $stmt->fetchColumn();
-    }
-
-    /**
-     * Purge read notifications older than the specified age.
-     *
-     * @param int $olderThanDays Default: 7 days
-     * @return int Number of rows deleted
+     * Purge read notifications older than specified age.
+     * NOTE: Global housekeeping — no tenant scope.
      */
     public function purgeOldRead(int $olderThanDays = 7): int
     {
-        $cutoff = date('Y-m-d H:i:s', time() - ($olderThanDays * 86400));
-
-        $stmt = $this->pdo->prepare(
-            "DELETE FROM " . self::TABLE . "
-             WHERE is_read = 1 AND read_at < :cutoff"
+        $cutoff = DateHelper::ago($olderThanDays * 86400);
+        $stmt = $this->db->execute(
+            "DELETE FROM {$this->table}
+             WHERE is_read = 1 AND read_at < :cutoff",
+            ['cutoff' => $cutoff]
         );
-        $stmt->execute([':cutoff' => $cutoff]);
-
         return $stmt->rowCount();
     }
 
     /**
-     * Find a notification by its ID.
+     * Count unread notifications for device.
      */
-    public function findById(int $id): ?array
+    public function countUnread(int $merchantId, string $deviceUuid): int
     {
-        $stmt = $this->pdo->prepare(
-            "SELECT * FROM " . self::TABLE . " WHERE id = :id LIMIT 1"
+        return $this->db->count(
+            $this->table,
+            "merchant_id = :mid AND device_uuid = :did AND is_read = 0",
+            ['mid' => $merchantId, 'did' => $deviceUuid]
         );
-        $stmt->execute([':id' => $id]);
-        $row = $stmt->fetch(\PDO::FETCH_ASSOC);
-        return $row ?: null;
+    }
+
+    /**
+     * List notifications for device.
+     */
+    public function listForDevice(int $merchantId, string $deviceUuid, int $limit = 50): array
+    {
+        return $this->db->fetchAll(
+            "SELECT id, type, title, body, payload as data, read_at, created_at
+             FROM {$this->table}
+             WHERE merchant_id = :mid AND device_uuid = :did
+             ORDER BY created_at DESC LIMIT {$limit}",
+            ['mid' => $merchantId, 'did' => $deviceUuid]
+        );
+    }
+
+    /**
+     * Mark notifications as read by IDs.
+     */
+    public function acknowledgeIds(array $ids, int $merchantId): int
+    {
+        if (empty($ids)) return 0;
+        $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $stmt = $this->db->execute(
+            "UPDATE {$this->table} SET is_read = 1, read_at = NOW() WHERE id IN ({$placeholders}) AND merchant_id = ?",
+            array_merge($ids, [$merchantId])
+        );
+        return $stmt->rowCount();
     }
 }

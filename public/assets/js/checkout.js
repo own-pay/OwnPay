@@ -74,7 +74,7 @@
         var csrf = document.getElementById('op-csrf');
         if (csrf) {
             var csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden'; csrfInput.name = '_csrf'; csrfInput.value = csrf.value;
+            csrfInput.type = 'hidden'; csrfInput.name = '_csrf_token'; csrfInput.value = csrf.value;
             form.appendChild(csrfInput);
         }
         document.body.appendChild(form);

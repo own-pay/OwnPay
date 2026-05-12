@@ -6,7 +6,7 @@ namespace OwnPay\Service\Auth;
 use OwnPay\Repository\RoleRepository;
 
 /**
- * Permission service — CRUD for roles/permissions, sync operations.
+ * Permission service â€” CRUD for roles/permissions, sync operations.
  */
 final class PermissionService
 {

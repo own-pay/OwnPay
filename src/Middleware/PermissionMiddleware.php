@@ -9,7 +9,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Permission middleware — checks user has required permission for route.
+ * Permission middleware â€” checks user has required permission for route.
  *
  * Fires 'auth.permission.check' filter for plugin override.
  */
@@ -24,18 +24,31 @@ final class PermissionMiddleware
 
     public function handle(Request $request, callable $next): Response
     {
-        $user = $request->getAttribute('auth_user');
+        $userId = $_SESSION['auth_user_id'] ?? null;
 
-        if ($user === null) {
-            // No auth user set — redirect to login
+        if ($userId === null) {
+            // No auth user set â€” redirect to login
             if ($request->expectsJson()) {
                 return Response::json(['success' => false, 'message' => 'Authentication required'], 401);
             }
             return Response::redirect('/login');
         }
 
-        // Superadmin bypass
-        if (($user['is_superadmin'] ?? false) === true) {
+        // Lazy load user from DB if not passed in attributes
+        $user = $request->getAttribute('auth_user');
+        if ($user === null) {
+            $db = $this->container->get(\OwnPay\Core\Database::class);
+            $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id", ['id' => $userId]);
+            if (!$user) {
+                unset($_SESSION['auth_user_id']);
+                return Response::redirect('/login');
+            }
+            // Propagate for downstream
+            $request->setAttribute('auth_user', $user);
+        }
+
+        // Superadmin bypass â€” MySQL returns "1" (string), not true (bool)
+        if (!empty($user['is_superadmin'])) {
             return $next($request);
         }
 
@@ -80,7 +93,7 @@ final class PermissionMiddleware
             '/admin/customers'    => 'customers.view',
             '/admin/gateways'     => 'gateways.view',
             '/admin/staff'        => 'staff.view',
-            '/admin/merchants'    => 'merchants.view',
+            '/admin/brands'       => 'brands.view',
             '/admin/settings'     => 'settings.view',
             '/admin/api-keys'     => 'api_keys.view',
             '/admin/sms-center'   => 'sms.view',
@@ -98,10 +111,9 @@ final class PermissionMiddleware
         // Check exact match first
         if (isset($map[$path])) {
             $perm = $map[$path];
-            // POST = manage/update permission
+            // POST = manage permission
             if ($method === 'POST') {
                 $perm = str_replace('.view', '.manage', $perm);
-                $perm = str_replace('.manage', '.update', $perm); // Fallback
             }
             return $perm;
         }

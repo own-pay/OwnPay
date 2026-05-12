@@ -1,12 +1,12 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}{{ invoice.id ? 'Edit' : 'Create' }} Invoice — {{ app_name }}{% endblock %}
+{% block title %}{{ invoice is not empty and invoice.id is defined and invoice.id ? 'Edit' : 'Create' }} Invoice — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
-    <h1>{{ invoice.id ? 'Edit' : 'Create' }} Invoice</h1>
+    <h1>{{ invoice is not empty and invoice.id is defined and invoice.id ? 'Edit' : 'Create' }} Invoice</h1>
     <a href="/admin/invoices" class="op-btn op-btn-outline">← Back</a>
 </div>
-<form method="POST" action="/admin/invoices/{{ invoice.id ? invoice.id ~ '/edit' : 'create' }}" class="op-form">
-    <input type="hidden" name="_csrf" value="{{ csrf_token }}">
+<form method="POST" action="/admin/invoices/{{ invoice is not empty and invoice.id is defined and invoice.id ? invoice.id ~ '/update' : 'store' }}" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <div class="op-grid op-grid-2">
         <div class="op-card">
             <div class="op-card-header"><h3>Invoice Details</h3></div>
@@ -38,6 +38,16 @@
                     <label>Notes</label>
                     <textarea name="notes" rows="3" class="op-input">{{ invoice.notes ?? '' }}</textarea>
                 </div>
+                {% if invoice is not empty and invoice.id is defined and invoice.id %}
+                <div class="op-form-group">
+                    <label>Status</label>
+                    <select name="status" class="op-input">
+                        {% for s in ['draft','sent','paid','overdue','cancelled'] %}
+                            <option value="{{ s }}" {{ (invoice.status ?? 'draft') == s ? 'selected' : '' }}>{{ s|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
             </div>
         </div>
         <div class="op-card">
@@ -48,7 +58,7 @@
                 <div class="op-item-row op-form-row op-mb-2">
                     <div class="op-form-group op-col-5"><input type="text" name="items[{{ i }}][description]" value="{{ item.description ?? '' }}" class="op-input" placeholder="Description" required></div>
                     <div class="op-form-group op-col-2"><input type="number" name="items[{{ i }}][quantity]" value="{{ item.quantity ?? 1 }}" class="op-input" min="1" required></div>
-                    <div class="op-form-group op-col-3"><input type="number" name="items[{{ i }}][amount]" value="{{ item.amount ?? '' }}" class="op-input" step="0.01" placeholder="Amount" required></div>
+                    <div class="op-form-group op-col-3"><input type="number" name="items[{{ i }}][amount]" value="{{ item.unit_price ?? item.amount ?? '' }}" class="op-input" step="0.01" placeholder="Amount" required></div>
                     <div class="op-form-group op-col-2"><button type="button" class="op-btn op-btn-sm op-btn-danger remove-item">×</button></div>
                 </div>
                 {% endfor %}
@@ -56,15 +66,9 @@
         </div>
     </div>
     <div class="op-form-actions op-mt-4">
-        <button type="submit" class="op-btn op-btn-primary op-btn-lg">{{ invoice.id ? 'Update' : 'Create' }} Invoice</button>
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg">{{ invoice is not empty and invoice.id is defined and invoice.id ? 'Update' : 'Create' }} Invoice</button>
     </div>
 </form>
-<script>
-let idx={{ items|length }};
-document.getElementById('add-item').onclick=function(){
-    const h='<div class="op-item-row op-form-row op-mb-2"><div class="op-form-group op-col-5"><input type="text" name="items['+idx+'][description]" class="op-input" placeholder="Description" required></div><div class="op-form-group op-col-2"><input type="number" name="items['+idx+'][quantity]" value="1" class="op-input" min="1" required></div><div class="op-form-group op-col-3"><input type="number" name="items['+idx+'][amount]" class="op-input" step="0.01" placeholder="Amount" required></div><div class="op-form-group op-col-2"><button type="button" class="op-btn op-btn-sm op-btn-danger remove-item">×</button></div></div>';
-    idx++;document.getElementById('items-container').insertAdjacentHTML('beforeend',h);
-};
-document.getElementById('items-container').addEventListener('click',function(e){if(e.target.classList.contains('remove-item'))e.target.closest('.op-item-row').remove();});
-</script>
 {% endblock %}
+{% block scripts %}<script src="/assets/js/pages/invoice-edit.js"></script>{% endblock %}
+

@@ -17,7 +17,7 @@ final class DomainController
     public function verify(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $body = $req->jsonBody();
+        $body = $req->json();
         $domainId = (int) ($body['domain_id'] ?? 0);
         if ($domainId <= 0) return Response::json(['success' => false, 'error' => 'domain_id required'], 422);
 

@@ -21,6 +21,16 @@ final class UpdateHistoryRepository extends BaseRepository
         );
     }
 
+    public function startUpdate(string $version): int
+    {
+        $current = $this->latest()['to_version'] ?? '0.0.0';
+        return (int) $this->create([
+            'from_version' => $current,
+            'to_version'   => $version,
+            'status'       => 'started',
+        ]);
+    }
+
     /**
      * Check if update in progress.
      */
@@ -32,7 +42,7 @@ final class UpdateHistoryRepository extends BaseRepository
         );
     }
 
-    public function markStatus(int $id, string $status, ?string $error = null): void
+    public function updateStep(int $id, string $status, ?string $error = null): void
     {
         $params = ['status' => $status, 'id' => $id];
         $sql = "UPDATE {$this->table} SET status = :status";
@@ -45,5 +55,37 @@ final class UpdateHistoryRepository extends BaseRepository
         }
         $sql .= " WHERE id = :id";
         $this->db->update($sql, $params);
+    }
+    public function markFailed(int $id, string $error): void
+    {
+        $this->updateStep($id, 'failed', $error);
+    }
+
+    public function completeUpdate(int $id): void
+    {
+        $this->updateStep($id, 'completed');
+    }
+
+    public function markRolledBack(int $id, string $error = null): void
+    {
+        $this->updateStep($id, 'rolled_back', $error);
+    }
+
+    /**
+     * List finished updates (admin page).
+     */
+    public function listFinished(int $limit = 10, int $offset = 0): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE status IN ('completed','failed','rolled_back') ORDER BY id DESC LIMIT {$limit} OFFSET {$offset}"
+        );
+    }
+
+    /**
+     * Count finished updates.
+     */
+    public function countFinished(): int
+    {
+        return $this->db->count($this->table, "status IN ('completed','failed','rolled_back')");
     }
 }

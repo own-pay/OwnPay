@@ -8,7 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * CORS middleware — handles preflight and CORS headers for API routes.
+ * CORS middleware â€” handles preflight and CORS headers for API routes.
  *
  * Per OWASP: restrict origins, no wildcard with credentials.
  */
@@ -42,7 +42,7 @@ final class CorsMiddleware
             return $response;
         }
 
-        // Strict origin check — no wildcards when credentials used
+        // Strict origin check â€” no wildcards when credentials used
         if (in_array($origin, $allowedOrigins, true) || in_array('*', $allowedOrigins, true)) {
             $response->withHeader('Access-Control-Allow-Origin', $origin);
             $response->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');

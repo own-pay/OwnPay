@@ -1,0 +1,51 @@
+/caveman can use @mcp:graphify 
+ use relevent skills.
+1. the theme plugin addons name show slug instant of Name.
+2. there are many admin panel features not showing on admin panel. e.g. sms template setting. the task was docs\mobile_app\plan.md if the plan is not fully implemented then complete it. the flutter mobile app will develop later. only skip the flutter app for now.
+3. the admin panel sidebar menu items is not as professional align. there are many item thats should not be as the main item. e.g. faq, api. But for the API there should be a optiona Developers and there should be Api key setting, Api endpoint, Documentation--> https://docs.ownpay.org, webhook/ipn and others that related with api/developers. 
+4. add all off things that are the not added on admin panel.
+5. there is not option for add logo, fevico, title, description etc options. 
+6. the landing page edit/modify, admin login prefix change, landing page prefix or link or design change options not showing in admin panel. 
+7. there are many many features are missing from the admin panel.
+8. the adnmin panel ui/ux is not 100% professional and enterprise grade fintech system.
+10. on custom domain setup the (DNS Setup: After adding, create a TXT record: _ownpay-verification.yourdomain.com with the verification token shown below.
+Also point your domain to 127.0.0.1 with an A record.) guide should be more detaildes and the record name and value should be click to copy option. the guide should be very bigginer userfrindly.
+11. the mail gateway in the setting tab and the mail gateway plugin is theme are same or both are diff? will the mail works without the mail plugin or what?
+12. where in the sms gateway options?
+13. test all public API endpoint via curl command and check all are works or not.
+14. make yaml file for all public api docs in details. this will be use in the readme.com/https://docs.ownpay.org for api docs. please make it in details so any biginner developer can understand very easily. store in in the docs\v2_migration\api\ folder.
+
+Once it is 100% flawless, update the @contextScopeItemMentionand @contextScopeItemMention 
+first make plan then wait for my approval to exicute. if need use browser tool. if need to ask any question ask me. 
+
+make no mistake. 
+-----------------------------
+
+15. make a in depth detailed gateway plugin, addons, theme development guide in details. the guilde will be too much easy so any biginer develoepr or any elite developer will understand very easy way. also write every single event, hook, domain, capabilitys, templates, namespace etc everythings with a short one or two line discription. don't skip any single hook, event etc.
+----------------------
+
+src\Service\Sms\SmartSmsAnalyzer.php Intelligent SMS field extractor will work like
+1. SMS sender whitlist will set by admin manually, no hardcoded.
+2.  sms only check credit/ received amount. no debit or send or otp etc.. 
+3. sms can be msf or bank. so make it very Intelligent system also keep optioin for admin add ragex tamplete. also add option for do it by AI like Gemini, ChatGPT, Claude. This will be like when admin paste raw sms there will be a auto generate ai prompt with one click copy option. the prompt will be ready to go prompt for ai chat. in the prompt it will be must write the output ragex tamplete write in code block. so it will be click and copy also do not write other reply. only the ragex tamplete.
+
+you will make the prompt and add the raw sms. 
+
+the sms systrem is three method, a) Admin input ragex template. b) Intelligent SMS. c) raw sms to ai prompt and input the ai reply ragex templete in the method 1.
+
+SMS sender [from]. sms sender is case sensitive. never get sms sender or gateway from sms body. first strictly check where from the sms received. if match then the check the sms with the sms pattran. the sms from will set by admin and it will also act as from whitlist for mobile app. everything wiill be dynamic and easy userflow. 
+
+do it without any mistake
+
+----------
+
+manage all inline css, js in asstes. so everything must be orgnized and well stractured. you can also orgnize codebase. 
+check graphify mcp to identify any error found in the codebase. check the incomplete functions and features left in codebase. find hidden features that not visible but present in the codebase.
+
+--------–--------
+
+Change the Merchant API rate limit in Settings → API tab. The rate limit not show there. Fix it. 
+
+--------–--------
+
+cron job setting missing. 

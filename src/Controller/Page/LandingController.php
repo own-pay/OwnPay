@@ -7,39 +7,73 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
+use OwnPay\Repository\SettingsRepository;
 
 final class LandingController
 {
     private Container $c;
     private EventManager $events;
+    private SettingsRepository $settingsRepo;
 
-    public function __construct(Container $c, EventManager $events) { $this->c = $c; $this->events = $events; }
+    public function __construct(Container $c, EventManager $events, SettingsRepository $settingsRepo)
+    {
+        $this->c            = $c;
+        $this->events       = $events;
+        $this->settingsRepo = $settingsRepo;
+    }
 
     public function index(Request $req): Response
     {
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $settings = [];
-        $rows = $db->fetchAll("SELECT setting_key, setting_value FROM op_settings WHERE setting_key IN ('app_name','landing_title','landing_subtitle','landing_description','faqs')");
-        foreach ($rows as $r) { $settings[$r['setting_key']] = $r['setting_value']; }
+        $general  = $this->settingsRepo->getGroup('general');
+        $landing  = $this->settingsRepo->getGroup('landing');
+        $branding = $this->settingsRepo->getGroup('branding');
 
-        $faqs = json_decode($settings['faqs'] ?? '[]', true);
-        $features = [
-            ['title' => 'Multi-Gateway', 'description' => 'Accept payments through multiple gateways — API and manual.'],
-            ['title' => 'SMS Verification', 'description' => 'Auto-verify mobile payments using companion app SMS parsing.'],
-            ['title' => 'Self-Hosted', 'description' => 'Complete control. Your server, your data, your rules.'],
-            ['title' => 'Plugin System', 'description' => 'Extend with custom gateways, themes, and integrations.'],
+        // Redirect to login if landing page disabled
+        if (($landing['landing_enabled'] ?? '1') === '0') {
+            $loginSlug = $landing['admin_login_slug'] ?? 'login';
+            return Response::redirect('/' . ltrim($loginSlug, '/'));
+        }
+
+        // FAQs from general settings
+        $faqs = [];
+        if (!empty($general['faqs'])) {
+            $decoded = json_decode($general['faqs'], true);
+            $faqs = is_array($decoded) ? $decoded : [];
+        }
+
+        // Features: DB override or defaults
+        $defaultFeatures = [
+            ['title' => 'Multi-Gateway',      'description' => 'Accept payments through multiple gateways — API and manual.'],
+            ['title' => 'SMS Verification',   'description' => 'Auto-verify mobile payments using companion app SMS parsing.'],
+            ['title' => 'Self-Hosted',        'description' => 'Complete control. Your server, your data, your rules.'],
+            ['title' => 'Plugin System',      'description' => 'Extend with custom gateways, themes, and integrations.'],
         ];
-        $features = $this->events->applyFilters('landing.features', $features);
+        $features = $defaultFeatures;
+        if (!empty($landing['features'])) {
+            $dbFeatures = json_decode($landing['features'], true);
+            if (is_array($dbFeatures) && count($dbFeatures) > 0) {
+                $features = $dbFeatures;
+            }
+        }
+        $features = $this->events->applyFilter('landing.features', $features);
+
+        $showFaq      = ($landing['landing_show_faq']      ?? '1') === '1' && count($faqs) > 0;
+        $showFeatures = ($landing['landing_show_features'] ?? '1') === '1' && count($features) > 0;
 
         $twig = $this->c->get(\Twig\Environment::class);
         return Response::html($twig->render('page/landing.twig', [
-            'app_name'            => $settings['app_name'] ?? 'Own Pay',
-            'landing_title'       => $settings['landing_title'] ?? null,
-            'landing_subtitle'    => $settings['landing_subtitle'] ?? null,
-            'landing_description' => $settings['landing_description'] ?? null,
-            'features'            => $features,
-            'faqs'                => $faqs,
-            'faq_enabled'         => count($faqs) > 0,
+            'app_name'            => $general['app_name']              ?? 'Own Pay',
+            'landing_title'       => $landing['landing_title']         ?? null,
+            'landing_subtitle'    => $landing['landing_subtitle']      ?? null,
+            'landing_description' => $branding['site_meta_description'] ?? null,
+            'landing_cta_text'    => $landing['landing_cta_text']      ?? 'Get Started',
+            'landing_cta_url'     => $landing['landing_cta_url']       ?? 'https://ownpay.org',
+            'site_favicon'        => $branding['site_favicon']         ?? '',
+            'site_logo'           => $branding['site_logo']            ?? '',
+            'site_seo_title'      => $branding['site_seo_title']       ?? null,
+            'features'            => $showFeatures ? $features : [],
+            'faqs'                => $showFaq      ? $faqs    : [],
+            'faq_enabled'         => $showFaq,
         ]));
     }
 }

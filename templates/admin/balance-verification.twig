@@ -1,0 +1,51 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Balance Verification — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Balance Verification</h1>
+    <div class="op-header-actions">
+        <form method="POST" action="/admin/balance-verification/run" class="op-filter-bar">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <select name="currency" class="op-input op-input-sm">
+                {% for gw in gateways %}<option value="{{ gw.slug }}">{{ gw.name }}</option>{% endfor %}
+                <option value="BDT" selected>BDT</option>
+            </select>
+            <button type="submit" class="op-btn op-btn-sm op-btn-primary">Run Verification</button>
+        </form>
+    </div>
+</div>
+
+{% if balance_results is defined and balance_results|length > 0 %}
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>Reconciliation Results</h3></div>
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>Currency</th><th>Expected (Internal)</th><th>Actual (Gateway)</th><th>Variance</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for r in balance_results %}
+                <tr>
+                    <td>{{ r.currency }}</td>
+                    <td>{{ r.expected ?? '0.00' }}</td>
+                    <td>{{ r.actual ?? '0.00' }}</td>
+                    <td>{{ r.variance ?? '0.00' }}</td>
+                    <td>
+                        {% if (r.variance ?? 0) == 0 %}
+                            <span class="op-badge op-badge-success">Balanced</span>
+                        {% else %}
+                            <span class="op-badge op-badge-danger">Mismatch</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% else %}
+<div class="op-card op-mt-4">
+    <div class="op-card-body op-text-center op-text-muted">
+        <p>No balance data available. Click "Run Verification" to start a reconciliation check.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

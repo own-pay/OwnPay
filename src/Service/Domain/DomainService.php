@@ -5,6 +5,7 @@ namespace OwnPay\Service\Domain;
 
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\DomainRepository;
+use OwnPay\Support\DateHelper;
 
 /**
  * Domain service — custom domain CRUD, DNS verification, URL generation.
@@ -30,7 +31,7 @@ final class DomainService
     /**
      * Map custom domain to merchant.
      */
-    public function map(int $merchantId, string $domain, string $type = 'custom'): array
+    public function map(int $merchantId, string $domain, string $type = 'checkout'): array
     {
         // Validate domain format
         if (!$this->isValidDomain($domain)) {
@@ -56,16 +57,18 @@ final class DomainService
 
         $this->events->doAction('domain.mapped', $domain, $merchantId);
 
+        $serverIp = gethostbyname($_SERVER['HTTP_HOST'] ?? '127.0.0.1');
+
         return [
             'success'            => true,
             'domain_id'          => $id,
             'verification_token' => $verificationToken,
-            'instructions'       => "Add a TXT record: _ownpay-verification.{$domain} = {$verificationToken}",
+            'instructions'       => "Step 1: Add TXT record: _ownpay-verification.{$domain} = {$verificationToken}. Step 2: Point A record to {$serverIp}",
         ];
     }
 
     /**
-     * Verify domain DNS.
+     * Verify domain DNS — checks TXT record (ownership) and A record (routing).
      */
     public function verify(int $domainId, int $merchantId): array
     {
@@ -74,22 +77,39 @@ final class DomainService
             return ['success' => false, 'error' => 'Domain not found'];
         }
 
-        $verified = $this->dnsVerifier->verifyTxt(
+        // Step 1: TXT verification (ownership proof)
+        $txtVerified = $this->dnsVerifier->verifyTxt(
             $domain['domain'],
             $domain['verification_token']
         );
 
-        if ($verified) {
-            $this->domains->forTenant($merchantId)->updateScoped($domainId, [
-                'dns_verified' => 1,
-                'status'       => 'active',
-                'verified_at'  => date('Y-m-d H:i:s'),
-            ]);
-            $this->events->doAction('domain.verified', $domain['domain'], $merchantId);
-            return ['success' => true];
+        if (!$txtVerified) {
+            return [
+                'success' => false,
+                'error'   => 'TXT record not found. Add _ownpay-verification.' . $domain['domain'] . ' with your verification token.',
+            ];
         }
 
-        return ['success' => false, 'error' => 'DNS verification failed. TXT record not found.'];
+        // Step 2: A record check (routing — warning only, not blocking)
+        $serverIp = gethostbyname($_SERVER['HTTP_HOST'] ?? '127.0.0.1');
+        $aRecordOk = $this->dnsVerifier->verifyARecord($domain['domain'], $serverIp);
+
+        $this->domains->forTenant($merchantId)->updateScoped($domainId, [
+            'dns_verified'    => 1,
+            'status'          => 'active',
+            'dns_verified_at' => DateHelper::nowMicro(),
+        ]);
+
+        $this->events->doAction('domain.verified', $domain['domain'], $merchantId);
+
+        if (!$aRecordOk) {
+            return [
+                'success' => true,
+                'warning' => "TXT verified! But A record does not point to {$serverIp}. Checkout pages won't work until DNS propagates.",
+            ];
+        }
+
+        return ['success' => true];
     }
 
     /**

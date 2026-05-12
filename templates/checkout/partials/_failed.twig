@@ -4,7 +4,7 @@
         <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="#e17055" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
     </div>
     <h2>{{ lang.payment_failed ?? 'Payment Failed' }}</h2>
-    {% if txn.trx_id %}<p class="ck-status-ref">Ref: {{ txn.trx_id }}</p>{% endif %}
+    {% if txn is defined and txn.trx_id is defined and txn.trx_id %}<p class="ck-status-ref">Ref: {{ txn.trx_id }}</p>{% endif %}
     <p class="ck-status-msg">{{ lang.failed_msg ?? 'Something went wrong. Please try again or contact support.' }}</p>
-    {% if txn.trx_id %}<a href="/checkout/{{ txn.trx_id }}" class="ck-status-btn">{{ lang.try_again ?? 'Try Again' }}</a>{% endif %}
+    {% if txn is defined and txn.trx_id is defined and txn.trx_id %}<a href="/checkout/{{ txn.trx_id }}" class="ck-status-btn">{{ lang.try_again ?? 'Try Again' }}</a>{% endif %}
 </div>

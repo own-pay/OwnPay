@@ -3,8 +3,10 @@ declare(strict_types=1);
 
 namespace OwnPay\Update;
 
+use OwnPay\Support\DateHelper;
+
 /**
- * Maintenance mode — file-based lock for update/maintenance windows.
+ * Maintenance mode â€” file-based lock for update/maintenance windows.
  */
 final class MaintenanceMode
 {
@@ -19,7 +21,7 @@ final class MaintenanceMode
     {
         $data = [
             'reason'     => $reason,
-            'started_at' => date('Y-m-d H:i:s'),
+            'started_at' => DateHelper::now(),
             'retry_after' => 300,
         ];
         file_put_contents($this->lockFile, json_encode($data));

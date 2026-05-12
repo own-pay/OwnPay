@@ -31,4 +31,18 @@ final class GatewayConfigRepository extends BaseRepository
             ['mid' => $this->requireTenant()]
         );
     }
+
+    /**
+     * Find encrypted credentials for a gateway by slug.
+     */
+    public function findCredentialsBySlug(string $slug): ?string
+    {
+        $row = $this->db->fetchOne(
+            "SELECT gc.credentials_enc FROM {$this->table} gc
+             JOIN op_gateways g ON g.id = gc.gateway_id
+             WHERE g.slug = :slug AND gc.merchant_id = :mid AND gc.status = 'active' LIMIT 1",
+            ['slug' => $slug, 'mid' => $this->requireTenant()]
+        );
+        return $row['credentials_enc'] ?? null;
+    }
 }

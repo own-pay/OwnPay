@@ -5,12 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex,nofollow">
     <title>{{ lang.checkout ?? 'Secure Checkout' }} — {{ brand.name }}</title>
-    {% if brand.favicon %}<link rel="shortcut icon" href="{{ brand.favicon }}">{% endif %}
+    {% if brand.favicon|default('') %}<link rel="shortcut icon" href="{{ brand.favicon }}">{% endif %}
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/checkout.css">
     <meta name="csrf-token" content="{{ csrf_token }}">
-    {{ fire_hook('checkout.head')|raw }}
+    {{ hook('checkout.head')|raw }}
     <style>:root{--teal:{{ brand.color ?? '#0D9488' }};--teal-deep:{{ brand.color ?? '#0D9488' }}cc;--teal-glow:{{ brand.color ?? '#0D9488' }}1A;}</style>
 </head>
 <body class="ck-body">
@@ -29,7 +29,7 @@
                 {% include 'checkout/partials/_mobile-summary.twig' %}
 
                 {# Express checkout #}
-                {% if config.expressCheckout %}
+                {% if config.expressCheckout|default(false) %}
                     {% include 'checkout/partials/_express-checkout.twig' %}
                 {% endif %}
 
@@ -55,6 +55,6 @@
     <script>window.OP_CHECKOUT_CONFIG={{ config|json_encode|raw }};</script>
     <script src="/assets/js/op-fetch.js"></script>
     <script src="/assets/js/checkout.js"></script>
-    {{ fire_hook('checkout.footer')|raw }}
+    {{ hook('checkout.footer')|raw }}
 </body>
 </html>

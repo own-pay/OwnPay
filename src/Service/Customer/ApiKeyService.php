@@ -7,7 +7,7 @@ use OwnPay\Repository\ApiKeyRepository;
 use OwnPay\Security\SecurityHelpers;
 
 /**
- * API key service — generate, rotate, revoke merchant API keys.
+ * API key service â€” generate, rotate, revoke merchant API keys.
  *
  * Per OWASP: prefix-based lookup, sha256 hash storage, timing-safe compare.
  */
@@ -30,9 +30,9 @@ final class ApiKeyService
         $keyData = SecurityHelpers::generateApiKey();
 
         $this->keys->forTenant($merchantId)->createScoped([
-            'prefix'     => $keyData['prefix'],
-            'hash'       => $keyData['hash'],
-            'label'      => $label,
+            'key_prefix' => $keyData['prefix'],
+            'key_hash'   => $keyData['hash'],
+            'name'       => $label,
             'status'     => 'active',
             'expires_at' => $expiresAt,
         ]);
@@ -44,7 +44,7 @@ final class ApiKeyService
     }
 
     /**
-     * Rotate key — generate new, revoke old.
+     * Rotate key â€” generate new, revoke old.
      */
     public function rotate(int $merchantId, int $keyId, string $label): array
     {
@@ -69,7 +69,7 @@ final class ApiKeyService
     public function list(int $merchantId): array
     {
         $keys = $this->keys->forTenant($merchantId)->listActiveKeys();
-        // Mask hashes — only show prefix
+        // Mask hashes â€” only show prefix
         return array_map(function (array $key) {
             unset($key['hash']);
             return $key;

@@ -4,50 +4,44 @@ declare(strict_types=1);
 namespace OwnPay\Controller\Admin;
 
 use OwnPay\Container;
+use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Service\Payment\CurrencyService;
 
 final class CurrencyController
 {
-    private Container $c;
+    use AdminPageTrait;
 
-    public function __construct(Container $c) { $this->c = $c; }
+    private Container $c;
+    private AdminSession $session;
+
+    public function __construct(Container $c, AdminSession $session)
+    {
+        $this->c       = $c;
+        $this->session = $session;
+    }
 
     public function index(Request $req): Response
     {
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $currencies = $db->fetchAll("SELECT * FROM op_currencies ORDER BY code");
-        return $this->render('admin/settings/index.twig', ['currencies' => $currencies, 'active_page' => 'settings']);
+        return Response::redirect('/admin/settings#tab-payment');
     }
 
     public function update(Request $req): Response
     {
-        $db = $this->c->get(\OwnPay\Core\Database::class);
         $data = $req->post();
-
         if (!empty($data['code']) && !empty($data['name'])) {
-            $exists = $db->fetchOne("SELECT id FROM op_currencies WHERE code = :code", ['code' => strtoupper($data['code'])]);
-            if ($exists) {
-                $db->update("UPDATE op_currencies SET name = :name, symbol = :sym, status = :st WHERE code = :code", [
-                    'name' => $data['name'], 'sym' => $data['symbol'] ?? '', 'st' => $data['status'] ?? 'active', 'code' => strtoupper($data['code']),
-                ]);
-            } else {
-                $db->insert("INSERT INTO op_currencies (code, name, symbol, status) VALUES (:code, :name, :sym, :st)", [
-                    'code' => strtoupper($data['code']), 'name' => $data['name'], 'sym' => $data['symbol'] ?? '', 'st' => $data['status'] ?? 'active',
-                ]);
-            }
+            $svc = $this->c->get(CurrencyService::class);
+            $svc->upsert(
+                strtoupper($data['code']),
+                $data['name'],
+                $data['symbol'] ?? '',
+                $data['status'] ?? 'active',
+                max(0, min(8, (int) ($data['decimal_places'] ?? 2)))
+            );
         }
 
-        $_SESSION['flash_success'] = 'Currency saved';
-        return Response::redirect('/admin/settings#tab-currency');
-    }
-
-    private function render(string $tpl, array $data = []): Response
-    {
-        $twig = $this->c->get(\Twig\Environment::class);
-        $data['csrf_token'] = $_SESSION['csrf_token'] ?? '';
-        $data['app_name'] = $this->c->get('config.app')['name'] ?? 'Own Pay';
-        $data['current_user'] = $_SESSION['user'] ?? [];
-        return Response::html($twig->render($tpl, $data));
+        $this->session->flashSuccess('Currency saved');
+        return Response::redirect('/admin/settings#tab-payment');
     }
 }

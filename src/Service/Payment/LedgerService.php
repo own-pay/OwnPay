@@ -7,7 +7,8 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\LedgerRepository;
 
 /**
- * Ledger service — double-entry bookkeeping for every money movement.
+ * Ledger service Ã¢â‚¬â€ double-entry bookkeeping for every money movement.
+ * Uses strict triple-table schema (accounts, transactions, entries).
  *
  * Fires: ledger.entry.created
  */
@@ -23,34 +24,52 @@ final class LedgerService
     }
 
     /**
-     * Record a ledger entry (debit + credit).
-     * Every transaction creates two entries for balance.
+     * Internal method to post a balanced journal entry.
      */
-    public function record(
+    private function postJournal(
         int $merchantId,
-        string $type,
-        string $debit,
-        string $credit,
+        string $eventType,
+        string $amount,
         string $currency,
-        ?int $transactionId = null,
+        string $debitAccountCode,
+        string $creditAccountCode,
+        string $referenceType,
+        string $referenceId,
         ?string $description = null
     ): void {
-        $balance = $this->calculateBalance($merchantId, $currency);
-        $newBalance = bcadd(bcsub($balance, $debit, 2), $credit, 2);
+        // 1. Ensure accounts exist
+        $drAccount = $this->ledger->findOrCreateAccount($debitAccountCode, 'Debit Account', 'asset', $currency, $merchantId);
+        $crAccount = $this->ledger->findOrCreateAccount($creditAccountCode, 'Credit Account', 'liability', $currency, $merchantId);
 
-        $id = $this->ledger->create([
-            'merchant_id'    => $merchantId,
-            'transaction_id' => $transactionId,
-            'type'           => $type,
-            'debit'          => $debit,
-            'credit'         => $credit,
-            'balance'        => $newBalance,
-            'currency'       => $currency,
-            'description'    => $description,
-        ]);
+        $db = $this->ledger->getDatabase();
+        $db->transaction(function () use ($merchantId, $eventType, $amount, $currency, $drAccount, $crAccount, $referenceType, $referenceId, $description) {
+            
+            // 2. Create Journal Header
+            $txnId = $this->ledger->createTransaction(
+                $eventType,
+                $referenceType,
+                $referenceId,
+                $amount,
+                $currency,
+                $description
+            );
 
-        $entry = $this->ledger->find((int) $id);
-        $this->events->doAction('ledger.entry.created', $entry);
+            // 3. Create Entries (Debit + Credit)
+            $this->ledger->createEntry($txnId, (int) $drAccount['id'], 'debit', $amount, $currency);
+            $this->ledger->createEntry($txnId, (int) $crAccount['id'], 'credit', $amount, $currency);
+
+            // 4. Update Balances
+            $this->ledger->adjustBalance((int) $drAccount['id'], $amount);
+            $this->ledger->adjustBalance((int) $crAccount['id'], $amount);
+
+            // Fire event
+            $this->events->doAction('ledger.entry.created', [
+                'transaction_id' => $txnId,
+                'merchant_id'    => $merchantId,
+                'amount'         => $amount,
+                'currency'       => $currency
+            ]);
+        });
     }
 
     /**
@@ -58,13 +77,17 @@ final class LedgerService
      */
     public function recordPaymentReceived(int $merchantId, int $transactionId, string $amount, string $fee, string $currency): void
     {
-        $this->record(
+        $net = bcsub($amount, $fee, 4);
+        
+        $this->postJournal(
             $merchantId,
             'payment_received',
-            '0.00',
-            bcsub($amount, $fee, 2),
+            $net,
             $currency,
-            $transactionId,
+            'CASH',
+            'MERCHANT_PAYABLE',
+            'transaction',
+            (string) $transactionId,
             "Payment received (fee: {$fee})"
         );
     }
@@ -74,13 +97,15 @@ final class LedgerService
      */
     public function recordRefund(int $merchantId, int $transactionId, string $amount, string $currency): void
     {
-        $this->record(
+        $this->postJournal(
             $merchantId,
             'refund',
             $amount,
-            '0.00',
             $currency,
-            $transactionId,
+            'MERCHANT_PAYABLE',
+            'CASH',
+            'transaction',
+            (string) $transactionId,
             "Refund issued"
         );
     }
@@ -90,14 +115,16 @@ final class LedgerService
      */
     public function recordSettlement(int $merchantId, string $amount, string $currency, ?string $reference = null): void
     {
-        $this->record(
+        $this->postJournal(
             $merchantId,
             'settlement',
             $amount,
-            '0.00',
             $currency,
-            null,
-            "Settlement payout" . ($reference ? " (ref: {$reference})" : '')
+            'MERCHANT_PAYABLE',
+            'BANK_OUT',
+            'settlement',
+            $reference ?? 'unknown',
+            "Settlement payout"
         );
     }
 
@@ -106,26 +133,22 @@ final class LedgerService
      */
     public function calculateBalance(int $merchantId, string $currency): string
     {
-        $row = $this->ledger->getDb()->fetchOne(
-            "SELECT balance FROM op_ledger
-             WHERE merchant_id = :mid AND currency = :cur
-             ORDER BY id DESC LIMIT 1",
-            ['mid' => $merchantId, 'cur' => $currency]
-        );
-        return $row['balance'] ?? '0.00';
+        return $this->ledger->merchantBalance($merchantId, $currency);
     }
 
     /**
-     * Get ledger entries for merchant (paginated).
+     * Get ledger transactions for merchant (paginated).
      */
     public function entries(int $merchantId, int $page = 1, int $perPage = 50): array
     {
-        return $this->ledger->paginate(
-            $page,
-            $perPage,
-            'merchant_id = :mid',
-            ['mid' => $merchantId],
-            'id DESC'
-        );
+        $result = $this->ledger->entriesPaginated($merchantId, $page, $perPage);
+
+        return [
+            'items'       => $result['items'],
+            'total'       => $result['total'],
+            'page'        => $page,
+            'per_page'    => $perPage,
+            'total_pages' => (int) ceil($result['total'] / $perPage)
+        ];
     }
 }

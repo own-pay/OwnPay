@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Update;
 
 /**
- * Health checker — post-update verification.
+ * Health checker â€” post-update verification.
  */
 final class HealthChecker
 {
@@ -90,9 +90,9 @@ final class HealthChecker
 
     private function checkConfig(): array
     {
-        $configFile = dirname(__DIR__, 2) . '/op-config.php';
+        $configFile = dirname(__DIR__, 2) . '/.env';
         if (!file_exists($configFile)) {
-            return ['ok' => false, 'error' => 'op-config.php missing'];
+            return ['ok' => false, 'error' => '.env missing'];
         }
         return ['ok' => true, 'error' => null];
     }

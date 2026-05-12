@@ -9,7 +9,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Two-factor auth middleware — enforces 2FA verification when required.
+ * Two-factor auth middleware â€” enforces 2FA verification when required.
  *
  * Fires 'auth.2fa.required' filter for plugin override.
  * Per OWASP: TOTP (RFC 6238) verification.
@@ -25,10 +25,19 @@ final class TwoFactorMiddleware
 
     public function handle(Request $request, callable $next): Response
     {
-        $user = $request->getAttribute('auth_user');
-
-        if ($user === null) {
+        $userId = $_SESSION['auth_user_id'] ?? null;
+        if ($userId === null) {
             return $next($request);
+        }
+
+        $user = $request->getAttribute('auth_user');
+        if ($user === null) {
+            $db = $this->container->get(\OwnPay\Core\Database::class);
+            $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id", ['id' => $userId]);
+            if (!$user) {
+                return $next($request);
+            }
+            $request->setAttribute('auth_user', $user);
         }
 
         // Skip if 2FA not enabled for user
@@ -43,11 +52,11 @@ final class TwoFactorMiddleware
 
         // Allow 2FA verification routes through
         $path = $request->path();
-        if ($path === '/admin/2fa/verify' || $path === '/admin/2fa/challenge' || $path === '/logout') {
+        if ($path === '/2fa' || $path === '/logout') {
             return $next($request);
         }
 
-        // Plugin filter — allow override
+        // Plugin filter â€” allow override
         /** @var EventManager $events */
         $events = $this->container->get(EventManager::class);
         $required = $events->applyFilter('auth.2fa.required', true, $user, $request);
@@ -65,12 +74,12 @@ final class TwoFactorMiddleware
             ], 403);
         }
 
-        return Response::redirect('/admin/2fa/challenge');
+        return Response::redirect('/2fa');
     }
 
     /**
      * Verify TOTP code (RFC 6238).
-     * Window of ±1 period (30 sec each side).
+     * Window of Â±1 period (30 sec each side).
      */
     public static function verifyTotp(string $secret, string $code, int $window = 1): bool
     {

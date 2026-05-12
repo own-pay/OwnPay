@@ -27,12 +27,12 @@ final class RouteConfig
     public static function load(): array
     {
         return [
-            'payment'          => self::env('geneal-application-settings-paymentPath', 'payment'),
-            'invoice'          => self::env('geneal-application-settings-invoicePath', 'invoice'),
-            'paymentLink'      => self::env('geneal-application-settings-paymentLinkPath', 'payment-link'),
-            'admin'            => self::env('geneal-application-settings-adminPath', 'admin'),
-            'cron'             => self::env('geneal-application-settings-cronPath', 'cron'),
-            'homepageRedirect' => self::env('geneal-application-settings-homepageRedirect', ''),
+            'payment'          => self::env('general-application-settings-paymentPath', 'payment'),
+            'invoice'          => self::env('general-application-settings-invoicePath', 'invoice'),
+            'paymentLink'      => self::env('general-application-settings-paymentLinkPath', 'payment-link'),
+            'admin'            => self::env('general-application-settings-adminPath', 'admin'),
+            'cron'             => self::env('general-application-settings-cronPath', 'cron'),
+            'homepageRedirect' => self::env('general-application-settings-homepageRedirect', ''),
         ];
     }
 

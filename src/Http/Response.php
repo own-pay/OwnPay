@@ -7,7 +7,7 @@ namespace OwnPay\Http;
  * HTTP response object.
  *
  * Supports HTML, JSON, redirect, and file download responses.
- * All controller methods return a Response instance — never echo directly.
+ * All controller methods return a Response instance â€” never echo directly.
  */
 final class Response
 {
@@ -23,7 +23,7 @@ final class Response
         $this->statusCode = $statusCode;
     }
 
-    // ─── Factory Methods ───────────────────────────────────────
+    // â”€â”€â”€ Factory Methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * HTML response.
@@ -45,6 +45,7 @@ final class Response
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $response = new self($json, $status);
         $response->headers['Content-Type'] = 'application/json; charset=UTF-8';
+        $response->headers['X-API-Version'] = '1.0';
         return $response;
     }
 
@@ -95,15 +96,16 @@ final class Response
     /**
      * Maintenance mode response (503).
      */
-    public static function maintenance(string $message = 'System under maintenance, please try after sometime or contact support.'): self
+    public static function maintenance(string $message = 'System under maintenance, please try after sometime or contact support.', int $retryAfter = 600): self
     {
         return self::json([
             'status'  => 503,
             'message' => $message,
-        ], 503)->withHeader('Retry-After', '600');
+            'retry_after' => $retryAfter,
+        ], 503)->withHeader('Retry-After', (string)$retryAfter);
     }
 
-    // ─── Fluent Modifiers ──────────────────────────────────────
+    // â”€â”€â”€ Fluent Modifiers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Add or replace a response header.
@@ -152,7 +154,7 @@ final class Response
         }
         $cookie .= '; SameSite=' . $samesite;
 
-        // Append — allows multiple Set-Cookie headers
+        // Append â€” allows multiple Set-Cookie headers
         $this->headers['Set-Cookie'] = $cookie;
         return $this;
     }
@@ -166,7 +168,7 @@ final class Response
         return $this;
     }
 
-    // ─── Send ──────────────────────────────────────────────────
+    // â”€â”€â”€ Send â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Send the response to the client.
@@ -187,7 +189,7 @@ final class Response
         }
     }
 
-    // ─── Accessors ─────────────────────────────────────────────
+    // â”€â”€â”€ Accessors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function getStatusCode(): int
     {
@@ -206,4 +208,5 @@ final class Response
     {
         return $this->headers;
     }
+
 }

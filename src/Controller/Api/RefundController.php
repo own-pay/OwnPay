@@ -30,7 +30,7 @@ final class RefundController
     public function create(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $body = $req->jsonBody();
+        $body = $req->json();
 
         if (empty($body['transaction_id'])) {
             return Response::json(['success' => false, 'error' => 'transaction_id required'], 422);
@@ -47,13 +47,14 @@ final class RefundController
         } catch (\InvalidArgumentException $e) {
             return Response::json(['success' => false, 'error' => $e->getMessage()], 400);
         } catch (\Throwable $e) {
-            $this->c->get(\OwnPay\Core\Logger::class)->error('Refund failed', ['error' => $e->getMessage()]);
+            $this->c->get(\OwnPay\Service\System\Logger::class)->error('Refund failed', ['error' => $e->getMessage()]);
             return Response::json(['success' => false, 'error' => 'Refund processing failed'], 500);
         }
     }
 
-    public function show(Request $req, int $id): Response
+    public function show(Request $req): Response
     {
+        $id = (int) $req->param('id');
         $mid = (int) $req->getAttribute('merchant_id');
         $refund = $this->refunds->find($mid, $id);
         if (!$refund) return Response::json(['success' => false, 'error' => 'Not found'], 404);
