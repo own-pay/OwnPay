@@ -64,7 +64,7 @@
         </div>
         {% block content %}{% endblock %}
         <div class="checkout-footer">
-            Powered by {{ app_name|default('Own Pay') }} &middot; <a href="/">Home</a>
+            {{ ownpay_footer()|raw }} &middot; <a href="/">Home</a>
         </div>
     </div>
 </body>

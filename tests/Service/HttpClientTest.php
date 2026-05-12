@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Service;
+namespace Tests\Service;
 
 use PHPUnit\Framework\TestCase;
 use OwnPay\Service\System\HttpClient;
@@ -21,7 +21,7 @@ class HttpClientTest extends TestCase
         $result = HttpClient::get('https://httpbin.org/get', 5);
 
         if ($result === null) {
-            $this->markTestSkipped('Network unavailable — cannot reach httpbin.org');
+            $this->markTestSkipped('Network unavailable â€” cannot reach httpbin.org');
         }
 
         $this->assertIsString($result);
@@ -29,3 +29,4 @@ class HttpClientTest extends TestCase
         $this->assertIsArray($decoded);
     }
 }
+

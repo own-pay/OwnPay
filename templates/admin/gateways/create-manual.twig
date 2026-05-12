@@ -145,30 +145,7 @@
     </div>
 </template>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    let fieldIdx = 0;
-    const container = document.getElementById('input-fields-container');
-    const template = document.getElementById('field-template');
 
-    document.getElementById('add-field-btn').addEventListener('click', function() {
-        const html = template.innerHTML.replace(/__IDX__/g, fieldIdx++);
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        container.appendChild(div.firstElementChild);
-    });
-
-    container.addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-field-btn')) {
-            e.target.closest('.op-field-row').remove();
-        }
-    });
-
-    // Auto-generate slug from name
-    document.getElementById('name').addEventListener('input', function() {
-        const slug = this.value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/-+/g, '-').replace(/^-|-$/g, '');
-        document.getElementById('slug').value = slug;
-    });
-});
-</script>
 {% endblock %}
+{% block scripts %}<script src="/assets/js/pages/gateway-manual.js"></script>{% endblock %}
+

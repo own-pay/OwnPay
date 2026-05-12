@@ -1,13 +1,16 @@
 {
-    "name": "telegram-bot",
+    "name": "Telegram Bot",
+    "slug": "telegram-bot",
     "version": "1.0.0",
     "description": "Telegram Bot addon — real-time transaction alerts and commands.",
     "author": "Own Pay",
     "type": "addon",
     "entry": "Plugin.php",
+    "entrypoint": "Plugin.php",
     "namespace": "OwnPay\\Modules\\Addons\\TelegramBot",
+    "capabilities": ["addon"],
     "requires": {
-        "ownpay": ">=0.1.0"
+        "core": ">=0.1.0"
     },
     "hooks": [
         "payment.transaction.completed",

@@ -75,7 +75,11 @@ final class DomainController
 
         $result = $this->domains->verify($id, $mid);
         if (!empty($result['success'])) {
-            $this->session->flashSuccess('DNS verified!');
+            $msg = 'DNS verified!';
+            if (!empty($result['warning'])) {
+                $msg .= ' ⚠️ ' . $result['warning'];
+            }
+            $this->session->flashSuccess($msg);
         } else {
             $this->session->flashError($result['error'] ?? 'DNS not yet pointing correctly');
         }

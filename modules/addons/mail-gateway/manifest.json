@@ -1,13 +1,16 @@
 {
-    "name": "mail-gateway",
+    "name": "Mail Gateway",
+    "slug": "mail-gateway",
     "version": "1.0.0",
     "description": "Mail Gateway addon — send emails via SMTP, Mailgun, or SendGrid.",
     "author": "Own Pay",
     "type": "addon",
     "entry": "Plugin.php",
+    "entrypoint": "Plugin.php",
     "namespace": "OwnPay\\Modules\\Addons\\MailGateway",
+    "capabilities": ["addon"],
     "requires": {
-        "ownpay": ">=0.1.0"
+        "core": ">=0.1.0"
     },
     "hooks": [
         "mail.before_send",

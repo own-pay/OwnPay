@@ -9,6 +9,7 @@ use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Auth\AuthSessionService;
+use OwnPay\Service\System\AuditService;
 use OwnPay\Repository\MerchantUserRepository;
 
 /**
@@ -24,19 +25,22 @@ final class AuthController
     private AuthSessionService $auth;
     private EventManager $events;
     private MerchantUserRepository $userRepo;
+    private AuditService $audit;
 
     public function __construct(
         Container $c,
         AdminSession $session,
         AuthSessionService $auth,
         EventManager $events,
-        MerchantUserRepository $userRepo
+        MerchantUserRepository $userRepo,
+        AuditService $audit
     ) {
         $this->c        = $c;
         $this->session  = $session;
         $this->auth     = $auth;
         $this->events   = $events;
         $this->userRepo = $userRepo;
+        $this->audit    = $audit;
     }
 
     public function loginForm(Request $req): Response
@@ -57,6 +61,7 @@ final class AuthController
 
         $result = $this->auth->login($email, $password, $req->ip(), $req->userAgent());
         if (!$result['success']) {
+            $this->audit->log('login.failed', 'user', null, null, ['email' => $email]);
             return $this->renderAdminPage('page/login.twig', [
                 'error'     => $result['error'] ?? 'Invalid credentials',
                 'old_email' => $email,
@@ -69,6 +74,7 @@ final class AuthController
             return Response::redirect('/2fa');
         }
 
+        $this->audit->log('login.success', 'user', (int) $result['user']['id']);
         return Response::redirect('/admin');
     }
 
@@ -111,6 +117,7 @@ final class AuthController
         unset($_SESSION['2fa_user_id']);
 
         $this->events->doAction('auth.login.success', $user);
+        $this->audit->log('login.2fa_verified', 'user', (int) $user['id']);
 
         return Response::redirect('/admin');
     }
@@ -140,6 +147,7 @@ final class AuthController
 
     public function logout(Request $req): Response
     {
+        $this->audit->log('logout', 'user', $_SESSION['auth_user_id'] ?? null);
         $this->events->doAction('auth.logout', $this->session->currentUser());
         $this->auth->logout();
         return Response::redirect('/login');

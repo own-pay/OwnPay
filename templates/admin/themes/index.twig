@@ -10,12 +10,7 @@
     </a>
 </div>
 
-{% if flash_success %}
-<div class="op-alert op-alert-success">{{ flash_success }}<button class="op-alert-close" onclick="this.parentElement.remove()">×</button></div>
-{% endif %}
-{% if flash_error %}
-<div class="op-alert op-alert-danger">{{ flash_error }}<button class="op-alert-close" onclick="this.parentElement.remove()">×</button></div>
-{% endif %}
+
 
 <div class="op-theme-grid">
     {% for theme in themes %}

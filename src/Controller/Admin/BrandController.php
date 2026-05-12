@@ -9,6 +9,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Brand\BrandContext;
 use OwnPay\Service\System\InputSanitizer;
+use OwnPay\Service\System\AuditService;
 use OwnPay\Repository\MerchantRepository;
 
 final class BrandController
@@ -19,13 +20,15 @@ final class BrandController
     private AdminSession $session;
     private BrandContext $brand;
     private MerchantRepository $merchants;
+    private AuditService $audit;
 
-    public function __construct(Container $c, AdminSession $session, BrandContext $brand, MerchantRepository $merchants)
+    public function __construct(Container $c, AdminSession $session, BrandContext $brand, MerchantRepository $merchants, AuditService $audit)
     {
         $this->c         = $c;
         $this->session   = $session;
         $this->brand     = $brand;
         $this->merchants = $merchants;
+        $this->audit     = $audit;
     }
 
     public function index(Request $req): Response
@@ -79,6 +82,12 @@ final class BrandController
             }
         }
 
+        $this->audit->log('brand.created', 'merchant', $merchantId, null, ['name' => $name]);
+
+        // Auto-create default payment link for new brand
+        $currency = $data['default_currency'] ?? 'BDT';
+        $this->c->get(\OwnPay\Service\Payment\PaymentLinkService::class)->ensureDefault($merchantId, $name, $slug, $currency);
+
         $this->session->flashSuccess('Brand created successfully');
         return Response::redirect('/admin/brands');
     }
@@ -124,6 +133,7 @@ final class BrandController
             }
         }
 
+        $this->audit->log('brand.updated', 'merchant', $id, null, ['name' => $name]);
         $this->session->flashSuccess('Brand updated successfully');
         return Response::redirect('/admin/brands');
     }
@@ -141,5 +151,39 @@ final class BrandController
 
         $ref = $req->header('referer', '/admin');
         return Response::redirect($ref);
+    }
+
+    public function delete(Request $req): Response
+    {
+        $id = (int) $req->param('id');
+
+        // Safety: cannot delete last brand
+        $allBrands = $this->merchants->listWithDomains();
+        if (count($allBrands) <= 1) {
+            $this->session->flashError('Cannot delete the only brand');
+            return Response::redirect('/admin/brands');
+        }
+
+        // Safety: cannot delete currently active brand
+        $this->brand->resolveFromRequest($req);
+        $activeBrandId = $this->brand->getActiveBrandId();
+        if ($id === $activeBrandId) {
+            $this->session->flashError('Switch to a different brand before deleting this one');
+            return Response::redirect('/admin/brands');
+        }
+
+        $brand = $this->merchants->findWithDomain($id);
+        if (!$brand) {
+            $this->session->flashError('Brand not found');
+            return Response::redirect('/admin/brands');
+        }
+
+        // Hard delete brand + cascade handled by DB FK constraints
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $id]);
+
+        $this->audit->log('brand.deleted', 'merchant', $id, ['name' => $brand['name']]);
+        $this->session->flashSuccess("Brand '{$brand['name']}' deleted");
+        return Response::redirect('/admin/brands');
     }
 }

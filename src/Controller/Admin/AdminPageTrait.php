@@ -29,9 +29,17 @@ trait AdminPageTrait
 
         if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-            $data['brands']         = $brandCtx->getAllBrands();
-            $data['active_brand']   = $brandCtx->getActiveBrand();
+            $data['brands']          = $brandCtx->getAllBrands();
+            $data['active_brand']    = $brandCtx->getActiveBrand();
             $data['active_brand_id'] = $brandCtx->getActiveBrandId();
+        }
+
+        // Inject branding settings (logo, favicon, site title)
+        if ($this->c->has(\OwnPay\Repository\SettingsRepository::class)) {
+            $sr = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
+            $data['settings_logo']  = $sr->get('branding', 'site_logo', '');
+            $data['site_favicon']   = $sr->get('branding', 'site_favicon', '');
+            $data['site_title']     = $sr->get('branding', 'admin_panel_title', $data['app_name']);
         }
 
         return Response::html($twig->render($tpl, $data));

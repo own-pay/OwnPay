@@ -61,7 +61,7 @@ final class DevicePairingTokenRepository extends BaseRepository
 
             $this->updateScoped((int) $token['id'], [
                 'is_used' => 1,
-                'used_at' => gmDateHelper::nowMicro(),
+                'used_at' => DateHelper::nowMicro(),
             ]);
 
             return $token;

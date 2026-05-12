@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Security;
+namespace Tests\Security;
 
 use OwnPay\Security\UrlValidator;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -78,3 +78,4 @@ final class UrlValidatorTest extends TestCase
         $this->assertFalse($ok);
     }
 }
+

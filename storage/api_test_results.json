@@ -1,0 +1,83 @@
+[
+    {
+        "test": "Health Check",
+        "method": "GET",
+        "url": "https:\/\/ownpay.test\/api\/v1\/health",
+        "code": 401,
+        "ok": true,
+        "json": true,
+        "error": ""
+    },
+    {
+        "test": "Transactions List",
+        "method": "GET",
+        "url": "https:\/\/ownpay.test\/api\/v1\/transactions",
+        "code": 401,
+        "ok": true,
+        "json": true,
+        "error": ""
+    },
+    {
+        "test": "Customers List",
+        "method": "GET",
+        "url": "https:\/\/ownpay.test\/api\/v1\/customers",
+        "code": 401,
+        "ok": true,
+        "json": true,
+        "error": ""
+    },
+    {
+        "test": "API Keys List",
+        "method": "GET",
+        "url": "https:\/\/ownpay.test\/api\/v1\/api-keys",
+        "code": 401,
+        "ok": true,
+        "json": true,
+        "error": ""
+    },
+    {
+        "test": "Payment Initiate",
+        "method": "POST",
+        "url": "https:\/\/ownpay.test\/api\/v1\/payments\/initiate",
+        "code": 401,
+        "ok": true,
+        "json": true,
+        "error": ""
+    },
+    {
+        "test": "Create Customer",
+        "method": "POST",
+        "url": "https:\/\/ownpay.test\/api\/v1\/customers",
+        "code": 401,
+        "ok": true,
+        "json": true,
+        "error": ""
+    },
+    {
+        "test": "Landing Page",
+        "method": "GET",
+        "url": "https:\/\/ownpay.test\/",
+        "code": 200,
+        "ok": true,
+        "json": false,
+        "error": ""
+    },
+    {
+        "test": "Login Page",
+        "method": "GET",
+        "url": "https:\/\/ownpay.test\/login",
+        "code": 200,
+        "ok": true,
+        "json": false,
+        "error": ""
+    },
+    {
+        "test": "404 Check",
+        "method": "GET",
+        "url": "https:\/\/ownpay.test\/api\/v1\/nonexistent",
+        "code": 404,
+        "ok": true,
+        "json": true,
+        "error": ""
+    }
+]

@@ -69,7 +69,7 @@ final class RefundService
             if ($result['success']) {
                 $this->refunds->forTenant($merchantId)->updateScoped((int)$id, [
                     'status' => 'processed',
-                    'processed_at' => gmDateHelper::nowMicro()
+                    'processed_at' => DateHelper::nowMicro()
                 ]);
                 $this->transactions->forTenant($merchantId)->updateScoped($txn['id'], [
                     'status' => 'refunded'

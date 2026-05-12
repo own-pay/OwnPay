@@ -126,11 +126,20 @@ return static function (\OwnPay\Container $c): void {
         if (class_exists(\OwnPay\View\TwigExtensions::class)) {
             $twig->addExtension(new \OwnPay\View\TwigExtensions($c));
         }
+        // Register CoreExtension — provides ownpay_footer(), ownpay_meta()
+        $appVersion = $c->get('config.app')['version'] ?? '0.1.0';
+        $appUrl = $_ENV['APP_URL'] ?? '';
+        $twig->addExtension(new \OwnPay\View\TwigExtension\CoreExtension($appVersion, $appUrl));
         // Global vars available to ALL templates (admin, checkout, public)
         $twig->addGlobal('csrf_token', $_SESSION['_csrf_token'] ?? '');
         $twig->addGlobal('app_name', $_ENV['APP_NAME'] ?? 'Own Pay');
         $twig->addGlobal('lang', []);   // i18n placeholder — populated by locale plugin
         return $twig;
+    });
+
+    // ─── Smart SMS Analyzer ────────────────────────────────────────
+    $c->singleton(\OwnPay\Service\Sms\SmartSmsAnalyzer::class, static function (): \OwnPay\Service\Sms\SmartSmsAnalyzer {
+        return new \OwnPay\Service\Sms\SmartSmsAnalyzer();
     });
 
     // ─── Logger ────────────────────────────────────────────────

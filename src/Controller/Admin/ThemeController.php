@@ -13,7 +13,7 @@ use OwnPay\Repository\PluginRepository;
 use OwnPay\Repository\SettingsRepository;
 
 /**
- * Theme admin controller â€” list, activate, customize, uninstall.
+ * Theme admin controller — list, activate, customize, uninstall.
  */
 final class ThemeController
 {
@@ -30,42 +30,72 @@ final class ThemeController
         PluginRepository $repo,
         SettingsRepository $settings
     ) {
-        $this->c = $c;
-        $this->session = $session;
-        $this->manager = $manager;
-        $this->repo = $repo;
+        $this->c        = $c;
+        $this->session  = $session;
+        $this->manager  = $manager;
+        $this->repo     = $repo;
         $this->settings = $settings;
     }
 
     public function index(Request $request): Response
     {
-        $themes = $this->repo->listByType('theme');
+        $themes      = $this->repo->listByType('theme');
         $activeTheme = $this->settings->get('appearance', 'active_theme', 'default');
+
+        // Enrich DB rows with manifest name (DB may store slug as name)
+        foreach ($themes as &$t) {
+            $m = json_decode($t['manifest'] ?? '{}', true) ?: [];
+            if (!empty($m['name'])) {
+                $t['name'] = $m['name'];
+            }
+            $t['description'] = $t['description'] ?? $m['description'] ?? '';
+            $t['author']      = $t['author']      ?? $m['author']      ?? 'Unknown';
+        }
+        unset($t);
 
         // Also discover filesystem themes not yet in DB
         /** @var PluginLoader $loader */
-        $loader = $this->c->get(PluginLoader::class);
+        $loader     = $this->c->get(PluginLoader::class);
         $discovered = $loader->discover();
+
+        // Build slug→manifest lookup from filesystem
+        $manifestLookup = [];
         foreach ($discovered as $manifest) {
             if ($manifest->type === 'theme') {
-                $found = false;
-                foreach ($themes as $t) {
-                    if ($t['slug'] === $manifest->slug) {
-                        $found = true;
-                        break;
-                    }
+                $manifestLookup[$manifest->slug] = $manifest;
+            }
+        }
+
+        // Enrich DB-stored themes with filesystem manifest name
+        foreach ($themes as &$t) {
+            if (isset($manifestLookup[$t['slug']])) {
+                $fsManifest = $manifestLookup[$t['slug']];
+                $t['name']        = $fsManifest->name;
+                $t['description'] = $t['description'] ?: ($fsManifest->description ?? '');
+                $t['author']      = $t['author']      ?: ($fsManifest->author      ?? 'Unknown');
+            }
+        }
+        unset($t);
+
+        // Add undiscovered themes (on filesystem but not in DB)
+        foreach ($manifestLookup as $slug => $manifest) {
+            $found = false;
+            foreach ($themes as $t) {
+                if ($t['slug'] === $slug) {
+                    $found = true;
+                    break;
                 }
-                if (!$found) {
-                    $themes[] = [
-                        'slug'        => $manifest->slug,
-                        'name'        => $manifest->name,
-                        'description' => $manifest->description,
-                        'version'     => $manifest->version,
-                        'status'      => 'uninstalled',
-                        'author'      => $manifest->author,
-                        'screenshot'  => null,
-                    ];
-                }
+            }
+            if (!$found) {
+                $themes[] = [
+                    'slug'        => $manifest->slug,
+                    'name'        => $manifest->name,
+                    'description' => $manifest->description,
+                    'version'     => $manifest->version,
+                    'status'      => 'uninstalled',
+                    'author'      => $manifest->author,
+                    'screenshot'  => null,
+                ];
             }
         }
 
@@ -78,7 +108,6 @@ final class ThemeController
 
     public function installForm(Request $request): Response
     {
-        // Calculate max upload size from php.ini
         $maxUpload = min(
             $this->parseSize(ini_get('upload_max_filesize') ?: '2M'),
             $this->parseSize(ini_get('post_max_size') ?: '8M')
@@ -90,36 +119,17 @@ final class ThemeController
         ]);
     }
 
-    private function parseSize(string $size): int
-    {
-        $unit = strtolower(substr($size, -1));
-        $value = (int) $size;
-        return match ($unit) {
-            'g' => $value * 1073741824,
-            'm' => $value * 1048576,
-            'k' => $value * 1024,
-            default => $value,
-        };
-    }
-
-    private function formatSize(int $bytes): string
-    {
-        if ($bytes >= 1048576) {
-            return round($bytes / 1048576, 1) . ' MB';
-        }
-        return round($bytes / 1024, 1) . ' KB';
-    }
-
     public function activate(Request $request): Response
     {
-        $slug = (string) $request->param('slug');
+        $slug   = (string) $request->param('slug');
         $plugin = $this->repo->findBySlug($slug);
+
         if ($plugin === null) {
             // Theme not in DB — try to register from filesystem
-            /** @var \OwnPay\Plugin\PluginLoader $loader */
-            $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
+            /** @var PluginLoader $loader */
+            $loader     = $this->c->get(PluginLoader::class);
             $discovered = $loader->discover();
-            $found = false;
+            $found      = false;
             foreach ($discovered as $m) {
                 if ($m->slug === $slug && $m->type === 'theme') {
                     $found = true;
@@ -130,7 +140,6 @@ final class ThemeController
                 $this->session->flashError('Theme not found');
                 return Response::redirect('/admin/themes');
             }
-            // Install into DB first
             $result = $this->manager->activate($slug);
             if (!($result['success'] ?? false)) {
                 $this->session->flashError($result['error'] ?? 'Failed to activate theme');
@@ -139,14 +148,11 @@ final class ThemeController
             $plugin = $this->repo->findBySlug($slug);
         }
 
-        // Activate plugin if not already
         if ($plugin['status'] !== 'active') {
             $this->manager->activate($slug);
         }
 
-        // Set as active theme
         $this->settings->set('appearance', 'active_theme', $slug);
-
         $this->session->flashSuccess("Theme '{$plugin['name']}' activated!");
         return Response::redirect('/admin/themes');
     }
@@ -177,8 +183,9 @@ final class ThemeController
 
     public function uninstall(Request $request): Response
     {
-        $slug = (string) $request->param('slug');
+        $slug        = (string) $request->param('slug');
         $activeTheme = $this->settings->get('appearance', 'active_theme', 'default');
+
         if ($slug === $activeTheme) {
             $this->session->flashError('Cannot uninstall the active theme. Switch to another theme first.');
             return Response::redirect('/admin/themes');
@@ -197,9 +204,26 @@ final class ThemeController
     public function customize(Request $request): Response
     {
         $slug = (string) $request->param('slug');
-        // Redirect to plugin settings page (themes use same settings system)
         return Response::redirect("/admin/plugins/{$slug}/settings");
     }
 
-}
+    private function parseSize(string $size): int
+    {
+        $unit  = strtolower(substr($size, -1));
+        $value = (int) $size;
+        return match ($unit) {
+            'g'     => $value * 1073741824,
+            'm'     => $value * 1048576,
+            'k'     => $value * 1024,
+            default => $value,
+        };
+    }
 
+    private function formatSize(int $bytes): string
+    {
+        if ($bytes >= 1048576) {
+            return round($bytes / 1048576, 1) . ' MB';
+        }
+        return round($bytes / 1024, 1) . ' KB';
+    }
+}

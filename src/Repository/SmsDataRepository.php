@@ -17,15 +17,17 @@ final class SmsDataRepository extends BaseRepository
 
     protected string $table = 'op_sms_parsed';
     protected array $fillable = [
-        'merchant_id', 'device_id', 'sender', 'body', 'amount',
-        'trx_id', 'gateway_slug', 'parser_type', 'match_status',
-        'transaction_id', 'raw_data', 'received_at',
+        'merchant_id', 'device_id', 'local_id', 'sender', 'body', 'amount',
+        'trx_id', 'parsed_sender', 'parsed_balance', 'gateway_slug',
+        'parser_type', 'parsed_type', 'template_id', 'parse_confidence',
+        'match_status', 'transaction_id', 'raw_data', 'encrypted_raw',
+        'received_at',
     ];
 
     /**
      * Check for duplicate: same device + sender + received_at within 1-second window.
      */
-    public function isDuplicate(int $deviceId, string $sender, string $receivedAt): bool
+    public function isDuplicate(string $deviceId, string $sender, string $receivedAt): bool
     {
         $row = $this->db->fetchOne(
             "SELECT COUNT(*) as cnt FROM {$this->table}
@@ -60,7 +62,8 @@ final class SmsDataRepository extends BaseRepository
 
         $items = $this->db->fetchAll(
             "SELECT id, device_id, sender, received_at, amount, trx_id,
-                    gateway_slug, parser_type, match_status, created_at
+                    gateway_slug, parser_type, parsed_type, parse_confidence,
+                    match_status, created_at
              FROM {$this->table}
              WHERE {$where}
              ORDER BY received_at DESC

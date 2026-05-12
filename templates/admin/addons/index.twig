@@ -10,12 +10,7 @@
     </a>
 </div>
 
-{% if flash_success %}
-<div class="op-alert op-alert-success">{{ flash_success }}</div>
-{% endif %}
-{% if flash_error %}
-<div class="op-alert op-alert-danger">{{ flash_error }}</div>
-{% endif %}
+
 
 <div class="op-card">
     {% if addons|length > 0 %}
@@ -40,7 +35,7 @@
                     {% if addon.status == 'active' %}
                         <span class="op-badge op-badge-success">Active</span>
                     {% else %}
-                        <span class="op-badge op-badge-secondary">Inactive</span>
+                        <span class="op-badge op-badge-muted">Inactive</span>
                     {% endif %}
                 </div>
             </div>

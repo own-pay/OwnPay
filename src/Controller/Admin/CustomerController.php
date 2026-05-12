@@ -150,4 +150,29 @@ final class CustomerController
         $this->session->flashSuccess("Customer '{$name}' created");
         return Response::redirect('/admin/customers');
     }
+
+    public function delete(Request $req): Response
+    {
+        $id = (int) $req->param('id');
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+
+        $scopedRepo = $this->customerRepo->forTenant($mid);
+        $customer = $scopedRepo->findScoped($id);
+
+        if (!$customer) {
+            $this->session->flashError('Customer not found or access denied');
+            return Response::redirect('/admin/customers');
+        }
+
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $db->execute('DELETE FROM op_customers WHERE id = :id AND merchant_id = :mid', [
+            'id'  => $id,
+            'mid' => $mid,
+        ]);
+
+        $this->session->flashSuccess('Customer deleted');
+        return Response::redirect('/admin/customers');
+    }
 }

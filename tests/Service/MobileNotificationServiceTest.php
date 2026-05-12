@@ -1,14 +1,14 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace OwnPay\Service;
+namespace Tests\Service;
 
 use OwnPay\Service\Notification\MobileNotificationService;
 use PHPUnit\Framework\TestCase;
 
 /**
- * MobileNotificationServiceTest — Unit tests for the notification service.
+ * MobileNotificationServiceTest â€” Unit tests for the notification service.
  *
  * Tests cover:
  *   - Payment notification queueing (credit/debit/unknown)
@@ -19,7 +19,7 @@ use PHPUnit\Framework\TestCase;
  */
 final class MobileNotificationServiceTest extends TestCase
 {
-    // ─── Queue Tests ─────────────────────────────────────────────────
+    // â”€â”€â”€ Queue Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testQueueCreditNotification(): void
     {
@@ -77,7 +77,7 @@ final class MobileNotificationServiceTest extends TestCase
         $this->assertSame('New transaction detected.', $repo->lastBody);
     }
 
-    // ─── Poll Tests ──────────────────────────────────────────────────
+    // â”€â”€â”€ Poll Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testPollReturnsCorrectStructure(): void
     {
@@ -110,7 +110,7 @@ final class MobileNotificationServiceTest extends TestCase
         $this->assertSame(0, $result['unread_count']);
     }
 
-    // ─── MarkRead Tests ──────────────────────────────────────────────
+    // â”€â”€â”€ MarkRead Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testMarkReadPassthrough(): void
     {
@@ -121,7 +121,7 @@ final class MobileNotificationServiceTest extends TestCase
         $this->assertSame(3, $count);
     }
 
-    // ─── Cleanup Tests ───────────────────────────────────────────────
+    // â”€â”€â”€ Cleanup Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testCleanupPassthrough(): void
     {
@@ -132,7 +132,7 @@ final class MobileNotificationServiceTest extends TestCase
         $this->assertSame(5, $count);
     }
 
-    // ─── Stub ────────────────────────────────────────────────────────
+    // â”€â”€â”€ Stub â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private function stubRepo(
         array $notifications = [],
@@ -179,3 +179,4 @@ final class MobileNotificationServiceTest extends TestCase
         };
     }
 }
+

@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Plugin;
+namespace Tests\Plugin;
 
 use OwnPay\Plugin\Capability;
 use OwnPay\Plugin\PluginManifest;
@@ -42,7 +42,7 @@ class PluginManifestTest extends TestCase
         ];
     }
 
-    // ── fromArray() construction ────────────────────────────────────
+    // â”€â”€ fromArray() construction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testFromArrayPopulatesAllFields(): void
     {
@@ -84,7 +84,7 @@ class PluginManifestTest extends TestCase
         $this->assertSame(['valid', 'also-valid'], $m->dependencies);
     }
 
-    // ── fromFile() ──────────────────────────────────────────────────
+    // â”€â”€ fromFile() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testFromFileParsesValidJsonFile(): void
     {
@@ -134,7 +134,7 @@ class PluginManifestTest extends TestCase
         }
     }
 
-    // ── validate() ─────────────────────────────────────────────────
+    // â”€â”€ validate() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testValidateReturnsEmptyForValidManifest(): void
     {
@@ -270,7 +270,7 @@ class PluginManifestTest extends TestCase
         $this->assertTrue($found);
     }
 
-    // ── Capability helpers ──────────────────────────────────────────
+    // â”€â”€ Capability helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testHasCapabilityChecksDeclaredCapabilities(): void
     {
@@ -292,7 +292,7 @@ class PluginManifestTest extends TestCase
         $this->assertCount(2, $caps);
     }
 
-    // ── Class name resolution ──────────────────────────────────────
+    // â”€â”€ Class name resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testGetFullyQualifiedClassNameUsesNamespaceAndEntrypoint(): void
     {
@@ -313,7 +313,7 @@ class PluginManifestTest extends TestCase
         $this->assertSame('OwnPayPlugin\\SmsNotifications\\Plugin', $m->getFullyQualifiedClassName());
     }
 
-    // ── Serialisation ──────────────────────────────────────────────
+    // â”€â”€ Serialisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testToArrayRoundTrip(): void
     {
@@ -325,3 +325,4 @@ class PluginManifestTest extends TestCase
         $this->assertSame($original['hooks']['actions'], $array['hooks']['actions']);
     }
 }
+

@@ -99,26 +99,26 @@ final class MobileNotificationRepository extends BaseRepository
     /**
      * Count unread notifications for device.
      */
-    public function countUnread(int $merchantId, int $deviceId): int
+    public function countUnread(int $merchantId, string $deviceUuid): int
     {
         return $this->db->count(
             $this->table,
             "merchant_id = :mid AND device_uuid = :did AND is_read = 0",
-            ['mid' => $merchantId, 'did' => $deviceId]
+            ['mid' => $merchantId, 'did' => $deviceUuid]
         );
     }
 
     /**
      * List notifications for device.
      */
-    public function listForDevice(int $merchantId, int $deviceId, int $limit = 50): array
+    public function listForDevice(int $merchantId, string $deviceUuid, int $limit = 50): array
     {
         return $this->db->fetchAll(
             "SELECT id, type, title, body, payload as data, read_at, created_at
              FROM {$this->table}
              WHERE merchant_id = :mid AND device_uuid = :did
              ORDER BY created_at DESC LIMIT {$limit}",
-            ['mid' => $merchantId, 'did' => $deviceId]
+            ['mid' => $merchantId, 'did' => $deviceUuid]
         );
     }
 

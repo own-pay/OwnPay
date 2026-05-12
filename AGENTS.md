@@ -102,7 +102,7 @@ ownpay/
 │   ├── Container.php           # DI container
 │   ├── Cache/                  # Cache layer
 │   ├── Controller/
-│   │   ├── Admin/              # 25 admin controllers
+│   │   ├── Admin/              # 26 admin controllers (incl. RolesController)
 │   │   ├── Api/                # REST API controllers
 │   │   ├── Checkout/           # Payment checkout flow
 │   │   ├── Install/            # Installer
@@ -245,11 +245,21 @@ All repositories extend `BaseRepository` and most use the `TenantScope` trait:
 ```php
 // Scoped to a specific brand
 $repo = $this->smsRepo->forTenant($mid);
-$result = $repo->listPaginated($limit, $offset);
+$result = $repo->paginateScoped($page, $perPage);  // TenantScope method
 
 // Unscoped (superadmin global view)
 $repo = $this->smsRepo->forAllTenants();
 ```
+
+**TenantScope methods** (NOT `listPaginated` — that does not exist):
+- `forTenant(int $mid): static` — set tenant scope
+- `forAllTenants(): static` — remove scope
+- `paginateScoped(int $page, int $perPage): array` — paginate with scope
+- `findScoped(int $id): ?array` — find by ID within tenant
+- `createScoped(array $data): string` — insert with merchant_id
+- `updateScoped(int $id, array $data): int` — update within tenant
+- `deleteScoped(int $id): int` — delete within tenant
+- `countScoped(string $where, array $params): int` — count within tenant
 
 ### Plugin System
 
@@ -273,11 +283,26 @@ $events->addFilter('checkout.gateways', [$this, 'addGateway']);
 
 ### Admin Controllers
 
-All 25 admin controllers follow this pattern:
+All 26 admin controllers follow this pattern:
 - Use `AdminPageTrait` for rendering (auto-injects CSRF, user context, brand data)
 - Constructor: `(Container $c, AdminSession $session, ...)`
 - Methods receive `Request $req`, return `Response`
 - Brand scoping via `BrandContext::resolveFromRequest()`
+
+**New controllers added in v0.1.0 hardening:**
+- `RolesController` — CRUD for `op_roles` + permission matrix sync via `op_role_permissions`
+
+### Mobile API Controllers (`src/Controller/Api/Mobile/`)
+
+| Controller | Endpoints | Auth |
+|-----------|-----------|------|
+| `DeviceController` | pair, heartbeat, revoke, bulk-revoke, refresh, status | JWT |
+| `SmsController` | receive, queue | JWT |
+| `NotificationController` | index, ack | JWT |
+| `DashboardController` | index | JWT |
+| `ConfigController` | filterRules | JWT |
+
+All mobile routes use `mobile` middleware group (JWT verification). Base path: `/api/mobile/v1/`.
 
 ---
 
@@ -348,6 +373,32 @@ $settings->set('general', 'site_name', 'My Brand');
 5. Create Twig template in `templates/admin/`
 6. Add sidebar entry in `templates/admin/layout/sidebar.twig`
 
+### Admin Sidebar Structure (v0.1.0)
+
+Sections in order: **Dashboard → Payments → Gateways → People → Mobile & SMS → Reports & Finance → Developers → Appearance → System → Account**
+
+- **People**: Brands, Customers, Staff, Roles & Permissions
+- **Developers**: Developer Hub (sub: API Keys, Endpoint Reference, Webhooks/IPN, Documentation, Rate Limits)
+- **Reports**: Reports, Audit Log, Balance Verification
+- **Appearance**: Branding, Landing Page, Themes
+
+### New Routes (v0.1.0 hardening)
+
+**Web routes added (`config/routes/web.php`):**
+```
+GET  /admin/roles                → RolesController@index
+POST /admin/roles/store          → RolesController@store
+POST /admin/roles/{id}/update   → RolesController@update
+POST /admin/roles/{id}/delete   → RolesController@delete
+```
+
+**API routes added (`config/routes/api.php`):**
+```
+GET  /api/mobile/v1/config/filter-rules  → Mobile\ConfigController@filterRules
+POST /api/mobile/v1/devices/refresh      → Mobile\DeviceController@refresh
+GET  /api/mobile/v1/devices/status       → Mobile\DeviceController@status
+```
+
 ### Adding a new repository
 
 1. Create in `src/Repository/` extending `BaseRepository`
@@ -381,6 +432,10 @@ $settings->set('general', 'site_name', 'My Brand');
 5. **DateHelper** — Must be imported (`use OwnPay\Support\DateHelper;`). Several files had this missing after migration.
 6. **Plugin hooks** — Registered in `config/hooks.php`. Plugins register their own in `boot()` method.
 7. **CSRF field** — Always `_csrf_token` (not `_csrf`). Validated by `CsrfMiddleware`.
+8. **Plugin name enrichment** — `op_plugins.name` column often stores the slug (not the human-readable name). `AddonController` and `ThemeController` both do a **two-pass enrichment**: first from `manifest` JSON column, then from filesystem `PluginLoader::discover()`. Always prefer filesystem manifest name. DB slug must match manifest `slug` field — if they diverge, run `fix_theme_slug.php`-style migration.
+9. **`paginateScoped()` not `listPaginated()`** — `TenantScope` exposes `paginateScoped(int $page, int $perPage)`. There is NO `listPaginated()` method. Using wrong method name causes fatal runtime error.
+10. **Mobile JWT tokens** — Issued by `POST /api/mobile/v1/devices/pair`. Long-lived refresh tokens renewed via `POST /api/mobile/v1/devices/refresh`. Access tokens are short-lived (24h). Device must heartbeat to stay `active`.
+11. **op_plugins slug mismatch** — Theme `own-pay-theme` was stored with wrong slug. Correct slug is `own-pay` (matches manifest). `active_theme` system setting must also match. Always verify with `SELECT slug,name FROM op_plugins WHERE type='theme'`.
 
 ---
 

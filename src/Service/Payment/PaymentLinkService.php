@@ -85,4 +85,35 @@ final class PaymentLinkService
         );
         return $this->find($merchantId, $id) ?? [];
     }
+
+    /**
+     * Ensure a brand has at least one default payment link.
+     * Called on brand creation. Idempotent — skips if links already exist.
+     */
+    public function ensureDefault(int $merchantId, string $brandName, string $brandSlug, string $currency = 'BDT'): void
+    {
+        $existing = $this->listForMerchant($merchantId);
+        if (!empty($existing)) {
+            return;
+        }
+
+        $this->create($merchantId, [
+            'title'       => $brandName . ' Payment',
+            'slug'        => $brandSlug . '-pay',
+            'description' => 'Default payment link for ' . $brandName,
+            'currency'    => $currency,
+            // amount left null = customer enters custom amount
+        ]);
+    }
+
+    /**
+     * Find payment link by slug (public checkout).
+     */
+    public function findBySlug(string $slug): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM op_payment_links WHERE slug = :slug AND status = 'active'",
+            ['slug' => $slug]
+        );
+    }
 }

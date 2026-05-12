@@ -1,15 +1,15 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Service;
+namespace Tests\Service;
 
 use OwnPay\Service\System\InputSanitizer;
 use PHPUnit\Framework\TestCase;
 
 class InputSanitizerTest extends TestCase
 {
-    // ── html() ──────────────────────────────────────────────────────
+    // â”€â”€ html() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testHtmlEncodesSpecialChars(): void
     {
@@ -49,7 +49,7 @@ class InputSanitizerTest extends TestCase
         $this->assertNull(InputSanitizer::html(null));
     }
 
-    // ── trim() ──────────────────────────────────────────────────────
+    // â”€â”€ trim() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testTrimRemovesSurroundingWhitespace(): void
     {
@@ -80,7 +80,7 @@ class InputSanitizerTest extends TestCase
         $this->assertNull(InputSanitizer::trim(null));
     }
 
-    // ── alphanumeric() ──────────────────────────────────────────────
+    // â”€â”€ alphanumeric() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testAlphanumericAcceptsValidSlug(): void
     {
@@ -106,3 +106,4 @@ class InputSanitizerTest extends TestCase
         $this->assertSame('valid-slug', InputSanitizer::alphanumeric('  valid-slug  '));
     }
 }
+

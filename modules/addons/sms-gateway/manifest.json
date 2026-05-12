@@ -1,13 +1,16 @@
 {
-    "name": "sms-gateway",
+    "name": "SMS Gateway",
+    "slug": "sms-gateway",
     "version": "1.0.0",
     "description": "SMS Gateway addon — send SMS via Twilio, Vonage, or custom HTTP API.",
     "author": "Own Pay",
     "type": "addon",
     "entry": "Plugin.php",
+    "entrypoint": "Plugin.php",
     "namespace": "OwnPay\\Modules\\Addons\\SmsGateway",
+    "capabilities": ["addon"],
     "requires": {
-        "ownpay": ">=0.1.0"
+        "core": ">=0.1.0"
     },
     "hooks": [
         "sms.before_send",

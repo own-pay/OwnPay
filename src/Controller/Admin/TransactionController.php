@@ -11,6 +11,7 @@ use OwnPay\Repository\TransactionRepository;
 use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\AuditLogRepository;
 use OwnPay\Service\System\PaginationService;
+use OwnPay\Service\System\AuditService;
 use OwnPay\Event\EventManager;
 use OwnPay\Support\DateHelper;
 
@@ -24,6 +25,7 @@ final class TransactionController
     private SmsParsedRepository $smsRepo;
     private AuditLogRepository $auditRepo;
     private EventManager $events;
+    private AuditService $audit;
 
     public function __construct(
         Container $c,
@@ -31,7 +33,8 @@ final class TransactionController
         TransactionRepository $txns,
         SmsParsedRepository $smsRepo,
         AuditLogRepository $auditRepo,
-        EventManager $events
+        EventManager $events,
+        AuditService $audit
     ) {
         $this->c         = $c;
         $this->session   = $session;
@@ -39,6 +42,7 @@ final class TransactionController
         $this->smsRepo   = $smsRepo;
         $this->auditRepo = $auditRepo;
         $this->events    = $events;
+        $this->audit     = $audit;
     }
 
     public function index(Request $req): Response
@@ -49,9 +53,11 @@ final class TransactionController
 
         $page = max(1, (int) $req->get('page', '1'));
         $filters = [
-            'q'       => $req->get('q', ''),
-            'status'  => $req->get('status', ''),
-            'gateway' => $req->get('gateway', ''),
+            'q'         => $req->get('q', ''),
+            'status'    => $req->get('status', ''),
+            'gateway'   => $req->get('gateway', ''),
+            'date_from' => $req->get('date_from', ''),
+            'date_to'   => $req->get('date_to', ''),
         ];
 
         $repo = $this->txns->forTenant($mid);
@@ -115,6 +121,7 @@ final class TransactionController
         $this->events->doAction('transaction.status.before', $txn, $newStatus);
         $this->txns->forTenant($mid)->updateScoped($id, ['status' => $newStatus, 'updated_at' => DateHelper::now()]);
         $this->events->doAction('transaction.status.changed', array_merge($txn, ['status' => $newStatus]));
+        $this->audit->log('transaction.status_changed', 'transaction', $id, ['status' => $txn['status']], ['status' => $newStatus]);
 
         $this->session->flashSuccess("Transaction marked {$newStatus}");
         return Response::redirect("/admin/transactions/{$id}");

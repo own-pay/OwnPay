@@ -36,7 +36,7 @@ final class FileCache implements CacheInterface
             return null;
         }
 
-        $data = @unserialize($content);
+        $data = @unserialize($content, ['allowed_classes' => false]);
         if ($data === false || !is_array($data)) {
             $this->deleteFile($file);
             return null;

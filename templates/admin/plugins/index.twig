@@ -4,92 +4,116 @@
 
 {% block content %}
 <div class="op-page-header">
-    <h1>Plugins</h1>
+    <div>
+        <h1>Plugins</h1>
+        <p class="op-text-muted op-mt-1">Manage gateways, addons, and themes for your payment platform.</p>
+    </div>
     <a href="/admin/plugins/install" class="op-btn op-btn-primary">
-        <span class="op-icon">+</span> Install Plugin
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload Plugin
     </a>
 </div>
 
-{% if flash_success %}
-<div class="op-alert op-alert-success">{{ flash_success }}</div>
-{% endif %}
-{% if flash_error %}
-<div class="op-alert op-alert-danger">{{ flash_error }}</div>
-{% endif %}
-
-<div class="op-tabs">
-    <button class="op-tab active" data-tab="all">All ({{ plugins|length }})</button>
-    <button class="op-tab" data-tab="active">Active ({{ plugins|filter(p => p.status == 'active')|length }})</button>
-    <button class="op-tab" data-tab="inactive">Inactive ({{ plugins|filter(p => p.status == 'inactive')|length }})</button>
+{# ── Tabs ────────────────────────────────────────────────── #}
+<div class="op-tabs op-mb-4">
+    <button class="op-tab active" data-tab="all">All <span class="op-tab-count">{{ plugins|length }}</span></button>
+    <button class="op-tab" data-tab="active">Active <span class="op-tab-count">{{ plugins|filter(p => p.status == 'active')|length }}</span></button>
+    <button class="op-tab" data-tab="inactive">Available <span class="op-tab-count">{{ plugins|filter(p => p.status != 'active')|length }}</span></button>
 </div>
 
+{# ── Plugin Cards Grid ───────────────────────────────────── #}
+{% if plugins|length > 0 %}
+<div class="op-plugin-grid" id="plugins-grid">
+    {% for plugin in plugins %}
+    <div class="op-plugin-card plugin-row {{ plugin.status == 'active' ? 'op-plugin-active' : '' }}" data-status="{{ plugin.status }}">
+        {# ── Card Header ── #}
+        <div class="op-plugin-card-header">
+            <div class="op-plugin-card-icon op-plugin-type-{{ plugin.type }}">
+                {% if plugin.type == 'gateway' %}
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                {% elseif plugin.type == 'theme' %}
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                {% else %}
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+                {% endif %}
+            </div>
+            <div class="op-plugin-card-meta">
+                <span class="op-badge op-badge-{{ plugin.type == 'gateway' ? 'info' : (plugin.type == 'theme' ? 'primary' : 'warning') }} op-badge-sm">{{ plugin.type|capitalize }}</span>
+                <span class="op-text-xs op-text-muted">v{{ plugin.version }}</span>
+            </div>
+        </div>
+
+        {# ── Card Body ── #}
+        <div class="op-plugin-card-body">
+            <h3 class="op-plugin-card-title">{{ plugin.name }}</h3>
+            <p class="op-plugin-card-slug">{{ plugin.slug }}</p>
+            {% if plugin.description is defined and plugin.description %}
+            <p class="op-plugin-card-desc">{{ plugin.description|slice(0,120) }}{% if plugin.description|length > 120 %}…{% endif %}</p>
+            {% else %}
+            <p class="op-plugin-card-desc op-text-dim">No description available.</p>
+            {% endif %}
+        </div>
+
+        {# ── Card Footer ── #}
+        <div class="op-plugin-card-footer">
+            <div class="op-plugin-card-status">
+                {% if plugin.status == 'active' %}
+                <span class="op-plugin-status-indicator op-status-active"></span>
+                <span class="op-text-sm" style="color:var(--op-success)">Active</span>
+                {% elseif plugin.status == 'inactive' %}
+                <span class="op-plugin-status-indicator op-status-inactive"></span>
+                <span class="op-text-sm op-text-muted">Inactive</span>
+                {% else %}
+                <span class="op-plugin-status-indicator op-status-uninstalled"></span>
+                <span class="op-text-sm op-text-muted">Not Installed</span>
+                {% endif %}
+            </div>
+            <div class="op-plugin-card-actions">
+                {% if plugin.status == 'active' %}
+                <a href="/admin/plugins/{{ plugin.slug }}/settings" class="op-btn op-btn-xs op-btn-outline" title="Settings">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                </a>
+                <form method="POST" action="/admin/plugins/{{ plugin.slug }}/deactivate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-xs op-btn-ghost-danger" title="Deactivate">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
+                    </button>
+                </form>
+                {% elseif plugin.status == 'inactive' %}
+                <form method="POST" action="/admin/plugins/{{ plugin.slug }}/activate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-xs op-btn-success">Activate</button>
+                </form>
+                <form method="POST" action="/admin/plugins/{{ plugin.slug }}/uninstall" class="op-inline-form" onsubmit="return confirm('Permanently remove {{ plugin.name }}?')">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-xs op-btn-ghost-danger" title="Uninstall">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                </form>
+                {% elseif plugin.status == 'uninstalled' %}
+                <form method="POST" action="/admin/plugins/{{ plugin.slug }}/activate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-xs op-btn-success">Install & Activate</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+{% else %}
 <div class="op-card">
-    <table class="op-table" id="plugins-table">
-        <thead>
-            <tr>
-                <th>Plugin</th>
-                <th>Type</th>
-                <th>Version</th>
-                <th>Status</th>
-                <th>Actions</th>
-            </tr>
-        </thead>
-        <tbody>
-        {% for plugin in plugins %}
-            <tr class="plugin-row" data-status="{{ plugin.status }}">
-                <td>
-                    <div class="op-plugin-info">
-                        <strong>{{ plugin.name }}</strong>
-                        <small class="op-text-muted">{{ plugin.slug }}</small>
-                    </div>
-                </td>
-                <td><span class="op-badge op-badge-{{ plugin.type }}">{{ plugin.type|capitalize }}</span></td>
-                <td>{{ plugin.version }}</td>
-                <td>
-                    {% if plugin.status == 'active' %}
-                        <span class="op-badge op-badge-success">Active</span>
-                    {% elseif plugin.status == 'error' %}
-                        <span class="op-badge op-badge-danger">Error</span>
-                    {% else %}
-                        <span class="op-badge op-badge-secondary">Inactive</span>
-                    {% endif %}
-                </td>
-                <td class="op-actions">
-                    {% if plugin.status == 'active' %}
-                        <a href="/admin/plugins/{{ plugin.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Settings</a>
-                        <form method="POST" action="/admin/plugins/{{ plugin.slug }}/deactivate" class="op-inline-form">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
-                        </form>
-                    {% elseif plugin.status == 'inactive' %}
-                        <form method="POST" action="/admin/plugins/{{ plugin.slug }}/activate" class="op-inline-form">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
-                        </form>
-                    {% endif %}
-                    <form method="POST" action="/admin/plugins/{{ plugin.slug }}/uninstall" class="op-inline-form" onsubmit="return confirm('Permanently remove this plugin?')">
-                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                        <button type="submit" class="op-btn op-btn-sm op-btn-danger">Uninstall</button>
-                    </form>
-                </td>
-            </tr>
-        {% else %}
-            <tr><td colspan="5" class="op-empty">No plugins installed. <a href="/admin/plugins/install">Install one</a>.</td></tr>
-        {% endfor %}
-        </tbody>
-    </table>
+    <div class="op-card-body">
+        <div class="op-empty-state">
+            <div class="op-empty-icon">
+                <svg width="56" height="56" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            </div>
+            <p class="op-empty-title">No plugins found</p>
+            <p class="op-text-muted op-text-sm">Upload a gateway, addon, or theme package to extend your platform.</p>
+            <a href="/admin/plugins/install" class="op-btn op-btn-primary op-mt-3">Upload Plugin</a>
+        </div>
+    </div>
 </div>
+{% endif %}
 
-<script>
-document.querySelectorAll('.op-tab').forEach(tab => {
-    tab.addEventListener('click', () => {
-        document.querySelectorAll('.op-tab').forEach(t => t.classList.remove('active'));
-        tab.classList.add('active');
-        const filter = tab.dataset.tab;
-        document.querySelectorAll('.plugin-row').forEach(row => {
-            row.style.display = (filter === 'all' || row.dataset.status === filter) ? '' : 'none';
-        });
-    });
-});
-</script>
 {% endblock %}
+{% block scripts %}<script src="/assets/js/pages/plugins.js"></script>{% endblock %}

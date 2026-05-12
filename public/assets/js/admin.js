@@ -72,6 +72,29 @@
         }
     });
 
+    // ─── Sub-nav Expand / Collapse ────────────────────────────
+    document.querySelectorAll('.op-nav-has-sub').forEach(function (item) {
+        var link = item.querySelector(':scope > .op-nav-link');
+        if (!link) return;
+        link.addEventListener('click', function (e) {
+            // If sub-nav exists, toggle expand. Still allow navigation (href works).
+            var sub = item.querySelector(':scope > .op-sub-nav');
+            if (sub) {
+                e.preventDefault(); // prevent navigation on first click — expands first
+                var isExpanded = item.classList.contains('op-nav-expanded');
+                // Close all other expanded items
+                document.querySelectorAll('.op-nav-has-sub.op-nav-expanded').forEach(function (other) {
+                    if (other !== item) other.classList.remove('op-nav-expanded');
+                });
+                if (isExpanded) {
+                    item.classList.remove('op-nav-expanded');
+                } else {
+                    item.classList.add('op-nav-expanded');
+                }
+            }
+        });
+    });
+
     // ─── User Menu Dropdown ───────────────────────────────────
     var userBtn = document.getElementById('user-menu-btn');
     var userMenu = document.getElementById('user-menu');
@@ -165,5 +188,30 @@
     if (themeToggleBtn) {
         themeToggleBtn.addEventListener('click', window.opToggleTheme);
     }
+
+    // ─── Global Modal Functions ──────────────────────────────
+    window.openDeleteModal = function (action, itemName) {
+        document.getElementById('delete-form').action = action;
+        document.getElementById('delete-item-name').textContent = itemName;
+        document.getElementById('confirm-delete-modal').hidden = false;
+    };
+
+    window.closeModal = function (id) {
+        document.getElementById(id).hidden = true;
+    };
+
+    window.openDetailModal = function (title, url) {
+        document.getElementById('detail-modal-title').textContent = title;
+        document.getElementById('detail-modal').hidden = false;
+        var content = document.getElementById('detail-modal-content');
+        content.innerHTML = '<div class="op-loading">Loading...</div>';
+        fetch(url).then(function (r) { return r.text(); }).then(function (html) { content.innerHTML = html; });
+    };
+
+    document.addEventListener('keydown', function (e) {
+        if (e.key === 'Escape') {
+            document.querySelectorAll('.op-modal:not([hidden])').forEach(function (m) { m.hidden = true; });
+        }
+    });
 
 })();

@@ -1,14 +1,14 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Security;
+namespace Tests\Security;
 
 use OwnPay\Security\Authenticator;
 use PHPUnit\Framework\TestCase;
 
 /**
- * F6 — TOTP replay prevention via verifyCodeWithReplayGuard().
+ * F6 â€” TOTP replay prevention via verifyCodeWithReplayGuard().
  */
 final class AuthenticatorReplayTest extends TestCase
 {
@@ -45,7 +45,7 @@ final class AuthenticatorReplayTest extends TestCase
         );
         $this->assertSame($window, $first);
 
-        // Replay: same code, same window — must reject (caller persists $first)
+        // Replay: same code, same window â€” must reject (caller persists $first)
         $replay = $this->ga->verifyCodeWithReplayGuard(
             $this->secret, $code, lastUsedWindow: $first, discrepancy: 2, currentTimeSlice: $window
         );
@@ -64,7 +64,7 @@ final class AuthenticatorReplayTest extends TestCase
         );
         $this->assertSame($window, $first);
 
-        // 30 sec later — new code from new window should be accepted
+        // 30 sec later â€” new code from new window should be accepted
         $next = $this->ga->verifyCodeWithReplayGuard(
             $this->secret, $code2, lastUsedWindow: $first, discrepancy: 2, currentTimeSlice: $window + 1
         );
@@ -89,7 +89,7 @@ final class AuthenticatorReplayTest extends TestCase
 
     public function test_window_lookback_within_discrepancy_is_accepted(): void
     {
-        // Code from 30s ago should still verify within ±2 discrepancy
+        // Code from 30s ago should still verify within Â±2 discrepancy
         $window = 12345678;
         $oldCode = $this->ga->getCode($this->secret, $window - 1);
 
@@ -99,3 +99,4 @@ final class AuthenticatorReplayTest extends TestCase
         $this->assertSame($window - 1, $matched);
     }
 }
+

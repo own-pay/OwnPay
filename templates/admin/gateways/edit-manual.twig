@@ -160,20 +160,7 @@
     </div>
 </template>
 
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    let fieldIdx = {{ existing_fields|length }};
-    const container = document.getElementById('input-fields-container');
-    const template = document.getElementById('field-template');
-    document.getElementById('add-field-btn').addEventListener('click', function() {
-        const html = template.innerHTML.replace(/__IDX__/g, fieldIdx++);
-        const div = document.createElement('div');
-        div.innerHTML = html;
-        container.appendChild(div.firstElementChild);
-    });
-    container.addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-field-btn')) e.target.closest('.op-field-row').remove();
-    });
-});
-</script>
+
 {% endblock %}
+{% block scripts %}<script src="/assets/js/pages/gateway-manual.js"></script>{% endblock %}
+

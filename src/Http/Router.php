@@ -258,4 +258,12 @@ final class Router
         }
         return $total;
     }
+
+    /**
+     * Expose container for use in route files (e.g. reading settings for dynamic slug).
+     */
+    public function getContainer(): Container
+    {
+        return $this->container;
+    }
 }

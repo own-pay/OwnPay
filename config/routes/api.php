@@ -42,6 +42,13 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/api/mobile/v1/notifications/ack',  'Api\\Mobile\\NotificationController@ack',    'mobile');
     $router->get('/api/mobile/v1/dashboard',           'Api\\Mobile\\DashboardController@index',     'mobile');
 
+    // Config / Filter Rules (mobile SMS privacy gate)
+    $router->get('/api/mobile/v1/config/filter-rules', 'Api\\Mobile\\ConfigController@filterRules',   'mobile');
+
+    // Device refresh + status
+    $router->post('/api/mobile/v1/devices/refresh',    'Api\\Mobile\\DeviceController@refresh',       'mobile');
+    $router->get('/api/mobile/v1/devices/status',      'Api\\Mobile\\DeviceController@status',        'mobile');
+
     // ======================== ADMIN API (Bearer Auth) ========================
     $router->get('/api/admin/v1/sms-templates',         'Api\\Admin\\SmsTemplateController@index',   'api');
     $router->put('/api/admin/v1/sms-templates/{id}',    'Api\\Admin\\SmsTemplateController@update',  'api');

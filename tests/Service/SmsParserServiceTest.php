@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace OwnPay\Service;
+namespace Tests\Service;
 
 use OwnPay\Service\Sms\SmsParserService;
 use OwnPay\Service\Sms\SmsRegexParser;
@@ -10,7 +10,7 @@ use OwnPay\Service\Sms\SmsHeuristicParser;
 use PHPUnit\Framework\TestCase;
 
 /**
- * SmsParserServiceTest — Unit tests for the SMS parsing orchestrator.
+ * SmsParserServiceTest â€” Unit tests for the SMS parsing orchestrator.
  *
  * Uses anonymous-class stubs for repositories and encryptor.
  * Uses real AES-256-GCM encryption for payload testing (matching the
@@ -43,7 +43,7 @@ final class SmsParserServiceTest extends TestCase
         $this->heuristicParser = new SmsHeuristicParser();
     }
 
-    // ─── Full Pipeline Tests ─────────────────────────────────────────
+    // â”€â”€â”€ Full Pipeline Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testRegexMatchPipeline(): void
     {
@@ -104,7 +104,7 @@ final class SmsParserServiceTest extends TestCase
         $this->assertNotNull($results[0]['server_ref']);
     }
 
-    // ─── Dedup Tests ─────────────────────────────────────────────────
+    // â”€â”€â”€ Dedup Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testDuplicateDetection(): void
     {
@@ -121,7 +121,7 @@ final class SmsParserServiceTest extends TestCase
         $this->assertNull($results[0]['server_ref']);
     }
 
-    // ─── Error Handling ──────────────────────────────────────────────
+    // â”€â”€â”€ Error Handling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testDeviceNotFound(): void
     {
@@ -183,7 +183,7 @@ final class SmsParserServiceTest extends TestCase
         $this->assertSame('MISSING_FIELDS', $results[0]['error']);
     }
 
-    // ─── Batch Processing ────────────────────────────────────────────
+    // â”€â”€â”€ Batch Processing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testBatchProcessingMultipleMessages(): void
     {
@@ -236,7 +236,7 @@ final class SmsParserServiceTest extends TestCase
         }
     }
 
-    // ─── Crypto Helper ───────────────────────────────────────────────
+    // â”€â”€â”€ Crypto Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Encrypt a plaintext using AES-256-GCM with the test key.
@@ -262,7 +262,7 @@ final class SmsParserServiceTest extends TestCase
         return base64_encode($iv . $ciphertext . $tag);
     }
 
-    // ─── Service Builder ─────────────────────────────────────────────
+    // â”€â”€â”€ Service Builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Build SmsParserService with anonymous-class stubs.
@@ -289,7 +289,7 @@ final class SmsParserServiceTest extends TestCase
             }
         };
 
-        // Stub: FieldEncryptor — returns real AES key hex on decrypt
+        // Stub: FieldEncryptor â€” returns real AES key hex on decrypt
         $aesKeyHex = self::AES_KEY_HEX;
         $encryptor = new class($keyDecryptionFails, $aesKeyHex) {
             private bool $fails;
@@ -345,3 +345,4 @@ final class SmsParserServiceTest extends TestCase
         );
     }
 }
+

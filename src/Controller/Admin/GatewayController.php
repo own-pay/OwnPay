@@ -11,6 +11,7 @@ use OwnPay\Repository\GatewayConfigRepository;
 use OwnPay\Repository\ManualGatewayRepository;
 use OwnPay\Service\System\FilesystemService;
 use OwnPay\Service\System\InputSanitizer;
+use OwnPay\Service\System\AuditService;
 
 /**
  * Gateway admin controller — CRUD for manual gateways, list API gateways.
@@ -24,19 +25,22 @@ final class GatewayController
     private ManualGatewayRepository $manualGateways;
     private GatewayConfigRepository $apiConfigs;
     private FilesystemService $fs;
+    private AuditService $audit;
 
     public function __construct(
         Container $c,
         AdminSession $session,
         ManualGatewayRepository $manualGateways,
         GatewayConfigRepository $apiConfigs,
-        FilesystemService $fs
+        FilesystemService $fs,
+        AuditService $audit
     ) {
         $this->c              = $c;
         $this->session        = $session;
         $this->manualGateways = $manualGateways;
         $this->apiConfigs     = $apiConfigs;
         $this->fs             = $fs;
+        $this->audit          = $audit;
     }
 
     public function index(Request $request): Response
@@ -129,7 +133,8 @@ final class GatewayController
         $record['status'] = 'active';
         $this->applyUploads($record);
 
-        $this->manualGateways->forTenant($merchantId)->createScoped($record);
+        $gid = $this->manualGateways->forTenant($merchantId)->createScoped($record);
+        $this->audit->log('gateway.created', 'manual_gateway', (int) $gid, null, ['name' => $record['name']]);
         $this->session->flashSuccess('Gateway created!');
         return Response::redirect('/admin/gateways');
     }
@@ -161,6 +166,7 @@ final class GatewayController
         $update = $this->buildGatewayRecord($data);
         $this->applyUploads($update);
         $this->manualGateways->forTenant($merchantId)->updateScoped($id, $update);
+        $this->audit->log('gateway.updated', 'manual_gateway', $id, null, ['name' => $update['name'] ?? '']);
 
         $this->session->flashSuccess('Gateway updated!');
         return Response::redirect('/admin/gateways');
@@ -174,6 +180,7 @@ final class GatewayController
         if ($gateway !== null) {
             $newStatus = $gateway['status'] === 'active' ? 'inactive' : 'active';
             $this->manualGateways->forTenant($merchantId)->updateScoped($id, ['status' => $newStatus]);
+            $this->audit->log('gateway.status_toggled', 'manual_gateway', $id, ['status' => $gateway['status']], ['status' => $newStatus]);
             $this->session->flashSuccess("Gateway {$newStatus}!");
         }
         return Response::redirect('/admin/gateways');
@@ -186,7 +193,9 @@ final class GatewayController
     public function delete(Request $request): Response
     {
         $merchantId = $this->resolveMerchant($request);
-        $this->manualGateways->forTenant($merchantId)->deleteScoped((int) $request->param('id'));
+        $gid = (int) $request->param('id');
+        $this->manualGateways->forTenant($merchantId)->deleteScoped($gid);
+        $this->audit->log('gateway.deleted', 'manual_gateway', $gid);
         $this->session->flashSuccess('Gateway deleted.');
         return Response::redirect('/admin/gateways');
     }

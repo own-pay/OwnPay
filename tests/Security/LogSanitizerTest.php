@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Security;
+namespace Tests\Security;
 
 use PHPUnit\Framework\TestCase;
 use OwnPay\Security\LogSanitizer;
@@ -58,7 +58,7 @@ class LogSanitizerTest extends TestCase
         $this->assertEquals('100', $decoded['amount']);
     }
 
-    // ── F14: extended PII coverage ──────────────────────────────────────────
+    // â”€â”€ F14: extended PII coverage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testSanitize19DigitMaestroCard(): void
     {
@@ -73,7 +73,7 @@ class LogSanitizerTest extends TestCase
     {
         // Bangladesh NID-13. Note: the BD-phone regex may pre-empt and redact
         // a 10-digit substring as [PHONE_REDACTED]; either redaction is acceptable
-        // — the key property is that the raw 13-digit NID does NOT survive.
+        // â€” the key property is that the raw 13-digit NID does NOT survive.
         $strict = new LogSanitizer(true);
         $input = 'NID 1990123456789 verified';
         $result = $strict->sanitizeString($input);
@@ -142,3 +142,4 @@ class LogSanitizerTest extends TestCase
         $this->assertEquals('USD', $result['currency']);
     }
 }
+

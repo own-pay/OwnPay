@@ -1,14 +1,14 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace OwnPay\Service;
+namespace Tests\Service;
 
 use OwnPay\Service\Sms\SmsHeuristicParser;
 use PHPUnit\Framework\TestCase;
 
 /**
- * SmsHeuristicParserTest — Unit tests for Tier 2 heuristic SMS parsing.
+ * SmsHeuristicParserTest â€” Unit tests for Tier 2 heuristic SMS parsing.
  *
  * Tests cover:
  *   - Amount extraction (Tk, BDT, Taka)
@@ -17,7 +17,7 @@ use PHPUnit\Framework\TestCase;
  *   - Balance vs amount disambiguation
  *   - Credit/debit keyword classification
  *   - Confidence levels
- *   - Garbage text → null
+ *   - Garbage text â†’ null
  */
 final class SmsHeuristicParserTest extends TestCase
 {
@@ -28,7 +28,7 @@ final class SmsHeuristicParserTest extends TestCase
         $this->parser = new SmsHeuristicParser();
     }
 
-    // ─── Credit Detection ────────────────────────────────────────────
+    // â”€â”€â”€ Credit Detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testCreditWithFullInfo(): void
     {
@@ -71,7 +71,7 @@ final class SmsHeuristicParserTest extends TestCase
         $this->assertSame('credit', $result['parsed_type']);
     }
 
-    // ─── Debit Detection ─────────────────────────────────────────────
+    // â”€â”€â”€ Debit Detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testDebitDetection(): void
     {
@@ -99,7 +99,7 @@ final class SmsHeuristicParserTest extends TestCase
         $this->assertSame('debit', $result['parsed_type']);
     }
 
-    // ─── Balance Disambiguation ──────────────────────────────────────
+    // â”€â”€â”€ Balance Disambiguation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testBalanceDisambiguation(): void
     {
@@ -112,7 +112,7 @@ final class SmsHeuristicParserTest extends TestCase
         $this->assertSame(800.0, $result['parsed_balance']);
     }
 
-    // ─── Transaction ID Variants ─────────────────────────────────────
+    // â”€â”€â”€ Transaction ID Variants â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testTxnIdVariant(): void
     {
@@ -134,7 +134,7 @@ final class SmsHeuristicParserTest extends TestCase
         $this->assertSame('REF123XY', $result['parsed_trx_id']);
     }
 
-    // ─── Confidence Levels ───────────────────────────────────────────
+    // â”€â”€â”€ Confidence Levels â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testMediumConfidenceWithAmountAndType(): void
     {
@@ -148,7 +148,7 @@ final class SmsHeuristicParserTest extends TestCase
 
     public function testLowConfidenceWithAmountOnly(): void
     {
-        // No credit/debit keyword — unknown type → low confidence
+        // No credit/debit keyword â€” unknown type â†’ low confidence
         $sms = 'Tk 500 transaction processed.';
 
         $result = $this->parser->parse($sms);
@@ -158,7 +158,7 @@ final class SmsHeuristicParserTest extends TestCase
         $this->assertSame('low', $result['parse_confidence']);
     }
 
-    // ─── Comma-separated Amounts ─────────────────────────────────────
+    // â”€â”€â”€ Comma-separated Amounts â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testCommaAmount(): void
     {
@@ -170,7 +170,7 @@ final class SmsHeuristicParserTest extends TestCase
         $this->assertSame(25000.5, $result['parsed_amount']);
     }
 
-    // ─── Edge Cases ──────────────────────────────────────────────────
+    // â”€â”€â”€ Edge Cases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testGarbageTextReturnsNull(): void
     {
@@ -186,7 +186,7 @@ final class SmsHeuristicParserTest extends TestCase
 
         $result = $this->parser->parse($sms);
 
-        // Has phone number but no amount — still returns partial
+        // Has phone number but no amount â€” still returns partial
         $this->assertNotNull($result);
         $this->assertNull($result['parsed_amount']);
         $this->assertSame('01712345678', $result['parsed_sender']);
@@ -194,10 +194,11 @@ final class SmsHeuristicParserTest extends TestCase
 
     public function testOtpMessageReturnsNull(): void
     {
-        // No Tk/BDT, no phone number, no TrxID — should return null
+        // No Tk/BDT, no phone number, no TrxID â€” should return null
         $sms = 'Your OTP is 123456. Do not share.';
 
         $result = $this->parser->parse($sms);
         $this->assertNull($result);
     }
 }
+

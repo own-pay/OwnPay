@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Middleware;
+namespace Tests\Middleware;
 
 use OwnPay\Middleware\CsrfMiddleware;
 use PHPUnit\Framework\TestCase;
@@ -30,7 +30,7 @@ class CsrfMiddlewareTest extends TestCase
         unset($_ENV['APP_HMAC_SECRET']);
     }
 
-    // ── Standard CSRF (validateCsrf) ───────────────────────────────
+    // â”€â”€ Standard CSRF (validateCsrf) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testCsrfValidatesMatchingTokens(): void
     {
@@ -95,7 +95,7 @@ class CsrfMiddlewareTest extends TestCase
         $this->assertSame(64, strlen($_SESSION['csrf_token']));
     }
 
-    // ── HMAC mode (validateHmac) ───────────────────────────────────
+    // â”€â”€ HMAC mode (validateHmac) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testHmacRejectsExpiredTimestamp(): void
     {
@@ -167,7 +167,7 @@ class CsrfMiddlewareTest extends TestCase
         $_POST['op-app-timestamp']  = $timestamp;
         $_POST['action']            = 'transfer-money';
 
-        // Signature for a DIFFERENT action — should be rejected (replay protection)
+        // Signature for a DIFFERENT action â€” should be rejected (replay protection)
         $signatureForOtherAction = hash_hmac('sha256', "{$appId}|{$timestamp}|view-balance", $secret);
 
         $result = (new CsrfMiddleware())->validate($signatureForOtherAction);
@@ -181,7 +181,7 @@ class CsrfMiddlewareTest extends TestCase
         $secret = 'shared-secret';
 
         $_ENV['APP_HMAC_SECRET'] = $secret;
-        // Only pp- fields provided (legacy prefix — should NOT be accepted)
+        // Only pp- fields provided (legacy prefix â€” should NOT be accepted)
         $_POST['pp-app-id']        = 'op-client';
         $_POST['pp-app-timestamp'] = (string) time();
         $_POST['action']           = 'test-action';
@@ -194,3 +194,4 @@ class CsrfMiddlewareTest extends TestCase
         $this->assertFalse($result['valid']);
     }
 }
+

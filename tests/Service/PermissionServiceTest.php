@@ -1,15 +1,15 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Service;
+namespace Tests\Service;
 
 use OwnPay\Service\Auth\PermissionService;
 use PHPUnit\Framework\TestCase;
 
 class PermissionServiceTest extends TestCase
 {
-    // ── permissionSchema() ─────────────────────────────────────────
+    // â”€â”€ permissionSchema() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testPermissionSchemaReturnsExpectedTopLevelKeys(): void
     {
@@ -27,7 +27,7 @@ class PermissionServiceTest extends TestCase
         $this->assertArrayHasKey('refund', $schema['resources']['transaction']);
     }
 
-    // ── countPermissions() ─────────────────────────────────────────
+    // â”€â”€ countPermissions() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testCountPermissionsForResourcesSumsActions(): void
     {
@@ -49,7 +49,7 @@ class PermissionServiceTest extends TestCase
         $this->assertSame(0, PermissionService::countPermissions('unknown', ['foo', 'bar']));
     }
 
-    // ── hasPermission() ────────────────────────────────────────────
+    // â”€â”€ hasPermission() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testHasPermissionAdminAlwaysTrue(): void
     {
@@ -93,7 +93,7 @@ class PermissionServiceTest extends TestCase
         $this->assertTrue(PermissionService::hasPermission($perms, 'reports', 'view', 'staff'));
     }
 
-    // ── canAccessPage() ────────────────────────────────────────────
+    // â”€â”€ canAccessPage() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testCanAccessPageAdminAlwaysTrue(): void
     {
@@ -119,3 +119,4 @@ class PermissionServiceTest extends TestCase
         $this->assertFalse(PermissionService::canAccessPage($perms, 'reports', 'staff'));
     }
 }
+

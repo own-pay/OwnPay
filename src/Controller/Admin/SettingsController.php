@@ -8,6 +8,7 @@ use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
+use OwnPay\Service\System\AuditService;
 
 final class SettingsController
 {
@@ -17,33 +18,41 @@ final class SettingsController
     private AdminSession $session;
     private EventManager $events;
     private \OwnPay\Repository\SettingsRepository $settingsRepo;
+    private AuditService $audit;
 
-    public function __construct(Container $c, AdminSession $session, EventManager $events, \OwnPay\Repository\SettingsRepository $settingsRepo)
+    public function __construct(Container $c, AdminSession $session, EventManager $events, \OwnPay\Repository\SettingsRepository $settingsRepo, AuditService $audit)
     {
         $this->c = $c;
         $this->session = $session;
         $this->events = $events;
         $this->settingsRepo = $settingsRepo;
+        $this->audit = $audit;
     }
 
     public function index(Request $req, string $activeTab = 'general'): Response
     {
-        $settings = $this->settingsRepo->getGroup('general');
+        $settings    = $this->settingsRepo->getGroup('general');
+        $branding    = $this->settingsRepo->getGroup('branding');
+        $landing     = $this->settingsRepo->getGroup('landing');
 
         if (isset($settings['faqs']) && is_string($settings['faqs'])) {
             $decoded = json_decode($settings['faqs'], true);
             $settings['faqs'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
         }
+        if (isset($landing['features']) && is_string($landing['features'])) {
+            $decoded = json_decode($landing['features'], true);
+            $landing['features'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+        }
 
-        // Also check maintenance lock file status
+        // Maintenance lock file status
         $lockFile = dirname(__DIR__, 3) . '/storage/.maintenance';
         if (file_exists($lockFile) && empty($settings['maintenance_mode'])) {
             $settings['maintenance_mode'] = '1';
         }
 
         $currencyService = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
-        $currencies = $currencyService->listAll();
-        $timezones = \DateTimeZone::listIdentifiers();
+        $allCurrencies   = $currencyService->listAll();
+        $timezones       = \DateTimeZone::listIdentifiers();
 
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         $brand->resolveFromRequest($req);
@@ -51,21 +60,99 @@ final class SettingsController
         $apiKeys = $this->c->get(\OwnPay\Service\Customer\ApiKeyService::class)->list($mid);
 
         return $this->renderAdminPage('admin/settings/index.twig', [
-            'settings'    => $settings,
-            'currencies'  => $currencies,
-            'timezones'   => $timezones,
-            'api_keys'    => $apiKeys,
-            'active_page' => 'settings',
-            'default_tab' => $activeTab,
+            'settings'      => $settings,
+            'branding'      => $branding,
+            'landing'       => $landing,
+            'currencies'    => $allCurrencies,
+            'all_currencies'=> $allCurrencies,
+            'timezones'     => $timezones,
+            'api_keys'      => $apiKeys,
+            'active_page'   => 'settings',
+            'default_tab'   => $activeTab,
         ]);
     }
 
     public function save(Request $req): Response
     {
+        $tab  = $req->post('_tab', 'general');
         $data = $req->post();
-        unset($data['_csrf_token']);
+        unset($data['_csrf_token'], $data['_tab']);
 
-        // Checkbox fields: unchecked = no POST value → explicitly set to '0'
+        switch ($tab) {
+            case 'branding':
+                $this->saveBranding($data, $req);
+                break;
+
+            case 'landing':
+                $this->saveLanding($data);
+                break;
+
+            case 'payment':
+                $this->savePayment($data);
+                break;
+
+            default:
+                $this->saveGeneral($data);
+                break;
+        }
+
+        $this->events->doAction('settings.saved', ['tab' => $tab, 'data' => $data]);
+        $this->audit->log('settings.saved', 'settings', null, null, ['tab' => $tab]);
+        $this->session->flashSuccess('Settings saved');
+        return Response::redirect('/admin/settings/' . $tab);
+    }
+
+    /** POST /admin/settings/upload — handle logo/favicon uploads */
+    public function upload(Request $req): Response
+    {
+        $uploadDir = dirname(__DIR__, 3) . '/public/assets/uploads/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $saved = [];
+        foreach (['site_logo', 'site_favicon'] as $field) {
+            $file = $req->file($field);
+            if ($file === null || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                continue;
+            }
+            $allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon'];
+            $mime = mime_content_type($file['tmp_name']);
+            if (!in_array($mime, $allowed, true)) {
+                $this->session->flashError("Invalid file type for {$field}");
+                return Response::redirect('/admin/settings/branding');
+            }
+            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+            $filename = $field . '_' . time() . '.' . strtolower($ext);
+            $dest = $uploadDir . $filename;
+            if (move_uploaded_file($file['tmp_name'], $dest)) {
+                $path = '/assets/uploads/' . $filename;
+                $this->settingsRepo->set('branding', $field, $path);
+                $saved[$field] = $path;
+            }
+        }
+
+        $this->audit->log('branding.upload', 'settings', null, null, ['files' => array_keys($saved)]);
+        $this->session->flashSuccess('Branding files uploaded successfully');
+        return Response::redirect('/admin/settings/branding');
+    }
+
+    /** GET /admin/settings/{tab} — tabbed settings view */
+    public function tab(Request $req): Response
+    {
+        $tab = $req->param('tab', 'general');
+        // Map sidebar shortcuts
+        $activePageMap = [
+            'branding' => 'branding',
+            'landing'  => 'landing-editor',
+        ];
+        return $this->index($req, $tab);
+    }
+
+    // ─── Private save helpers ─────────────────────────────────
+
+    private function saveGeneral(array $data): void
+    {
         $checkboxFields = [
             'maintenance_mode', 'force_https', 'require_2fa',
             'sms_verification', 'auto_approve_payments',
@@ -77,7 +164,6 @@ final class SettingsController
             }
         }
 
-        // Handle FAQs as JSON
         if (isset($data['faqs'])) {
             $data['faqs'] = json_encode(array_values($data['faqs']));
         }
@@ -90,27 +176,67 @@ final class SettingsController
 
         $this->settingsRepo->bulkSet('general', $data);
 
-        // Sync maintenance lock file with DB setting
+        // Sync maintenance lock file
         $lockFile = dirname(__DIR__, 3) . '/storage/.maintenance';
         if (!empty($data['maintenance_mode']) && $data['maintenance_mode'] !== '0') {
             file_put_contents($lockFile, json_encode([
-                'reason'     => 'System maintenance in progress. Please try again shortly.',
+                'reason'      => 'System maintenance in progress. Please try again shortly.',
                 'retry_after' => 600,
-                'started_at' => date('c'),
+                'started_at'  => date('c'),
             ]));
         } elseif (file_exists($lockFile)) {
             @unlink($lockFile);
         }
-
-        $this->events->doAction('settings.saved', $data);
-        $this->session->flashSuccess('Settings saved');
-        return Response::redirect('/admin/settings');
     }
 
-    /** GET /admin/settings/{tab} — tabbed settings view */
-    public function tab(Request $req): Response
+    private function saveBranding(array $data, Request $req): void
     {
-        $tab = $req->param('tab', 'general');
-        return $this->index($req, $tab);
+        // Exclude file fields — handled by upload()
+        unset($data['site_logo'], $data['site_favicon']);
+        $this->settingsRepo->bulkSet('branding', $data);
+    }
+
+    private function saveLanding(array $data): void
+    {
+        $checkboxFields = ['landing_enabled', 'landing_show_faq', 'landing_show_features'];
+        foreach ($checkboxFields as $cb) {
+            if (!isset($data[$cb])) {
+                $data[$cb] = '0';
+            }
+        }
+        if (isset($data['features'])) {
+            $data['features'] = json_encode(array_values($data['features']));
+        }
+        foreach ($data as $key => $value) {
+            if (is_array($value)) {
+                $data[$key] = json_encode($value);
+            }
+        }
+        $this->settingsRepo->bulkSet('landing', $data);
+    }
+
+    private function savePayment(array $data): void
+    {
+        $checkboxFields = ['auto_approve_payments'];
+        foreach ($checkboxFields as $cb) {
+            if (!isset($data[$cb])) {
+                $data[$cb] = '0';
+            }
+        }
+
+        // Handle currency updates if present
+        $currencies = $data['currencies'] ?? null;
+        unset($data['currencies']);
+
+        if ($currencies !== null && is_array($currencies)) {
+            $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+            foreach ($currencies as $code => $cData) {
+                if (isset($cData['rate'])) {
+                    $currencySvc->updateExchangeRate($code, (string) $cData['rate']);
+                }
+            }
+        }
+
+        $this->settingsRepo->bulkSet('general', $data);
     }
 }

@@ -1,0 +1,330 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Developer Hub — {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Developer Hub</h1>
+        <p class="op-text-muted op-mt-1">API keys, endpoint reference, webhook configuration, and documentation.</p>
+    </div>
+    <a href="https://docs.ownpay.org" class="op-btn op-btn-outline" target="_blank" rel="external">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="op-mr-1"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        API Docs
+    </a>
+</div>
+
+<div class="op-tabs" id="dev-tabs">
+    <button class="op-tab active" data-tab="api-keys">API Keys</button>
+    <button class="op-tab" data-tab="endpoints">Endpoint Reference</button>
+    <button class="op-tab" data-tab="webhooks">Webhooks / IPN</button>
+    <button class="op-tab" data-tab="auth">Authentication</button>
+    <button class="op-tab" data-tab="rate-limits">Rate Limits</button>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TAB: API Keys
+══════════════════════════════════════════════════════════ #}
+<div class="op-tab-panel active" id="tab-api-keys">
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>API Keys</h3>
+            <span class="op-text-muted op-text-sm">Use Bearer token authentication: <code>Authorization: Bearer &lt;key&gt;</code></span>
+        </div>
+        <div class="op-card-body op-p-0">
+            <table class="op-table">
+                <thead><tr><th>Label</th><th>Key Prefix</th><th>Created</th><th>Last Used</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for key in api_keys %}
+                    <tr>
+                        <td><strong>{{ key.name }}</strong></td>
+                        <td>
+                            <code class="op-code-pill">{{ key.key_prefix }}••••••••••••••••</code>
+                        </td>
+                        <td>{{ key.created_at|date('M d, Y') }}</td>
+                        <td>{{ key.last_used_at ? key.last_used_at|date('M d, Y H:i') : '—' }}</td>
+                        <td>
+                            <form method="POST" action="/admin/api-keys/{{ key.id }}/revoke" class="op-inline-form" onsubmit="return confirm('Revoke this API key? All requests using it will fail immediately.')">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-sm op-btn-danger">Revoke</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="op-empty">No API keys yet. Generate one below.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="op-card op-mt-4">
+        <div class="op-card-header"><h3>Generate New API Key</h3></div>
+        <div class="op-card-body">
+            <form method="POST" action="/admin/api-keys/generate" class="op-form-inline">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <div class="op-form-row op-align-end">
+                    <div class="op-form-group op-col-6">
+                        <label>Key Label *</label>
+                        <input type="text" name="label" class="op-input" placeholder="e.g. Production Server, Mobile App, Staging" required>
+                        <small class="op-text-muted">Descriptive name to identify where this key is used</small>
+                    </div>
+                    <div class="op-form-group op-col-3">
+                        <label>&nbsp;</label>
+                        <button type="submit" class="op-btn op-btn-primary op-w-full">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="op-mr-1"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                            Generate Key
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <div class="op-alert op-alert-warning op-mt-3">
+                <strong>⚠ Security Notice:</strong> The full API key is only shown once upon generation. Store it securely in your environment variables, never in source code.
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TAB: Endpoint Reference
+══════════════════════════════════════════════════════════ #}
+<div class="op-tab-panel" id="tab-endpoints">
+    <div class="op-card op-mb-3">
+        <div class="op-card-body">
+            <div class="op-form-group op-mb-0">
+                <label>Base URL</label>
+                <div class="op-copy-row">
+                    <code class="op-code-block" id="base-url-val">{{ base_url }}</code>
+                    <button class="op-btn op-btn-sm op-btn-outline op-copy-btn" data-copy="base-url-val">Copy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% for section, routes in endpoints %}
+    <div class="op-card op-mb-3">
+        <div class="op-card-header"><h3>{{ section }}</h3></div>
+        <div class="op-card-body op-p-0">
+            <table class="op-table op-endpoint-table">
+                <thead><tr><th width="80">Method</th><th>Endpoint</th><th width="90">Auth</th><th>Description</th></tr></thead>
+                <tbody>
+                    {% for ep in routes %}
+                    <tr>
+                        <td>
+                            <span class="op-method-badge op-method-{{ ep.method|lower }}">{{ ep.method }}</span>
+                        </td>
+                        <td>
+                            <div class="op-copy-row">
+                                <code class="op-text-sm">{{ base_url }}{{ ep.path }}</code>
+                                <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="{{ base_url }}{{ ep.path }}" title="Copy URL">
+                                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="op-badge op-badge-{{ ep.auth == 'Bearer' ? 'info' : (ep.auth == 'JWT' ? 'warning' : (ep.auth == 'None' ? 'muted' : 'success')) }}">{{ ep.auth }}</span>
+                        </td>
+                        <td class="op-text-sm op-text-muted">{{ ep.desc }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TAB: Webhooks / IPN
+══════════════════════════════════════════════════════════ #}
+<div class="op-tab-panel" id="tab-webhooks">
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Webhook Configuration</h3></div>
+        <div class="op-card-body">
+            <form method="POST" action="/admin/settings/save" class="op-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="_tab" value="general">
+                <div class="op-form-group">
+                    <label>Webhook URL</label>
+                    <input type="url" name="webhook_url" value="{{ webhook_url }}" class="op-input" placeholder="https://yourapp.com/ownpay/webhook">
+                    <small class="op-text-muted">OwnPay will POST payment events to this URL as JSON</small>
+                </div>
+                <div class="op-form-group">
+                    <label>Webhook Secret</label>
+                    <div class="op-input-group">
+                        <input type="text" name="webhook_secret" value="{{ webhook_secret }}" class="op-input" placeholder="Leave empty to auto-generate on save" id="webhook-secret-field">
+                        <button type="button" class="op-btn op-btn-outline" onclick="generateSecret()">Generate</button>
+                    </div>
+                    <small class="op-text-muted">Used to sign payloads. Verify with <code>HMAC-SHA256(payload, secret)</code> in header <code>X-OwnPay-Signature</code></small>
+                </div>
+                <div class="op-form-row op-mt-3">
+                    <button type="submit" class="op-btn op-btn-primary">Save Webhook Settings</button>
+                    {% if webhook_url %}
+                    <button type="button" class="op-btn op-btn-outline op-ml-2" id="test-webhook-btn">Send Test Event</button>
+                    {% endif %}
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Incoming Webhook / IPN Endpoints</h3></div>
+        <div class="op-card-body">
+            <p class="op-text-muted op-mb-3">These are endpoints where payment gateways send their callbacks. Configure each gateway plugin to use the corresponding URL.</p>
+            <table class="op-table">
+                <thead><tr><th>Gateway</th><th>IPN / Callback URL</th></tr></thead>
+                <tbody>
+                    <tr>
+                        <td><strong>bKash API</strong></td>
+                        <td>
+                            <div class="op-copy-row">
+                                <code id="ipn-bkash">{{ base_url }}/webhook/bkash-api</code>
+                                <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="ipn-bkash">Copy</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Stripe</strong></td>
+                        <td>
+                            <div class="op-copy-row">
+                                <code id="ipn-stripe">{{ base_url }}/webhook/stripe</code>
+                                <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="ipn-stripe">Copy</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>SSLCommerz</strong></td>
+                        <td>
+                            <div class="op-copy-row">
+                                <code id="ipn-ssl">{{ base_url }}/webhook/sslcommerz</code>
+                                <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="ipn-ssl">Copy</button>
+                            </div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><strong>Custom Gateway</strong></td>
+                        <td>
+                            <div class="op-copy-row">
+                                <code>{{ base_url }}/webhook/{gateway-slug}</code>
+                                <span class="op-text-muted op-text-xs op-ml-2">Replace {gateway-slug} with your gateway's slug from Plugins</span>
+                            </div>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="op-card">
+        <div class="op-card-header"><h3>Webhook Events Reference</h3></div>
+        <div class="op-card-body op-p-0">
+            <table class="op-table">
+                <thead><tr><th>Event</th><th>Trigger</th></tr></thead>
+                <tbody>
+                    <tr><td><code>payment.completed</code></td><td>Transaction confirmed and marked completed</td></tr>
+                    <tr><td><code>payment.failed</code></td><td>Payment attempt failed or expired</td></tr>
+                    <tr><td><code>payment.pending</code></td><td>Payment received, awaiting verification</td></tr>
+                    <tr><td><code>refund.created</code></td><td>Refund request submitted</td></tr>
+                    <tr><td><code>refund.completed</code></td><td>Refund processed successfully</td></tr>
+                    <tr><td><code>invoice.paid</code></td><td>Invoice marked as paid</td></tr>
+                    <tr><td><code>customer.created</code></td><td>New customer record created</td></tr>
+                    <tr><td><code>webhook.test</code></td><td>Manual test event sent from Developer Hub</td></tr>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TAB: Authentication
+══════════════════════════════════════════════════════════ #}
+<div class="op-tab-panel" id="tab-auth">
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Bearer Token (Merchant API)</h3></div>
+        <div class="op-card-body">
+            <p class="op-text-muted op-mb-3">All Merchant API endpoints require a Bearer token in the <code>Authorization</code> header. Generate tokens from the <strong>API Keys</strong> tab.</p>
+            <div class="op-code-example">
+                <div class="op-code-example-header">
+                    <span>Example Request</span>
+                    <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="curl -H &quot;Authorization: Bearer op_your_api_key&quot; {{ base_url }}/api/v1/transactions">Copy</button>
+                </div>
+                <pre class="op-pre">curl -X GET \
+  {{ base_url }}/api/v1/transactions \
+  -H "Authorization: Bearer op_your_api_key" \
+  -H "Accept: application/json"</pre>
+            </div>
+        </div>
+    </div>
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>JWT (Mobile Device API)</h3></div>
+        <div class="op-card-body">
+            <p class="op-text-muted op-mb-3">Mobile companion app endpoints use short-lived JWTs (15 min) issued after device pairing. Include <code>X-Device-Fingerprint</code> header on all requests.</p>
+            <div class="op-alert op-alert-info">
+                <strong>Flow:</strong> Admin generates OTP → App scans QR → <code>POST /api/mobile/v1/devices/pair</code> → Receive access_token + refresh_token → Use access_token for all subsequent calls → Refresh with <code>POST /api/mobile/v1/devices/heartbeat</code>
+            </div>
+        </div>
+    </div>
+    <div class="op-card">
+        <div class="op-card-header"><h3>Webhook Signature Verification</h3></div>
+        <div class="op-card-body">
+            <p class="op-text-muted op-mb-3">Every outgoing webhook POST includes an <code>X-OwnPay-Signature</code> header. Verify it in your server to prevent spoofed events.</p>
+            <div class="op-code-example">
+                <div class="op-code-example-header"><span>PHP Verification Example</span></div>
+                <pre class="op-pre">$signature = $_SERVER['HTTP_X_OWNPAY_SIGNATURE']; // "sha256=abc123..."
+$body = file_get_contents('php://input');
+$expected = 'sha256=' . hash_hmac('sha256', $body, YOUR_WEBHOOK_SECRET);
+if (!hash_equals($expected, $signature)) {
+    http_response_code(401);
+    exit;
+}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TAB: Rate Limits
+══════════════════════════════════════════════════════════ #}
+<div class="op-tab-panel" id="tab-rate-limits">
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Current Rate Limit Settings</h3></div>
+        <div class="op-card-body">
+            <div class="op-stat-grid">
+                <div class="op-stat-box">
+                    <div class="op-stat-value">{{ api_rate_limit }}</div>
+                    <div class="op-stat-label">Requests / minute</div>
+                    <div class="op-stat-sub">Merchant API</div>
+                </div>
+                <div class="op-stat-box">
+                    <div class="op-stat-value">5</div>
+                    <div class="op-stat-label">Requests / 5 min</div>
+                    <div class="op-stat-sub">Device Pairing OTP</div>
+                </div>
+                <div class="op-stat-box">
+                    <div class="op-stat-value">20</div>
+                    <div class="op-stat-label">SMS per batch</div>
+                    <div class="op-stat-sub">Mobile SMS submit</div>
+                </div>
+            </div>
+            <p class="op-text-muted op-mt-3">Change the Merchant API rate limit in <a href="/admin/settings#tab-api">Settings → API tab</a>.</p>
+        </div>
+    </div>
+    <div class="op-card">
+        <div class="op-card-header"><h3>Rate Limit Response</h3></div>
+        <div class="op-card-body">
+            <p class="op-text-muted op-mb-3">When rate limited, the API returns <strong>HTTP 429</strong> with a Retry-After header.</p>
+            <div class="op-code-example">
+                <div class="op-code-example-header"><span>429 Response</span></div>
+                <pre class="op-pre">HTTP/1.1 429 Too Many Requests
+Retry-After: 30
+X-RateLimit-Limit: {{ api_rate_limit }}
+X-RateLimit-Remaining: 0
+
+{"error": "rate_limit_exceeded", "retry_after": 30}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+{% endblock %}
+{% block scripts %}<script src="/assets/js/pages/developer.js"></script>{% endblock %}
+

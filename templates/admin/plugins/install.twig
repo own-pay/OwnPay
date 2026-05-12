@@ -47,7 +47,7 @@
 
         <div class="op-form-actions op-mt-3">
             <button type="submit" class="op-btn op-btn-primary op-btn-lg" id="install-btn" disabled>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="margin-right:6px">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-mr-1">
                     <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
                     <polyline points="7 10 12 15 17 10"></polyline>
                     <line x1="12" y1="15" x2="12" y2="3"></line>
@@ -103,58 +103,7 @@
 }</code></pre>
 </div>
 
-<script>
-const dropzone = document.getElementById('dropzone');
-const fileInput = document.getElementById('plugin-file');
-const installBtn = document.getElementById('install-btn');
-const defaultView = document.getElementById('dropzone-default');
-const selectedView = document.getElementById('dropzone-selected');
-const filenameEl = document.getElementById('upload-filename');
-const filesizeEl = document.getElementById('upload-filesize');
-const clearBtn = document.getElementById('clear-file');
 
-dropzone.addEventListener('click', (e) => {
-    if (e.target === clearBtn || e.target.closest('#clear-file')) return;
-    fileInput.click();
-});
-dropzone.addEventListener('dragover', e => { e.preventDefault(); dropzone.classList.add('op-dropzone-hover'); });
-dropzone.addEventListener('dragleave', () => dropzone.classList.remove('op-dropzone-hover'));
-dropzone.addEventListener('drop', e => {
-    e.preventDefault();
-    dropzone.classList.remove('op-dropzone-hover');
-    if (e.dataTransfer.files.length > 0) {
-        fileInput.files = e.dataTransfer.files;
-        onFileSelected(e.dataTransfer.files[0]);
-    }
-});
-fileInput.addEventListener('change', () => {
-    if (fileInput.files.length > 0) onFileSelected(fileInput.files[0]);
-});
-clearBtn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    fileInput.value = '';
-    defaultView.style.display = '';
-    selectedView.style.display = 'none';
-    installBtn.disabled = true;
-});
-
-function onFileSelected(file) {
-    if (!file.name.endsWith('.zip')) {
-        alert('Only .zip files are allowed');
-        return;
-    }
-    filenameEl.textContent = file.name;
-    const sizeMB = (file.size / 1048576).toFixed(2);
-    const sizeKB = (file.size / 1024).toFixed(1);
-    filesizeEl.textContent = file.size > 1048576 ? sizeMB + ' MB' : sizeKB + ' KB';
-    defaultView.style.display = 'none';
-    selectedView.style.display = '';
-    installBtn.disabled = false;
-}
-
-document.getElementById('plugin-upload-form').addEventListener('submit', () => {
-    installBtn.disabled = true;
-    installBtn.innerHTML = '<span class="op-spinner-sm"></span> Installing...';
-});
-</script>
 {% endblock %}
+{% block scripts %}<script src="/assets/js/pages/plugin-install.js"></script>{% endblock %}
+

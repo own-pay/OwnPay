@@ -7,14 +7,16 @@
         <div class="op-table-responsive"><table class="op-table">
             <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>IP</th></tr></thead>
             <tbody>
-                {% for log in activities %}
+                {% for log in logs %}
                 <tr>
-                    <td class="op-text-sm">{{ log.created_at }}</td>
+                    <td class="op-text-sm op-text-muted" style="white-space:nowrap">{{ log.created_at is defined and log.created_at ? log.created_at|date('M d, H:i') : '—' }}</td>
                     <td>{{ log.user_name ?? 'System' }}</td>
-                    <td><span class="op-badge op-badge-outline">{{ log.action }}</span></td>
-                    <td>{{ log.entity_type ?? '' }} <code>{{ log.entity_id ?? '' }}</code></td>
-                    <td class="op-text-sm"><code>{{ log.ip_address ?? '—' }}</code></td>
+                    <td><span class="op-badge op-badge-{{ log.action starts with 'delete' ? 'danger' : (log.action starts with 'create' ? 'success' : (log.action starts with 'update' ? 'warning' : 'muted')) }}">{{ log.action }}</span></td>
+                    <td class="op-text-sm">{{ log.entity_type ?? '' }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}</td>
+                    <td class="op-text-sm op-text-muted">{{ log.ip_address ?? '—' }}</td>
                 </tr>
+                {% else %}
+                <tr><td colspan="5" class="op-text-center op-text-muted op-py-8">No activity recorded yet.</td></tr>
                 {% endfor %}
             </tbody>
         </table></div>

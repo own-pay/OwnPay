@@ -22,6 +22,8 @@
                         <button onclick="navigator.clipboard.writeText(location.origin+'/pay/{{ pl.slug }}');this.textContent='Copied!';setTimeout(()=>this.textContent='Copy Link',1500)" class="op-btn op-btn-xs op-btn-outline">Copy Link</button>
                     </td>
                 </tr>
+                {% else %}
+                <tr><td colspan="6" class="op-text-center op-text-muted op-py-8">No payment links yet. <a href="/admin/payment-links/create">Create one</a>.</td></tr>
                 {% endfor %}
             </tbody>
         </table></div>

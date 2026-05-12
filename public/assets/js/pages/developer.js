@@ -1,0 +1,101 @@
+/**
+ * OwnPay Admin — Developer Hub Page JS
+ * Extracted from templates/admin/developer/index.twig
+ * Handles: tab switching, copy buttons, webhook test, secret generator.
+ */
+(function () {
+    'use strict';
+
+    var csrf = window.OP_CSRF || '';
+
+    // ─── Tab Switching (scoped to #dev-tabs) ─────────────────────────────────
+    document.querySelectorAll('#dev-tabs .op-tab').forEach(function (t) {
+        t.addEventListener('click', function () {
+            document.querySelectorAll('#dev-tabs .op-tab, .op-tab-panel').forEach(function (e) {
+                e.classList.remove('active');
+            });
+            this.classList.add('active');
+            var panel = document.getElementById('tab-' + this.dataset.tab);
+            if (panel) panel.classList.add('active');
+            history.replaceState(null, null, '#' + this.dataset.tab);
+        });
+    });
+
+    // Hash-based tab activation
+    if (window.location.hash) {
+        var hashTab = document.querySelector('#dev-tabs .op-tab[data-tab="' + window.location.hash.slice(1) + '"]');
+        if (hashTab) hashTab.click();
+    }
+
+    // Listen for hash changes (e.g. sidebar links clicked while on this page)
+    window.addEventListener('hashchange', function () {
+        if (window.location.hash) {
+            var tab = document.querySelector('#dev-tabs .op-tab[data-tab="' + window.location.hash.slice(1) + '"]');
+            if (tab) tab.click();
+        }
+    });
+
+    // ─── Copy Buttons (.op-copy-btn) ─────────────────────────────────────────
+    document.querySelectorAll('.op-copy-btn').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var target = document.getElementById(this.dataset.copy);
+            if (!target) return;
+            var self = this;
+            navigator.clipboard.writeText(target.textContent.trim()).then(function () {
+                var orig = self.textContent;
+                self.textContent = '✓ Copied';
+                setTimeout(function () { self.textContent = orig; }, 1500);
+            });
+        });
+    });
+
+    // ─── Inline Copy Buttons (.op-copy-inline) ────────────────────────────────
+    document.querySelectorAll('.op-copy-inline').forEach(function (btn) {
+        btn.addEventListener('click', function () {
+            var text = this.dataset.copyText ||
+                (this.closest('td') && this.closest('td').querySelector('code') && this.closest('td').querySelector('code').textContent.trim());
+            if (!text) return;
+            var self = this;
+            var origHTML = self.innerHTML;
+            navigator.clipboard.writeText(text).then(function () {
+                self.innerHTML = '✓';
+                setTimeout(function () { self.innerHTML = origHTML; }, 1500);
+            });
+        });
+    });
+
+    // ─── Webhook Test ─────────────────────────────────────────────────────────
+    var testBtn = document.getElementById('test-webhook-btn');
+    if (testBtn) {
+        testBtn.addEventListener('click', function () {
+            var btn = this;
+            btn.disabled = true;
+            btn.textContent = 'Sending…';
+            fetch('/admin/developer/webhook-test', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json', 'X-CSRF-Token': csrf },
+                body: JSON.stringify({})
+            })
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                alert(data.success
+                    ? '✓ Webhook delivered! HTTP ' + data.http_status
+                    : '✗ Failed: ' + (data.error || 'Unknown error'));
+            })
+            .catch(function () { alert('Network error'); })
+            .finally(function () { btn.disabled = false; btn.textContent = 'Send Test Event'; });
+        });
+    }
+
+    // ─── Webhook Secret Generator ─────────────────────────────────────────────
+    window.generateSecret = function () {
+        var chars  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+        var result = 'whsec_';
+        var arr    = new Uint32Array(32);
+        crypto.getRandomValues(arr);
+        arr.forEach(function (v) { result += chars[v % chars.length]; });
+        var field = document.getElementById('webhook-secret-field');
+        if (field) field.value = result;
+    };
+
+}());

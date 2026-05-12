@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Service;
+namespace Tests\Service;
 
 use OwnPay\Core\Database;
 use OwnPay\Service\System\EnvironmentService;
@@ -154,3 +154,4 @@ class EnvironmentServiceTest extends TestCase
         $this->assertSame('AfterClear', EnvironmentService::get('site_name'));
     }
 }
+

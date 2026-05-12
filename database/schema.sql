@@ -70,13 +70,12 @@ CREATE TABLE `op_merchant_users` (
   `password_hash` VARCHAR(255) NOT NULL,
   `phone` VARCHAR(30) DEFAULT NULL,
   `avatar_path` VARCHAR(500) DEFAULT NULL,
-  `totp_secret` VARCHAR(500) DEFAULT NULL,
-  `totp_enabled` TINYINT(1) NOT NULL DEFAULT 0,
+  `totp_secret_enc` VARCHAR(500) DEFAULT NULL,
+  `two_factor_enabled` TINYINT(1) NOT NULL DEFAULT 0,
   `last_login_at` DATETIME(6) DEFAULT NULL,
   `last_login_ip` VARCHAR(45) DEFAULT NULL,
   `status` ENUM('active','suspended','pending') NOT NULL DEFAULT 'active',
   `is_superadmin` TINYINT(1) NOT NULL DEFAULT 0,
-  `permissions` JSON DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
@@ -593,13 +592,16 @@ CREATE TABLE `op_login_attempts` (
 CREATE TABLE `op_device_pairing_tokens` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id` BIGINT UNSIGNED NOT NULL,
-  `token` VARCHAR(64) NOT NULL,
+  `brand_id` BIGINT UNSIGNED DEFAULT NULL,
+  `created_by` BIGINT UNSIGNED DEFAULT NULL,
+  `otp_hash` VARCHAR(255) NOT NULL,
   `expires_at` DATETIME(6) NOT NULL,
-  `used` TINYINT(1) NOT NULL DEFAULT 0,
+  `is_used` TINYINT(1) NOT NULL DEFAULT 0,
+  `used_at` DATETIME(6) DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_token` (`token`),
   KEY `idx_merchant` (`merchant_id`),
+  KEY `idx_hash` (`otp_hash`),
   CONSTRAINT `fk_dpt_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -609,9 +611,10 @@ CREATE TABLE `op_paired_devices` (
   `device_id` VARCHAR(64) NOT NULL,
   `device_name` VARCHAR(150) DEFAULT NULL,
   `platform` VARCHAR(30) DEFAULT NULL,
-  `jwt_fingerprint` VARCHAR(64) DEFAULT NULL,
+  `jwt_fingerprint` VARCHAR(255) DEFAULT NULL,
+  `aes_key_encrypted` TEXT DEFAULT NULL,
   `last_heartbeat` DATETIME(6) DEFAULT NULL,
-  `status` ENUM('active','revoked') NOT NULL DEFAULT 'active',
+  `status` ENUM('active','revoked','inactive') NOT NULL DEFAULT 'active',
   `paired_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_device` (`device_id`),
@@ -622,16 +625,18 @@ CREATE TABLE `op_paired_devices` (
 CREATE TABLE `op_mobile_notifications` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id` BIGINT UNSIGNED NOT NULL,
-  `device_id` BIGINT UNSIGNED DEFAULT NULL,
+  `device_uuid` VARCHAR(64) NOT NULL,
   `type` VARCHAR(60) NOT NULL,
   `title` VARCHAR(200) NOT NULL,
   `body` TEXT DEFAULT NULL,
-  `data` JSON DEFAULT NULL,
+  `payload` JSON DEFAULT NULL,
   `is_read` TINYINT(1) NOT NULL DEFAULT 0,
+  `read_at` DATETIME(6) DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_merchant_read` (`merchant_id`, `is_read`),
-  KEY `idx_device` (`device_id`)
+  KEY `idx_device` (`device_uuid`),
+  KEY `idx_merchant_device` (`merchant_id`, `device_uuid`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `op_sms_templates` (
@@ -654,22 +659,30 @@ CREATE TABLE `op_sms_templates` (
 CREATE TABLE `op_sms_parsed` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id` BIGINT UNSIGNED NOT NULL,
-  `device_id` BIGINT UNSIGNED DEFAULT NULL,
-  `sender` VARCHAR(30) NOT NULL,
-  `body` TEXT NOT NULL,
-  `amount` DECIMAL(15,2) DEFAULT NULL,
+  `device_id` VARCHAR(64) NOT NULL,
+  `local_id` INT DEFAULT NULL,
+  `sender` VARCHAR(100) NOT NULL,
+  `body` TEXT DEFAULT NULL,
+  `amount` DECIMAL(20,6) DEFAULT NULL,
   `trx_id` VARCHAR(100) DEFAULT NULL,
+  `parsed_sender` VARCHAR(255) DEFAULT NULL,
+  `parsed_balance` DECIMAL(20,6) DEFAULT NULL,
   `gateway_slug` VARCHAR(60) DEFAULT NULL,
-  `parser_type` ENUM('regex','heuristic','manual') DEFAULT NULL,
-  `match_status` ENUM('matched','unmatched','pending','error') NOT NULL DEFAULT 'pending',
+  `parser_type` ENUM('regex','heuristic','manual','unparsed') DEFAULT NULL,
+  `parsed_type` VARCHAR(50) DEFAULT NULL,
+  `template_id` BIGINT UNSIGNED DEFAULT NULL,
+  `parse_confidence` ENUM('high','medium','low') DEFAULT 'low',
+  `match_status` ENUM('pending','matched','unmatched','ignored','accepted','parse_error','admin_review') NOT NULL DEFAULT 'pending',
   `transaction_id` BIGINT UNSIGNED DEFAULT NULL,
   `raw_data` JSON DEFAULT NULL,
+  `encrypted_raw` TEXT DEFAULT NULL,
   `received_at` DATETIME(6) NOT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_merchant_status` (`merchant_id`, `match_status`),
   KEY `idx_trx` (`transaction_id`),
-  KEY `idx_received` (`received_at`)
+  KEY `idx_received` (`received_at`),
+  KEY `idx_device` (`device_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── 11. Plugins ───────────────────────────────────────────

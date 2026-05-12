@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Service;
+namespace Tests\Service;
 
 use OwnPay\Service\Auth\JwtService;
 use PHPUnit\Framework\TestCase;
@@ -18,7 +18,7 @@ class JwtServiceTest extends TestCase
         $this->secret = JwtService::generateSecret();
     }
 
-    // ── Encoding ────────────────────────────────────────────────────
+    // â”€â”€ Encoding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testEncodeReturnsTokenAndExpiry(): void
     {
@@ -39,7 +39,7 @@ class JwtServiceTest extends TestCase
         $this->assertGreaterThan(time(), $result['expires_at']);
     }
 
-    // ── Decoding ────────────────────────────────────────────────────
+    // â”€â”€ Decoding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testDecodeValidToken(): void
     {
@@ -88,7 +88,7 @@ class JwtServiceTest extends TestCase
         $this->assertFalse($result['valid']);
     }
 
-    // ── Device UUID Extraction ──────────────────────────────────────
+    // â”€â”€ Device UUID Extraction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testExtractDeviceUuidFromValidSub(): void
     {
@@ -103,7 +103,7 @@ class JwtServiceTest extends TestCase
         $this->assertNull($this->jwt->extractDeviceUuid(''));
     }
 
-    // ── Secret Generation ───────────────────────────────────────────
+    // â”€â”€ Secret Generation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testGenerateSecretReturns64HexChars(): void
     {
@@ -119,7 +119,7 @@ class JwtServiceTest extends TestCase
         $this->assertNotSame($a, $b);
     }
 
-    // ── Scopes ──────────────────────────────────────────────────────
+    // â”€â”€ Scopes â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testTokenContainsScopes(): void
     {
@@ -131,3 +131,4 @@ class JwtServiceTest extends TestCase
         $this->assertSame($scopes, $decoded['payload']->scopes);
     }
 }
+

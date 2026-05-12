@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Service;
+namespace Tests\Service;
 
 use OwnPay\Service\Device\DevicePairingService;
 use OwnPay\Service\Auth\JwtService;
@@ -22,7 +22,7 @@ class DevicePairingServiceTest extends TestCase
         $this->jwt = new JwtService();
     }
 
-    // ── Helpers to build stub repos ──────────────────────────────
+    // â”€â”€ Helpers to build stub repos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * Build a DevicePairingService with controllable stub behaviour.
@@ -116,9 +116,9 @@ class DevicePairingServiceTest extends TestCase
         return new DevicePairingService($tokenRepo, $deviceRepo, $this->jwt, $encryptor);
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     //  generatePairingOtp()
-    // ═══════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     public function testGenerateOtpReturns6DigitCode(): void
     {
@@ -148,9 +148,9 @@ class DevicePairingServiceTest extends TestCase
         $this->assertArrayNotHasKey('error', $result);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  pairDevice() — valid OTP
-    // ═══════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    //  pairDevice() â€” valid OTP
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     public function testPairDeviceSuccessWithValidOtp(): void
     {
@@ -192,9 +192,9 @@ class DevicePairingServiceTest extends TestCase
         );
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  pairDevice() — invalid / expired / used OTP
-    // ═══════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    //  pairDevice() â€” invalid / expired / used OTP
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     public function testPairDeviceFailsWithInvalidOtp(): void
     {
@@ -214,9 +214,9 @@ class DevicePairingServiceTest extends TestCase
         $this->assertSame('INVALID_OTP', $result['error']);
     }
 
-    // ═══════════════════════════════════════════════════════════════
-    //  pairDevice() — re-pairing (same fingerprint)
-    // ═══════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    //  pairDevice() â€” re-pairing (same fingerprint)
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     public function testPairDeviceRevokesExistingOnRepairing(): void
     {
@@ -232,9 +232,9 @@ class DevicePairingServiceTest extends TestCase
         $this->assertNotSame('old-uuid-123', $result['device_id']);
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     //  refreshAccessToken()
-    // ═══════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     public function testRefreshTokenSuccess(): void
     {
@@ -290,9 +290,9 @@ class DevicePairingServiceTest extends TestCase
         $this->assertSame('FINGERPRINT_MISMATCH', $result['error']);
     }
 
-    // ═══════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     //  validateRequest()
-    // ═══════════════════════════════════════════════════════════════
+    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     public function testValidateRequestSuccess(): void
     {
@@ -385,7 +385,7 @@ class DevicePairingServiceTest extends TestCase
         $this->assertSame('DEVICE_REVOKED', $result['error']);
     }
 
-    // ── Private helpers ─────────────────────────────────────────
+    // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * We can't retrieve the JWT secret from the result (by design),
@@ -393,7 +393,8 @@ class DevicePairingServiceTest extends TestCase
      */
     private function getJwtSecretFromResult(array $result): string
     {
-        // Not available in production — only for test stub verification
+        // Not available in production â€” only for test stub verification
         return '';
     }
 }
+

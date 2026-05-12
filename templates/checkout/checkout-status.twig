@@ -16,7 +16,7 @@
             {% include 'checkout/partials/_failed.twig' %}
         {% elseif status == 'cancelled' or status == 'canceled' %}
             {% include 'checkout/partials/_cancelled.twig' %}
-        {% elseif status == 'pending' %}
+        {% elseif status == 'pending' or status == 'pending_review' or status == 'awaiting_verification' %}
             {% include 'checkout/partials/_pending.twig' %}
         {% else %}
             {% include 'checkout/partials/_expired.twig' %}

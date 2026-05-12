@@ -34,6 +34,20 @@
                     </select>
                 </div>
             </div>
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label>Timezone</label>
+                    <select name="timezone" class="op-input">
+                        {% for tz in ['Asia/Dhaka','Asia/Kolkata','UTC','America/New_York','Europe/London','Asia/Dubai','Asia/Singapore'] %}
+                            <option value="{{ tz }}" {{ (brand.timezone ?? 'Asia/Dhaka') == tz ? 'selected' : '' }}>{{ tz }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>Default Currency</label>
+                    <input type="text" name="default_currency" value="{{ brand.default_currency ?? 'BDT' }}" class="op-input" maxlength="3" placeholder="BDT">
+                </div>
+            </div>
         </div>
     </div>
 

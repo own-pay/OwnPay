@@ -111,8 +111,8 @@ final class SmsParserService
             return $this->makeResult($localId, 'accepted', 'sms_' . $id, 'DECRYPTION_FAILED');
         }
 
-        // Step 4: Parse (tier 1 regex → tier 2 heuristic)
-        $parsed = $this->attemptParse($rawMessage, $sender);
+        // Step 4: Parse (sender whitelist gate → tier 1 regex → tier 2 heuristic)
+        $parsed = $this->attemptParse($rawMessage, $sender, $brandId);
 
         // Step 5: Store
         $record = $this->buildRecord($deviceUuid, $brandId, $localId, $sender, $receivedAt, $encrypted, $rawMessage, $parsed);
@@ -162,28 +162,40 @@ final class SmsParserService
     private function storeFailedDecryption(string $deviceUuid, int $brandId, ?int $localId, string $sender, string $receivedAt, string $encrypted): string
     {
         return $this->dataRepo->create([
-            'device_uuid'      => $deviceUuid,
-            'brand_id'         => $brandId,
+            'device_id'        => $deviceUuid,
+            'merchant_id'      => $brandId,
             'local_id'         => $localId,
             'sender'           => $sender,
             'received_at'      => $receivedAt,
             'encrypted_raw'    => $encrypted,
-            'raw_message'      => null,
+            'body'             => null,
             'parsed_type'      => 'unknown',
-            'parse_method'     => 'unparsed',
+            'parser_type'      => 'unparsed',
             'parse_confidence' => 'low',
-            'status'           => 'parse_error',
+            'match_status'     => 'parse_error',
         ]);
     }
 
     /**
-     * Run 2-tier parse: regex templates → heuristic fallback.
+     * Run 2-tier parse: exact sender match → regex templates.
+     * If sender not whitelisted (no template matches), returns null (no parse attempt).
+     * Heuristic fallback only runs if a matching template exists but regex fails.
      */
-    private function attemptParse(string $rawMessage, string $sender): ?array
+    private function attemptParse(string $rawMessage, string $sender, int $brandId): ?array
     {
-        $templates = $this->templateRepo->findBySender($sender);
-        $templates = $this->events->applyFilter('mfs.templates', $templates);
+        // Gate 1: Find templates whose sender_pattern matches EXACTLY (case-sensitive)
+        $templates = $this->templateRepo->findBySender($sender, $brandId);
+        $templates  = $this->events->applyFilter('mfs.templates', $templates);
+
+        // Sender not in whitelist → reject silently (store as admin_review)
+        if (empty($templates)) {
+            return null;
+        }
+
+        // Gate 2: Try regex templates (Tier 1)
         $parsed = $this->regexParser->parse($rawMessage, $templates);
+
+        // Tier 2: Heuristic fallback — only if sender matched but regex failed
         return $parsed ?? $this->heuristicParser->parse($rawMessage);
     }
 
@@ -193,22 +205,22 @@ final class SmsParserService
     private function buildRecord(string $deviceUuid, int $brandId, ?int $localId, string $sender, string $receivedAt, string $encrypted, string $raw, ?array $parsed): array
     {
         return [
-            'device_uuid'      => $deviceUuid,
-            'brand_id'         => $brandId,
+            'device_id'        => $deviceUuid,
+            'merchant_id'      => $brandId,
             'local_id'         => $localId,
             'sender'           => $sender,
             'received_at'      => $receivedAt,
             'encrypted_raw'    => $encrypted,
-            'raw_message'      => $raw,
-            'parsed_amount'    => $parsed['parsed_amount'] ?? null,
-            'parsed_trx_id'    => $parsed['parsed_trx_id'] ?? null,
+            'body'             => $raw,
+            'amount'           => $parsed['parsed_amount'] ?? null,
+            'trx_id'           => $parsed['parsed_trx_id'] ?? null,
             'parsed_sender'    => $parsed['parsed_sender'] ?? null,
             'parsed_balance'   => $parsed['parsed_balance'] ?? null,
             'parsed_type'      => $parsed['parsed_type'] ?? 'unknown',
-            'parse_method'     => $parsed['parse_method'] ?? 'unparsed',
+            'parser_type'      => $parsed['parse_method'] ?? 'unparsed',
             'template_id'      => $parsed['template_id'] ?? null,
             'parse_confidence' => $parsed['parse_confidence'] ?? 'low',
-            'status'           => ($parsed === null) ? 'admin_review' : 'accepted',
+            'match_status'     => ($parsed === null) ? 'admin_review' : 'accepted',
         ];
     }
 

@@ -1,8 +1,8 @@
-<?php
+﻿<?php
 
 declare(strict_types=1);
 
-namespace Tests\Unit\Security;
+namespace Tests\Security;
 
 use PHPUnit\Framework\TestCase;
 use OwnPay\Security\PiiMasker;
@@ -67,3 +67,4 @@ class PiiMaskerTest extends TestCase
         $this->assertStringContainsString('***', $result['customer']['name']);
     }
 }
+

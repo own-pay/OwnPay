@@ -36,7 +36,8 @@ final class CurrencyController
                 strtoupper($data['code']),
                 $data['name'],
                 $data['symbol'] ?? '',
-                $data['status'] ?? 'active'
+                $data['status'] ?? 'active',
+                max(0, min(8, (int) ($data['decimal_places'] ?? 2)))
             );
         }
 

@@ -126,18 +126,18 @@ final class CurrencyService
     /**
      * Create or update a currency.
      */
-    public function upsert(string $code, string $name, string $symbol, string $status = 'active'): void
+    public function upsert(string $code, string $name, string $symbol, string $status = 'active', int $decimalPlaces = 2): void
     {
         $exists = $this->db->fetchOne("SELECT id FROM op_currencies WHERE code = :code", ['code' => $code]);
         if ($exists) {
             $this->db->execute(
-                "UPDATE op_currencies SET name = :name, symbol = :sym, status = :st WHERE code = :code",
-                ['name' => $name, 'sym' => $symbol, 'st' => $status, 'code' => $code]
+                "UPDATE op_currencies SET name = :name, symbol = :sym, status = :st, decimal_places = :dp WHERE code = :code",
+                ['name' => $name, 'sym' => $symbol, 'st' => $status, 'dp' => $decimalPlaces, 'code' => $code]
             );
         } else {
             $this->db->execute(
-                "INSERT INTO op_currencies (code, name, symbol, status) VALUES (:code, :name, :sym, :st)",
-                ['code' => $code, 'name' => $name, 'sym' => $symbol, 'st' => $status]
+                "INSERT INTO op_currencies (code, name, symbol, status, decimal_places) VALUES (:code, :name, :sym, :st, :dp)",
+                ['code' => $code, 'name' => $name, 'sym' => $symbol, 'st' => $status, 'dp' => $decimalPlaces]
             );
         }
     }
@@ -148,5 +148,31 @@ final class CurrencyService
     public function listAll(): array
     {
         return $this->db->fetchAll("SELECT code, name FROM op_currencies ORDER BY code");
+    }
+
+    /**
+     * Update exchange rate for a currency (admin settings).
+     */
+    public function updateExchangeRate(string $targetCurrency, string $rate): void
+    {
+        $exists = $this->db->fetchOne(
+            "SELECT id FROM op_exchange_rates WHERE base_currency = :base AND target_currency = :target",
+            ['base' => $this->baseCurrency, 'target' => $targetCurrency]
+        );
+        if ($exists) {
+            $this->db->execute(
+                "UPDATE op_exchange_rates SET rate = :rate WHERE base_currency = :base AND target_currency = :target",
+                ['rate' => $rate, 'base' => $this->baseCurrency, 'target' => $targetCurrency]
+            );
+        } else {
+            $this->db->execute(
+                "INSERT INTO op_exchange_rates (base_currency, target_currency, rate) VALUES (:base, :target, :rate)",
+                ['base' => $this->baseCurrency, 'target' => $targetCurrency, 'rate' => $rate]
+            );
+        }
+        // Reload in-memory cache
+        if (isset($this->currencies[$targetCurrency])) {
+            $this->currencies[$targetCurrency]['rate'] = $rate;
+        }
     }
 }
