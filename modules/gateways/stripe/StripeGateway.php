@@ -94,7 +94,36 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
+        // AUD-C2 fix: Resolve session ID from multiple payload formats.
+        // Redirect return: top-level session_id query param
+        // Stripe webhook: nested at data.object.id for checkout.session.* events
         $sessionId = $callbackData['session_id'] ?? '';
+
+        // Webhook payload format: { type: "checkout.session.completed", data: { object: { id: "cs_xxx" } } }
+        if ($sessionId === '' && isset($callbackData['data']['object']['id'])) {
+            $eventType = $callbackData['type'] ?? '';
+            if (str_starts_with($eventType, 'checkout.session.')) {
+                $sessionId = $callbackData['data']['object']['id'];
+            }
+        }
+
+        // If we have a fully resolved webhook object, extract payment status directly
+        if ($sessionId === '' && isset($callbackData['data']['object'])) {
+            $obj = $callbackData['data']['object'];
+            $paid = ($obj['payment_status'] ?? '') === 'paid';
+            return [
+                'success'        => $paid,
+                'gateway_trx_id' => $obj['payment_intent'] ?? '',
+                'amount'         => isset($obj['amount_total']) ? bcdiv((string) $obj['amount_total'], '100', 2) : null,
+                'status'         => $paid ? 'completed' : 'failed',
+                'trx_id'         => $obj['metadata']['trx_id'] ?? '',
+            ];
+        }
+
+        if ($sessionId === '') {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+        }
+
         $secretKey = $credentials['secret_key'] ?? '';
 
         $ch = curl_init('https://api.stripe.com/v1/checkout/sessions/' . urlencode($sessionId));
@@ -115,6 +144,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
             'gateway_trx_id' => $data['payment_intent'] ?? '',
             'amount'         => isset($data['amount_total']) ? bcdiv((string) $data['amount_total'], '100', 2) : null,
             'status'         => $paid ? 'completed' : 'failed',
+            'trx_id'         => $data['metadata']['trx_id'] ?? '',
         ];
     }
 

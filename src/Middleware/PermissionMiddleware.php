@@ -40,7 +40,11 @@ final class PermissionMiddleware
             $db = $this->container->get(\OwnPay\Core\Database::class);
             $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
             if (!$user) {
-                unset($_SESSION['auth_user_id']);
+                // AUD-B6 fix: full session wipe instead of partial unset
+                $_SESSION = [];
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_regenerate_id(true);
+                }
                 return Response::redirect('/login');
             }
             $request->setAttribute('auth_user', $user);
@@ -140,6 +144,11 @@ final class PermissionMiddleware
             '/admin/currencies'           => 'settings.view',
             '/admin/my-account'           => 'admin.access',
         ];
+
+        // A6 FIX: Brand switching is read-only, not brand management
+        if ($path === '/admin/brands/switch') {
+            return 'brands.view';
+        }
 
         // Check exact match first
         if (isset($map[$path])) {

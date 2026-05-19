@@ -43,7 +43,16 @@ final class CorsMiddleware
             return $response;
         }
 
-        // Strict origin check - explicit matches only, no wildcards
+        // Wildcard mode — allow all origins (AUD-B7 fix: was broken, returned [])
+        if (in_array('*', $allowedOrigins, true)) {
+            $response->withHeader('Access-Control-Allow-Origin', '*');
+            $response->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
+            $response->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With');
+            $response->withHeader('Access-Control-Max-Age', '86400');
+            return $response;
+        }
+
+        // Strict origin check - explicit matches only
         if (in_array($origin, $allowedOrigins, true)) {
             $response->withHeader('Access-Control-Allow-Origin', $origin);
             $response->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
@@ -60,12 +69,12 @@ final class CorsMiddleware
      */
     private function getAllowedOrigins(): array
     {
-        // No wildcard default - explicit origins only.
-        // Set CORS_ALLOWED_ORIGINS=https://example.com,https://app.example.com in .env
         $env = getenv('CORS_ALLOWED_ORIGINS') ?: '';
-        if ($env === '' || $env === '*') {
-            return []; // No cross-origin allowed unless explicitly configured
+        if ($env === '') {
+            return []; // No cross-origin allowed unless configured
         }
+        // AUD-B7 fix: '*' now correctly returns ['*'] instead of empty array
         return array_map('trim', explode(',', $env));
     }
 }
+

@@ -157,8 +157,9 @@ final class PluginLoader
             throw new \RuntimeException("Entrypoint not found: {$entrypointFile}");
         }
 
-        // Scan entrypoint for dangerous functions before loading.
-        // Uses word-boundary regex to avoid false positives (e.g. curl_exec vs exec).
+        // AUD-A4 fix: Scan ALL PHP files in plugin directory for dangerous functions,
+        // not just the entrypoint. A malicious plugin could bypass sandbox by placing
+        // shell_exec() in Helper.php and require-ing it from entrypoint.
         $dangerousPatterns = [
             '/\beval\s*\(/i',
             '/(?<![a-z_])exec\s*\(/i',
@@ -169,10 +170,17 @@ final class PluginLoader
             '/(?<![a-z_])popen\s*\(/i',
             '/\bpcntl_exec\s*\(/i',
         ];
-        $entrypointContent = (string) file_get_contents($entrypointFile);
-        foreach ($dangerousPatterns as $pattern) {
-            if (preg_match($pattern, $entrypointContent)) {
-                throw new \RuntimeException("Plugin {$slug} blocked: contains dangerous function call matching '{$pattern}'");
+
+        $phpFiles = $this->findPhpFiles($manifest->path);
+        foreach ($phpFiles as $phpFile) {
+            $content = (string) file_get_contents($phpFile);
+            foreach ($dangerousPatterns as $pattern) {
+                if (preg_match($pattern, $content)) {
+                    $relPath = str_replace($manifest->path . '/', '', $phpFile);
+                    throw new \RuntimeException(
+                        "Plugin {$slug} blocked: {$relPath} contains dangerous function call matching '{$pattern}'"
+                    );
+                }
             }
         }
 
@@ -226,5 +234,28 @@ final class PluginLoader
         $pascal = str_replace('-', '', ucwords($manifest->slug, '-'));
         $entryClass = pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
         return "OwnPay\\Plugins\\{$pascal}\\{$entryClass}";
+    }
+
+    /**
+     * Recursively find all .php files in a directory.
+     * AUD-A4: Used for deep sandbox scanning.
+     *
+     * @return string[]
+     */
+    private function findPhpFiles(string $directory): array
+    {
+        $files = [];
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+
+        foreach ($iterator as $file) {
+            if ($file->isFile() && $file->getExtension() === 'php') {
+                $files[] = $file->getPathname();
+            }
+        }
+
+        return $files;
     }
 }

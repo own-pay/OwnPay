@@ -289,6 +289,7 @@ CREATE TABLE `op_transactions` (
   KEY `idx_merchant_status` (`merchant_id`, `status`),
   KEY `idx_merchant_created` (`merchant_id`, `created_at`),
   KEY `idx_gateway` (`gateway_slug`),
+  KEY `idx_gateway_trx` (`gateway_trx_id`),
   KEY `idx_pi` (`payment_intent_id`),
   CONSTRAINT `fk_txn_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_txn_customer` FOREIGN KEY (`customer_id`) REFERENCES `op_customers` (`id`) ON DELETE SET NULL

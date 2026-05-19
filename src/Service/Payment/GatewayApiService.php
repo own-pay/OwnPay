@@ -119,24 +119,42 @@ final class GatewayApiService
             return ['success' => false, 'error' => 'Verification failed'];
         }
 
-        // Complete the transaction — look up by our trx_id from callback
-        $trxId = $callbackData['trx_id'] ?? $verification['gateway_trx_id'] ?? '';
-        if (!empty($trxId)) {
-            $transaction = $this->transactions->findByTrxId($merchantId, $trxId);
-            if ($transaction !== null && $transaction['status'] === 'pending') {
-                $this->transactions->complete((int) $transaction['id'], $merchantId);
-
-                // Record in ledger
-                $this->ledger->recordPaymentReceived(
-                    $merchantId,
-                    (int) $transaction['id'],
-                    $transaction['amount'],
-                    $transaction['fee'],
-                    $transaction['currency']
-                );
-
-                return ['success' => true, 'transaction' => $transaction];
+        // AUD-C1 fix: Resolve transaction using multiple callback field names.
+        // Different gateways use different parameter names for the merchant trx reference:
+        //   SSLCommerz → tran_id, Stripe → reference, bKash → trx_id
+        $trxId = '';
+        $trxIdFields = ['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id'];
+        foreach ($trxIdFields as $field) {
+            if (!empty($callbackData[$field])) {
+                $trxId = (string) $callbackData[$field];
+                break;
             }
+        }
+
+        $transaction = null;
+        if ($trxId !== '') {
+            $transaction = $this->transactions->forTenant($merchantId)->findByTrxId($trxId);
+        }
+
+        // Fallback: lookup by gateway_trx_id (bank/gateway reference)
+        if ($transaction === null && !empty($verification['gateway_trx_id'])) {
+            $repo = $this->transactions->forTenant($merchantId);
+            $transaction = $repo->findBy('gateway_trx_id', $verification['gateway_trx_id']);
+        }
+
+        if ($transaction !== null && $transaction['status'] === 'pending') {
+            $this->transactions->forTenant($merchantId)->markCompleted((int) $transaction['id']);
+
+            // Record in ledger
+            $this->ledger->recordPaymentReceived(
+                $merchantId,
+                (int) $transaction['id'],
+                $transaction['amount'],
+                $transaction['fee'] ?? '0.00',
+                $transaction['currency']
+            );
+
+            return ['success' => true, 'transaction' => $transaction];
         }
 
         return ['success' => false, 'error' => 'Transaction not found or already processed'];

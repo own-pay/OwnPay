@@ -28,8 +28,13 @@ final class InvoiceCheckoutController
 
     public function show(Request $req): Response
     {
-        $invoiceNumber = (string) $req->param('token');
-        $invoice = $this->invoiceRepo->findUnpaidByNumber($invoiceNumber);
+        $token = (string) $req->param('token');
+        // AUD-A2 fix: use token (globally unique) instead of invoice_number (per-merchant).
+        // findUnpaidByNumber was unscoped → cross-tenant data leak.
+        $invoice = $this->invoiceRepo->findByToken($token);
+        if ($invoice && $invoice['status'] === 'paid') {
+            $invoice = null; // Treat paid invoices as not found for checkout
+        }
         $twig = $this->c->get(\Twig\Environment::class);
 
         if (!$invoice) {

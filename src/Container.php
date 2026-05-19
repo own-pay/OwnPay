@@ -119,13 +119,9 @@ final class Container
         }
 
         if (!isset($this->bindings[$abstract])) {
-            // Basic autowiring for Repositories
-            if (class_exists($abstract) && str_ends_with($abstract, 'Repository') && is_subclass_of($abstract, \OwnPay\Repository\BaseRepository::class)) {
-                $db = $this->get(\OwnPay\Core\Database::class);
-                $instance = new $abstract($db);
-                $this->instances[$abstract] = $instance;
-                return $instance;
-            }
+            // AUD-P4 fix: Removed hardcoded repository shortcut that assumed single-arg
+            // constructor (Database only). Now all classes including repos go through
+            // reflection-based autowire() which handles any constructor signature.
 
             // Generic Autowiring via Reflection
             if (class_exists($abstract)) {

@@ -256,10 +256,22 @@ final class Kernel
         foreach (array_reverse($stack) as $middlewareClass) {
             $pipeline = function (Request $req) use ($middlewareClass, $pipeline): Response {
                 if (!class_exists($middlewareClass)) {
-                    // Skip missing middleware gracefully during development
+                    // AUD-Phase3: In production, a missing middleware is a critical config error
+                    // that could silently bypass CSRF, JWT, or permission checks.
+                    $debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
+                    if (!$debug) {
+                        throw new \RuntimeException("Middleware class not found: {$middlewareClass}");
+                    }
                     return $pipeline($req);
                 }
-                $middleware = new $middlewareClass($this->container);
+
+                // AUD-Phase3: Resolve middleware via DI container for proper autowiring.
+                // Falls back to direct instantiation with container for backward compat.
+                try {
+                    $middleware = $this->container->get($middlewareClass);
+                } catch (\Throwable) {
+                    $middleware = new $middlewareClass($this->container);
+                }
 
                 if (!method_exists($middleware, 'handle')) {
                     return $pipeline($req);

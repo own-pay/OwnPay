@@ -11,6 +11,24 @@
         <testsuite name="Integration">
             <directory>tests/Integration</directory>
         </testsuite>
+        <testsuite name="Service">
+            <directory>tests/Service</directory>
+        </testsuite>
+        <testsuite name="Middleware">
+            <directory>tests/Middleware</directory>
+        </testsuite>
+        <testsuite name="Controller">
+            <directory>tests/Controller</directory>
+        </testsuite>
+        <testsuite name="Event">
+            <directory>tests/Event</directory>
+        </testsuite>
+        <testsuite name="Plugin">
+            <directory>tests/Plugin</directory>
+        </testsuite>
+        <testsuite name="Security">
+            <directory>tests/Security</directory>
+        </testsuite>
     </testsuites>
     <source>
         <include>

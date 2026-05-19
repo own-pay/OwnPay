@@ -24,8 +24,7 @@ final class RequestSignatureMiddleware
 
     public function handle(Request $request, callable $next): Response
     {
-        /** @phpstan-ignore-next-line */
-        $signature = $request->header('X-Signature') ?? $request->header('X-Hub-Signature-256') ?? $request->query('signature');
+        $signature = $request->header('X-Signature') ?: $request->header('X-Hub-Signature-256') ?: ($request->query('signature') ?? '');
 
         if ($signature === null /** @phpstan-ignore identical.alwaysFalse */ || $signature === '') {
             return Response::json([

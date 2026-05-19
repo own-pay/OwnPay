@@ -18,17 +18,35 @@ return static function (\OwnPay\Http\Router $router): void {
     // ─── Admin Login (dynamic slug for security) ───────────────
     // Slug is configurable in Settings → Landing Page → Admin Login URL Slug
     // Default: /login  |  Custom example: /secure-gate-7x2
+    // AUD-P1 fix: Cache login slug to avoid DB query on every request (webhooks, public pages, etc.)
     $loginSlug = 'login';
-    try {
-        $settingsRepo = $router->getContainer()?->get(\OwnPay\Repository\SettingsRepository::class);
-        if ($settingsRepo !== null) {
-            $slug = $settingsRepo->get('landing', 'admin_login_slug', 'login');
-            if (!empty($slug) && preg_match('/^[a-z0-9\-]+$/', $slug)) {
-                $loginSlug = $slug;
-            }
+    $cacheFile = dirname(__DIR__, 2) . '/storage/cache/login_slug.cache';
+    $cacheTtl = 300; // 5 minutes
+
+    // Try file cache first
+    if (file_exists($cacheFile) && (time() - filemtime($cacheFile)) < $cacheTtl) {
+        $cached = file_get_contents($cacheFile);
+        if ($cached !== false && preg_match('/^[a-z0-9\-]+$/', $cached)) {
+            $loginSlug = $cached;
         }
-    } catch (\Throwable) {
-        // DB not ready (install phase) — use default
+    } else {
+        try {
+            $settingsRepo = $router->getContainer()?->get(\OwnPay\Repository\SettingsRepository::class);
+            if ($settingsRepo !== null) {
+                $slug = $settingsRepo->get('landing', 'admin_login_slug', 'login');
+                if (!empty($slug) && preg_match('/^[a-z0-9\-]+$/', $slug)) {
+                    $loginSlug = $slug;
+                }
+            }
+            // Write cache
+            $cacheDir = dirname($cacheFile);
+            if (!is_dir($cacheDir)) {
+                @mkdir($cacheDir, 0755, true);
+            }
+            @file_put_contents($cacheFile, $loginSlug);
+        } catch (\Throwable) {
+            // DB not ready (install phase) — use default
+        }
     }
     $router->get('/' . $loginSlug,  'Admin\\AuthController@loginForm', 'web');
     $router->post('/' . $loginSlug, 'Admin\\AuthController@login',     'web');

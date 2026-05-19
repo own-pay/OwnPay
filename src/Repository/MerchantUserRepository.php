@@ -3,11 +3,20 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
+use OwnPay\Security\FieldEncryptor;
+
 final class MerchantUserRepository extends BaseRepository
 {
     use TenantScope;
 
     protected string $table = 'op_merchant_users';
+    private ?FieldEncryptor $encryptor;
+
+    public function __construct(\OwnPay\Core\Database $db, ?FieldEncryptor $encryptor = null)
+    {
+        parent::__construct($db);
+        $this->encryptor = $encryptor;
+    }
     protected array $fillable = [
         'merchant_id', 'role_id', 'name', 'email', 'password_hash',
         'phone', 'avatar_path', 'totp_secret_enc', 'two_factor_enabled',
@@ -215,7 +224,11 @@ final class MerchantUserRepository extends BaseRepository
             "SELECT totp_secret_enc FROM {$this->table} WHERE id = :id LIMIT 1",
             ['id' => $id]
         );
-        return $row['totp_secret_enc'] ?? null;
+        $raw = $row['totp_secret_enc'] ?? null;
+        if ($raw === null) {
+            return null;
+        }
+        return $this->encryptor ? $this->encryptor->decrypt($raw) : $raw;
     }
 
     /**
@@ -223,9 +236,10 @@ final class MerchantUserRepository extends BaseRepository
      */
     public function setTotpSecret(int $id, string $secret): void
     {
+        $encrypted = $this->encryptor ? $this->encryptor->encrypt($secret) : $secret;
         $this->db->execute(
             "UPDATE {$this->table} SET totp_secret_enc = :s WHERE id = :id",
-            ['s' => $secret, 'id' => $id]
+            ['s' => $encrypted, 'id' => $id]
         );
     }
 
