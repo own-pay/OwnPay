@@ -99,6 +99,15 @@ final class UnifiedWebhookController
             }
 
             try {
+                // AUD-G6: Delegate webhook signature verification to gateway adapter
+                if ($this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
+                    $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
+                    if (!$bridge->verifyWebhookSignature($gateway, (int) $merchantId, $rawBody, $req->allHeaders())) {
+                        $this->logAttempt($gateway, 'signature_verification_failed', $req);
+                        return Response::json(['error' => 'Webhook signature verification failed'], 403);
+                    }
+                }
+
                 $svc = $this->c->get(GatewayApiService::class);
                 $result = $svc->handleCallback((int) $merchantId, $gateway, $callbackData);
 

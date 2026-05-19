@@ -157,29 +157,30 @@ final class PluginLoader
             throw new \RuntimeException("Entrypoint not found: {$entrypointFile}");
         }
 
-        // AUD-A4 fix: Scan ALL PHP files in plugin directory for dangerous functions,
-        // not just the entrypoint. A malicious plugin could bypass sandbox by placing
-        // shell_exec() in Helper.php and require-ing it from entrypoint.
-        $dangerousPatterns = [
-            '/\beval\s*\(/i',
-            '/(?<![a-z_])exec\s*\(/i',
-            '/(?<![a-z_])system\s*\(/i',
-            '/\bshell_exec\s*\(/i',
-            '/\bpassthru\s*\(/i',
-            '/\bproc_open\s*\(/i',
-            '/(?<![a-z_])popen\s*\(/i',
-            '/\bpcntl_exec\s*\(/i',
-        ];
-
+        // AUD-A4 + AUD-G8 fix: Scan ALL PHP files in plugin directory for dangerous functions.
+        // Uses PluginSandbox::isDangerousFunction() as the canonical dangerous function list
+        // instead of duplicating regex patterns in two places.
         $phpFiles = $this->findPhpFiles($manifest->path);
         foreach ($phpFiles as $phpFile) {
             $content = (string) file_get_contents($phpFile);
-            foreach ($dangerousPatterns as $pattern) {
-                if (preg_match($pattern, $content)) {
-                    $relPath = str_replace($manifest->path . '/', '', $phpFile);
-                    throw new \RuntimeException(
-                        "Plugin {$slug} blocked: {$relPath} contains dangerous function call matching '{$pattern}'"
-                    );
+            // Extract function calls using token_get_all for accurate detection
+            $tokens = @token_get_all($content);
+            for ($i = 0, $count = count($tokens); $i < $count; $i++) {
+                if (is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
+                    $funcName = $tokens[$i][1];
+                    if (PluginSandbox::isDangerousFunction($funcName)) {
+                        // Look ahead for '(' to confirm it's a function call
+                        $next = $i + 1;
+                        while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
+                            $next++;
+                        }
+                        if ($next < $count && $tokens[$next] === '(') {
+                            $relPath = str_replace($manifest->path . '/', '', $phpFile);
+                            throw new \RuntimeException(
+                                "Plugin {$slug} blocked: {$relPath} contains dangerous function call: {$funcName}()"
+                            );
+                        }
+                    }
                 }
             }
         }
@@ -196,11 +197,16 @@ final class PluginLoader
             throw new \RuntimeException("Plugin {$slug} must implement PluginInterface");
         }
 
+        // AUD-G8 fix: Create sandbox with declared capabilities from manifest.
+        // The sandbox is attached to the plugin registry entry for runtime enforcement.
+        $capabilities = $manifest->capabilities ?? [];
+        $sandbox = new PluginSandbox($manifest->path, $capabilities);
+
         /** @var PluginInterface $instance */
         $instance = new $className();
         $instance->register($this->events, $this->container);
 
-        $this->registry->registerLoaded($slug, $instance, $manifest);
+        $this->registry->registerLoaded($slug, $instance, $manifest, $sandbox);
     }
 
     private function resolvePluginPath(array $pluginData): string

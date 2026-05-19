@@ -42,6 +42,16 @@ trait AdminPageTrait
             $data['site_title']     = $sr->get('branding', 'admin_panel_title', $data['app_name']);
         }
 
+        // AUD-G10: Plugin template override system
+        // Plugins can modify template name (e.g. replace admin/dashboard.twig with custom version)
+        // and inject/modify template data (add widgets, custom variables, etc.)
+        if ($this->c->has(\OwnPay\Event\EventManager::class)) {
+            /** @var \OwnPay\Event\EventManager $events */
+            $events = $this->c->get(\OwnPay\Event\EventManager::class);
+            $tpl = $events->applyFilter('admin.template.resolve', $tpl, $data);
+            $data = $events->applyFilter('admin.template.data', $data, $tpl);
+        }
+
         return Response::html($twig->render($tpl, $data));
     }
 }

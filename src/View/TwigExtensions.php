@@ -126,7 +126,29 @@ final class TwigExtensions extends AbstractExtension
 
         ob_start();
         $events->doAction($hookName, ...$args);
-        return ob_get_clean() ?: '';
+        $output = ob_get_clean() ?: '';
+
+        // AUD-G7 fix: Sanitize hook output to prevent XSS from plugin-injected content.
+        // Strip dangerous tags while preserving safe sidebar HTML (li, a, span, svg, etc.)
+        if ($output !== '') {
+            $output = preg_replace(
+                '/<\s*(script|iframe|object|embed|form|base|meta|link)[^>]*>.*?<\s*\/\s*\1\s*>/is',
+                '',
+                $output
+            ) ?? $output;
+            // Remove standalone dangerous tags (self-closing or unclosed)
+            $output = preg_replace(
+                '/<\s*(script|iframe|object|embed|form|base|meta)[^>]*\/?>/i',
+                '',
+                $output
+            ) ?? $output;
+            // Strip event handlers (onclick, onerror, onload, etc.)
+            $output = preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']/i', '', $output) ?? $output;
+            // Strip javascript: protocol in href/src
+            $output = preg_replace('/(?:href|src)\s*=\s*["\']javascript:[^"\']*["\']/i', '', $output) ?? $output;
+        }
+
+        return $output;
     }
 
     /**

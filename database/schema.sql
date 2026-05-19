@@ -208,9 +208,12 @@ CREATE TABLE `op_system_settings` (
   `key_name` VARCHAR(100) NOT NULL,
   `value` TEXT DEFAULT NULL,
   `type` ENUM('string','int','bool','json') NOT NULL DEFAULT 'string',
+  `merchant_id` BIGINT UNSIGNED DEFAULT NULL COMMENT 'AUD-G5: NULL=global, set=brand-scoped override',
   `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_group_key` (`group_name`, `key_name`)
+  UNIQUE KEY `uk_group_key_merchant` (`group_name`, `key_name`, `merchant_id`),
+  KEY `idx_merchant_group` (`merchant_id`, `group_name`),
+  CONSTRAINT `fk_settings_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── 3. Customers ──────────────────────────────────────────

@@ -32,13 +32,20 @@ final class PluginRegistry
         return $this->repo->listActive();
     }
 
+    /** @var array<string, PluginSandbox> Loaded sandboxes */
+    private array $sandboxes = [];
+
     /**
      * Register a loaded plugin instance.
+     * AUD-G8 fix: Also accepts optional sandbox for runtime capability enforcement.
      */
-    public function registerLoaded(string $slug, PluginInterface $instance, PluginManifest $manifest): void
+    public function registerLoaded(string $slug, PluginInterface $instance, PluginManifest $manifest, ?PluginSandbox $sandbox = null): void
     {
         $this->loaded[$slug] = $instance;
         $this->manifests[$slug] = $manifest;
+        if ($sandbox !== null) {
+            $this->sandboxes[$slug] = $sandbox;
+        }
     }
 
     /**
@@ -64,6 +71,15 @@ final class PluginRegistry
     public function getManifest(string $slug): ?PluginManifest
     {
         return $this->manifests[$slug] ?? null;
+    }
+
+    /**
+     * Get sandbox for loaded plugin.
+     * AUD-G8 fix: Allows runtime capability checks on plugin operations.
+     */
+    public function getSandbox(string $slug): ?PluginSandbox
+    {
+        return $this->sandboxes[$slug] ?? null;
     }
 
     /**
@@ -103,6 +119,6 @@ final class PluginRegistry
             $this->repo->update((int) $plugin['id'], ['status' => 'error']);
         }
         // Remove from loaded
-        unset($this->loaded[$slug], $this->manifests[$slug]);
+        unset($this->loaded[$slug], $this->manifests[$slug], $this->sandboxes[$slug]);
     }
 }

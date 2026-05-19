@@ -44,12 +44,20 @@ final class Kernel
             $this->boot();
 
             $request = Request::capture();
+
+            // AUD-G4: system.request filter — plugins can modify request before processing
+            /** @var EventManager $events */
+            $events = $this->container->get(EventManager::class);
+            $request = $events->applyFilter('system.request', $request);
+
             $response = $this->processRequest($request);
+
+            // AUD-G4: system.response filter — plugins can modify response before send
+            $response = $events->applyFilter('system.response', $response, $request);
+
             $response->send();
 
             // Shutdown hook
-            /** @var EventManager $events */
-            $events = $this->container->get(EventManager::class);
             $events->doAction('system.shutdown');
 
         } catch (\Throwable $e) {
@@ -88,14 +96,39 @@ final class Kernel
             // DB not ready (install phase) — EnvironmentService stays in-memory mode
         }
 
+        // 2c. AUD-G3: Wire EventManager into Database for query hooks
+        try {
+            if ($this->container->has(\OwnPay\Core\Database::class) && $this->container->has(EventManager::class)) {
+                $this->container->get(\OwnPay\Core\Database::class)
+                    ->setEventManager($this->container->get(EventManager::class));
+            }
+        } catch (\Throwable) {
+            // Graceful — hooks just won't fire
+        }
+
         // 3. Set timezone
         $appConfig = $this->container->get('config.app');
         date_default_timezone_set($appConfig['timezone']);
 
-        // 4. Load middleware config
+        // 4. Boot plugins FIRST — so they can register middleware filters
+        // AUD-G1 fix: Moved plugin boot BEFORE middleware filter application.
+        // Previously plugins booted AFTER the filter, making it impossible for
+        // plugins to inject custom middleware via 'system.middleware.pipeline'.
+        if ($this->container->has(\OwnPay\Plugin\PluginLoader::class)) {
+            try {
+                /** @var \OwnPay\Plugin\PluginLoader $pluginLoader */
+                $pluginLoader = $this->container->get(\OwnPay\Plugin\PluginLoader::class);
+                $pluginLoader->boot();
+            } catch (\Throwable $e) {
+                // Plugin boot failure must not crash the system
+                $this->safeLog('Plugin boot error: ' . $e->getMessage(), 'error');
+            }
+        }
+
+        // 5. Load middleware config
         $this->middlewareConfig = require $rootDir . '/config/middleware.php';
 
-        // Allow plugins to modify middleware pipeline
+        // Apply filter — plugins can now modify this since they booted above
         /** @var EventManager $events */
         $events = $this->container->get(EventManager::class);
         $this->middlewareConfig = $events->applyFilter(
@@ -113,18 +146,6 @@ final class Kernel
             if (!in_array($mw, $this->middlewareConfig['admin'] ?? [], true)) {
                 $this->middlewareConfig['admin'][] = $mw;
                 $this->safeLog("Security middleware {$mw} was removed by plugin — re-added", 'warning');
-            }
-        }
-
-        // 5. Boot plugins
-        if ($this->container->has(\OwnPay\Plugin\PluginLoader::class)) {
-            try {
-                /** @var \OwnPay\Plugin\PluginLoader $pluginLoader */
-                $pluginLoader = $this->container->get(\OwnPay\Plugin\PluginLoader::class);
-                $pluginLoader->boot();
-            } catch (\Throwable $e) {
-                // Plugin boot failure must not crash the system
-                $this->safeLog('Plugin boot error: ' . $e->getMessage(), 'error');
             }
         }
 
@@ -221,6 +242,11 @@ final class Kernel
 
         // Set route params on request
         $request->setRouteParams($match['params']);
+
+        // AUD-G4: system.route.matched action — plugins can react to route match
+        // Useful for logging, analytics, access control, route-level caching
+        $events = $this->container->get(EventManager::class);
+        $events->doAction('system.route.matched', $match, $request);
 
         // Run middleware pipeline
         $middlewareGroup = $match['middleware'];
