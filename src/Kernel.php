@@ -284,7 +284,11 @@ final class Kernel
                 if (!class_exists($middlewareClass)) {
                     // AUD-Phase3: In production, a missing middleware is a critical config error
                     // that could silently bypass CSRF, JWT, or permission checks.
-                    $debug = ($_ENV['APP_DEBUG'] ?? 'false') === 'true';
+                    // FIX: Use consistent APP_DEBUG detection (same as handleException)
+                    $debug = filter_var(
+                        $_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG') ?: 'false',
+                        FILTER_VALIDATE_BOOLEAN
+                    );
                     if (!$debug) {
                         throw new \RuntimeException("Middleware class not found: {$middlewareClass}");
                     }

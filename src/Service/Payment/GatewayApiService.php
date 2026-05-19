@@ -131,19 +131,23 @@ final class GatewayApiService
             }
         }
 
+        // FIX: Use TransactionService methods (not repo methods) so audit/event hooks fire
         $transaction = null;
         if ($trxId !== '') {
-            $transaction = $this->transactions->forTenant($merchantId)->findByTrxId($trxId);
+            $transaction = $this->transactions->findByTrxId($merchantId, $trxId);
         }
 
         // Fallback: lookup by gateway_trx_id (bank/gateway reference)
         if ($transaction === null && !empty($verification['gateway_trx_id'])) {
-            $repo = $this->transactions->forTenant($merchantId);
-            $transaction = $repo->findBy('gateway_trx_id', $verification['gateway_trx_id']);
+            $transaction = $this->transactions->findByGatewayTrxId(
+                $merchantId,
+                $verification['gateway_trx_id']
+            );
         }
 
         if ($transaction !== null && $transaction['status'] === 'pending') {
-            $this->transactions->forTenant($merchantId)->markCompleted((int) $transaction['id']);
+            // FIX: Use TransactionService::complete() — fires events + audit log
+            $this->transactions->complete((int) $transaction['id'], $merchantId);
 
             // Record in ledger
             $this->ledger->recordPaymentReceived(

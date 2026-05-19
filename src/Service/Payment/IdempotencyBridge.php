@@ -22,7 +22,12 @@ final class IdempotencyBridge
      */
     public function extractKey(Request $request): string
     {
-        return $request->header('Idempotency-Key') ?: $request->header('X-Idempotency-Key') ?: '';
+        // FIX: Use explicit '' checks — header() returns string, ?: would drop '0'
+        $key = $request->header('Idempotency-Key');
+        if ($key === '') {
+            $key = $request->header('X-Idempotency-Key');
+        }
+        return $key;
     }
 
     /**
@@ -32,8 +37,7 @@ final class IdempotencyBridge
     public function checkRequest(Request $request, string $scope = 'api'): ?array
     {
         $key = $this->extractKey($request);
-        /** @phpstan-ignore-next-line */
-        if ($key === null || $key === '') {
+        if ($key === '') {
             return null; // No idempotency requested
         }
 
@@ -54,8 +58,7 @@ final class IdempotencyBridge
         $key = $this->extractKey($request);
         $merchantId = $request->getAttribute('merchant_id');
 
-        /** @phpstan-ignore-next-line */
-        if ($key !== null && $merchantId !== null) {
+        if ($key !== '' && $merchantId !== null) {
             $this->service->storeResponse($scope, $key, (int) $merchantId, $statusCode, $response);
         }
     }

@@ -52,6 +52,16 @@ final class TransactionRepository extends BaseRepository
             'completed_at' => DateHelper::nowMicro(),
         ]);
     }
+    /**
+     * Find transaction by gateway reference ID (tenant-scoped).
+     */
+    public function findByGatewayTrxId(string $gatewayTrxId): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE gateway_trx_id = :gtid AND merchant_id = :mid LIMIT 1",
+            ['gtid' => $gatewayTrxId, 'mid' => $this->requireTenant()]
+        );
+    }
 
     /**
      * Dashboard stats: total volume + count by status for date range.

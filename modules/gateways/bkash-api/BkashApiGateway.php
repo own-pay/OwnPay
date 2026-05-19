@@ -137,18 +137,25 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
     }
 
     /**
-     * AUD-C6 fix: Cache token per base URL within request lifecycle.
-     * bKash tokens are valid for ~60min, no need to re-fetch per call.
-     * @var array<string, string>
+     * Cache token per base URL with TTL.
+     * bKash tokens are valid for ~60min — use 55min TTL with safety margin.
+     * Static property persists in PHP-FPM workers, so TTL is essential.
+     * @var array<string, array{token: string, expires_at: int}>
      */
     private static array $tokenCache = [];
 
     private function getToken(string $baseUrl, array $credentials): string
     {
-        // Return cached token if available (same request, same base URL)
+        // Return cached token if available AND not expired
         $cacheKey = $baseUrl . ':' . ($credentials['app_key'] ?? '');
-        if (!empty(self::$tokenCache[$cacheKey])) {
-            return self::$tokenCache[$cacheKey];
+        if (isset(self::$tokenCache[$cacheKey])) {
+            $cached = self::$tokenCache[$cacheKey];
+            // FIX: Check TTL — reject expired tokens
+            if ($cached['expires_at'] > time()) {
+                return $cached['token'];
+            }
+            // Token expired — remove from cache
+            unset(self::$tokenCache[$cacheKey]);
         }
 
         $ch = curl_init($baseUrl . '/tokenized/checkout/token/grant');
@@ -173,7 +180,11 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
 
         $token = $data['id_token'] ?? '';
         if ($token !== '') {
-            self::$tokenCache[$cacheKey] = $token;
+            // Cache with 55-minute TTL (bKash tokens valid ~60min)
+            self::$tokenCache[$cacheKey] = [
+                'token'      => $token,
+                'expires_at' => time() + 3300, // 55 minutes
+            ];
         }
 
         return $token;
