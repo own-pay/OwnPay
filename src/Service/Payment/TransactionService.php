@@ -126,4 +126,13 @@ final class TransactionService
     {
         return $this->transactions->forTenant($merchantId)->findByTrxId($trxId);
     }
+
+    /**
+     * Find by gateway transaction ID (bank/gateway reference).
+     * Used as fallback in webhook callbacks when merchant trx_id is missing.
+     */
+    public function findByGatewayTrxId(int $merchantId, string $gatewayTrxId): ?array
+    {
+        return $this->transactions->forTenant($merchantId)->findByGatewayTrxId($gatewayTrxId);
+    }
 }

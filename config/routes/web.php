@@ -38,12 +38,15 @@ return static function (\OwnPay\Http\Router $router): void {
                     $loginSlug = $slug;
                 }
             }
-            // Write cache
+            // Write cache (atomic: write temp + rename)
             $cacheDir = dirname($cacheFile);
             if (!is_dir($cacheDir)) {
-                @mkdir($cacheDir, 0755, true);
+                mkdir($cacheDir, 0755, true);
             }
-            @file_put_contents($cacheFile, $loginSlug);
+            $tmpFile = $cacheFile . '.' . getmypid() . '.tmp';
+            if (file_put_contents($tmpFile, $loginSlug, LOCK_EX) !== false) {
+                rename($tmpFile, $cacheFile);
+            }
         } catch (\Throwable) {
             // DB not ready (install phase) — use default
         }

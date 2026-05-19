@@ -24,9 +24,16 @@ final class RequestSignatureMiddleware
 
     public function handle(Request $request, callable $next): Response
     {
-        $signature = $request->header('X-Signature') ?: $request->header('X-Hub-Signature-256') ?: ($request->query('signature') ?? '');
+        // FIX: Use explicit !== '' checks to avoid dropping valid-but-falsy values like '0'
+        $signature = $request->header('X-Signature');
+        if ($signature === '') {
+            $signature = $request->header('X-Hub-Signature-256');
+        }
+        if ($signature === '') {
+            $signature = $request->query('signature') ?? '';
+        }
 
-        if ($signature === null /** @phpstan-ignore identical.alwaysFalse */ || $signature === '') {
+        if ($signature === '') {
             return Response::json([
                 'success' => false,
                 'message' => 'Missing request signature',
@@ -71,8 +78,9 @@ final class RequestSignatureMiddleware
 
         // H-08 FIX: Replay protection — X-Timestamp header is now REQUIRED.
         // Without it, signed requests can be replayed indefinitely.
+        // FIX: header() returns string not null — check empty string
         $timestamp = $request->header('X-Timestamp');
-        if ($timestamp === null /** @phpstan-ignore identical.alwaysFalse */) {
+        if ($timestamp === '') {
             return Response::json([
                 'success' => false,
                 'message' => 'X-Timestamp header required for signed requests',

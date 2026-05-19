@@ -291,7 +291,35 @@ final class Request
             $env = getenv('TRUSTED_PROXIES') ?: '';
             $trusted = $env !== '' ? array_map('trim', explode(',', $env)) : [];
         }
-        return in_array($ip, $trusted, true);
+
+        $ipLong = ip2long($ip);
+        if ($ipLong === false) {
+            return false;
+        }
+
+        foreach ($trusted as $entry) {
+            // Exact IP match
+            if ($entry === $ip) {
+                return true;
+            }
+            // CIDR range match (e.g. 172.16.0.0/12)
+            if (str_contains($entry, '/')) {
+                [$subnet, $bits] = explode('/', $entry, 2);
+                $bits = (int) $bits;
+                if ($bits < 0 || $bits > 32) {
+                    continue;
+                }
+                $subnetLong = ip2long($subnet);
+                if ($subnetLong === false) {
+                    continue;
+                }
+                $mask = $bits === 0 ? 0 : (~0 << (32 - $bits));
+                if (($ipLong & $mask) === ($subnetLong & $mask)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     // ——— Cookies ———————————————————————————————————————————————

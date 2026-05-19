@@ -94,12 +94,11 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
-        // AUD-C2 fix: Resolve session ID from multiple payload formats.
-        // Redirect return: top-level session_id query param
-        // Stripe webhook: nested at data.object.id for checkout.session.* events
+        // Resolve session ID from multiple payload formats:
+        // - Redirect return: top-level session_id query param
+        // - Stripe webhook: nested at data.object.id for checkout.session.* events
         $sessionId = $callbackData['session_id'] ?? '';
 
-        // Webhook payload format: { type: "checkout.session.completed", data: { object: { id: "cs_xxx" } } }
         if ($sessionId === '' && isset($callbackData['data']['object']['id'])) {
             $eventType = $callbackData['type'] ?? '';
             if (str_starts_with($eventType, 'checkout.session.')) {
@@ -107,23 +106,18 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
             }
         }
 
-        // If we have a fully resolved webhook object, extract payment status directly
-        if ($sessionId === '' && isset($callbackData['data']['object'])) {
-            $obj = $callbackData['data']['object'];
-            $paid = ($obj['payment_status'] ?? '') === 'paid';
-            return [
-                'success'        => $paid,
-                'gateway_trx_id' => $obj['payment_intent'] ?? '',
-                'amount'         => isset($obj['amount_total']) ? bcdiv((string) $obj['amount_total'], '100', 2) : null,
-                'status'         => $paid ? 'completed' : 'failed',
-                'trx_id'         => $obj['metadata']['trx_id'] ?? '',
-            ];
+        // SECURITY FIX: NEVER trust webhook payload fields for payment decisions.
+        // Even if we have the data.object, we MUST verify with Stripe API.
+        // Extract session ID from webhook object if not found yet.
+        if ($sessionId === '' && isset($callbackData['data']['object']['id'])) {
+            $sessionId = $callbackData['data']['object']['id'];
         }
 
         if ($sessionId === '') {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
         }
 
+        // ALWAYS verify server-side via Stripe API — never trust inbound payload
         $secretKey = $credentials['secret_key'] ?? '';
 
         $ch = curl_init('https://api.stripe.com/v1/checkout/sessions/' . urlencode($sessionId));
@@ -134,9 +128,19 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
         ]);
 
         $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
+        // If API call fails, do NOT fall back to webhook payload
+        if ($httpCode !== 200 || $response === false) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'api_error'];
+        }
+
         $data = json_decode($response, true);
+        if (!is_array($data)) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
+        }
+
         $paid = ($data['payment_status'] ?? '') === 'paid';
 
         return [
@@ -146,6 +150,52 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
             'status'         => $paid ? 'completed' : 'failed',
             'trx_id'         => $data['metadata']['trx_id'] ?? '',
         ];
+    }
+
+    /**
+     * AUD-G6: Stripe webhook signature verification.
+     * Uses HMAC-SHA256 via Stripe-Signature header + webhook_secret credential.
+     */
+    public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
+    {
+        $webhookSecret = $credentials['webhook_secret'] ?? '';
+        if ($webhookSecret === '') {
+            // No webhook secret configured — skip verification (backward compat)
+            return true;
+        }
+
+        // Stripe sends signature in 'Stripe-Signature' header
+        $sigHeader = $headers['Stripe-Signature'] ?? $headers['stripe-signature'] ?? '';
+        if ($sigHeader === '') {
+            return false;
+        }
+
+        // Parse Stripe-Signature: t=timestamp,v1=signature[,v0=legacy_signature]
+        $parts = [];
+        foreach (explode(',', $sigHeader) as $item) {
+            $kv = explode('=', $item, 2);
+            if (count($kv) === 2) {
+                $parts[trim($kv[0])] = trim($kv[1]);
+            }
+        }
+
+        $timestamp = $parts['t'] ?? '';
+        $expectedSig = $parts['v1'] ?? '';
+
+        if ($timestamp === '' || $expectedSig === '') {
+            return false;
+        }
+
+        // Replay protection: reject timestamps older than 5 minutes
+        if (abs(time() - (int) $timestamp) > 300) {
+            return false;
+        }
+
+        // Compute expected signature: HMAC-SHA256 of "timestamp.rawBody"
+        $signedPayload = $timestamp . '.' . $rawBody;
+        $computedSig = hash_hmac('sha256', $signedPayload, $webhookSecret);
+
+        return hash_equals($computedSig, $expectedSig);
     }
 
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array
