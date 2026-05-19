@@ -208,6 +208,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/system-update', 'Admin\\SystemUpdateController@index', 'admin');
     $router->post('/admin/system-update/check', 'Admin\\SystemUpdateController@check', 'admin');
     $router->post('/admin/system-update/apply', 'Admin\\SystemUpdateController@install', 'admin');
+    $router->post('/admin/system-update/settings', 'Admin\\SystemUpdateController@settings', 'admin');
 
     // Balance Verification
     $router->get('/admin/balance-verification', 'Admin\\BalanceVerificationController@index', 'admin');
@@ -226,8 +227,9 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/csp-report', 'Webhook\\CspReportController@handle', 'global');
 
     // ─── Install wizard (only when not installed) ──────────────
-    $router->get('/install', 'Install\\InstallerController@show', 'global');
-    $router->post('/install/test-db', 'Install\\InstallerController@testDatabase', 'global');
-    $router->post('/install/create-admin', 'Install\\InstallerController@createAdmin', 'global');
-    $router->post('/install/finalize', 'Install\\InstallerController@finalize', 'global');
+    // L-03: Uses 'install' middleware group (rate-limited)
+    $router->get('/install', 'Install\\InstallerController@show', 'install');
+    $router->post('/install/test-db', 'Install\\InstallerController@testDatabase', 'install');
+    $router->post('/install/create-admin', 'Install\\InstallerController@createAdmin', 'install');
+    $router->post('/install/finalize', 'Install\\InstallerController@finalize', 'install');
 };

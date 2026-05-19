@@ -10,6 +10,7 @@ use OwnPay\Service\Notification\WebhookDispatcher;
 
 final class WebhookController
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
     private WebhookDispatcher $webhooks;
 
@@ -23,11 +24,15 @@ final class WebhookController
     {
         $mid = (int) $req->getAttribute('merchant_id');
         $result = $this->webhooks->sendTest($mid);
-        return Response::json([
+        $response = [
             'success'          => $result['success'],
             'status_code'      => $result['status_code'] ?? null,
             'response_time_ms' => $result['response_time_ms'] ?? null,
-        ]);
+        ];
+        if (!$result['success'] && !empty($result['error'])) {
+            $response['error'] = $result['error'];
+        }
+        return Response::json($response, $result['success'] ? 200 : 400);
     }
 
     public function deliveries(Request $req): Response

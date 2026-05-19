@@ -10,7 +10,7 @@ use OwnPay\Repository\CommLogRepository;
 use OwnPay\Repository\SettingsRepository;
 
 /**
- * Communication service â€” unified dispatch for SMS, email, and plugin channels.
+ * Communication service — unified dispatch for SMS, email, and plugin channels.
  *
  * Auto-discovers communication plugins via Capability::COMMUNICATION.
  * Fires: communication.sms.send, communication.mail.send, communication.channels, communication.template.render

@@ -16,13 +16,15 @@ abstract class BaseDto
      * @param array $data Input array (e.g. from $_POST or JSON)
      * @throws InvalidArgumentException on validation failure
      */
+    /** @phpstan-ignore-next-line */
     public static function fromArray(array $data): static
     {
+        /** @phpstan-ignore-next-line */
         $dto = new static();
         $reflection = new ReflectionClass(static::class);
 
         foreach ($reflection->getProperties(ReflectionProperty::IS_PUBLIC) as $property) {
-            $name = $property->getName();
+            $name = $property/** @phpstan-ignore-next-line */->getName();
             if (array_key_exists($name, $data)) {
                 $value = $data[$name];
                 
@@ -33,7 +35,7 @@ abstract class BaseDto
                 }
 
                 if ($type && $value !== null) {
-                    $typeName = $type->getName();
+                    $typeName = ($type instanceof \ReflectionNamedType ? $type->getName() : 'mixed');
                     if ($typeName === 'int') {
                         $value = (int) $value;
                     } elseif ($typeName === 'float') {

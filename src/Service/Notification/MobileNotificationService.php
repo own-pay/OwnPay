@@ -6,7 +6,7 @@ namespace OwnPay\Service\Notification;
 use OwnPay\Support\DateHelper;
 
 /**
- * Mobile notification service â€” sends push notifications to paired devices.
+ * Mobile notification service — sends push notifications to paired devices.
  */
 final class MobileNotificationService
 {

@@ -7,7 +7,7 @@ use OwnPay\Repository\SettlementRepository;
 use OwnPay\Support\DateHelper;
 
 /**
- * Settlement service â€” batch payouts to merchant bank accounts.
+ * Settlement service — batch payouts to merchant bank accounts.
  */
 final class SettlementService
 {

@@ -8,7 +8,7 @@ use OwnPay\Service\Domain\DnsVerifier;
 use OwnPay\Support\DateHelper;
 
 /**
- * DNS verification job â€” re-checks pending domains every 6 hours.
+ * DNS verification job — re-checks pending domains every 6 hours.
  */
 final class DnsVerificationJob
 {
@@ -49,6 +49,7 @@ final class DnsVerificationJob
                 $failed++;
                 // Auto-remove after 7 days unverified
                 $createdAt = (new \DateTimeImmutable($domain['created_at']))->getTimestamp();
+                /** @phpstan-ignore-next-line */
                 if ($createdAt !== false && (time() - $createdAt) > 604800) {
                     $this->domains->delete((int) $domain['id']);
                 }

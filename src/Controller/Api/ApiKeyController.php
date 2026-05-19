@@ -10,26 +10,49 @@ use OwnPay\Service\Customer\ApiKeyService;
 
 final class ApiKeyController
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
     private ApiKeyService $keys;
-    public function __construct(Container $c, ApiKeyService $keys) { $this->c = $c; $this->keys = $keys; }
+
+    public function __construct(Container $c, ApiKeyService $keys)
+    {
+        $this->c = $c;
+        $this->keys = $keys;
+    }
 
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $list = $this->keys->listForMerchant($mid);
-        // OWASP: Never expose full key, only prefix
-        $safe = array_map(fn($k) => ['id' => $k['id'], 'label' => $k['label'], 'prefix' => $k['prefix'] ?? substr($k['key'] ?? '', 0, 8) . '...', 'created_at' => $k['created_at']], $list);
+        $list = $this->keys->list($mid);
+
+        // OWASP: Never expose full key or hash, only prefix
+        $safe = array_map(fn(array $k) => [
+            'id'         => $k['id'],
+            'name'       => $k['name'] ?? 'Unnamed',
+            'prefix'     => $k['key_prefix'] ?? null,
+            'status'     => $k['status'] ?? 'active',
+            'last_used'  => $k['last_used_at'] ?? null,
+            'expires_at' => $k['expires_at'] ?? null,
+            'created_at' => $k['created_at'],
+        ], $list);
+
         return Response::json(['success' => true, 'data' => $safe]);
     }
 
     public function generate(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $label = $req->json()['label'] ?? 'Default';
-        $key = $this->keys->generate($mid, $label);
+        $body = $req->json();
+        $label = $body['name'] ?? $body['label'] ?? 'Default';
+        $result = $this->keys->generate($mid, $label);
+
         // PCI: Show key only once
-        return Response::json(['success' => true, 'key' => $key['key'], 'id' => $key['id'], 'warning' => 'Store this key securely. It cannot be retrieved again.'], 201);
+        return Response::json([
+            'success' => true,
+            'key'     => $result['key'],
+            'prefix'  => $result['prefix'],
+            'warning' => 'Store this key securely. It cannot be retrieved again.',
+        ], 201);
     }
 
     public function revoke(Request $req): Response

@@ -39,19 +39,9 @@ return static function (\OwnPay\Container $c): void {
     });
 
     // ─── Database Wrapper ──────────────────────────────────────
+    // Reuse container's PDO singleton eliminates dual connection and transaction isolation issues (commit on one PDO didn't affect the other).
     $c->singleton(\OwnPay\Core\Database::class, static function (\OwnPay\Container $c): \OwnPay\Core\Database {
-        $cfg = $c->get('config.database');
-        $db  = \OwnPay\Core\Database::init(
-            $cfg['host'],
-            $cfg['database'],
-            $cfg['username'],
-            $cfg['password'],
-            $cfg['port']
-        );
-        // Also set strict SQL mode
-        $db->pdo()->exec("SET NAMES '{$cfg['charset']}' COLLATE '{$cfg['collation']}'");
-        $db->pdo()->exec("SET SESSION sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
-        return $db;
+        return new \OwnPay\Core\Database($c->get(\PDO::class));
     });
 
     // ─── Event Manager ─────────────────────────────────────────
@@ -131,7 +121,21 @@ return static function (\OwnPay\Container $c): void {
         $appUrl = $_ENV['APP_URL'] ?? '';
         $twig->addExtension(new \OwnPay\View\TwigExtension\CoreExtension($appVersion, $appUrl));
         // Global vars available to ALL templates (admin, checkout, public)
-        $twig->addGlobal('csrf_token', $_SESSION['_csrf_token'] ?? '');
+        // H-03 FIX: CSRF token must be read lazily at render time, NOT at container build time.
+        // At container build, session may not be started yet → token would be empty string.
+        // Use a __toString() proxy so Twig reads session when rendering {{ csrf_token }}.
+        $twig->addGlobal('csrf_token', new class implements \Stringable {
+            public function __toString(): string
+            {
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    if (empty($_SESSION['_csrf_token'])) {
+                        $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
+                    }
+                    return $_SESSION['_csrf_token'];
+                }
+                return '';
+            }
+        });
         $twig->addGlobal('app_name', $_ENV['APP_NAME'] ?? 'Own Pay');
         $twig->addGlobal('lang', []);   // i18n placeholder — populated by locale plugin
         return $twig;
@@ -374,6 +378,47 @@ return static function (\OwnPay\Container $c): void {
             $c->get(\OwnPay\Service\System\AuditLogger::class),
             $c->get(\OwnPay\Repository\WebhookEventRepository::class),
             $c->get(\OwnPay\Repository\TransactionRepository::class)
+        );
+    });
+
+    // ─── Update System ───────────────────────────────────────────────
+    $c->singleton(\OwnPay\Repository\UpdateHistoryRepository::class, $repoFactory(\OwnPay\Repository\UpdateHistoryRepository::class));
+
+    $c->singleton(\OwnPay\Update\BackupService::class, static function (\OwnPay\Container $c): \OwnPay\Update\BackupService {
+        return new \OwnPay\Update\BackupService(
+            $c->get('config.app')['paths']['backups'],
+            $c->get(\OwnPay\Service\System\Logger::class),
+            $c->get(\OwnPay\Core\Database::class)
+        );
+    });
+
+    $c->singleton(\OwnPay\Update\HealthChecker::class, static function (\OwnPay\Container $c): \OwnPay\Update\HealthChecker {
+        return new \OwnPay\Update\HealthChecker(
+            $c->get(\OwnPay\Core\Database::class)
+        );
+    });
+
+    $c->singleton(\OwnPay\Update\MaintenanceMode::class, static function (): \OwnPay\Update\MaintenanceMode {
+        return new \OwnPay\Update\MaintenanceMode();
+    });
+
+    $c->singleton(\OwnPay\Update\UpdateService::class, static function (\OwnPay\Container $c): \OwnPay\Update\UpdateService {
+        return new \OwnPay\Update\UpdateService(
+            $c->get(\OwnPay\Update\BackupService::class),
+            $c->get(\OwnPay\Update\HealthChecker::class),
+            $c->get(\OwnPay\Update\MaintenanceMode::class),
+            $c->get(\OwnPay\Repository\UpdateHistoryRepository::class),
+            $c->get(\OwnPay\Event\EventManager::class),
+            $c->get(\OwnPay\Service\System\Logger::class)
+        );
+    });
+
+    $c->singleton(\OwnPay\Cron\SystemUpdateJob::class, static function (\OwnPay\Container $c): \OwnPay\Cron\SystemUpdateJob {
+        $version = $c->get('config.app')['version'] ?? '0.1.0';
+        return new \OwnPay\Cron\SystemUpdateJob(
+            $version,
+            $c->get(\OwnPay\Event\EventManager::class),
+            $c->get(\OwnPay\Repository\SettingsRepository::class)
         );
     });
 };

@@ -12,15 +12,15 @@ declare(strict_types=1);
 return static function (\OwnPay\Http\Router $router): void {
 
     // ======================== MERCHANT API (Bearer Auth) ========================
-    $router->get('/api/v1/health',                   'Api\\HealthController@check',            'api');
+    $router->get('/api/v1/health',                    'Api\\HealthController@check',            'api');
     $router->post('/api/v1/payments/initiate',        'Api\\PaymentController@initiate',        'api');
-    $router->get('/api/v1/payments/{id}',             'Api\\PaymentController@show',            'api');
+    $router->get('/api/v1/payments/{trx_id}',         'Api\\PaymentController@show',            'api');
     $router->get('/api/v1/transactions',              'Api\\TransactionController@index',       'api');
-    $router->get('/api/v1/transactions/{id}',         'Api\\TransactionController@show',        'api');
+    $router->get('/api/v1/transactions/{trx_id}',     'Api\\TransactionController@show',        'api');
     $router->post('/api/v1/refunds',                  'Api\\RefundController@create',           'api');
-    $router->get('/api/v1/refunds/{id}',              'Api\\RefundController@show',             'api');
+    $router->get('/api/v1/refunds/{trx_id}',          'Api\\RefundController@show',             'api');
     $router->get('/api/v1/customers',                 'Api\\CustomerController@index',          'api');
-    $router->get('/api/v1/customers/{id}',            'Api\\CustomerController@show',           'api');
+    $router->get('/api/v1/customers/{identifier}',    'Api\\CustomerController@show',           'api');
     $router->post('/api/v1/customers',                'Api\\CustomerController@create',         'api');
     $router->get('/api/v1/api-keys',                  'Api\\ApiKeyController@index',            'api');
     $router->post('/api/v1/api-keys',                 'Api\\ApiKeyController@generate',         'api');

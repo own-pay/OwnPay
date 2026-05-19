@@ -7,12 +7,12 @@ use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Repository\ApiKeyRepository;
-use OwnPay\Support\DateHelper;
+use OwnPay\Support\DateHelper;
 
 /**
- * Bearer auth middleware â€” authenticates API requests via API key.
+ * Bearer auth middleware — authenticates API requests via API key.
  *
- * Flow: Extract prefix â†’ lookup by prefix â†’ timing-safe hash compare.
+ * Flow: Extract prefix → lookup by prefix → timing-safe hash compare.
  * Per security skill: never log raw keys, use constant-time comparison.
  */
 final class BearerAuthMiddleware
@@ -58,6 +58,11 @@ final class BearerAuthMiddleware
         // Timing-safe comparison (per OWASP)
         if (!hash_equals($apiKey['key_hash'], $keyHash)) {
             return Response::json(['success' => false, 'message' => 'Invalid API key'], 401);
+        }
+
+        // H-05 FIX: Check API key status — revoked/inactive keys must be rejected.
+        if (($apiKey['status'] ?? 'active') !== 'active') {
+            return Response::json(['success' => false, 'message' => 'API key has been revoked'], 401);
         }
 
         // Check expiry

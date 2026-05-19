@@ -7,7 +7,7 @@ namespace OwnPay\Http;
  * HTTP response object.
  *
  * Supports HTML, JSON, redirect, and file download responses.
- * All controller methods return a Response instance â€” never echo directly.
+ * All controller methods return a Response instance — never echo directly.
  */
 final class Response
 {
@@ -23,7 +23,7 @@ final class Response
         $this->statusCode = $statusCode;
     }
 
-    // â”€â”€â”€ Factory Methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Factory Methods ———————————————————————————————————————
 
     /**
      * HTML response.
@@ -105,7 +105,7 @@ final class Response
         ], 503)->withHeader('Retry-After', (string)$retryAfter);
     }
 
-    // â”€â”€â”€ Fluent Modifiers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Fluent Modifiers ——————————————————————————————————————
 
     /**
      * Add or replace a response header.
@@ -154,7 +154,7 @@ final class Response
         }
         $cookie .= '; SameSite=' . $samesite;
 
-        // Append â€” allows multiple Set-Cookie headers
+        // Append — allows multiple Set-Cookie headers
         $this->headers['Set-Cookie'] = $cookie;
         return $this;
     }
@@ -168,7 +168,7 @@ final class Response
         return $this;
     }
 
-    // â”€â”€â”€ Send â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Send ——————————————————————————————————————————————————
 
     /**
      * Send the response to the client.
@@ -189,7 +189,7 @@ final class Response
         }
     }
 
-    // â”€â”€â”€ Accessors â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Accessors —————————————————————————————————————————————
 
     public function getStatusCode(): int
     {
@@ -209,4 +209,13 @@ final class Response
         return $this->headers;
     }
 
+
+    /**
+     * Plain text response (alias for text).
+     * Used by CronController.
+     */
+    public static function plain(string $text, int $status = 200): self
+    {
+        return self::text($text, $status);
+    }
 }

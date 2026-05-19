@@ -6,5 +6,7 @@
     <h2>{{ lang.payment_pending ?? 'Payment Pending' }}</h2>
     {% if txn is defined and txn.trx_id is defined and txn.trx_id %}<p class="ck-status-ref">Ref: {{ txn.trx_id }}</p>{% endif %}
     <p class="ck-status-msg">{{ lang.pending_msg ?? 'Your payment is being verified. You will receive a confirmation once processed.' }}</p>
-    <meta http-equiv="refresh" content="15">
+    <p class="ck-status-refresh-hint" style="font-size:0.8rem;color:#94a3b8;margin-top:0.5rem;">This page refreshes automatically…</p>
 </div>
+{# M-05 FIX: JS-based refresh instead of invalid <meta> in <body> #}
+<script>setTimeout(function(){location.reload();},15000);</script>

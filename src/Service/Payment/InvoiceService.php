@@ -6,7 +6,7 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Core\Database;
 
 /**
- * Invoice service â€” CRUD for merchant invoices.
+ * Invoice service — CRUD for merchant invoices.
  */
 final class InvoiceService
 {
@@ -141,7 +141,7 @@ final class InvoiceService
 
     public function generatePdf(int $merchantId, int $id): string
     {
-        // Stub â€” return HTML as PDF placeholder
+        // Stub — return HTML as PDF placeholder
         $invoice = $this->find($merchantId, $id);
         return $invoice ? json_encode($invoice) : '';
     }

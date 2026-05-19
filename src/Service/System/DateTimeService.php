@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * DateTime service â€” timezone-aware date formatting.
+ * DateTime service — timezone-aware date formatting.
  */
 final class DateTimeService
 {
@@ -76,5 +76,15 @@ final class DateTimeService
             return "{$d} day" . ($d > 1 ? 's' : '') . ' ago';
         }
         return $this->formatDate($dt);
+    }
+
+    /**
+     * Get current datetime formatted as string (static convenience).
+     * Used by SystemUpdateJob cron.
+     */
+    public static function getCurrentDatetime(string $format = 'Y-m-d H:i:s'): string
+    {
+        $tz = getenv('APP_TIMEZONE') ?: 'UTC';
+        return (new \DateTimeImmutable('now', new \DateTimeZone($tz)))->format($format);
     }
 }

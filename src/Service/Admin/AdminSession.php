@@ -47,11 +47,20 @@ final class AdminSession
     }
 
     /**
-     * Get authenticated merchant ID.
+     * Get authenticated merchant ID (home brand).
      */
     public function merchantId(): ?int
     {
         $id = $_SESSION['auth_merchant_id'] ?? null;
+        return $id !== null ? (int) $id : null;
+    }
+
+    /**
+     * Get active brand ID (selected via brand switcher).
+     */
+    public function activeBrandId(): ?int
+    {
+        $id = $_SESSION['active_brand_id'] ?? $_SESSION['auth_merchant_id'] ?? null;
         return $id !== null ? (int) $id : null;
     }
 

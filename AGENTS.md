@@ -7,11 +7,12 @@
 - **Version**: 0.1.0 (Genesis)
 - **License**: AGPL-3.0-or-later
 - **PHP**: ^8.2 with strict types everywhere
-- **Database**: MySQL 8.x with `op_` table prefix
-- **Templating**: Twig 3.14
+- **Database**: MySQL 8.x with `op_` table prefix, 50 tables
+- **Templating**: Twig 3.14 (`.twig` extension, rendered via PHP `include`)
 - **Auth**: Argon2id passwords, TOTP 2FA, role-based permissions
+- **Error Handling**: Production-safe branded error pages (no info disclosure)
 - **Local Dev URL**: `https://ownpay.test/`
-- **Login**: `admin@example.com` / `admin123`
+- **Login**: `admin@example.com` / `admin12345`
 
 ---
 
@@ -65,11 +66,12 @@ public/index.php → src/Kernel.php
 | Pattern | Implementation |
 |---------|---------------|
 | **PSR-11 DI** | `src/Container.php` — all services resolved via container |
-| **Repository Pattern** | `src/Repository/` — each table has a repository extending `BaseRepository` |
+| **Repository Pattern** | `src/Repository/` — 35 repositories extending `BaseRepository` |
 | **Tenant Scoping** | `TenantScope` trait — auto-scopes queries by `merchant_id` (= brand) |
-| **Hook/Filter System** | `src/Event/EventManager.php` — WordPress-style `addAction()`/`applyFilter()` |
-| **Middleware Pipeline** | `src/Middleware/` — 13 middleware classes, configured in `config/middleware.php` |
+| **Hook/Filter System** | `src/Event/EventManager.php` — `addAction()`/`doAction()`/`addFilter()`/`applyFilter()` |
+| **Middleware Pipeline** | `src/Middleware/` — 13 middleware classes, 7 groups in `config/middleware.php` |
 | **Plugin System** | `src/Plugin/` — manifest-based discovery, `PluginInterface`, sandboxed execution |
+| **Error Handling** | `Kernel::handleException()` — branded 500/404 pages, path sanitization, no info disclosure |
 
 ---
 
@@ -82,12 +84,12 @@ ownpay/
 │   ├── database.php            # DB connection config (reads .env)
 │   ├── hooks.php               # Default hook/filter registrations
 │   ├── middleware.php           # Middleware pipeline definitions
-│   ├── services.php            # DI container bindings (~370 lines)
+│   ├── services.php            # DI container bindings (~383 lines)
 │   └── routes/
 │       ├── web.php             # Admin + public web routes
 │       └── api.php             # REST API routes
 ├── database/
-│   ├── schema.sql              # Full DDL (37KB, 30+ tables)
+│   ├── schema.sql              # Full DDL (39KB, 50 tables)
 │   └── seeds/                  # Seed data
 ├── docs/                       # Documentation
 │   └── v2_migration/           # Migration docs (business_model.md, etc.)
@@ -97,12 +99,12 @@ ownpay/
 │   └── themes/                 # Theme plugins
 ├── public/                     # Web root
 │   └── index.php               # Single entry point
-├── src/                        # Application source (PSR-4: OwnPay\)
+├── src/                        # Application source (PSR-4: OwnPay\\)
 │   ├── Kernel.php              # Application kernel
 │   ├── Container.php           # DI container
 │   ├── Cache/                  # Cache layer
 │   ├── Controller/
-│   │   ├── Admin/              # 26 admin controllers (incl. RolesController)
+│   │   ├── Admin/              # 28 admin controllers (incl. RolesController, FaqController)
 │   │   ├── Api/                # REST API controllers
 │   │   ├── Checkout/           # Payment checkout flow
 │   │   ├── Install/            # Installer
@@ -118,7 +120,7 @@ ownpay/
 │   ├── Model/                  # Domain models
 │   ├── Plugin/                 # Plugin system (loader, registry, sandbox)
 │   ├── Queue/                  # Job queue
-│   ├── Repository/             # 35 repositories + TenantScope trait
+│   ├── Repository/             # 35 repositories + TenantScope trait + BaseRepository
 │   ├── Security/               # Authenticator, encryption, CSRF, PII masking
 │   ├── Service/                # Business logic services
 │   │   ├── Admin/              # AdminSession
@@ -132,7 +134,7 @@ ownpay/
 │   │   ├── Notification/       # Push notifications
 │   │   ├── Payment/            # CurrencyService, LedgerService, IdempotencyService
 │   │   ├── Sms/                # SMS parsing + templates
-│   │   └── System/             # Logger, PaginationService, InputSanitizer
+│   │   └── System/             # Logger, PaginationService, InputSanitizer, AuditLogger, AuditService
 │   ├── Support/                # DateHelper, utilities
 │   ├── Update/                 # Self-update system
 │   └── View/                   # View helpers
@@ -283,14 +285,11 @@ $events->addFilter('checkout.gateways', [$this, 'addGateway']);
 
 ### Admin Controllers
 
-All 26 admin controllers follow this pattern:
+All 28 admin controllers follow this pattern:
 - Use `AdminPageTrait` for rendering (auto-injects CSRF, user context, brand data)
 - Constructor: `(Container $c, AdminSession $session, ...)`
 - Methods receive `Request $req`, return `Response`
 - Brand scoping via `BrandContext::resolveFromRequest()`
-
-**New controllers added in v0.1.0 hardening:**
-- `RolesController` — CRUD for `op_roles` + permission matrix sync via `op_role_permissions`
 
 ### Mobile API Controllers (`src/Controller/Api/Mobile/`)
 
@@ -310,15 +309,22 @@ All mobile routes use `mobile` middleware group (JWT verification). Base path: `
 
 ### `.env` Variables
 
-```
-DB_HOST, DB_PORT, DB_NAME, DB_USER, DB_PASS, DB_PREFIX
-APP_NAME, APP_TIMEZONE, APP_CURRENCY
-APP_ENV (production|staging|development)
-APP_DEBUG (true|false)
-APP_KEY (encryption key)
-CACHE_DRIVER (file|redis)
-QUEUE_DRIVER (file|redis)
-```
+- Check (`.env.example`) for list of .env variables and templates.
+
+> **CRITICAL**: `APP_KEY` and `ENCRYPTION_KEY` contain base64 `=` chars. PHP's `parse_ini_file()` CANNOT parse these. Use `vlucas/phpdotenv` (Kernel) or read from `.env.temp` (installer). Never use `parse_ini_file()` on the final `.env`.
+
+### Middleware Groups (`config/middleware.php`)
+
+| Group | Middleware Stack |
+|-------|------------------|
+| `global` | SecurityHeaders, Maintenance, Domain |
+| `web` | Session, CSRF |
+| `admin` | Session, CSRF, RateLimiter, TwoFactor, Permission |
+| `api` | CORS, RateLimiter, BearerAuth |
+| `mobile` | CORS, RateLimiter, JwtAuth |
+| `webhook` | IpAllowlist, RequestSignature |
+| `checkout` | Session, CSRF, RateLimiter |
+| `install` | SecurityHeaders only (no DB deps) |
 
 ### System Settings (`op_system_settings`)
 
@@ -392,12 +398,47 @@ POST /admin/roles/{id}/update   → RolesController@update
 POST /admin/roles/{id}/delete   → RolesController@delete
 ```
 
+**Installer routes (`config/routes/web.php`):**
+```
+GET  /install                    → InstallerController@show      (install group)
+POST /install/test-db            → InstallerController@testDatabase
+POST /install/create-admin       → InstallerController@createAdmin
+POST /install/finalize           → InstallerController@finalize
+```
+
 **API routes added (`config/routes/api.php`):**
 ```
 GET  /api/mobile/v1/config/filter-rules  → Mobile\ConfigController@filterRules
 POST /api/mobile/v1/devices/refresh      → Mobile\DeviceController@refresh
 GET  /api/mobile/v1/devices/status       → Mobile\DeviceController@status
 ```
+
+### Installer Architecture (`src/Controller/Install/InstallerController.php`)
+
+4-step wizard: Requirements → Database → Admin Account → Settings.
+
+| Step | Method | What it does |
+|------|--------|-------------|
+| 1 | `show(?step=1)` | Checks PHP version, extensions, writable dirs |
+| 2 | `testDatabase()` | Tests DB creds, creates DB if needed, imports `schema.sql`, writes `storage/.env.temp` |
+| 3 | `createAdmin()` | Creates superadmin in `op_merchant_users` + default brand in `op_merchants` |
+| 4 | `finalize()` | Generates crypto keys (APP_KEY, ENCRYPTION_KEY, HMAC_KEY, JWT_SECRET), writes `.env`, seeds `op_system_settings`, writes `storage/.installed` marker |
+
+**Security**:
+- All error messages sanitized — never exposes SQL states, hostnames, or credentials
+- Step validation: can’t skip to step 3+ without `.env.temp` existing
+- `install` middleware group has NO database-dependent middleware
+- `RateLimiterMiddleware` has try/catch to skip gracefully when DB is unavailable
+- Installer locked once `storage/.installed` exists
+
+**CRITICAL BUG (fixed)**: `finalize()` must read DB creds from `storage/.env.temp` (NOT the final `.env`). The final `.env` contains base64 keys with `=` that break `parse_ini_file()`.
+
+### Error Handling (`src/Kernel.php::handleException()`)
+
+- **Production** (`APP_DEBUG=false`): Renders branded `templates/error/500.twig` with zero info disclosure. Falls back to inline HTML if Twig fails.
+- **Debug** (`APP_DEBUG=true`): Renders styled debug panel with sanitized paths (absolute → relative) and masked credentials.
+- **API routes**: Returns `{"success": false, "message": "Internal Server Error"}` — never raw exception details.
+- Error templates are self-contained (inline CSS) — no external asset dependencies.
 
 ### Adding a new repository
 
@@ -432,10 +473,15 @@ GET  /api/mobile/v1/devices/status       → Mobile\DeviceController@status
 5. **DateHelper** — Must be imported (`use OwnPay\Support\DateHelper;`). Several files had this missing after migration.
 6. **Plugin hooks** — Registered in `config/hooks.php`. Plugins register their own in `boot()` method.
 7. **CSRF field** — Always `_csrf_token` (not `_csrf`). Validated by `CsrfMiddleware`.
-8. **Plugin name enrichment** — `op_plugins.name` column often stores the slug (not the human-readable name). `AddonController` and `ThemeController` both do a **two-pass enrichment**: first from `manifest` JSON column, then from filesystem `PluginLoader::discover()`. Always prefer filesystem manifest name. DB slug must match manifest `slug` field — if they diverge, run `fix_theme_slug.php`-style migration.
+8. **Plugin name enrichment** — `op_plugins.name` column often stores the slug (not the human-readable name). `AddonController` and `ThemeController` both do a **two-pass enrichment**: first from `manifest` JSON column, then from filesystem `PluginLoader::discover()`. Always prefer filesystem manifest name. DB slug must match manifest `slug` field.
 9. **`paginateScoped()` not `listPaginated()`** — `TenantScope` exposes `paginateScoped(int $page, int $perPage)`. There is NO `listPaginated()` method. Using wrong method name causes fatal runtime error.
 10. **Mobile JWT tokens** — Issued by `POST /api/mobile/v1/devices/pair`. Long-lived refresh tokens renewed via `POST /api/mobile/v1/devices/refresh`. Access tokens are short-lived (24h). Device must heartbeat to stay `active`.
-11. **op_plugins slug mismatch** — Theme `own-pay-theme` was stored with wrong slug. Correct slug is `own-pay` (matches manifest). `active_theme` system setting must also match. Always verify with `SELECT slug,name FROM op_plugins WHERE type='theme'`.
+11. **op_plugins slug mismatch** — Theme `own-pay-theme` was stored with wrong slug. Correct slug is `own-pay` (matches manifest). `active_theme` system setting must also match.
+12. **`parse_ini_file()` vs `.env`** — NEVER use `parse_ini_file()` on the final `.env` file. Base64 values (`APP_KEY`, `ENCRYPTION_KEY`) contain `=` which breaks the parser. Use `vlucas/phpdotenv` (Kernel does this) or read `storage/.env.temp` (installer does this).
+13. **Installer middleware** — The `install` middleware group must NOT include `RateLimiterMiddleware` or any middleware that depends on a database connection. During install, no `.env` or DB exists yet.
+14. **Error responses** — Installer controller catches all `\Throwable` and returns sanitized generic messages. Never expose raw SQL error text, hostnames, or file paths in any JSON response.
+15. **Installer step validation** — Steps 3-4 require `storage/.env.temp` to exist. If missing, controller redirects to step 2. This prevents skipping ahead in the wizard.
+16. **Crypto key generation** — `APP_KEY` and `ENCRYPTION_KEY` are `base64_encode(random_bytes(32))`. `HMAC_KEY` and `JWT_SECRET` are `bin2hex(random_bytes(32))`. Each key serves a different cryptographic purpose per PCI-DSS 3.6.
 
 ---
 

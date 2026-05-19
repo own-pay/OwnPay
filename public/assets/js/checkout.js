@@ -2,29 +2,77 @@
  * OwnPay Checkout JS
  * REQUIRES: window.opFetch (op-fetch.js loaded BEFORE)
  * REQUIRES: window.OP_CHECKOUT_CONFIG (injected by template)
+ * REQUIRES: window.OP_MANUAL_GATEWAYS (injected by template)
  * CSP-safe: no eval/innerHTML
  */
 (function () {
     'use strict';
     var cfg = window.OP_CHECKOUT_CONFIG || {};
+    var manualGateways = window.OP_MANUAL_GATEWAYS || {};
 
     // ---------- TIMER ----------
-    var sec = (cfg.timeoutEnabled && cfg.timeoutSeconds) ? Number(cfg.timeoutSeconds) : 0;
     var tEl = document.getElementById('timer');
-    if (sec > 0 && tEl) {
-        var iv = setInterval(function () {
-            if (sec <= 0) {
-                tEl.textContent = '00:00';
-                clearInterval(iv);
-                window.location.href = '/checkout/' + cfg.txnRef + '/status';
-                return;
+    if (cfg.timeoutEnabled && tEl) {
+        var storageKey = 'op_timer_' + cfg.txnRef;
+        var serverRemaining = Number(cfg.timeoutRemaining) || 0;
+        var sec;
+
+        // Check localStorage for persisted expiry timestamp
+        var storedExpiry = localStorage.getItem(storageKey);
+        if (storedExpiry) {
+            sec = Math.max(0, Math.round((Number(storedExpiry) - Date.now()) / 1000));
+        } else {
+            // First visit — use server-calculated remaining, store expiry
+            sec = serverRemaining;
+            if (sec > 0) {
+                localStorage.setItem(storageKey, String(Date.now() + sec * 1000));
             }
-            sec--;
+        }
+
+        // Render immediately (no 1s delay)
+        var renderTimer = function () {
             var m = String(Math.floor(sec / 60)).padStart(2, '0');
             var s = String(sec % 60).padStart(2, '0');
             tEl.textContent = m + ':' + s;
             if (sec <= 60) tEl.style.color = '#EF4444';
-        }, 1000);
+        };
+        renderTimer();
+
+        if (sec > 0) {
+            var iv = setInterval(function () {
+                if (sec <= 0) {
+                    tEl.textContent = '00:00';
+                    clearInterval(iv);
+                    localStorage.removeItem(storageKey);
+                    // M-4 FIX: POST cancel on timeout instead of just redirecting
+                    var csrf = document.getElementById('op-csrf');
+                    var hashEl = document.getElementById('op-checkout-hash');
+                    var cancelForm = document.createElement('form');
+                    cancelForm.method = 'POST';
+                    cancelForm.action = '/checkout/' + cfg.txnRef + '/cancel';
+                    if (csrf) {
+                        var csrfInput = document.createElement('input');
+                        csrfInput.type = 'hidden';
+                        csrfInput.name = '_csrf_token';
+                        csrfInput.value = csrf.value;
+                        cancelForm.appendChild(csrfInput);
+                    }
+                    // H-03 FIX: Include checkout_hash for cancel auth
+                    if (hashEl) {
+                        var hashInput = document.createElement('input');
+                        hashInput.type = 'hidden';
+                        hashInput.name = 'checkout_hash';
+                        hashInput.value = hashEl.value;
+                        cancelForm.appendChild(hashInput);
+                    }
+                    document.body.appendChild(cancelForm);
+                    cancelForm.submit();
+                    return;
+                }
+                sec--;
+                renderTimer();
+            }, 1000);
+        }
     }
 
     // ---------- TABS ----------
@@ -64,13 +112,28 @@
             openManualPopup(s.slug, s.name);
             return;
         }
-        // API gateway — submit form
+        // API gateway — submit form with checkout_hash + gateway_mode (C-2 fix)
         var form = document.createElement('form');
         form.method = 'POST';
         form.action = '/checkout/' + cfg.txnRef + '/pay';
+
         var gwInput = document.createElement('input');
         gwInput.type = 'hidden'; gwInput.name = 'gateway'; gwInput.value = s.slug;
         form.appendChild(gwInput);
+
+        // C-2 FIX: Add gateway_mode so controller knows this is an API gateway
+        var modeInput = document.createElement('input');
+        modeInput.type = 'hidden'; modeInput.name = 'gateway_mode'; modeInput.value = 'api';
+        form.appendChild(modeInput);
+
+        // C-2 FIX: Add checkout_hash for HMAC integrity verification
+        var hashEl = document.getElementById('op-checkout-hash');
+        if (hashEl) {
+            var hashInput = document.createElement('input');
+            hashInput.type = 'hidden'; hashInput.name = 'checkout_hash'; hashInput.value = hashEl.value;
+            form.appendChild(hashInput);
+        }
+
         var csrf = document.getElementById('op-csrf');
         if (csrf) {
             var csrfInput = document.createElement('input');
@@ -78,7 +141,23 @@
             form.appendChild(csrfInput);
         }
         document.body.appendChild(form);
+        // U-01 FIX: Show loading overlay to prevent double-click
+        showLoading();
         form.submit();
+    }
+
+    // U-01 FIX: Loading overlay for gateway redirects
+    function showLoading() {
+        var existing = document.getElementById('ck-loading');
+        if (existing) return;
+        var overlay = document.createElement('div');
+        overlay.id = 'ck-loading';
+        overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);';
+        overlay.innerHTML = '<div style="text-align:center;color:#fff;"><div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#5EEAD4;border-radius:50%;animation:ck-spin 0.8s linear infinite;margin:0 auto 1rem;"></div><p style="font-family:Outfit,sans-serif;font-size:0.9rem;">Processing payment…</p></div>';
+        var style = document.createElement('style');
+        style.textContent = '@keyframes ck-spin{to{transform:rotate(360deg)}}';
+        document.head.appendChild(style);
+        document.body.appendChild(overlay);
     }
 
     // ---------- MANUAL POPUP ----------
@@ -94,24 +173,36 @@
             iconEl.textContent = meta.logoText || name.slice(0, 2).toUpperCase();
         }
 
-        // Fetch manual gateway details
-        if (typeof window.opFetch === 'function') {
-            window.opFetch('/api/v1/payments/' + cfg.txnRef + '/manual-info?gateway=' + slug).then(function (resp) {
-                if (resp.ok && resp.data) {
-                    var num = document.getElementById('mpNumber');
-                    if (num) num.textContent = resp.data.account_number || '';
-                    var stepsEl = document.getElementById('mpSteps');
-                    if (stepsEl && resp.data.steps) {
-                        stepsEl.innerHTML = '';
-                        resp.data.steps.forEach(function (s, i) {
-                            var div = document.createElement('div');
-                            div.className = 'ck-popup-step';
-                            div.textContent = (i + 1) + '. ' + s;
-                            stepsEl.appendChild(div);
-                        });
-                    }
-                }
+        // C-5 FIX: Read from embedded OP_MANUAL_GATEWAYS instead of missing API endpoint
+        var gwData = manualGateways[slug] || {};
+        var stepsEl = document.getElementById('mpSteps');
+        if (stepsEl) {
+            stepsEl.textContent = ''; // Clear previous
+            var instructions = gwData.instructions || [];
+            instructions.forEach(function (s, i) {
+                var div = document.createElement('div');
+                div.className = 'ck-popup-step';
+                div.textContent = (i + 1) + '. ' + s;
+                stepsEl.appendChild(div);
             });
+        }
+
+        // CK-07 FIX: Populate payment number from input_fields
+        var numEl = document.getElementById('mpNumber');
+        if (numEl) {
+            var fields = gwData.input_fields || [];
+            var paymentNumber = '';
+            for (var f = 0; f < fields.length; f++) {
+                if (fields[f].type === 'payment_number' || fields[f].name === 'payment_number') {
+                    paymentNumber = fields[f].value || fields[f].default || '';
+                    break;
+                }
+            }
+            // Fallback: try top-level number field
+            if (!paymentNumber && gwData.payment_number) {
+                paymentNumber = gwData.payment_number;
+            }
+            numEl.textContent = paymentNumber || 'N/A';
         }
 
         var popup = document.getElementById('manualPopup');
@@ -123,29 +214,60 @@
         if (p) p.classList.add('ck-hidden');
     };
 
+    // L-05 FIX: Support both forward and backward navigation in manual popup
     window.goMpStep = function (step) {
-        document.getElementById('mpStep1').classList.add('ck-hidden');
-        document.getElementById('mpStep2').classList.remove('ck-hidden');
+        var s1 = document.getElementById('mpStep1');
+        var s2 = document.getElementById('mpStep2');
+        if (step === 2) {
+            s1.classList.add('ck-hidden');
+            s2.classList.remove('ck-hidden');
+        } else {
+            s2.classList.add('ck-hidden');
+            s1.classList.remove('ck-hidden');
+        }
     };
 
     window.submitManual = function (e) {
         e.preventDefault();
         var form = document.getElementById('mpVerifyForm');
         var data = new FormData(form);
-        data.append('gateway', gwState.mfs.slug || gwState.bank.slug || gwState.card.slug);
-        data.append('ref', cfg.txnRef);
 
-        if (typeof window.opPost === 'function') {
-            window.opPost('/checkout/' + cfg.txnRef + '/manual-verify', {
-                gateway: data.get('gateway'),
-                sender_number: data.get('sender_number'),
-                txn_id: data.get('txn_id'),
-                ref: cfg.txnRef
-            }).then(function (resp) {
-                closeManual();
-                window.location.href = '/checkout/' + cfg.txnRef + '/status';
-            });
+        // Determine active gateway slug from any active tab
+        var activeGw = gwState.mfs.slug || gwState.bank.slug || gwState.card.slug;
+
+        // First submit gateway selection via POST form (manual mode needs checkout_hash)
+        var payForm = document.createElement('form');
+        payForm.method = 'POST';
+        payForm.action = '/checkout/' + cfg.txnRef + '/pay';
+        payForm.style.display = 'none';
+
+        var fields = {
+            'gateway': activeGw,
+            'gateway_mode': 'manual',
+            '_csrf_token': '',
+            'checkout_hash': ''
+        };
+
+        var csrfEl = document.getElementById('op-csrf');
+        if (csrfEl) fields['_csrf_token'] = csrfEl.value;
+        var hashEl = document.getElementById('op-checkout-hash');
+        if (hashEl) fields['checkout_hash'] = hashEl.value;
+
+        // Add verification data as payment_details
+        fields['payment_details[sender_number]'] = data.get('sender_number') || '';
+        fields['payment_details[transaction_id]'] = data.get('transaction_id') || '';
+
+        for (var key in fields) {
+            var input = document.createElement('input');
+            input.type = 'hidden';
+            input.name = key;
+            input.value = fields[key];
+            payForm.appendChild(input);
         }
+
+        document.body.appendChild(payForm);
+        showLoading();
+        payForm.submit();
         return false;
     };
 

@@ -6,7 +6,7 @@ namespace OwnPay\Cron;
 use OwnPay\Service\System\Logger;
 
 /**
- * Queue worker job â€” processes async job queue.
+ * Queue worker job — processes async job queue.
  *
  * Jobs are stored in op_job_queue with type, payload, status, attempts.
  */

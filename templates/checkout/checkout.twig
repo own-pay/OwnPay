@@ -51,8 +51,12 @@
     {% include 'checkout/partials/_modals.twig' %}
 
     <input type="hidden" id="op-csrf" value="{{ csrf_token }}">
+    <input type="hidden" id="op-checkout-hash" value="{{ checkout_hash }}">
 
-    <script>window.OP_CHECKOUT_CONFIG={{ config|json_encode|raw }};</script>
+    <script>
+    window.OP_CHECKOUT_CONFIG={{ config|json_encode|raw }};
+    window.OP_MANUAL_GATEWAYS={{ manual_gateways|default('{}')|raw }};
+    </script>
     <script src="/assets/js/op-fetch.js"></script>
     <script src="/assets/js/checkout.js"></script>
     {{ hook('checkout.footer')|raw }}

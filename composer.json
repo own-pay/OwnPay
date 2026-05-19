@@ -13,7 +13,7 @@
         "chillerlan/php-qrcode": "^5.0",
         "firebase/php-jwt": "^7.0",
         "ramsey/uuid": "^4.7",
-        "twig/twig": "3.14",
+        "twig/twig": "3.14.1",
         "vlucas/phpdotenv": "^5.6"
     },
     "autoload": {
@@ -34,5 +34,10 @@
     "require-dev": {
         "phpstan/phpstan": "^2.1",
         "phpunit/phpunit": "^12.5"
+    },
+    "scripts": {
+        "security-check": "composer audit --format=json",
+        "test": "vendor/bin/phpunit",
+        "analyse": "vendor/bin/phpstan analyse"
     }
 }

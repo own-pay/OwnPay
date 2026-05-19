@@ -10,7 +10,7 @@ use OwnPay\Http\Response;
 use Twig\Environment as Twig;
 
 /**
- * Base controller â€” all controllers extend this.
+ * Base controller — all controllers extend this.
  *
  * Provides:
  * - DI container access
@@ -28,7 +28,7 @@ abstract class BaseController
         $this->container = $container;
     }
 
-    // â”€â”€â”€ Rendering â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Rendering —————————————————————————————————————————————
 
     /**
      * Render a Twig template.
@@ -50,12 +50,15 @@ abstract class BaseController
         $data['app_version'] = $this->container->get('config.app')['version'] ?? '0.1.0';
         $data['csrf_token'] = \OwnPay\Security\SecurityHelpers::csrfToken();
         
+        $session = $this->container->has(\OwnPay\Service\Admin\AdminSession::class)
+            ? $this->container->get(\OwnPay\Service\Admin\AdminSession::class)
+            : null;
         $data['current_user'] = [
-            'id' => $_SESSION['auth_user_id'] ?? null,
-            'name' => $_SESSION['auth_name'] ?? 'Admin',
-            'email' => $_SESSION['auth_email'] ?? '',
+            'id' => $session?->userId(),
+            'name' => $session?->userName() ?? 'Admin',
+            'email' => $session?->userEmail() ?? '',
         ];
-        $data['is_superadmin'] = (bool) ($_SESSION['is_superadmin'] ?? false);
+        $data['is_superadmin'] = $session?->isSuperadmin() ?? false;
         
         if ($this->container->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->container->get(\OwnPay\Service\Brand\BrandContext::class);
@@ -64,9 +67,9 @@ abstract class BaseController
             $data['active_brand_id'] = $brandCtx->getActiveBrandId();
         }
 
-        $data['flash_success'] = $_SESSION['flash_success'] ?? null;
-        $data['flash_error'] = $_SESSION['flash_error'] ?? null;
-        unset($_SESSION['flash_success'], $_SESSION['flash_error']);
+        $flash = $session?->consumeFlash() ?? ['success' => null, 'error' => null];
+        $data['flash_success'] = $flash['success'];
+        $data['flash_error'] = $flash['error'];
 
         // Allow plugins to modify data before render
         $data = $events->applyFilter('admin.page.before_render', $data, $template);
@@ -90,7 +93,7 @@ abstract class BaseController
         return Response::html($html);
     }
 
-    // â”€â”€â”€ JSON â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— JSON ——————————————————————————————————————————————————
 
     /**
      * Return a JSON success response.
@@ -140,38 +143,40 @@ abstract class BaseController
         ])->withApiVersion();
     }
 
-    // â”€â”€â”€ Redirect â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Redirect ——————————————————————————————————————————————
 
     protected function redirect(string $url, int $status = 302): Response
     {
         return Response::redirect($url, $status);
     }
 
-    // â”€â”€â”€ Session Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Session Helpers ———————————————————————————————————————
 
     /**
      * Set a flash message (stored in session, shown once).
      */
     protected function flash(string $type, string $message): void
     {
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            $_SESSION['_flash'][$type][] = $message;
-        }
+        $session = $this->container->has(\OwnPay\Service\Admin\AdminSession::class)
+            ? $this->container->get(\OwnPay\Service\Admin\AdminSession::class)
+            : null;
+        $session?->flash($type, $message);
     }
 
     /**
      * Get and clear flash messages.
      *
-     * @return array<string, string[]>
+     * @return array{success: ?string, error: ?string}
      */
     protected function getFlash(): array
     {
-        $flash = $_SESSION['_flash'] ?? [];
-        unset($_SESSION['_flash']);
-        return $flash;
+        $session = $this->container->has(\OwnPay\Service\Admin\AdminSession::class)
+            ? $this->container->get(\OwnPay\Service\Admin\AdminSession::class)
+            : null;
+        return $session?->consumeFlash() ?? ['success' => null, 'error' => null];
     }
 
-    // â”€â”€â”€ DI Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— DI Helpers ————————————————————————————————————————————
 
     /**
      * Get the EventManager instance.

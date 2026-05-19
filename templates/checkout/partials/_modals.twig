@@ -7,8 +7,12 @@
         <h3>{{ lang.cancel_title ?? 'Cancel Payment?' }}</h3>
         <p>{{ lang.cancel_msg ?? 'Your transaction will be cancelled and you will be redirected back.' }}</p>
         <div class="ck-modal-actions">
-            <button type="button" onclick="closeMdl('mCancel')" class="ck-modal-btn-outline">{{ lang.go_back ?? 'Go Back' }}</button>
-            <a href="?cancel=1" class="ck-modal-btn-danger">{{ lang.yes_cancel ?? 'Yes, Cancel' }}</a>
+            <button type="button" onclick="closeMdl('mCancel')" class="ck-modal-btn-outline">{{ lang.stay_here ?? 'Stay Here' }}</button>
+            <form method="POST" action="/checkout/{{ txn.trx_id }}/cancel" style="flex:1">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="checkout_hash" value="{{ checkout_hash }}">
+                <button type="submit" class="ck-modal-btn-danger" style="width:100%">{{ lang.yes_cancel ?? 'Yes, Cancel' }}</button>
+            </form>
         </div>
     </div>
 </div>

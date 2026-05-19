@@ -6,7 +6,7 @@ namespace OwnPay\Service\System;
 use OwnPay\Support\DateHelper;
 
 /**
- * Filesystem service â€” safe file operations with path validation.
+ * Filesystem service — safe file operations with path validation.
  *
  * Per OWASP: path traversal prevention, extension whitelist.
  */
@@ -97,14 +97,14 @@ final class FilesystemService
     }
 
     /**
-     * Resolve path safely â€” prevent directory traversal.
+     * Resolve path safely — prevent directory traversal.
      * @throws \RuntimeException
      */
     private function resolveSafe(string $relativePath): string
     {
         $fullPath = realpath($this->baseDir . '/' . $relativePath);
         if ($fullPath === false) {
-            // File doesn't exist yet â€” validate parent
+            // File doesn't exist yet — validate parent
             $fullPath = $this->baseDir . '/' . $relativePath;
             $normalized = str_replace(['../', '..\\'], '', $fullPath);
             if ($normalized !== $fullPath) {

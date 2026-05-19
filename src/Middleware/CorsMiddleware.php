@@ -8,12 +8,13 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * CORS middleware â€” handles preflight and CORS headers for API routes.
+ * CORS middleware - handles preflight and CORS headers for API routes.
  *
  * Per OWASP: restrict origins, no wildcard with credentials.
  */
 final class CorsMiddleware
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $container;
 
     public function __construct(Container $container)
@@ -42,8 +43,8 @@ final class CorsMiddleware
             return $response;
         }
 
-        // Strict origin check â€” no wildcards when credentials used
-        if (in_array($origin, $allowedOrigins, true) || in_array('*', $allowedOrigins, true)) {
+        // Strict origin check - explicit matches only, no wildcards
+        if (in_array($origin, $allowedOrigins, true)) {
             $response->withHeader('Access-Control-Allow-Origin', $origin);
             $response->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
             $response->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With');
@@ -59,7 +60,12 @@ final class CorsMiddleware
      */
     private function getAllowedOrigins(): array
     {
-        $env = getenv('CORS_ALLOWED_ORIGINS') ?: '*';
+        // No wildcard default - explicit origins only.
+        // Set CORS_ALLOWED_ORIGINS=https://example.com,https://app.example.com in .env
+        $env = getenv('CORS_ALLOWED_ORIGINS') ?: '';
+        if ($env === '' || $env === '*') {
+            return []; // No cross-origin allowed unless explicitly configured
+        }
         return array_map('trim', explode(',', $env));
     }
 }

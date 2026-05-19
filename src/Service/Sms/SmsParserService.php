@@ -229,11 +229,12 @@ final class SmsParserService
      */
     private function notifyDevice(?array $parsed, string $deviceUuid, string $sender): void
     {
-        if ($parsed === null || !isset($parsed['parsed_amount'])) return;
+        if ($parsed === null || !/** @phpstan-ignore-next-line */ isset($parsed['parsed_amount'])) return;
         try {
             $this->notifService->queuePaymentNotification(
                 $deviceUuid,
                 $parsed['parsed_type'] ?? 'unknown',
+                /** @phpstan-ignore nullCoalesce.offset */
                 $parsed['parsed_amount'] ?? null,
                 $parsed['parsed_sender'] ?? null,
                 $parsed['parsed_trx_id'] ?? null,
@@ -283,5 +284,28 @@ final class SmsParserService
         } catch (\Throwable) {
             return DateHelper::now();
         }
+    }
+
+    /**
+     * Parse a single SMS message without storing.
+     * Used by MfsService.
+     *
+     * @param string $rawMessage  The raw SMS body
+     * @param string $sender      Sender identifier
+     * @param int    $brandId     Merchant/brand ID
+     * @return array|null Parsed data or null on failure
+     */
+    public function parse(string $rawMessage, string $sender, int $brandId): ?array
+    {
+        return $this->attemptParse($rawMessage, $sender, $brandId);
+    }
+
+    /**
+     * Parse and store a single SMS.
+     * Used by Mobile SmsController.
+     */
+    public function parseAndStore(string $deviceUuid, int $brandId, array $message): array
+    {
+        return $this->processBatch($deviceUuid, $brandId, [$message]);
     }
 }

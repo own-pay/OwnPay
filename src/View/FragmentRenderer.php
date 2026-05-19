@@ -3,10 +3,11 @@ declare(strict_types=1);
 
 namespace OwnPay\View;
 
+use OwnPay\Http\Request;
 use Twig\Environment;
 
 /**
- * Content loader â€” renders Twig fragments for SPA-style AJAX loading.
+ * Content loader — renders Twig fragments for SPA-style AJAX loading.
  * Replaces old ContentLoader.php.
  */
 final class FragmentRenderer
@@ -38,11 +39,9 @@ final class FragmentRenderer
     /**
      * Check if request is AJAX/fragment request.
      */
-    public static function isFragmentRequest(): bool
+    public static function isFragmentRequest(Request $request): bool
     {
-        return (
-            ($_SERVER['HTTP_X_REQUESTED_WITH'] ?? '') === 'XMLHttpRequest'
-            || isset($_GET['_fragment'])
-        );
+        return $request->header('X-Requested-With') === 'XMLHttpRequest'
+            || $request->query('_fragment') !== null;
     }
 }

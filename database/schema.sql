@@ -231,6 +231,7 @@ CREATE TABLE `op_customers` (
   UNIQUE KEY `uk_uuid` (`uuid`),
   UNIQUE KEY `uk_merchant_email` (`merchant_id`, `email_hash`),
   KEY `idx_merchant` (`merchant_id`),
+  KEY `idx_merchant_phone_hash` (`merchant_id`, `phone_hash`),
   CONSTRAINT `fk_cust_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -277,7 +278,7 @@ CREATE TABLE `op_transactions` (
   `reference` VARCHAR(200) DEFAULT NULL,
   `gateway_trx_id` VARCHAR(200) DEFAULT NULL,
   `method` ENUM('api','manual','sms','link','invoice') NOT NULL DEFAULT 'manual',
-  `status` ENUM('pending','processing','completed','failed','cancelled','refunded','disputed') NOT NULL DEFAULT 'pending',
+  `status` ENUM('pending','created','processing','completed','failed','cancelled','refunded','disputed','awaiting_verification','pending_review') NOT NULL DEFAULT 'pending',
   `metadata` JSON DEFAULT NULL,
   `completed_at` DATETIME(6) DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
@@ -289,7 +290,8 @@ CREATE TABLE `op_transactions` (
   KEY `idx_merchant_created` (`merchant_id`, `created_at`),
   KEY `idx_gateway` (`gateway_slug`),
   KEY `idx_pi` (`payment_intent_id`),
-  CONSTRAINT `fk_txn_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_txn_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_txn_customer` FOREIGN KEY (`customer_id`) REFERENCES `op_customers` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `op_idempotency_keys` (
@@ -444,6 +446,30 @@ CREATE TABLE `op_webhook_delivery_logs` (
   PRIMARY KEY (`id`),
   KEY `idx_event` (`webhook_event_id`),
   CONSTRAINT `fk_wdl_event` FOREIGN KEY (`webhook_event_id`) REFERENCES `op_webhook_events` (`id`) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Webhook delivery tracking — logs BOTH inbound (gateway → OwnPay) and outbound (OwnPay → merchant)
+-- Independent of op_webhook_events which tracks per-endpoint subscriptions.
+-- Used by: UnifiedWebhookController (inbound), WebhookDispatcher (outbound)
+CREATE TABLE `op_webhook_deliveries` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `merchant_id` BIGINT UNSIGNED DEFAULT NULL,
+  `gateway` VARCHAR(60) NOT NULL DEFAULT 'system',
+  `event` VARCHAR(100) DEFAULT NULL,
+  `url` VARCHAR(1000) DEFAULT NULL,
+  `direction` ENUM('inbound','outbound') NOT NULL DEFAULT 'inbound',
+  `status_code` SMALLINT UNSIGNED DEFAULT NULL,
+  `response_time_ms` INT UNSIGNED DEFAULT NULL,
+  `attempt` TINYINT UNSIGNED NOT NULL DEFAULT 1,
+  `status` ENUM('received','delivered','failed','rejected') NOT NULL DEFAULT 'received',
+  `payload_hash` VARCHAR(128) DEFAULT NULL,
+  `error` VARCHAR(500) DEFAULT NULL,
+  `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  KEY `idx_merchant_created` (`merchant_id`, `created_at`),
+  KEY `idx_gateway` (`gateway`),
+  KEY `idx_direction_status` (`direction`, `status`),
+  CONSTRAINT `fk_wd_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── 6. Ledger ─────────────────────────────────────────────
@@ -636,7 +662,9 @@ CREATE TABLE `op_mobile_notifications` (
   PRIMARY KEY (`id`),
   KEY `idx_merchant_read` (`merchant_id`, `is_read`),
   KEY `idx_device` (`device_uuid`),
-  KEY `idx_merchant_device` (`merchant_id`, `device_uuid`)
+  KEY `idx_merchant_device` (`merchant_id`, `device_uuid`),
+  CONSTRAINT `fk_mn_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_mn_device` FOREIGN KEY (`device_uuid`) REFERENCES `op_paired_devices` (`device_id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `op_sms_templates` (
@@ -814,6 +842,14 @@ CREATE TABLE `op_maintenance_locks` (
   `unlocked_at` DATETIME(6) DEFAULT NULL,
   PRIMARY KEY (`id`),
   KEY `idx_locked` (`locked_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `op_migrations` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `migration` VARCHAR(255) NOT NULL,
+  `executed_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_migration` (`migration`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 SET FOREIGN_KEY_CHECKS = 1;

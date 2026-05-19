@@ -30,7 +30,7 @@ final class TwigExtensions extends AbstractExtension
         return 'ownpay';
     }
 
-    // â”€â”€â”€ Functions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Functions —————————————————————————————————————————————
 
     /**
      * @return TwigFunction[]
@@ -51,7 +51,7 @@ final class TwigExtensions extends AbstractExtension
         ];
     }
 
-    // â”€â”€â”€ Filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Filters ———————————————————————————————————————————————
 
     /**
      * @return TwigFilter[]
@@ -67,7 +67,7 @@ final class TwigExtensions extends AbstractExtension
         ];
     }
 
-    // â”€â”€â”€ Function Implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Function Implementations ——————————————————————————————
 
     /**
      * Get current CSRF token value.
@@ -94,7 +94,7 @@ final class TwigExtensions extends AbstractExtension
 
     /**
      * Generate versioned asset URL.
-     * Example: {{ asset('css/admin.css') }} â†’ /assets/css/admin.css?v=0.1.0
+     * Example: {{ asset('css/admin.css') }} ─ /assets/css/admin.css?v=0.1.0
      */
     public function asset(string $path): string
     {
@@ -162,7 +162,7 @@ final class TwigExtensions extends AbstractExtension
 
     /**
      * Get a system setting value (from DB via cache).
-     * Placeholder â€” will be wired to SettingsRepository in Phase E.
+     * Placeholder — will be wired to SettingsRepository in Phase E.
      */
     public function setting(string $key, string $default = ''): string
     {
@@ -182,21 +182,21 @@ final class TwigExtensions extends AbstractExtension
         return $flash;
     }
 
-    // â”€â”€â”€ Filter Implementations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Filter Implementations ————————————————————————————————
 
     /**
      * Format a number as currency.
-     * Usage: {{ amount|money('BDT') }} â†’ à§³1,234.56
-     *        {{ amount|money('USD') }} â†’ $1,234.56
+     * Usage: {{ amount|money('BDT') }} ─ à§³1,234.56
+     *        {{ amount|money('USD') }} ─ $1,234.56
      */
     public function formatMoney(string|int|float $amount, string $currency = 'BDT', int $decimals = 2): string
     {
         $symbols = [
             'BDT' => 'à§³',
             'USD' => '$',
-            'EUR' => 'â‚¬',
+            'EUR' => '€',
             'GBP' => 'Â£',
-            'INR' => 'â‚¹',
+            'INR' => '¹',
             'JPY' => 'Â¥',
             'CNY' => 'Â¥',
             'CAD' => 'C$',

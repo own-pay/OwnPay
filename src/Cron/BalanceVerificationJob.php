@@ -7,7 +7,7 @@ use OwnPay\Service\Payment\ReconciliationService;
 use OwnPay\Service\Notification\AlertService;
 
 /**
- * Balance verification job â€” runs reconciliation and alerts on mismatch.
+ * Balance verification job — runs reconciliation and alerts on mismatch.
  */
 final class BalanceVerificationJob
 {

@@ -6,7 +6,7 @@ namespace OwnPay\Repository;
 use OwnPay\Core\Database;
 
 /**
- * Base repository â€” shared CRUD + pagination for all repositories.
+ * Base repository — shared CRUD + pagination for all repositories.
  *
  * Subclasses define $table, $fillable, $primaryKey.
  * All queries parameterized. No string interpolation.
@@ -28,7 +28,7 @@ abstract class BaseRepository
         $this->db = $db;
     }
 
-    // â”€â”€â”€ Read â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Read ——————————————————————————————————————————————————
 
     public function find(int|string $id): ?array
     {
@@ -73,6 +73,15 @@ abstract class BaseRepository
      */
     public function paginate(int $page = 1, int $perPage = 20, string $where = '1=1', array $params = [], string $orderBy = 'id DESC'): array
     {
+        // Basic SQL injection guard on WHERE clause — reject dangerous keywords.
+        $lowerWhere = strtolower($where);
+        $blocked = ['drop ', 'alter ', 'truncate ', 'union ', 'insert ', 'update ', 'delete ', 'create ', '--', ';'];
+        foreach ($blocked as $kw) {
+            if (str_contains($lowerWhere, $kw)) {
+                throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
+            }
+        }
+
         $safeOrder = $this->sanitizeOrderBy($orderBy);
         $page = max(1, $page);
         $offset = ($page - 1) * $perPage;
@@ -97,7 +106,7 @@ abstract class BaseRepository
     }
 
     /**
-     * Cursor pagination â€” better for large tables (per sql-optimization skill).
+     * Cursor pagination — better for large tables (per sql-optimization skill).
      * @return array{items: array, next_cursor: string|null}
      */
     public function cursorPaginate(int $perPage = 20, ?string $afterId = null, string $where = '1=1', array $params = []): array
@@ -124,7 +133,7 @@ abstract class BaseRepository
         ];
     }
 
-    // â”€â”€â”€ Write â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Write —————————————————————————————————————————————————
 
     public function create(array $data): string
     {
@@ -166,7 +175,7 @@ abstract class BaseRepository
         );
     }
 
-    // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Helpers ———————————————————————————————————————————————
 
     public function getDatabase(): Database
     {
@@ -213,5 +222,17 @@ abstract class BaseRepository
             $safe[] = "{$col} {$dir}";
         }
         return implode(', ', $safe) ?: 'id DESC';
+    }
+
+    /**
+     * Insert a new record (alias for create).
+     * Used by WebhookInboundProcessor.
+     *
+     * @param array<string, mixed> $data
+     * @return string Last insert ID
+     */
+    public function insert(array $data): string
+    {
+        return $this->create($data);
     }
 }

@@ -52,11 +52,14 @@ final class InvoiceRepository extends BaseRepository
 
     /**
      * Find pending transaction for invoice.
+     * C-02 FIX: op_transactions has no invoice_id column — ID stored in metadata JSON.
      */
     public function findPendingTransaction(int $invoiceId): ?array
     {
         return $this->db->fetchOne(
-            "SELECT trx_id FROM op_transactions WHERE invoice_id = :iid AND status = 'pending'",
+            "SELECT trx_id FROM op_transactions
+             WHERE JSON_EXTRACT(metadata, '$.invoice_id') = :iid AND status = 'pending'
+             LIMIT 1",
             ['iid' => $invoiceId]
         );
     }

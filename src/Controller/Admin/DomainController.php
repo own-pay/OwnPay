@@ -41,7 +41,7 @@ final class DomainController
         return $this->renderAdminPage('admin/domains/index.twig', [
             'domains'     => $list,
             'active_page' => 'domains',
-            'server_ip'   => gethostbyname($_SERVER['HTTP_HOST'] ?? '127.0.0.1'),
+            'server_ip'   => gethostbyname($req->header('Host') ?: '127.0.0.1'),
         ]);
     }
 

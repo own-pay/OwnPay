@@ -24,10 +24,10 @@ final class RequestHelper
         return null;
     }
 
-    public static function getUserDeviceInfo(): array
+    public static function getUserDeviceInfo(?\OwnPay\Http\Request $request = null): array
     {
-        $userAgent = $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-        $ipAddress = $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+        $userAgent = $request?->header('User-Agent') ?? $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+        $ipAddress = $request?->ip() ?? $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
 
         $deviceType = match (true) {
             (bool) preg_match('/mobile/i', $userAgent) => 'Mobile',

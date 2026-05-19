@@ -7,7 +7,7 @@ use OwnPay\Repository\GatewayConfigRepository;
 use OwnPay\Repository\ManualGatewayRepository;
 
 /**
- * Gateway renderer service Ã¢â‚¬â€ provides gateway data for checkout UI rendering.
+ * Gateway renderer service Ã¢€— provides gateway data for checkout UI rendering.
  *
  * Per PCI-DSS: never expose raw credentials to frontend.
  */

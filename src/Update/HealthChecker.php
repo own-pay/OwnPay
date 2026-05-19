@@ -4,10 +4,17 @@ declare(strict_types=1);
 namespace OwnPay\Update;
 
 /**
- * Health checker â€” post-update verification.
+ * Health checker — post-update verification.
  */
 final class HealthChecker
 {
+    private \OwnPay\Core\Database $db;
+
+    public function __construct(?\OwnPay\Core\Database $db = null)
+    {
+        $this->db = $db ?? \OwnPay\Core\Database::getInstance();
+    }
+
     /**
      * Run health checks after update.
      *
@@ -51,8 +58,7 @@ final class HealthChecker
     private function checkDatabase(): array
     {
         try {
-            $db = \OwnPay\Core\Database::getInstance();
-            $row = $db->fetchOne("SELECT 1 as ok");
+            $row = $this->db->fetchOne("SELECT 1 as ok");
             return ['ok' => ($row['ok'] ?? 0) == 1, 'error' => null];
         } catch (\Throwable $e) {
             return ['ok' => false, 'error' => $e->getMessage()];
@@ -63,7 +69,7 @@ final class HealthChecker
     {
         $root = dirname(__DIR__, 2);
         $required = [
-            'src/Bootstrap.php',
+            'src/Kernel.php',
             'config/hooks.php',
             'public/index.php',
         ];

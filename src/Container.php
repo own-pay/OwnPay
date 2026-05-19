@@ -28,7 +28,7 @@ final class Container
     /** @var array<string, bool> Whether a binding should be treated as singleton */
     private array $singletons = [];
 
-    /** @var array<string, string> Alias â†’ concrete mapping */
+    /** @var array<string, string> Alias ─ concrete mapping */
     private array $aliases = [];
 
     /** @var array<string, mixed> Raw parameter values */
@@ -37,7 +37,7 @@ final class Container
     /** @var array<string, bool> Guard against circular dependencies */
     private array $resolving = [];
 
-    // â”€â”€â”€ Binding â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Binding ———————————————————————————————————————————————
 
     /**
      * Register a factory closure. Transient by default.
@@ -101,7 +101,7 @@ final class Container
         $this->parameters[$key] = $value;
     }
 
-    // â”€â”€â”€ Resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Resolution ————————————————————————————————————————————
 
     /**
      * Resolve a service from the container. PSR-11 `get()`.
@@ -212,7 +212,7 @@ final class Container
         return $abstract;
     }
 
-    // â”€â”€â”€ Autowiring â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Autowiring ————————————————————————————————————————————
 
     private function autowire(string $class): mixed
     {
@@ -250,7 +250,7 @@ final class Container
         return $reflector->newInstanceArgs($dependencies);
     }
 
-    // â”€â”€â”€ Introspection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Introspection —————————————————————————————————————————
 
     /**
      * Get all registered binding keys (excluding aliases).

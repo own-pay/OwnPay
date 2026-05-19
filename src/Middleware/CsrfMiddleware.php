@@ -8,13 +8,14 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * CSRF middleware â€” validates token on state-changing requests.
+ * CSRF middleware — validates token on state-changing requests.
  *
  * Per OWASP: synchronizer token pattern.
  * Skips GET/HEAD/OPTIONS. API routes use bearer auth instead.
  */
 final class CsrfMiddleware
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $container;
 
     public function __construct(Container $container)
@@ -24,7 +25,7 @@ final class CsrfMiddleware
 
     public function handle(Request $request, callable $next): Response
     {
-        // Safe methods â€” no CSRF check needed
+        // Safe methods — no CSRF check needed
         if (in_array($request->method(), ['GET', 'HEAD', 'OPTIONS'], true)) {
             return $next($request);
         }
@@ -47,9 +48,34 @@ final class CsrfMiddleware
         $submittedToken = $request->post('_csrf_token')
             ?? $request->header('X-CSRF-Token');
 
-        if ($sessionToken === '' || $submittedToken === '' || !hash_equals($sessionToken, $submittedToken)) {
+        if ($sessionToken === '' || $submittedToken === '') {
+            return $this->forbidden($request, 'CSRF token missing');
+        }
+
+        // AUD-09 FIX: Support token pool for multi-tab usage.
+        // Check current token + recent pool of old tokens.
+        $tokenPool = $_SESSION['_csrf_token_pool'] ?? [];
+        $valid = hash_equals($sessionToken, $submittedToken);
+        if (!$valid) {
+            foreach ($tokenPool as $oldToken) {
+                if (hash_equals($oldToken, $submittedToken)) {
+                    $valid = true;
+                    break;
+                }
+            }
+        }
+
+        if (!$valid) {
             return $this->forbidden($request, 'CSRF token mismatch');
         }
+
+        // Rotate token — keep pool of last 5 tokens for multi-tab
+        $tokenPool[] = $sessionToken;
+        $_SESSION['_csrf_token_pool'] = array_slice($tokenPool, -5);
+        $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
+
+        // Stash new token on request so JSON responses can include it for AJAX callers.
+        $request->setAttribute('_new_csrf_token', $_SESSION['_csrf_token']);
 
         return $next($request);
     }

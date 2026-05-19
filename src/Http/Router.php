@@ -10,7 +10,7 @@ use RuntimeException;
 /**
  * HTTP router with named parameters, middleware groups, and plugin route injection.
  *
- * Route format: METHOD /path/{param} â†’ Controller@method
+ * Route format: METHOD /path/{param} ─ Controller@method
  * Supports: GET, POST, PUT, DELETE, PATCH
  * Fires 'system.routes.register' hook to allow plugins to register routes.
  */
@@ -37,7 +37,7 @@ final class Router
         $this->container = $container;
     }
 
-    // â”€â”€â”€ Route Registration â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Route Registration ————————————————————————————————————
 
     public function get(string $pattern, string $handler, string $middleware = 'web'): void
     {
@@ -83,7 +83,7 @@ final class Router
         // Convert {param} to regex capture groups
         $regex = preg_replace_callback('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', static function (array $m) use (&$paramNames): string {
             $paramNames[] = $m[1];
-            return '([a-zA-Z0-9_\-]+)';
+            return '([a-zA-Z0-9_\-\.@\+]+)';
         }, $pattern);
 
         $regex = '#^' . $regex . '$#';
@@ -97,7 +97,7 @@ final class Router
         ];
     }
 
-    // â”€â”€â”€ Route Loading â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Route Loading —————————————————————————————————————————
 
     /**
      * Load route files and fire plugin hook.
@@ -138,7 +138,7 @@ final class Router
         $this->loaded = true;
     }
 
-    // â”€â”€â”€ Dispatching â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Dispatching ———————————————————————————————————————————
 
     /**
      * Match and dispatch a request.
@@ -180,7 +180,7 @@ final class Router
     }
 
     /**
-     * Dispatch a matched route â€” instantiate controller and call method.
+     * Dispatch a matched route — instantiate controller and call method.
      *
      * @param string $handler Format: 'Namespace\\Controller@method'
      * @param Request $request
@@ -225,7 +225,7 @@ final class Router
         throw new RuntimeException("Controller [{$fqcn}@{$methodName}] must return Response, array, or string.");
     }
 
-    // â”€â”€â”€ Introspection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Introspection —————————————————————————————————————————
 
     /**
      * Get all registered routes (for debugging / documentation).

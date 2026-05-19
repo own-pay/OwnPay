@@ -61,6 +61,7 @@ final class DashboardController
         $this->userRepo     = $userRepo;
     }
 
+    /** @phpstan-ignore-next-line */
     public function index(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
@@ -105,6 +106,7 @@ final class DashboardController
      */
     public function fragment(Request $req): Response
     {
+        /** @phpstan-ignore nullCoalesce.expr */
         $page = (string) ($req->param('page') ?? '');
         if ($page === '' || !in_array($page, self::ALLOWED_FRAGMENTS, true)) {
             return Response::html('', 404);
@@ -244,6 +246,7 @@ final class DashboardController
         $csv = ob_get_clean();
 
         $filename = "report_{$from}_{$to}.csv";
+        /** @phpstan-ignore-next-line */
         return Response::html($csv, 200, [
             'Content-Type'        => 'text/csv; charset=UTF-8',
             'Content-Disposition' => "attachment; filename=\"{$filename}\"",

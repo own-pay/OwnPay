@@ -64,19 +64,19 @@ final class PaymentLinkController
         return Response::redirect('/admin/payment-links');
     }
 
-    /** POST /admin/payment-links/store â€” alias for POST branch of create() */
+    /** POST /admin/payment-links/store — alias for POST branch of create() */
     public function store(Request $req): Response
     {
         return $this->create($req);
     }
 
-    /** GET /admin/payment-links/{id} â€” show edit form for existing payment link */
+    /** GET /admin/payment-links/{id} — show edit form for existing payment link */
     public function show(Request $req): Response
     {
         return $this->edit($req);
     }
 
-    /** POST /admin/payment-links/{id}/update â€” process edit form */
+    /** POST /admin/payment-links/{id}/update — process edit form */
     public function update(Request $req): Response
     {
         return $this->edit($req);

@@ -10,12 +10,13 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 /**
- * JWT auth middleware â€” authenticates mobile/companion app requests.
+ * JWT auth middleware — authenticates mobile/companion app requests.
  *
  * Per security skill: validate exp, iss, aud, device fingerprint.
  */
 final class JwtAuthMiddleware
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $container;
 
     public function __construct(Container $container)
@@ -34,7 +35,8 @@ final class JwtAuthMiddleware
             ], 401);
         }
 
-        $secret = getenv('JWT_SECRET') ?: '';
+        // AUD-04 FIX: Use $_ENV fallback chain (phpdotenv may not populate getenv)
+        $secret = $_ENV['JWT_SECRET'] ?? $_SERVER['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: '';
         if ($secret === '') {
             return Response::json([
                 'success' => false,
@@ -50,6 +52,24 @@ final class JwtAuthMiddleware
                 return Response::json([
                     'success' => false,
                     'message' => 'Invalid JWT claims',
+                ], 401);
+            }
+
+            // H-04 FIX: Validate issuer and audience claims.
+            // Prevents cross-system token reuse if JWT_SECRET is shared.
+            $expectedIss = getenv('APP_NAME') ?: 'OwnPay';
+            $expectedAud = 'ownpay-mobile';
+
+            if (isset($payload->iss) && $payload->iss !== $expectedIss) {
+                return Response::json([
+                    'success' => false,
+                    'message' => 'Invalid JWT issuer',
+                ], 401);
+            }
+            if (isset($payload->aud) && $payload->aud !== $expectedAud) {
+                return Response::json([
+                    'success' => false,
+                    'message' => 'Invalid JWT audience',
                 ], 401);
             }
 

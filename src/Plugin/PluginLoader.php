@@ -7,7 +7,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * Plugin loader â€” discovers, validates, and loads active plugins.
+ * Plugin loader - discovers, validates, and loads active plugins.
  *
  * Scan order: modules/gateways/, modules/themes/, modules/addons/
  * Each plugin dir must contain manifest.json + entrypoint class.
@@ -74,6 +74,15 @@ final class PluginLoader
     }
 
     /**
+     * Boot all active plugins (alias for loadActive).
+     * Called by Kernel during boot sequence.
+     */
+    public function boot(): void
+    {
+        $this->loadActive();
+    }
+
+    /**
      * Load and register all active plugins.
      * Called during Kernel boot.
      */
@@ -93,7 +102,7 @@ final class PluginLoader
             }
         }
 
-        // Boot phase â€” all plugins registered, now boot
+        // Boot phase — all plugins registered, now boot
         foreach ($this->registry->getLoaded() as $slug => $instance) {
             try {
                 $instance->boot($this->container);
@@ -103,11 +112,24 @@ final class PluginLoader
             }
         }
 
+        // Auto-register gateway adapters with GatewayBridge.
+        // Gateway plugins implement GatewayAdapterInterface but their boot() methods
+        // are empty — they never call registerAdapter() themselves. This ensures every
+        // loaded gateway plugin is automatically wired into the payment pipeline.
+        if ($this->container->has(\OwnPay\Gateway\GatewayBridge::class)) {
+            $bridge = $this->container->get(\OwnPay\Gateway\GatewayBridge::class);
+            foreach ($this->registry->getLoaded() as $slug => $instance) {
+                if ($instance instanceof \OwnPay\Gateway\GatewayAdapterInterface) {
+                    $bridge->registerAdapter($instance);
+                }
+            }
+        }
+
         $this->events->doAction('plugins.after_load');
     }
 
     /**
-     * Load single plugin: validate â†’ require â†’ instantiate â†’ register.
+     * Load single plugin: validate ─ require ─ instantiate ─ register.
      */
     private function loadPlugin(array $pluginData): void
     {
@@ -133,6 +155,25 @@ final class PluginLoader
         $entrypointFile = $manifest->path . '/' . $manifest->entrypoint;
         if (!file_exists($entrypointFile)) {
             throw new \RuntimeException("Entrypoint not found: {$entrypointFile}");
+        }
+
+        // Scan entrypoint for dangerous functions before loading.
+        // Uses word-boundary regex to avoid false positives (e.g. curl_exec vs exec).
+        $dangerousPatterns = [
+            '/\beval\s*\(/i',
+            '/(?<![a-z_])exec\s*\(/i',
+            '/(?<![a-z_])system\s*\(/i',
+            '/\bshell_exec\s*\(/i',
+            '/\bpassthru\s*\(/i',
+            '/\bproc_open\s*\(/i',
+            '/(?<![a-z_])popen\s*\(/i',
+            '/\bpcntl_exec\s*\(/i',
+        ];
+        $entrypointContent = (string) file_get_contents($entrypointFile);
+        foreach ($dangerousPatterns as $pattern) {
+            if (preg_match($pattern, $entrypointContent)) {
+                throw new \RuntimeException("Plugin {$slug} blocked: contains dangerous function call matching '{$pattern}'");
+            }
         }
 
         require_once $entrypointFile;

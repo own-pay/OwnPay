@@ -18,6 +18,7 @@ use OwnPay\Support\DateHelper;
 final class DevicePairingService
 {
     private PairedDeviceRepository $devices;
+    /** @phpstan-ignore property.onlyWritten */
     private FieldEncryptor $encryptor;
     private JwtService $jwt;
     private EventManager $events;
@@ -37,7 +38,7 @@ final class DevicePairingService
     /**
      * Pair a new device.
      *
-     * @return array{device_uuid: string, access_token: string, refresh_token: string, aes_key: string}
+     * @return array{device_uuid: string, access_token: string, refresh_token: string}
      */
     public function pair(int $userId, int $merchantId, string $deviceName, string $pushToken = ''): array
     {

@@ -6,13 +6,19 @@ namespace OwnPay\Core;
 
 final class RouteHelper
 {
-    public static function siteUrl(string $type = "Full"): string
+    public static function siteUrl(string $type = "Full", ?\OwnPay\Http\Request $request = null): string
     {
-        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'
-            || ($_SERVER['SERVER_PORT'] ?? 0) == 443) ? "https://" : "http://";
-
-        $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-        $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+        if ($request !== null) {
+            $isHttps = $request->header('X-Forwarded-Proto') === 'https' || $request->isSecure();
+            $protocol = $isHttps ? 'https://' : 'http://';
+            $host = $request->header('Host') ?: 'localhost';
+            $requestUri = $request->uri();
+        } else {
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'
+                || ($_SERVER['SERVER_PORT'] ?? 0) == 443) ? "https://" : "http://";
+            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+        }
 
         $hostParts = explode('.', $host);
         $numParts = count($hostParts);

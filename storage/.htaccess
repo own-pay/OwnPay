@@ -1,0 +1,13 @@
+# Deny all direct HTTP access to storage directory.
+# This directory contains logs, sessions, cache, backups, and temp files.
+# None of these should be accessible via web browser.
+# Per OWASP: sensitive files must never be served by the web server.
+
+<IfModule mod_authz_core.c>
+    Require all denied
+</IfModule>
+
+<IfModule !mod_authz_core.c>
+    Order deny,allow
+    Deny from all
+</IfModule>

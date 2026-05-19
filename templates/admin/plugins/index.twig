@@ -62,6 +62,9 @@
                 {% elseif plugin.status == 'inactive' %}
                 <span class="op-plugin-status-indicator op-status-inactive"></span>
                 <span class="op-text-sm op-text-muted">Inactive</span>
+                {% elseif plugin.status == 'error' %}
+                <span class="op-plugin-status-indicator op-status-error"></span>
+                <span class="op-text-sm" style="color:var(--op-danger)">Error</span>
                 {% else %}
                 <span class="op-plugin-status-indicator op-status-uninstalled"></span>
                 <span class="op-text-sm op-text-muted">Not Installed</span>
@@ -78,10 +81,10 @@
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="6" y="4" width="4" height="16"/><rect x="14" y="4" width="4" height="16"/></svg>
                     </button>
                 </form>
-                {% elseif plugin.status == 'inactive' %}
+                {% elseif plugin.status == 'inactive' or plugin.status == 'error' %}
                 <form method="POST" action="/admin/plugins/{{ plugin.slug }}/activate" class="op-inline-form">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                    <button type="submit" class="op-btn op-btn-xs op-btn-success">Activate</button>
+                    <button type="submit" class="op-btn op-btn-xs op-btn-success">{{ plugin.status == 'error' ? 'Retry' : 'Activate' }}</button>
                 </form>
                 <form method="POST" action="/admin/plugins/{{ plugin.slug }}/uninstall" class="op-inline-form" onsubmit="return confirm('Permanently remove {{ plugin.name }}?')">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

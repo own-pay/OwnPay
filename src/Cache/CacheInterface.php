@@ -43,7 +43,7 @@ interface CacheInterface
     public function flush(): void;
 
     /**
-     * Get or set â€” if key exists return cached, otherwise call $callback, cache, and return.
+     * Get or set — if key exists return cached, otherwise call $callback, cache, and return.
      *
      * @param string   $key
      * @param callable $callback fn(): mixed

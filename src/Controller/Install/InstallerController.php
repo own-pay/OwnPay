@@ -29,6 +29,13 @@ final class InstallerController
             return Response::html($this->renderTwig('install/locked.twig', []));
         }
         $step = max(1, min(4, (int) $req->query('step', '1')));
+
+        // Prevent skipping steps — must complete prerequisites
+        $tempEnv = $this->rootDir . '/storage/.env.temp';
+        if ($step >= 3 && !file_exists($tempEnv)) {
+            return Response::redirect('/install?step=2');
+        }
+
         $data = match ($step) {
             1       => ['requirements' => $this->checkRequirements()],
             default => [],
@@ -37,7 +44,7 @@ final class InstallerController
         return Response::html($this->renderTwig("install/step{$step}.twig", $data));
     }
 
-    /** K3: Test DB + import schema */
+    //Test DB + import schema
     public function testDatabase(Request $req): Response
     {
         if ($this->isInstalled()) return Response::json(['success' => false, 'error' => 'Already installed'], 403);
@@ -50,6 +57,9 @@ final class InstallerController
         $prefix = trim($body['prefix'] ?? 'op_');
 
         if (!$name || !$user) return Response::json(['success' => false, 'error' => 'DB name and user required'], 422);
+        // Strict validation for DB name — prevents SQL injection in CREATE DATABASE / USE.
+        // Only alphanumeric + underscore allowed, max 64 chars (MySQL limit).
+        if (!preg_match('/^[a-zA-Z0-9_]{1,64}$/', $name)) return Response::json(['success' => false, 'error' => 'Invalid database name — alphanumeric and underscores only'], 422);
         if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
 
         try {
@@ -79,18 +89,29 @@ final class InstallerController
             }
             $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
 
-            // Save temp env for next steps
+            // Write temp env to storage/ (not webroot) to prevent credential exposure.
             $env = "DB_HOST={$host}\nDB_PORT={$port}\nDB_NAME={$name}\nDB_USER={$user}\nDB_PASS={$pass}\nDB_PREFIX={$prefix}\n";
-            file_put_contents($this->rootDir . '/.env.temp', $env, LOCK_EX);
-            @chmod($this->rootDir . '/.env.temp', 0640);
+            file_put_contents($this->rootDir . '/storage/.env.temp', $env, LOCK_EX);
+            @chmod($this->rootDir . '/storage/.env.temp', 0640);
 
             return Response::json(['success' => true, 'message' => 'Schema imported successfully']);
         } catch (\Throwable $e) {
-            return Response::json(['success' => false, 'error' => $e->getMessage()], 500);
+            $msg = $e->getMessage();
+            // Sanitize — never expose raw SQL state, hostnames, or credentials
+            if (str_contains($msg, 'Access denied')) {
+                $error = 'Access denied. Check your database username and password.';
+            } elseif (str_contains($msg, 'Connection refused') || str_contains($msg, 'No such file')) {
+                $error = 'Could not connect to database server. Check host and port.';
+            } elseif (str_contains($msg, 'Unknown database')) {
+                $error = 'Database will be created automatically. Check user has CREATE privilege.';
+            } else {
+                $error = 'Database connection failed. Verify your credentials and try again.';
+            }
+            return Response::json(['success' => false, 'error' => $error], 500);
         }
     }
 
-    /** K4+K8: Create admin account */
+    // Create admin account
     public function createAdmin(Request $req): Response
     {
         if ($this->isInstalled()) return Response::json(['success' => false, 'error' => 'Already installed'], 403);
@@ -104,7 +125,7 @@ final class InstallerController
         if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return Response::json(['success' => false, 'error' => 'Invalid email'], 422);
         if (strlen($password) < 8) return Response::json(['success' => false, 'error' => 'Password min 8 chars'], 422);
 
-        $envFile = $this->rootDir . '/.env.temp';
+        $envFile = $this->rootDir . '/storage/.env.temp';
         if (!file_exists($envFile)) return Response::json(['success' => false, 'error' => 'Complete DB step first'], 400);
 
         try {
@@ -117,10 +138,11 @@ final class InstallerController
             $p   = $env['DB_PREFIX'];
             $now = DateHelper::now();
 
+            // Use CSPRNG random_int() instead of weak mt_rand() for UUID.
             $merchantUuid = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
-                mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff),
-                mt_rand(0, 0x0fff) | 0x4000, mt_rand(0, 0x3fff) | 0x8000,
-                mt_rand(0, 0xffff), mt_rand(0, 0xffff), mt_rand(0, 0xffff)
+                random_int(0, 0xffff), random_int(0, 0xffff), random_int(0, 0xffff),
+                random_int(0, 0x0fff) | 0x4000, random_int(0, 0x3fff) | 0x8000,
+                random_int(0, 0xffff), random_int(0, 0xffff), random_int(0, 0xffff)
             );
             $hash = password_hash($password, PASSWORD_ARGON2ID);
 
@@ -159,11 +181,19 @@ final class InstallerController
 
             return Response::json(['success' => true]);
         } catch (\Throwable $e) {
-            return Response::json(['success' => false, 'error' => $e->getMessage()], 500);
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'Duplicate entry')) {
+                $error = 'An admin with that email already exists. Use a different email.';
+            } elseif (str_contains($msg, 'Access denied')) {
+                $error = 'Database access denied. Please go back to Step 2.';
+            } else {
+                $error = 'Failed to create admin account. Please try again.';
+            }
+            return Response::json(['success' => false, 'error' => $error], 500);
         }
     }
 
-    /** Finalize — generate APP_KEY, write .env, seed settings, write .installed marker */
+    // Finalize — generate APP_KEY, write .env, seed settings, write .installed marker 
     public function finalize(Request $req): Response
     {
         if ($this->isInstalled()) return Response::json(['success' => false, 'error' => 'Already installed'], 403);
@@ -172,15 +202,17 @@ final class InstallerController
         $currency = trim($body['currency']  ?? 'BDT');
         $timezone = trim($body['timezone']  ?? 'Asia/Dhaka');
 
-        $tempEnv  = $this->rootDir . '/.env.temp';
+        $tempEnv  = $this->rootDir . '/storage/.env.temp';
         $finalEnv = $this->rootDir . '/.env';
 
         if (!file_exists($tempEnv)) return Response::json(['success' => false, 'error' => 'Complete previous steps'], 400);
 
         try {
-            // Generate cryptographically-secure APP_KEY — used as ENCRYPTION_KEY for AES-256-GCM PII
-            $appKey    = base64_encode(random_bytes(32));
-            $jwtSecret = bin2hex(random_bytes(32)); // JWT signing key for mobile companion app
+            // Generate independent keys — PCI-DSS 3.6 requires separate keys per purpose.
+            $appKey        = base64_encode(random_bytes(32)); // Session/framework key
+            $encryptionKey = base64_encode(random_bytes(32)); // AES-256-GCM for PII
+            $hmacKey       = bin2hex(random_bytes(32));        // HMAC signing key
+            $jwtSecret     = bin2hex(random_bytes(32));        // JWT signing key for mobile
 
             $envContent  = file_get_contents($tempEnv);
             $envContent .= "APP_NAME=\"{$appName}\"\n";
@@ -189,7 +221,8 @@ final class InstallerController
             $envContent .= "APP_ENV=production\n";
             $envContent .= "APP_DEBUG=false\n";
             $envContent .= "APP_KEY={$appKey}\n";
-            $envContent .= "ENCRYPTION_KEY={$appKey}\n";
+            $envContent .= "ENCRYPTION_KEY={$encryptionKey}\n";
+            $envContent .= "HMAC_KEY={$hmacKey}\n";
             $envContent .= "JWT_SECRET={$jwtSecret}\n";
             $envContent .= "CACHE_DRIVER=file\n";
             $envContent .= "QUEUE_DRIVER=file\n";
@@ -197,17 +230,21 @@ final class InstallerController
             file_put_contents($finalEnv, $envContent, LOCK_EX);
             @chmod($finalEnv, 0640);
 
-            // Connect and seed system settings
-            $env = parse_ini_file($finalEnv);
+            // Connect using the temp env we already have in memory
+            // NOTE: parse_ini_file() cannot parse base64 values containing '='
+            $dbEnv = parse_ini_file($tempEnv);
+            if ($dbEnv === false) {
+                return Response::json(['success' => false, 'error' => 'Database config corrupted. Please go back to Step 2.'], 500);
+            }
             $pdo = new \PDO(
-                "mysql:host={$env['DB_HOST']};port={$env['DB_PORT']};dbname={$env['DB_NAME']};charset=utf8mb4",
-                $env['DB_USER'], $env['DB_PASS']
+                "mysql:host={$dbEnv['DB_HOST']};port={$dbEnv['DB_PORT']};dbname={$dbEnv['DB_NAME']};charset=utf8mb4",
+                $dbEnv['DB_USER'], $dbEnv['DB_PASS']
             );
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-            $p = $env['DB_PREFIX'];
+            $p = $dbEnv['DB_PREFIX'];
 
             $seeds = [
-                ['general',  'app_name',       $appName,                  'string'],
+                ['general',  'app_name',        $appName,                  'string'],
                 ['general',  'timezone',        $timezone,                 'string'],
                 ['general',  'currency',        $currency,                 'string'],
                 ['general',  'active_theme',    'own-pay',                 'string'],
@@ -215,8 +252,8 @@ final class InstallerController
                 ['branding', 'site_name',       $appName,                  'string'],
                 ['branding', 'site_logo',       '',                        'string'],
                 ['branding', 'site_favicon',    '',                        'string'],
-                ['branding', 'primary_color',   '#6366f1',                 'string'],
-                ['branding', 'footer_text',     "\u00a9 2025 {$appName}", 'string'],
+                ['branding', 'primary_color',   '#6366f1',               'string'],
+                ['branding', 'footer_text',     "\u00a9 2025 {$appName}",  'string'],
                 ['mail',     'driver',          'smtp',                    'string'],
                 ['mail',     'from_address',    '',                        'string'],
                 ['mail',     'from_name',       $appName,                  'string'],
@@ -234,11 +271,17 @@ final class InstallerController
 
             return Response::json(['success' => true, 'message' => 'Installation complete']);
         } catch (\Throwable $e) {
-            return Response::json(['success' => false, 'error' => $e->getMessage()], 500);
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'Access denied')) {
+                $error = 'Database access denied. Please go back to Step 2 and reconfigure.';
+            } else {
+                $error = 'Installation failed. Please check your database settings and try again.';
+            }
+            return Response::json(['success' => false, 'error' => $error], 500);
         }
     }
 
-    /** K2: Requirements check */
+    // Requirements check
     private function checkRequirements(): array
     {
         return [
@@ -265,7 +308,7 @@ final class InstallerController
     {
         $file = $this->rootDir . '/templates/' . $template;
         if (!file_exists($file)) return '<h1>Template not found: ' . htmlspecialchars($template) . '</h1>';
-        extract($data);
+        extract($data, EXTR_SKIP); // prevent template data overwriting local vars
         ob_start();
         include $file;
         return ob_get_clean() ?: '';

@@ -7,7 +7,7 @@ namespace OwnPay\Http;
  * Immutable HTTP request wrapper.
  *
  * Encapsulates $_GET, $_POST, $_SERVER, $_FILES, $_COOKIE.
- * Controllers MUST use this â€” no direct superglobal access.
+ * Controllers MUST use this — no direct superglobal access.
  */
 final class Request
 {
@@ -27,6 +27,9 @@ final class Request
 
     /** @var array<string, mixed> Extra attributes set by middleware */
     private array $attributes = [];
+
+    /** @var ?array<string, mixed> Cached decoded JSON body */
+    private ?array $jsonCache = null;
 
     public function __construct(
         array $query = [],
@@ -64,7 +67,7 @@ final class Request
         );
     }
 
-    // â”€â”€â”€ Getters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Getters ———————————————————————————————————————————————
 
     public function method(): string
     {
@@ -103,20 +106,13 @@ final class Request
             || str_starts_with($this->path, '/api/');
     }
 
-    // â”€â”€â”€ Input Access â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Input Access ——————————————————————————————————————————
 
     public function query(string $key, mixed $default = null): mixed
     {
         return $this->query[$key] ?? $default;
     }
 
-    /**
-     * Alias for query() â€” backward compat for controllers using $req->get().
-     */
-    public function get(string $key, mixed $default = null): mixed
-    {
-        return $this->query[$key] ?? $default;
-    }
 
     public function post(string $key = null, mixed $default = null): mixed
     {
@@ -126,19 +122,45 @@ final class Request
         return $this->post[$key] ?? $default;
     }
 
+    /**
+     * Decode JSON request body (cached after first call).
+     * Returns the full decoded array, or a single key if $key is provided.
+     */
+    public function json(string $key = null, mixed $default = null): mixed
+    {
+        if ($this->jsonCache === null) {
+            if ($this->rawBody !== null && $this->rawBody !== '') {
+                $parsed = json_decode($this->rawBody, true);
+                $this->jsonCache = is_array($parsed) ? $parsed : [];
+            } else {
+                $this->jsonCache = [];
+            }
+        }
+        if ($key === null) {
+            return $this->jsonCache;
+        }
+        return $this->jsonCache[$key] ?? $default;
+    }
+
+    /**
+     * Unified input — checks POST body, then JSON body, then query string.
+     * Use this when a route may receive either form-encoded or JSON data.
+     */
     public function input(string $key, mixed $default = null): mixed
     {
-        return $this->post[$key] ?? $this->query[$key] ?? $default;
+        return $this->post[$key] ?? $this->json($key) ?? $this->query[$key] ?? $default;
     }
 
     public function all(): array
     {
-        return array_merge($this->query, $this->post);
+        return array_merge($this->query, $this->json() ?: [], $this->post);
     }
 
     public function has(string $key): bool
     {
-        return array_key_exists($key, $this->post) || array_key_exists($key, $this->query);
+        return array_key_exists($key, $this->post)
+            || array_key_exists($key, $this->json() ?: [])
+            || array_key_exists($key, $this->query);
     }
 
     /**
@@ -151,24 +173,15 @@ final class Request
         return array_intersect_key($all, array_flip($keys));
     }
 
-    /**
-     * @return array<string, mixed>
-     */
-    public function json(): array
-    {
-        if ($this->rawBody === null || $this->rawBody === '') {
-            return [];
-        }
-        $data = json_decode($this->rawBody, true);
-        return is_array($data) ? $data : [];
-    }
+
+
 
     public function rawBody(): ?string
     {
         return $this->rawBody;
     }
 
-    // â”€â”€â”€ Files â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Files —————————————————————————————————————————————————
 
     public function file(string $key): ?array
     {
@@ -181,7 +194,7 @@ final class Request
             && ($this->files[$key]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
     }
 
-    // â”€â”€â”€ Headers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Headers ———————————————————————————————————————————————
 
     public function header(string $key, string $default = ''): string
     {
@@ -198,7 +211,7 @@ final class Request
         return null;
     }
 
-    // â”€â”€â”€ Server â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Server ————————————————————————————————————————————————
 
     public function server(string $key, string $default = ''): string
     {
@@ -231,14 +244,14 @@ final class Request
         return $this->scheme() === 'https';
     }
 
-    // â”€â”€â”€ Cookies â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Cookies ———————————————————————————————————————————————
 
     public function cookie(string $key, string $default = ''): string
     {
         return $this->cookies[$key] ?? $default;
     }
 
-    // â”€â”€â”€ Route Parameters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ——— Route Parameters ——————————————————————————————————————
 
     /**
      * @param array<string, string> $params
@@ -261,7 +274,7 @@ final class Request
         return $this->routeParams;
     }
 
-    // â”€â”€â”€ Attributes (middleware-injected) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
 
     public function setAttribute(string $key, mixed $value): void
     {
@@ -273,7 +286,17 @@ final class Request
         return $this->attributes[$key] ?? $default;
     }
 
-    // â”€â”€â”€ Private â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    /**
+     * Get all parsed request headers.
+     *
+     * @return array<string, string>
+     */
+    public function allHeaders(): array
+    {
+        return $this->headers;
+    }
+
+
 
     /**
      * @return array<string, string>
@@ -293,6 +316,25 @@ final class Request
         if (isset($server['CONTENT_LENGTH'])) {
             $headers['content-length'] = (string) $server['CONTENT_LENGTH'];
         }
+
+        // Apache mod_fcgid strips or doubles the Authorization header.
+        // REDIRECT_HTTP_AUTHORIZATION (from .htaccess E= flag) is always clean.
+        // apache_request_headers() returns the original untouched header.
+        // ALWAYS prefer these over HTTP_AUTHORIZATION which may be doubled.
+        if (!empty($server['REDIRECT_HTTP_AUTHORIZATION'])) {
+            $headers['authorization'] = (string) $server['REDIRECT_HTTP_AUTHORIZATION'];
+        } elseif (function_exists('apache_request_headers')) {
+            $apacheHeaders = apache_request_headers();
+            if (is_array($apacheHeaders)) {
+                foreach ($apacheHeaders as $k => $v) {
+                    if (strtolower($k) === 'authorization') {
+                        $headers['authorization'] = (string) $v;
+                        break;
+                    }
+                }
+            }
+        }
+
         return $headers;
     }
 }

@@ -64,10 +64,10 @@ final class FormattingHelper
         return strtoupper(substr($parts[0], 0, $length));
     }
 
-    public static function resolveModuleLanguage(string $brandLanguage, array $supportedLanguages): string
+    public static function resolveModuleLanguage(string $brandLanguage, array $supportedLanguages, ?string $uiLanguage = null): string
     {
-        if (!empty($_SESSION['ui_language']) && isset($supportedLanguages[$_SESSION['ui_language']])) {
-            return $_SESSION['ui_language'];
+        if ($uiLanguage !== null && isset($supportedLanguages[$uiLanguage])) {
+            return $uiLanguage;
         }
 
         if (isset($supportedLanguages[$brandLanguage])) {

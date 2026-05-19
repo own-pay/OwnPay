@@ -85,6 +85,7 @@ final class DeviceController
                 'success'    => true,
                 'otp'        => $result['otp'],
                 'expires_in' => $result['expires_in'] ?? 300,
+                'csrf_token' => $_SESSION['_csrf_token'] ?? '',
             ]);
         } catch (\Throwable $e) {
             return Response::json(['success' => false, 'error' => $e->getMessage()]);

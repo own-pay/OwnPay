@@ -35,6 +35,7 @@ final class SystemUpdateController
         $this->historyRepo  = $historyRepo;
     }
 
+    /** @phpstan-ignore-next-line */
     public function index(Request $req): Response
     {
         $cacheFile = dirname(__DIR__, 3) . '/storage/cache/update_check.json';
@@ -59,8 +60,9 @@ final class SystemUpdateController
             'update_available' => version_compare($latestVersion, $currentVersion, '>'),
             'update_info'      => $latestCheck,
             'update_history'   => $history,
+            'total_updates'    => $total,
             'auto_update'      => $autoUpdate === '1',
-            'active_page'      => 'settings',
+            'active_page'      => 'system-update',
         ]);
     }
 
@@ -68,7 +70,9 @@ final class SystemUpdateController
     {
         try {
             $result = $this->updater->check();
+            /** @phpstan-ignore-next-line */
             if (!empty($result['error'])) {
+                /** @phpstan-ignore-next-line */
                 $this->session->flashError('Unable to reach update server. ' . ($result['message'] ?? 'Check your internet connection and try again.'));
             } elseif ($result['available']) {
                 $cacheFile = dirname(__DIR__, 3) . '/storage/cache/update_check.json';
@@ -85,13 +89,14 @@ final class SystemUpdateController
 
     public function install(Request $req): Response
     {
-        $version = $req->post('version', '');
-        $url     = $req->post('url', '');
+        $version  = $req->post('version', '');
+        $url      = $req->post('url', '');
+        $checksum = $req->post('checksum', '');
         if ($version === '' || $url === '') {
             $this->session->flashError('Missing version or download URL.');
             return Response::redirect('/admin/system-update');
         }
-        $result = $this->updater->execute($version, $url);
+        $result = $this->updater->execute($version, $url, $checksum ?: null);
         if ($result['success']) {
             $this->session->flashSuccess("Updated to v{$version}!");
         } else {

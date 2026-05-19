@@ -7,7 +7,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\LedgerRepository;
 
 /**
- * Ledger service Ã¢â‚¬â€ double-entry bookkeeping for every money movement.
+ * Ledger service Ã¢€— double-entry bookkeeping for every money movement.
  * Uses strict triple-table schema (accounts, transactions, entries).
  *
  * Fires: ledger.entry.created
@@ -38,25 +38,22 @@ final class LedgerService
         ?string $description = null
     ): void {
         // 1. Ensure accounts exist
-        $drAccount = $this->ledger->findOrCreateAccount($debitAccountCode, 'Debit Account', 'asset', $currency, $merchantId);
-        $crAccount = $this->ledger->findOrCreateAccount($creditAccountCode, 'Credit Account', 'liability', $currency, $merchantId);
+        $drAccount = $this->ledger->findOrCreateAccount($debitAccountCode, 'asset', $currency, $merchantId);
+        $crAccount = $this->ledger->findOrCreateAccount($creditAccountCode, 'liability', $currency, $merchantId);
 
         $db = $this->ledger->getDatabase();
         $db->transaction(function () use ($merchantId, $eventType, $amount, $currency, $drAccount, $crAccount, $referenceType, $referenceId, $description) {
             
             // 2. Create Journal Header
             $txnId = $this->ledger->createTransaction(
-                $eventType,
                 $referenceType,
-                $referenceId,
-                $amount,
-                $currency,
-                $description
+                (int) $referenceId,
+                $description ?? $eventType
             );
 
             // 3. Create Entries (Debit + Credit)
-            $this->ledger->createEntry($txnId, (int) $drAccount['id'], 'debit', $amount, $currency);
-            $this->ledger->createEntry($txnId, (int) $crAccount['id'], 'credit', $amount, $currency);
+            $this->ledger->createEntry($txnId, (int) $drAccount['id'], 'debit', $amount);
+            $this->ledger->createEntry($txnId, (int) $crAccount['id'], 'credit', $amount);
 
             // 4. Update Balances
             $this->ledger->adjustBalance((int) $drAccount['id'], $amount);

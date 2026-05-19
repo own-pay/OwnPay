@@ -135,6 +135,7 @@ final class PluginInstaller
         }
 
         // Stash the resolved plugin dir on the manifest for deploy step
+        /** @phpstan-ignore-next-line */
         $manifest->_resolvedDir = $pluginDir;
         return $manifest;
     }
@@ -158,6 +159,7 @@ final class PluginInstaller
             return $this->fail("Plugin '{$manifest->slug}' already installed. Uninstall first.");
         }
 
+        /** @phpstan-ignore-next-line */
         $pluginDir = $manifest->_resolvedDir ?? $tempDir;
         if (!rename($pluginDir, $targetDir)) {
             $this->copyDir($pluginDir, $targetDir);

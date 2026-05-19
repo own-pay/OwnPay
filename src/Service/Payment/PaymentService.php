@@ -9,7 +9,7 @@ use Ramsey\Uuid\Uuid;
 use OwnPay\Support\DateHelper;
 
 /**
- * Payment service â€” creates and manages payment intents.
+ * Payment service — creates and manages payment intents.
  *
  * Fires: payment.intent.created, payment.intent.expired, payment.amount.calculate
  */

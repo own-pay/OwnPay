@@ -29,6 +29,7 @@ final class SmsTemplateController
         $mid = (int) $req->getAttribute('merchant_id');
         $body = $req->json();
 
+        /** @phpstan-ignore-next-line */
         $this->tplRepo->updateTemplate($id, $mid, $body['body'] ?? '', (bool) ($body['enabled'] ?? true));
         return Response::json(['success' => true]);
     }

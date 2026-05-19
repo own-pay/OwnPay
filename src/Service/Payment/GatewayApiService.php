@@ -8,7 +8,7 @@ use OwnPay\Repository\GatewayConfigRepository;
 use OwnPay\Repository\GatewayRepository;
 
 /**
- * Gateway API service â€” public API for gateway operations.
+ * Gateway API service — public API for gateway operations.
  *
  * Orchestrates GatewayBridge + TransactionService for full payment flow.
  */
@@ -40,7 +40,10 @@ final class GatewayApiService
     /**
      * Initiate payment through API gateway.
      *
-     * @return array{success: bool, redirect_url?: string, transaction?: array, error?: string}
+     * @param int $merchantId
+     * @param string $gatewaySlug
+     * @param array $params
+     * @return array
      */
     public function initiatePayment(int $merchantId, string $gatewaySlug, array $params): array
     {
@@ -59,16 +62,16 @@ final class GatewayApiService
 
         // Create transaction
         $transaction = $this->transactions->create($merchantId, [
-            'gateway_slug'  => $gatewaySlug,
-            'amount'        => $params['amount'],
-            'fee'           => $fee,
-            'currency'      => $params['currency'],
-            'method'        => 'api',
-            'sender_account' => $params['sender_account'] ?? null,
-            'reference'     => $params['reference'] ?? null,
+            'gateway_slug'      => $gatewaySlug,
+            'amount'            => $params['amount'],
+            'fee'               => $fee,
+            'currency'          => $params['currency'],
+            'method'            => 'api',
+            'sender_account'    => $params['sender_account'] ?? null,
+            'reference'         => $params['reference'] ?? null,
             'payment_intent_id' => $params['payment_intent_id'] ?? null,
-            'customer_id'   => $params['customer_id'] ?? null,
-            'metadata'      => isset($params['metadata']) ? json_encode($params['metadata']) : null,
+            'customer_id'       => $params['customer_id'] ?? null,
+            'metadata'          => isset($params['metadata']) ? json_encode($params['metadata']) : null,
         ]);
 
         // Initiate via gateway adapter
@@ -81,13 +84,19 @@ final class GatewayApiService
                 'cancel_url'   => $params['cancel_url'] ?? '',
             ]);
 
-            return [
+            $output = [
                 'success'      => true,
                 'transaction'  => $transaction,
                 'redirect_url' => $result['redirect_url'] ?? null,
                 'form_html'    => $result['form_html'] ?? null,
             ];
 
+            return $output;
+
+        } catch (\RuntimeException $e) {
+            // Gateway adapter not registered / config error — surface to caller
+            $this->transactions->fail((int) $transaction['id'], $merchantId, $e->getMessage());
+            return ['success' => false, 'error' => $e->getMessage()];
         } catch (\Throwable $e) {
             $this->transactions->fail((int) $transaction['id'], $merchantId, $e->getMessage());
             return ['success' => false, 'error' => 'Gateway initiation failed'];
@@ -96,6 +105,11 @@ final class GatewayApiService
 
     /**
      * Handle gateway callback/IPN.
+     *
+     * @param int $merchantId
+     * @param string $gatewaySlug
+     * @param array $callbackData
+     * @return array
      */
     public function handleCallback(int $merchantId, string $gatewaySlug, array $callbackData): array
     {
@@ -105,11 +119,10 @@ final class GatewayApiService
             return ['success' => false, 'error' => 'Verification failed'];
         }
 
-        // Find transaction by gateway TRX ID
-        $trxId = $verification['gateway_trx_id'] ?? '';
-        // Complete the transaction
-        if (!empty($callbackData['trx_id'])) {
-            $transaction = $this->transactions->findByTrxId($merchantId, $callbackData['trx_id']);
+        // Complete the transaction — look up by our trx_id from callback
+        $trxId = $callbackData['trx_id'] ?? $verification['gateway_trx_id'] ?? '';
+        if (!empty($trxId)) {
+            $transaction = $this->transactions->findByTrxId($merchantId, $trxId);
             if ($transaction !== null && $transaction['status'] === 'pending') {
                 $this->transactions->complete((int) $transaction['id'], $merchantId);
 

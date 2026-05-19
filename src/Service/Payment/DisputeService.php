@@ -7,7 +7,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\DisputeRepository;
 
 /**
- * Dispute service â€” chargeback/dispute management.
+ * Dispute service — chargeback/dispute management.
  */
 final class DisputeService
 {

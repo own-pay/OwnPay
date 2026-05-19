@@ -217,35 +217,59 @@ final class TransactionRepository extends BaseRepository
 
     /**
      * Set gateway + status on a transaction by ID.
+     * Scoped by merchant_id to prevent cross-tenant IDOR.
      */
-    public function setGatewayAndStatus(int $id, string $gateway, string $status): void
+    public function setGatewayAndStatus(int $id, string $gateway, string $status, int $merchantId = 0): void
     {
-        $this->db->execute(
-            "UPDATE {$this->table} SET gateway_slug = :gw, status = :st, updated_at = NOW() WHERE id = :id",
-            ['gw' => $gateway, 'st' => $status, 'id' => $id]
-        );
+        if ($merchantId > 0) {
+            $this->db->execute(
+                "UPDATE {$this->table} SET gateway_slug = :gw, status = :st, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
+                ['gw' => $gateway, 'st' => $status, 'id' => $id, 'mid' => $merchantId]
+            );
+        } else {
+            $this->db->execute(
+                "UPDATE {$this->table} SET gateway_slug = :gw, status = :st, updated_at = NOW() WHERE id = :id",
+                ['gw' => $gateway, 'st' => $status, 'id' => $id]
+            );
+        }
     }
 
     /**
      * Update metadata JSON on a transaction.
+     * Scoped by merchant_id to prevent cross-tenant IDOR.
      */
-    public function updateMetadata(int $id, array $metadata): void
+    public function updateMetadata(int $id, array $metadata, int $merchantId = 0): void
     {
-        $this->db->execute(
-            "UPDATE {$this->table} SET metadata = :meta, updated_at = NOW() WHERE id = :id",
-            ['meta' => json_encode($metadata), 'id' => $id]
-        );
+        if ($merchantId > 0) {
+            $this->db->execute(
+                "UPDATE {$this->table} SET metadata = :meta, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
+                ['meta' => json_encode($metadata), 'id' => $id, 'mid' => $merchantId]
+            );
+        } else {
+            $this->db->execute(
+                "UPDATE {$this->table} SET metadata = :meta, updated_at = NOW() WHERE id = :id",
+                ['meta' => json_encode($metadata), 'id' => $id]
+            );
+        }
     }
 
     /**
      * Set status + metadata atomically.
+     * Scoped by merchant_id to prevent cross-tenant IDOR.
      */
-    public function setStatusWithMeta(int $id, string $status, array $metadata): void
+    public function setStatusWithMeta(int $id, string $status, array $metadata, int $merchantId = 0): void
     {
-        $this->db->execute(
-            "UPDATE {$this->table} SET status = :st, metadata = :meta, updated_at = NOW() WHERE id = :id",
-            ['st' => $status, 'meta' => json_encode($metadata), 'id' => $id]
-        );
+        if ($merchantId > 0) {
+            $this->db->execute(
+                "UPDATE {$this->table} SET status = :st, metadata = :meta, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
+                ['st' => $status, 'meta' => json_encode($metadata), 'id' => $id, 'mid' => $merchantId]
+            );
+        } else {
+            $this->db->execute(
+                "UPDATE {$this->table} SET status = :st, metadata = :meta, updated_at = NOW() WHERE id = :id",
+                ['st' => $status, 'meta' => json_encode($metadata), 'id' => $id]
+            );
+        }
     }
 
     // ─── Report/Export methods (for admin dashboard) ───
@@ -349,6 +373,21 @@ final class TransactionRepository extends BaseRepository
             "SELECT trx_id, amount, currency, status, gateway_slug as gateway, created_at
              FROM {$this->table} WHERE merchant_id = :mid ORDER BY created_at DESC LIMIT {$limit}",
             ['mid' => $merchantId]
+        );
+    }
+
+    /**
+     * Find a pending transaction matching SMS amount/gateway for auto-verification.
+     * Used by SmsVerificationJob cron.
+     */
+    public function findPendingMatch(int $merchantId, string $amount, string $gatewaySlug): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table}
+             WHERE merchant_id = :mid AND status = 'pending'
+               AND amount = :amt AND gateway_slug = :gw
+             ORDER BY created_at DESC LIMIT 1",
+            ['mid' => $merchantId, 'amt' => $amount, 'gw' => $gatewaySlug]
         );
     }
 }

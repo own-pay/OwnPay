@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Payment;
 
 /**
- * Reconciliation service â€” verify ledger vs transactions integrity.
+ * Reconciliation service — verify ledger vs transactions integrity.
  */
 final class ReconciliationService
 {

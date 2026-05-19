@@ -39,6 +39,12 @@ return [
         \OwnPay\Middleware\BearerAuthMiddleware::class,
     ],
 
+    // ─── API Public: no auth (health checks, public endpoints) ──
+    'api-public' => [
+        \OwnPay\Middleware\CorsMiddleware::class,
+        \OwnPay\Middleware\RateLimiterMiddleware::class,
+    ],
+
     // ─── Mobile API: JWT + device auth ─────────────────────────
     'mobile' => [
         \OwnPay\Middleware\CorsMiddleware::class,
@@ -57,5 +63,10 @@ return [
         \OwnPay\Middleware\SessionMiddleware::class,
         \OwnPay\Middleware\CsrfMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
+    ],
+
+    // ─── Install: minimal — no DB available yet ───────────────
+    'install' => [
+        \OwnPay\Middleware\SecurityHeadersMiddleware::class,
     ],
 ];

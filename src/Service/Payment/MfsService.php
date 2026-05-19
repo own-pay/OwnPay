@@ -8,7 +8,7 @@ use OwnPay\Service\Sms\SmsParserService;
 use OwnPay\Support\DateHelper;
 
 /**
- * MFS (Mobile Financial Service) â€” orchestrates SMSâ†’Transaction matching.
+ * MFS (Mobile Financial Service) — orchestrates SMS─Transaction matching.
  */
 final class MfsService
 {

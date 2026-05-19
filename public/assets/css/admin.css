@@ -588,6 +588,7 @@ label.op-toggle-label { display: flex !important; align-items: center; gap: 12px
 .op-plugin-status-indicator { width:8px; height:8px; border-radius:50%; display:inline-block; }
 .op-status-active { background:var(--op-success); box-shadow:0 0 8px var(--op-success); }
 .op-status-inactive { background:var(--op-text-dim); }
+.op-status-error { background:var(--op-danger); box-shadow:0 0 8px var(--op-danger); }
 .op-status-uninstalled { background:transparent; border:2px solid var(--op-text-dim); width:6px; height:6px; }
 
 /* Ghost Danger Button */

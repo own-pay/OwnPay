@@ -8,7 +8,7 @@ use OwnPay\Repository\GatewayConfigRepository;
 use OwnPay\Security\FieldEncryptor;
 
 /**
- * Gateway bridge â€” routes payment operations to correct adapter.
+ * Gateway bridge — routes payment operations to correct adapter.
  *
  * Fires: gateway.capture.before (filter), gateway.capture.after (action)
  */

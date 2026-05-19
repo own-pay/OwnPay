@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Security;
 
 /**
- * URL validator â€” validates and sanitizes URLs for redirects and webhooks.
+ * URL validator — validates and sanitizes URLs for redirects and webhooks.
  *
  * Per OWASP: prevent SSRF, open redirect, protocol injection.
  */
@@ -14,6 +14,7 @@ final class UrlValidator
     private const ALLOWED_SCHEMES = ['http', 'https'];
 
     /** Blocked private IP ranges (SSRF prevention) */
+    /** @phpstan-ignore classConstant.unused */
     private const BLOCKED_RANGES = [
         '10.0.0.0/8',
         '172.16.0.0/12',
@@ -68,7 +69,7 @@ final class UrlValidator
         // No IP addresses (force DNS resolution)
         $host = $parsed['host'];
         if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
-            // Direct IP â€” check if private
+            // Direct IP — check if private
             if (self::isPrivateIp($host)) {
                 return false;
             }
@@ -96,7 +97,7 @@ final class UrlValidator
     }
 
     /**
-     * Sanitize URL â€” remove javascript:, data:, and other dangerous schemes.
+     * Sanitize URL — remove javascript:, data:, and other dangerous schemes.
      */
     public static function sanitize(string $url): string
     {

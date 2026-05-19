@@ -6,7 +6,7 @@ namespace OwnPay\Cron;
 use OwnPay\Service\System\HttpClient;
 
 /**
- * Currency update job â€” fetches exchange rates from external API.
+ * Currency update job — fetches exchange rates from external API.
  */
 final class CurrencyUpdateJob
 {

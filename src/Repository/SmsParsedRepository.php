@@ -41,4 +41,13 @@ final class SmsParsedRepository extends BaseRepository
             ['tid' => $transactionId]
         );
     }
+
+    /**
+     * Get unmatched SMS entries (alias for findUnmatched).
+     * Used by SmsVerificationJob cron.
+     */
+    public function getUnmatched(int $limit = 50): array
+    {
+        return $this->findUnmatched($limit);
+    }
 }

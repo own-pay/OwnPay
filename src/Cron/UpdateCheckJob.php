@@ -7,7 +7,7 @@ use OwnPay\Update\UpdateService;
 use OwnPay\Support\DateHelper;
 
 /**
- * Update check cron job â€” runs daily, triggers update during night window.
+ * Update check cron job — runs daily, triggers update during night window.
  */
 final class UpdateCheckJob
 {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Plugin;
 
 /**
- * Plugin capability enum â€” declares what a plugin can do.
+ * Plugin capability enum — declares what a plugin can do.
  *
  * Used by PluginLoader for capability-based routing and sandbox permissions.
  */

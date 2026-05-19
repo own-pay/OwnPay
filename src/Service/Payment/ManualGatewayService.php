@@ -7,7 +7,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\ManualGatewayRepository;
 
 /**
- * Manual gateway service â€” handles manual payment gateways (bKash, bank transfer, etc).
+ * Manual gateway service — handles manual payment gateways (bKash, bank transfer, etc).
  *
  * Fires: gateway.manual.render, gateway.manual.verify
  */

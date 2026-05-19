@@ -275,7 +275,7 @@ Resolves brand from:
 
 ### Automated Tests
 1. Run `php -l` lint on all modified files.
-2. Test login flow via browser: admin@example.com / admin123.
+2. Test login flow via browser: admin@example.com / admin12345.
 3. Verify brand creation, brand switching, and brand-scoped data.
 4. Verify API keys generate per-brand and authenticate correctly.
 5. Verify custom domain resolution still maps to correct brand.

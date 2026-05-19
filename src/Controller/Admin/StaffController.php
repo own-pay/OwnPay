@@ -79,11 +79,27 @@ final class StaffController
             }
         }
 
+        // AUD-06 FIX: Validate required fields + password minimum length
+        $name     = InputSanitizer::string($data['name'] ?? '');
+        $email    = trim($data['email'] ?? '');
+        $password = $data['password'] ?? '';
+
+        if ($name === '' || $email === '') {
+            $this->session->flashError('Name and email are required.');
+            return Response::redirect('/admin/staff/create');
+        }
+        if (strlen($password) < 8) {
+            $this->session->flashError('Password must be at least 8 characters.');
+            return Response::redirect('/admin/staff/create');
+        }
+
+        // AUD-05 FIX: Pass resolved $roleId to createStaff
         $this->userRepo->createStaff(
             $mid,
-            InputSanitizer::string($data['name'] ?? ''),
-            $data['email'] ?? '',
-            password_hash($data['password'] ?? '', PASSWORD_ARGON2ID)
+            $name,
+            $email,
+            password_hash($password, PASSWORD_ARGON2ID),
+            $roleId
         );
 
         $this->session->flashSuccess('Staff created');

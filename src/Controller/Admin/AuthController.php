@@ -11,6 +11,7 @@ use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Service\Auth\AuthSessionService;
 use OwnPay\Service\System\AuditService;
 use OwnPay\Repository\MerchantUserRepository;
+use OwnPay\Repository\SettingsRepository;
 
 /**
  * Auth controller — login, logout, forgot password, 2FA.
@@ -26,6 +27,7 @@ final class AuthController
     private EventManager $events;
     private MerchantUserRepository $userRepo;
     private AuditService $audit;
+    private SettingsRepository $settings;
 
     public function __construct(
         Container $c,
@@ -33,7 +35,8 @@ final class AuthController
         AuthSessionService $auth,
         EventManager $events,
         MerchantUserRepository $userRepo,
-        AuditService $audit
+        AuditService $audit,
+        SettingsRepository $settings
     ) {
         $this->c        = $c;
         $this->session  = $session;
@@ -41,6 +44,7 @@ final class AuthController
         $this->events   = $events;
         $this->userRepo = $userRepo;
         $this->audit    = $audit;
+        $this->settings = $settings;
     }
 
     public function loginForm(Request $req): Response
@@ -124,7 +128,12 @@ final class AuthController
 
     public function forgotForm(Request $req): Response
     {
-        return $this->renderAdminPage('page/forgot.twig');
+        // AUD-03 FIX: OwnPay is single-owner system.
+        // Password resets are done by superadmin, not self-service email.
+        $supportEmail = $this->settings->get('general', 'support_email', '');
+        return $this->renderAdminPage('page/forgot.twig', [
+            'support_email' => $supportEmail,
+        ]);
     }
 
     public function forgotSubmit(Request $req): Response
@@ -137,11 +146,13 @@ final class AuthController
             ]);
         }
 
-        // Always show success to prevent email enumeration (OWASP best practice)
+        // AUD-03 FIX: Log the request and show honest message.
+        // In a single-owner system, the admin resets passwords manually.
+        $this->audit->log('password_reset.requested', 'user', null, null, ['email' => $email]);
         $this->events->doAction('auth.forgot_password', ['email' => $email]);
 
         return $this->renderAdminPage('page/forgot.twig', [
-            'success' => 'If that email exists in our system, a password reset link has been sent.',
+            'success' => 'Your password reset request has been logged. Please contact your system administrator to reset your password.',
         ]);
     }
 
@@ -150,6 +161,15 @@ final class AuthController
         $this->audit->log('logout', 'user', $_SESSION['auth_user_id'] ?? null);
         $this->events->doAction('auth.logout', $this->session->currentUser());
         $this->auth->logout();
-        return Response::redirect('/login');
+
+        // AUD-07 FIX: Resolve dynamic login slug instead of hardcoded /login
+        $loginSlug = 'login';
+        try {
+            $slug = $this->settings->get('landing', 'admin_login_slug', 'login');
+            if (!empty($slug) && preg_match('/^[a-z0-9\-]+$/', $slug)) {
+                $loginSlug = $slug;
+            }
+        } catch (\Throwable) {}
+        return Response::redirect('/' . $loginSlug);
     }
 }

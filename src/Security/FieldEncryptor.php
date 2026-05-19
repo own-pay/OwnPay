@@ -27,7 +27,7 @@ final class FieldEncryptor
     }
 
     /**
-     * Encrypt plaintext â†’ base64(iv + tag + ciphertext).
+     * Encrypt plaintext -> base64(iv + tag + ciphertext).
      */
     public function encrypt(string $plaintext): string
     {
@@ -54,7 +54,7 @@ final class FieldEncryptor
     }
 
     /**
-     * Decrypt base64(iv + tag + ciphertext) â†’ plaintext.
+     * Decrypt base64(iv + tag + ciphertext) ─ plaintext.
      */
     public function decrypt(string $encoded): string
     {
@@ -81,8 +81,25 @@ final class FieldEncryptor
             $tag
         );
 
+        // Key rotation support - try old key if current key fails.
+        // Set ENCRYPTION_KEY_OLD in .env during rotation window.
         if ($plaintext === false) {
-            throw new \RuntimeException('Decryption failed â€” data may be tampered');
+            $oldKeyRaw = $_ENV['ENCRYPTION_KEY_OLD'] ?? (getenv('ENCRYPTION_KEY_OLD') ?: '');
+            if ($oldKeyRaw !== '') {
+                $oldKey = hash('sha256', $oldKeyRaw, true);
+                $plaintext = openssl_decrypt(
+                    $ciphertext,
+                    self::CIPHER,
+                    $oldKey,    
+                    OPENSSL_RAW_DATA,
+                    $iv,
+                    $tag
+                );
+            }
+        }
+
+        if ($plaintext === false) {
+            throw new \RuntimeException('Decryption failed - data may be tampered');
         }
 
         return $plaintext;
@@ -95,5 +112,13 @@ final class FieldEncryptor
     public function hash(string $value): string
     {
         return hash_hmac('sha256', strtolower(trim($value)), $this->key);
+    }
+
+    /**
+     * Alias for hash() — deterministic HMAC for PII lookups.
+     */
+    public function deterministicHash(string $value): string
+    {
+        return $this->hash($value);
     }
 }

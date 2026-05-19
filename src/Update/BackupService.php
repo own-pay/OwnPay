@@ -15,11 +15,13 @@ final class BackupService
 {
     private string $backupDir;
     private ?Logger $logger;
+    private \OwnPay\Core\Database $db;
 
-    public function __construct(?string $backupDir = null, ?Logger $logger = null)
+    public function __construct(?string $backupDir = null, ?Logger $logger = null, ?\OwnPay\Core\Database $db = null)
     {
         $this->backupDir = $backupDir ?? dirname(__DIR__, 2) . '/storage/backups';
         $this->logger = $logger;
+        $this->db = $db ?? \OwnPay\Core\Database::getInstance();
         if (!is_dir($this->backupDir)) {
             @mkdir($this->backupDir, 0755, true);
         }
@@ -103,12 +105,14 @@ final class BackupService
         $pass = getenv('DB_PASS') ?: '';
         $port = getenv('DB_PORT') ?: '3306';
 
+        // Use --defaults-extra-file to keep password out of process list.
+        $tmpCnf = tempnam(sys_get_temp_dir(), 'op_dump_');
+        file_put_contents($tmpCnf, "[client]\nuser={$user}\npassword={$pass}\nhost={$host}\nport={$port}\n", LOCK_EX);
+        @chmod($tmpCnf, 0600);
+
         $cmd = sprintf(
-            'mysqldump --host=%s --port=%s --user=%s --password=%s --single-transaction --routines %s > %s 2>&1',
-            escapeshellarg($host),
-            escapeshellarg($port),
-            escapeshellarg($user),
-            escapeshellarg($pass),
+            'mysqldump --defaults-extra-file=%s --single-transaction --routines %s > %s 2>&1',
+            escapeshellarg($tmpCnf),
             escapeshellarg($name),
             escapeshellarg($outputPath)
         );
@@ -116,6 +120,7 @@ final class BackupService
         $output = [];
         $exitCode = 0;
         exec($cmd, $output, $exitCode);
+        @unlink($tmpCnf); // Always clean up
 
         if ($exitCode !== 0) {
             $this->pdoDump($outputPath);
@@ -124,7 +129,7 @@ final class BackupService
 
     private function pdoDump(string $outputPath): void
     {
-        $db = \OwnPay\Core\Database::getInstance();
+        $db = $this->db;
         $pdo = $db->pdo();
         $tables = $db->fetchAll("SHOW TABLES");
         $sql = "-- OwnPay Database Backup\n-- Generated: " . DateHelper::now() . "\n\n";
@@ -154,7 +159,7 @@ final class BackupService
             return;
         }
 
-        $db = \OwnPay\Core\Database::getInstance();
+        $db = $this->db;
         $statements = array_filter(array_map('trim', explode(";\n", $sql)), fn($s) => $s !== '' && !str_starts_with($s, '--'));
 
         foreach ($statements as $stmt) {

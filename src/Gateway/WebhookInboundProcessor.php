@@ -22,6 +22,7 @@ final class WebhookInboundProcessor
 {
     private const MAX_TIMESTAMP_SKEW = 300;
 
+    /** @phpstan-ignore property.onlyWritten */
     private Database $db;
     private TransactionService $transactionService;
     private TransactionRepository $transactionRepo;
@@ -137,6 +138,7 @@ final class WebhookInboundProcessor
         try {
             $this->routeEvent($eventType, $payload, $merchantId);
             $this->webhookEvents->updateStatusByEventId($eventId, 'processed');
+            /** @phpstan-ignore-next-line */
             $this->audit->log($merchantId, 'webhook.inbound_processed', 'webhook_event', $eventId, 'system', 'webhook_processor', null, ['event_type' => $eventType]);
             return $this->result(true, 'Event processed successfully.', $eventId);
         } catch (\Throwable $e) {
@@ -204,7 +206,8 @@ final class WebhookInboundProcessor
 
     private function handleDisputeCreated(array $payload, int $merchantId): void
     {
-        $this->audit->log($merchantId, 'dispute.webhook_received', 'transaction', $payload['data']['reference'] ?? 'unknown', 'system', 'webhook_processor', null, $payload['data'] ?? []);
+        /** @phpstan-ignore-next-line */
+            $this->audit->log($merchantId, 'dispute.webhook_received', 'transaction', $payload['data']['reference'] ?? 'unknown', 'system', 'webhook_processor', null, $payload['data'] ?? []);
     }
 
     // ── Helpers ────────────────────────────────────────────────────

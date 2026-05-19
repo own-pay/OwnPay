@@ -8,7 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Login page controller â€” delegates to AuthController for POST.
+ * Login page controller — delegates to AuthController for POST.
  * This handles custom login URL routing.
  */
 final class LoginController

@@ -107,7 +107,7 @@ user AND a malicious actor:
 - **Multi-tenancy (if applicable):** Are tenant boundaries enforced at the data
   layer, not just the UI?
 
-### 1.4 Database Schema Inspection (`master_install.sql` + all Models)
+### 1.4 Database Schema Inspection (`schema.sql` + all Models)
 
 - **Structural:** Missing primary keys, missing foreign key constraints, wrong
   data types (e.g., storing amounts as `FLOAT` instead of `DECIMAL(19,4)`)
@@ -121,7 +121,7 @@ user AND a malicious actor:
 - **Soft Deletes & Audit:** Do financial tables have `deleted_at`? Is there an
   `audit_log` table? Are amounts and statuses immutable once finalized?
 - **Migrations:** Is there a versioned migration system? Or is
-  `master_install.sql` the only truth? This is a critical operational risk.
+  `schema.sql` the only truth? This is a critical operational risk.
 
 ### 1.5 Architecture & Legacy Eradication
 

@@ -37,6 +37,9 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.success) {
+                    // Update CSRF token for subsequent requests (rotated by server)
+                    if (data.csrf_token) csrf = data.csrf_token;
+
                     var display = document.getElementById('otp-display');
                     var otpEl   = document.getElementById('otp-value');
                     var timerEl = document.getElementById('otp-timer');

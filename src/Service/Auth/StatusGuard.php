@@ -6,7 +6,7 @@ namespace OwnPay\Service\Auth;
 use OwnPay\Support\DateHelper;
 
 /**
- * Status guard â€” checks entity status for access control.
+ * Status guard — checks entity status for access control.
  */
 final class StatusGuard
 {
@@ -52,7 +52,7 @@ final class StatusGuard
     }
 
     /**
-     * Guard check â€” throws on inactive.
+     * Guard check — throws on inactive.
      * @throws \RuntimeException
      */
     public static function requireActive(array $entity, string $label = 'Entity'): void

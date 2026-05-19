@@ -4,18 +4,21 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 use OwnPay\Repository\AuditLogRepository;
+use OwnPay\Service\Admin\AdminSession;
 
 /**
  * Convenience wrapper for audit logging.
- * Auto-captures user context from session.
+ * Captures user context from injected AdminSession.
  */
 final class AuditService
 {
     private AuditLogRepository $repo;
+    private ?AdminSession $session;
 
-    public function __construct(AuditLogRepository $repo)
+    public function __construct(AuditLogRepository $repo, ?AdminSession $session = null)
     {
         $this->repo = $repo;
+        $this->session = $session;
     }
 
     /**
@@ -29,8 +32,8 @@ final class AuditService
         ?array $newValues = null
     ): void {
         $this->repo->record(
-            $_SESSION['active_brand_id'] ?? $_SESSION['auth_merchant_id'] ?? null,
-            $_SESSION['auth_user_id'] ?? null,
+            $this->session?->activeBrandId() ?? $this->session?->merchantId(),
+            $this->session?->userId(),
             $action,
             $entityType,
             $entityId,
