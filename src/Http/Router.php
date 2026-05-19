@@ -193,7 +193,17 @@ final class Router
         }
 
         [$controllerName, $methodName] = explode('@', $handler, 2);
-        $fqcn = 'OwnPay\\Controller\\' . $controllerName;
+
+        // AUD-G2 fix: Support fully-qualified class names for plugin controllers.
+        // A FQCN is detected when the class name starts with a vendor/root namespace
+        // that is NOT 'Admin', 'Api', 'Checkout', 'Page', 'Webhook', 'Install' (core sub-namespaces).
+        // Existing routes like 'Admin\\DashboardController' still get the OwnPay\\Controller\\ prefix.
+        $coreSubNamespaces = ['Admin', 'Api', 'Checkout', 'Page', 'Webhook', 'Install'];
+        $firstSegment = explode('\\', $controllerName)[0];
+        $isFqcn = str_contains($controllerName, '\\')
+            && !in_array($firstSegment, $coreSubNamespaces, true)
+            && class_exists($controllerName);
+        $fqcn = $isFqcn ? $controllerName : 'OwnPay\\Controller\\' . $controllerName;
 
         if (!class_exists($fqcn)) {
             throw new RuntimeException("Controller class [{$fqcn}] not found.");

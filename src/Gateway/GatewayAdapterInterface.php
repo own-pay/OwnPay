@@ -29,6 +29,23 @@ interface GatewayAdapterInterface
     public function verify(array $callbackData, array $credentials): array;
 
     /**
+     * AUD-G6: Verify webhook signature/authenticity.
+     *
+     * Each gateway implements its own verification:
+     *   - Stripe: HMAC-SHA256 via Stripe-Signature header
+     *   - PayPal: IPN verification POST back
+     *   - SSLCommerz: store_passwd hash check
+     *
+     * Default: returns true (backward compat for gateways without webhook signing).
+     *
+     * @param string $rawBody   Raw request body (for HMAC computation)
+     * @param array  $headers   All request headers
+     * @param array  $credentials Gateway credentials
+     * @return bool True if signature is valid
+     */
+    public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool;
+
+    /**
      * Process refund.
      *
      * @return array{success: bool, refund_id?: string, error?: string}

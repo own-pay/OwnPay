@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Core;
 
+use OwnPay\Event\EventManager;
 use PDO;
 use PDOStatement;
 
@@ -21,9 +22,27 @@ final class Database
     /** @var static|null */
     private static ?self $instance = null;
 
+    /**
+     * AUD-G3: Optional EventManager for query hooks.
+     * Lazily injected after container build to avoid circular DI.
+     */
+    private ?EventManager $events = null;
+
+    /** Guard against infinite recursion when hooks themselves query DB */
+    private bool $firingHooks = false;
+
     public function __construct(PDO $pdo)
     {
         $this->pdo = $pdo;
+    }
+
+    /**
+     * AUD-G3: Inject EventManager after container build.
+     * Called by Kernel::boot() once DI is ready.
+     */
+    public function setEventManager(EventManager $events): void
+    {
+        $this->events = $events;
     }
 
     
@@ -98,8 +117,38 @@ final class Database
 
     public function execute(string $sql, array $params = []): PDOStatement
     {
+        // AUD-G3: Fire db.query.before filter — plugins can modify SQL/params
+        // Guard prevents infinite recursion when hook listeners query DB
+        if ($this->events !== null && !$this->firingHooks) {
+            $this->firingHooks = true;
+            try {
+                /** @var array{sql: string, params: array} $queryData */
+                $queryData = $this->events->applyFilter('db.query.before', [
+                    'sql' => $sql,
+                    'params' => $params,
+                ]);
+                $sql = $queryData['sql'] ?? $sql;
+                $params = $queryData['params'] ?? $params;
+            } finally {
+                $this->firingHooks = false;
+            }
+        }
+
+        $start = hrtime(true);
         $stmt = $this->pdo->prepare($sql);
         $stmt->execute($params);
+        $durationMs = (hrtime(true) - $start) / 1_000_000;
+
+        // AUD-G3: Fire db.query.after action — profiling, audit logging
+        if ($this->events !== null && !$this->firingHooks) {
+            $this->firingHooks = true;
+            try {
+                $this->events->doAction('db.query.after', $sql, $params, $durationMs);
+            } finally {
+                $this->firingHooks = false;
+            }
+        }
+
         return $stmt;
     }
 

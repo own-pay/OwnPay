@@ -73,6 +73,16 @@ final class JwtAuthMiddleware
                 ], 401);
             }
 
+            // B2 FIX: Check device not revoked before granting access
+            $deviceRepo = $this->container->get(\OwnPay\Repository\PairedDeviceRepository::class);
+            $device = $deviceRepo->forTenant((int) $payload->mid)->findByDeviceId((string) $payload->did);
+            if ($device === null || ($device['status'] ?? '') === 'revoked') {
+                return Response::json([
+                    'success' => false,
+                    'message' => 'Device revoked or not found',
+                ], 401);
+            }
+
             // Inject into request
             $request->setAttribute('jwt_payload', (array) $payload);
             $request->setAttribute('merchant_id', (int) $payload->mid);

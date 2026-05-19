@@ -36,9 +36,12 @@ final class TwoFactorMiddleware
             $db = $this->container->get(\OwnPay\Core\Database::class);
             $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
             if (!$user) {
-                // User deleted/deactivated but session persists — destroy stale session.
-                // Without this, a stale auth_user_id bypasses 2FA entirely.
-                unset($_SESSION['auth_user_id'], $_SESSION['auth_merchant_id'], $_SESSION['is_superadmin']);
+                // User deleted/deactivated but session persists — destroy entire session.
+                // AUD-B6 fix: partial unset left stale keys (auth_role_id, auth_email, etc.)
+                $_SESSION = [];
+                if (session_status() === PHP_SESSION_ACTIVE) {
+                    session_regenerate_id(true);
+                }
                 if ($request->expectsJson()) {
                     return Response::json(['success' => false, 'message' => 'Session expired'], 401);
                 }

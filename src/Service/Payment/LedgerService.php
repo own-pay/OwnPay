@@ -41,6 +41,7 @@ final class LedgerService
         $drAccount = $this->ledger->findOrCreateAccount($debitAccountCode, 'asset', $currency, $merchantId);
         $crAccount = $this->ledger->findOrCreateAccount($creditAccountCode, 'liability', $currency, $merchantId);
 
+        $this->ledger->forTenant($merchantId);
         $db = $this->ledger->getDatabase();
         $db->transaction(function () use ($merchantId, $eventType, $amount, $currency, $drAccount, $crAccount, $referenceType, $referenceId, $description) {
             

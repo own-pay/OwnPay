@@ -208,9 +208,12 @@ CREATE TABLE `op_system_settings` (
   `key_name` VARCHAR(100) NOT NULL,
   `value` TEXT DEFAULT NULL,
   `type` ENUM('string','int','bool','json') NOT NULL DEFAULT 'string',
+  `merchant_id` BIGINT UNSIGNED DEFAULT NULL COMMENT 'AUD-G5: NULL=global, set=brand-scoped override',
   `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_group_key` (`group_name`, `key_name`)
+  UNIQUE KEY `uk_group_key_merchant` (`group_name`, `key_name`, `merchant_id`),
+  KEY `idx_merchant_group` (`merchant_id`, `group_name`),
+  CONSTRAINT `fk_settings_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── 3. Customers ──────────────────────────────────────────
@@ -289,6 +292,7 @@ CREATE TABLE `op_transactions` (
   KEY `idx_merchant_status` (`merchant_id`, `status`),
   KEY `idx_merchant_created` (`merchant_id`, `created_at`),
   KEY `idx_gateway` (`gateway_slug`),
+  KEY `idx_gateway_trx` (`gateway_trx_id`),
   KEY `idx_pi` (`payment_intent_id`),
   CONSTRAINT `fk_txn_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_txn_customer` FOREIGN KEY (`customer_id`) REFERENCES `op_customers` (`id`) ON DELETE SET NULL

@@ -43,7 +43,8 @@ final class UnifiedWebhookController
         // Reject oversized webhook payloads (max 1MB).
         // Prevents memory exhaustion / DoS. Generous for any gateway callback.
         $maxBodySize = 1_048_576; // 1MB
-        if (strlen($req->rawBody()) > $maxBodySize) {
+        $rawBody = $req->rawBody() ?? '';
+        if (strlen($rawBody) > $maxBodySize) {
             return Response::json(['error' => 'Payload too large'], 413);
         }
 
@@ -80,14 +81,16 @@ final class UnifiedWebhookController
         // This handles the common case where gateway plugins implement
         // GatewayAdapterInterface but don't register custom webhook hooks.
         if ($this->c->has(GatewayApiService::class)) {
-            $callbackData = json_decode($req->rawBody(), true);
+            $rawWebhookBody = $req->rawBody() ?? '';
+            $callbackData = json_decode($rawWebhookBody, true);
             if (!is_array($callbackData)) {
-                parse_str($req->rawBody(), $callbackData);
+                parse_str($rawWebhookBody, $callbackData);
             }
-            // Merge query params — some gateways (SSLCommerz) include data in GET params
+            // Merge query params — some gateways (SSLCommerz) include data in GET params.
+            // POST body takes precedence over GET to prevent parameter spoofing (AUD-A5).
             $queryParams = $req->query();
             if (is_array($queryParams)) {
-                $callbackData = array_merge($callbackData, $queryParams);
+                $callbackData = array_merge($queryParams, $callbackData);
             }
 
             if ((int) $merchantId <= 0) {
@@ -96,6 +99,15 @@ final class UnifiedWebhookController
             }
 
             try {
+                // AUD-G6: Delegate webhook signature verification to gateway adapter
+                if ($this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
+                    $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
+                    if (!$bridge->verifyWebhookSignature($gateway, (int) $merchantId, $rawBody, $req->allHeaders())) {
+                        $this->logAttempt($gateway, 'signature_verification_failed', $req);
+                        return Response::json(['error' => 'Webhook signature verification failed'], 403);
+                    }
+                }
+
                 $svc = $this->c->get(GatewayApiService::class);
                 $result = $svc->handleCallback((int) $merchantId, $gateway, $callbackData);
 
@@ -131,7 +143,7 @@ final class UnifiedWebhookController
      */
     private function resolveMerchantFromPayload(Request $req): int
     {
-        $body = $req->rawBody();
+        $body = $req->rawBody() ?? '';
         $data = json_decode($body, true);
 
         if (!is_array($data)) {

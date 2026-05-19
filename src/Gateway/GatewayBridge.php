@@ -79,6 +79,29 @@ final class GatewayBridge
         return $adapter->refund($gatewayTrxId, $amount, $credentials);
     }
 
+    /**
+     * AUD-G6: Verify webhook signature via gateway adapter.
+     *
+     * @return bool True if signature valid (or adapter has no verification)
+     */
+    public function verifyWebhookSignature(string $gatewaySlug, int $merchantId, string $rawBody, array $headers): bool
+    {
+        if (!$this->hasAdapter($gatewaySlug)) {
+            return true; // No adapter — can't verify, allow through
+        }
+        $adapter = $this->adapters[$gatewaySlug];
+        $credentials = $this->decryptCredentials($gatewaySlug, $merchantId);
+        return $adapter->verifyWebhook($rawBody, $headers, $credentials);
+    }
+
+    /**
+     * Check if an adapter is registered for a gateway slug.
+     */
+    public function hasAdapter(string $slug): bool
+    {
+        return isset($this->adapters[$slug]);
+    }
+
     private function resolveAdapter(string $slug): GatewayAdapterInterface
     {
         if (!isset($this->adapters[$slug])) {

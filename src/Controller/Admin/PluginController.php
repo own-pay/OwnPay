@@ -207,7 +207,20 @@ final class PluginController
         $settingsHtml = '';
         if ($instance !== null) {
             $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
-            $currentValues = $settingsRepo->getGroup("plugin.{$slug}");
+
+            // AUD-G5: Use brand-scoped settings — each brand can have different plugin config
+            $brandId = null;
+            if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
+                $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+                $brandId = $brandCtx->getActiveBrandId();
+            }
+
+            if ($brandId !== null && $brandId > 0) {
+                $currentValues = $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId);
+            } else {
+                $currentValues = $settingsRepo->getGroup("plugin.{$slug}");
+            }
+
             $action = "/admin/plugins/{$slug}/settings";
             $settingsHtml = SettingsRenderer::render($instance, $currentValues, $action);
         }
@@ -236,9 +249,21 @@ final class PluginController
 
         /** @var \OwnPay\Repository\SettingsRepository $settingsRepo */
         $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
-        $settingsRepo->bulkSet("plugin.{$slug}", $settings);
 
-        $this->events->doAction('plugin.settings.saved', $slug, $settings);
+        // AUD-G5: Save brand-scoped plugin settings
+        $brandId = null;
+        if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
+            $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+            $brandId = $brandCtx->getActiveBrandId();
+        }
+
+        if ($brandId !== null && $brandId > 0) {
+            $settingsRepo->bulkSetScoped("plugin.{$slug}", $settings, $brandId);
+        } else {
+            $settingsRepo->bulkSet("plugin.{$slug}", $settings);
+        }
+
+        $this->events->doAction('plugin.settings.saved', $slug, $settings, $brandId);
 
         $this->session->flashSuccess('Settings saved.');
         return Response::redirect("/admin/plugins/{$slug}/settings");

@@ -12,10 +12,15 @@ final class CurrencyService
 {
     /** @var array<string, array{rate: string, symbol: string, decimals: int}> */
     private array $currencies = [];
-    private string $baseCurrency = 'USD';
+    private string $baseCurrency;
 
     public function __construct(private readonly \OwnPay\Core\Database $db)
     {
+        // AUD-C7 fix: load base currency from system settings instead of hardcoding USD
+        $row = $this->db->fetchOne(
+            "SELECT `value` FROM op_system_settings WHERE `group_name` = 'general' AND `key_name` = 'base_currency' LIMIT 1"
+        );
+        $this->baseCurrency = ($row['value'] ?? '') !== '' ? $row['value'] : 'USD';
         $this->loadCurrencies();
     }
 
@@ -104,7 +109,7 @@ final class CurrencyService
 
         foreach ($rows as $row) {
             $this->currencies[$row['code']] = [
-                'rate' => '1.00000000', // Default
+                'rate' => '0', // AUD-C7 fix: default to '0' — missing rate triggers explicit error in convert()
                 'symbol' => $row['symbol'],
                 'decimals' => (int) $row['decimal_places'],
             ];

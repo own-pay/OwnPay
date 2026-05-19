@@ -77,7 +77,7 @@ final class DeviceController
      */
     public function revoke(Request $req): Response
     {
-        $deviceId = (int) $req->getAttribute('device_id');
+        $deviceId = (string) $req->getAttribute('device_id');
         $mid      = (int) $req->getAttribute('merchant_id');
         $this->devices->revoke((string) $deviceId, $mid);
         return Response::json(['success' => true]);

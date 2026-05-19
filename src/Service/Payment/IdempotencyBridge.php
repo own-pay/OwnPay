@@ -22,9 +22,7 @@ final class IdempotencyBridge
      */
     public function extractKey(Request $request): string
     {
-        /** @phpstan-ignore-next-line */
-        return $request->header('Idempotency-Key')
-            ?? $request->header('X-Idempotency-Key');
+        return $request->header('Idempotency-Key') ?: $request->header('X-Idempotency-Key') ?: '';
     }
 
     /**

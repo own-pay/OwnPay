@@ -30,7 +30,7 @@ final class SmsController
     public function receive(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $deviceId = (int) $req->getAttribute('device_id');
+        $deviceId = (string) $req->getAttribute('device_id');
         $body = $req->json();
 
         if (empty($body['sender']) || empty($body['body'])) {

@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Cron;
 
+use OwnPay\Core\Database;
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\TransactionRepository;
@@ -17,15 +18,18 @@ final class SmsVerificationJob
     private SmsParsedRepository $smsParsed;
     private TransactionRepository $transactions;
     private EventManager $events;
+    private Database $db;
 
     public function __construct(
         SmsParsedRepository $smsParsed,
         TransactionRepository $transactions,
-        EventManager $events
+        EventManager $events,
+        Database $db
     ) {
         $this->smsParsed = $smsParsed;
         $this->transactions = $transactions;
         $this->events = $events;
+        $this->db = $db;
     }
 
     /**
@@ -33,45 +37,55 @@ final class SmsVerificationJob
      */
     public function run(): array
     {
-        $unmatched = $this->smsParsed->getUnmatched(100);
+        // D2: Query distinct merchant_ids with pending SMS first
+        $merchants = $this->db->fetchAll(
+            "SELECT DISTINCT merchant_id FROM op_sms_parsed WHERE match_status = 'pending'"
+        );
+
         $matched = 0;
         $failed = 0;
+        $total = 0;
 
-        foreach ($unmatched as $sms) {
-            $merchantId = (int) $sms['merchant_id'];
-            $trxId = $sms['parsed_trx_id'] ?? null;
-            $amount = $sms['parsed_amount'] ?? null;
+        foreach ($merchants as $row) {
+            $mid = (int) $row['merchant_id'];
+            $unmatched = $this->smsParsed->forTenant($mid)->getUnmatched(100);
+            $total += count($unmatched);
 
-            if ($trxId === null && $amount === null) {
-                $failed++;
-                continue;
-            }
+            foreach ($unmatched as $sms) {
+                $merchantId = (int) $sms['merchant_id'];
+                $trxId = $sms['trx_id'] ?? null;       // A3: was parsed_trx_id
+                $amount = $sms['amount'] ?? null;       // A3: was parsed_amount
 
-            // Try match by TRX ID first
-            $transaction = null;
-            if ($trxId !== null) {
-                $transaction = $this->transactions->forTenant($merchantId)->findByTrxId($trxId);
-            }
+                if ($trxId === null && $amount === null) {
+                    $failed++;
+                    continue;
+                }
 
-            // Fallback: match by amount + gateway + time window
-            if ($transaction === null && $amount !== null) {
-                $gatewaySlug = $sms['gateway_slug'] ?? null;
-                $receivedAt = $sms['received_at'];
-                /** @phpstan-ignore-next-line */
-                $transaction = $this->transactions->forTenant($merchantId)->findPendingMatch($amount, $gatewaySlug, $receivedAt, 300);
-            }
+                // Try match by TRX ID first
+                $transaction = null;
+                if ($trxId !== null) {
+                    $transaction = $this->transactions->forTenant($merchantId)->findByTrxId($trxId);
+                }
 
-            if ($transaction !== null && $transaction['status'] === 'pending') {
-                $this->smsParsed->forTenant($merchantId)
-                    ->linkToTransaction((int) $sms['id'], (int) $transaction['id']);
+                // Fallback: match by amount + gateway
+                if ($transaction === null && $amount !== null) {
+                    $gatewaySlug = $sms['gateway_slug'] ?? null;
+                    // D1: findPendingMatch takes (merchantId, amount, gatewaySlug) — no tenant scope needed
+                    $transaction = $this->transactions->findPendingMatch($merchantId, (string) $amount, (string) ($gatewaySlug ?? ''));
+                }
 
-                $this->events->doAction('mobile.sms.matched', $sms, $transaction);
-                $matched++;
-            } else {
-                $failed++;
+                if ($transaction !== null && $transaction['status'] === 'pending') {
+                    $this->smsParsed->forTenant($merchantId)
+                        ->linkToTransaction((int) $sms['id'], (int) $transaction['id']);
+
+                    $this->events->doAction('mobile.sms.matched', $sms, $transaction);
+                    $matched++;
+                } else {
+                    $failed++;
+                }
             }
         }
 
-        return ['matched' => $matched, 'failed' => $failed, 'total' => count($unmatched)];
+        return ['matched' => $matched, 'failed' => $failed, 'total' => $total];
     }
 }

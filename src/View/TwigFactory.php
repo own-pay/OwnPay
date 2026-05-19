@@ -107,13 +107,30 @@ final class TwigFactory
     /**
      * Resolve the currently active theme slug.
      *
-     * Reads from: DB setting ─ .env fallback ─ 'own-pay' default.
+     * AUD-G9 fix: Reads from DB setting first, env fallback, then default.
+     * Previously only read env var, making admin theme switcher non-functional.
      */
     private static function resolveActiveTheme(Container $container): ?string
     {
-        // Phase E SettingsService will provide DB lookup.
-        // For now: env var or default.
-        $theme = getenv('ACTIVE_THEME') ?: 'own-pay';
+        $theme = null;
+
+        // 1. Try DB setting (written by ThemeController::activate())
+        try {
+            if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
+                $settings = $container->get(\OwnPay\Repository\SettingsRepository::class);
+                $dbTheme = $settings->get('appearance', 'active_theme', '');
+                if ($dbTheme !== '') {
+                    $theme = $dbTheme;
+                }
+            }
+        } catch (\Throwable) {
+            // DB not available (e.g. during install) — fall through
+        }
+
+        // 2. Env var fallback
+        if ($theme === null || $theme === '') {
+            $theme = getenv('ACTIVE_THEME') ?: 'own-pay';
+        }
 
         // Verify theme directory exists
         $paths = $container->get('config.app')['paths'];

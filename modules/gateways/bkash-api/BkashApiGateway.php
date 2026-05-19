@@ -136,8 +136,21 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         };
     }
 
+    /**
+     * AUD-C6 fix: Cache token per base URL within request lifecycle.
+     * bKash tokens are valid for ~60min, no need to re-fetch per call.
+     * @var array<string, string>
+     */
+    private static array $tokenCache = [];
+
     private function getToken(string $baseUrl, array $credentials): string
     {
+        // Return cached token if available (same request, same base URL)
+        $cacheKey = $baseUrl . ':' . ($credentials['app_key'] ?? '');
+        if (!empty(self::$tokenCache[$cacheKey])) {
+            return self::$tokenCache[$cacheKey];
+        }
+
         $ch = curl_init($baseUrl . '/tokenized/checkout/token/grant');
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
@@ -158,6 +171,11 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         curl_close($ch);
         $data = json_decode($response, true);
 
-        return $data['id_token'] ?? '';
+        $token = $data['id_token'] ?? '';
+        if ($token !== '') {
+            self::$tokenCache[$cacheKey] = $token;
+        }
+
+        return $token;
     }
 }

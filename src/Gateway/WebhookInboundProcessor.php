@@ -84,11 +84,17 @@ final class WebhookInboundProcessor
      */
     private function extractWebhookHeaders(array $headers): array
     {
+        // Normalize all header keys to lowercase for case-insensitive lookup
+        $normalized = [];
+        foreach ($headers as $k => $v) {
+            $normalized[strtolower($k)] = $v;
+        }
+
         return [
-            'signature' => $headers['x-op-signature'] ?? $headers['X-OP-Signature'] ?? '',
-            'timestamp' => $headers['x-op-timestamp'] ?? $headers['X-OP-Timestamp'] ?? '',
-            'eventId'   => $headers['x-op-event-id'] ?? $headers['X-OP-Event-Id'] ?? '',
-            'eventType' => $headers['x-op-event'] ?? $headers['X-OP-Event'] ?? '',
+            'signature' => $normalized['x-op-signature'] ?? '',
+            'timestamp' => $normalized['x-op-timestamp'] ?? '',
+            'eventId'   => $normalized['x-op-event-id'] ?? '',
+            'eventType' => $normalized['x-op-event'] ?? '',
         ];
     }
 

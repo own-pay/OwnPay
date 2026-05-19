@@ -220,7 +220,29 @@ final class Request
 
     public function ip(): string
     {
-        return $this->server['REMOTE_ADDR'] ?? '0.0.0.0';
+        // AUD-B3 fix: Trust proxy headers only from known proxy IPs
+        $remoteAddr = $this->server['REMOTE_ADDR'] ?? '0.0.0.0';
+
+        if ($this->isTrustedProxy($remoteAddr)) {
+            // X-Forwarded-For: client, proxy1, proxy2 — leftmost is original client
+            $xff = $this->server['HTTP_X_FORWARDED_FOR'] ?? '';
+            if ($xff !== '') {
+                $ips = array_map('trim', explode(',', $xff));
+                $clientIp = $ips[0] ?? $remoteAddr;
+                // Validate IP format
+                if (filter_var($clientIp, FILTER_VALIDATE_IP)) {
+                    return $clientIp;
+                }
+            }
+
+            // Fallback: X-Real-IP (single IP, set by Nginx)
+            $realIp = $this->server['HTTP_X_REAL_IP'] ?? '';
+            if ($realIp !== '' && filter_var($realIp, FILTER_VALIDATE_IP)) {
+                return $realIp;
+            }
+        }
+
+        return $remoteAddr;
     }
 
     public function userAgent(): string
@@ -236,12 +258,40 @@ final class Request
     public function scheme(): string
     {
         $https = $this->server['HTTPS'] ?? '';
-        return ($https !== '' && $https !== 'off') ? 'https' : 'http';
+        if ($https !== '' && $https !== 'off') {
+            return 'https';
+        }
+
+        // AUD-B3 fix: Check X-Forwarded-Proto from trusted proxy
+        $remoteAddr = $this->server['REMOTE_ADDR'] ?? '0.0.0.0';
+        if ($this->isTrustedProxy($remoteAddr)) {
+            $proto = $this->server['HTTP_X_FORWARDED_PROTO'] ?? '';
+            if (strtolower($proto) === 'https') {
+                return 'https';
+            }
+        }
+
+        return 'http';
     }
 
     public function isSecure(): bool
     {
         return $this->scheme() === 'https';
+    }
+
+    /**
+     * Check if the remote address is a trusted reverse proxy.
+     * Configure via TRUSTED_PROXIES env var (comma-separated IPs).
+     * AUD-B3: Without this, X-Forwarded-For is trivially spoofable.
+     */
+    private function isTrustedProxy(string $ip): bool
+    {
+        static $trusted = null;
+        if ($trusted === null) {
+            $env = getenv('TRUSTED_PROXIES') ?: '';
+            $trusted = $env !== '' ? array_map('trim', explode(',', $env)) : [];
+        }
+        return in_array($ip, $trusted, true);
     }
 
     // ——— Cookies ———————————————————————————————————————————————

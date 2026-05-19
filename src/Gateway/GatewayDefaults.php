@@ -7,7 +7,7 @@ namespace OwnPay\Gateway;
  * Gateway defaults trait — provides sensible defaults for GatewayAdapterInterface.
  *
  * API gateways override: initiate(), verify()
- * All gateways can progressively add refund() and supports() capabilities.
+ * All gateways can progressively add refund(), verifyWebhook(), and supports() capabilities.
  */
 /** @phpstan-ignore trait.unused */
 trait GatewayDefaults
@@ -28,6 +28,15 @@ trait GatewayDefaults
             'amount'         => null,
             'status'         => 'unsupported',
         ];
+    }
+
+    /**
+     * AUD-G6: Default webhook verification — returns true (no-op).
+     * Gateway plugins override this to implement HMAC/signature checks.
+     */
+    public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
+    {
+        return true;
     }
 
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array

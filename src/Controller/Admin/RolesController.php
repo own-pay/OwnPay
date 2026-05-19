@@ -126,6 +126,21 @@ final class RolesController
 
         // Sync permissions
         $permIds = array_map('intval', $req->post('permissions') ?? []);
+
+        // AUD-B5 fix: Prevent privilege escalation — non-superadmins can only
+        // assign permissions they themselves hold.
+        $isSuperadmin = !empty($_SESSION['is_superadmin']);
+        if (!$isSuperadmin && !empty($permIds)) {
+            $userRoleId = (int) ($_SESSION['auth_role_id'] ?? 0);
+            $userPerms = $this->roles->getPermissions($userRoleId);
+            $userPermIds = array_map(fn($p) => (int) $p['id'], $userPerms);
+            $unauthorized = array_diff($permIds, $userPermIds);
+            if (!empty($unauthorized)) {
+                $this->session->flashError('Cannot assign permissions you do not hold');
+                return Response::redirect('/admin/roles');
+            }
+        }
+
         $this->roles->syncPermissions($id, $permIds);
 
         $this->session->flashSuccess("Role '{$name}' updated");
