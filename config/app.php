@@ -70,7 +70,7 @@ return [
 
     // ─── Update Server ─────────────────────────────────────────
     'update' => [
-        'check_url'    => 'https://update.ownpay.org/update.json',
+        'check_url'    => 'https://update.ownpay.org/manifest.json',
         'night_window' => ['start' => '02:00', 'end' => '04:00'],
         'idle_minutes' => 15,
         'max_retries'  => 3,

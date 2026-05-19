@@ -24,32 +24,38 @@ final class RateLimiterMiddleware
 
     public function handle(Request $request, callable $next): Response
     {
-        $config = $this->container->get('config.app');
-        $limit = (int) ($config['rate_limit']['api_per_minute'] ?? 60);
-        $window = 60; // 1 minute
+        try {
+            $config = $this->container->get('config.app');
+            $limit = (int) ($config['rate_limit']['api_per_minute'] ?? 60);
+            $window = 60; // 1 minute
 
-        $key = $this->buildKey($request);
-        $now = time();
+            $key = $this->buildKey($request);
+            $now = time();
 
-        $hits = $this->getHits($key, $now, $window);
+            $hits = $this->getHits($key, $now, $window);
 
-        if ($hits >= $limit) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Rate limit exceeded. Try again later.',
-            ], 429)
-                ->withHeader('Retry-After', (string) $window)
-                ->withHeader('X-RateLimit-Limit', (string) $limit)
-                ->withHeader('X-RateLimit-Remaining', '0');
+            if ($hits >= $limit) {
+                return Response::json([
+                    'success' => false,
+                    'message' => 'Rate limit exceeded. Try again later.',
+                ], 429)
+                    ->withHeader('Retry-After', (string) $window)
+                    ->withHeader('X-RateLimit-Limit', (string) $limit)
+                    ->withHeader('X-RateLimit-Remaining', '0');
+            }
+
+            $this->increment($key, $now, $window);
+
+            $response = $next($request);
+            $response->withHeader('X-RateLimit-Limit', (string) $limit);
+            $response->withHeader('X-RateLimit-Remaining', (string) max(0, $limit - $hits - 1));
+
+            return $response;
+        } catch (\PDOException|\RuntimeException $e) {
+            // DB unavailable (install mode, outage) — skip rate limiting
+            $this->logWarning('Rate limiter skipped: ' . $e->getMessage());
+            return $next($request);
         }
-
-        $this->increment($key, $now, $window);
-
-        $response = $next($request);
-        $response->withHeader('X-RateLimit-Limit', (string) $limit);
-        $response->withHeader('X-RateLimit-Remaining', (string) max(0, $limit - $hits - 1));
-
-        return $response;
     }
 
     private function buildKey(Request $request): string

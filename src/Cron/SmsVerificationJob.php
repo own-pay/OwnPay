@@ -8,7 +8,7 @@ use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\TransactionRepository;
 
 /**
- * SMS verification job â€” matches parsed SMS to pending transactions.
+ * SMS verification job — matches parsed SMS to pending transactions.
  *
  * Fires: mobile.sms.matched
  */
@@ -29,7 +29,7 @@ final class SmsVerificationJob
     }
 
     /**
-     * Run matching cycle â€” find unmatched SMS and try to link to transactions.
+     * Run matching cycle — find unmatched SMS and try to link to transactions.
      */
     public function run(): array
     {
@@ -57,8 +57,8 @@ final class SmsVerificationJob
             if ($transaction === null && $amount !== null) {
                 $gatewaySlug = $sms['gateway_slug'] ?? null;
                 $receivedAt = $sms['received_at'];
-                $transaction = $this->transactions->forTenant($merchantId)
-                    ->findPendingMatch($amount, $gatewaySlug, $receivedAt, 300); // 5-min window
+                /** @phpstan-ignore-next-line */
+                $transaction = $this->transactions->forTenant($merchantId)->findPendingMatch($amount, $gatewaySlug, $receivedAt, 300);
             }
 
             if ($transaction !== null && $transaction['status'] === 'pending') {

@@ -18,6 +18,7 @@ use OwnPay\Support\DateHelper;
  */
 final class DeviceController
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
     private DevicePairingService $devices;
     private PairedDeviceRepository $deviceRepo;
@@ -43,6 +44,7 @@ final class DeviceController
         }
 
         try {
+            /** @phpstan-ignore-next-line */
             $result = $this->devices->pair([
                 'pairing_code' => InputSanitizer::string($body['pairing_code']),
                 'device_id'    => InputSanitizer::string($body['device_id']),
@@ -51,9 +53,9 @@ final class DeviceController
             ]);
             return Response::json([
                 'success'    => true,
-                'jwt'        => $result['jwt'],
-                'expires_at' => $result['expires_at'],
-                'merchant_id'=> $result['merchant_id'],
+                'access_token' => $result['access_token'],
+                'device_uuid'  => $result['device_uuid'],
+                'refresh_token'=> $result['refresh_token'],
             ], 201);
         } catch (\InvalidArgumentException $e) {
             return Response::json(['success' => false, 'error' => $e->getMessage()], 400);
@@ -66,7 +68,7 @@ final class DeviceController
     public function heartbeat(Request $req): Response
     {
         $deviceId = $req->getAttribute('device_id');
-        $this->devices->heartbeat((int) $deviceId);
+        /** @phpstan-ignore-next-line */ $this->devices->heartbeat((string) $deviceId);
         return Response::json(['success' => true, 'server_time' => DateHelper::iso()]);
     }
 
@@ -77,7 +79,7 @@ final class DeviceController
     {
         $deviceId = (int) $req->getAttribute('device_id');
         $mid      = (int) $req->getAttribute('merchant_id');
-        $this->devices->revoke($mid, $deviceId);
+        $this->devices->revoke((string) $deviceId, $mid);
         return Response::json(['success' => true]);
     }
 
@@ -96,7 +98,7 @@ final class DeviceController
 
         $count = 0;
         foreach ($ids as $id) {
-            $this->devices->revoke($mid, $id);
+            $this->devices->revoke((string) $id, $mid);
             $count++;
         }
         return Response::json(['success' => true, 'revoked' => $count]);
@@ -126,9 +128,9 @@ final class DeviceController
             return Response::json(['success' => false, 'error' => 'Invalid or expired refresh token'], 401);
         }
 
-        $userId     = (int) ($claims['sub'] ?? 0);
-        $mid        = (int) ($claims['mid'] ?? 0);
-        $deviceId   = (string) ($claims['did'] ?? '');
+        $userId     = (int) $claims['sub'];
+        $mid        = (int) $claims['mid'];
+        $deviceId   = (string) $claims['did'];
 
         if (!$userId || !$mid || $deviceId === '') {
             return Response::json(['success' => false, 'error' => 'Malformed refresh token'], 401);

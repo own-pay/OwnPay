@@ -9,7 +9,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Support\DateHelper;
 
 /**
- * Outbound webhook dispatcher â€” sends signed POST to merchant webhook_url.
+ * Outbound webhook dispatcher — sends signed POST to merchant webhook_url.
  *
  * Universal for ALL gateway types (api, manual, bank).
  * HMAC-SHA256 signed. Retry with exponential backoff.
@@ -40,29 +40,33 @@ final class WebhookDispatcher
      */
     public function dispatch(int $merchantId, string $event, array $data): void
     {
-        // Load merchant webhook config
-        $merchant = $this->db->fetchOne(
-            "SELECT webhook_url, webhook_secret FROM op_merchants WHERE id = :mid",
+        // Load active webhooks for this merchant from op_webhooks
+        $webhooks = $this->db->fetchAll(
+            "SELECT url, secret, events FROM op_webhooks WHERE merchant_id = :mid AND status = 'active'",
             ['mid' => $merchantId]
         );
 
-        if (empty($merchant['webhook_url'])) {
-            return; // No webhook configured
+        if (empty($webhooks)) {
+            return; // No webhooks configured
         }
-
-        $url = $merchant['webhook_url'];
-        $secret = $merchant['webhook_secret'] ?? '';
 
         // Build standardized payload
         $payload = $this->buildPayload($event, $data);
         $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
-        // Sign with HMAC-SHA256
-        $signature = hash_hmac('sha256', $jsonPayload, $secret);
-        $timestamp = time();
+        foreach ($webhooks as $webhook) {
+            // Check if webhook subscribes to this event
+            $subscribedEvents = json_decode($webhook['events'] ?? '[]', true) ?: [];
+            if (!empty($subscribedEvents) && !in_array($event, $subscribedEvents, true) && !in_array('*', $subscribedEvents, true)) {
+                continue;
+            }
 
-        // Send with retry
-        $this->sendWithRetry($url, $jsonPayload, $signature, $timestamp, $merchantId, $event);
+            $secret = $webhook['secret'] ?? '';
+            $signature = hash_hmac('sha256', $jsonPayload, $secret);
+            $timestamp = time();
+
+            $this->sendWithRetry($webhook['url'], $jsonPayload, $signature, $timestamp, $merchantId, $event);
+        }
     }
 
     /**
@@ -102,12 +106,13 @@ final class WebhookDispatcher
      */
     public function sendTest(int $merchantId): array
     {
-        $merchant = $this->db->fetchOne(
-            "SELECT webhook_url, webhook_secret FROM op_merchants WHERE id = :mid",
+        // Find first active webhook for this merchant from op_webhooks
+        $webhook = $this->db->fetchOne(
+            "SELECT url, secret FROM op_webhooks WHERE merchant_id = :mid AND status = 'active' ORDER BY created_at ASC LIMIT 1",
             ['mid' => $merchantId]
         );
 
-        if (empty($merchant['webhook_url'])) {
+        if ($webhook === null || empty($webhook['url'])) {
             return ['success' => false, 'error' => 'No webhook URL configured'];
         }
 
@@ -121,9 +126,9 @@ final class WebhookDispatcher
         ]);
 
         $json = json_encode($testPayload, JSON_UNESCAPED_SLASHES);
-        $signature = $this->sign($json, $merchant['webhook_secret'] ?? '');
+        $signature = $this->sign($json, $webhook['secret'] ?? '');
 
-        return $this->doSend($merchant['webhook_url'], $json, $signature, time());
+        return $this->doSend($webhook['url'], $json, $signature, time());
     }
 
     /**
@@ -143,6 +148,7 @@ final class WebhookDispatcher
 
             // Wait before retry (skip wait on last attempt)
             if ($attempt < self::MAX_RETRIES) {
+                /** @phpstan-ignore nullCoalesce.offset */
                 $delay = self::RETRY_DELAYS[$attempt - 1] ?? 60;
                 // In production: queue delayed job instead of sleep
                 $this->logger->warning("Webhook retry #{$attempt} for merchant={$merchantId} event={$event} delay={$delay}s");

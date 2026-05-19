@@ -1,0 +1,40 @@
+{
+    "schema_version": 1,
+    "generated_at": "2026-05-20T00:00:00Z",
+    "channels": {
+        "stable": {
+            "latest_version_name": "0.1.0",
+            "latest_version_code": "0.1.0",
+            "min_php_version": "8.2.0",
+            "min_ownpay_version": null,
+            "download_url": "https://update.ownpay.org/releases/0.1.0/ownpay-0.1.0.zip",
+            "checksum_url": "https://update.ownpay.org/releases/0.1.0/checksum.sha256",
+            "checksum_sha256": "placeholder_replace_with_actual_sha256_hash",
+            "signature_url": null,
+            "changelog_url": "https://update.ownpay.org/releases/0.1.0/changelog.md",
+            "changelog": "## 0.1.0 — Genesis\n\n- Initial release\n- Multi-brand payment gateway\n- bKash and SSLCommerz integration\n- Admin panel with RBAC\n- Mobile companion app API\n- Installer wizard",
+            "release_date": "2026-05-01",
+            "size_bytes": 0,
+            "migrations": [],
+            "breaking_changes": false
+        },
+        "beta": {
+            "latest_version_name": "0.1.0",
+            "latest_version_code": "0.1.0",
+            "min_php_version": "8.2.0",
+            "min_ownpay_version": null,
+            "download_url": "https://update.ownpay.org/releases/0.1.0/ownpay-0.1.0.zip",
+            "checksum_url": "https://update.ownpay.org/releases/0.1.0/checksum.sha256",
+            "checksum_sha256": "placeholder_replace_with_actual_sha256_hash",
+            "signature_url": null,
+            "changelog_url": "https://update.ownpay.org/releases/0.1.0/changelog.md",
+            "changelog": "## 0.1.0 — Genesis\n\n- Same as stable for initial release",
+            "release_date": "2026-05-01",
+            "size_bytes": 0,
+            "migrations": [],
+            "breaking_changes": false
+        }
+    },
+    "announcements": [],
+    "public_key_url": null
+}

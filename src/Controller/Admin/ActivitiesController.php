@@ -38,7 +38,7 @@ final class ActivitiesController
             $mid = $brand->getActiveBrandId();
         }
 
-        $page    = max(1, (int) $req->get('page', '1'));
+        $page    = max(1, (int) $req->query('page', '1'));
         $perPage = 25;
         $offset  = ($page - 1) * $perPage;
 

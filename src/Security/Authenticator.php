@@ -7,7 +7,7 @@ use OwnPay\Repository\LoginAttemptRepository;
 use OwnPay\Repository\MerchantUserRepository;
 
 /**
- * Authenticator â€” handles login, password verification, 2FA check.
+ * Authenticator — handles login, password verification, 2FA check.
  *
  * Per OWASP: Argon2id hashing, timing-safe compare, brute-force protection.
  * Per pci-compliance skill: constant-time password verify.
@@ -42,7 +42,7 @@ final class Authenticator
         $user = $this->users->findActiveByEmail($email);
 
         if ($user === null) {
-            // Log failed attempt (constant time â€” don't reveal whether email exists)
+            // Log failed attempt (constant time — don't reveal whether email exists)
             password_verify($password, '$argon2id$v=19$m=65536,t=4,p=1$dummy$dummy');
             $this->logAttempt($email, $ip, $userAgent, false);
             return ['success' => false, 'error' => 'Invalid credentials'];

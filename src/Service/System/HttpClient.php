@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * HTTP client â€” simple cURL wrapper for outbound API calls.
+ * HTTP client — simple cURL wrapper for outbound API calls.
  *
  * Per security skill: timeout enforcement, SSRF prevention, no private IPs.
  */

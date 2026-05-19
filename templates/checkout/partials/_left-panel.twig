@@ -20,16 +20,27 @@
         <p class="ck-section-label">{{ lang.order_summary ?? 'Order Summary' }}</p>
         <div class="ck-item-list">
             {% set subtotal = 0 %}
-            {% for item in items %}
-            <div class="ck-item">
-                <div>
-                    <p class="ck-item-name">{{ item.name ?? item.description ?? 'Payment' }}</p>
-                    {% if item.description is defined and item.description %}<p class="ck-item-desc">{{ item.description }}</p>{% endif %}
+            {% if items is empty %}
+                {# L-03 FIX: Synthetic item for non-invoice payments #}
+                <div class="ck-item">
+                    <div>
+                        <p class="ck-item-name">Payment to {{ brand.name }}</p>
+                    </div>
+                    <p class="ck-item-price">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }}</p>
                 </div>
-                <p class="ck-item-price">{{ txn.currency_symbol ?? '৳' }}{{ item.price|default(item.amount)|number_format(2) }}</p>
-            </div>
-            {% set subtotal = subtotal + (item.price|default(item.amount)|default(0)) %}
-            {% endfor %}
+                {% set subtotal = txn.amount %}
+            {% else %}
+                {% for item in items %}
+                <div class="ck-item">
+                    <div>
+                        <p class="ck-item-name">{{ item.name ?? item.description ?? 'Payment' }}</p>
+                        {% if item.description is defined and item.description %}<p class="ck-item-desc">{{ item.description }}</p>{% endif %}
+                    </div>
+                    <p class="ck-item-price">{{ txn.currency_symbol ?? '৳' }}{{ item.price|default(item.amount)|number_format(2) }}</p>
+                </div>
+                {% set subtotal = subtotal + (item.price|default(item.amount)|default(0)) %}
+                {% endfor %}
+            {% endif %}
             <div class="ck-divider"></div>
             <div class="ck-row"><span class="ck-text-muted">{{ lang.subtotal ?? 'Subtotal' }}</span><span class="ck-text-mono">{{ txn.currency_symbol ?? '৳' }}{{ subtotal|number_format(2) }}</span></div>
             {% if txn.tax_amount|default(0) > 0 %}

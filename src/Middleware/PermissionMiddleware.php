@@ -4,14 +4,15 @@ declare(strict_types=1);
 namespace OwnPay\Middleware;
 
 use OwnPay\Container;
-use OwnPay\Event\EventManager;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Permission middleware â€” checks user has required permission for route.
+ * Permission middleware — checks user has required permission for route.
  *
- * Fires 'auth.permission.check' filter for plugin override.
+ * AUD-01 FIX: Loads user permissions from DB via role_id → op_role_permissions → op_permissions.
+ * AUD-02 FIX: Standardized POST permission suffix to '.manage' (was inconsistent '.update').
+ * RBAC is NOT overridable by plugins (privilege escalation risk).
  */
 final class PermissionMiddleware
 {
@@ -24,10 +25,9 @@ final class PermissionMiddleware
 
     public function handle(Request $request, callable $next): Response
     {
-        $userId = $_SESSION['auth_user_id'] ?? null;
+        $userId = $request->getAttribute('auth_user_id') ?? ($_SESSION['auth_user_id'] ?? null);
 
         if ($userId === null) {
-            // No auth user set â€” redirect to login
             if ($request->expectsJson()) {
                 return Response::json(['success' => false, 'message' => 'Authentication required'], 401);
             }
@@ -38,16 +38,15 @@ final class PermissionMiddleware
         $user = $request->getAttribute('auth_user');
         if ($user === null) {
             $db = $this->container->get(\OwnPay\Core\Database::class);
-            $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id", ['id' => $userId]);
+            $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
             if (!$user) {
                 unset($_SESSION['auth_user_id']);
                 return Response::redirect('/login');
             }
-            // Propagate for downstream
             $request->setAttribute('auth_user', $user);
         }
 
-        // Superadmin bypass â€” MySQL returns "1" (string), not true (bool)
+        // Superadmin bypass — MySQL returns "1" (string), not true (bool)
         if (!empty($user['is_superadmin'])) {
             return $next($request);
         }
@@ -60,16 +59,15 @@ final class PermissionMiddleware
             return $next($request);
         }
 
-        $userPermissions = $request->getAttribute('user_permissions', []);
+        // AUD-01 FIX: Load user permissions from DB via role → role_permissions → permissions.
+        // Previously $userPermissions was always [] because no upstream middleware populated it.
+        $userPermissions = $request->getAttribute('user_permissions');
+        if ($userPermissions === null) {
+            $userPermissions = $this->loadPermissions((int) ($user['role_id'] ?? 0));
+            $request->setAttribute('user_permissions', $userPermissions);
+        }
 
-        // Allow plugins to override permission check
-        /** @var EventManager $events */
-        $events = $this->container->get(EventManager::class);
-        $allowed = $events->applyFilter('auth.permission.check', 
-            in_array($requiredPermission, $userPermissions, true),
-            $requiredPermission,
-            $user
-        );
+        $allowed = in_array($requiredPermission, $userPermissions, true);
 
         if (!$allowed) {
             if ($request->expectsJson()) {
@@ -82,50 +80,89 @@ final class PermissionMiddleware
     }
 
     /**
+     * Load permission slugs for a given role ID.
+     *
+     * @return string[] Array of permission slugs
+     */
+    private function loadPermissions(int $roleId): array
+    {
+        if ($roleId <= 0) {
+            return [];
+        }
+
+        try {
+            $db = $this->container->get(\OwnPay\Core\Database::class);
+            $rows = $db->fetchAll(
+                "SELECT p.slug FROM op_role_permissions rp
+                 JOIN op_permissions p ON p.id = rp.permission_id
+                 WHERE rp.role_id = :rid",
+                ['rid' => $roleId]
+            );
+            return array_column($rows, 'slug');
+        } catch (\Throwable) {
+            return [];
+        }
+    }
+
+    /**
      * Map route path to required permission slug.
+     *
+     * AUD-02 FIX: All POST operations now consistently use '.manage' suffix.
      */
     private function resolvePermission(string $path, string $method): ?string
     {
         $map = [
-            '/admin/transactions' => 'transactions.view',
-            '/admin/invoices'     => 'invoices.view',
-            '/admin/payment-links' => 'payment_links.view',
-            '/admin/customers'    => 'customers.view',
-            '/admin/gateways'     => 'gateways.view',
-            '/admin/staff'        => 'staff.view',
-            '/admin/brands'       => 'brands.view',
-            '/admin/settings'     => 'settings.view',
-            '/admin/api-keys'     => 'api_keys.view',
-            '/admin/sms-center'   => 'sms.view',
-            '/admin/sms-data'     => 'sms.view',
-            '/admin/devices'      => 'devices.view',
-            '/admin/plugins'      => 'plugins.view',
-            '/admin/themes'       => 'plugins.view',
-            '/admin/system-update' => 'system.update',
-            '/admin/activities'   => 'system.audit',
-            '/admin/reports'      => 'system.reports',
-            '/admin/domains'      => 'domains.view',
+            '/admin/transactions'         => 'transactions.view',
+            '/admin/invoices'             => 'invoices.view',
+            '/admin/payment-links'        => 'payment_links.view',
+            '/admin/customers'            => 'customers.view',
+            '/admin/gateways'             => 'gateways.view',
+            '/admin/staff'                => 'staff.view',
+            '/admin/brands'               => 'brands.view',
+            '/admin/settings'             => 'settings.view',
+            '/admin/api-keys'             => 'api_keys.view',
+            '/admin/sms-center'           => 'sms.view',
+            '/admin/sms-data'             => 'sms.view',
+            '/admin/devices'              => 'devices.view',
+            '/admin/plugins'              => 'plugins.view',
+            '/admin/themes'               => 'plugins.view',
+            '/admin/addons'               => 'plugins.view',
+            '/admin/system-update'        => 'system.update',
+            '/admin/activities'           => 'system.audit',
+            '/admin/audit-log'            => 'system.audit',
+            '/admin/reports'              => 'system.reports',
+            '/admin/domains'              => 'domains.view',
             '/admin/balance-verification' => 'system.balance',
+            '/admin/roles'                => 'staff.view',
+            '/admin/developer'            => 'api_keys.view',
+            '/admin/faq'                  => 'settings.view',
+            '/admin/ledger'               => 'system.reports',
+            '/admin/currencies'           => 'settings.view',
+            '/admin/my-account'           => 'admin.access',
         ];
 
         // Check exact match first
         if (isset($map[$path])) {
             $perm = $map[$path];
-            // POST = manage permission
             if ($method === 'POST') {
                 $perm = str_replace('.view', '.manage', $perm);
             }
             return $perm;
         }
 
-        // Check prefix match
+        // Check prefix match — POST uses .manage (AUD-02 FIX: was .update)
         foreach ($map as $prefix => $perm) {
             if (str_starts_with($path, $prefix)) {
                 if ($method === 'POST') {
-                    return str_replace('.view', '.update', $perm);
+                    return str_replace('.view', '.manage', $perm);
                 }
                 return $perm;
             }
+        }
+
+        // Default-deny for unmapped /admin/* routes
+        if (str_starts_with($path, '/admin')) {
+            return 'admin.access';
         }
 
         return null;

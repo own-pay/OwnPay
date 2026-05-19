@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Payment;
 
 /**
- * Currency service â€” conversion, formatting, exchange rates.
+ * Currency service — conversion, formatting, exchange rates.
  *
  * All amounts stored as DECIMAL(18,2) strings using bcmath.
  */

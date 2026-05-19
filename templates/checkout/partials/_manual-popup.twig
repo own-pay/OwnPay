@@ -31,6 +31,7 @@
 
             {# Step 2: Verification #}
             <div id="mpStep2" class="ck-hidden">
+                <button type="button" onclick="goMpStep(1)" class="ck-popup-back-link" style="background:none;border:none;color:var(--teal);cursor:pointer;font-size:0.85rem;margin-bottom:0.75rem;padding:0;">← {{ lang.back ?? 'Back' }}</button>
                 <form id="mpVerifyForm" onsubmit="return submitManual(event)">
                     <div class="ck-popup-field">
                         <label>{{ lang.sender_number ?? 'Your sender number' }}</label>
@@ -38,7 +39,7 @@
                     </div>
                     <div class="ck-popup-field">
                         <label>{{ lang.transaction_id ?? 'Transaction ID' }}</label>
-                        <input type="text" name="txn_id" class="ck-popup-input" required placeholder="TrxID from SMS">
+                        <input type="text" name="transaction_id" class="ck-popup-input" required placeholder="TrxID from SMS">
                     </div>
                     <button type="submit" class="ck-popup-submit-btn">{{ lang.verify_payment ?? 'Verify Payment' }}</button>
                 </form>

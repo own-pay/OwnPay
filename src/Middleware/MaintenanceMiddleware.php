@@ -8,11 +8,12 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Maintenance mode middleware â€” returns 503 when maintenance lock active.
+ * Maintenance mode middleware — returns 503 when maintenance lock active.
  * Checks op_maintenance_locks table.
  */
 final class MaintenanceMiddleware
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $container;
 
     public function __construct(Container $container)

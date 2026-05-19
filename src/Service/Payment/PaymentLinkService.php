@@ -6,7 +6,7 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Core\Database;
 
 /**
- * Payment link service â€” CRUD for merchant payment links.
+ * Payment link service — CRUD for merchant payment links.
  */
 final class PaymentLinkService
 {

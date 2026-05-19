@@ -10,6 +10,7 @@ use OwnPay\Service\Domain\DomainService;
 
 final class DomainController
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
     private DomainService $domains;
     public function __construct(Container $c, DomainService $domains) { $this->c = $c; $this->domains = $domains; }

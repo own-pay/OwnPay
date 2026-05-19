@@ -6,7 +6,7 @@ namespace OwnPay\Service\System;
 use OwnPay\Security\LogSanitizer;
 
 /**
- * Logger â€” PSR-3 compatible file logger with log rotation.
+ * Logger — PSR-3 compatible file logger with log rotation.
  *
  * Per PCI-DSS/OWASP: all logs sanitized via LogSanitizer, no raw PII.
  */
@@ -14,6 +14,7 @@ final class Logger
 {
     private string $logDir;
     private string $channel;
+    /** @phpstan-ignore property.onlyWritten */
     private LogSanitizer $sanitizer;
 
     public const EMERGENCY = 'emergency';
@@ -99,7 +100,7 @@ final class Logger
     }
 
     /**
-     * Rotate logs â€” remove files older than N days.
+     * Rotate logs — remove files older than N days.
      */
     public function rotate(int $daysToKeep = 30): int
     {

@@ -13,6 +13,7 @@ use OwnPay\Support\DateHelper;
 
 final class SmsController
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
     private SmsParserService $parser;
     private CommLogRepository $commRepo;
@@ -38,7 +39,7 @@ final class SmsController
 
         $this->events->doAction('sms.received.before', $body);
 
-        $result = $this->parser->parseAndStore($mid, [
+        $result = $this->parser->parseAndStore((string) $deviceId, $mid, [
             'sender'      => $body['sender'],
             'body'        => $body['body'],
             'received_at' => $body['received_at'] ?? DateHelper::now(),

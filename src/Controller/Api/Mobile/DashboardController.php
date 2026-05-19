@@ -30,8 +30,9 @@ final class DashboardController
 
         $today   = $this->txnRepo->getTodayStats($mid);
         $recent  = $this->txnRepo->getRecentTransactions($mid, 5);
-        $unread  = $this->notifRepo->countUnread($mid, $did);
+        $unread  = $this->notifRepo->countUnread($mid, (string) $did);
 
+        /** @phpstan-ignore-next-line */
         return Response::json([
             'success'               => true,
             'today'                 => $today,

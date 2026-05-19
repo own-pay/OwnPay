@@ -6,7 +6,7 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Repository\IdempotencyRepository;
 
 /**
- * Idempotency service â€” prevents duplicate transaction processing.
+ * Idempotency service — prevents duplicate transaction processing.
  *
  * Uses idempotency key (client-provided) to deduplicate API requests.
  */

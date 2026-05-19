@@ -51,13 +51,13 @@ final class TransactionController
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
 
-        $page = max(1, (int) $req->get('page', '1'));
+        $page = max(1, (int) $req->query('page', '1'));
         $filters = [
-            'q'         => $req->get('q', ''),
-            'status'    => $req->get('status', ''),
-            'gateway'   => $req->get('gateway', ''),
-            'date_from' => $req->get('date_from', ''),
-            'date_to'   => $req->get('date_to', ''),
+            'q'         => $req->query('q', ''),
+            'status'    => $req->query('status', ''),
+            'gateway'   => $req->query('gateway', ''),
+            'date_from' => $req->query('date_from', ''),
+            'date_to'   => $req->query('date_to', ''),
         ];
 
         $repo = $this->txns->forTenant($mid);

@@ -147,15 +147,18 @@ final class MerchantUserRepository extends BaseRepository
 
     /**
      * Create staff user.
+     * AUD-05 FIX: Accept optional $roleId so callers can pass resolved role.
      */
-    public function createStaff(int $merchantId, string $name, string $email, string $passwordHash): string
+    public function createStaff(int $merchantId, string $name, string $email, string $passwordHash, ?int $roleId = null): string
     {
-        // Resolve Staff role for this merchant
-        $role = $this->db->fetchOne(
-            "SELECT id FROM op_roles WHERE merchant_id = :mid AND slug = 'staff' LIMIT 1",
-            ['mid' => $merchantId]
-        );
-        $roleId = $role ? (int) $role['id'] : 1; // fallback to Owner if no Staff role
+        // Use provided roleId, or resolve Staff role for this merchant
+        if ($roleId === null) {
+            $role = $this->db->fetchOne(
+                "SELECT id FROM op_roles WHERE merchant_id = :mid AND slug = 'staff' LIMIT 1",
+                ['mid' => $merchantId]
+            );
+            $roleId = $role ? (int) $role['id'] : 1;
+        }
 
         return $this->create([
             'merchant_id'   => $merchantId,

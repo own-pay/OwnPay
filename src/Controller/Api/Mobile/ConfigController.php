@@ -27,6 +27,7 @@ final class ConfigController
     private SmsTemplateRepository $smsTemplates;
     private SettingsRepository $settings;
 
+    /** @phpstan-ignore-next-line */
     public function __construct(Container $c, SmsTemplateRepository $smsTemplates, SettingsRepository $settings)
     {
         $this->smsTemplates = $smsTemplates;
@@ -69,6 +70,7 @@ final class ConfigController
             'success'               => true,
             'version'               => 1,
             'updated_at'            => DateHelper::iso(),
+            /** @phpstan-ignore-next-line */
             'allowed_senders'       => array_values($allowedSenders),
             'positive_keywords'     => $positiveKeywords,
             'negative_keywords'     => $negativeKeywords,

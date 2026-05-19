@@ -7,7 +7,7 @@ use OwnPay\Core\Database;
 use OwnPay\Http\Request;
 
 /**
- * Brand context â€” central resolver for "which brand is active?"
+ * Brand context — central resolver for "which brand is active?"
  *
  * Resolution order:
  *   1. Request attribute (from DomainMiddleware or BearerAuthMiddleware)

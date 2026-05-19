@@ -11,7 +11,7 @@ use OwnPay\Plugin\PluginManager;
 use OwnPay\Repository\PluginRepository;
 
 /**
- * Addon admin controller â€” filtered view of addon-type plugins.
+ * Addon admin controller — filtered view of addon-type plugins.
  */
 final class AddonController
 {
@@ -19,6 +19,7 @@ final class AddonController
 
     private Container $c;
     private AdminSession $session;
+    /** @phpstan-ignore property.onlyWritten */
     private PluginManager $manager;
     private PluginRepository $repo;
 

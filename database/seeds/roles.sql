@@ -9,20 +9,24 @@ INSERT INTO `op_permissions` (`slug`, `name`, `group_name`) VALUES
 ('dashboard.stats', 'View Statistics', 'dashboard'),
 -- Transactions
 ('transactions.view', 'View Transactions', 'transactions'),
+('transactions.manage', 'Manage Transactions', 'transactions'),
 ('transactions.update', 'Update Transactions', 'transactions'),
 ('transactions.export', 'Export Transactions', 'transactions'),
 -- Invoices
 ('invoices.view', 'View Invoices', 'invoices'),
+('invoices.manage', 'Manage Invoices', 'invoices'),
 ('invoices.create', 'Create Invoices', 'invoices'),
 ('invoices.update', 'Update Invoices', 'invoices'),
 ('invoices.delete', 'Delete Invoices', 'invoices'),
 -- Payment Links
 ('payment_links.view', 'View Payment Links', 'payment_links'),
+('payment_links.manage', 'Manage Payment Links', 'payment_links'),
 ('payment_links.create', 'Create Payment Links', 'payment_links'),
 ('payment_links.update', 'Update Payment Links', 'payment_links'),
 ('payment_links.delete', 'Delete Payment Links', 'payment_links'),
 -- Customers
 ('customers.view', 'View Customers', 'customers'),
+('customers.manage', 'Manage Customers', 'customers'),
 ('customers.create', 'Create Customers', 'customers'),
 ('customers.update', 'Update Customers', 'customers'),
 -- Gateways
@@ -30,15 +34,20 @@ INSERT INTO `op_permissions` (`slug`, `name`, `group_name`) VALUES
 ('gateways.manage', 'Manage Gateways', 'gateways'),
 -- Staff
 ('staff.view', 'View Staff', 'staff'),
+('staff.manage', 'Manage Staff', 'staff'),
 ('staff.create', 'Create Staff', 'staff'),
 ('staff.update', 'Update Staff', 'staff'),
 ('staff.delete', 'Delete Staff', 'staff'),
--- Merchants
+-- Brands (AUD-10: route map uses 'brands', not 'merchants')
+('brands.view', 'View Brands', 'brands'),
+('brands.manage', 'Manage Brands', 'brands'),
+-- Merchants (legacy compat)
 ('merchants.view', 'View Merchants', 'merchants'),
 ('merchants.create', 'Create Merchants', 'merchants'),
 ('merchants.update', 'Update Merchants', 'merchants'),
 -- Settings
 ('settings.view', 'View Settings', 'settings'),
+('settings.manage', 'Manage Settings', 'settings'),
 ('settings.update', 'Update Settings', 'settings'),
 -- API Keys
 ('api_keys.view', 'View API Keys', 'api_keys'),
@@ -62,4 +71,6 @@ INSERT INTO `op_permissions` (`slug`, `name`, `group_name`) VALUES
 ('system.update', 'System Updates', 'system'),
 ('system.audit', 'View Audit Log', 'system'),
 ('system.reports', 'View Reports', 'system'),
-('system.balance', 'Balance Verification', 'system');
+('system.balance', 'Balance Verification', 'system'),
+-- Admin (AUD-10: default-deny fallback permission for unmapped admin routes)
+('admin.access', 'Basic Admin Access', 'admin');

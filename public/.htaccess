@@ -2,6 +2,10 @@
     RewriteEngine On
     RewriteBase /
 
+    # Pass Authorization header to PHP (Apache mod_fcgid strips it by default)
+    RewriteCond %{HTTP:Authorization} .+
+    RewriteRule .* - [E=HTTP_AUTHORIZATION:%{HTTP:Authorization}]
+
     # If the requested file or directory exists, serve it directly
     RewriteCond %{REQUEST_FILENAME} !-f
     RewriteCond %{REQUEST_FILENAME} !-d

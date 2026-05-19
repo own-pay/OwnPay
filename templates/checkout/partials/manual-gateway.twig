@@ -31,7 +31,7 @@
             <span class="op-amount-value">{{ transaction.currency }} {{ transaction.amount }}</span>
         </div>
 
-        <form method="POST" action="/checkout/{{ transaction.token }}/submit" 
+        <form method="POST" action="/checkout/{{ transaction.token }}/pay" 
               enctype="multipart/form-data" class="op-checkout-form">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="gateway_slug" value="{{ gateway.slug }}">

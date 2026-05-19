@@ -52,12 +52,42 @@ final class RefundController
         }
     }
 
+    /**
+     * GET /api/v1/refunds/{trx_id}
+     * Look up refund via transaction trx_id (refunds FK to op_transactions).
+     */
     public function show(Request $req): Response
     {
-        $id = (int) $req->param('id');
+        $trxId = trim($req->param('trx_id'));
         $mid = (int) $req->getAttribute('merchant_id');
-        $refund = $this->refunds->find($mid, $id);
-        if (!$refund) return Response::json(['success' => false, 'error' => 'Not found'], 404);
-        return Response::json(['success' => true, 'refund' => $refund]);
+
+        if ($trxId === '') {
+            return Response::json(['success' => false, 'error' => 'Transaction ID required'], 422);
+        }
+
+        // Find the transaction by trx_id first, then find refund by transaction_id
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $refund = $db->fetchOne(
+            "SELECT r.* FROM op_refunds r
+             JOIN op_transactions t ON t.id = r.transaction_id
+             WHERE t.trx_id = :trx_id AND r.merchant_id = :mid
+             ORDER BY r.created_at DESC LIMIT 1",
+            ['trx_id' => $trxId, 'mid' => $mid]
+        );
+
+        if (!$refund) {
+            return Response::json(['success' => false, 'error' => 'Refund not found'], 404);
+        }
+
+        return Response::json(['success' => true, 'refund' => [
+            'id'             => $refund['id'],
+            'uuid'           => $refund['uuid'],
+            'transaction_id' => $refund['transaction_id'],
+            'amount'         => $refund['amount'],
+            'reason'         => $refund['reason'] ?? null,
+            'status'         => $refund['status'],
+            'processed_at'   => $refund['processed_at'] ?? null,
+            'created_at'     => $refund['created_at'],
+        ]]);
     }
 }

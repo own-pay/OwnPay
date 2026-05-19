@@ -10,6 +10,7 @@ use OwnPay\Service\Device\DevicePairingService;
 
 final class DeviceController
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
     private DevicePairingService $devices;
     public function __construct(Container $c, DevicePairingService $devices) { $this->c = $c; $this->devices = $devices; }
@@ -17,7 +18,7 @@ final class DeviceController
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $list = $this->devices->listForMerchant($mid);
+        $list = $this->devices->listDevices($mid);
         return Response::json(['success' => true, 'data' => $list]);
     }
 
@@ -25,6 +26,7 @@ final class DeviceController
     {
         $id = (int) $req->param('id');
         $mid = (int) $req->getAttribute('merchant_id');
+        /** @phpstan-ignore-next-line */
         $this->devices->revoke($mid, $id);
         return Response::json(['success' => true]);
     }

@@ -4,20 +4,25 @@ declare(strict_types=1);
 namespace OwnPay\Plugin;
 
 /**
- * Plugin manifest â€” parsed from manifest.json.
+ * Plugin manifest — parsed from manifest.json.
  *
  * Every plugin must have a manifest.json at its root:
  * {
- *   "name": "My Plugin",
- *   "slug": "my-plugin",
- *   "version": "1.0.0",
- *   "description": "Does something",
- *   "author": "Dev Name",
- *   "type": "addon",
- *   "entrypoint": "MyPlugin.php",
- *   "capabilities": ["addon"],
- *   "requires": {"core": ">=0.1.0", "php": ">=8.1"},
- *   "permissions": ["transactions.view"]
+ *    "name": "Stripe",
+ *    "slug": "stripe",
+ *    "version": "1.0.0",
+ *    "description": "Stripe payment gateway — cards, wallets, international payments",
+ *    "author": "OwnPay Core",
+ *    "type": "gateway",
+ *    "category": "global|mfs|bank",
+ *    "entrypoint": "StripeGateway.php",
+ *    "namespace": "OwnPay\\Modules\\Gateways\\Stripe",
+ *    "capabilities": ["gateway"],
+ *    "requires": {
+ *        "core": ">=0.1.0",
+ *        "php": ">=8.1"
+ *    },
+ *    "permissions": ["gateway.process", "gateway.refund"]
  * }
  */
 final class PluginManifest
@@ -32,6 +37,9 @@ final class PluginManifest
     public readonly array $capabilities;
     public readonly array $requires;
     public readonly array $permissions;
+    public readonly string $category;
+    public readonly string $icon;
+    public readonly string $color;
     public readonly string $path;
 
     private function __construct(array $data, string $path)
@@ -46,6 +54,9 @@ final class PluginManifest
         $this->capabilities = $data['capabilities'] ?? [];
         $this->requires = $data['requires'] ?? [];
         $this->permissions = $data['permissions'] ?? [];
+        $this->category = $data['category'] ?? 'global';
+        $this->icon = $data['icon'] ?? '';
+        $this->color = $data['color'] ?? '#0D9488';
         $this->path = $path;
     }
 
@@ -124,6 +135,9 @@ final class PluginManifest
             'capabilities' => $this->capabilities,
             'requires' => $this->requires,
             'permissions' => $this->permissions,
+            'category' => $this->category,
+            'icon' => $this->icon,
+            'color' => $this->color,
         ];
     }
 }

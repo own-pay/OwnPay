@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OwnPay\Repository;
 
 /**
- * Repository for op_idempotency_keys â€” API replay prevention.
+ * Repository for op_idempotency_keys — API replay prevention.
  */
 final class IdempotencyRepository extends BaseRepository
 {
@@ -44,7 +44,7 @@ final class IdempotencyRepository extends BaseRepository
 
     /**
      * Clean up expired keys (older than $hours).
-     * NOTE: This is a global housekeeping operation â€” no tenant scoping applied.
+     * NOTE: This is a global housekeeping operation — no tenant scoping applied.
      */
     public function cleanup(int $hours = 24): int
     {

@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Security;
 
 /**
- * Log sanitizer â€” strips sensitive fields before logging.
+ * Log sanitizer — strips sensitive fields before logging.
  *
  * Per OWASP + security skill: never log passwords, tokens, keys, PII.
  */

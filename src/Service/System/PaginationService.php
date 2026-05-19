@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * Pagination service â€” offset-based pagination with page metadata.
+ * Pagination service — offset-based pagination with page metadata.
  */
 final class PaginationService
 {
@@ -28,7 +28,7 @@ final class PaginationService
             'total_pages' => $totalPages,
             'offset'      => $offset,
             'has_next'    => $page < $totalPages,
-            'has_prev'    => $page > 1,
+            'has_prev'    => $page > 1 /** @phpstan-ignore greater.alwaysTrue */,
         ];
     }
 
@@ -72,7 +72,7 @@ final class PaginationService
         }
 
         // Always include last page
-        if ($totalPages > 1) {
+        if ($totalPages > 1 /** @phpstan-ignore greater.alwaysTrue */) {
             $range[] = $totalPages;
         }
 

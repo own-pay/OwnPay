@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Repository;
 
 /**
- * Tenant scope â€” auto-scopes queries to current merchant_id.
+ * Tenant scope — auto-scopes queries to current merchant_id.
  *
  * Prevents cross-tenant data leakage (per pci-compliance + security skills).
  * Clone-based: forTenant() returns new instance, original stays unscoped.
@@ -21,7 +21,7 @@ trait TenantScope
     }
 
     /**
-     * Return unscoped clone â€” for superadmin global views.
+     * Return unscoped clone — for superadmin global views.
      */
     public function forAllTenants(): static
     {

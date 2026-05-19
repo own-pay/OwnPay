@@ -7,9 +7,10 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\CustomerRepository;
 use OwnPay\Security\FieldEncryptor;
 use OwnPay\Security\PiiMasker;
+use Ramsey\Uuid\Uuid;
 
 /**
- * Customer PII service â€” encrypted CRUD with PII masking.
+ * Customer PII service — encrypted CRUD with PII masking.
  *
  * Per PCI-DSS: all PII encrypted at rest (AES-256-GCM).
  * Fires: customer.created, customer.updated, customer.deleted
@@ -40,9 +41,16 @@ final class CustomerPiiService
     {
         $encrypted = $this->encryptPii($data);
 
-        // Generate deterministic hash for email lookup
-        if (!empty($data['email'])) {
-            $encrypted['email_hash'] = $this->encryptor->deterministicHash($data['email']);
+        // UUID required — op_customers.uuid is NOT NULL
+        $encrypted['uuid'] = Uuid::uuid4()->toString();
+
+        // Generate deterministic hashes for lookup without decryption
+        // email_hash is NOT NULL in schema — always provide value
+        $encrypted['email_hash'] = !empty($data['email'])
+            ? $this->encryptor->deterministicHash($data['email'])
+            : '';
+        if (!empty($data['phone'])) {
+            $encrypted['phone_hash'] = $this->encryptor->deterministicHash($data['phone']);
         }
 
         $repo = $this->customers->forTenant($merchantId);
@@ -66,6 +74,32 @@ final class CustomerPiiService
             return $this->decryptPii($customer);
         }
         return null;
+    }
+
+    /**
+     * Find customer by phone (via deterministic hash).
+     */
+    public function findByPhone(int $merchantId, string $phone): ?array
+    {
+        $hash = $this->encryptor->deterministicHash($phone);
+        $customer = $this->customers->forTenant($merchantId)->findByPhoneHash($hash);
+
+        if ($customer !== null) {
+            return $this->decryptPii($customer);
+        }
+        return null;
+    }
+
+    /**
+     * Find customer by contact — auto-detect email vs phone.
+     */
+    public function findByContact(int $merchantId, string $identifier): ?array
+    {
+        // If contains @, treat as email; otherwise treat as phone
+        if (str_contains($identifier, '@')) {
+            return $this->findByEmail($merchantId, $identifier);
+        }
+        return $this->findByPhone($merchantId, $identifier);
     }
 
     /**
@@ -101,7 +135,7 @@ final class CustomerPiiService
     }
 
     /**
-     * Delete customer (soft delete â€” zero PII fields).
+     * Delete customer (soft delete — zero PII fields).
      */
     public function delete(int $merchantId, int $customerId): void
     {

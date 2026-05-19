@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Payment;
 
 /**
- * Fee service â€” calculates transaction fees.
+ * Fee service — calculates transaction fees.
  *
  * Fires: payment.fee.calculate filter
  */

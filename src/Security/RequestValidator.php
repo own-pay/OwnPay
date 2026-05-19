@@ -5,6 +5,7 @@ namespace OwnPay\Security;
 
 use OwnPay\Http\Request;
 use OwnPay\Http\Dto\BaseDto;
+use OwnPay\Service\System\InputSanitizer;
 use InvalidArgumentException;
 
 final class RequestValidator

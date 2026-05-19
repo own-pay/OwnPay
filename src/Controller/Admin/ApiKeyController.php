@@ -36,8 +36,14 @@ final class ApiKeyController
         $mid = $brand->getActiveBrandId();
         $label = $req->post('label', 'Default');
         $key = $this->keys->generate($mid, $label);
-        $this->session->flashSuccess("API Key generated: {$key['key']}. Copy it now — it won't be shown again.");
-        return Response::redirect('/admin/settings#tab-api');
+
+        // Store generated key in session for one-time display in template.
+        // The developer hub template reads this and shows a professional copy panel.
+        $_SESSION['_generated_api_key'] = $key['key'];
+        $_SESSION['_generated_api_key_label'] = $label;
+
+        $this->session->flashSuccess("API key \"{$label}\" generated successfully. Copy it below — it won't be shown again.");
+        return Response::redirect('/admin/developer');
     }
 
     public function revoke(Request $req): Response

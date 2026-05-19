@@ -57,7 +57,7 @@ final class LedgerRepository extends BaseRepository
             'balance' => '0.00',
         ]);
 
-        return $this->findById($id);
+        return $this->find($id);
     }
 
     /**
@@ -65,7 +65,7 @@ final class LedgerRepository extends BaseRepository
      */
     public function getBalance(int $accountId): string
     {
-        $row = $this->findById($accountId);
+        $row = $this->find($accountId);
         return $row['balance'] ?? '0.00';
     }
 

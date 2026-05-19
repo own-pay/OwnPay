@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Sms;
 
 /**
- * SmsRegexParser â€” Tier 1: Template-based regex matching engine.
+ * SmsRegexParser — Tier 1: Template-based regex matching engine.
  *
  * Attempts to parse SMS body using regex templates from `op_sms_templates`.
  * Templates use PHP PCRE named capture groups: amount, trx_id, sender_number, balance.
@@ -32,13 +32,13 @@ final class SmsRegexParser
 
             // Validate regex before executing
             if (@preg_match($pattern, '') === false) {
-                continue; // Invalid regex â€” skip
+                continue; // Invalid regex — skip
             }
 
             if (preg_match($pattern, $body, $matches)) {
                 $amount = $this->extractAmount($matches['amount'] ?? null);
                 if ($amount === null) {
-                    continue; // Matched but no amount â€” not useful
+                    continue; // Matched but no amount — not useful
                 }
 
                 return [
@@ -58,7 +58,7 @@ final class SmsRegexParser
     }
 
     /**
-     * Clean and parse an amount string: "1,500.50" â†’ 1500.50
+     * Clean and parse an amount string: "1,500.50" ─ 1500.50
      */
     private function extractAmount(?string $raw): ?float
     {

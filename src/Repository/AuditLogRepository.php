@@ -12,7 +12,7 @@ final class AuditLogRepository extends BaseRepository
     ];
 
     /**
-     * Record audit event. Never use tenant scope â€” audit logs cross-tenant for superadmin.
+     * Record audit event. Never use tenant scope — audit logs cross-tenant for superadmin.
      */
     public function record(
         ?int $merchantId,

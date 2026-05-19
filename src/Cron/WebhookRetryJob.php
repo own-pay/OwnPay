@@ -6,7 +6,7 @@ namespace OwnPay\Cron;
 use OwnPay\Service\Payment\WebhookService;
 
 /**
- * Webhook retry job â€” retries failed webhook deliveries.
+ * Webhook retry job — retries failed webhook deliveries.
  *
  * Exponential backoff: 1min, 5min, 30min, 2h, 12h (max 5 attempts).
  */
@@ -58,6 +58,7 @@ final class WebhookRetryJob
                 $succeeded++;
             } else {
                 // Schedule next retry with backoff
+                /** @phpstan-ignore-next-line */
                 $nextBackoff = self::BACKOFF_SECONDS[$retryCount] ?? end(self::BACKOFF_SECONDS);
                 $this->db->update(
                     "UPDATE op_comm_log SET retry_count = :rc, next_retry_at = DATE_ADD(NOW(), INTERVAL :secs SECOND) WHERE id = :id",

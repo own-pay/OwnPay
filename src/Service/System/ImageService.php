@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * Image service â€” resize, thumbnail, watermark operations.
+ * Image service — resize, thumbnail, watermark operations.
  */
 final class ImageService
 {

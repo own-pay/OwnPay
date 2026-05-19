@@ -9,7 +9,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Two-factor auth middleware â€” enforces 2FA verification when required.
+ * Two-factor auth middleware — enforces 2FA verification when required.
  *
  * Fires 'auth.2fa.required' filter for plugin override.
  * Per OWASP: TOTP (RFC 6238) verification.
@@ -25,7 +25,8 @@ final class TwoFactorMiddleware
 
     public function handle(Request $request, callable $next): Response
     {
-        $userId = $_SESSION['auth_user_id'] ?? null;
+        // M-02 FIX: Prefer Request attributes over raw $_SESSION.
+        $userId = $request->getAttribute('auth_user_id') ?? ($_SESSION['auth_user_id'] ?? null);
         if ($userId === null) {
             return $next($request);
         }
@@ -33,9 +34,15 @@ final class TwoFactorMiddleware
         $user = $request->getAttribute('auth_user');
         if ($user === null) {
             $db = $this->container->get(\OwnPay\Core\Database::class);
-            $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id", ['id' => $userId]);
+            $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
             if (!$user) {
-                return $next($request);
+                // User deleted/deactivated but session persists — destroy stale session.
+                // Without this, a stale auth_user_id bypasses 2FA entirely.
+                unset($_SESSION['auth_user_id'], $_SESSION['auth_merchant_id'], $_SESSION['is_superadmin']);
+                if ($request->expectsJson()) {
+                    return Response::json(['success' => false, 'message' => 'Session expired'], 401);
+                }
+                return Response::redirect('/login');
             }
             $request->setAttribute('auth_user', $user);
         }
@@ -46,7 +53,8 @@ final class TwoFactorMiddleware
         }
 
         // Already verified this session
-        if (!empty($_SESSION['2fa_verified']) && $_SESSION['2fa_verified'] === true) {
+        $verified = $request->getAttribute('2fa_verified') ?? ($_SESSION['2fa_verified'] ?? false);
+        if ($verified === true) {
             return $next($request);
         }
 
@@ -56,14 +64,9 @@ final class TwoFactorMiddleware
             return $next($request);
         }
 
-        // Plugin filter â€” allow override
-        /** @var EventManager $events */
-        $events = $this->container->get(EventManager::class);
-        $required = $events->applyFilter('auth.2fa.required', true, $user, $request);
-
-        if (!$required) {
-            return $next($request);
-        }
+        // Plugin filter — allow override
+        // C-02 FIX: Removed plugin filter 'auth.2fa.required'
+        // 2FA enforcement must NEVER be overridable by plugins (PCI-DSS 8.4.2).
 
         // Redirect to 2FA challenge
         if ($request->expectsJson()) {

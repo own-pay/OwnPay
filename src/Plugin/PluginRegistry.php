@@ -6,7 +6,7 @@ namespace OwnPay\Plugin;
 use OwnPay\Repository\PluginRepository;
 
 /**
- * Plugin registry â€” runtime registry of loaded plugin instances + DB state.
+ * Plugin registry — runtime registry of loaded plugin instances + DB state.
  */
 final class PluginRegistry
 {

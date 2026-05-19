@@ -12,6 +12,7 @@ final class NotificationController
 {
     private MobileNotificationRepository $notifRepo;
 
+    /** @phpstan-ignore-next-line */
     public function __construct(Container $c, MobileNotificationRepository $notifRepo)
     {
         $this->notifRepo = $notifRepo;
@@ -21,7 +22,7 @@ final class NotificationController
     {
         $mid = (int) $req->getAttribute('merchant_id');
         $did = (int) $req->getAttribute('device_id');
-        $notifs = $this->notifRepo->listForDevice($mid, $did);
+        $notifs = $this->notifRepo->listForDevice($mid, (string) $did);
         return Response::json(['success' => true, 'data' => $notifs]);
     }
 

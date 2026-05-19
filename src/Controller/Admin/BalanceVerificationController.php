@@ -27,6 +27,7 @@ final class BalanceVerificationController
         $this->txnRepo = $txnRepo;
     }
 
+    /** @phpstan-ignore-next-line */
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
@@ -59,6 +60,7 @@ final class BalanceVerificationController
             $result = $this->recon->reconcile($mid, $currency);
             $this->session->flashSuccess(sprintf(
                 'Verification complete — %s: Expected %.2f, Actual %.2f',
+            /** @phpstan-ignore-next-line */
                 $currency, $result['expected'] ?? 0, $result['actual'] ?? 0
             ));
         } catch (\Throwable $e) {

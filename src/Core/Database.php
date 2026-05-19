@@ -12,7 +12,7 @@ use PDOStatement;
  * Provides convenience methods for common queries while maintaining
  * full prepared-statement safety. No raw string interpolation ever.
  *
- * Injected via DI container â€” never instantiate directly.
+ * Injected via DI container — never instantiate directly.
  */
 final class Database
 {
@@ -26,7 +26,7 @@ final class Database
         $this->pdo = $pdo;
     }
 
-    // â”€â”€â”€ Static Bootstrap (integration-test / legacy compat) â”€â”€â”€â”€â”€â”€â”€
+    
 
     /**
      * Create and store a singleton instance from connection parameters.
@@ -62,19 +62,13 @@ final class Database
         return self::$instance;
     }
 
-    /** Return the underlying PDO (used by legacy integration tests). */
-    public function getPdo(): PDO
-    {
-        return $this->pdo;
-    }
-
-    /** Alias of getPdo() â€” used by DI-injected services. */
+    /** Return the underlying PDO connection. */
     public function pdo(): PDO
     {
         return $this->pdo;
     }
 
-    // â”€â”€â”€ Query Methods â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    
 
     /**
      * @return array<int, array<string, mixed>>
@@ -125,7 +119,7 @@ final class Database
         return $this->execute($sql, $params)->rowCount();
     }
 
-    // â”€â”€â”€ Transactions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    
 
     /**
      * @template T
@@ -165,16 +159,24 @@ final class Database
         return $this->pdo->inTransaction();
     }
 
-    // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    
 
     public function exists(string $table, string $where, array $params = []): bool
     {
+        // Validate table name to prevent SQL injection via caller
+        if (!preg_match('/^[a-zA-Z0-9_`]+$/', $table)) {
+            throw new \InvalidArgumentException('Invalid table name: ' . $table);
+        }
         $sql = "SELECT 1 FROM {$table} WHERE {$where} LIMIT 1";
         return $this->fetchColumn($sql, $params) !== null;
     }
 
     public function count(string $table, string $where = '1=1', array $params = []): int
     {
+        // Validate table name to prevent SQL injection via caller
+        if (!preg_match('/^[a-zA-Z0-9_`]+$/', $table)) {
+            throw new \InvalidArgumentException('Invalid table name: ' . $table);
+        }
         $sql = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
         return (int) $this->fetchColumn($sql, $params);
     }

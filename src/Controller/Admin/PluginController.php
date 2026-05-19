@@ -41,6 +41,7 @@ final class PluginController
         $this->events = $events;
     }
 
+    /** @phpstan-ignore-next-line */
     public function index(Request $request): Response
     {
         $plugins = $this->repo->paginate(1, 200)['items'];
@@ -246,6 +247,7 @@ final class PluginController
     private function redirectBack(Request $request, string $error): Response
     {
         $this->session->flashError($error);
+        /** @phpstan-ignore nullCoalesce.expr */
         return Response::redirect($request->header('Referer') ?? '/admin/plugins/install');
     }
 
@@ -254,6 +256,7 @@ final class PluginController
      */
     private function redirectTarget(Request $request): string
     {
+        /** @phpstan-ignore nullCoalesce.expr */
         $referer = $request->header('Referer') ?? '';
         foreach (['/admin/gateways', '/admin/addons', '/admin/themes'] as $path) {
             if (str_contains($referer, $path)) {

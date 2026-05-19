@@ -6,14 +6,13 @@ namespace OwnPay\Controller\Api;
 use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
-use OwnPay\Service\Payment\PaymentService;
 use OwnPay\Service\Payment\GatewayApiService;
 use OwnPay\Repository\TransactionRepository;
 use OwnPay\Event\EventManager;
 use OwnPay\Service\System\InputSanitizer;
 
 /**
- * Payment API â€” initiate and query payments.
+ * Payment API — initiate and query payments.
  * OWASP: Input validation, no PII in error responses.
  * PCI: Never logs/stores card data. Tokenized via gateway.
  */
@@ -34,31 +33,45 @@ final class PaymentController
 
     /**
      * POST /api/v1/payments/initiate
-     * Body: { gateway, amount, currency, customer_email?, customer_name?, customer_phone?, metadata?, callback_url }
+     * Body: { amount, currency, gateway?, customer_email?, customer_name?, customer_phone?, metadata?, callback_url? }
+     * Gateway is optional — if omitted, uses brand's default gateway.
      */
     public function initiate(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
         $body = $req->json();
 
-        // OWASP: Validate required fields
+        // OWASP: Validate required fields (gateway is optional now)
         $errors = [];
-        if (empty($body['gateway'])) $errors[] = 'gateway is required';
-        if (empty($body['amount']) || !is_numeric($body['amount']) || (float) $body['amount'] <= 0) $errors[] = 'amount must be a positive number';
-        if (empty($body['currency'])) $errors[] = 'currency is required';
+        if (empty($body['amount']) || !is_numeric($body['amount']) || (float) $body['amount'] <= 0) {
+            $errors[] = 'amount must be a positive number';
+        }
+        if (empty($body['currency'])) {
+            $errors[] = 'currency is required';
+        }
         if (!empty($errors)) {
             return Response::json(['success' => false, 'errors' => $errors], 422);
         }
 
+        // Resolve gateway: use provided or fallback to brand default
+        $gatewaySlug = !empty($body['gateway'])
+            ? InputSanitizer::slug($body['gateway'])
+            : $this->resolveDefaultGateway($mid);
+
+        if ($gatewaySlug === null || $gatewaySlug === '') {
+            return Response::json(['success' => false, 'error' => 'No gateway available. Configure a gateway or provide one in request.'], 400);
+        }
+
         $data = [
             'merchant_id'    => $mid,
-            'gateway'        => InputSanitizer::slug($body['gateway']),
+            'gateway'        => $gatewaySlug,
             'amount'         => InputSanitizer::decimal($body['amount']),
             'currency'       => strtoupper(InputSanitizer::string($body['currency'])),
             'customer_email' => $body['customer_email'] ?? null,
             'customer_name'  => $body['customer_name'] ?? null,
             'customer_phone' => $body['customer_phone'] ?? null,
             'callback_url'   => $body['callback_url'] ?? null,
+            'reference'      => $body['reference'] ?? null,
             'metadata'       => $body['metadata'] ?? [],
             'ip_address'     => $req->ip(),
         ];
@@ -66,7 +79,7 @@ final class PaymentController
         $this->events->doAction('api.payment.before', $data);
 
         try {
-            $result = $this->gatewayApi->initiatePayment($mid, $body['gateway'], $data);
+            $result = $this->gatewayApi->initiatePayment($mid, $gatewaySlug, $data);
             if (!$result['success']) {
                 throw new \InvalidArgumentException($result['error']);
             }
@@ -89,35 +102,74 @@ final class PaymentController
     }
 
     /**
-     * GET /api/v1/payments/{id}
+     * GET /api/v1/payments/{trx_id}
+     * Lookup by transaction ID (TXN-XXXX format), NOT database ID.
      */
     public function show(Request $req): Response
     {
-        $id = (int) $req->param('id');
+        $trxId = trim($req->param('trx_id'));
         $mid = (int) $req->getAttribute('merchant_id');
-        $payment = $this->transactions->forTenant($mid)->findScoped($id);
+
+        if ($trxId === '') {
+            return Response::json(['success' => false, 'error' => 'Transaction ID required'], 422);
+        }
+
+        $payment = $this->transactions->forTenant($mid)->findByTrxId($trxId);
 
         if ($payment === null) {
             return Response::json(['success' => false, 'error' => 'Payment not found'], 404);
         }
 
-        // OWASP: Only expose safe fields
-        return Response::json([
-            'success' => true,
-            'payment' => [
-                'id'          => $payment['id'],
-                'trx_id'      => $payment['trx_id'],
-                'amount'      => $payment['amount'],
-                'currency'    => $payment['currency'],
-                'status'      => $payment['status'],
-                'gateway'     => $payment['gateway'],
-                'customer'    => [
-                    'name'  => $payment['customer_name'] ?? null,
-                    'email' => $payment['customer_email'] ?? null,
-                ],
-                'created_at'  => $payment['created_at'],
-                'completed_at' => $payment['completed_at'] ?? null,
-            ],
-        ]);
+        $response = [
+            'id'           => $payment['id'],
+            'trx_id'       => $payment['trx_id'],
+            'amount'       => $payment['amount'],
+            'currency'     => $payment['currency'],
+            'fee'          => $payment['fee'] ?? '0.00',
+            'status'       => $payment['status'],
+            'gateway'      => $payment['gateway_slug'] ?? null,
+            'method'       => $payment['method'] ?? null,
+            'reference'    => $payment['reference'] ?? null,
+            'created_at'   => $payment['created_at'],
+            'completed_at' => $payment['completed_at'] ?? null,
+        ];
+
+        // Resolve customer from FK — columns are encrypted (name_enc, email_enc)
+        if (!empty($payment['customer_id'])) {
+            try {
+                $pii = $this->c->get(\OwnPay\Service\Customer\CustomerPiiService::class);
+                $customer = $pii->get($mid, (int) $payment['customer_id']);
+                if ($customer) {
+                    $response['customer'] = [
+                        'name'  => $customer['name'] ?? null,
+                        'email' => $customer['email'] ?? null,
+                    ];
+                }
+            } catch (\Throwable) {
+                // Customer lookup failed — skip
+            }
+        }
+
+        return Response::json(['success' => true, 'payment' => $response]);
+    }
+
+    /**
+     * Resolve brand's default gateway slug.
+     */
+    private function resolveDefaultGateway(int $merchantId): ?string
+    {
+        try {
+            $db = $this->c->get(\OwnPay\Core\Database::class);
+            $config = $db->fetchOne(
+                "SELECT g.slug FROM op_gateway_configs gc
+                 JOIN op_gateways g ON g.id = gc.gateway_id
+                 WHERE gc.merchant_id = :mid AND gc.status = 'active'
+                 ORDER BY gc.created_at ASC LIMIT 1",
+                ['mid' => $merchantId]
+            );
+            return $config['slug'] ?? null;
+        } catch (\Throwable) {
+            return null;
+        }
     }
 }

@@ -34,13 +34,18 @@ final class SettingsController
         $settings    = $this->settingsRepo->getGroup('general');
         $branding    = $this->settingsRepo->getGroup('branding');
         $landing     = $this->settingsRepo->getGroup('landing');
+        $checkout    = $this->settingsRepo->getGroup('checkout');
 
+        /** @phpstan-ignore booleanAnd.rightAlwaysTrue */
         if (isset($settings['faqs']) && is_string($settings['faqs'])) {
             $decoded = json_decode($settings['faqs'], true);
+            /** @phpstan-ignore booleanAnd.rightAlwaysTrue */
             $settings['faqs'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
         }
+        /** @phpstan-ignore booleanAnd.rightAlwaysTrue */
         if (isset($landing['features']) && is_string($landing['features'])) {
             $decoded = json_decode($landing['features'], true);
+            /** @phpstan-ignore booleanAnd.rightAlwaysTrue */
             $landing['features'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
         }
 
@@ -60,15 +65,16 @@ final class SettingsController
         $apiKeys = $this->c->get(\OwnPay\Service\Customer\ApiKeyService::class)->list($mid);
 
         return $this->renderAdminPage('admin/settings/index.twig', [
-            'settings'      => $settings,
-            'branding'      => $branding,
-            'landing'       => $landing,
-            'currencies'    => $allCurrencies,
-            'all_currencies'=> $allCurrencies,
-            'timezones'     => $timezones,
-            'api_keys'      => $apiKeys,
-            'active_page'   => 'settings',
-            'default_tab'   => $activeTab,
+            'settings'          => $settings,
+            'branding'          => $branding,
+            'landing'           => $landing,
+            'checkout_settings' => $checkout,
+            'currencies'        => $allCurrencies,
+            'all_currencies'    => $allCurrencies,
+            'timezones'         => $timezones,
+            'api_keys'          => $apiKeys,
+            'active_page'       => 'settings',
+            'default_tab'       => $activeTab,
         ]);
     }
 
@@ -89,6 +95,10 @@ final class SettingsController
 
             case 'payment':
                 $this->savePayment($data);
+                break;
+
+            case 'checkout':
+                $this->saveCheckout($data);
                 break;
 
             default:
@@ -178,6 +188,7 @@ final class SettingsController
 
         // Sync maintenance lock file
         $lockFile = dirname(__DIR__, 3) . '/storage/.maintenance';
+        /** @phpstan-ignore notIdentical.alwaysTrue */
         if (!empty($data['maintenance_mode']) && $data['maintenance_mode'] !== '0') {
             file_put_contents($lockFile, json_encode([
                 'reason'      => 'System maintenance in progress. Please try again shortly.',
@@ -238,5 +249,38 @@ final class SettingsController
         }
 
         $this->settingsRepo->bulkSet('general', $data);
+    }
+
+    private function saveCheckout(array $data): void
+    {
+        // Checkout tab has fields for TWO groups:
+        // 1. 'checkout' group: timer_enabled, timer_seconds, show_faq
+        // 2. 'general' group: checkout_title, checkout_success_msg, etc.
+        $checkoutGroupKeys = ['timer_enabled', 'timer_seconds', 'show_faq'];
+        $checkoutData = [];
+        $generalData = [];
+
+        // Normalize checkboxes
+        foreach (['timer_enabled', 'show_faq'] as $cb) {
+            if (!isset($data[$cb])) {
+                $data[$cb] = '0';
+            }
+        }
+
+        // Split data into correct groups
+        foreach ($data as $key => $value) {
+            if (in_array($key, $checkoutGroupKeys, true)) {
+                $checkoutData[$key] = $value;
+            } else {
+                $generalData[$key] = $value;
+            }
+        }
+
+        if (!empty($checkoutData)) {
+            $this->settingsRepo->bulkSet('checkout', $checkoutData);
+        }
+        if (!empty($generalData)) {
+            $this->settingsRepo->bulkSet('general', $generalData);
+        }
     }
 }

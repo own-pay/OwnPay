@@ -43,7 +43,12 @@ final class RateLimitRepository extends BaseRepository
 
             return (int) ($row['cnt'] ?? 0);
         } catch (\PDOException $e) {
-            error_log("[RateLimit] DB error: " . $e->getMessage());
+            // L-02 FIX: Use Logger for rotation + sanitization
+            try {
+                (new \OwnPay\Service\System\Logger('ratelimit'))->warning('DB error: ' . $e->getMessage());
+            } catch (\Throwable) {
+                error_log("[RateLimit] DB error: " . $e->getMessage());
+            }
             return 0;
         }
     }

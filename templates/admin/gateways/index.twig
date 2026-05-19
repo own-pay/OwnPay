@@ -44,6 +44,8 @@
                             <span class="op-badge op-badge-info">installed</span>
                         {% elseif gw.status == 'inactive' %}
                             <span class="op-badge op-badge-muted">inactive</span>
+                        {% elseif gw.status == 'error' %}
+                            <span class="op-badge op-badge-danger">error</span>
                         {% else %}
                             <span class="op-badge op-badge-muted">not installed</span>
                         {% endif %}
@@ -61,6 +63,11 @@
                             <form method="POST" action="/admin/plugins/{{ gw.slug }}/deactivate" class="op-inline-form">
                                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                 <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
+                            </form>
+                        {% elseif gw.status == 'error' %}
+                            <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-sm op-btn-warning">Retry</button>
                             </form>
                         {% else %}
                             <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">

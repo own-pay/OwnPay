@@ -36,7 +36,7 @@ final class InvoiceController
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         $brand->resolveFromRequest($req);
         $mid  = $brand->getActiveBrandId();
-        $page = max(1, (int) $req->get('page', '1'));
+        $page = max(1, (int) $req->query('page', '1'));
 
         $invoices = $this->invoices->listForMerchant($mid, $page);
 

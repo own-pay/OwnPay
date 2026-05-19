@@ -9,7 +9,7 @@ use OwnPay\Repository\RoleRepository;
 use OwnPay\Security\Authenticator;
 
 /**
- * Auth session service â€” wraps Authenticator + fires auth hooks.
+ * Auth session service — wraps Authenticator + fires auth hooks.
  */
 final class AuthSessionService
 {
@@ -35,7 +35,7 @@ final class AuthSessionService
      */
     public function login(string $email, string $password, string $ip, string $userAgent): array
     {
-        // Pre-login filter â€” plugins can block
+        // Pre-login filter — plugins can block
         $allowed = $this->events->applyFilter('auth.login.before', true, $email, $ip);
         if ($allowed === false) {
             return ['success' => false, 'error' => 'Login blocked by policy'];

@@ -12,8 +12,8 @@ use Twig\Loader\FilesystemLoader;
  *
  * Build order:
  *   1. Core templates (templates/)
- *   2. Active theme templates (modules/themes/{active}/templates/) â€” override core
- *   3. Plugin view paths (modules/addons/{slug}/views/) â€” namespaced @slug
+ *   2. Active theme templates (modules/themes/{active}/templates/) — override core
+ *   3. Plugin view paths (modules/addons/{slug}/views/) — namespaced @slug
  *
  * Theme templates override core by sharing the same path namespace.
  * Plugin views are isolated under @plugin_slug namespace.
@@ -28,16 +28,16 @@ final class TwigFactory
         $config = $container->get('config.app');
         $paths  = $config['paths'];
 
-        // â”€â”€ Filesystem Loader â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // —— Filesystem Loader ——————————————————————————————————
         $loader = new FilesystemLoader();
 
-        // 1. Core templates (lowest priority â€” overridden by themes)
+        // 1. Core templates (lowest priority — overridden by themes)
         $coreTemplates = $paths['templates'];
         if (is_dir($coreTemplates)) {
             $loader->addPath($coreTemplates);
         }
 
-        // 2. Active theme templates (highest priority â€” overrides core)
+        // 2. Active theme templates (highest priority — overrides core)
         $activeTheme = self::resolveActiveTheme($container);
         if ($activeTheme !== null) {
             $themeDir = $paths['modules'] . '/themes/' . $activeTheme . '/templates';
@@ -85,7 +85,7 @@ final class TwigFactory
             }
         }
 
-        // â”€â”€ Environment â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+        // —— Environment ————————————————————————————————————————
         $twig = new Environment($loader, [
             'cache'            => $paths['cache'] . '/twig',
             'auto_reload'      => $config['debug'],
@@ -107,7 +107,7 @@ final class TwigFactory
     /**
      * Resolve the currently active theme slug.
      *
-     * Reads from: DB setting â†’ .env fallback â†’ 'own-pay' default.
+     * Reads from: DB setting ─ .env fallback ─ 'own-pay' default.
      */
     private static function resolveActiveTheme(Container $container): ?string
     {

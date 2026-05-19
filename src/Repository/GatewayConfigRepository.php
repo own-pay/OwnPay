@@ -45,4 +45,13 @@ final class GatewayConfigRepository extends BaseRepository
         );
         return $row['credentials_enc'] ?? null;
     }
+
+    /**
+     * List active gateway configs with gateway details (JOIN).
+     * Used by GatewayRendererService.
+     */
+    public function listActiveWithGateway(): array
+    {
+        return $this->listActive();
+    }
 }

@@ -40,20 +40,27 @@ final class DeveloperController
         $apiRateLimit  = $settings->get('general', 'api_rate_limit', '60');
         $baseUrl       = $settings->get('general', 'base_url', '');
         if (empty($baseUrl)) {
-            $baseUrl = (isset($_SERVER['HTTPS']) ? 'https' : 'http') . '://' . ($_SERVER['HTTP_HOST'] ?? 'localhost');
+            $baseUrl = ($req->isSecure() ? 'https' : 'http') . '://' . ($req->header('Host') ?: 'localhost');
         }
 
         // All public API endpoints for reference
         $endpoints = $this->getEndpointReference($baseUrl);
 
+        // Consume one-time generated API key from session (shown once, then gone)
+        $generatedKey = $_SESSION['_generated_api_key'] ?? null;
+        $generatedKeyLabel = $_SESSION['_generated_api_key_label'] ?? '';
+        unset($_SESSION['_generated_api_key'], $_SESSION['_generated_api_key_label']);
+
         return $this->renderAdminPage('admin/developer/index.twig', [
-            'api_keys'       => $apiKeys,
-            'webhook_url'    => $webhookUrl,
-            'webhook_secret' => $webhookSecret,
-            'api_rate_limit' => $apiRateLimit,
-            'base_url'       => rtrim($baseUrl, '/'),
-            'endpoints'      => $endpoints,
-            'active_page'    => 'developer',
+            'api_keys'            => $apiKeys,
+            'webhook_url'         => $webhookUrl,
+            'webhook_secret'      => $webhookSecret,
+            'api_rate_limit'      => $apiRateLimit,
+            'base_url'            => rtrim($baseUrl, '/'),
+            'endpoints'           => $endpoints,
+            'active_page'         => 'developer',
+            'generated_key'       => $generatedKey,
+            'generated_key_label' => $generatedKeyLabel,
         ]);
     }
 
@@ -198,7 +205,10 @@ final class DeveloperController
         $result = $keyService->generate($mid, $label);
 
         if (!empty($result['key'])) {
-            $this->session->flashSuccess("API key created: {$result['key']}");
+            // Store in session for one-time display in template
+            $_SESSION['_generated_api_key'] = $result['key'];
+            $_SESSION['_generated_api_key_label'] = $label;
+            $this->session->flashSuccess("API key \"{$label}\" generated successfully. Copy it below — it won't be shown again.");
         } else {
             $this->session->flashError($result['error'] ?? 'Key generation failed');
         }

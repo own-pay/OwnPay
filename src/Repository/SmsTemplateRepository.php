@@ -157,4 +157,15 @@ final class SmsTemplateRepository extends BaseRepository
         );
         return (int) ($row['cnt'] ?? 0);
     }
+
+    /**
+     * List all active templates (any merchant).
+     * Used by Mobile ConfigController for filter rules.
+     */
+    public function listActive(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE status = 'active' ORDER BY priority ASC"
+        );
+    }
 }

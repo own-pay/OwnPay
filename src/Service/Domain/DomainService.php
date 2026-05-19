@@ -143,4 +143,13 @@ final class DomainService
     {
         return (bool) preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i', $domain);
     }
+
+    /**
+     * Verify domain DNS (alias for verify).
+     * Called by Api\Admin\DomainController.
+     */
+    public function verifyDomain(int $domainId, int $merchantId): array
+    {
+        return $this->verify($domainId, $merchantId);
+    }
 }

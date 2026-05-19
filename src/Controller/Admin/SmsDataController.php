@@ -31,8 +31,8 @@ final class SmsDataController
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
 
-        $page   = max(1, (int) $req->get('page', '1'));
-        $status = $req->get('status', '') ?: null;
+        $page   = max(1, (int) $req->query('page', '1'));
+        $status = $req->query('status', '') ?: null;
 
         $repo   = $this->smsRepo->forTenant($mid);
         $perPage = 20;

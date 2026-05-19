@@ -24,6 +24,17 @@ final class CustomerRepository extends BaseRepository
         );
     }
 
+    /**
+     * Find by phone hash (for lookup without decryption).
+     */
+    public function findByPhoneHash(string $hash): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE phone_hash = :h AND merchant_id = :mid LIMIT 1",
+            ['h' => $hash, 'mid' => $this->requireTenant()]
+        );
+    }
+
     public function paginateWithStats(int $merchantId, string $query, int $page, int $perPage): array
     {
         $where = "WHERE c.merchant_id = :mid";

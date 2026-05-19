@@ -8,7 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Session middleware â€” configures and starts PHP session.
+ * Session middleware — configures and starts PHP session.
  *
  * Per OWASP session management:
  *  - Strict mode, httponly, secure, samesite
@@ -48,6 +48,21 @@ final class SessionMiddleware
 
         session_name('op_session');
         session_start();
+
+        $sessionLifetime = (int) ($config['session']['lifetime'] ?? 7200);
+
+        // AUD-14 FIX: Explicit idle timeout — prevents indefinite sessions
+        // when PHP gc_maxlifetime differs from cookie lifetime.
+        if (isset($_SESSION['_last_activity'])) {
+            if (time() - $_SESSION['_last_activity'] > $sessionLifetime) {
+                // Session expired — destroy and redirect to login
+                $_SESSION = [];
+                session_destroy();
+                session_start();
+                return $next($request);
+            }
+        }
+        $_SESSION['_last_activity'] = time();
 
         // Regenerate stale session ID (every 15 minutes)
         if (!isset($_SESSION['_last_regen'])) {

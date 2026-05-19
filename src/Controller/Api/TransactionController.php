@@ -10,11 +10,12 @@ use OwnPay\Repository\TransactionRepository;
 use OwnPay\Service\System\PaginationService;
 
 /**
- * Transaction API â€” list and show transactions.
+ * Transaction API — list and show transactions.
  * OWASP: Tenant-scoped queries, field whitelisting.
  */
 final class TransactionController
 {
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
     private TransactionRepository $txns;
 
@@ -27,19 +28,20 @@ final class TransactionController
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $page = max(1, (int) $req->get('page', '1'));
-        $perPage = min(100, max(1, (int) $req->get('per_page', '25')));
+        $page = max(1, (int) $req->query('page', '1'));
+        $perPage = min(100, max(1, (int) $req->query('per_page', '25')));
         $filters = [
-            'status'  => $req->get('status', ''),
-            'gateway' => $req->get('gateway', ''),
-            'from'    => $req->get('from', ''),
-            'to'      => $req->get('to', ''),
+            'status'  => $req->query('status', ''),
+            'gateway' => $req->query('gateway', ''),
+            'from'    => $req->query('from', ''),
+            'to'      => $req->query('to', ''),
         ];
 
         $repo = $this->txns->forTenant($mid);
         $total = $repo->countFiltered($filters);
-        $pagination = PaginationService::calculate($page, $total, $perPage);
-        $transactions = $repo->listFiltered($filters, $pagination['limit'], $pagination['offset']);
+        $pagination = PaginationService::calculate($page, $perPage, $total);
+        /** @phpstan-ignore-next-line */
+        $transactions = $repo->listFiltered($filters, $pagination['per_page'], $pagination['offset']);
 
         // OWASP: Whitelist output fields
         $safe = array_map(fn($t) => $this->safeFields($t), $transactions);
@@ -56,11 +58,20 @@ final class TransactionController
         ]);
     }
 
+    /**
+     * GET /api/v1/transactions/{trx_id}
+     * Lookup by TXN-XXXX format, NOT database ID.
+     */
     public function show(Request $req): Response
     {
-        $id = (int) $req->param('id');
+        $trxId = trim($req->param('trx_id'));
         $mid = (int) $req->getAttribute('merchant_id');
-        $txn = $this->txns->forTenant($mid)->findScoped($id);
+
+        if ($trxId === '') {
+            return Response::json(['success' => false, 'error' => 'Transaction ID required'], 422);
+        }
+
+        $txn = $this->txns->forTenant($mid)->findByTrxId($trxId);
 
         if ($txn === null) {
             return Response::json(['success' => false, 'error' => 'Transaction not found'], 404);
@@ -69,6 +80,10 @@ final class TransactionController
         return Response::json(['success' => true, 'data' => $this->safeFields($txn)]);
     }
 
+    /**
+     * Whitelist output fields — maps actual DB columns.
+     * op_transactions has gateway_slug (not gateway), no customer_name/email.
+     */
     private function safeFields(array $t): array
     {
         return [
@@ -77,9 +92,11 @@ final class TransactionController
             'amount'      => $t['amount'],
             'currency'    => $t['currency'],
             'fee'         => $t['fee'] ?? '0.00',
+            'net_amount'  => $t['net_amount'] ?? null,
             'status'      => $t['status'],
-            'gateway'     => $t['gateway'],
-            'customer'    => ['name' => $t['customer_name'] ?? null, 'email' => $t['customer_email'] ?? null],
+            'gateway'     => $t['gateway_slug'] ?? null,
+            'method'      => $t['method'] ?? null,
+            'reference'   => $t['reference'] ?? null,
             'created_at'  => $t['created_at'],
             'updated_at'  => $t['updated_at'] ?? null,
         ];

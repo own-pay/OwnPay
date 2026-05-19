@@ -458,6 +458,41 @@
                 </div>
             </div>
         </div>
+
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>Checkout Timer</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="timer_enabled" value="1" {{ (checkout_settings.timer_enabled ?? '1') == '1' ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Enable Checkout Timer</span>
+                    </label>
+                    <small class="op-text-muted">When enabled, a countdown timer is shown on the checkout page. When it expires, the payment session is cancelled.</small>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Timer Duration (seconds)</label>
+                        <input type="number" name="timer_seconds" value="{{ checkout_settings.timer_seconds ?? 600 }}" class="op-input" min="60" max="3600" step="30">
+                        <small class="op-text-muted">Default: 600 (10 minutes). Range: 60–3600 seconds.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>Checkout Display</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="show_faq" value="1" {{ (checkout_settings.show_faq ?? '1') == '1' ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Show FAQ Button on Checkout</span>
+                    </label>
+                    <small class="op-text-muted">When enabled, a FAQ button appears on the checkout page. Manage FAQ content in the FAQ tab.</small>
+                </div>
+            </div>
+        </div>
         {{ hook('admin.settings.checkout')|raw }}
     </div>
 

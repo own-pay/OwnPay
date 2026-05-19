@@ -30,8 +30,8 @@ final class CustomerController
         $brand->resolveFromRequest($req); 
         $mid = $brand->getActiveBrandId();
         
-        $page = max(1, (int) $req->get('page', '1'));
-        $q = $req->get('q', '');
+        $page = max(1, (int) $req->query('page', '1'));
+        $q = $req->query('q', '');
 
         $paginated = $this->customerRepo->paginateWithStats($mid, $q, $page, 20);
 

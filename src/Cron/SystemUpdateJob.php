@@ -1,39 +1,40 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Cron;
 
 use OwnPay\Event\EventManager;
-use OwnPay\Service\System\DateTimeService;
+use OwnPay\Repository\SettingsRepository;
 use OwnPay\Service\System\EnvironmentService;
 use OwnPay\Service\System\HttpClient;
-use OwnPay\Support\DateHelper;
+use OwnPay\Support\DateHelper;
 
 /**
- * SystemUpdateJob â€” periodic check for new OwnPay releases.
+ * SystemUpdateJob — periodic check for new OwnPay releases.
  *
  * Fetches the update manifest at most once every 10 hours, compares the
  * current version against the configured channel (stable|beta), and fires
  * the `system.update.available` event when a newer release exists.
  *
- * Previously embedded in index.php (~50 lines); extracted here as part of
- * Milestone 7 of the codebase audit.
+ * Uses SettingsRepository (op_system_settings) for persistent state.
  */
 final class SystemUpdateJob
 {
-    private const MANIFEST_URL = 'https://updates.OwnPay.com/manifest.json';
+    private const MANIFEST_URL = 'https://update.ownpay.org/manifest.json';
     private const CHECK_INTERVAL_SECONDS = 10 * 3600;
 
-    /** @var array{version_code: string, version_name: string} */
-    private array $currentVersion;
+    private string $currentVersion;
+    private EventManager $events;
+    private SettingsRepository $settings;
 
-    /**
-     * @param array{version_code: string, version_name: string} $currentVersion
-     */
-    public function __construct(array $currentVersion)
-    {
+    public function __construct(
+        string $currentVersion,
+        EventManager $events,
+        SettingsRepository $settings
+    ) {
         $this->currentVersion = $currentVersion;
+        $this->events = $events;
+        $this->settings = $settings;
     }
 
     /**
@@ -41,38 +42,36 @@ final class SystemUpdateJob
      */
     public function run(): array
     {
-        $automaticUpdate = EnvironmentService::get('system-settings-automatic_update') ?? '';
+        $autoUpdate = $this->settings->get('general', 'auto_update', '0');
 
-        if ($automaticUpdate !== 'yes') {
-            return ['skipped' => 'automatic_update disabled'];
+        if ($autoUpdate !== '1') {
+            return ['skipped' => 'auto_update disabled'];
         }
 
-        $now = DateTimeService::getCurrentDatetime('Y-m-d H:i:s');
-        $lastCheck = EnvironmentService::get('last-auto-update-check');
+        $now = DateHelper::now();
+        $lastCheck = $this->settings->get('runtime', 'last_auto_update_check');
 
-        if (empty($lastCheck)) {
-            EnvironmentService::set('last-auto-update-check', $now);
-            return ['initialized' => 'last-auto-update-check'];
-        }
-
-        if (DateHelper::secondsSince($lastCheck) < self::CHECK_INTERVAL_SECONDS) {
+        if ($lastCheck !== null && DateHelper::secondsSince($lastCheck) < self::CHECK_INTERVAL_SECONDS) {
             return ['skipped' => 'within check interval'];
         }
 
-        EnvironmentService::set('last-auto-update-check', $now);
+        $this->settings->set('runtime', 'last_auto_update_check', $now);
 
-        $manifestRaw = HttpClient::get(self::MANIFEST_URL) ?? '';
-        $manifest = json_decode($manifestRaw, true);
-
-        if (!is_array($manifest)) {
-            return ['error' => 'manifest fetch/parse failed'];
+        try {
+            $manifestRaw = (new HttpClient(10, 5))->get(self::MANIFEST_URL)['body'];
+            $manifest = json_decode($manifestRaw, true);
+        } catch (\Throwable $e) {
+            return ['error' => 'manifest fetch failed: ' . $e->getMessage()];
         }
 
-        $currentCode = $this->currentVersion['version_code'];
-        $currentName = $this->currentVersion['version_name'];
+        if (!is_array($manifest)) {
+            return ['error' => 'manifest parse failed'];
+        }
 
-        $channelSetting = EnvironmentService::get('system-settings-update_channel');
-        $updateChannel = (empty($channelSetting) || $channelSetting === 'stable') ? 'stable' : 'beta';
+        $updateChannel = $this->settings->get('general', 'update_channel', 'stable');
+        if ($updateChannel !== 'beta') {
+            $updateChannel = 'stable';
+        }
 
         $channelData = $manifest['channels'][$updateChannel] ?? null;
 
@@ -84,21 +83,19 @@ final class SystemUpdateJob
             $latestName = $channelData['latest_version_name'] ?? null;
             $latestCode = $channelData['latest_version_code'] ?? null;
 
-            if ($latestCode !== null && version_compare((string) $latestCode, (string) $currentCode, '>')) {
+            if ($latestCode !== null && version_compare((string) $latestCode, $this->currentVersion, '>')) {
                 $updateAvailable = true;
             }
         }
 
         if ($updateAvailable) {
-            EventManager::getInstance()->doAction('system.update.available', [
-                'current_version_name' => $currentName,
-                'current_version_code' => $currentCode,
-                'latest_version_name' => $latestName,
-                'latest_version_code' => $latestCode,
+            $this->events->doAction('system.update.available', [
+                'current_version' => $this->currentVersion,
+                'latest_version'  => $latestName,
+                'channel'         => $updateChannel,
             ]);
 
-            EnvironmentService::set('last-update-version-name', (string) $latestName);
-            EnvironmentService::set('last-update-version', (string) $latestCode);
+            $this->settings->set('runtime', 'last_update_version', (string) $latestName);
 
             return [
                 'update_available' => true,
@@ -107,13 +104,10 @@ final class SystemUpdateJob
             ];
         }
 
-        EnvironmentService::set('last-update-version-name', $currentName);
-        EnvironmentService::set('last-update-version', $currentCode);
-
         return [
             'update_available' => false,
             'channel' => $updateChannel,
-            'current_version' => $currentName,
+            'current_version' => $this->currentVersion,
         ];
     }
 }

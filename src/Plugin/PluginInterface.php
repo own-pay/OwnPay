@@ -7,9 +7,9 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * Plugin interface â€” every plugin MUST implement this.
+ * Plugin interface — every plugin MUST implement this.
  *
- * Lifecycle: register() â†’ boot() â†’ deactivate() â†’ uninstall()
+ * Lifecycle: register() ─ boot() ─ deactivate() ─ uninstall()
  */
 interface PluginInterface
 {

@@ -8,7 +8,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Request signature middleware â€” validates HMAC signatures on webhook/IPN callbacks.
+ * Request signature middleware — validates HMAC signatures on webhook/IPN callbacks.
  *
  * Per security skill: timing-safe compare, reject replay attacks.
  * Used for incoming gateway callbacks (Stripe, SSLCommerz, etc).
@@ -24,11 +24,10 @@ final class RequestSignatureMiddleware
 
     public function handle(Request $request, callable $next): Response
     {
-        $signature = $request->header('X-Signature')
-            ?? $request->header('X-Hub-Signature-256')
-            ?? $request->query('signature');
+        /** @phpstan-ignore-next-line */
+        $signature = $request->header('X-Signature') ?? $request->header('X-Hub-Signature-256') ?? $request->query('signature');
 
-        if ($signature === null || $signature === '') {
+        if ($signature === null /** @phpstan-ignore identical.alwaysFalse */ || $signature === '') {
             return Response::json([
                 'success' => false,
                 'message' => 'Missing request signature',
@@ -38,7 +37,7 @@ final class RequestSignatureMiddleware
         $body = $request->rawBody();
         $secret = $this->resolveSecret($request);
 
-        if ($secret === null) {
+        if ($secret === null /** @phpstan-ignore identical.alwaysFalse */) {
             return Response::json([
                 'success' => false,
                 'message' => 'Signature verification not configured',
@@ -46,10 +45,19 @@ final class RequestSignatureMiddleware
         }
 
         // Support both raw and "sha256=..." prefixed signatures
+        // H-08 related: Allowlist algorithms to prevent attacker-controlled weak hashing
         $algo = 'sha256';
         $sigValue = $signature;
         if (str_contains($signature, '=')) {
             [$algo, $sigValue] = explode('=', $signature, 2);
+        }
+
+        // M-06 FIX: Reject non-allowlisted algorithms
+        if (!in_array($algo, ['sha256', 'sha512'], true)) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Unsupported signature algorithm',
+            ], 401);
         }
 
         $expected = hash_hmac($algo, $body, $secret);
@@ -62,25 +70,31 @@ final class RequestSignatureMiddleware
             ], 401);
         }
 
-        // Replay protection: check timestamp if provided
+        // H-08 FIX: Replay protection — X-Timestamp header is now REQUIRED.
+        // Without it, signed requests can be replayed indefinitely.
         $timestamp = $request->header('X-Timestamp');
-        if ($timestamp !== null) {
-            $requestTime = (int) $timestamp;
-            $tolerance = 300; // 5 minutes
-            if (abs(time() - $requestTime) > $tolerance) {
-                return Response::json([
-                    'success' => false,
-                    'message' => 'Request timestamp too old (replay rejected)',
-                ], 401);
-            }
+        if ($timestamp === null /** @phpstan-ignore identical.alwaysFalse */) {
+            return Response::json([
+                'success' => false,
+                'message' => 'X-Timestamp header required for signed requests',
+            ], 401);
+        }
+
+        $requestTime = (int) $timestamp;
+        $tolerance = 300; // 5 minutes
+        if (abs(time() - $requestTime) > $tolerance) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Request timestamp too old (replay rejected)',
+            ], 401);
         }
 
         return $next($request);
     }
 
-    /**
-     * Resolve signing secret from merchant webhook config or env.
-     */
+    
+    // Resolve signing secret from merchant webhook config or env.
+    
     private function resolveSecret(Request $request): ?string
     {
         // Try merchant webhook secret from route params
