@@ -9,27 +9,31 @@ use OwnPay\Repository\TransactionRepository;
 use InvalidArgumentException;
 use RuntimeException;
 use OwnPay\Support\DateHelper;
+use OwnPay\Service\Payment\LedgerService;
 
 final class RefundService
 {
     private RefundRepository $refunds;
     private TransactionRepository $transactions;
     private GatewayBridge $bridge;
+    private LedgerService $ledger;
 
     public function __construct(
         RefundRepository $refunds,
         TransactionRepository $transactions,
-        GatewayBridge $bridge
+        GatewayBridge $bridge,
+        LedgerService $ledger
     ) {
         $this->refunds = $refunds;
         $this->transactions = $transactions;
         $this->bridge = $bridge;
+        $this->ledger = $ledger;
     }
 
     public function create(int $merchantId, array $data): array
     {
         $transactionId = $data['transaction_id'];
-        $amount = $data['amount'];
+        $amount = $data['amount'] ?? null;
         
         $txn = $this->transactions->forTenant($merchantId)->findScoped($transactionId);
         if (!$txn) {
@@ -40,11 +44,18 @@ final class RefundService
             throw new InvalidArgumentException('Only completed transactions can be refunded');
         }
 
+        $alreadyRefunded = $this->refunds->getTotalRefundedAmount($txn['id'], $merchantId);
+
         if ($amount === null || (float)$amount <= 0) {
-            $amount = $txn['amount'];
+            $amount = bcsub($txn['amount'], $alreadyRefunded, 2);
         }
 
-        if ((float)$amount > (float)$txn['amount']) {
+        if (bccomp((string)$amount, '0.00', 2) <= 0) {
+            throw new InvalidArgumentException('No remaining amount left to refund');
+        }
+
+        $newTotal = bcadd($alreadyRefunded, (string)$amount, 2);
+        if (bccomp($newTotal, $txn['amount'], 2) > 0) {
             throw new InvalidArgumentException('Refund amount cannot exceed transaction amount');
         }
 
@@ -68,13 +79,19 @@ final class RefundService
 
             if ($result['success']) {
                 $this->refunds->forTenant($merchantId)->updateScoped((int)$id, [
-                    'status' => 'processed',
+                    'status' => 'completed',
                     'processed_at' => DateHelper::nowMicro()
                 ]);
-                $this->transactions->forTenant($merchantId)->updateScoped($txn['id'], [
-                    'status' => 'refunded'
-                ]);
-                $refund['status'] = 'processed';
+                
+                // Ledger recording
+                $this->ledger->recordRefund($merchantId, $txn['id'], (string)$amount, $txn['currency']);
+
+                if (bccomp($newTotal, $txn['amount'], 2) === 0) {
+                    $this->transactions->forTenant($merchantId)->updateScoped($txn['id'], [
+                        'status' => 'refunded'
+                    ]);
+                }
+                $refund['status'] = 'completed';
             } else {
                 $this->refunds->forTenant($merchantId)->updateScoped((int)$id, [
                     'status' => 'failed'

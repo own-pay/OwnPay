@@ -26,7 +26,7 @@ final class InstallerController
     public function show(Request $req): Response
     {
         if ($this->isInstalled()) {
-            return Response::html($this->renderTwig('install/locked.twig', []));
+            return Response::html($this->renderPhpTemplate('install/locked.php', []));
         }
         $step = max(1, min(4, (int) $req->query('step', '1')));
 
@@ -41,7 +41,7 @@ final class InstallerController
             default => [],
         };
         $data['step'] = $step;
-        return Response::html($this->renderTwig("install/step{$step}.twig", $data));
+        return Response::html($this->renderPhpTemplate("install/step{$step}.php", $data));
     }
 
     //Test DB + import schema
@@ -304,7 +304,7 @@ final class InstallerController
         return file_exists($this->markerFile);
     }
 
-    private function renderTwig(string $template, array $data): string
+    private function renderPhpTemplate(string $template, array $data): string
     {
         $file = $this->rootDir . '/templates/' . $template;
         if (!file_exists($file)) return '<h1>Template not found: ' . htmlspecialchars($template) . '</h1>';

@@ -18,9 +18,11 @@ final class CsrfMiddleware
     /** @phpstan-ignore property.onlyWritten */
     private Container $container;
 
-    public function __construct(Container $container)
+    public function __construct(?Container $container = null)
     {
-        $this->container = $container;
+        if ($container !== null) {
+            $this->container = $container;
+        }
     }
 
     public function handle(Request $request, callable $next): Response
@@ -90,5 +92,64 @@ final class CsrfMiddleware
         }
 
         return Response::html('<h1>403 Forbidden</h1><p>CSRF validation failed. Please refresh and try again.</p>', 403);
+    }
+
+    public function validate(string $token): array
+    {
+        $secret = $_ENV['APP_HMAC_SECRET'] ?? '';
+        if ($secret !== '') {
+            // HMAC mode
+            $appId = $_POST['op-app-id'] ?? '';
+            $timestampRaw = $_POST['op-app-timestamp'] ?? '';
+            $action = $_POST['action'] ?? '';
+
+            if ($appId === '' || $timestampRaw === '' || !is_numeric($timestampRaw)) {
+                return [
+                    'valid' => false,
+                    'error' => 'Request expired. Please try again.',
+                ];
+            }
+
+            $timestamp = (int)$timestampRaw;
+            if (abs(time() - $timestamp) > 300) {
+                return [
+                    'valid' => false,
+                    'error' => 'Request expired. Please try again.',
+                ];
+            }
+
+            $expected = hash_hmac('sha256', "{$appId}|{$timestamp}|{$action}", $secret);
+            if (hash_equals($expected, $token)) {
+                return [
+                    'valid' => true,
+                    'error' => null,
+                ];
+            }
+
+            return [
+                'valid' => false,
+                'error' => 'Invalid request token',
+            ];
+        }
+
+        // Standard CSRF mode
+        $sessionToken = $_SESSION['csrf_token'] ?? '';
+        $submittedToken = $_POST['csrf_token'] ?? '';
+
+        if ($sessionToken === '' || $submittedToken === '' || !hash_equals($sessionToken, $submittedToken)) {
+            $newToken = bin2hex(random_bytes(32));
+            $_SESSION['csrf_token'] = $newToken;
+            return [
+                'valid' => false,
+                'error' => 'Invalid request token',
+                'newToken' => $newToken,
+            ];
+        }
+
+        return [
+            'valid' => true,
+            'error' => null,
+            'newToken' => $sessionToken,
+        ];
     }
 }

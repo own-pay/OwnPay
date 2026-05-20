@@ -169,6 +169,28 @@ final class PluginLoader
                 if (is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
                     $funcName = $tokens[$i][1];
                     if (PluginSandbox::isDangerousFunction($funcName)) {
+                        // Check if prefixed by T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, or T_FUNCTION
+                        $prev = $i - 1;
+                        while ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_WHITESPACE) {
+                            $prev--;
+                        }
+                        $isOOPOrDecl = false;
+                        if ($prev >= 0) {
+                            $prevToken = $tokens[$prev];
+                            if (is_array($prevToken)) {
+                                $prevType = $prevToken[0];
+                                if ($prevType === T_OBJECT_OPERATOR || 
+                                    $prevType === T_DOUBLE_COLON || 
+                                    $prevType === T_FUNCTION || 
+                                    (defined('T_NULLSAFE_OBJECT_OPERATOR') && $prevType === T_NULLSAFE_OBJECT_OPERATOR)) {
+                                    $isOOPOrDecl = true;
+                                }
+                            }
+                        }
+                        if ($isOOPOrDecl) {
+                            continue;
+                        }
+
                         // Look ahead for '(' to confirm it's a function call
                         $next = $i + 1;
                         while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {

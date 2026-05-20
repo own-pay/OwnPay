@@ -108,8 +108,11 @@ final class Request
 
     // ——— Input Access ——————————————————————————————————————————
 
-    public function query(string $key, mixed $default = null): mixed
+    public function query(string $key = null, mixed $default = null): mixed
     {
+        if ($key === null) {
+            return $this->query;
+        }
         return $this->query[$key] ?? $default;
     }
 
@@ -228,7 +231,7 @@ final class Request
             $xff = $this->server['HTTP_X_FORWARDED_FOR'] ?? '';
             if ($xff !== '') {
                 $ips = array_map('trim', explode(',', $xff));
-                $clientIp = $ips[0] ?? $remoteAddr;
+                $clientIp = $ips[0];
                 // Validate IP format
                 if (filter_var($clientIp, FILTER_VALIDATE_IP)) {
                     return $clientIp;
@@ -402,13 +405,11 @@ final class Request
         if (!empty($server['REDIRECT_HTTP_AUTHORIZATION'])) {
             $headers['authorization'] = (string) $server['REDIRECT_HTTP_AUTHORIZATION'];
         } elseif (function_exists('apache_request_headers')) {
-            $apacheHeaders = apache_request_headers();
-            if (is_array($apacheHeaders)) {
-                foreach ($apacheHeaders as $k => $v) {
-                    if (strtolower($k) === 'authorization') {
-                        $headers['authorization'] = (string) $v;
-                        break;
-                    }
+            $apacheHeaders = (array) apache_request_headers();
+            foreach ($apacheHeaders as $k => $v) {
+                if (strtolower((string)$k) === 'authorization') {
+                    $headers['authorization'] = (string) $v;
+                    break;
                 }
             }
         }

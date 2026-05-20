@@ -98,12 +98,17 @@ final class Kernel
 
         // 2c. AUD-G3: Wire EventManager into Database for query hooks
         try {
-            if ($this->container->has(\OwnPay\Core\Database::class) && $this->container->has(EventManager::class)) {
-                $this->container->get(\OwnPay\Core\Database::class)
-                    ->setEventManager($this->container->get(EventManager::class));
+            if ($this->container->has(\OwnPay\Core\Database::class)) {
+                $db = $this->container->get(\OwnPay\Core\Database::class);
+                if ($this->container->has(EventManager::class)) {
+                    $db->setEventManager($this->container->get(EventManager::class));
+                }
+                if ($this->container->has(\OwnPay\Plugin\PluginRegistry::class)) {
+                    $db->setPluginRegistry($this->container->get(\OwnPay\Plugin\PluginRegistry::class));
+                }
             }
         } catch (\Throwable) {
-            // Graceful — hooks just won't fire
+            // Graceful — hooks/sandbox just won't enforce/fire
         }
 
         // 3. Set timezone

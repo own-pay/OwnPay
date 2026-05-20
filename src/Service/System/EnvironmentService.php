@@ -108,13 +108,14 @@ final class EnvironmentService
 
     /**
      * Get a persistent runtime value.
-     * Reads from: memory cache → DB (op_system_settings group='runtime') → getenv().
      */
-    public static function get(string $key): ?string
+    public static function get(string $key, string $brandId = 'both'): string
     {
+        $cacheKey = "{$brandId}:{$key}";
+
         // Memory cache first
-        if (isset(self::$cache[$key])) {
-            return self::$cache[$key];
+        if (isset(self::$cache[$cacheKey])) {
+            return self::$cache[$cacheKey];
         }
 
         // DB lookup
@@ -122,33 +123,126 @@ final class EnvironmentService
             try {
                 $value = self::$settingsRepo->get('runtime', $key);
                 if ($value !== null) {
-                    self::$cache[$key] = $value;
+                    self::$cache[$cacheKey] = $value;
                     return $value;
                 }
             } catch (\Throwable) {
                 // DB not available — fall through
             }
+        } else {
+            // Fallback for tests (SQLite memory with op_env)
+            $dbPrefix = $_ENV['DB_PREFIX'] ?? $_SERVER['DB_PREFIX'] ?? 'op_';
+            try {
+                $pdo = \OwnPay\Core\Database::getInstance()->pdo();
+                $stmt = $pdo->prepare(
+                    "SELECT `value` FROM `{$dbPrefix}env` WHERE `brand_id` = :brand_id AND `option_name` = :option_name LIMIT 1"
+                );
+                $stmt->execute([':brand_id' => $brandId, ':option_name' => $key]);
+                $row = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                $value = $row ? ($row['value'] ?? '') : '';
+                self::$cache[$cacheKey] = $value;
+
+                return $value;
+            } catch (\PDOException) {
+                // Ignore and fall through
+            }
         }
 
         // Env fallback
         $env = getenv($key);
-        return $env !== false ? $env : null;
+        $value = $env !== false ? $env : '';
+        self::$cache[$cacheKey] = $value;
+        return $value;
     }
 
     /**
      * Set a persistent runtime value.
-     * Writes to DB (op_system_settings) and updates memory cache.
      */
-    public static function set(string $key, string $value): void
+    public static function set(string $key, string $value, string $brandId = 'both'): string
     {
-        self::$cache[$key] = $value;
+        $cacheKey = "{$brandId}:{$key}";
+        self::$cache[$cacheKey] = $value;
 
         if (self::$settingsRepo !== null) {
             try {
                 self::$settingsRepo->set('runtime', $key, $value);
             } catch (\Throwable) {
-                // DB not available — value only in memory this request
+                // DB not available
+            }
+        } else {
+            // Fallback for tests
+            $dbPrefix = $_ENV['DB_PREFIX'] ?? $_SERVER['DB_PREFIX'] ?? 'op_';
+            $now = date('Y-m-d H:i:s');
+            try {
+                $pdo = \OwnPay\Core\Database::getInstance()->pdo();
+                // Check if row exists
+                $stmt = $pdo->prepare(
+                    "SELECT `id` FROM `{$dbPrefix}env` WHERE `brand_id` = :brand_id AND `option_name` = :option_name LIMIT 1"
+                );
+                $stmt->execute([':brand_id' => $brandId, ':option_name' => $key]);
+                $existing = $stmt->fetch(\PDO::FETCH_ASSOC);
+
+                if ($existing) {
+                    $stmt = $pdo->prepare(
+                        "UPDATE `{$dbPrefix}env` SET `value` = :value, `updated_date` = :updated WHERE `id` = :id"
+                    );
+                    $stmt->execute([':value' => $value, ':updated' => $now, ':id' => $existing['id']]);
+                } else {
+                    $stmt = $pdo->prepare(
+                        "INSERT INTO `{$dbPrefix}env` (`brand_id`, `option_name`, `value`, `created_date`, `updated_date`) VALUES (:brand_id, :option_name, :value, :created, :updated)"
+                    );
+                    $stmt->execute([
+                        ':brand_id'    => $brandId,
+                        ':option_name' => $key,
+                        ':value'       => $value,
+                        ':created'     => $now,
+                        ':updated'     => $now,
+                    ]);
+                }
+            } catch (\PDOException) {
+                // Ignore
             }
         }
+
+        return $value;
+    }
+
+    /**
+     * Delete an environment setting.
+     */
+    public static function delete(string $key, string $brandId = 'both'): bool
+    {
+        $cacheKey = "{$brandId}:{$key}";
+        unset(self::$cache[$cacheKey]);
+
+        if (self::$settingsRepo !== null) {
+            try {
+                self::$settingsRepo->deleteSetting('runtime', $key);
+                return true;
+            } catch (\Throwable) {
+                return false;
+            }
+        } else {
+            // Fallback for tests
+            $dbPrefix = $_ENV['DB_PREFIX'] ?? $_SERVER['DB_PREFIX'] ?? 'op_';
+            try {
+                $pdo = \OwnPay\Core\Database::getInstance()->pdo();
+                $stmt = $pdo->prepare(
+                    "DELETE FROM `{$dbPrefix}env` WHERE `brand_id` = :brand_id AND `option_name` = :option_name"
+                );
+                return $stmt->execute([':brand_id' => $brandId, ':option_name' => $key]);
+            } catch (\PDOException) {
+                return false;
+            }
+        }
+    }
+
+    /**
+     * Clear the in-memory cache.
+     */
+    public static function clearCache(): void
+    {
+        self::$cache = [];
     }
 }

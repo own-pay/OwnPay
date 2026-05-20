@@ -161,4 +161,15 @@ final class SettingsRepository extends BaseRepository
             ['g' => $group, 'mid' => $merchantId]
         );
     }
+
+    /**
+     * Delete a single setting by group and key (global).
+     */
+    public function deleteSetting(string $group, string $key): int
+    {
+        return $this->db->update(
+            "DELETE FROM {$this->table} WHERE group_name = :g AND key_name = :k AND merchant_id IS NULL",
+            ['g' => $group, 'k' => $key]
+        );
+    }
 }

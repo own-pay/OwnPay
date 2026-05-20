@@ -260,7 +260,9 @@ return static function (\OwnPay\Container $c): void {
 
     // ─── Auth Services ────────────────────────────────────────────
     $c->singleton(\OwnPay\Service\Auth\JwtService::class, static function (): \OwnPay\Service\Auth\JwtService {
-        return new \OwnPay\Service\Auth\JwtService();
+        $secret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: '';
+        $iss = getenv('APP_NAME') ?: 'OwnPay';
+        return new \OwnPay\Service\Auth\JwtService($secret, $iss);
     });
 
     $c->singleton(\OwnPay\Service\Auth\AuthSessionService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Auth\AuthSessionService {
@@ -312,7 +314,6 @@ return static function (\OwnPay\Container $c): void {
         return new \OwnPay\Service\Payment\GatewayApiService(
             $c->get(\OwnPay\Gateway\GatewayBridge::class),
             $c->get(\OwnPay\Repository\GatewayRepository::class),
-            $c->get(\OwnPay\Repository\GatewayConfigRepository::class),
             $c->get(\OwnPay\Service\Payment\TransactionService::class),
             $c->get(\OwnPay\Service\Payment\FeeService::class),
             $c->get(\OwnPay\Service\Payment\LedgerService::class)
@@ -323,7 +324,8 @@ return static function (\OwnPay\Container $c): void {
         return new \OwnPay\Service\Payment\RefundService(
             $c->get(\OwnPay\Repository\RefundRepository::class),
             $c->get(\OwnPay\Repository\TransactionRepository::class),
-            $c->get(\OwnPay\Gateway\GatewayBridge::class)
+            $c->get(\OwnPay\Gateway\GatewayBridge::class),
+            $c->get(\OwnPay\Service\Payment\LedgerService::class)
         );
     });
 

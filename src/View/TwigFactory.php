@@ -128,7 +128,7 @@ final class TwigFactory
         }
 
         // 2. Env var fallback
-        if ($theme === null || $theme === '') {
+        if ($theme === null) {
             $theme = getenv('ACTIVE_THEME') ?: 'own-pay';
         }
 

@@ -288,9 +288,10 @@ final class PluginManager
             $manifest = $loader->discover()[$slug] ?? null;
             $logoPath = $this->resolveIconPath($slug, $plugin, $manifest);
 
+            $manifestName = $manifest ? $manifest->name : null;
             $gwRepo->create([
                 'slug'       => $slug,
-                'name'       => $manifest?->name ?? $plugin['name'] ?? $slug,
+                'name'       => $manifestName ?? $plugin['name'] ?? $slug,
                 'type'       => 'api',
                 'logo_path'  => $logoPath,
                 'is_builtin' => 0,
@@ -306,7 +307,7 @@ final class PluginManager
      */
     private function resolveIconPath(string $slug, array $plugin, ?PluginManifest $manifest): ?string
     {
-        $iconFile = $manifest?->icon ?? '';
+        $iconFile = $manifest ? $manifest->icon : '';
         if ($iconFile === '') {
             return null;
         }

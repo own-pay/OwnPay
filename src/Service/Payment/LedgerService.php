@@ -24,6 +24,23 @@ final class LedgerService
     }
 
     /**
+     * Resolve type for standard ledger accounts.
+     */
+    public function getAccountType(string $code): string
+    {
+        $code = strtoupper($code);
+        switch ($code) {
+            case 'CASH':
+            case 'BANK_OUT':
+                return 'asset';
+            case 'MERCHANT_PAYABLE':
+                return 'liability';
+            default:
+                return 'asset';
+        }
+    }
+
+    /**
      * Internal method to post a balanced journal entry.
      */
     private function postJournal(
@@ -37,9 +54,11 @@ final class LedgerService
         string $referenceId,
         ?string $description = null
     ): void {
-        // 1. Ensure accounts exist
-        $drAccount = $this->ledger->findOrCreateAccount($debitAccountCode, 'asset', $currency, $merchantId);
-        $crAccount = $this->ledger->findOrCreateAccount($creditAccountCode, 'liability', $currency, $merchantId);
+        // 1. Ensure accounts exist with correct resolved types
+        $drType = $this->getAccountType($debitAccountCode);
+        $crType = $this->getAccountType($creditAccountCode);
+        $drAccount = $this->ledger->findOrCreateAccount($debitAccountCode, $drType, $currency, $merchantId);
+        $crAccount = $this->ledger->findOrCreateAccount($creditAccountCode, $crType, $currency, $merchantId);
 
         $this->ledger->forTenant($merchantId);
         $db = $this->ledger->getDatabase();
@@ -57,8 +76,8 @@ final class LedgerService
             $this->ledger->createEntry($txnId, (int) $crAccount['id'], 'credit', $amount);
 
             // 4. Update Balances
-            $this->ledger->adjustBalance((int) $drAccount['id'], $amount);
-            $this->ledger->adjustBalance((int) $crAccount['id'], $amount);
+            $this->ledger->adjustBalance((int) $drAccount['id'], $amount, 'debit');
+            $this->ledger->adjustBalance((int) $crAccount['id'], $amount, 'credit');
 
             // Fire event
             $this->events->doAction('ledger.entry.created', [

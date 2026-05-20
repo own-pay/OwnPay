@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Core;
 
 use OwnPay\Event\EventManager;
+use OwnPay\Plugin\PluginRegistry;
 use PDO;
 use PDOStatement;
 
@@ -23,10 +24,23 @@ final class Database
     private static ?self $instance = null;
 
     /**
+     * Reset the singleton instance (used for testing).
+     */
+    public static function reset(): void
+    {
+        self::$instance = null;
+    }
+
+    /**
      * AUD-G3: Optional EventManager for query hooks.
      * Lazily injected after container build to avoid circular DI.
      */
     private ?EventManager $events = null;
+
+    /**
+     * AUD-G8: Optional PluginRegistry for sandbox checks.
+     */
+    private ?PluginRegistry $registry = null;
 
     /** Guard against infinite recursion when hooks themselves query DB */
     private bool $firingHooks = false;
@@ -43,6 +57,15 @@ final class Database
     public function setEventManager(EventManager $events): void
     {
         $this->events = $events;
+    }
+
+    /**
+     * AUD-G8: Inject PluginRegistry after container build.
+     * Called by Kernel::boot() once DI is ready.
+     */
+    public function setPluginRegistry(PluginRegistry $registry): void
+    {
+        $this->registry = $registry;
     }
 
     
@@ -117,18 +140,37 @@ final class Database
 
     public function execute(string $sql, array $params = []): PDOStatement
     {
+        // AUD-G8 fix: Validate SQL query safety if executed within plugin context.
+        if ($this->registry !== null && $this->events !== null) {
+            $activeOwner = $this->events->getActiveOwner();
+            if ($activeOwner !== 'core') {
+                $sandbox = $this->registry->getSandbox($activeOwner);
+                if ($sandbox !== null) {
+                    if (!$sandbox->validateSql($sql)) {
+                        throw new \RuntimeException(
+                            "Database query blocked by plugin sandbox for '{$activeOwner}': direct access to core tables or dangerous SQL operations are restricted."
+                        );
+                    }
+                }
+            }
+        }
+
         // AUD-G3: Fire db.query.before filter — plugins can modify SQL/params
         // Guard prevents infinite recursion when hook listeners query DB
         if ($this->events !== null && !$this->firingHooks) {
             $this->firingHooks = true;
             try {
-                /** @var array{sql: string, params: array} $queryData */
+                /** @var array<string, mixed> $queryData */
                 $queryData = $this->events->applyFilter('db.query.before', [
                     'sql' => $sql,
                     'params' => $params,
                 ]);
-                $sql = $queryData['sql'] ?? $sql;
-                $params = $queryData['params'] ?? $params;
+                if (isset($queryData['sql']) && is_string($queryData['sql'])) {
+                    $sql = $queryData['sql'];
+                }
+                if (isset($queryData['params']) && is_array($queryData['params'])) {
+                    $params = $queryData['params'];
+                }
             } finally {
                 $this->firingHooks = false;
             }

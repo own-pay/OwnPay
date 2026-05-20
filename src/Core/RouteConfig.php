@@ -43,7 +43,7 @@ final class RouteConfig
     {
         try {
             $value = \OwnPay\Service\System\EnvironmentService::get($key);
-            return ($value !== null && $value !== '') ? $value : $default;
+            return $value !== '' ? $value : $default;
         } catch (\Throwable) {
             return $default;
         }

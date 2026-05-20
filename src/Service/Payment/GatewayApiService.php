@@ -16,7 +16,6 @@ final class GatewayApiService
 {
     private GatewayBridge $bridge;
     private GatewayRepository $gateways;
-    private GatewayConfigRepository $configs;
     private TransactionService $transactions;
     private FeeService $fees;
     private LedgerService $ledger;
@@ -24,14 +23,12 @@ final class GatewayApiService
     public function __construct(
         GatewayBridge $bridge,
         GatewayRepository $gateways,
-        GatewayConfigRepository $configs,
         TransactionService $transactions,
         FeeService $fees,
         LedgerService $ledger
     ) {
         $this->bridge = $bridge;
         $this->gateways = $gateways;
-        $this->configs = $configs;
         $this->transactions = $transactions;
         $this->fees = $fees;
         $this->ledger = $ledger;

@@ -39,7 +39,7 @@ final class InvoiceCheckoutController
             $invoice = null;
         }
 
-        // CHK-002 FIX: Check due_date expiry — auto-mark overdue and block
+        // CHK-002 FIX: Check due_date expiry — auto-mark overdue
         if ($invoice && !empty($invoice['due_date'])) {
             $dueDate = strtotime($invoice['due_date']);
             if ($dueDate !== false && $dueDate < strtotime('today')) {
@@ -47,8 +47,8 @@ final class InvoiceCheckoutController
                 if ($invoice['status'] === 'sent') {
                     $this->invoiceRepo->forTenant((int) $invoice['merchant_id'])
                         ->updateScoped((int) $invoice['id'], ['status' => 'overdue']);
+                    $invoice['status'] = 'overdue';
                 }
-                $invoice = null; // Block checkout for overdue invoices
             }
         }
 

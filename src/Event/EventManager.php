@@ -28,6 +28,9 @@ final class EventManager
     /** @var array<string, int> Hook fire counters for debugging */
     private array $fireCounts = [];
 
+    /** @var string[] Stack of active plugin owners */
+    private array $ownerStack = [];
+
     private ?Logger $logger = null;
 
     /** @var self|null Singleton instance for static access from cron jobs */
@@ -50,6 +53,23 @@ final class EventManager
     public static function setInstance(self $instance): void
     {
         self::$instance = $instance;
+    }
+
+    /**
+     * Reset the singleton instance (for testing).
+     */
+    public static function resetInstance(): void
+    {
+        self::$instance = null;
+    }
+
+    /**
+     * Get the currently active plugin owner.
+     * Returns 'core' or the active plugin slug.
+     */
+    public function getActiveOwner(): string
+    {
+        return empty($this->ownerStack) ? 'core' : end($this->ownerStack);
     }
 
     public function setLogger(Logger $logger): void
@@ -96,10 +116,13 @@ final class EventManager
         }
 
         foreach ($this->actions[$hook] as $listener) {
+            $this->ownerStack[] = $listener['owner'];
             try {
                 ($listener['callable'])(...$args);
             } catch (\Throwable $e) {
                 $this->logHookError($hook, $listener['owner'], $e);
+            } finally {
+                array_pop($this->ownerStack);
             }
         }
     }
@@ -145,10 +168,13 @@ final class EventManager
         }
 
         foreach ($this->filters[$hook] as $listener) {
+            $this->ownerStack[] = $listener['owner'];
             try {
                 $value = ($listener['callable'])($value, ...$args);
             } catch (\Throwable $e) {
                 $this->logHookError($hook, $listener['owner'], $e);
+            } finally {
+                array_pop($this->ownerStack);
             }
         }
 
@@ -229,6 +255,107 @@ final class EventManager
     }
 
 
+
+    public function applyFilters(string $hook, mixed $value, mixed ...$args): mixed
+    {
+        return $this->applyFilter($hook, $value, ...$args);
+    }
+
+    public function hasAction(string $hook): bool
+    {
+        return !empty($this->actions[$hook]);
+    }
+
+    public function hasFilter(string $hook): bool
+    {
+        return !empty($this->filters[$hook]);
+    }
+
+    public function removeAction(string $hook, callable $callback): bool
+    {
+        if (empty($this->actions[$hook])) {
+            return false;
+        }
+        $initialCount = count($this->actions[$hook]);
+        $this->actions[$hook] = array_values(
+            array_filter($this->actions[$hook], static fn(array $l): bool => $l['callable'] !== $callback)
+        );
+        if (empty($this->actions[$hook])) {
+            unset($this->actions[$hook]);
+        }
+        return count($this->actions[$hook] ?? []) < $initialCount;
+    }
+
+    public function removeFilter(string $hook, callable $callback): bool
+    {
+        if (empty($this->filters[$hook])) {
+            return false;
+        }
+        $initialCount = count($this->filters[$hook]);
+        $this->filters[$hook] = array_values(
+            array_filter($this->filters[$hook], static fn(array $l): bool => $l['callable'] !== $callback)
+        );
+        if (empty($this->filters[$hook])) {
+            unset($this->filters[$hook]);
+        }
+        return count($this->filters[$hook] ?? []) < $initialCount;
+    }
+
+    public function removeAllByOwner(string $owner): int
+    {
+        $removed = 0;
+        foreach ($this->actions as $hook => &$listeners) {
+            $before = count($listeners);
+            $listeners = array_values(
+                array_filter($listeners, static fn(array $l): bool => $l['owner'] !== $owner)
+            );
+            $removed += ($before - count($listeners));
+            if (empty($listeners)) {
+                unset($this->actions[$hook]);
+            }
+        }
+        unset($listeners);
+
+        foreach ($this->filters as $hook => &$listeners) {
+            $before = count($listeners);
+            $listeners = array_values(
+                array_filter($listeners, static fn(array $l): bool => $l['owner'] !== $owner)
+            );
+            $removed += ($before - count($listeners));
+            if (empty($listeners)) {
+                unset($this->filters[$hook]);
+            }
+        }
+        unset($listeners);
+
+        return $removed;
+    }
+
+    public function getRegistered(): array
+    {
+        $actions = [];
+        foreach ($this->actions as $hook => $listeners) {
+            $actions[$hook] = count($listeners);
+        }
+        $filters = [];
+        foreach ($this->filters as $hook => $listeners) {
+            $filters[$hook] = count($listeners);
+        }
+        return [
+            'actions' => $actions,
+            'filters' => $filters,
+        ];
+    }
+
+    public function inspectHook(string $hook): array
+    {
+        $listeners = array_merge(
+            $this->actions[$hook] ?? [],
+            $this->filters[$hook] ?? []
+        );
+        usort($listeners, static fn(array $a, array $b): int => $a['priority'] <=> $b['priority']);
+        return $listeners;
+    }
 
     private function logHookError(string $hook, string $owner, \Throwable $e): void
     {
