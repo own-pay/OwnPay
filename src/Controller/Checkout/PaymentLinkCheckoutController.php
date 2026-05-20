@@ -53,24 +53,25 @@ final class PaymentLinkCheckoutController
             return $this->renderExpired($twig);
         }
 
-        $amount = $link['amount'] ?? $req->query('amount', '0');
-        $amt = (float) $amount;
+        $amount = (string) ($link['amount'] ?? $req->query('amount', '0'));
+        if (!is_numeric($amount)) $amount = '0';
 
-        // CHK-004 FIX: Validate GET ?amount param against min/max bounds
-        if ($amt > 0) {
-            $minAmount = (float) ($link['min_amount'] ?? 0);
-            $maxAmount = (float) ($link['max_amount'] ?? 0);
-            if (($minAmount > 0 && $amt < $minAmount) || ($maxAmount > 0 && $amt > $maxAmount)) {
-                $amt = 0; // Force amount entry form with error
+        // CHK-004 FIX: Validate GET ?amount param against min/max bounds (DS-02: BCMath)
+        if (bccomp($amount, '0', 2) > 0) {
+            $minAmount = (string) ($link['min_amount'] ?? '0');
+            $maxAmount = (string) ($link['max_amount'] ?? '0');
+            if ((bccomp($minAmount, '0', 2) > 0 && bccomp($amount, $minAmount, 2) < 0)
+                || (bccomp($maxAmount, '0', 2) > 0 && bccomp($amount, $maxAmount, 2) > 0)) {
                 $amount = '0';
             }
         }
 
-        if ($amt <= 0) {
+        if (bccomp($amount, '0', 2) <= 0) {
             // M-02 FIX: Inject CSRF token into template data
-            $csrf = $_SESSION['csrf_token'] ?? '';
+            $csrf = \OwnPay\Security\SecurityHelpers::csrfToken();
             $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
-            $error = ($req->query('amount', '') !== '' && (float) $req->query('amount', '0') > 0)
+            $queryAmt = $req->query('amount', '');
+            $error = ($queryAmt !== '' && is_numeric($queryAmt) && bccomp($queryAmt, '0', 2) > 0)
                 ? 'Amount is out of valid bounds.'
                 : null;
             return Response::html($twig->render($tpl, [
@@ -132,11 +133,12 @@ final class PaymentLinkCheckoutController
             return $this->renderExpired($twig);
         }
 
-        $amount = (float) $req->post('amount', '0');
-        $csrf = $_SESSION['csrf_token'] ?? '';
+        $amountStr = (string) $req->post('amount', '0');
+        if (!is_numeric($amountStr)) $amountStr = '0';
+        $csrf = \OwnPay\Security\SecurityHelpers::csrfToken();
 
-        // Basic validation
-        if ($amount <= 0) {
+        // Basic validation (DS-02: BCMath instead of float)
+        if (bccomp($amountStr, '0', 2) <= 0) {
             $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
             return Response::html($twig->render($tpl, [
                 'link'       => $link,
@@ -145,11 +147,11 @@ final class PaymentLinkCheckoutController
             ]));
         }
 
-        // H-02 FIX: Enforce min/max amount bounds
-        $minAmount = (float) ($link['min_amount'] ?? 0);
-        $maxAmount = (float) ($link['max_amount'] ?? 0);
+        // H-02 FIX: Enforce min/max amount bounds (DS-02: BCMath)
+        $minAmount = (string) ($link['min_amount'] ?? '0');
+        $maxAmount = (string) ($link['max_amount'] ?? '0');
 
-        if ($minAmount > 0 && $amount < $minAmount) {
+        if (bccomp($minAmount, '0', 2) > 0 && bccomp($amountStr, $minAmount, 2) < 0) {
             $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
             $currency = $link['currency'] ?? 'BDT';
             return Response::html($twig->render($tpl, [
@@ -158,7 +160,7 @@ final class PaymentLinkCheckoutController
                 'csrf_token' => $csrf,
             ]));
         }
-        if ($maxAmount > 0 && $amount > $maxAmount) {
+        if (bccomp($maxAmount, '0', 2) > 0 && bccomp($amountStr, $maxAmount, 2) > 0) {
             $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
             $currency = $link['currency'] ?? 'BDT';
             return Response::html($twig->render($tpl, [
@@ -186,8 +188,8 @@ final class PaymentLinkCheckoutController
             'trx_id'       => $trxId,
             'merchant_id'  => $link['merchant_id'],
             'gateway_slug' => 'link',
-            'amount'       => $amount,
-            'net_amount'   => $amount,
+            'amount'       => $amountStr,
+            'net_amount'   => $amountStr,
             'currency'     => $link['currency'] ?? 'BDT',
             'method'       => 'link',
             'status'       => 'pending',

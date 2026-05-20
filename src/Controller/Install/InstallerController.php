@@ -156,17 +156,17 @@ final class InstallerController
 
             // 2. Insert the owner role
             $stmt = $pdo->prepare(
-                "INSERT INTO {$p}roles (merchant_id, name, slug, description, is_system, created_at) VALUES (?,?,?,?,1,?)"
+                "INSERT INTO {$p}roles (merchant_id, name, slug, description, is_system, created_at, updated_at) VALUES (?,?,?,?,1,?,?)"
             );
-            $stmt->execute([$merchantId, 'Owner', 'owner', 'System owner role', $now]);
+            $stmt->execute([$merchantId, 'Owner', 'owner', 'System owner role', $now, $now]);
             $roleId = (int) $pdo->lastInsertId();
 
-            // 3. Insert the superadmin user
+            // 3. Insert the superadmin user (DS-11 FIX: include username column)
             $stmt = $pdo->prepare(
-                "INSERT INTO {$p}merchant_users (merchant_id, role_id, name, email, password_hash, is_superadmin, status, created_at, updated_at)
-                 VALUES (?,?,?,?,?,1,'active',?,?)"
+                "INSERT INTO {$p}merchant_users (merchant_id, role_id, name, username, email, password_hash, is_superadmin, status, created_at, updated_at)
+                 VALUES (?,?,?,?,?,?,1,'active',?,?)"
             );
-            $stmt->execute([$merchantId, $roleId, $name, $email, $hash, $now, $now]);
+            $stmt->execute([$merchantId, $roleId, $name, $username, $email, $hash, $now, $now]);
 
             // 4. Seed default currencies
             $currencies = [
@@ -178,6 +178,49 @@ final class InstallerController
             ];
             $cs = $pdo->prepare("INSERT IGNORE INTO {$p}currencies (code, name, symbol, decimal_places, status) VALUES (?,?,?,?,'active')");
             foreach ($currencies as $c) $cs->execute($c);
+
+            // 5. DS-15 FIX: Seed default permissions
+            $permissions = [
+                // [slug, name, group_name]
+                ['admin.access',          'Admin Access',             'system'],
+                ['transactions.view',     'View Transactions',        'payments'],
+                ['transactions.manage',   'Manage Transactions',      'payments'],
+                ['invoices.view',         'View Invoices',            'payments'],
+                ['invoices.manage',       'Manage Invoices',          'payments'],
+                ['payment_links.view',    'View Payment Links',       'payments'],
+                ['payment_links.manage',  'Manage Payment Links',     'payments'],
+                ['customers.view',        'View Customers',           'people'],
+                ['customers.manage',      'Manage Customers',         'people'],
+                ['gateways.view',         'View Gateways',            'gateways'],
+                ['gateways.manage',       'Manage Gateways',          'gateways'],
+                ['brands.view',           'View Brands',              'people'],
+                ['brands.manage',         'Manage Brands',            'people'],
+                ['staff.view',            'View Staff',               'people'],
+                ['staff.manage',          'Manage Staff',             'people'],
+                ['settings.view',         'View Settings',            'system'],
+                ['settings.manage',       'Manage Settings',          'system'],
+                ['api_keys.view',         'View API Keys',            'developers'],
+                ['api_keys.manage',       'Manage API Keys',          'developers'],
+                ['sms.view',              'View SMS',                 'mobile'],
+                ['sms.manage',            'Manage SMS',               'mobile'],
+                ['devices.view',          'View Devices',             'mobile'],
+                ['devices.manage',        'Manage Devices',           'mobile'],
+                ['plugins.view',          'View Plugins',             'system'],
+                ['plugins.manage',        'Manage Plugins',           'system'],
+                ['domains.view',          'View Domains',             'system'],
+                ['domains.manage',        'Manage Domains',           'system'],
+                ['system.update',         'System Update',            'system'],
+                ['system.audit',          'View Audit Log',           'system'],
+                ['system.reports',        'View Reports',             'system'],
+                ['system.balance',        'Balance Verification',     'system'],
+            ];
+            $ps = $pdo->prepare("INSERT IGNORE INTO {$p}permissions (slug, name, group_name) VALUES (?,?,?)");
+            foreach ($permissions as $perm) $ps->execute($perm);
+
+            // 6. Assign ALL permissions to the Owner role
+            $allPerms = $pdo->query("SELECT id FROM {$p}permissions")->fetchAll(\PDO::FETCH_COLUMN);
+            $rps = $pdo->prepare("INSERT IGNORE INTO {$p}role_permissions (role_id, permission_id) VALUES (?,?)");
+            foreach ($allPerms as $permId) $rps->execute([$roleId, $permId]);
 
             return Response::json(['success' => true]);
         } catch (\Throwable $e) {
@@ -260,6 +303,7 @@ final class InstallerController
                 ['payment',  'default_gateway', '',                        'string'],
                 ['payment',  'success_url',     '',                        'string'],
                 ['payment',  'cancel_url',      '',                        'string'],
+                ['general',  'base_currency',   $currency,                 'string'],
             ];
             $stmt = $pdo->prepare("INSERT IGNORE INTO {$p}system_settings (group_name, key_name, value, type) VALUES (?,?,?,?)");
             foreach ($seeds as $s) $stmt->execute($s);

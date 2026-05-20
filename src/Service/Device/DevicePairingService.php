@@ -153,7 +153,7 @@ final class DevicePairingService
                 return ['success' => false, 'error' => 'INVALID_OTP'];
             }
             $merchantId = (int) $token['brand_id'];
-            $userId = (int) $token['admin'];
+            $userId = (int) ($token['created_by'] ?? $token['admin'] ?? 1);
         } else {
             $valid = $this->validatePairingOtp($otp);
             if (!$valid['valid']) {

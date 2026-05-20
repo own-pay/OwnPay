@@ -30,7 +30,7 @@
                     <select name="status" class="op-input">
                         <option value="active" {{ (brand.status ?? 'active') == 'active' ? 'selected' : '' }}>Active</option>
                         <option value="suspended" {{ (brand.status ?? '') == 'suspended' ? 'selected' : '' }}>Suspended</option>
-                        <option value="inactive" {{ (brand.status ?? '') == 'inactive' ? 'selected' : '' }}>Inactive</option>
+                        <option value="pending" {{ (brand.status ?? '') == 'pending' ? 'selected' : '' }}>Pending</option>
                     </select>
                 </div>
             </div>

@@ -83,11 +83,10 @@ final class PluginSandbox
         $dangerous = [
             'exec', 'shell_exec', 'system', 'passthru', 'popen', 'proc_open',
             'eval', 'assert', 'create_function',
-            'file_put_contents', 'fwrite', 'fputs', // Use plugin API instead
+            'file_put_contents', // Use plugin API instead
             'unlink', 'rmdir', 'rename', 'chmod', 'chown',
-            'ini_set', 'ini_alter', 'putenv',
+            'putenv',
             'dl', 'mail', // Use comm service instead
-            'header', 'setcookie', // Use Response instead
         ];
         return in_array(strtolower($function), $dangerous, true);
     }

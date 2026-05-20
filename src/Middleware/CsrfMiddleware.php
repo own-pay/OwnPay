@@ -94,14 +94,19 @@ final class CsrfMiddleware
         return Response::html('<h1>403 Forbidden</h1><p>CSRF validation failed. Please refresh and try again.</p>', 403);
     }
 
-    public function validate(string $token): array
+    /**
+     * Validate CSRF token (legacy helper).
+     * DS-01 FIX: Aligned session key to '_csrf_token' (matching handle()).
+     * DS-04 FIX: Reads from Request object when available, falls back to $_POST.
+     */
+    public function validate(string $token, ?Request $request = null): array
     {
         $secret = $_ENV['APP_HMAC_SECRET'] ?? '';
         if ($secret !== '') {
-            // HMAC mode
-            $appId = $_POST['op-app-id'] ?? '';
-            $timestampRaw = $_POST['op-app-timestamp'] ?? '';
-            $action = $_POST['action'] ?? '';
+            // HMAC mode — read from Request if available, else $_POST
+            $appId = $request !== null ? ($request->post('op-app-id') ?? '') : ($_POST['op-app-id'] ?? '');
+            $timestampRaw = $request !== null ? ($request->post('op-app-timestamp') ?? '') : ($_POST['op-app-timestamp'] ?? '');
+            $action = $request !== null ? ($request->post('action') ?? '') : ($_POST['action'] ?? '');
 
             if ($appId === '' || $timestampRaw === '' || !is_numeric($timestampRaw)) {
                 return [
@@ -132,12 +137,15 @@ final class CsrfMiddleware
             ];
         }
 
-        // Standard CSRF mode
-        $sessionToken = $_SESSION['csrf_token'] ?? '';
-        $submittedToken = $_POST['csrf_token'] ?? '';
+        // Standard CSRF mode — DS-01 FIX: use '_csrf_token' (with underscore prefix)
+        $sessionToken = $_SESSION['_csrf_token'] ?? $_SESSION['csrf_token'] ?? '';
+        $submittedToken = $request !== null
+            ? ($request->post('_csrf_token') ?? $request->post('csrf_token') ?? '')
+            : ($_POST['_csrf_token'] ?? $_POST['csrf_token'] ?? '');
 
         if ($sessionToken === '' || $submittedToken === '' || !hash_equals($sessionToken, $submittedToken)) {
             $newToken = bin2hex(random_bytes(32));
+            $_SESSION['_csrf_token'] = $newToken;
             $_SESSION['csrf_token'] = $newToken;
             return [
                 'valid' => false,

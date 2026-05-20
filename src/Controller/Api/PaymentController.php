@@ -43,7 +43,7 @@ final class PaymentController
 
         // OWASP: Validate required fields (gateway is optional now)
         $errors = [];
-        if (empty($body['amount']) || !is_numeric($body['amount']) || (float) $body['amount'] <= 0) {
+        if (empty($body['amount']) || !is_numeric($body['amount']) || bccomp((string) $body['amount'], '0', 2) <= 0) {
             $errors[] = 'amount must be a positive number';
         }
         if (empty($body['currency'])) {

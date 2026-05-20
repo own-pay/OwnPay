@@ -67,7 +67,7 @@ final class InvoiceCheckoutController
 
         // Create new transaction with ALL required NOT NULL fields
         $trxId = 'TXN-' . strtoupper(bin2hex(random_bytes(8)));
-        $total = (float) $invoice['total'];
+        $total = (string) ($invoice['total'] ?? '0');
         $this->txnRepo->create([
             'uuid'         => Uuid::uuid4()->toString(),
             'trx_id'       => $trxId,
