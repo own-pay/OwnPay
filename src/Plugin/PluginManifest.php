@@ -137,7 +137,7 @@ final class PluginManifest
             throw new \RuntimeException('Manifest must decode to a JSON object');
         }
 
-        return new self($data, $path);
+        return new self($data, dirname($path));
     }
 
     /**
@@ -155,7 +155,7 @@ final class PluginManifest
         if (!preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?$/', $this->slug)) {
             $errors[] = 'Invalid slug format';
         }
-        if (!in_array($this->type, ['plugin', 'gateway', 'theme'], true)) {
+        if (!in_array($this->type, ['plugin', 'gateway', 'theme', 'addon'], true)) {
             $errors[] = 'Invalid type';
         }
         if ($this->entrypoint === '') {

@@ -197,6 +197,7 @@ final class CheckoutController
             'canceled' => 'Payment Cancelled', 'expired' => 'Payment Expired',
             'pending' => 'Payment Pending', 'pending_review' => 'Payment Under Review',
             'awaiting_verification' => 'Awaiting Verification',
+            'processing' => 'Payment Processing',
         ];
 
         // L-02 FIX: Resolve currency symbol for status pages
@@ -325,23 +326,46 @@ final class CheckoutController
             return Response::redirect("/checkout/{$token}/status");
         }
 
-        // API gateway — delegate to GatewayApiService
+        // API gateway — call external gateway via GatewayBridge pipeline.
+        // CRITICAL: Do NOT update transaction status before the external API responds.
+        // Status stays 'pending' until we have a confirmed redirect URL from the gateway.
         if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
             try {
                 $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
+                $baseUrl = rtrim($_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? 'https://localhost', '/');
                 $result = $svc->initiatePayment((int) $txn['merchant_id'], $gateway, [
-                    'amount'   => $txn['amount'],
-                    'currency' => $txn['currency'],
-                    'trx_id'   => $txn['trx_id'],
+                    'amount'       => $txn['amount'],
+                    'currency'     => $txn['currency'],
+                    'trx_id'       => $txn['trx_id'],
+                    'redirect_url' => "{$baseUrl}/checkout/{$token}/status",
+                    'cancel_url'   => "{$baseUrl}/checkout/{$token}/status",
+                    'existing_txn' => true,
                 ]);
+
                 if ($result['success'] && !empty($result['redirect_url'])) {
+                    // External gateway returned a valid redirect URL — NOW we transition state.
+                    // This is the only safe point to update: the external handshake succeeded.
+                    $this->txnRepo->setGatewayAndStatus(
+                        (int) $txn['id'], $gateway, 'processing', (int) $txn['merchant_id']
+                    );
                     return Response::redirect($result['redirect_url']);
                 }
+
+                // Gateway returned success=false or no redirect URL — log but don't corrupt state.
+                $this->c->get(\OwnPay\Service\System\Logger::class)->warning(
+                    "Gateway {$gateway} returned no redirect URL for trx {$txn['trx_id']}"
+                );
             } catch (\Throwable $e) {
-                $this->c->get(\OwnPay\Service\System\Logger::class)->error('Gateway error: ' . $e->getMessage());
+                // Gateway bridge threw (adapter not found, API error, etc.)
+                // Transaction stays 'pending' — user can retry with a different gateway.
+                $this->c->get(\OwnPay\Service\System\Logger::class)->error(
+                    "Gateway {$gateway} initiation failed: " . $e->getMessage()
+                );
             }
         }
 
+        // Fallback: redirect to status page. Transaction is still 'pending' —
+        // the status page will show "Pending" and the user can go back to retry.
         return Response::redirect("/checkout/{$token}/status");
     }
 

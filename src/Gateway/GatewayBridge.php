@@ -10,6 +10,9 @@ use OwnPay\Security\FieldEncryptor;
 /**
  * Gateway bridge — routes payment operations to correct adapter.
  *
+ * Adapters are registered exclusively by PluginLoader::loadActive() during boot.
+ * Only plugins marked active in op_plugins are loaded — no filesystem bypass.
+ *
  * Fires: gateway.capture.before (filter), gateway.capture.after (action)
  */
 final class GatewayBridge
@@ -100,6 +103,16 @@ final class GatewayBridge
     public function hasAdapter(string $slug): bool
     {
         return isset($this->adapters[$slug]);
+    }
+
+    /**
+     * Get all registered adapter slugs (for diagnostics).
+     *
+     * @return string[]
+     */
+    public function getRegisteredSlugs(): array
+    {
+        return array_keys($this->adapters);
     }
 
     private function resolveAdapter(string $slug): GatewayAdapterInterface

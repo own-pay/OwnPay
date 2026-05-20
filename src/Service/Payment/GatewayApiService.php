@@ -57,19 +57,24 @@ final class GatewayApiService
             $merchantId
         );
 
-        // Create transaction
-        $transaction = $this->transactions->create($merchantId, [
-            'gateway_slug'      => $gatewaySlug,
-            'amount'            => $params['amount'],
-            'fee'               => $fee,
-            'currency'          => $params['currency'],
-            'method'            => 'api',
-            'sender_account'    => $params['sender_account'] ?? null,
-            'reference'         => $params['reference'] ?? null,
-            'payment_intent_id' => $params['payment_intent_id'] ?? null,
-            'customer_id'       => $params['customer_id'] ?? null,
-            'metadata'          => isset($params['metadata']) ? json_encode($params['metadata']) : null,
-        ]);
+        // When called from checkout, the transaction already exists — skip creation
+        if (!empty($params['existing_txn'])) {
+            $transaction = ['trx_id' => $params['trx_id']];
+        } else {
+            // Create transaction (API direct-call flow)
+            $transaction = $this->transactions->create($merchantId, [
+                'gateway_slug'      => $gatewaySlug,
+                'amount'            => $params['amount'],
+                'fee'               => $fee,
+                'currency'          => $params['currency'],
+                'method'            => 'api',
+                'sender_account'    => $params['sender_account'] ?? null,
+                'reference'         => $params['reference'] ?? null,
+                'payment_intent_id' => $params['payment_intent_id'] ?? null,
+                'customer_id'       => $params['customer_id'] ?? null,
+                'metadata'          => isset($params['metadata']) ? json_encode($params['metadata']) : null,
+            ]);
+        }
 
         // Initiate via gateway adapter
         try {

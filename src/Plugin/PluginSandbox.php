@@ -86,7 +86,7 @@ final class PluginSandbox
             'file_put_contents', // Use plugin API instead
             'unlink', 'rmdir', 'rename', 'chmod', 'chown',
             'putenv',
-            'dl', 'mail', // Use comm service instead
+            'dl',
         ];
         return in_array(strtolower($function), $dangerous, true);
     }
