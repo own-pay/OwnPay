@@ -94,15 +94,14 @@ final class PaymentLinkCheckoutController
 
         $trxId = 'TXN-' . strtoupper(bin2hex(random_bytes(8)));
         $uuid  = \Ramsey\Uuid\Uuid::uuid4()->toString();
-        $amt   = (float) $amount;
 
         $this->txnRepo->create([
             'uuid'         => $uuid,
             'trx_id'       => $trxId,
             'merchant_id'  => $link['merchant_id'],
             'gateway_slug' => 'link',
-            'amount'       => $amt,
-            'net_amount'   => $amt,
+            'amount'       => $amount,
+            'net_amount'   => $amount,
             'currency'     => $link['currency'] ?? 'BDT',
             'method'       => 'link',
             'status'       => 'pending',

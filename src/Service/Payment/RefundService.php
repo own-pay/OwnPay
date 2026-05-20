@@ -46,7 +46,7 @@ final class RefundService
 
         $alreadyRefunded = $this->refunds->getTotalRefundedAmount($txn['id'], $merchantId);
 
-        if ($amount === null || (float)$amount <= 0) {
+        if ($amount === null || !is_numeric($amount) || bccomp((string)$amount, '0', 2) <= 0) {
             $amount = bcsub($txn['amount'], $alreadyRefunded, 2);
         }
 

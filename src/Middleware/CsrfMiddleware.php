@@ -73,7 +73,7 @@ final class CsrfMiddleware
 
         // Rotate token — keep pool of last 5 tokens for multi-tab
         $tokenPool[] = $sessionToken;
-        $_SESSION['_csrf_token_pool'] = array_slice($tokenPool, -5);
+        $_SESSION['_csrf_token_pool'] = array_slice($tokenPool, -10);
         $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
 
         // Stash new token on request so JSON responses can include it for AJAX callers.
@@ -89,6 +89,20 @@ final class CsrfMiddleware
                 'success' => false,
                 'message' => 'CSRF validation failed',
             ], 403);
+        }
+
+        // For checkout/payment pages, redirect back to retry with fresh token
+        $path = $request->path();
+        if (str_starts_with($path, '/pay/') || str_starts_with($path, '/checkout/')) {
+            // Extract the base payment link URL from submit path
+            $referer = $request->header('Referer');
+            if ($referer !== '') {
+                $refererPath = parse_url($referer, PHP_URL_PATH) ?: '/';
+                return Response::redirect($refererPath);
+            }
+            // Fallback: strip /submit suffix to go back to the form
+            $backPath = preg_replace('#/submit$#', '', $path) ?: '/';
+            return Response::redirect($backPath);
         }
 
         return Response::html('<h1>403 Forbidden</h1><p>CSRF validation failed. Please refresh and try again.</p>', 403);

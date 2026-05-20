@@ -48,7 +48,7 @@ final class MobileNotificationService
             if ($mappedType === 'payment_received') {
                 $body = '';
                 if ($amount !== null) {
-                    $body .= 'Tk ' . number_format((float)$amount, 2) . ' ';
+                    $body .= 'Tk ' . (is_numeric($amount) ? number_format((float)$amount, 2) : '0.00') . ' ';
                 }
                 $body .= 'received';
                 if ($senderName !== null) {
@@ -61,7 +61,7 @@ final class MobileNotificationService
             } elseif ($mappedType === 'payment_sent') {
                 $body = '';
                 if ($amount !== null) {
-                    $body .= 'Tk ' . number_format((float)$amount, 2) . ' ';
+                    $body .= 'Tk ' . (is_numeric($amount) ? number_format((float)$amount, 2) : '0.00') . ' ';
                 }
                 $body .= 'sent';
                 if ($senderName !== null) {
@@ -74,7 +74,7 @@ final class MobileNotificationService
             } else {
                 $body = '';
                 if ($amount !== null) {
-                    $body .= 'Tk ' . number_format((float)$amount, 2) . ' ';
+                    $body .= 'Tk ' . (is_numeric($amount) ? number_format((float)$amount, 2) : '0.00') . ' ';
                 }
                 $body .= 'transaction detected';
                 $body = trim($body);
