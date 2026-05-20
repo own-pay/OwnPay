@@ -359,6 +359,26 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
+    // CHK-003 + CHK-006: Payment completion listener (invoice paid + link use_count)
+    $c->singleton(\OwnPay\Service\Payment\PaymentCompletionListener::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentCompletionListener {
+        return new \OwnPay\Service\Payment\PaymentCompletionListener(
+            $c->get(\OwnPay\Repository\InvoiceRepository::class),
+            $c->get(\OwnPay\Repository\PaymentLinkRepository::class)
+        );
+    });
+
+    // Wire listener to hook eagerly during boot
+    if (file_exists(dirname(__DIR__) . '/storage/.installed')) {
+        try {
+            $events = $c->get(\OwnPay\Event\EventManager::class);
+            $events->addAction('system.boot', static function () use ($c): void {
+                $listener = $c->get(\OwnPay\Service\Payment\PaymentCompletionListener::class);
+                $events = $c->get(\OwnPay\Event\EventManager::class);
+                $events->addAction('payment.transaction.completed', [$listener, 'onTransactionCompleted']);
+            });
+        } catch (\Throwable) {}
+    }
+
     // ─── System Services ──────────────────────────────────────────
     $c->singleton(\OwnPay\Service\System\AuditLogger::class, static function (\OwnPay\Container $c): \OwnPay\Service\System\AuditLogger {
         return new \OwnPay\Service\System\AuditLogger(

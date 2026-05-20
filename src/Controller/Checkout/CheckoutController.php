@@ -63,6 +63,19 @@ final class CheckoutController
             return $this->renderStatus($ref, 'expired');
         }
 
+        // CHK-005 FIX: Check if associated payment link is still active
+        $meta = json_decode($txn['metadata'] ?? '{}', true);
+        $linkId = $meta['payment_link_id'] ?? null;
+        if ($linkId !== null) {
+            $linkRepo = $this->c->get(\OwnPay\Repository\PaymentLinkRepository::class);
+            $link = $linkRepo->forTenant((int) $txn['merchant_id'])->findScoped((int) $linkId);
+            if (!$link || $link['status'] !== 'active'
+                || (!empty($link['expires_at']) && DateHelper::isPast($link['expires_at']))) {
+                $this->txnRepo->cancelByTrxId($txn['trx_id']);
+                return $this->renderStatus($ref, 'expired');
+            }
+        }
+
         $mid = (int) $txn['merchant_id'];
 
         // L-02 FIX: Resolve currency symbol from DB — not hardcoded ৳
@@ -75,7 +88,7 @@ final class CheckoutController
 
         // Load gateways via repos
         $manualGateways = $this->manualGw->forTenant($mid)->listActive();
-        $apiGateways = $this->apiGw->forTenant($mid)->listActive();
+        $apiGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
 
         // Build category + icon + color maps from plugin manifests
         $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
@@ -114,7 +127,6 @@ final class CheckoutController
 
         // Invoice items — H-01 FIX: invoice_id is in metadata JSON, not a column
         $items = [];
-        $meta = json_decode($txn['metadata'] ?? '{}', true);
         $invoiceId = $meta['invoice_id'] ?? null;
         if ($invoiceId) {
             $invoiceRepo = $this->c->get(\OwnPay\Repository\InvoiceRepository::class);
@@ -266,6 +278,24 @@ final class CheckoutController
 
         if (!$txn) {
             return $this->renderStatus($token, 'expired');
+        }
+
+        // CHK-011 FIX: State-based double-submit guard — only pending txns can proceed
+        if ($txn['status'] !== 'pending') {
+            return $this->renderStatus($token, $txn['status']);
+        }
+
+        // CHK-005 FIX: Re-check payment link status at pay time
+        $meta = json_decode($txn['metadata'] ?? '{}', true);
+        $linkId = $meta['payment_link_id'] ?? null;
+        if ($linkId !== null) {
+            $linkRepo = $this->c->get(\OwnPay\Repository\PaymentLinkRepository::class);
+            $link = $linkRepo->forTenant((int) $txn['merchant_id'])->findScoped((int) $linkId);
+            if (!$link || $link['status'] !== 'active'
+                || (!empty($link['expires_at']) && DateHelper::isPast($link['expires_at']))) {
+                $this->txnRepo->cancelByTrxId($txn['trx_id']);
+                return $this->renderStatus($token, 'expired');
+            }
         }
 
         // M-05 FIX: Verify checkout integrity hash — reject tampered sessions.

@@ -32,11 +32,12 @@ return [
         \OwnPay\Middleware\PermissionMiddleware::class,
     ],
 
-    // ─── API: bearer auth + rate limit ─────────────────────────
+    // ─── API: bearer auth + rate limit + idempotency ─────────────
     'api' => [
         \OwnPay\Middleware\CorsMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
         \OwnPay\Middleware\BearerAuthMiddleware::class,
+        \OwnPay\Middleware\IdempotencyMiddleware::class,
     ],
 
     // ─── API Public: no auth (health checks, public endpoints) ──

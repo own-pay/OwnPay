@@ -54,13 +54,29 @@ final class PaymentLinkCheckoutController
         }
 
         $amount = $link['amount'] ?? $req->query('amount', '0');
-        if ((float) $amount <= 0) {
+        $amt = (float) $amount;
+
+        // CHK-004 FIX: Validate GET ?amount param against min/max bounds
+        if ($amt > 0) {
+            $minAmount = (float) ($link['min_amount'] ?? 0);
+            $maxAmount = (float) ($link['max_amount'] ?? 0);
+            if (($minAmount > 0 && $amt < $minAmount) || ($maxAmount > 0 && $amt > $maxAmount)) {
+                $amt = 0; // Force amount entry form with error
+                $amount = '0';
+            }
+        }
+
+        if ($amt <= 0) {
             // M-02 FIX: Inject CSRF token into template data
             $csrf = $_SESSION['csrf_token'] ?? '';
             $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
+            $error = ($req->query('amount', '') !== '' && (float) $req->query('amount', '0') > 0)
+                ? 'Amount is out of valid bounds.'
+                : null;
             return Response::html($twig->render($tpl, [
                 'link'       => $link,
                 'csrf_token' => $csrf,
+                'error'      => $error,
             ]));
         }
 

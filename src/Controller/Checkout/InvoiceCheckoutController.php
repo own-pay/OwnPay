@@ -32,9 +32,26 @@ final class InvoiceCheckoutController
         // AUD-A2 fix: use token (globally unique) instead of invoice_number (per-merchant).
         // findUnpaidByNumber was unscoped → cross-tenant data leak.
         $invoice = $this->invoiceRepo->findByToken($token);
-        if ($invoice && $invoice['status'] === 'paid') {
-            $invoice = null; // Treat paid invoices as not found for checkout
+
+        // CHK-001 FIX: Only allow payable statuses (whitelist approach)
+        $allowedStatuses = ['sent', 'overdue'];
+        if ($invoice && !in_array($invoice['status'], $allowedStatuses, true)) {
+            $invoice = null;
         }
+
+        // CHK-002 FIX: Check due_date expiry — auto-mark overdue and block
+        if ($invoice && !empty($invoice['due_date'])) {
+            $dueDate = strtotime($invoice['due_date']);
+            if ($dueDate !== false && $dueDate < strtotime('today')) {
+                // Auto-update DB status to overdue if still 'sent'
+                if ($invoice['status'] === 'sent') {
+                    $this->invoiceRepo->forTenant((int) $invoice['merchant_id'])
+                        ->updateScoped((int) $invoice['id'], ['status' => 'overdue']);
+                }
+                $invoice = null; // Block checkout for overdue invoices
+            }
+        }
+
         $twig = $this->c->get(\Twig\Environment::class);
 
         if (!$invoice) {

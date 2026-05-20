@@ -49,6 +49,33 @@ final class PaymentController
         if (empty($body['currency'])) {
             $errors[] = 'currency is required';
         }
+
+        // CHK-009 FIX: Validate currency format + existence in DB
+        if (!empty($body['currency'])) {
+            $currencyCode = strtoupper(InputSanitizer::string($body['currency']));
+            if (strlen($currencyCode) !== 3 || !preg_match('/^[A-Z]{3}$/', $currencyCode)) {
+                $errors[] = 'currency must be a valid 3-letter ISO code';
+            } else {
+                $currSvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+                if (!in_array($currencyCode, $currSvc->supported(), true)) {
+                    $errors[] = "currency '{$currencyCode}' is not supported";
+                }
+            }
+        }
+
+        // CHK-008 FIX: Validate callback_url scheme (http/https only)
+        if (!empty($body['callback_url'])) {
+            $cbUrl = filter_var($body['callback_url'], FILTER_VALIDATE_URL);
+            if ($cbUrl === false) {
+                $errors[] = 'callback_url must be a valid URL';
+            } else {
+                $scheme = parse_url($cbUrl, PHP_URL_SCHEME);
+                if (!in_array($scheme, ['http', 'https'], true)) {
+                    $errors[] = 'callback_url must use http or https scheme';
+                }
+            }
+        }
+
         if (!empty($errors)) {
             return Response::json(['success' => false, 'errors' => $errors], 422);
         }
@@ -62,15 +89,46 @@ final class PaymentController
             return Response::json(['success' => false, 'error' => 'No gateway available. Configure a gateway or provide one in request.'], 400);
         }
 
+        // CHK-008 FIX: Sanitize customer PII fields
+        $customerEmail = !empty($body['customer_email']) ? InputSanitizer::email($body['customer_email']) : null;
+        $customerName = !empty($body['customer_name']) ? InputSanitizer::string($body['customer_name']) : null;
+        $customerPhone = !empty($body['customer_phone']) ? preg_replace('/[^\d+\-\s()]/', '', (string) $body['customer_phone']) : null;
+
+        // Truncate to safe lengths
+        if ($customerName !== null) $customerName = mb_substr($customerName, 0, 150);
+        if ($customerPhone !== null) $customerPhone = mb_substr($customerPhone, 0, 30);
+
+        // CHK-010 FIX: Resolve or create customer_id from PII
+        $customerId = null;
+        if ($customerEmail !== null && $customerEmail !== '') {
+            try {
+                $piiSvc = $this->c->get(\OwnPay\Service\Customer\CustomerPiiService::class);
+                $existing = $piiSvc->findByEmail($mid, $customerEmail);
+                if ($existing) {
+                    $customerId = (int) $existing['id'];
+                } else {
+                    $created = $piiSvc->create($mid, [
+                        'name'  => $customerName ?? 'API Customer',
+                        'email' => $customerEmail,
+                        'phone' => $customerPhone,
+                    ]);
+                    $customerId = (int) ($created['id'] ?? 0) ?: null;
+                }
+            } catch (\Throwable) {
+                // Customer resolution failed — proceed without customer_id
+            }
+        }
+
         $data = [
             'merchant_id'    => $mid,
             'gateway'        => $gatewaySlug,
             'amount'         => InputSanitizer::decimal($body['amount']),
-            'currency'       => strtoupper(InputSanitizer::string($body['currency'])),
-            'customer_email' => $body['customer_email'] ?? null,
-            'customer_name'  => $body['customer_name'] ?? null,
-            'customer_phone' => $body['customer_phone'] ?? null,
-            'callback_url'   => $body['callback_url'] ?? null,
+            'currency'       => $currencyCode ?? strtoupper(InputSanitizer::string($body['currency'])),
+            'customer_id'    => $customerId,
+            'customer_email' => $customerEmail,
+            'customer_name'  => $customerName,
+            'customer_phone' => $customerPhone,
+            'callback_url'   => !empty($body['callback_url']) ? filter_var($body['callback_url'], FILTER_VALIDATE_URL) : null,
             'reference'      => $body['reference'] ?? null,
             'metadata'       => $body['metadata'] ?? [],
             'ip_address'     => $req->ip(),
