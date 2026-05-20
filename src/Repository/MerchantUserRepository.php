@@ -45,8 +45,8 @@ final class MerchantUserRepository extends BaseRepository
     public function findActiveByLogin(string $login): ?array
     {
         return $this->db->fetchOne(
-            "SELECT * FROM {$this->table} WHERE (email = :login OR username = :login) AND status = 'active' LIMIT 1",
-            ['login' => $login]
+            "SELECT * FROM {$this->table} WHERE (email = :login_email OR username = :login_user) AND status = 'active' LIMIT 1",
+            ['login_email' => $login, 'login_user' => $login]
         );
     }
 
