@@ -1,26 +1,32 @@
-# Findings: Checkout Flow, Invoices, & API Payments Audit
+# Findings — Comprehensive Deep Audit Cross-Check
 
-This file stores permanent findings during the forensic audit of the checkout pipeline.
+All 9 reported bugs and 3 gaps verified against live codebase.
+All fixes confirmed in-place by a PRIOR session.
+This session performed independent verification + applied missing DB migration.
 
-## 1. Invoice Checkout Flow Findings
-- **CHK-001 (Invoice Status Loophole)**: `InvoiceCheckoutController::show` only blocks `'paid'` status. Draft, cancelled, or expired invoices can be loaded and paid.
-- **CHK-002 (Missing Invoice Expiry)**: `InvoiceCheckoutController::show` does not validate if due date is in the past. Expired invoices can be checked out.
-- **CHK-003 (Missing Automatic Invoice Paid Transition)**: No hook/listener updates the invoice status in `op_invoices` to `'paid'` when a transaction completes.
+| Ref | Bug Name | Severity | Code Fix | DB Fix | Status |
+|---|---|---|---|---|---|
+| **BUG 01** | Duplicate Ledger Account Creation | CRITICAL | ✅ `findOrCreateAccount` queries by name+currency only (no type filter) | N/A | ✅ VERIFIED |
+| **BUG 02** | Ledger Balance Accumulation | HIGH | ✅ `adjustBalance` takes `$entryType` param, applies double-entry rules | N/A | ✅ VERIFIED |
+| **BUG 03** | Transaction Metadata Overwrite | HIGH | ✅ `updateMetadata` merges via `array_merge($existing, $metadata)` | N/A | ✅ VERIFIED |
+| **BUG 04** | Multi-Refund Overdraw | HIGH | ✅ `getTotalRefundedAmount()` + BCMath `bccomp` + aggregate check | N/A | ✅ VERIFIED |
+| **BUG 05** | Inactive Plugin Sandbox | HIGH | ✅ `Database::execute()` calls `getActiveOwner()` → `getSandbox()` → `validateSql()` | N/A | ✅ VERIFIED |
+| **BUG 06** | JWT Issuer Mismatch | HIGH | ✅ `JwtService` constructor uses `getenv('APP_NAME') ?: 'OwnPay'` matching middleware | N/A | ✅ VERIFIED |
+| **BUG 07** | Privilege Escalation (RBAC) | MEDIUM | ✅ Unmapped `/admin` routes default to `'system.unmapped'` (not `'admin.access'`) | N/A | ✅ VERIFIED |
+| **BUG 08** | Scanner OOP False Positive | MEDIUM | ✅ Skips tokens preceded by `T_OBJECT_OPERATOR` / `T_DOUBLE_COLON` | N/A | ✅ VERIFIED |
+| **BUG 09** | Installer Twig Templates | LOW | ✅ Renamed to `.php`, method renamed to `renderPhpTemplate` | N/A | ✅ VERIFIED |
+| **GAP I** | JSON Extract Full Scan | HIGH | ✅ schema.sql has STORED generated columns | ✅ Applied via ALTER TABLE | ✅ VERIFIED |
+| **GAP II** | Missing Auth Hooks | MEDIUM | ✅ `auth.login.success` and `auth.login.failed` hooks fired in Authenticator | N/A | ✅ VERIFIED |
+| **GAP III** | Overdue Invoices Locked | LOW | ✅ No `$invoice = null` after due date check; overdue stays payable | N/A | ✅ VERIFIED |
 
-## 2. Payment Links Findings
-- **CHK-004 (Payment Link Parameter Tampering)**: Dynamic links with no fixed amount allow GET query parameter `?amount=` to bypass `min_amount`/`max_amount` bounds validation.
-- **CHK-005 (Broken Stopped-Link Enforcement)**: `CheckoutController` doesn't verify if underlying payment link is still active/unexpired on render or payment submit.
-- **CHK-006 (Payment Link Usage Tracking Fail)**: `use_count` is never incremented in the database when a transaction completes, making `max_uses` useless.
+## DI Wiring Verification
+- GatewayApiService: 5 params in constructor = 5 params in services.php ✅
+- RefundService: 4 params (incl. LedgerService) = 4 params in services.php ✅
+- Authenticator: autowired with nullable EventManager, injected via container reflection ✅
+- JwtService: DI passes `$secret` and `$iss` from env ✅
 
-## 3. API Payment Integration Findings
-- **CHK-007 (Idempotency Keys Ignored)**: API payments do not support `Idempotency-Key` or equivalent, leading to potential duplicate charges on retry.
-- **CHK-008 (Missing API Payload PII and URL Validation)**: Direct acceptance of customer fields and callback URLs without proper sanitation/validation leads to potential Stored XSS and redirection vulnerabilities.
-- **CHK-009 (SQL Database Crash on Bad Currency)**: Direct insert of currency string without check against supported currencies triggers `CHAR(3)` overflow/truncation SQL exception, crashing the system.
-- **CHK-010 (API Customer Details Completely Discarded)**: `GatewayApiService::initiatePayment` hardcodes `customer_id` as null because it expects `customer_id` parameter instead of raw fields.
-
-## 4. Edge Cases & Vulnerabilities Findings
-- **CHK-011 (API Payment Duplication & Race Condition)**: Multiple clicks trigger multiple parallel transaction creation and double charges due to no concurrency/locking controls on checkout submission.
-- **CHK-012 (Sensitive Merchant Credentials Leak)**: `CheckoutController::show` queries `SELECT gc.*` which retrieves sensitive `credentials_enc` and exposes it directly in Twig render context.
-- **Double Checkout sessions**: Multi-click dynamic links create multiple transactions. Resolved via session-bind of transactions.
-- **Data Leaks & Security**: High-severity XSS threats through unsafe `callback_url` parameters and client names.
-
+## DB Migration Applied
+- `ALTER TABLE op_transactions ADD COLUMN invoice_id` (generated STORED)
+- `ALTER TABLE op_transactions ADD COLUMN payment_link_id` (generated STORED)
+- `ADD KEY idx_invoice_id`, `ADD KEY idx_payment_link_id`
+- All verified: ✅ invoice_id EXISTS, ✅ payment_link_id EXISTS, Indexes: 2
