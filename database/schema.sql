@@ -66,6 +66,7 @@ CREATE TABLE `op_merchant_users` (
   `merchant_id` BIGINT UNSIGNED NOT NULL,
   `role_id` BIGINT UNSIGNED NOT NULL,
   `name` VARCHAR(150) NOT NULL,
+  `username` VARCHAR(100) DEFAULT NULL,
   `email` VARCHAR(255) NOT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
   `phone` VARCHAR(30) DEFAULT NULL,
@@ -80,6 +81,7 @@ CREATE TABLE `op_merchant_users` (
   `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_email` (`email`),
+  UNIQUE KEY `uk_username` (`username`),
   KEY `idx_merchant` (`merchant_id`),
   CONSTRAINT `fk_mu_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_mu_role` FOREIGN KEY (`role_id`) REFERENCES `op_roles` (`id`) ON DELETE RESTRICT

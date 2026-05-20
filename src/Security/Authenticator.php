@@ -39,10 +39,10 @@ final class Authenticator
             return ['success' => false, 'error' => 'Account temporarily locked. Try again later.'];
         }
 
-        $user = $this->users->findActiveByEmail($email);
+        $user = $this->users->findActiveByLogin($email);
 
         if ($user === null) {
-            // Log failed attempt (constant time — don't reveal whether email exists)
+            // Log failed attempt (constant time — don't reveal whether account exists)
             password_verify($password, '$argon2id$v=19$m=65536,t=4,p=1$dummy$dummy');
             $this->logAttempt($email, $ip, $userAgent, false);
             return ['success' => false, 'error' => 'Invalid credentials'];
