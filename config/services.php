@@ -260,7 +260,7 @@ return static function (\OwnPay\Container $c): void {
 
     // ─── Auth Services ────────────────────────────────────────────
     $c->singleton(\OwnPay\Service\Auth\JwtService::class, static function (): \OwnPay\Service\Auth\JwtService {
-        $secret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: '';
+        $secret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: null;
         $iss = getenv('APP_NAME') ?: 'OwnPay';
         return new \OwnPay\Service\Auth\JwtService($secret, $iss);
     });

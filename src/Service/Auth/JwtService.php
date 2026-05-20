@@ -19,7 +19,20 @@ final class JwtService
 
     public function __construct(?string $secret = null, ?string $issuer = null, int $ttl = 86400)
     {
-        $this->secret = $secret ?? ($_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: 'default-secret-placeholder-for-test-suite-32-chars-long');
+        $resolvedSecret = $secret;
+        if ($resolvedSecret === null) {
+            $resolvedSecret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: null;
+        }
+        if (!is_string($resolvedSecret) || trim($resolvedSecret) === '') {
+            $isTestEnv = (($_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: '') === 'testing');
+            if ($isTestEnv) {
+                $resolvedSecret = 'default-secret-placeholder-for-test-suite-32-chars-long';
+            } else {
+                throw new \RuntimeException('JWT_SECRET must be configured and non-empty.');
+            }
+        }
+
+        $this->secret = $resolvedSecret;
         $this->issuer = $issuer ?? (getenv('APP_NAME') ?: 'OwnPay');
         $this->ttl = $ttl;
     }

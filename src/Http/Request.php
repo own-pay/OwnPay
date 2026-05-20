@@ -108,7 +108,7 @@ final class Request
 
     // ——— Input Access ——————————————————————————————————————————
 
-    public function query(string $key = null, mixed $default = null): mixed
+    public function query(?string $key = null, mixed $default = null): mixed
     {
         if ($key === null) {
             return $this->query;
@@ -117,7 +117,7 @@ final class Request
     }
 
 
-    public function post(string $key = null, mixed $default = null): mixed
+    public function post(?string $key = null, mixed $default = null): mixed
     {
         if ($key === null) {
             return $this->post;
@@ -129,7 +129,7 @@ final class Request
      * Decode JSON request body (cached after first call).
      * Returns the full decoded array, or a single key if $key is provided.
      */
-    public function json(string $key = null, mixed $default = null): mixed
+    public function json(?string $key = null, mixed $default = null): mixed
     {
         if ($this->jsonCache === null) {
             if ($this->rawBody !== null && $this->rawBody !== '') {

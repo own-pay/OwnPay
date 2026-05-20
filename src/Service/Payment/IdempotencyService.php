@@ -22,7 +22,7 @@ final class IdempotencyService
     /**
      * Check if request is duplicate. If not, lock the key.
      *
-     * @return array{is_duplicate: bool, cached_response?: array}
+     * @return array{is_duplicate: bool, cached_response?: array, status?: string, http_status?: int}
      */
     public function check(string $scope, string $key, int $merchantId): array
     {
@@ -33,6 +33,8 @@ final class IdempotencyService
             return [
                 'is_duplicate' => true,
                 'cached_response' => json_decode($existing['response_payload'] ?? '{}', true),
+                'status' => (string) ($existing['status'] ?? ''),
+                'http_status' => isset($existing['http_status']) ? (int) $existing['http_status'] : 200,
             ];
         }
 

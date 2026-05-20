@@ -54,8 +54,18 @@ final class IdempotencyMiddleware
         $result = $svc->check($scope, $idempotencyKey, $merchantId);
 
         if ($result['is_duplicate']) {
+            if (($result['status'] ?? '') === 'processing') {
+                return Response::json([
+                    'success' => false,
+                    'error'   => 'Request with this Idempotency-Key is still processing.',
+                ], 409);
+            }
+
             // Return cached response
-            return Response::json($result['cached_response'] ?? ['success' => true], 200);
+            return Response::json(
+                $result['cached_response'] ?? ['success' => true],
+                (int) ($result['http_status'] ?? 200)
+            );
         }
 
         try {
