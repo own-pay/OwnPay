@@ -40,12 +40,15 @@ final class Response
      *
      * @param array|object $data
      */
-    public static function json(array|object $data, int $status = 200): self
+    public static function json(array|object $data, int $status = 200, array $headers = []): self
     {
         $json = json_encode($data, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $response = new self($json, $status);
         $response->headers['Content-Type'] = 'application/json; charset=UTF-8';
         $response->headers['X-API-Version'] = '1.0';
+        foreach ($headers as $key => $value) {
+            $response->headers[$key] = $value;
+        }
         return $response;
     }
 

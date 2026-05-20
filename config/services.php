@@ -118,7 +118,7 @@ return static function (\OwnPay\Container $c): void {
         }
         // Register CoreExtension — provides ownpay_footer(), ownpay_meta()
         $appVersion = $c->get('config.app')['version'] ?? '0.1.0';
-        $appUrl = $_ENV['APP_URL'] ?? '';
+        $appUrl = rtrim($_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '', '/');
         $twig->addExtension(new \OwnPay\View\TwigExtension\CoreExtension($appVersion, $appUrl));
         // Global vars available to ALL templates (admin, checkout, public)
         // H-03 FIX: CSRF token must be read lazily at render time, NOT at container build time.
@@ -260,7 +260,9 @@ return static function (\OwnPay\Container $c): void {
 
     // ─── Auth Services ────────────────────────────────────────────
     $c->singleton(\OwnPay\Service\Auth\JwtService::class, static function (): \OwnPay\Service\Auth\JwtService {
-        return new \OwnPay\Service\Auth\JwtService();
+        $secret = $_ENV['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: null;
+        $iss = getenv('APP_NAME') ?: 'OwnPay';
+        return new \OwnPay\Service\Auth\JwtService($secret, $iss);
     });
 
     $c->singleton(\OwnPay\Service\Auth\AuthSessionService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Auth\AuthSessionService {
@@ -304,7 +306,8 @@ return static function (\OwnPay\Container $c): void {
         return new \OwnPay\Gateway\GatewayBridge(
             $c->get(\OwnPay\Repository\GatewayConfigRepository::class),
             $c->get(\OwnPay\Security\FieldEncryptor::class),
-            $c->get(\OwnPay\Event\EventManager::class)
+            $c->get(\OwnPay\Event\EventManager::class),
+            $c->get(\OwnPay\Repository\SettingsRepository::class)
         );
     });
 
@@ -312,7 +315,6 @@ return static function (\OwnPay\Container $c): void {
         return new \OwnPay\Service\Payment\GatewayApiService(
             $c->get(\OwnPay\Gateway\GatewayBridge::class),
             $c->get(\OwnPay\Repository\GatewayRepository::class),
-            $c->get(\OwnPay\Repository\GatewayConfigRepository::class),
             $c->get(\OwnPay\Service\Payment\TransactionService::class),
             $c->get(\OwnPay\Service\Payment\FeeService::class),
             $c->get(\OwnPay\Service\Payment\LedgerService::class)
@@ -323,7 +325,8 @@ return static function (\OwnPay\Container $c): void {
         return new \OwnPay\Service\Payment\RefundService(
             $c->get(\OwnPay\Repository\RefundRepository::class),
             $c->get(\OwnPay\Repository\TransactionRepository::class),
-            $c->get(\OwnPay\Gateway\GatewayBridge::class)
+            $c->get(\OwnPay\Gateway\GatewayBridge::class),
+            $c->get(\OwnPay\Service\Payment\LedgerService::class)
         );
     });
 
@@ -358,6 +361,42 @@ return static function (\OwnPay\Container $c): void {
             $c->get(\OwnPay\Core\Database::class)
         );
     });
+
+    // White-label domain pipeline — central URL resolver
+    $c->singleton(\OwnPay\Service\Domain\DomainUrlService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Domain\DomainUrlService {
+        return new \OwnPay\Service\Domain\DomainUrlService(
+            $c->get(\OwnPay\Core\Database::class),
+            $c->get(\OwnPay\Repository\DomainRepository::class)
+        );
+    });
+
+    // White-label brand theming — per-brand visual customization
+    $c->singleton(\OwnPay\Service\Brand\BrandThemeService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Brand\BrandThemeService {
+        return new \OwnPay\Service\Brand\BrandThemeService(
+            $c->get(\OwnPay\Core\Database::class),
+            $c->get(\OwnPay\Repository\SettingsRepository::class)
+        );
+    });
+
+    // CHK-003 + CHK-006: Payment completion listener (invoice paid + link use_count)
+    $c->singleton(\OwnPay\Service\Payment\PaymentCompletionListener::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentCompletionListener {
+        return new \OwnPay\Service\Payment\PaymentCompletionListener(
+            $c->get(\OwnPay\Repository\InvoiceRepository::class),
+            $c->get(\OwnPay\Repository\PaymentLinkRepository::class)
+        );
+    });
+
+    // Wire listener to hook eagerly during boot
+    if (file_exists(dirname(__DIR__) . '/storage/.installed')) {
+        try {
+            $events = $c->get(\OwnPay\Event\EventManager::class);
+            $events->addAction('system.boot', static function () use ($c): void {
+                $listener = $c->get(\OwnPay\Service\Payment\PaymentCompletionListener::class);
+                $events = $c->get(\OwnPay\Event\EventManager::class);
+                $events->addAction('payment.transaction.completed', [$listener, 'onTransactionCompleted']);
+            });
+        } catch (\Throwable) {}
+    }
 
     // ─── System Services ──────────────────────────────────────────
     $c->singleton(\OwnPay\Service\System\AuditLogger::class, static function (\OwnPay\Container $c): \OwnPay\Service\System\AuditLogger {

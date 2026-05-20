@@ -250,15 +250,36 @@ final class TransactionRepository extends BaseRepository
      */
     public function updateMetadata(int $id, array $metadata, int $merchantId = 0): void
     {
+        $mid = $merchantId > 0 ? $merchantId : $this->tenantId;
+        $txn = null;
+        if ($mid !== null && $mid > 0) {
+            $txn = $this->db->fetchOne(
+                "SELECT metadata FROM {$this->table} WHERE id = :id AND merchant_id = :mid LIMIT 1",
+                ['id' => $id, 'mid' => $mid]
+            );
+        } else {
+            $txn = $this->db->fetchOne(
+                "SELECT metadata FROM {$this->table} WHERE id = :id LIMIT 1",
+                ['id' => $id]
+            );
+        }
+
+        $existing = [];
+        if ($txn !== null && !empty($txn['metadata'])) {
+            $existing = json_decode($txn['metadata'], true) ?: [];
+        }
+
+        $merged = array_merge($existing, $metadata);
+
         if ($merchantId > 0) {
             $this->db->execute(
                 "UPDATE {$this->table} SET metadata = :meta, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
-                ['meta' => json_encode($metadata), 'id' => $id, 'mid' => $merchantId]
+                ['meta' => json_encode($merged), 'id' => $id, 'mid' => $merchantId]
             );
         } else {
             $this->db->execute(
                 "UPDATE {$this->table} SET metadata = :meta, updated_at = NOW() WHERE id = :id",
-                ['meta' => json_encode($metadata), 'id' => $id]
+                ['meta' => json_encode($merged), 'id' => $id]
             );
         }
     }
@@ -269,15 +290,36 @@ final class TransactionRepository extends BaseRepository
      */
     public function setStatusWithMeta(int $id, string $status, array $metadata, int $merchantId = 0): void
     {
+        $mid = $merchantId > 0 ? $merchantId : $this->tenantId;
+        $txn = null;
+        if ($mid !== null && $mid > 0) {
+            $txn = $this->db->fetchOne(
+                "SELECT metadata FROM {$this->table} WHERE id = :id AND merchant_id = :mid LIMIT 1",
+                ['id' => $id, 'mid' => $mid]
+            );
+        } else {
+            $txn = $this->db->fetchOne(
+                "SELECT metadata FROM {$this->table} WHERE id = :id LIMIT 1",
+                ['id' => $id]
+            );
+        }
+
+        $existing = [];
+        if ($txn !== null && !empty($txn['metadata'])) {
+            $existing = json_decode($txn['metadata'], true) ?: [];
+        }
+
+        $merged = array_merge($existing, $metadata);
+
         if ($merchantId > 0) {
             $this->db->execute(
                 "UPDATE {$this->table} SET status = :st, metadata = :meta, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
-                ['st' => $status, 'meta' => json_encode($metadata), 'id' => $id, 'mid' => $merchantId]
+                ['st' => $status, 'meta' => json_encode($merged), 'id' => $id, 'mid' => $merchantId]
             );
         } else {
             $this->db->execute(
                 "UPDATE {$this->table} SET status = :st, metadata = :meta, updated_at = NOW() WHERE id = :id",
-                ['st' => $status, 'meta' => json_encode($metadata), 'id' => $id]
+                ['st' => $status, 'meta' => json_encode($merged), 'id' => $id]
             );
         }
     }

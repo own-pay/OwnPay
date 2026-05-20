@@ -28,26 +28,26 @@ use OwnPay\Support\DateHelper;
  */
 final class SmsParserService
 {
-    private PairedDeviceRepository $deviceRepo;
-    private SmsTemplateRepository $templateRepo;
-    private SmsDataRepository $dataRepo;
-    private SmsRegexParser $regexParser;
-    private SmsHeuristicParser $heuristicParser;
-    private FieldEncryptor $encryptor;
-    private MobileNotificationService $notifService;
-    private EventManager $events;
-    private Logger $logger;
+    private $deviceRepo;
+    private $templateRepo;
+    private $dataRepo;
+    private $regexParser;
+    private $heuristicParser;
+    private $encryptor;
+    private $notifService;
+    private $events;
+    private $logger;
 
     public function __construct(
-        PairedDeviceRepository $deviceRepo,
-        SmsTemplateRepository $templateRepo,
-        SmsDataRepository $dataRepo,
-        SmsRegexParser $regexParser,
-        SmsHeuristicParser $heuristicParser,
-        FieldEncryptor $encryptor,
-        MobileNotificationService $notifService,
-        EventManager $events,
-        Logger $logger
+        $deviceRepo,
+        $templateRepo,
+        $dataRepo,
+        $regexParser,
+        $heuristicParser,
+        $encryptor,
+        $notifService,
+        $events = null,
+        $logger = null
     ) {
         $this->deviceRepo      = $deviceRepo;
         $this->templateRepo    = $templateRepo;
@@ -56,8 +56,8 @@ final class SmsParserService
         $this->heuristicParser = $heuristicParser;
         $this->encryptor       = $encryptor;
         $this->notifService    = $notifService;
-        $this->events          = $events;
-        $this->logger          = $logger;
+        $this->events          = $events ?? EventManager::getInstance();
+        $this->logger          = $logger ?? new Logger();
     }
 
     /**
@@ -161,7 +161,7 @@ final class SmsParserService
      */
     private function storeFailedDecryption(string $deviceUuid, int $brandId, ?int $localId, string $sender, string $receivedAt, string $encrypted): string
     {
-        return $this->dataRepo->create([
+        return (string) $this->dataRepo->create([
             'device_id'        => $deviceUuid,
             'merchant_id'      => $brandId,
             'local_id'         => $localId,

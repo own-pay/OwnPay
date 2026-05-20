@@ -58,4 +58,13 @@ trait GatewayDefaults
             default        => false,
         };
     }
+
+    /**
+     * Default: accept any currency. Gateways override for currency-specific requirements.
+     * @return string[]
+     */
+    public function supportedCurrencies(): array
+    {
+        return [];
+    }
 }

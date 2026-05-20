@@ -24,7 +24,74 @@ final class UrlValidator
         '0.0.0.0/8',
     ];
 
-    /**
+        /**
+     * Validate URL is safe for outbound client/server calls (no SSRF/open redirect).
+     */
+    public static function isSafeOutbound(string $url, ?string &$reason = null): bool
+    {
+        $url = trim($url);
+        if ($url === '') {
+            $reason = 'missing';
+            return false;
+        }
+
+        $parsed = parse_url($url);
+        if ($parsed === false || !isset($parsed['scheme'])) {
+            $reason = 'scheme';
+            return false;
+        }
+
+        $scheme = strtolower($parsed['scheme']);
+        if (!in_array($scheme, self::ALLOWED_SCHEMES, true)) {
+            $reason = 'scheme';
+            return false;
+        }
+
+        if (isset($parsed['user']) || isset($parsed['pass'])) {
+            $reason = 'userinfo';
+            return false;
+        }
+
+        if (!isset($parsed['host'])) {
+            $reason = 'scheme';
+            return false;
+        }
+
+        $host = strtolower($parsed['host']);
+        
+        if ($host === 'localhost' || $host === '0.0.0.0' || $host === '[::]' || $host === '[::1]') {
+            $reason = $host;
+            return false;
+        }
+
+        $ip = $host;
+        if (str_starts_with($ip, '[') && str_ends_with($ip, ']')) {
+            $ip = substr($ip, 1, -1);
+        }
+
+        if (filter_var($ip, FILTER_VALIDATE_IP) !== false) {
+            if ($ip === '127.0.0.1' || str_starts_with($ip, '127.')) {
+                $reason = $ip;
+                return false;
+            }
+            if (self::isPrivateIp($ip)) {
+                $reason = $ip;
+                return false;
+            }
+            if ($ip === '169.254.169.254' || str_starts_with($ip, '169.254.')) {
+                $reason = '169.254';
+                return false;
+            }
+            if ($ip === '::1') {
+                $reason = '::1';
+                return false;
+            }
+        }
+
+        return true;
+    }
+
+/**
      * Validate URL is safe for redirect (no open redirect).
      */
     public static function isValidRedirect(string $url, ?string $allowedDomain = null): bool

@@ -66,6 +66,7 @@ CREATE TABLE `op_merchant_users` (
   `merchant_id` BIGINT UNSIGNED NOT NULL,
   `role_id` BIGINT UNSIGNED NOT NULL,
   `name` VARCHAR(150) NOT NULL,
+  `username` VARCHAR(100) DEFAULT NULL,
   `email` VARCHAR(255) NOT NULL,
   `password_hash` VARCHAR(255) NOT NULL,
   `phone` VARCHAR(30) DEFAULT NULL,
@@ -80,6 +81,7 @@ CREATE TABLE `op_merchant_users` (
   `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   UNIQUE KEY `uk_email` (`email`),
+  UNIQUE KEY `uk_username` (`username`),
   KEY `idx_merchant` (`merchant_id`),
   CONSTRAINT `fk_mu_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_mu_role` FOREIGN KEY (`role_id`) REFERENCES `op_roles` (`id`) ON DELETE RESTRICT
@@ -283,6 +285,8 @@ CREATE TABLE `op_transactions` (
   `method` ENUM('api','manual','sms','link','invoice') NOT NULL DEFAULT 'manual',
   `status` ENUM('pending','created','processing','completed','failed','cancelled','refunded','disputed','awaiting_verification','pending_review') NOT NULL DEFAULT 'pending',
   `metadata` JSON DEFAULT NULL,
+  `invoice_id` BIGINT UNSIGNED GENERATED ALWAYS AS (CAST(JSON_UNQUOTE(JSON_EXTRACT(`metadata`, '$.invoice_id')) AS UNSIGNED)) STORED,
+  `payment_link_id` BIGINT UNSIGNED GENERATED ALWAYS AS (CAST(JSON_UNQUOTE(JSON_EXTRACT(`metadata`, '$.payment_link_id')) AS UNSIGNED)) STORED,
   `completed_at` DATETIME(6) DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
@@ -294,6 +298,8 @@ CREATE TABLE `op_transactions` (
   KEY `idx_gateway` (`gateway_slug`),
   KEY `idx_gateway_trx` (`gateway_trx_id`),
   KEY `idx_pi` (`payment_intent_id`),
+  KEY `idx_invoice_id` (`invoice_id`),
+  KEY `idx_payment_link_id` (`payment_link_id`),
   CONSTRAINT `fk_txn_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_txn_customer` FOREIGN KEY (`customer_id`) REFERENCES `op_customers` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;

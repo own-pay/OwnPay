@@ -10,33 +10,160 @@ use OwnPay\Support\DateHelper;
  */
 final class MobileNotificationService
 {
+    private $repo;
+
+    public function __construct($repo = null)
+    {
+        $this->repo = $repo;
+    }
+
     /**
      * Queue payment notification for device.
      */
     public function queuePaymentNotification(
         string $deviceUuid,
         string $type,
-        ?string $amount,
-        ?string $senderName,
-        ?string $trxId,
-        string $smsFrom
-    ): void {
-        // Queue for async dispatch (FCM/APNs)
+        $amount = null,
+        $senderName = null,
+        $trxId = null,
+        $smsFrom = null
+    ): int {
+        // Map type
+        $mappedType = match ($type) {
+            'credit', 'received' => 'payment_received',
+            'debit', 'sent'      => 'payment_sent',
+            default              => 'payment_detected',
+        };
+
+        $title = match ($mappedType) {
+            'payment_received' => 'Payment Received',
+            'payment_sent'     => 'Payment Sent',
+            default            => 'Transaction Detected',
+        };
+
+        // Format body
+        if ($amount === null && $senderName === null && $trxId === null) {
+            $body = 'New transaction detected.';
+        } else {
+            if ($mappedType === 'payment_received') {
+                $body = '';
+                if ($amount !== null) {
+                    $body .= 'Tk ' . (is_numeric($amount) ? number_format((float)$amount, 2) : '0.00') . ' ';
+                }
+                $body .= 'received';
+                if ($senderName !== null) {
+                    $body .= ' from ' . $senderName;
+                }
+                if ($trxId !== null) {
+                    $body .= ' | TRX: ' . $trxId;
+                }
+                $body = trim($body);
+            } elseif ($mappedType === 'payment_sent') {
+                $body = '';
+                if ($amount !== null) {
+                    $body .= 'Tk ' . (is_numeric($amount) ? number_format((float)$amount, 2) : '0.00') . ' ';
+                }
+                $body .= 'sent';
+                if ($senderName !== null) {
+                    $body .= ' to ' . $senderName;
+                }
+                if ($trxId !== null) {
+                    $body .= ' | TRX: ' . $trxId;
+                }
+                $body = trim($body);
+            } else {
+                $body = '';
+                if ($amount !== null) {
+                    $body .= 'Tk ' . (is_numeric($amount) ? number_format((float)$amount, 2) : '0.00') . ' ';
+                }
+                $body .= 'transaction detected';
+                $body = trim($body);
+            }
+        }
+
         $payload = [
+            'amount' => $amount,
+            'sender' => $senderName,
+            'trx_id' => $trxId,
+            'sms_from' => $smsFrom,
+        ];
+
+        if ($this->repo !== null) {
+            if (method_exists($this->repo, 'create')) {
+                return (int) $this->repo->create($deviceUuid, $mappedType, $title, $body, $payload);
+            } elseif (method_exists($this->repo, 'queue')) {
+                return (int) $this->repo->queue($deviceUuid, $mappedType, $title, $body, $payload);
+            }
+        }
+
+        // Store in notification queue table/file for async processing
+        $this->queueNotification([
             'device_uuid' => $deviceUuid,
             'type'        => 'payment_' . $type,
-            'title'       => $this->buildTitle($type, $amount),
-            'body'        => $this->buildBody($type, $amount, $senderName, $trxId),
+            'title'       => $title,
+            'body'        => $body,
             'data'        => [
                 'trx_id'   => $trxId,
                 'amount'   => $amount,
                 'sender'   => $senderName,
                 'sms_from' => $smsFrom,
             ],
-        ];
+        ]);
+        return 1;
+    }
 
-        // Store in notification queue table for async processing
-        $this->queueNotification($payload);
+    /**
+     * Poll for notifications.
+     */
+    public function poll(string $deviceUuid, ?string $since = null): array
+    {
+        $notifications = [];
+        $unreadCount = 0;
+
+        if ($this->repo !== null) {
+            $notifications = $this->repo->pollSince($deviceUuid, $since);
+            foreach ($notifications as &$notif) {
+                if (isset($notif['payload']) && is_string($notif['payload'])) {
+                    $notif['payload'] = json_decode($notif['payload'], true) ?: [];
+                }
+            }
+            if (method_exists($this->repo, 'countUnread')) {
+                $ref = new \ReflectionMethod($this->repo, 'countUnread');
+                if ($ref->getNumberOfParameters() === 1) {
+                    $unreadCount = $this->repo->countUnread($deviceUuid);
+                } else {
+                    $unreadCount = $this->repo->countUnread(1, $deviceUuid);
+                }
+            }
+        }
+
+        return [
+            'notifications'         => $notifications,
+            'unread_count'          => $unreadCount,
+            'poll_interval_seconds' => 10,
+        ];
+    }
+
+    /**
+     * Mark notifications as read.
+     */
+    public function markRead(string $deviceUuid, array $ids): int
+    {
+        if ($this->repo !== null && method_exists($this->repo, 'markRead')) {
+            return $this->repo->markRead($deviceUuid, $ids);
+        }
+        return 0;
+    }
+
+    /**
+     * Cleanup old notifications.
+     */
+    public function cleanup(int $olderThanDays): int
+    {
+        if ($this->repo !== null && method_exists($this->repo, 'purgeOldRead')) {
+            return $this->repo->purgeOldRead($olderThanDays);
+        }
+        return 0;
     }
 
     /**
@@ -53,34 +180,8 @@ final class MobileNotificationService
         ]);
     }
 
-    private function buildTitle(string $type, ?string $amount): string
-    {
-        return match ($type) {
-            'credit', 'received' => "Payment Received" . ($amount ? ": {$amount}" : ''),
-            'debit', 'sent'      => "Payment Sent" . ($amount ? ": {$amount}" : ''),
-            default              => "Transaction Update",
-        };
-    }
-
-    private function buildBody(string $type, ?string $amount, ?string $sender, ?string $trxId): string
-    {
-        $parts = [];
-        if ($amount !== null) {
-            $parts[] = "Amount: {$amount}";
-        }
-        if ($sender !== null) {
-            $parts[] = "From: {$sender}";
-        }
-        if ($trxId !== null) {
-            $parts[] = "TRX: {$trxId}";
-        }
-        return implode(' | ', $parts) ?: 'Transaction processed';
-    }
-
     private function queueNotification(array $payload): void
     {
-        // Write to op_notification_queue for async cron/worker dispatch
-        // This will be picked up by the FCM/APNs cron job
         $file = sys_get_temp_dir() . '/op_notifications.json';
         $queue = [];
         if (file_exists($file)) {

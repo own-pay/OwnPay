@@ -49,6 +49,10 @@ final class AuthController
 
     public function loginForm(Request $req): Response
     {
+        if ($this->auth->isAuthenticated()) {
+            return Response::redirect('/admin');
+        }
+
         return $this->renderAdminPage('page/login.twig', [
             'login_url' => $this->c->get('config.app')['login_url'] ?? '/login',
             'error'     => null,

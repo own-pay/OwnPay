@@ -69,6 +69,13 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/checkout/{token}/status', 'Checkout\\CheckoutController@status', 'checkout');
     $router->post('/checkout/{token}/manual-verify', 'Checkout\\CheckoutController@manualVerify', 'checkout');
 
+    // Universal Payment Intent checkout routes
+    $router->get('/checkout/intent/{token}', 'Checkout\\PaymentIntentCheckoutController@show', 'checkout');
+    $router->post('/checkout/intent/{token}/pay', 'Checkout\\PaymentIntentCheckoutController@pay', 'checkout');
+    $router->get('/checkout/intent/{token}/status', 'Checkout\\PaymentIntentCheckoutController@status', 'checkout');
+    $router->post('/checkout/intent/{token}/cancel', 'Checkout\\PaymentIntentCheckoutController@cancel', 'checkout');
+    $router->post('/checkout/intent/{token}/manual-verify', 'Checkout\\PaymentIntentCheckoutController@manualVerify', 'checkout');
+
     // Invoice checkout
     $router->get('/invoice/{token}', 'Checkout\\InvoiceCheckoutController@show', 'checkout');
 

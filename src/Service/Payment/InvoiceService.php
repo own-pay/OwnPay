@@ -120,7 +120,28 @@ final class InvoiceService
 
     public function update(int $merchantId, int $id, array $data): array
     {
-        $subtotal = array_sum(array_column($data['items'] ?? [], 'total'));
+        // First verify that invoice exists and belongs to merchant
+        $invoice = $this->db->fetchOne(
+            "SELECT id FROM op_invoices WHERE id = :id AND merchant_id = :mid",
+            ['id' => $id, 'mid' => $merchantId]
+        );
+        if ($invoice === null) {
+            return [];
+        }
+
+        // Calculate totals from line items
+        $items = $data['items'] ?? [];
+        $subtotal = 0;
+        foreach ($items as &$item) {
+            $qty   = max(1, (int) ($item['quantity'] ?? 1));
+            $price = (float) ($item['unit_price'] ?? $item['amount'] ?? 0);
+            $item['quantity']   = $qty;
+            $item['unit_price'] = $price;
+            $item['total']      = $qty * $price;
+            $subtotal += $item['total'];
+        }
+        unset($item);
+
         $tax      = (float) ($data['tax'] ?? 0);
         $discount = (float) ($data['discount'] ?? 0);
         $total    = $subtotal + $tax - $discount;
@@ -131,10 +152,49 @@ final class InvoiceService
             $status = 'draft';
         }
 
+        // Sanitize nullable fields
+        $customerId = !empty($data['customer_id']) ? (int) $data['customer_id'] : null;
+        $dueDate    = !empty($data['due_date']) ? $data['due_date'] : null;
+        $notes      = !empty($data['notes']) ? $data['notes'] : null;
+
+        // Update the invoice
         $this->db->update(
             "UPDATE op_invoices SET customer_id = :cust, subtotal = :sub, tax = :tax, discount = :dis, total = :total, currency = :cur, notes = :notes, due_date = :due, status = :status, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
-            ['cust' => $data['customer_id'] ?? null, 'sub' => $subtotal, 'tax' => $tax, 'dis' => $discount, 'total' => $total, 'cur' => $data['currency'] ?? 'BDT', 'notes' => $data['notes'] ?? null, 'due' => $data['due_date'] ?? null, 'status' => $status, 'id' => $id, 'mid' => $merchantId]
+            [
+                'cust'     => $customerId,
+                'sub'      => $subtotal,
+                'tax'      => $tax,
+                'dis'      => $discount,
+                'total'    => $total,
+                'cur'      => $data['currency'] ?? 'BDT',
+                'notes'    => $notes,
+                'due'      => $dueDate,
+                'status'   => $status,
+                'id'       => $id,
+                'mid'      => $merchantId
+            ]
         );
+
+        // Delete old items
+        $this->db->execute(
+            "DELETE FROM op_invoice_items WHERE invoice_id = :id",
+            ['id' => $id]
+        );
+
+        // Insert new/updated items
+        foreach ($items as $i => $item) {
+            $this->db->insert(
+                "INSERT INTO op_invoice_items (invoice_id, description, quantity, unit_price, total, sort_order) VALUES (:inv, :desc, :qty, :price, :total, :sort)",
+                [
+                    'inv'   => $id,
+                    'desc'  => $item['description'] ?? '',
+                    'qty'   => $item['quantity'],
+                    'price' => $item['unit_price'],
+                    'total' => $item['total'],
+                    'sort'  => $i
+                ]
+            );
+        }
 
         return $this->find($merchantId, $id) ?? [];
     }

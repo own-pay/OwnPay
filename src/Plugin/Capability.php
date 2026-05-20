@@ -23,6 +23,15 @@ enum Capability: string
     case CRON          = 'cron';           // Scheduled task
     case DASHBOARD     = 'dashboard';      // Dashboard widget
 
+    // Additional capabilities from tests and extension plans
+    case DB_READ        = 'db_read';
+    case DB_WRITE       = 'db_write';
+    case FILE_READ      = 'file_read';
+    case FILE_WRITE     = 'file_write';
+    case HTTP_OUTBOUND  = 'http_outbound';
+    case HOOKS          = 'hooks';
+    case CHECKOUT_UI    = 'checkout_ui';
+
     /**
      * Required permissions for this capability.
      * @return string[]

@@ -132,8 +132,12 @@ final class RolesController
         $isSuperadmin = !empty($_SESSION['is_superadmin']);
         if (!$isSuperadmin && !empty($permIds)) {
             $userRoleId = (int) ($_SESSION['auth_role_id'] ?? 0);
-            $userPerms = $this->roles->getPermissions($userRoleId);
-            $userPermIds = array_map(fn($p) => (int) $p['id'], $userPerms);
+            $db = $this->c->get(\OwnPay\Core\Database::class);
+            $rows = $db->fetchAll(
+                "SELECT permission_id FROM op_role_permissions WHERE role_id = :rid",
+                ['rid' => $userRoleId]
+            );
+            $userPermIds = array_map(fn($r) => (int) $r['permission_id'], $rows);
             $unauthorized = array_diff($permIds, $userPermIds);
             if (!empty($unauthorized)) {
                 $this->session->flashError('Cannot assign permissions you do not hold');

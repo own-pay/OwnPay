@@ -27,8 +27,8 @@
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 
                 <div class="op-form-group">
-                    <label for="email">Email</label>
-                    <input type="email" id="email" name="email" value="{{ old_email ?? '' }}" class="op-input" required autofocus>
+                    <label for="email">Email or Username</label>
+                    <input type="text" id="email" name="email" value="{{ old_email ?? '' }}" class="op-input" placeholder="admin@example.com or admin" required autofocus>
                 </div>
 
                 <div class="op-form-group">

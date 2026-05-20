@@ -14,7 +14,7 @@
                     <span>{{ gw.name[:2] }}</span>
                 {% endif %}
             </div>
-            <span class="ck-gw-name">{{ gw.name }}</span>
+            <span class="ck-gw-name">{{ gw.name }}{% if gw.converted_amount is defined and gw.converted_amount %} ({{ gw.converted_amount }} {{ gw.converted_currency }}){% endif %}</span>
         </div>
         {% endfor %}
         {% if gateways.global is empty %}
@@ -38,7 +38,7 @@
                     <span>{{ gw.name[:2] }}</span>
                 {% endif %}
             </div>
-            <span class="ck-gw-name">{{ gw.name }}</span>
+            <span class="ck-gw-name">{{ gw.name }}{% if gw.converted_amount is defined and gw.converted_amount %} ({{ gw.converted_amount }} {{ gw.converted_currency }}){% endif %}</span>
         </div>
         {% endfor %}
         {% if gateways.mfs is empty %}
@@ -62,7 +62,7 @@
                     <span>{{ gw.name[:2] }}</span>
                 {% endif %}
             </div>
-            <span class="ck-gw-name">{{ gw.name }}</span>
+            <span class="ck-gw-name">{{ gw.name }}{% if gw.converted_amount is defined and gw.converted_amount %} ({{ gw.converted_amount }} {{ gw.converted_currency }}){% endif %}</span>
         </div>
         {% endfor %}
         {% if gateways.bank is empty %}

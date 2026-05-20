@@ -171,7 +171,7 @@ final class PermissionMiddleware
 
         // Default-deny for unmapped /admin/* routes
         if (str_starts_with($path, '/admin')) {
-            return 'admin.access';
+            return 'system.unmapped';
         }
 
         return null;

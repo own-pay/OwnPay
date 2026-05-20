@@ -56,4 +56,11 @@ interface GatewayAdapterInterface
      * Check if gateway supports feature.
      */
     public function supports(string $feature): bool;
+
+    /**
+     * Currencies this gateway accepts.
+     * Empty array = any currency.
+     * @return string[] ISO 4217 codes, e.g. ['BDT', 'INR']
+     */
+    public function supportedCurrencies(): array;
 }

@@ -272,8 +272,13 @@ final class PluginController
     private function redirectBack(Request $request, string $error): Response
     {
         $this->session->flashError($error);
-        /** @phpstan-ignore nullCoalesce.expr */
-        return Response::redirect($request->header('Referer') ?? '/admin/plugins/install');
+        $referer = $request->header('Referer') ?? '';
+        // Prevent open redirect: only use Referer if it's a relative path
+        $path = parse_url($referer, PHP_URL_PATH) ?: '/admin/plugins/install';
+        if (!str_starts_with($path, '/admin/')) {
+            $path = '/admin/plugins/install';
+        }
+        return Response::redirect($path);
     }
 
     /**

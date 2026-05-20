@@ -12,10 +12,23 @@ final class InputSanitizer
 {
     /**
      * Sanitize string for HTML output (XSS prevention).
+     * If array, maps recursively. Strips tags and trims strings.
      */
-    public static function html(string $input): string
+    public static function html(mixed $input): mixed
     {
-        return htmlspecialchars($input, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        if (is_array($input)) {
+            $result = [];
+            foreach ($input as $k => $v) {
+                $result[$k] = self::html($v);
+            }
+            return $result;
+        }
+        if (is_string($input)) {
+            $stripped = strip_tags($input);
+            $trimmed = trim($stripped);
+            return htmlspecialchars($trimmed, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+        }
+        return $input;
     }
 
     /**
@@ -99,5 +112,38 @@ final class InputSanitizer
             }
             return $value;
         }, $input);
+    }
+
+    /**
+     * Trim surrounding whitespace recursively.
+     */
+    public static function trim(mixed $input): mixed
+    {
+        if (is_array($input)) {
+            $result = [];
+            foreach ($input as $k => $v) {
+                $result[$k] = self::trim($v);
+            }
+            return $result;
+        }
+        if (is_string($input)) {
+            return trim($input);
+        }
+        return $input;
+    }
+
+    /**
+     * Validate slug (alphanumeric + hyphen + underscores).
+     */
+    public static function alphanumeric(string $input): ?string
+    {
+        $input = trim($input);
+        if ($input === '') {
+            return null;
+        }
+        if (preg_match('/^[a-zA-Z0-9\-_]+$/', $input)) {
+            return $input;
+        }
+        return null;
     }
 }

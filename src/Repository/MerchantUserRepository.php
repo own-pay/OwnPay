@@ -39,6 +39,17 @@ final class MerchantUserRepository extends BaseRepository
         );
     }
 
+    /**
+     * Find active user by email OR username (for login form).
+     */
+    public function findActiveByLogin(string $login): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE (email = :login_email OR username = :login_user) AND status = 'active' LIMIT 1",
+            ['login_email' => $login, 'login_user' => $login]
+        );
+    }
+
     public function updateLastLogin(int $userId, string $ip): void
     {
         $this->db->update(

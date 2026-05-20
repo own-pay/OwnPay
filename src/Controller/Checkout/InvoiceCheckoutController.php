@@ -32,9 +32,33 @@ final class InvoiceCheckoutController
         // AUD-A2 fix: use token (globally unique) instead of invoice_number (per-merchant).
         // findUnpaidByNumber was unscoped → cross-tenant data leak.
         $invoice = $this->invoiceRepo->findByToken($token);
-        if ($invoice && $invoice['status'] === 'paid') {
-            $invoice = null; // Treat paid invoices as not found for checkout
+
+        // CHK-001 FIX: Only allow payable statuses (whitelist approach)
+        $allowedStatuses = ['sent', 'overdue'];
+        if ($invoice && !in_array($invoice['status'], $allowedStatuses, true)) {
+            // Show contextual error messages for non-payable statuses
+            $statusLabels = [
+                'draft' => 'Invoice Not Ready',
+                'paid'  => 'Invoice Already Paid',
+                'void'  => 'Invoice Voided',
+            ];
+            $label = $statusLabels[$invoice['status']] ?? 'Invoice Unavailable';
+            return $this->renderExpired($twig, $label);
         }
+
+        // CHK-002 FIX: Check due_date expiry — auto-mark overdue
+        if ($invoice && !empty($invoice['due_date'])) {
+            $dueDate = strtotime($invoice['due_date']);
+            if ($dueDate !== false && $dueDate < strtotime('today')) {
+                // Auto-update DB status to overdue if still 'sent'
+                if ($invoice['status'] === 'sent') {
+                    $this->invoiceRepo->forTenant((int) $invoice['merchant_id'])
+                        ->updateScoped((int) $invoice['id'], ['status' => 'overdue']);
+                    $invoice['status'] = 'overdue';
+                }
+            }
+        }
+
         $twig = $this->c->get(\Twig\Environment::class);
 
         if (!$invoice) {
@@ -50,7 +74,7 @@ final class InvoiceCheckoutController
 
         // Create new transaction with ALL required NOT NULL fields
         $trxId = 'TXN-' . strtoupper(bin2hex(random_bytes(8)));
-        $total = (float) $invoice['total'];
+        $total = (string) ($invoice['total'] ?? '0');
         $this->txnRepo->create([
             'uuid'         => Uuid::uuid4()->toString(),
             'trx_id'       => $trxId,
@@ -72,12 +96,12 @@ final class InvoiceCheckoutController
     /**
      * M-01 FIX: Render expired status with proper brand data.
      */
-    private function renderExpired(\Twig\Environment $twig): Response
+    private function renderExpired(\Twig\Environment $twig, string $label = 'Invoice Expired'): Response
     {
         $tpl = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         return Response::html($twig->render($tpl, [
             'status'       => 'expired',
-            'status_label' => 'Invoice Expired',
+            'status_label' => $label,
             'txn'          => [],
             'brand'        => ['name' => 'Own Pay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
             'lang'         => [],

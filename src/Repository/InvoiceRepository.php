@@ -58,7 +58,7 @@ final class InvoiceRepository extends BaseRepository
     {
         return $this->db->fetchOne(
             "SELECT trx_id FROM op_transactions
-             WHERE JSON_EXTRACT(metadata, '$.invoice_id') = :iid AND status = 'pending'
+             WHERE invoice_id = :iid AND status = 'pending'
              LIMIT 1",
             ['iid' => $invoiceId]
         );

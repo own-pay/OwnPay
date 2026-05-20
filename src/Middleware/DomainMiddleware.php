@@ -13,6 +13,9 @@ use OwnPay\Repository\DomainRepository;
  *
  * Maps incoming Host header to op_domains table.
  * Injects merchant_id + domain config into request attributes.
+ *
+ * White-label pipeline: Every non-master-domain host is resolved as a brand's
+ * custom domain. Admin routes are blocked on custom domains (404).
  */
 final class DomainMiddleware
 {
@@ -26,16 +29,16 @@ final class DomainMiddleware
     public function handle(Request $request, callable $next): Response
     {
         $host = $request->header('Host');
-        if ($host === '' /** @phpstan-ignore identical.alwaysFalse */ || $host === '' /** @phpstan-ignore identical.alwaysFalse */) {
+        if ($host === '' /** @phpstan-ignore identical.alwaysFalse */) {
             return $next($request);
         }
 
         // Strip port
         $domain = explode(':', $host)[0];
 
-        // Skip default app domain
-        $appDomain = getenv('APP_DOMAIN') ?: '';
-        if ($domain === $appDomain || $domain === 'localhost') {
+        // Resolve master domain: APP_DOMAIN env, or parse host from APP_URL
+        $masterDomain = $this->resolveMasterDomain();
+        if ($domain === $masterDomain || $domain === 'localhost') {
             return $next($request);
         }
 
@@ -48,7 +51,7 @@ final class DomainMiddleware
         $repo = $this->container->get(DomainRepository::class);
         $domainRecord = $repo->findByDomain($domain);
 
-        if ($domainRecord === '' /** @phpstan-ignore identical.alwaysFalse */ || $domainRecord['status'] !== 'active') {
+        if ($domainRecord === null || $domainRecord['status'] !== 'active') {
             // Unknown domain — could show landing or 404
             return $next($request);
         }
@@ -57,11 +60,43 @@ final class DomainMiddleware
             return Response::html('<h1>Domain Not Verified</h1><p>DNS verification pending.</p>', 503);
         }
 
+        // WHITE-LABEL SECURITY: Block admin routes on custom domains.
+        // Admin panel must only be accessible on the master domain.
+        $path = $request->path();
+        if (str_starts_with($path, '/admin/') || $path === '/admin') {
+            return Response::html('', 404);
+        }
+
         // Inject merchant context
         $request->setAttribute('domain', $domainRecord);
         $request->setAttribute('merchant_id', (int) $domainRecord['merchant_id']);
         $request->setAttribute('domain_type', $domainRecord['type']);
+        $request->setAttribute('custom_domain', $domain);
 
         return $next($request);
+    }
+
+    /**
+     * Resolve the master/admin domain hostname.
+     * Priority: APP_DOMAIN env > parse host from APP_URL > empty string
+     */
+    private function resolveMasterDomain(): string
+    {
+        // 1. Explicit APP_DOMAIN
+        $appDomain = $_ENV['APP_DOMAIN'] ?? $_SERVER['APP_DOMAIN'] ?? getenv('APP_DOMAIN') ?: '';
+        if ($appDomain !== '') {
+            return $appDomain;
+        }
+
+        // 2. Parse from APP_URL
+        $appUrl = $_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '';
+        if ($appUrl !== '') {
+            $parsed = parse_url($appUrl, PHP_URL_HOST);
+            if ($parsed !== null && $parsed !== false) {
+                return $parsed;
+            }
+        }
+
+        return '';
     }
 }

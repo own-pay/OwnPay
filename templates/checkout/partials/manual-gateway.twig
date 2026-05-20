@@ -7,7 +7,7 @@
 
     <div class="op-gateway-checkout-header" style="background: var(--gw-primary); color: var(--gw-text);">
         {% if gateway.logo_path %}
-            <img src="{{ gateway.logo_path }}" alt="{{ gateway.name }}" class="op-gateway-checkout-logo">
+            <img src="/storage/{{ gateway.logo_path }}" alt="{{ gateway.name }}" class="op-gateway-checkout-logo">
         {% endif %}
         <h3>{{ gateway.name }}</h3>
     </div>
@@ -21,7 +21,7 @@
 
         {% if gateway.qr_code_path %}
         <div class="op-gateway-qr">
-            <img src="{{ gateway.qr_code_path }}" alt="Scan to pay" class="op-qr-image">
+            <img src="/storage/{{ gateway.qr_code_path }}" alt="Scan to pay" class="op-qr-image">
             <small>Scan QR code to pay</small>
         </div>
         {% endif %}

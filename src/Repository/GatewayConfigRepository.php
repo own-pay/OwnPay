@@ -54,4 +54,20 @@ final class GatewayConfigRepository extends BaseRepository
     {
         return $this->listActive();
     }
+
+    /**
+     * CHK-012 FIX: List active gateways for public checkout — NO credentials or settings.
+     * Only returns visual metadata fields safe for Twig render context.
+     */
+    public function listActiveForCheckout(): array
+    {
+        return $this->db->fetchAll(
+            "SELECT gc.id, gc.merchant_id, gc.mode, gc.status, g.slug, g.name, g.type, g.logo_path
+             FROM {$this->table} gc
+             JOIN op_gateways g ON g.id = gc.gateway_id
+             WHERE gc.merchant_id = :mid AND gc.status = 'active'
+             ORDER BY g.sort_order ASC",
+            ['mid' => $this->requireTenant()]
+        );
+    }
 }

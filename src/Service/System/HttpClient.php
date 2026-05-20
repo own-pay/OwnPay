@@ -7,6 +7,8 @@ namespace OwnPay\Service\System;
  * HTTP client — simple cURL wrapper for outbound API calls.
  *
  * Per security skill: timeout enforcement, SSRF prevention, no private IPs.
+ *
+ * @method array{status: int, body: string, headers: array} get(string $url, array $headers = [])
  */
 final class HttpClient
 {
@@ -20,11 +22,35 @@ final class HttpClient
     }
 
     /**
-     * @return array{status: int, body: string, headers: array}
+     * Magic call for instance method get().
      */
-    public function get(string $url, array $headers = []): array
+    public function __call(string $name, array $arguments)
     {
-        return $this->request('GET', $url, null, $headers);
+        if ($name === 'get') {
+            $url = $arguments[0];
+            $headers = $arguments[1] ?? [];
+            return $this->request('GET', $url, null, $headers);
+        }
+        throw new \BadMethodCallException("Method {$name} does not exist");
+    }
+
+    /**
+     * Magic call for static method get().
+     */
+    public static function __callStatic(string $name, array $arguments)
+    {
+        if ($name === 'get') {
+            $url = $arguments[0];
+            $timeout = $arguments[1] ?? 30;
+            try {
+                $client = new self($timeout);
+                $res = $client->request('GET', $url, null, []);
+                return $res['body'];
+            } catch (\Throwable) {
+                return null;
+            }
+        }
+        throw new \BadMethodCallException("Static method {$name} does not exist");
     }
 
     /**

@@ -33,8 +33,8 @@ final class LedgerRepository extends BaseRepository
     ): array {
         $mid = $merchantId ?? $this->tenantId;
 
-        $where = '`name` = :name AND `type` = :type AND `currency` = :cur';
-        $params = ['name' => $name, 'type' => $type, 'cur' => $currency];
+        $where = '`name` = :name AND `currency` = :cur';
+        $params = ['name' => $name, 'cur' => $currency];
 
         if ($mid !== null) {
             $where .= ' AND `merchant_id` = :mid';
@@ -72,8 +72,28 @@ final class LedgerRepository extends BaseRepository
     /**
      * Atomically adjust account balance.
      */
-    public function adjustBalance(int $accountId, string $amount): void
+    public function adjustBalance(int $accountId, string $amount, string $entryType): void
     {
+        $account = $this->find($accountId);
+        if ($account === null) {
+            return;
+        }
+
+        $type = strtolower($account['type']);
+        $entryType = strtolower($entryType);
+
+        // Double-entry rules
+        // Asset/Expense: debit increases (+), credit decreases (-)
+        // Liability/Equity/Revenue: credit increases (+), debit decreases (-)
+        $isIncrease = false;
+        if (in_array($type, ['asset', 'expense'], true)) {
+            $isIncrease = ($entryType === 'debit');
+        } elseif (in_array($type, ['liability', 'equity', 'revenue'], true)) {
+            $isIncrease = ($entryType === 'credit');
+        }
+
+        $operator = $isIncrease ? '+' : '-';
+
         $where = "`id` = :id";
         $params = ['amount' => $amount, 'id' => $accountId];
         if ($this->tenantId !== null) {
@@ -81,7 +101,7 @@ final class LedgerRepository extends BaseRepository
             $params['mid'] = $this->requireTenant();
         }
         $this->db->execute(
-            "UPDATE `op_ledger_accounts` SET `balance` = `balance` + :amount WHERE {$where}",
+            "UPDATE `op_ledger_accounts` SET `balance` = `balance` {$operator} :amount WHERE {$where}",
             $params
         );
     }

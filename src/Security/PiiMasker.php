@@ -20,10 +20,10 @@ final class PiiMasker
             return '***';
         }
         [$local, $domain] = $parts;
-        $maskedLocal = mb_substr($local, 0, 2) . str_repeat('*', max(2, mb_strlen($local) - 2));
+        $maskedLocal = mb_substr($local, 0, 2) . str_repeat('*', max(3, mb_strlen($local) - 2));
         $domParts = explode('.', $domain);
         $domName = $domParts[0];
-        $maskedDom = mb_substr($domName, 0, 2) . str_repeat('*', max(2, mb_strlen($domName) - 2));
+        $maskedDom = mb_substr($domName, 0, 2) . str_repeat('*', max(3, mb_strlen($domName) - 2));
         $domParts[0] = $maskedDom;
         return $maskedLocal . '@' . implode('.', $domParts);
     }
@@ -77,8 +77,31 @@ final class PiiMasker
     /**
      * Generic mask: show first N and last M chars.
      */
-    public static function mask(string $value, int $showFirst = 2, int $showLast = 2): string
+    public static function mask(array|string $value, int $showFirst = 2, int $showLast = 2): array|string
     {
+        if (is_array($value)) {
+            $result = [];
+            foreach ($value as $k => $v) {
+                $lk = strtolower((string)$k);
+                if (is_array($v)) {
+                    $result[$k] = self::mask($v, $showFirst, $showLast);
+                } elseif (is_string($v)) {
+                    if ($lk === 'email') {
+                        $result[$k] = self::email($v);
+                    } elseif ($lk === 'phone') {
+                        $result[$k] = self::phone($v);
+                    } elseif ($lk === 'name') {
+                        $result[$k] = self::mask($v, 1, 1);
+                    } else {
+                        $result[$k] = $v;
+                    }
+                } else {
+                    $result[$k] = $v;
+                }
+            }
+            return $result;
+        }
+
         $len = mb_strlen($value);
         if ($len <= $showFirst + $showLast) {
             return str_repeat('*', $len);
