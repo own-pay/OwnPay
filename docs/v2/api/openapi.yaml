@@ -1,0 +1,775 @@
+openapi: 3.0.3
+info:
+  title: OwnPay API
+  description: |
+    Enterprise payment gateway API for OwnPay.
+    
+    ## Authentication
+    
+    ### Merchant API (Bearer API Key)
+    All `/api/v1/*` endpoints require a Bearer API key:
+    ```
+    Authorization: Bearer opk_live_xxxxxxxxxx
+    ```
+    
+    ### Mobile API (Bearer JWT)
+    All `/api/mobile/v1/*` endpoints require a JWT token from device pairing:
+    ```
+    Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+    ```
+    
+    ### Admin API (Bearer API Key)
+    All `/api/admin/v1/*` endpoints require a Bearer API key with admin scope.
+    
+    ## Rate Limiting
+    Default: 60 requests/minute per API key.
+    
+    ## Errors
+    All API responses returning a non-2xx status follow this structure:
+    ```json
+    {
+      "success": false,
+      "error": "Error description message"
+    }
+    ```
+  version: 0.1.0
+  license:
+    name: AGPL-3.0-or-later
+
+servers:
+  - url: https://pay.example.com
+    description: Production
+  - url: https://ownpay.test
+    description: Local Development
+
+tags:
+  - name: Health
+    description: System status and checks
+  - name: Payments
+    description: Payment initiation and query
+  - name: Transactions
+    description: Settlement and ledger transactions
+  - name: Refunds
+    description: Transaction charge reversals
+  - name: Customers
+    description: Brand customer profiles
+  - name: API Keys
+    description: Merchant API credentials
+  - name: Webhooks
+    description: Outbound delivery and validation
+  - name: Mobile - Devices
+    description: Companion Android device setup
+  - name: Mobile - SMS
+    description: Device-forwarded notification SMS logs
+  - name: Mobile - Notifications
+    description: Push triggers sent to devices
+  - name: Mobile - Dashboard
+    description: Dashboard aggregation for companion apps
+  - name: Mobile - Config
+    description: Regex rules and filter constraints
+  - name: Admin - SMS
+    description: SMS templates and analyzer queue
+  - name: Admin - Devices
+    description: Pair control and active device revoking
+  - name: Admin - Domains
+    description: Custom domain verification
+
+paths:
+  /api/v1/health:
+    get:
+      tags: [Health]
+      summary: Health check
+      description: Returns service availability, application version, and server timestamp.
+      security:
+        - BearerApiKey: []
+      responses:
+        '200':
+          description: Service is healthy.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  version:
+                    type: string
+                    example: "0.1.0"
+                  server_time:
+                    type: string
+                    format: date-time
+                    example: "2026-05-21T02:40:00+06:00"
+
+  /api/v1/payments/initiate:
+    post:
+      tags: [Payments]
+      summary: Initiate Payment Intent
+      description: Initiates a new payment intent and returns the checkout URL.
+      security:
+        - BearerApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [amount, currency]
+              properties:
+                amount:
+                  type: number
+                  format: float
+                  example: 500.00
+                currency:
+                  type: string
+                  example: "BDT"
+                description:
+                  type: string
+                  example: "Order #104829"
+                redirect_url:
+                  type: string
+                  format: uri
+                  example: "https://myshop.com/success"
+                cancel_url:
+                  type: string
+                  format: uri
+                  example: "https://myshop.com/cancel"
+                webhook_url:
+                  type: string
+                  format: uri
+                  example: "https://myshop.com/webhook"
+                metadata:
+                  type: object
+                  example:
+                    invoice_id: 12948
+                    product: "Ultra Gaming Chair"
+      responses:
+        '201':
+          description: Payment Intent successfully created.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  token:
+                    type: string
+                    example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+                  checkout_url:
+                    type: string
+                    format: uri
+                    example: "https://pay.myshop.com/checkout/intent/pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+
+  /api/v1/payments/{trx_id}:
+    get:
+      tags: [Payments]
+      summary: Get Payment Status
+      description: Retrieves details of a specific payment intent by its unique transaction ID.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: trx_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+      responses:
+        '200':
+          description: Payment details retrieved.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      id:
+                        type: integer
+                        example: 45
+                      uuid:
+                        type: string
+                        example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+                      amount:
+                        type: string
+                        example: "500.00"
+                      currency:
+                        type: string
+                        example: "BDT"
+                      status:
+                        type: string
+                        example: "completed"
+                      metadata:
+                        type: object
+
+  /api/v1/transactions:
+    get:
+      tags: [Transactions]
+      summary: List Transactions
+      description: Returns a paginated list of transactions filtered by status.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [pending, completed, failed, cancelled, refunded]
+      responses:
+        '200':
+          description: Paginated transaction list.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      type: object
+                  pagination:
+                    type: object
+                    properties:
+                      page: { type: integer, example: 1 }
+                      per_page: { type: integer, example: 20 }
+                      total_records: { type: integer, example: 145 }
+                      total_pages: { type: integer, example: 8 }
+
+  /api/v1/transactions/{trx_id}:
+    get:
+      tags: [Transactions]
+      summary: Get Transaction Details
+      description: Retrieves complete details of a settled transaction.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: trx_id
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "TXN-10482938"
+      responses:
+        '200':
+          description: Transaction detail model.
+
+  /api/v1/refunds:
+    post:
+      tags: [Refunds]
+      summary: Create Refund
+      description: Creates a refund against a completed transaction.
+      security:
+        - BearerApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [transaction_id, amount]
+              properties:
+                transaction_id:
+                  type: string
+                  example: "TXN-10482938"
+                amount:
+                  type: number
+                  format: float
+                  example: 250.00
+                reason:
+                  type: string
+                  example: "Customer return request"
+      responses:
+        '201':
+          description: Refund created successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  refund_id:
+                    type: string
+                    example: "RFD-28391823"
+
+  /api/v1/refunds/{trx_id}:
+    get:
+      tags: [Refunds]
+      summary: Get Refund Details
+      description: Retrieves details of a specific refund using the transaction reference.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: trx_id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Refund details retrieved.
+
+  /api/v1/customers:
+    get:
+      tags: [Customers]
+      summary: List Customers
+      description: Retrieves all registered customer profiles for the active brand.
+      security:
+        - BearerApiKey: []
+      responses:
+        '200':
+          description: List of customers.
+    post:
+      tags: [Customers]
+      summary: Create Customer Profile
+      description: Creates a new customer profile under the brand.
+      security:
+        - BearerApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [name, phone]
+              properties:
+                name:
+                  type: string
+                  example: "John Doe"
+                email:
+                  type: string
+                  example: "john@example.com"
+                phone:
+                  type: string
+                  example: "+8801700000000"
+      responses:
+        '201':
+          description: Customer profile created.
+
+  /api/v1/customers/{identifier}:
+    get:
+      tags: [Customers]
+      summary: Get Customer Details
+      description: Retrieves a customer profile by ID, email, or phone number.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: identifier
+          in: path
+          required: true
+          schema:
+            type: string
+          example: "+8801700000000"
+      responses:
+        '200':
+          description: Customer profile details.
+
+  /api/v1/api-keys:
+    get:
+      tags: [API Keys]
+      summary: List API Keys
+      description: Returns a list of active API keys (tokens are partially masked for security).
+      security:
+        - BearerApiKey: []
+      responses:
+        '200':
+          description: List of API keys.
+    post:
+      tags: [API Keys]
+      summary: Generate API Key
+      description: Generates a new live or test API key for the active brand.
+      security:
+        - BearerApiKey: []
+      responses:
+        '201':
+          description: Key successfully generated. (The full token is only shown once).
+
+  /api/v1/api-keys/{id}/revoke:
+    post:
+      tags: [API Keys]
+      summary: Revoke API Key
+      description: Deactivates and permanently revokes an API key by database ID.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: API key permanently revoked.
+
+  /api/v1/webhooks/test:
+    post:
+      tags: [Webhooks]
+      summary: Test Webhook Dispatch
+      description: Sends a test HMAC-SHA256 payload to the brand's active webhook URL endpoint.
+      security:
+        - BearerApiKey: []
+      responses:
+        '200':
+          description: Test webhook sent.
+
+  /api/v1/webhooks/deliveries:
+    get:
+      tags: [Webhooks]
+      summary: Get Webhook Delivery Logs
+      description: Returns a log of outbound webhooks dispatched to merchant servers, including delivery status codes.
+      security:
+        - BearerApiKey: []
+      responses:
+        '200':
+          description: Webhook logs.
+
+  /csp-report-api:
+    post:
+      tags: [Webhooks]
+      summary: CSP Report Endpoint
+      description: Handles Content Security Policy violation reports.
+      responses:
+        '204':
+          description: Report recorded.
+
+  # Mobile API (JWT authenticated companion app interactions)
+  /api/mobile/v1/devices/pair:
+    post:
+      tags: [Mobile - Devices]
+      summary: Pair Companion Device
+      description: Validates an OTP pairing code generated from the admin panel to authorize a mobile app. Returns a JWT access token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [pairing_code, device_id]
+              properties:
+                pairing_code:
+                  type: string
+                  example: "594830"
+                device_id:
+                  type: string
+                  example: "device_uuid_string"
+                device_name:
+                  type: string
+                  example: "Samsung S24 Ultra"
+                platform:
+                  type: string
+                  enum: [android, ios]
+                  example: "android"
+      responses:
+        '201':
+          description: Device paired. Returns authorization tokens.
+
+  /api/mobile/v1/devices/heartbeat:
+    post:
+      tags: [Mobile - Devices]
+      summary: Submit Heartbeat
+      description: Update device online activity and connection status.
+      security:
+        - BearerJWT: []
+      responses:
+        '200':
+          description: Status saved.
+
+  /api/mobile/v1/devices/revoke:
+    post:
+      tags: [Mobile - Devices]
+      summary: Revoke Current Device
+      description: Self-revokes the active device session and voids authorization tokens.
+      security:
+        - BearerJWT: []
+      responses:
+        '200':
+          description: Revoked.
+
+  /api/mobile/v1/devices/bulk-revoke:
+    post:
+      tags: [Mobile - Devices]
+      summary: Bulk Revoke Devices
+      description: Revokes multiple device keys in a single operation.
+      security:
+        - BearerJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [device_ids]
+              properties:
+                device_ids:
+                  type: array
+                  items:
+                    type: integer
+                  example: [3, 4, 12]
+      responses:
+        '200':
+          description: Devices revoked.
+
+  /api/mobile/v1/devices/refresh:
+    post:
+      tags: [Mobile - Devices]
+      summary: Refresh JWT Access Token
+      description: Exchange a valid refresh token for a new short-lived JWT token.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Access token refreshed.
+
+  /api/mobile/v1/devices/status:
+    get:
+      tags: [Mobile - Devices]
+      summary: Query Current Device Status
+      description: Checks active validation status of the device JWT session.
+      security:
+        - BearerJWT: []
+      responses:
+        '200':
+          description: Status retrieved.
+
+  /api/mobile/v1/sms:
+    post:
+      tags: [Mobile - SMS]
+      summary: Upload Parsed SMS
+      description: Receives SMS notification details forwarded by the mobile app, runs parser engines, and updates payment states.
+      security:
+        - BearerJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [sender, body]
+              properties:
+                sender:
+                  type: string
+                  example: "bKash"
+                body:
+                  type: string
+                  example: "You have received Tk 500.00 from 01700000000. Ref: pi_xxx. Fee: Tk 0.00. Balance Tk 10500.00. TrxID TXN129482938."
+                received_at:
+                  type: string
+                  format: date-time
+      responses:
+        '200':
+          description: SMS processed successfully.
+
+  /api/mobile/v1/sms/queue:
+    get:
+      tags: [Mobile - SMS]
+      summary: Get Pending SMS Queue
+      description: Returns list of SMS waiting for dynamic regex processing rules.
+      security:
+        - BearerJWT: []
+      responses:
+        '200':
+          description: Queue details.
+
+  /api/mobile/v1/notifications:
+    get:
+      tags: [Mobile - Notifications]
+      summary: Get Active Push Notifications
+      description: Queries unacknowledged pushes targeting the companion device.
+      security:
+        - BearerJWT: []
+      responses:
+        '200':
+          description: Push notifications payload.
+
+  /api/mobile/v1/notifications/ack:
+    post:
+      tags: [Mobile - Notifications]
+      summary: Acknowledge Push Deliveries
+      description: Marks specified push notifications as received.
+      security:
+        - BearerJWT: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [ids]
+              properties:
+                ids:
+                  type: array
+                  items:
+                    type: integer
+      responses:
+        '200':
+          description: Acknowledged.
+
+  /api/mobile/v1/dashboard:
+    get:
+      tags: [Mobile - Dashboard]
+      summary: Get Mobile Dashboard Metrics
+      description: Aggregated transaction statistics and activity logs formatted for mobile displays.
+      security:
+        - BearerJWT: []
+      responses:
+        '200':
+          description: Aggregated stats.
+
+  /api/mobile/v1/config/filter-rules:
+    get:
+      tags: [Mobile - Config]
+      summary: Get SMS Processing Rules
+      description: Returns regex whitelist senders, negative keywords, and interval queries.
+      security:
+        - BearerJWT: []
+      responses:
+        '200':
+          description: SMS filter configurations.
+
+  # Admin API endpoints
+  /api/admin/v1/sms-templates:
+    get:
+      tags: [Admin - SMS]
+      summary: List SMS Regex Templates
+      description: Returns list of regex template rules matching merchant payment texts.
+      security:
+        - BearerApiKey: []
+      responses:
+        '200':
+          description: List of templates.
+
+  /api/admin/v1/sms-templates/{id}:
+    put:
+      tags: [Admin - SMS]
+      summary: Update SMS Regex Template
+      description: Modifies matching rules for bank notifications.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                pattern: { type: string }
+                sender: { type: string }
+      responses:
+        '200':
+          description: Template updated.
+
+  /api/admin/v1/sms-queue:
+    get:
+      tags: [Admin - SMS]
+      summary: List Admin SMS Parsing Queue
+      description: Review parsed, matched, or pending SMS items.
+      security:
+        - BearerApiKey: []
+      responses:
+        '200':
+          description: SMS log entries.
+
+  /api/admin/v1/sms-queue/{id}/retry:
+    post:
+      tags: [Admin - SMS]
+      summary: Retry SMS Processing
+      description: Reruns regex pattern match against a stored SMS text manually.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Job dispatched.
+
+  /api/admin/v1/devices:
+    get:
+      tags: [Admin - Devices]
+      summary: List Registered Devices
+      description: Returns complete audit list of paired companion phones.
+      security:
+        - BearerApiKey: []
+      responses:
+        '200':
+          description: Devices list.
+
+  /api/admin/v1/devices/{id}/revoke:
+    post:
+      tags: [Admin - Devices]
+      summary: Force Revoke Device
+      description: System-wide admin revocation of a paired device.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: Device revoked.
+
+  /api/admin/v1/domains/verify:
+    post:
+      tags: [Admin - Domains]
+      summary: Trigger Verification Cron
+      description: Forces immediate verification of custom domain DNS CNAME mapping status.
+      security:
+        - BearerApiKey: []
+      responses:
+        '200':
+          description: DNS scan completed.
+
+components:
+  securitySchemes:
+    BearerApiKey:
+      type: http
+      scheme: bearer
+      description: "Admin/Merchant API key (header: `Authorization: Bearer opk_live_xxx`)"
+    BearerJWT:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "JWT access token returned by device pairing (header: `Authorization: Bearer eyJ...`)"

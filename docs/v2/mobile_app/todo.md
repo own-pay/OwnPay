@@ -6,7 +6,7 @@
 ---
 
 ## Phase 0: Critique, Plan & Setup
-- [x] Deep-critique architecture (5 flaws found)
+- [x] Deep-critique architecture
 - [x] Propose fixes (JWT expiry, polling, SMS strategy, AES backup, device pinning)
 - [x] Get user approval on fixes
 - [x] Create `docs/mobile_app/plan.md` (v2.0 with fixes)
@@ -32,13 +32,13 @@
 ### 1.3 API Middleware
 - [x] Extend `BearerAuthMiddleware` or create `JwtAuthMiddleware` for JWT validation
 - [x] Create `DeviceFingerprintMiddleware` — validate X-Device-Fingerprint header (integrated into JwtAuthMiddleware)
-- [x] Add rate limiting rule for `/api/v1/device/pair` (5 req/5min per IP)
+- [x] Add rate limiting rule for `/api/mobile/v1/devices/pair`
 
 ### 1.4 API Endpoints
-- [x] `POST /api/v1/device/pair` — OTP validation + credential issuance
-- [x] `POST /api/v1/device/refresh` — JWT refresh via refresh token
-- [x] `GET  /api/v1/device/status` — Connection health check
-- [x] Register routes in `public/api.php` (bypass BearerAuth pipeline)
+- [x] `POST /api/mobile/v1/devices/pair` — OTP validation + credential issuance
+- [x] `POST /api/mobile/v1/devices/refresh` — JWT refresh via refresh token
+- [x] `GET  /api/mobile/v1/devices/status` — Connection health check
+- [x] Register routes in `config/routes/api.php`
 
 ### 1.5 Web Admin UI
 - [x] Admin action: "device-pair-generate" (generate secure OTP via DevicePairingService)
@@ -50,18 +50,17 @@
 
 ### 1.6 Tests
 - [x] Unit test: JwtService (encode, decode, expired, invalid) — 12 tests, 27 assertions ✅
-- [x] Unit test: DevicePairingService (16 tests, 45 assertions) — OTP gen, rate limit, valid/invalid/used OTP, re-pair, refresh, validate ✅
+- [x] Unit test: DevicePairingService — OTP gen, rate limit, valid/invalid/used OTP, re-pair, refresh, validate ✅
 - [x] DeviceFingerprintMiddleware coverage — integrated into DevicePairingService validateRequest tests ✅
-- [x] Integration test: Full pairing lifecycle (3 tests, 45 assertions) — OTP→Pair→JWT→Refresh→Revoke ✅
 
 ---
 
 ## Part 2: Pillar 4 — SMS Parsing Engine (PHP Backend)
 
 ### 2.1 Database
-- [x] Create migration: `op_sms_templates` table (regex patterns per sender) — `migrations/009_sms_parsing_tables.sql`
-- [x] Create `op_sms_parsed` table (mobile-submitted parsed SMS data) — separate from legacy `op_sms_data`
-- [x] Seed 9 initial regex templates for: bKash (4), Nagad (2), Rocket (1), Upay (1), SureCash (1)
+- [x] Create migration: `op_sms_templates` table (regex patterns per sender)
+- [x] Create `op_sms_parsed` table (mobile-submitted parsed SMS data)
+- [x] Seed initial regex templates for: bKash, Nagad, Rocket, Upay, SureCash
 
 ### 2.2 Parser Services
 - [x] `src/Service/SmsParserService.php` — orchestrator (decrypt AES-256-GCM → Tier 1 → Tier 2 → save)
@@ -71,9 +70,9 @@
 - [x] `src/Repository/SmsDataRepository.php` — parsed SMS data CRUD with dedup, pagination, unparsed counting
 
 ### 2.3 API Endpoints
-- [x] `POST /api/v1/sms/submit` — batch (max 20) encrypted SMS, decrypt, parse, store — JWT+fingerprint+scope auth
-- [x] `GET  /api/v1/config/filter-rules` — return filter config JSON (allowed senders, positive/negative keywords)
-- [x] Route registration in `public/api.php` — bypasses BearerAuth, uses JWT internally
+- [x] `POST /api/mobile/v1/sms` — batch or single encrypted SMS, decrypt, parse, store
+- [x] `GET  /api/mobile/v1/config/filter-rules` — return filter config JSON
+- [x] Route registration in `config/routes/api.php`
 
 ### 2.4 Admin UI
 - [ ] Admin page: "SMS Templates" list (sender, regex, type, active toggle)
@@ -84,8 +83,6 @@
 - [x] Unit test: SmsRegexParser — 13 tests, bKash/Nagad patterns, optional fields, priority, invalid regex ✅
 - [x] Unit test: SmsHeuristicParser — 14 tests, Tk/BDT/Taka, balance disambiguation, confidence levels ✅
 - [x] Unit test: SmsParserService — 12 tests, full pipeline, dedup, errors, batch, real AES-256-GCM ✅
-- [x] Integration test: SmsParsingIntegrationTest — 5 tests, template lookup, regex+heuristic round-trip, dedup, pagination ✅
-- [x] Full suite: 255 tests, 599 assertions — zero regressions ✅
 
 ---
 
@@ -119,7 +116,7 @@
 ### 3.5 Offline-First Sync Engine
 - [ ] Hive box: `sms_queue` with status tracking
 - [ ] Connectivity monitor (connectivity_plus)
-- [ ] Sync worker: batch POST to `/api/v1/sms/submit`
+- [ ] Sync worker: batch POST to `/api/mobile/v1/sms`
 - [ ] Retry logic: max 5 retries, exponential backoff
 - [ ] Status updates: pending → syncing → approved/failed
 
@@ -139,23 +136,19 @@
 ## Part 4: Pillar 5 — Notifications & Dashboard
 
 ### 4.1 Notification System (PHP)
-- [x] `src/Service/MobileNotificationService.php` — queue payment notifications per device (credit/debit/unknown)
+- [x] `src/Service/MobileNotificationService.php` — queue payment notifications per device
 - [x] `src/Repository/MobileNotificationRepository.php` — notification CRUD with cursor polling + findById
-- [x] `GET /api/v1/notifications/poll?since=<timestamp>` endpoint — `MobileNotificationController::poll`
-- [x] `POST /api/v1/notifications/read` endpoint — `MobileNotificationController::markRead`
+- [x] `GET /api/mobile/v1/notifications` endpoint — list pending notifications for device
+- [x] `POST /api/mobile/v1/notifications/ack` endpoint — acknowledge processed notifications
 - [x] Hook into SMS processing: `SmsParserService` → auto-queues notification on successful parse
-- [x] Auto-cleanup: `purgeOldRead(7)` — delete read notifications > 7 days
+- [x] Auto-cleanup: purge old read notifications
 
 ### 4.2 Dashboard APIs (PHP)
-- [x] `GET /api/v1/dashboard/summary` — today/week/month totals, credit/debit counts, last transaction, unparsed + unread counts
-- [x] `GET /api/v1/dashboard/transactions?page=1&per_page=20&type=credit&sender=bKash` — paginated + filtered list
-- [x] `GET /api/v1/dashboard/transaction/{id}` — single transaction detail (brand-scoped)
-- [x] Route registration in `public/api.php` — all 5 new routes added to mobile companion block
+- [x] `GET /api/mobile/v1/dashboard` — today/week/month stats, recent transactions, unread count, server time
+- [x] Route registration in `config/routes/api.php`
 
 ### 4.3 Tests
-- [x] Unit test: MobileNotificationService — 9 tests (queue credit/debit/unknown, body formatting, poll structure, passthrough) ✅
-- [x] Integration test: NotificationDashboardIntegrationTest — 5 tests (round-trip, cursor, unread, service poll, dashboard SQL) ✅
-- [x] Full suite: 268 tests, 652 assertions — zero regressions ✅
+- [x] Unit test: MobileNotificationService ✅
 
 ### 4.4 Flutter Notifications & Dashboard (Deferred — Part 3)
 - [ ] Poll service in foreground service (10-15s interval, configurable from server)
@@ -166,6 +159,7 @@
 - [ ] Transaction detail screen
 - [ ] Offline cache: Hive box for dashboard data
 - [ ] Offline banner: "Showing cached data from [timestamp]"
+- [ ] Acknowledge notifications via `/api/mobile/v1/notifications/ack`
 
 ---
 
@@ -174,27 +168,20 @@
 ### 5.1 Admin Management APIs (PHP) ✅
 - [x] `AdminSmsTemplateController` — Full CRUD (list/show/create/update/delete) + regex tester endpoint
 - [x] `AdminSmsQueueController` — Unparsed SMS queue (list, reprocess with updated templates, manual resolve)
-- [x] `AdminSmsQueueController::stats` — Parse breakdown by status/method/provider/template usage
-- [x] `AdminDeviceController` — Device management (list/show/revoke/delete) with SMS stats enrichment
-- [x] `AdminDeviceController::notificationCleanup` — Purge old read notifications (configurable days)
-- [x] `SmsDataRepository::updateParsedData` — Admin reprocess/resolve updates on parsed records
-- [x] 16 new admin routes registered in `api.php` under Bearer auth
-- [x] Structured error responses across all endpoints (INVALID_ID, NOT_FOUND, MISSING_FIELD, INVALID_REGEX, etc.)
+- [x] `AdminDeviceController` — Device management (list/show/revoke/delete)
+- [x] 16 new admin routes registered in `routes/api.php` under Bearer auth
 
 ### 5.2 Security Hardening (Server-Side) ✅
 - [x] All admin endpoints behind Bearer auth + IP allowlist + rate limiting
 - [x] Regex validation before save (prevents ReDoS / invalid patterns)
 - [x] Raw SMS messages excluded from mobile API responses (security by design)
-- [x] Device revocation: soft-revoke timestamp, JWT/refresh rejected on next use
-- [x] Notification cleanup: configurable purge of old read items
+- [x] Device revocation: soft-revoke, JWT/refresh rejected on next use
 
 ### 5.3 Testing ✅
-- [x] AdminSmsTemplateTest — 7 unit tests (regex validation, parser tester, reprocess simulation)
-- [x] AdminFeaturesIntegrationTest — 4 integration tests (template CRUD, updateParsedData, cleanup, stats)
-- [x] Full suite: **280 tests, 690 assertions — zero regressions** ✅
+- [x] Full suite: **317 tests, 697 assertions — zero regressions** ✅
 
 ### 5.4 Flutter Build & Distribution (Deferred)
-- [ ] Certificate pinning (optional, for high-security deployments)
+- [ ] Certificate pinning
 - [ ] Obfuscate Flutter release build
 - [ ] ProGuard rules for Android
 - [ ] GitHub Release APK (sideload, READ_SMS enabled)
@@ -204,4 +191,4 @@
 
 ---
 
-*Last updated: 2026-04-27 | Parts 1–5 (PHP backend) complete. Flutter app deferred.*
+*Last updated: 2026-05-20 | Parts 1–5 (PHP backend) complete. Flutter app deferred.*
