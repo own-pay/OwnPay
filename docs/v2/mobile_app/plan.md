@@ -53,7 +53,7 @@
 | Credential | Lifetime | Purpose |
 |---|---|---|
 | **Access Token (JWT)** | 15 minutes | REST API authentication |
-| **Refresh Token** | 90 days (revocable) | Silent JWT renewal |
+| **Refresh Token** | 90 days (revocable, rotated on refresh) | Silent JWT renewal (JTI blacklisted to prevent replay) |
 | **AES-256 Key** | Permanent (rotatable) | End-to-end payload encryption |
 | **Device Fingerprint** | Permanent | Device-pinning validation (via jwt_fingerprint SHA-256 hash) |
 
