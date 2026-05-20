@@ -51,13 +51,23 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'app_secret', 'label' => 'App Secret', 'type' => 'password', 'required' => true],
             ['name' => 'username', 'label' => 'Username', 'type' => 'text', 'required' => true],
             ['name' => 'password', 'label' => 'Password', 'type' => 'password', 'required' => true],
-            ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox', 'live'], 'required' => true],
+            ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
     }
 
     public function initiate(array $params, array $credentials): array
     {
-        $baseUrl = ($credentials['mode'] ?? 'sandbox') === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+        if (empty($credentials['username']) || empty($credentials['password']) || empty($credentials['app_key']) || empty($credentials['app_secret'])) {
+            throw new \RuntimeException('bKash error: Missing credentials. Please configure bKash in active gateways settings.');
+        }
+
+        $mode = $credentials['mode'] ?? 'sandbox';
+        if ($mode === '1' || $mode === 1) {
+            $mode = 'live';
+        } elseif ($mode === '0' || $mode === 0) {
+            $mode = 'sandbox';
+        }
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
         $token = $this->getToken($baseUrl, $credentials);
 
         $ch = curl_init($baseUrl . '/tokenized/checkout/create');
@@ -82,11 +92,20 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         ]);
 
         $response = curl_exec($ch);
+        $err = curl_error($ch);
         curl_close($ch);
+
+        if ($response === false) {
+            throw new \RuntimeException('bKash API connection error: ' . ($err ?: 'Unknown'));
+        }
+
         $data = json_decode($response, true);
 
         if (empty($data['bkashURL'])) {
-            throw new \RuntimeException('bKash error: ' . ($data['statusMessage'] ?? 'Unknown'));
+            $statusCode = $data['statusCode'] ?? '';
+            $statusMsg = $data['statusMessage'] ?? 'Unknown';
+            $errorDetail = $statusCode ? "[{$statusCode}] {$statusMsg}" : $statusMsg;
+            throw new \RuntimeException('bKash error: ' . $errorDetail);
         }
 
         return [
@@ -97,7 +116,13 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
-        $baseUrl = ($credentials['mode'] ?? 'sandbox') === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
+        $mode = $credentials['mode'] ?? 'sandbox';
+        if ($mode === '1' || $mode === 1) {
+            $mode = 'live';
+        } elseif ($mode === '0' || $mode === 0) {
+            $mode = 'sandbox';
+        }
+        $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
         $token = $this->getToken($baseUrl, $credentials);
         $paymentId = $callbackData['paymentID'] ?? '';
 
@@ -115,7 +140,17 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         ]);
 
         $response = curl_exec($ch);
+        $err = curl_error($ch);
         curl_close($ch);
+
+        if ($response === false) {
+            return [
+                'success' => false,
+                'status'  => 'failed',
+                'error'   => 'bKash API connection error: ' . ($err ?: 'Unknown'),
+            ];
+        }
+
         $data = json_decode($response, true);
 
         $success = ($data['statusCode'] ?? '') === '0000' && ($data['transactionStatus'] ?? '') === 'Completed';
@@ -175,7 +210,13 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         ]);
 
         $response = curl_exec($ch);
+        $err = curl_error($ch);
         curl_close($ch);
+
+        if ($response === false) {
+            throw new \RuntimeException('bKash Token Grant API connection error: ' . ($err ?: 'Unknown'));
+        }
+
         $data = json_decode($response, true);
 
         $token = $data['id_token'] ?? '';
