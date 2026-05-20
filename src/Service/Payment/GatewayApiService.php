@@ -97,10 +97,15 @@ final class GatewayApiService
 
         } catch (\RuntimeException $e) {
             // Gateway adapter not registered / config error — surface to caller
-            $this->transactions->fail((int) $transaction['id'], $merchantId, $e->getMessage());
+            // Only mark transaction as failed if we own it (direct API flow, not checkout)
+            if (isset($transaction['id'])) {
+                $this->transactions->fail((int) $transaction['id'], $merchantId, $e->getMessage());
+            }
             return ['success' => false, 'error' => $e->getMessage()];
         } catch (\Throwable $e) {
-            $this->transactions->fail((int) $transaction['id'], $merchantId, $e->getMessage());
+            if (isset($transaction['id'])) {
+                $this->transactions->fail((int) $transaction['id'], $merchantId, $e->getMessage());
+            }
             return ['success' => false, 'error' => 'Gateway initiation failed'];
         }
     }

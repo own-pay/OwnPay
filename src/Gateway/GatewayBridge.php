@@ -5,6 +5,7 @@ namespace OwnPay\Gateway;
 
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\GatewayConfigRepository;
+use OwnPay\Repository\SettingsRepository;
 use OwnPay\Security\FieldEncryptor;
 
 /**
@@ -20,6 +21,7 @@ final class GatewayBridge
     private GatewayConfigRepository $configs;
     private FieldEncryptor $encryptor;
     private EventManager $events;
+    private SettingsRepository $settings;
 
     /** @var array<string, GatewayAdapterInterface> */
     private array $adapters = [];
@@ -27,11 +29,13 @@ final class GatewayBridge
     public function __construct(
         GatewayConfigRepository $configs,
         FieldEncryptor $encryptor,
-        EventManager $events
+        EventManager $events,
+        SettingsRepository $settings
     ) {
         $this->configs = $configs;
         $this->encryptor = $encryptor;
         $this->events = $events;
+        $this->settings = $settings;
     }
 
     /**
@@ -115,6 +119,19 @@ final class GatewayBridge
         return array_keys($this->adapters);
     }
 
+    /**
+     * Get supported currencies for a gateway.
+     * Empty = any currency accepted.
+     * @return string[]
+     */
+    public function getSupportedCurrencies(string $slug): array
+    {
+        if (!isset($this->adapters[$slug])) {
+            return [];
+        }
+        return $this->adapters[$slug]->supportedCurrencies();
+    }
+
     private function resolveAdapter(string $slug): GatewayAdapterInterface
     {
         if (!isset($this->adapters[$slug])) {
@@ -132,6 +149,11 @@ final class GatewayBridge
         $credentialsEnc = $this->configs->forTenant($merchantId)->findCredentialsBySlug($gatewaySlug);
 
         if ($credentialsEnc === null || $credentialsEnc === '') {
+            // Fallback to scoped system settings
+            $scopedSettings = $this->settings->getGroupScoped("plugin.{$gatewaySlug}", $merchantId);
+            if (!empty($scopedSettings)) {
+                return $scopedSettings;
+            }
             return [];
         }
 

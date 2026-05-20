@@ -11,7 +11,8 @@
     <link rel="stylesheet" href="/assets/css/checkout.css">
     <meta name="csrf-token" content="{{ csrf_token }}">
     {{ hook('checkout.head')|raw }}
-    <style>:root{--teal:{{ brand.color ?? '#0D9488' }};--teal-deep:{{ brand.color ?? '#0D9488' }}cc;--teal-glow:{{ brand.color ?? '#0D9488' }}1A;}</style>
+    <style>:root{--teal:{{ brand.color ?? '#0D9488' }};--teal-deep:{{ brand.accent_color ?? brand.color ?? '#0D9488' }}cc;--teal-glow:{{ brand.color ?? '#0D9488' }}1A;}</style>
+    {% if brand.custom_css|default('') %}<style>{{ brand.custom_css|raw }}</style>{% endif %}
 </head>
 <body class="ck-body">
     <div class="ck-toast" id="cToast">{{ lang.copied ?? 'Copied!' }}</div>
@@ -60,5 +61,6 @@
     <script src="/assets/js/op-fetch.js"></script>
     <script src="/assets/js/checkout.js"></script>
     {{ hook('checkout.footer')|raw }}
+    {% if brand.custom_js|default('') %}<script>{{ brand.custom_js|raw }}</script>{% endif %}
 </body>
 </html>

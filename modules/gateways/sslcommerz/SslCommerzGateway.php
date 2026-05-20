@@ -129,4 +129,10 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
             default => false,
         };
     }
+
+    /** SSLCommerz accepts BDT + major international currencies. */
+    public function supportedCurrencies(): array
+    {
+        return ['BDT', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'SGD'];
+    }
 }

@@ -9,6 +9,10 @@
     'use strict';
     var cfg = window.OP_CHECKOUT_CONFIG || {};
     var manualGateways = window.OP_MANUAL_GATEWAYS || {};
+    // Resolve the base path for all checkout XHR/form actions.
+    // PaymentIntentCheckoutController sets checkoutBasePath = '/checkout/intent/{token}'
+    // Legacy CheckoutController leaves it unset, so fallback to '/checkout/{token}'
+    var basePath = cfg.checkoutBasePath || ('/checkout/' + cfg.txnRef);
 
     // ---------- TIMER ----------
     var tEl = document.getElementById('timer');
@@ -49,7 +53,7 @@
                     var hashEl = document.getElementById('op-checkout-hash');
                     var cancelForm = document.createElement('form');
                     cancelForm.method = 'POST';
-                    cancelForm.action = '/checkout/' + cfg.txnRef + '/cancel';
+                    cancelForm.action = basePath + '/cancel';
                     if (csrf) {
                         var csrfInput = document.createElement('input');
                         csrfInput.type = 'hidden';
@@ -112,38 +116,44 @@
             openManualPopup(s.slug, s.name);
             return;
         }
-        // API gateway — submit form with checkout_hash + gateway_mode (C-2 fix)
-        var form = document.createElement('form');
-        form.method = 'POST';
-        form.action = '/checkout/' + cfg.txnRef + '/pay';
 
-        var gwInput = document.createElement('input');
-        gwInput.type = 'hidden'; gwInput.name = 'gateway'; gwInput.value = s.slug;
-        form.appendChild(gwInput);
-
-        // C-2 FIX: Add gateway_mode so controller knows this is an API gateway
-        var modeInput = document.createElement('input');
-        modeInput.type = 'hidden'; modeInput.name = 'gateway_mode'; modeInput.value = 'api';
-        form.appendChild(modeInput);
-
-        // C-2 FIX: Add checkout_hash for HMAC integrity verification
-        var hashEl = document.getElementById('op-checkout-hash');
-        if (hashEl) {
-            var hashInput = document.createElement('input');
-            hashInput.type = 'hidden'; hashInput.name = 'checkout_hash'; hashInput.value = hashEl.value;
-            form.appendChild(hashInput);
-        }
+        // ARCHITECTURE FIX: Use AJAX POST instead of form submit.
+        // Server returns JSON { success, redirect_url } or { success: false, error }.
+        // On success: browser does hard redirect OUT to external gateway (Stripe/bKash).
+        // On failure: inline error shown on checkout page — user can retry.
+        showLoading();
 
         var csrf = document.getElementById('op-csrf');
-        if (csrf) {
-            var csrfInput = document.createElement('input');
-            csrfInput.type = 'hidden'; csrfInput.name = '_csrf_token'; csrfInput.value = csrf.value;
-            form.appendChild(csrfInput);
-        }
-        document.body.appendChild(form);
-        // U-01 FIX: Show loading overlay to prevent double-click
-        showLoading();
-        form.submit();
+        var hashEl = document.getElementById('op-checkout-hash');
+
+        var payload = {
+            gateway: s.slug,
+            gateway_mode: 'api',
+            checkout_hash: hashEl ? hashEl.value : '',
+            _csrf_token: csrf ? csrf.value : ''
+        };
+
+        window.opPost(basePath + '/pay', payload)
+            .then(function (res) {
+                if (res.ok && res.data && res.data.success && res.data.redirect_url) {
+                    // SUCCESS: External gateway returned a payment URL.
+                    // Force the browser to LEAVE OwnPay entirely and go to Stripe/bKash.
+                    // Status stays 'pending' → transitions to 'processing' only after this redirect.
+                    window.location.href = res.data.redirect_url;
+                    return;
+                }
+
+                // FAILURE: Gateway API returned an error — show on checkout page.
+                hideLoading();
+                var errorMsg = (res.data && res.data.error)
+                    ? res.data.error
+                    : 'Payment gateway is temporarily unavailable. Please try another method.';
+                showCheckoutError(errorMsg);
+            })
+            .catch(function () {
+                hideLoading();
+                showCheckoutError('Network error. Please check your connection and try again.');
+            });
     }
 
     // U-01 FIX: Loading overlay for gateway redirects
@@ -153,11 +163,63 @@
         var overlay = document.createElement('div');
         overlay.id = 'ck-loading';
         overlay.style.cssText = 'position:fixed;inset:0;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);';
-        overlay.innerHTML = '<div style="text-align:center;color:#fff;"><div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#5EEAD4;border-radius:50%;animation:ck-spin 0.8s linear infinite;margin:0 auto 1rem;"></div><p style="font-family:Outfit,sans-serif;font-size:0.9rem;">Processing payment…</p></div>';
+        overlay.innerHTML = '<div style="text-align:center;color:#fff;"><div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#5EEAD4;border-radius:50%;animation:ck-spin 0.8s linear infinite;margin:0 auto 1rem;"></div><p style="font-family:Outfit,sans-serif;font-size:0.9rem;">Connecting to payment gateway…</p></div>';
         var style = document.createElement('style');
         style.textContent = '@keyframes ck-spin{to{transform:rotate(360deg)}}';
         document.head.appendChild(style);
         document.body.appendChild(overlay);
+    }
+
+    function hideLoading() {
+        var overlay = document.getElementById('ck-loading');
+        if (overlay) overlay.remove();
+    }
+
+    // Show inline error toast on the checkout page (no page navigation)
+    function showCheckoutError(msg) {
+        // Remove any existing error toast
+        var existing = document.getElementById('ck-error-toast');
+        if (existing) existing.remove();
+
+        var toast = document.createElement('div');
+        toast.id = 'ck-error-toast';
+        toast.style.cssText = 'position:fixed;top:1.5rem;left:50%;transform:translateX(-50%);z-index:10000;max-width:480px;width:calc(100% - 2rem);padding:1rem 1.25rem;background:#1E293B;color:#F8FAFC;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.3);font-family:Outfit,sans-serif;font-size:0.9rem;display:flex;align-items:flex-start;gap:0.75rem;animation:ck-slideDown 0.3s ease;border-left:4px solid #EF4444;';
+
+        var iconSpan = document.createElement('span');
+        iconSpan.style.cssText = 'flex-shrink:0;font-size:1.2rem;line-height:1;';
+        iconSpan.textContent = '⚠';
+        toast.appendChild(iconSpan);
+
+        var msgSpan = document.createElement('span');
+        msgSpan.style.cssText = 'flex:1;line-height:1.4;';
+        msgSpan.textContent = msg;
+        toast.appendChild(msgSpan);
+
+        var closeBtn = document.createElement('button');
+        closeBtn.style.cssText = 'flex-shrink:0;background:none;border:none;color:#94A3B8;cursor:pointer;font-size:1.1rem;padding:0;line-height:1;';
+        closeBtn.textContent = '✕';
+        closeBtn.onclick = function () { toast.remove(); };
+        toast.appendChild(closeBtn);
+
+        // Add animation keyframes
+        var animStyle = document.getElementById('ck-error-anim');
+        if (!animStyle) {
+            animStyle = document.createElement('style');
+            animStyle.id = 'ck-error-anim';
+            animStyle.textContent = '@keyframes ck-slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}';
+            document.head.appendChild(animStyle);
+        }
+
+        document.body.appendChild(toast);
+
+        // Auto-dismiss after 8 seconds
+        setTimeout(function () {
+            if (toast.parentNode) {
+                toast.style.opacity = '0';
+                toast.style.transition = 'opacity 0.3s ease';
+                setTimeout(function () { toast.remove(); }, 300);
+            }
+        }, 8000);
     }
 
     // ---------- MANUAL POPUP ----------
@@ -179,6 +241,11 @@
         if (stepsEl) {
             stepsEl.textContent = ''; // Clear previous
             var instructions = gwData.instructions || [];
+            if (typeof instructions === 'string') {
+                instructions = [instructions];
+            } else if (!Array.isArray(instructions)) {
+                instructions = [];
+            }
             instructions.forEach(function (s, i) {
                 var div = document.createElement('div');
                 div.className = 'ck-popup-step';
@@ -203,6 +270,31 @@
                 paymentNumber = gwData.payment_number;
             }
             numEl.textContent = paymentNumber || 'N/A';
+        }
+
+        // CROSS-CURRENCY FIX: If gateway has a converted_amount (e.g. BDT for bKash
+        // when invoice is in USD), update the popup amount display dynamically.
+        var amountEl = document.querySelector('#mpStep1 .ck-popup-value');
+        if (amountEl && gwData.converted_amount && gwData.converted_currency) {
+            var convSymbol = gwData.converted_currency === 'BDT' ? '৳' : gwData.converted_currency + ' ';
+            var formatted = parseFloat(gwData.converted_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            amountEl.textContent = convSymbol + formatted;
+            // Also add a small conversion note
+            var noteEl = document.getElementById('mpConvNote');
+            if (!noteEl) {
+                noteEl = document.createElement('p');
+                noteEl.id = 'mpConvNote';
+                noteEl.style.cssText = 'font-size:11px;color:#7A84A0;margin-top:4px;text-align:center;';
+                amountEl.parentElement.appendChild(noteEl);
+            }
+            noteEl.textContent = 'Converted from ' + (cfg.originalCurrency || 'USD') + ' at current exchange rate';
+        } else if (amountEl) {
+            // Reset to original amount for non-converted gateways
+            var origSymbol = cfg.originalCurrencySymbol || '$';
+            var origAmount = parseFloat(cfg.originalAmount || '0').toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            amountEl.textContent = origSymbol + origAmount;
+            var existingNote = document.getElementById('mpConvNote');
+            if (existingNote) existingNote.remove();
         }
 
         var popup = document.getElementById('manualPopup');
@@ -238,7 +330,7 @@
         // First submit gateway selection via POST form (manual mode needs checkout_hash)
         var payForm = document.createElement('form');
         payForm.method = 'POST';
-        payForm.action = '/checkout/' + cfg.txnRef + '/pay';
+        payForm.action = basePath + '/pay';
         payForm.style.display = 'none';
 
         var fields = {
@@ -295,6 +387,6 @@
     // ---------- EXPRESS CHECKOUT ----------
     window.doQP = function (provider) {
         if (typeof window.opPost !== 'function') return;
-        window.opPost('/checkout/' + cfg.txnRef + '/express', { provider: provider });
+        window.opPost(basePath + '/express', { provider: provider });
     };
 })();

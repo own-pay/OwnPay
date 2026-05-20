@@ -36,7 +36,14 @@ final class InvoiceCheckoutController
         // CHK-001 FIX: Only allow payable statuses (whitelist approach)
         $allowedStatuses = ['sent', 'overdue'];
         if ($invoice && !in_array($invoice['status'], $allowedStatuses, true)) {
-            $invoice = null;
+            // Show contextual error messages for non-payable statuses
+            $statusLabels = [
+                'draft' => 'Invoice Not Ready',
+                'paid'  => 'Invoice Already Paid',
+                'void'  => 'Invoice Voided',
+            ];
+            $label = $statusLabels[$invoice['status']] ?? 'Invoice Unavailable';
+            return $this->renderExpired($twig, $label);
         }
 
         // CHK-002 FIX: Check due_date expiry — auto-mark overdue
@@ -89,12 +96,12 @@ final class InvoiceCheckoutController
     /**
      * M-01 FIX: Render expired status with proper brand data.
      */
-    private function renderExpired(\Twig\Environment $twig): Response
+    private function renderExpired(\Twig\Environment $twig, string $label = 'Invoice Expired'): Response
     {
         $tpl = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         return Response::html($twig->render($tpl, [
             'status'       => 'expired',
-            'status_label' => 'Invoice Expired',
+            'status_label' => $label,
             'txn'          => [],
             'brand'        => ['name' => 'Own Pay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
             'lang'         => [],

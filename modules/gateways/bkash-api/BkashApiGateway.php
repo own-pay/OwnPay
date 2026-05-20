@@ -171,6 +171,12 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         };
     }
 
+    /** bKash exclusively operates in BDT. */
+    public function supportedCurrencies(): array
+    {
+        return ['BDT'];
+    }
+
     /**
      * Cache token per base URL with TTL.
      * bKash tokens are valid for ~60min — use 55min TTL with safety margin.

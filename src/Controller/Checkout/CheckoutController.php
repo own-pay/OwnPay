@@ -143,7 +143,14 @@ final class CheckoutController
         foreach ($manualGateways as $gw) {
             $slug = $gw['slug'] ?? $gw['name'] ?? '';
             $inputFields = json_decode($gw['input_fields'] ?? '[]', true) ?: [];
-            $instructions = json_decode($gw['instructions'] ?? '[]', true) ?: [];
+            $instructionsObj = json_decode($gw['instructions'] ?? '[]', true) ?: [];
+            if (is_array($instructionsObj) && isset($instructionsObj['steps'])) {
+                $instructions = $instructionsObj['steps'];
+            } elseif (is_array($instructionsObj)) {
+                $instructions = $instructionsObj;
+            } else {
+                $instructions = [$instructionsObj];
+            }
 
             // CK-07: Extract payment number from input_fields for JS popup convenience
             $paymentNumber = '';
@@ -157,7 +164,7 @@ final class CheckoutController
             $manualDetails[$slug] = [
                 'name'           => $gw['name'] ?? '',
                 'input_fields'   => $inputFields,
-                'instructions'   => is_array($instructions) ? $instructions : [$instructions],
+                'instructions'   => $instructions,
                 'colors'         => json_decode($gw['colors'] ?? '{}', true) ?: [],
                 'payment_number' => $paymentNumber,
             ];
@@ -222,6 +229,12 @@ final class CheckoutController
 
     private function loadBrand(int $mid): array
     {
+        // White-label: Use BrandThemeService for full per-brand theming
+        if ($this->c->has(\OwnPay\Service\Brand\BrandThemeService::class)) {
+            return $this->c->get(\OwnPay\Service\Brand\BrandThemeService::class)->getBrandTheme($mid);
+        }
+
+        // Fallback: basic brand data
         $merchant = $this->merchants->find($mid);
         $s = $this->settings->getGroup('general');
         return [
@@ -278,11 +291,17 @@ final class CheckoutController
         $txn = $this->txnRepo->findActiveForCheckout($token);
 
         if (!$txn) {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Transaction expired or not found.'], 404);
+            }
             return $this->renderStatus($token, 'expired');
         }
 
         // CHK-011 FIX: State-based double-submit guard — only pending txns can proceed
         if ($txn['status'] !== 'pending') {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+            }
             return $this->renderStatus($token, $txn['status']);
         }
 
@@ -295,21 +314,28 @@ final class CheckoutController
             if (!$link || $link['status'] !== 'active'
                 || (!empty($link['expires_at']) && DateHelper::isPast($link['expires_at']))) {
                 $this->txnRepo->cancelByTrxId($txn['trx_id']);
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => 'Payment link has expired.'], 410);
+                }
                 return $this->renderStatus($token, 'expired');
             }
         }
 
         // M-05 FIX: Verify checkout integrity hash — reject tampered sessions.
-        $submittedHash = $req->post('checkout_hash', '');
+        // Support both form POST and JSON body (AJAX via opPost)
+        $submittedHash = $req->input('checkout_hash', '');
         // H-05 FIX: Use $_ENV fallback chain
         $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: 'fallback-key');
         $expectedHash = hash_hmac('sha256', $txn['amount'] . '|' . $txn['currency'] . '|' . $token, $hmacKey);
         if (!hash_equals($expectedHash, $submittedHash)) {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
+            }
             return $this->renderStatus($token, 'expired');
         }
 
-        $gateway = $req->post('gateway', '');
-        $gatewayMode = $req->post('gateway_mode', 'manual');
+        $gateway = $req->input('gateway', '');
+        $gatewayMode = $req->input('gateway_mode', 'manual');
 
         $this->events->doAction('checkout.gateway.selected', $txn, $gateway);
 
@@ -329,16 +355,28 @@ final class CheckoutController
         // API gateway — call external gateway via GatewayBridge pipeline.
         // CRITICAL: Do NOT update transaction status before the external API responds.
         // Status stays 'pending' until we have a confirmed redirect URL from the gateway.
+        //
+        // ARCHITECTURE (matching PipraPay reference):
+        //   1. Frontend POSTs via fetch/AJAX (not form submit)
+        //   2. Controller returns JSON with redirect_url
+        //   3. Frontend does window.location.href = redirect_url (hard redirect OUT)
+        //   4. User pays on external gateway (Stripe/bKash)
+        //   5. Gateway redirects back to /checkout/{token}/status
+        //   6. Webhook/IPN updates DB state asynchronously
         if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
             try {
                 $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
-                $baseUrl = rtrim($_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? 'https://localhost', '/');
+                
+                // White-label: Resolve callback URL via brand's custom domain
+                $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+                $callbackUrl = $urlService->buildLegacyCallbackUrl((int) $txn['merchant_id'], $token, $req);
+
                 $result = $svc->initiatePayment((int) $txn['merchant_id'], $gateway, [
                     'amount'       => $txn['amount'],
                     'currency'     => $txn['currency'],
                     'trx_id'       => $txn['trx_id'],
-                    'redirect_url' => "{$baseUrl}/checkout/{$token}/status",
-                    'cancel_url'   => "{$baseUrl}/checkout/{$token}/status",
+                    'redirect_url' => $callbackUrl,
+                    'cancel_url'   => $callbackUrl,
                     'existing_txn' => true,
                 ]);
 
@@ -348,24 +386,54 @@ final class CheckoutController
                     $this->txnRepo->setGatewayAndStatus(
                         (int) $txn['id'], $gateway, 'processing', (int) $txn['merchant_id']
                     );
+
+                    // AJAX request: return JSON so frontend does window.location.href
+                    if ($req->isAjax()) {
+                        return Response::json([
+                            'success'      => true,
+                            'redirect_url' => $result['redirect_url'],
+                        ]);
+                    }
+                    // Non-AJAX fallback: 302 redirect
                     return Response::redirect($result['redirect_url']);
                 }
 
-                // Gateway returned success=false or no redirect URL — log but don't corrupt state.
+                // Gateway returned success=false or no redirect URL
+                $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
                 $this->c->get(\OwnPay\Service\System\Logger::class)->warning(
-                    "Gateway {$gateway} returned no redirect URL for trx {$txn['trx_id']}"
+                    "Gateway {$gateway} failed for trx {$txn['trx_id']}: {$errorMsg}"
                 );
+
+                if ($req->isAjax()) {
+                    return Response::json([
+                        'success' => false,
+                        'error'   => $errorMsg,
+                    ], 422);
+                }
             } catch (\Throwable $e) {
                 // Gateway bridge threw (adapter not found, API error, etc.)
                 // Transaction stays 'pending' — user can retry with a different gateway.
                 $this->c->get(\OwnPay\Service\System\Logger::class)->error(
                     "Gateway {$gateway} initiation failed: " . $e->getMessage()
                 );
+
+                if ($req->isAjax()) {
+                    return Response::json([
+                        'success' => false,
+                        'error'   => 'Payment gateway error: ' . $e->getMessage(),
+                    ], 422);
+                }
+            }
+        } else {
+            if ($req->isAjax()) {
+                return Response::json([
+                    'success' => false,
+                    'error'   => 'Payment service is not configured.',
+                ], 500);
             }
         }
 
-        // Fallback: redirect to status page. Transaction is still 'pending' —
-        // the status page will show "Pending" and the user can go back to retry.
+        // Non-AJAX fallback: redirect to status page. Transaction is still 'pending'.
         return Response::redirect("/checkout/{$token}/status");
     }
 
@@ -384,7 +452,7 @@ final class CheckoutController
         }
 
         // H-03 FIX: Verify HMAC hash — prevent anyone with trx_id from cancelling
-        $submittedHash = $req->post('checkout_hash', '');
+        $submittedHash = $req->input('checkout_hash', '');
         if ($submittedHash) {
             $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: 'fallback-key');
             $expectedHash = hash_hmac('sha256', $txn['amount'] . '|' . $txn['currency'] . '|' . $token, $hmacKey);
@@ -400,12 +468,50 @@ final class CheckoutController
 
     /**
      * GET /checkout/{token}/status
+     *
+     * Also handles gateway callbacks — bKash redirects here with paymentID + status
+     * query params after customer pays. We execute the payment capture on first visit.
      */
     public function status(Request $req): Response
     {
         $token = (string) $req->param('token');
         $txn = $this->txnRepo->findAnyByTrxId($token);
         $status = $txn['status'] ?? 'expired';
+
+        // Gateway callback handling — execute payment when bKash/SSLCommerz redirects back.
+        $callbackPaymentId = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
+        $callbackStatus = $req->query('status') ?? '';
+
+        if ($callbackPaymentId !== '' && $txn && $txn['status'] === 'processing') {
+            if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
+                try {
+                    $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
+                    $mid = (int) $txn['merchant_id'];
+                    $gateway = $txn['gateway_slug'] ?? '';
+                    $callbackData = array_merge($req->query() ?? [], [
+                        'paymentID' => $callbackPaymentId,
+                        'trx_id'    => $txn['trx_id'],
+                    ]);
+
+                    if ($gateway !== '') {
+                        $result = $svc->handleCallback($mid, $gateway, $callbackData);
+                        if ($result['success'] ?? false) {
+                            $status = 'completed';
+                        } elseif (in_array($callbackStatus, ['cancel', 'failure', 'failed'], true)) {
+                            $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'failed', $mid);
+                            $status = 'failed';
+                        }
+                    }
+                } catch (\Throwable $e) {
+                    if ($this->c->has(\OwnPay\Service\System\Logger::class)) {
+                        $this->c->get(\OwnPay\Service\System\Logger::class)->error(
+                            "Gateway callback execution failed for {$token}: " . $e->getMessage()
+                        );
+                    }
+                }
+            }
+        }
+
         return $this->renderStatus($token, $status);
     }
 

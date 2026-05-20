@@ -84,6 +84,80 @@
         {% else %}
             {% include 'checkout/partials/_expired.twig' %}
         {% endif %}
+
+        {% if is_intent is defined and is_intent and merchant_redirect_url is defined and merchant_redirect_url %}
+            <div id="countdown-wrapper" style="margin-top: 16px; background: var(--white); border-radius: 18px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(0,0,0,.03); border: 1.5px solid var(--cloud); display: flex; align-items: center; gap: 14px; animation: st-up .6s cubic-bezier(.16,1,.3,1) forwards;">
+                <div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                    <svg width="28" height="28" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
+                        <circle cx="18" cy="18" r="16" fill="none" stroke="var(--cloud)" stroke-width="3.5"></circle>
+                        <circle id="countdown-circle" cx="18" cy="18" r="16" fill="none" stroke="var(--teal)" stroke-width="3.5" stroke-dasharray="100.53" stroke-dashoffset="0" style="transition: stroke-dashoffset 1s linear;"></circle>
+                    </svg>
+                    <span id="countdown-number" style="position: absolute; font-size: 11px; font-weight: 800; color: var(--teal); line-height: 1;">5</span>
+                </div>
+                <div style="flex-grow: 1;">
+                    <h4 style="font-size: 12.5px; font-weight: 800; color: var(--ink); line-height: 1.2;">Autonomous Handoff Active</h4>
+                    <p style="font-size: 11.5px; color: var(--mute); margin-top: 2px; line-height: 1.2;">Redirecting back to Merchant Website in <span id="countdown-text">5</span> seconds...</p>
+                </div>
+                <a id="countdown-instant" href="#" style="font-size: 11.5px; font-weight: 700; color: var(--teal); text-decoration: none; padding: 8px 16px; border-radius: 12px; background: var(--teal-pale); transition: all 0.2s; white-space: nowrap;">Redirect Now</a>
+            </div>
+
+            <script>
+            document.addEventListener('DOMContentLoaded', function() {
+                var redirectUrl = {{ merchant_redirect_url|json_encode|raw }};
+                var token = {{ intent_token|json_encode|raw }};
+                var status = {{ intent_status|json_encode|raw }};
+                
+                // Construct target URL with query parameters
+                var separator = redirectUrl.indexOf('?') !== -1 ? '&' : '?';
+                var finalUrl = redirectUrl + separator + 'token=' + encodeURIComponent(token) + '&status=' + encodeURIComponent(status);
+                
+                // Update all return/merchant links on the page for instant access
+                var returnBtns = document.querySelectorAll('a[href="/"], .st-btn');
+                returnBtns.forEach(function(btn) {
+                    if (btn.innerText.indexOf('Return to') !== -1 || btn.getAttribute('href') === '/') {
+                        btn.setAttribute('href', finalUrl);
+                        var label = btn.querySelector('.st-btn-label');
+                        if (label) {
+                            label.innerHTML = 'Return to<br>Merchant';
+                        }
+                    }
+                });
+
+                var instantBtn = document.getElementById('countdown-instant');
+                if (instantBtn) {
+                    instantBtn.setAttribute('href', finalUrl);
+                }
+
+                var timeLeft = 5;
+                var circle = document.getElementById('countdown-circle');
+                var numberText = document.getElementById('countdown-number');
+                var textSpan = document.getElementById('countdown-text');
+                
+                if (circle) {
+                    var radius = 16;
+                    var circumference = 2 * Math.PI * radius; // ~100.53
+                    circle.style.strokeDasharray = circumference;
+                    circle.style.strokeDashoffset = 0;
+                }
+
+                var timer = setInterval(function() {
+                    timeLeft--;
+                    if (textSpan) textSpan.innerText = timeLeft;
+                    if (numberText) numberText.innerText = timeLeft;
+                    
+                    if (circle) {
+                        var offset = ( (5 - timeLeft) / 5 ) * circumference;
+                        circle.style.strokeDashoffset = offset;
+                    }
+
+                    if (timeLeft <= 0) {
+                        clearInterval(timer);
+                        window.location.href = finalUrl;
+                    }
+                }, 1000);
+            });
+            </script>
+        {% endif %}
     </div>
 </body>
 </html>

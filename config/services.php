@@ -118,7 +118,7 @@ return static function (\OwnPay\Container $c): void {
         }
         // Register CoreExtension — provides ownpay_footer(), ownpay_meta()
         $appVersion = $c->get('config.app')['version'] ?? '0.1.0';
-        $appUrl = $_ENV['APP_URL'] ?? '';
+        $appUrl = rtrim($_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '', '/');
         $twig->addExtension(new \OwnPay\View\TwigExtension\CoreExtension($appVersion, $appUrl));
         // Global vars available to ALL templates (admin, checkout, public)
         // H-03 FIX: CSRF token must be read lazily at render time, NOT at container build time.
@@ -306,7 +306,8 @@ return static function (\OwnPay\Container $c): void {
         return new \OwnPay\Gateway\GatewayBridge(
             $c->get(\OwnPay\Repository\GatewayConfigRepository::class),
             $c->get(\OwnPay\Security\FieldEncryptor::class),
-            $c->get(\OwnPay\Event\EventManager::class)
+            $c->get(\OwnPay\Event\EventManager::class),
+            $c->get(\OwnPay\Repository\SettingsRepository::class)
         );
     });
 
@@ -358,6 +359,22 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Service\Payment\CurrencyService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\CurrencyService {
         return new \OwnPay\Service\Payment\CurrencyService(
             $c->get(\OwnPay\Core\Database::class)
+        );
+    });
+
+    // White-label domain pipeline — central URL resolver
+    $c->singleton(\OwnPay\Service\Domain\DomainUrlService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Domain\DomainUrlService {
+        return new \OwnPay\Service\Domain\DomainUrlService(
+            $c->get(\OwnPay\Core\Database::class),
+            $c->get(\OwnPay\Repository\DomainRepository::class)
+        );
+    });
+
+    // White-label brand theming — per-brand visual customization
+    $c->singleton(\OwnPay\Service\Brand\BrandThemeService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Brand\BrandThemeService {
+        return new \OwnPay\Service\Brand\BrandThemeService(
+            $c->get(\OwnPay\Core\Database::class),
+            $c->get(\OwnPay\Repository\SettingsRepository::class)
         );
     });
 

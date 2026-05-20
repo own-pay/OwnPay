@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="noindex,nofollow">
+    <title>Payment Expired — Own Pay</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+    :root{--ink:#080D1A;--ink-2:#1A2038;--ink-3:#2D3555;--ink-4:#4A5578;--mute:#7A84A0;--faint:#A8B0C8;--whisper:#D4D9E8;--cloud:#ECEEF5;--snow:#F5F6FA;--white:#FFF;--teal:#0D9488;--teal-deep:#0A7B70;--teal-pale:#CCFBF1;--font:'Outfit',sans-serif;--mono:'JetBrains Mono',monospace}
+    *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:var(--font);background:var(--cloud);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+    .st-shell{width:100%;max-width:520px;animation:st-up .6s cubic-bezier(.16,1,.3,1) forwards;opacity:0}
+    @keyframes st-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+    /* Card */
+    .st-card{border-radius:28px;overflow:hidden;box-shadow:0 32px 72px rgba(0,0,0,.06),0 0 0 1px rgba(0,0,0,.03)}
+    .st-header{padding:48px 32px 40px;text-align:center;position:relative}
+    .st-icon-wrap{position:relative;width:80px;height:80px;margin:0 auto 24px}
+    .st-icon-ring1{position:absolute;inset:-12px;border-radius:50%;opacity:.4}
+    .st-icon-ring2{position:absolute;inset:-4px;border-radius:50%;opacity:.6}
+    .st-icon-circle{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
+    .st-title{font-size:22px;font-weight:800;margin-bottom:8px;letter-spacing:-.3px}
+    .st-subtitle{font-size:13px;color:var(--ink-4);line-height:1.65;max-width:360px;margin:0 auto}
+
+    /* Details */
+    .st-body{background:var(--white);padding:0 32px 32px}
+    .st-details{background:var(--snow);border-radius:18px;padding:6px}
+    .st-row{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;border-radius:12px;transition:background .2s}
+    .st-row:hover{background:rgba(0,0,0,.02)}
+    .st-row-label{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+    .st-row-value{font-size:13px;font-weight:700;color:var(--ink);font-family:var(--mono);text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+    .st-row-divider{height:1px;background:var(--cloud);margin:0 18px}
+
+    /* Amount highlight */
+    .st-amount-row .st-row-value{font-size:17px;font-weight:800;color:var(--ink)}
+
+    /* Actions */
+    .st-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:24px;padding:0 32px 32px}
+    .st-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:18px 12px;border-radius:18px;border:1.5px solid var(--cloud);background:var(--white);cursor:pointer;transition:all .25s;text-decoration:none;color:var(--ink)}
+    .st-btn:hover{border-color:var(--whisper);transform:translateY(-2px);box-shadow:0 8px 24px rgba(0,0,0,.05)}
+    .st-btn-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+    .st-btn-label{font-size:12px;font-weight:700;text-align:center;line-height:1.35}
+
+    /* Footer */
+    .st-footer{text-align:center;padding:20px;font-size:10px;color:var(--faint);display:flex;align-items:center;justify-content:center;gap:6px}
+    .st-footer a{color:var(--ink-4);text-decoration:none;font-weight:600}
+
+    /* Status badge */
+    .st-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.04em;margin-bottom:20px}
+
+    /* Spinner */
+    @keyframes st-spin{to{transform:rotate(360deg)}}
+    .st-spinner{width:28px;height:28px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:st-spin .7s linear infinite;margin:0 auto 8px}
+
+    /* Pulse */
+    @keyframes st-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+    .st-pulse{animation:st-pulse 2s ease infinite}
+
+    /* Responsive */
+    @media(max-width:480px){
+        .st-header{padding:36px 20px 32px}
+        .st-body{padding:0 20px 20px}
+        .st-actions{padding:0 20px 20px;gap:10px}
+        .st-title{font-size:19px}
+        .st-subtitle{font-size:12px}
+        .st-row{padding:11px 14px}
+        .st-row-label{font-size:11px}
+        .st-row-value{font-size:12px}
+    }
+    </style>
+</head>
+<body>
+    <div class="st-shell">
+                    <div class="st-card">
+    <div class="st-header" style="background:linear-gradient(180deg,#F1F5F9 0%,#F6F8FA 40%,#F5F6FA 100%)">
+        <div class="st-icon-wrap">
+            <div class="st-icon-ring1" style="background:rgba(100,116,139,.06)"></div>
+            <div class="st-icon-ring2" style="background:rgba(100,116,139,.12)"></div>
+            <div class="st-icon-circle" style="background:rgba(100,116,139,.15)">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+        </div>
+        <span class="st-badge" style="background:rgba(100,116,139,.1);color:#475569">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Expired
+        </span>
+        <h1 class="st-title">Payment Expired</h1>
+        <p class="st-subtitle">This payment session has expired for security reasons. Please start a new payment if needed.</p>
+    </div>
+
+    <div class="st-body">
+        <div class="st-details">
+                                    <div class="st-row">
+                <span class="st-row-label">Merchant</span>
+                <span class="st-row-value">Own Pay</span>
+            </div>
+            <div class="st-row-divider"></div>
+            <div class="st-row">
+                <span class="st-row-label">Status</span>
+                <span class="st-row-value" style="color:#94A3B8">Session expired</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="st-actions">
+        <a href="javascript:history.back()" class="st-btn">
+            <div class="st-btn-icon" style="background:rgba(100,116,139,.08)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <span class="st-btn-label">Start<br>New Payment</span>
+        </a>
+        <a href="/" class="st-btn">
+            <div class="st-btn-icon" style="background:rgba(13,148,136,.08)">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </div>
+            <span class="st-btn-label">Return to<br>Merchant</span>
+        </a>
+    </div>
+</div>
+
+<div class="st-footer">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Secured by <a href="/">Own Pay</a> · 256-bit encryption
+</div>
+            </div>
+</body>
+</html>

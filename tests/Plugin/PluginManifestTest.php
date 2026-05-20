@@ -94,7 +94,7 @@ class PluginManifestTest extends TestCase
         try {
             $m = PluginManifest::fromFile($path);
             $this->assertSame('test-plugin', $m->slug);
-            $this->assertSame($path, $m->sourcePath);
+            $this->assertSame(dirname($path), $m->sourcePath);
         } finally {
             @unlink($path);
         }

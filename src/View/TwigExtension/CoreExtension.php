@@ -48,9 +48,12 @@ final class CoreExtension extends AbstractExtension
      */
     public function renderFooter(string $extraClass = ''): string
     {
+        // Dynamically resolve appUrl at render time
+        $appUrl = rtrim($_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: $this->appUrl, '/');
+
         // Integrity token: hash of version + url. Required by checkout middleware.
         // CheckoutMiddleware validates X-OwnPay-Footer-Token header matches this.
-        $token = hash('sha256', $this->appVersion . '|' . $this->appUrl . '|ownpay-footer');
+        $token = hash('sha256', $this->appVersion . '|' . $appUrl . '|ownpay-footer');
 
         $class = 'op-powered-by' . ($extraClass ? ' ' . htmlspecialchars($extraClass, ENT_QUOTES) : '');
 

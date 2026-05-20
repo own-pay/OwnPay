@@ -315,4 +315,10 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
     {
         return $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     }
+
+    /** Nagad exclusively operates in BDT. */
+    public function supportedCurrencies(): array
+    {
+        return ['BDT'];
+    }
 }
