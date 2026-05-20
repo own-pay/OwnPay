@@ -161,6 +161,8 @@ Android mobile devices pair with OwnPay to dynamically verify and match incoming
 * **Companion Pairing (C-10 Fix)**: Devices pair securely by exchanging credentials, verifying dynamic OTPs, and saving secure access logs in `op_paired_devices`. Device UUIDs are handled as strict string types.
 * **Issuer Consistency (C-03 Fix)**: JWT tokens issued to devices are checked against issuer values resolving directly from `config/services.php` to prevent authentication failure.
 * **Active Revocation Verification (H-04)**: `JwtAuthMiddleware` validates the token status against the active database state, denying access instantly if a device is deactivated or revoked.
+* **Centralized JWT Secret Resolution**: `DevicePairingService` resolves JWT secrets hierarchically (device-specific stored secret -> global environment secret -> testing fallback) across pair, refresh, and validation pipelines.
+* **Stateless Token Rotation & JTI Blacklisting**: Generates unique JTI-infused stateless refresh tokens and enforces secure rotation. Replay attacks are blocked by blacklisting used refresh token identifiers in the `op_cache` database table.
 
 ### 5.3. White-Label Domain Security
 * **Admin Route Blocking**: `DomainMiddleware` returns HTTP 404 for `/admin/*` paths on custom domains.

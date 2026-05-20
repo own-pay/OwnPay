@@ -59,6 +59,7 @@ final class JwtService
             'did' => $deviceId,
             'iat' => $now,
             'exp' => $now + ($ttl ?? $this->ttl),
+            'jti' => bin2hex(random_bytes(8)),
         ];
 
         return JWT::encode($payload, $this->secret, 'HS256');
@@ -76,6 +77,7 @@ final class JwtService
             'scopes'   => $scopes,
             'iat'      => $now,
             'exp'      => $now + $ttl,
+            'jti'      => bin2hex(random_bytes(8)),
         ];
         $token = JWT::encode($payload, $secret, 'HS256');
         return [

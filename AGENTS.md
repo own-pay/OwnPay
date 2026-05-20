@@ -589,6 +589,7 @@ GET  /api/mobile/v1/devices/status       → Mobile\DeviceController@status
 25. **`supportedCurrencies()` on gateway adapters** — All gateway adapters implementing `GatewayAdapterInterface` MUST implement `supportedCurrencies(): array`. Empty array means any currency. `GatewayDefaults` trait provides default (empty). BDT-only gateways (bKash, Nagad) MUST return `['BDT']`. Failing to declare currencies disables automatic currency conversion at checkout.
 26. **Currency conversion audit trail** — When auto-conversion happens at checkout, the original amount/currency and converted amount/currency are stored in `op_transactions.metadata` JSON (`original_amount`, `original_currency`, `exchange_rate`, `converted_amount`, `converted_currency`). These metadata keys must not be overwritten by other code.
 27. **`loadBrand()` must use `BrandThemeService`** — Both `PaymentIntentCheckoutController::loadBrand()` and `CheckoutController::loadBrand()` must resolve via `BrandThemeService::getBrandTheme()` when available (`$this->c->has()` check). This ensures per-brand theming (custom CSS/JS, logo, colors) renders correctly under custom domains. Direct `$this->merchants->find()` bypasses brand-scoped settings.
+28. **Centralized JWT Secret & Stateless Token Rotation** — `DevicePairingService` resolves JWT secrets hierarchically (device-specific -> global -> test fallback) and enforces token rotation on refresh. Replay attacks are prevented by blacklisting rotated JTIs in `op_cache` table (using `key_name` / `expires_at` columns).
 
 ---
 

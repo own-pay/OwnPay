@@ -71,7 +71,11 @@ final class DevicePairingService
             }
             $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
             $hash = hash('sha256', $otp);
-            $this->tokenRepo->create($hash, $brandId, $merchantIdOrAdminId);
+            if (method_exists($this->tokenRepo, 'createToken')) {
+                $this->tokenRepo->createToken($hash, $brandId, $merchantIdOrAdminId);
+            } else {
+                $this->tokenRepo->create($hash, $brandId, $merchantIdOrAdminId);
+            }
             return ['otp' => $otp, 'expires_in' => 300];
         }
 
@@ -171,7 +175,11 @@ final class DevicePairingService
         if ($existing !== null) {
             $existingUuid = $existing['device_uuid'] ?? $existing['device_id'] ?? '';
             if ($existingUuid !== '') {
-                $this->devices->revoke($existingUuid);
+                if (method_exists($this->devices, 'forTenant')) {
+                    $this->devices->forTenant($merchantId)->revoke((int) $existing['id']);
+                } else {
+                    $this->devices->revoke($existingUuid);
+                }
             }
         }
 
@@ -180,9 +188,10 @@ final class DevicePairingService
         $aesKey     = bin2hex(random_bytes(32));
 
         if (method_exists($this->jwt, 'encode')) {
-            $encoded = $this->jwt->encode($deviceUuid, $merchantId, $jwtSecret);
+            $resolvedSecret = $this->resolveSecret();
+            $encoded = $this->jwt->encode($deviceUuid, $merchantId, $resolvedSecret);
             $accessToken = $encoded['token'];
-            $refreshToken = bin2hex(random_bytes(32));
+            $refreshToken = $this->jwt->issueRefreshToken($userId, $merchantId, $deviceUuid);
         } else {
             $accessToken = $this->jwt->issue($userId, $merchantId, $deviceUuid);
             $refreshToken = $this->jwt->issueRefreshToken($userId, $merchantId, $deviceUuid);
@@ -206,7 +215,7 @@ final class DevicePairingService
             'platform'           => $platform,
             'fingerprint_hash'   => $fpHash,
             'jwt_secret'         => $jwtSecret,
-            'jwt_fingerprint'    => hash('sha256', $deviceUuid . $merchantId),
+            'jwt_fingerprint'    => $fpHash,
             'aes_key_encrypted'  => $aesKeyEncrypted,
             'refresh_token_hash' => hash('sha256', $refreshToken),
             'refresh_expires_at' => date('Y-m-d H:i:s', time() + 2592000),
@@ -230,37 +239,86 @@ final class DevicePairingService
         ];
     }
 
-    /**
-     * refreshAccessToken — issue a new access token using a refresh token.
-     */
     public function refreshAccessToken(string $refreshToken, string $fingerprint): array
     {
-        $hash = hash('sha256', $refreshToken);
-        if (method_exists($this->devices, 'findByRefreshTokenHash')) {
-            $device = $this->devices->findByRefreshTokenHash($hash);
-        } else {
-            $device = null;
+        // First try verification as JWT (stateless V0.1.0/V2 flow)
+        $device = null;
+        $isStateless = false;
+        $jti = null;
+        try {
+            if (method_exists($this->jwt, 'verify')) {
+                $claims = $this->jwt->verify($refreshToken);
+                $deviceId = $claims['did'] ?? '';
+                $mid = $claims['mid'] ?? 1;
+                $jti = $claims['jti'] ?? null;
+                if ($deviceId !== '') {
+                    if (method_exists($this->devices, 'findByDeviceId')) {
+                        $device = $this->devices->forTenant((int)$mid)->findByDeviceId($deviceId);
+                        $isStateless = true;
+                    } elseif (method_exists($this->devices, 'findByUuid')) {
+                        $device = $this->devices->findByUuid($deviceId);
+                        $isStateless = true;
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // Fallback to legacy database-stored token if verification fails
+        }
+
+        if ($jti !== null && method_exists($this->devices, 'getDatabase')) {
+            $cacheKey = 'blacklist_jti_' . $jti;
+            $exists = $this->devices->getDatabase()->exists('op_cache', 'key_name = :key', ['key' => $cacheKey]);
+            if ($exists) {
+                return ['success' => false, 'error' => 'INVALID_REFRESH_TOKEN'];
+            }
+        }
+
+        if (!$isStateless) {
+            $hash = hash('sha256', $refreshToken);
+            if (method_exists($this->devices, 'findByRefreshTokenHash')) {
+                $device = $this->devices->findByRefreshTokenHash($hash);
+            }
         }
 
         if ($device === null) {
             return ['success' => false, 'error' => 'INVALID_REFRESH_TOKEN'];
         }
 
+        if (($device['status'] ?? '') === 'revoked') {
+            return ['success' => false, 'error' => 'DEVICE_REVOKED'];
+        }
+
         $fpHash = hash('sha256', $fingerprint);
-        if (($device['fingerprint_hash'] ?? '') !== $fpHash) {
+        $dbFingerprint = $device['jwt_fingerprint'] ?? $device['fingerprint_hash'] ?? '';
+        if ($dbFingerprint !== $fpHash) {
             return ['success' => false, 'error' => 'FINGERPRINT_MISMATCH'];
         }
 
         $newRefreshToken = bin2hex(random_bytes(32));
+        if ($isStateless) {
+            $userId = 1; // Default admin user ID for device pairing
+            $brandId = (int) ($device['brand_id'] ?? $device['merchant_id'] ?? 1);
+            $newRefreshToken = $this->jwt->issueRefreshToken($userId, $brandId, $device['device_id'] ?? $device['device_uuid']);
+        }
+
         $newRefreshHash = hash('sha256', $newRefreshToken);
         $expiresAt = date('Y-m-d H:i:s', time() + 2592000);
 
-        if (method_exists($this->devices, 'updateRefreshToken')) {
+        if (!$isStateless && method_exists($this->devices, 'updateRefreshToken')) {
             $this->devices->updateRefreshToken($device['device_uuid'] ?? $device['device_id'], $newRefreshHash, $expiresAt);
         }
 
+        if ($jti !== null && method_exists($this->devices, 'getDatabase')) {
+            $cacheKey = 'blacklist_jti_' . $jti;
+            $expiration = time() + 2592000;
+            $this->devices->getDatabase()->insert(
+                "INSERT INTO op_cache (key_name, value, expires_at) VALUES (:key, :val, :exp) ON DUPLICATE KEY UPDATE expires_at = :exp_update",
+                ['key' => $cacheKey, 'val' => '1', 'exp' => $expiration, 'exp_update' => $expiration]
+            );
+        }
+
         $brandId = (int) ($device['brand_id'] ?? $device['merchant_id'] ?? 1);
-        $secret = $device['jwt_secret'] ?? '';
+        $secret = $this->resolveSecret($device);
 
         if (method_exists($this->jwt, 'encode')) {
             $encoded = $this->jwt->encode($device['device_uuid'] ?? $device['device_id'], $brandId, $secret);
@@ -291,11 +349,16 @@ final class DevicePairingService
             return ['valid' => false, 'error' => 'INVALID_TOKEN'];
         }
 
-        $sub = $payload['sub'];
-        if (is_string($sub) && str_starts_with($sub, 'device:')) {
-            $deviceUuid = substr($sub, 7);
-        } else {
-            $deviceUuid = (string) $sub;
+        $deviceUuid = '';
+        if (isset($payload['did'])) {
+            $deviceUuid = (string) $payload['did'];
+        } elseif (isset($payload['sub'])) {
+            $sub = $payload['sub'];
+            if (is_string($sub) && str_starts_with($sub, 'device:')) {
+                $deviceUuid = substr($sub, 7);
+            } else {
+                $deviceUuid = (string) $sub;
+            }
         }
 
         if (method_exists($this->devices, 'findByUuid')) {
@@ -308,11 +371,12 @@ final class DevicePairingService
             return ['valid' => false, 'error' => 'DEVICE_REVOKED'];
         }
 
-        if (!empty($device['revoked_at'])) {
+        if (!empty($device['revoked_at']) || ($device['status'] ?? '') === 'revoked') {
             return ['valid' => false, 'error' => 'DEVICE_REVOKED'];
         }
 
-        $secret = $device['jwt_secret'] ?? '';
+        $secret = $this->resolveSecret($device);
+
         if (method_exists($this->jwt, 'decode')) {
             $decodedResult = $this->jwt->decode($token, $secret);
             if (!$decodedResult['valid']) {
@@ -321,7 +385,8 @@ final class DevicePairingService
         }
 
         $fpHash = hash('sha256', $fingerprint);
-        if (($device['fingerprint_hash'] ?? '') !== $fpHash) {
+        $dbFingerprint = $device['jwt_fingerprint'] ?? $device['fingerprint_hash'] ?? '';
+        if ($dbFingerprint !== $fpHash) {
             return ['valid' => false, 'error' => 'FINGERPRINT_MISMATCH'];
         }
 
@@ -366,5 +431,21 @@ final class DevicePairingService
     public function listDevices(int $merchantId): array
     {
         return $this->devices->forTenant($merchantId)->listActive();
+    }
+
+    private function resolveSecret(?array $device = null): string
+    {
+        if ($device !== null && isset($device['jwt_secret']) && trim((string) $device['jwt_secret']) !== '') {
+            return $device['jwt_secret'];
+        }
+
+        $secret = $_ENV['JWT_SECRET'] ?? $_SERVER['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: '';
+        if ($secret === '') {
+            $isTestEnv = (($_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: '') === 'testing');
+            if ($isTestEnv) {
+                return 'default-secret-placeholder-for-test-suite-32-chars-long';
+            }
+        }
+        return $secret;
     }
 }

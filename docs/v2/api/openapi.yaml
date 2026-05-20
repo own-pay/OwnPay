@@ -1,4 +1,5 @@
-openapi: 3.0.3
+openapi: 3.2.0
+$self: https://ownpay.test/docs/v2/api/openapi.yaml
 info:
   title: OwnPay API
   description: |
@@ -43,36 +44,60 @@ servers:
     description: Local Development
 
 tags:
+  - name: Merchant
+    summary: Core Merchant API Group
+    kind: grouping
   - name: Health
-    description: System status and checks
+    summary: System status and checks
+    parent: Merchant
   - name: Payments
-    description: Payment initiation and query
+    summary: Payment initiation and query
+    parent: Merchant
   - name: Transactions
-    description: Settlement and ledger transactions
+    summary: Settlement and ledger transactions
+    parent: Merchant
   - name: Refunds
-    description: Transaction charge reversals
+    summary: Transaction charge reversals
+    parent: Merchant
   - name: Customers
-    description: Brand customer profiles
+    summary: Brand customer profiles
+    parent: Merchant
   - name: API Keys
-    description: Merchant API credentials
+    summary: Merchant API credentials
+    parent: Merchant
   - name: Webhooks
-    description: Outbound delivery and validation
+    summary: Outbound delivery and validation
+    parent: Merchant
+  - name: Mobile
+    summary: Mobile Companion API Group
+    kind: grouping
   - name: Mobile - Devices
-    description: Companion Android device setup
+    summary: Companion Android device setup
+    parent: Mobile
   - name: Mobile - SMS
-    description: Device-forwarded notification SMS logs
+    summary: Device-forwarded notification SMS logs
+    parent: Mobile
   - name: Mobile - Notifications
-    description: Push triggers sent to devices
+    summary: Push triggers sent to devices
+    parent: Mobile
   - name: Mobile - Dashboard
-    description: Dashboard aggregation for companion apps
+    summary: Dashboard aggregation for companion apps
+    parent: Mobile
   - name: Mobile - Config
-    description: Regex rules and filter constraints
+    summary: Regex rules and filter constraints
+    parent: Mobile
+  - name: Admin
+    summary: System Administration API Group
+    kind: grouping
   - name: Admin - SMS
-    description: SMS templates and analyzer queue
+    summary: SMS templates and analyzer queue
+    parent: Admin
   - name: Admin - Devices
-    description: Pair control and active device revoking
+    summary: Pair control and active device revoking
+    parent: Admin
   - name: Admin - Domains
-    description: Custom domain verification
+    summary: Custom domain verification
+    parent: Admin
 
 paths:
   /api/v1/health:
@@ -88,18 +113,13 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  version:
-                    type: string
-                    example: "0.1.0"
-                  server_time:
-                    type: string
-                    format: date-time
-                    example: "2026-05-21T02:40:00+06:00"
+                $ref: '#/components/schemas/HealthResponse'
+        '401':
+          description: Unauthenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/payments/initiate:
     post:
@@ -113,54 +133,26 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [amount, currency]
-              properties:
-                amount:
-                  type: number
-                  format: float
-                  example: 500.00
-                currency:
-                  type: string
-                  example: "BDT"
-                description:
-                  type: string
-                  example: "Order #104829"
-                redirect_url:
-                  type: string
-                  format: uri
-                  example: "https://myshop.com/success"
-                cancel_url:
-                  type: string
-                  format: uri
-                  example: "https://myshop.com/cancel"
-                webhook_url:
-                  type: string
-                  format: uri
-                  example: "https://myshop.com/webhook"
-                metadata:
-                  type: object
-                  example:
-                    invoice_id: 12948
-                    product: "Ultra Gaming Chair"
+              $ref: '#/components/schemas/PaymentIntentInitiateRequest'
       responses:
         '201':
           description: Payment Intent successfully created.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  token:
-                    type: string
-                    example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
-                  checkout_url:
-                    type: string
-                    format: uri
-                    example: "https://pay.myshop.com/checkout/intent/pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+                $ref: '#/components/schemas/PaymentIntentResponse'
+        '400':
+          description: Bad Request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/payments/{trx_id}:
     get:
@@ -173,6 +165,7 @@ paths:
         - name: trx_id
           in: path
           required: true
+          description: Unique payment intent token or transaction ID
           schema:
             type: string
           example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
@@ -182,31 +175,13 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    type: object
-                    properties:
-                      id:
-                        type: integer
-                        example: 45
-                      uuid:
-                        type: string
-                        example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
-                      amount:
-                        type: string
-                        example: "500.00"
-                      currency:
-                        type: string
-                        example: "BDT"
-                      status:
-                        type: string
-                        example: "completed"
-                      metadata:
-                        type: object
+                $ref: '#/components/schemas/PaymentIntentDetailResponse'
+        '404':
+          description: Payment Intent not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/transactions:
     get:
@@ -219,18 +194,24 @@ paths:
         - name: page
           in: query
           required: false
+          description: Page number for pagination (starts at 1)
           schema:
             type: integer
+            minimum: 1
             default: 1
         - name: per_page
           in: query
           required: false
+          description: Number of records to return per page
           schema:
             type: integer
+            minimum: 1
+            maximum: 100
             default: 20
         - name: status
           in: query
           required: false
+          description: Filter transactions by status
           schema:
             type: string
             enum: [pending, completed, failed, cancelled, refunded]
@@ -240,22 +221,7 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  data:
-                    type: array
-                    items:
-                      type: object
-                  pagination:
-                    type: object
-                    properties:
-                      page: { type: integer, example: 1 }
-                      per_page: { type: integer, example: 20 }
-                      total_records: { type: integer, example: 145 }
-                      total_pages: { type: integer, example: 8 }
+                $ref: '#/components/schemas/TransactionListResponse'
 
   /api/v1/transactions/{trx_id}:
     get:
@@ -268,12 +234,23 @@ paths:
         - name: trx_id
           in: path
           required: true
+          description: The transaction number
           schema:
             type: string
           example: "TXN-10482938"
       responses:
         '200':
           description: Transaction detail model.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionDetailResponse'
+        '404':
+          description: Transaction not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/refunds:
     post:
@@ -287,33 +264,20 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [transaction_id, amount]
-              properties:
-                transaction_id:
-                  type: string
-                  example: "TXN-10482938"
-                amount:
-                  type: number
-                  format: float
-                  example: 250.00
-                reason:
-                  type: string
-                  example: "Customer return request"
+              $ref: '#/components/schemas/RefundCreateRequest'
       responses:
         '201':
           description: Refund created successfully.
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  success:
-                    type: boolean
-                    example: true
-                  refund_id:
-                    type: string
-                    example: "RFD-28391823"
+                $ref: '#/components/schemas/RefundCreateResponse'
+        '400':
+          description: Invalid Request or Insufficient Funds
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/refunds/{trx_id}:
     get:
@@ -326,11 +290,23 @@ paths:
         - name: trx_id
           in: path
           required: true
+          description: The refund transaction number
           schema:
             type: string
+          example: "RFD-28391823"
       responses:
         '200':
           description: Refund details retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundDetailResponse'
+        '404':
+          description: Refund record not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/customers:
     get:
@@ -342,6 +318,10 @@ paths:
       responses:
         '200':
           description: List of customers.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerListResponse'
     post:
       tags: [Customers]
       summary: Create Customer Profile
@@ -353,21 +333,14 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [name, phone]
-              properties:
-                name:
-                  type: string
-                  example: "John Doe"
-                email:
-                  type: string
-                  example: "john@example.com"
-                phone:
-                  type: string
-                  example: "+8801700000000"
+              $ref: '#/components/schemas/CustomerCreateRequest'
       responses:
         '201':
           description: Customer profile created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDetailResponse'
 
   /api/v1/customers/{identifier}:
     get:
@@ -380,12 +353,23 @@ paths:
         - name: identifier
           in: path
           required: true
+          description: Customer database ID, email address, or phone number
           schema:
             type: string
           example: "+8801700000000"
       responses:
         '200':
           description: Customer profile details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CustomerDetailResponse'
+        '404':
+          description: Customer not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/api-keys:
     get:
@@ -397,15 +381,29 @@ paths:
       responses:
         '200':
           description: List of API keys.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyListResponse'
     post:
       tags: [API Keys]
       summary: Generate API Key
       description: Generates a new live or test API key for the active brand.
       security:
         - BearerApiKey: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ApiKeyGenerateRequest'
       responses:
         '201':
           description: Key successfully generated. (The full token is only shown once).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiKeyGenerateResponse'
 
   /api/v1/api-keys/{id}/revoke:
     post:
@@ -418,11 +416,23 @@ paths:
         - name: id
           in: path
           required: true
+          description: API key ID
           schema:
             type: integer
+          example: 3
       responses:
         '200':
           description: API key permanently revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessOnlyResponse'
+        '404':
+          description: API key not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/v1/webhooks/test:
     post:
@@ -434,6 +444,10 @@ paths:
       responses:
         '200':
           description: Test webhook sent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookTestResponse'
 
   /api/v1/webhooks/deliveries:
     get:
@@ -444,13 +458,23 @@ paths:
         - BearerApiKey: []
       responses:
         '200':
-          description: Webhook logs.
+          description: Webhook logs retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/WebhookDeliveriesResponse'
 
   /csp-report-api:
     post:
       tags: [Webhooks]
       summary: CSP Report Endpoint
-      description: Handles Content Security Policy violation reports.
+      description: Handles Content Security Policy violation reports. No authentication required.
+      requestBody:
+        required: true
+        content:
+          application/csp-report:
+            schema:
+              type: object
       responses:
         '204':
           description: Report recorded.
@@ -466,25 +490,20 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [pairing_code, device_id]
-              properties:
-                pairing_code:
-                  type: string
-                  example: "594830"
-                device_id:
-                  type: string
-                  example: "device_uuid_string"
-                device_name:
-                  type: string
-                  example: "Samsung S24 Ultra"
-                platform:
-                  type: string
-                  enum: [android, ios]
-                  example: "android"
+              $ref: '#/components/schemas/DevicePairRequest'
       responses:
         '201':
           description: Device paired. Returns authorization tokens.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DevicePairResponse'
+        '400':
+          description: Invalid pairing code or pairing expired
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/mobile/v1/devices/heartbeat:
     post:
@@ -496,6 +515,10 @@ paths:
       responses:
         '200':
           description: Status saved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/HeartbeatResponse'
 
   /api/mobile/v1/devices/revoke:
     post:
@@ -507,6 +530,10 @@ paths:
       responses:
         '200':
           description: Revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessOnlyResponse'
 
   /api/mobile/v1/devices/bulk-revoke:
     post:
@@ -520,23 +547,20 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [device_ids]
-              properties:
-                device_ids:
-                  type: array
-                  items:
-                    type: integer
-                  example: [3, 4, 12]
+              $ref: '#/components/schemas/BulkRevokeRequest'
       responses:
         '200':
           description: Devices revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BulkRevokeResponse'
 
   /api/mobile/v1/devices/refresh:
     post:
       tags: [Mobile - Devices]
       summary: Refresh JWT Access Token
-      description: Exchange a valid refresh token for a new short-lived JWT token.
+      description: Exchange a valid refresh token for a new short-lived JWT token. This operation implements Token Rotation; a new refresh token is returned and the old one is blacklisted.
       requestBody:
         required: true
         content:
@@ -547,26 +571,48 @@ paths:
               properties:
                 refresh_token:
                   type: string
+                  description: The current valid refresh token (JWT format)
+                  example: "eyJhbGciOiJIUzI1NiIs..."
       responses:
         '200':
           description: Access token refreshed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenRefreshResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Device revoked or not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/mobile/v1/devices/status:
     get:
       tags: [Mobile - Devices]
       summary: Query Current Device Status
-      description: Checks active validation status of the device JWT session.
+      description: Checks active validation status of the device JWT session and returns metadata.
       security:
         - BearerJWT: []
       responses:
         '200':
           description: Status retrieved.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceStatusResponse'
 
   /api/mobile/v1/sms:
     post:
       tags: [Mobile - SMS]
       summary: Upload Parsed SMS
-      description: Receives SMS notification details forwarded by the mobile app, runs parser engines, and updates payment states.
+      description: Receives SMS notification details forwarded by the mobile app, runs parser engines, and updates payment states. Accepts either a single SMS payload or a batch array of payloads.
       security:
         - BearerJWT: []
       requestBody:
@@ -574,21 +620,24 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              required: [sender, body]
-              properties:
-                sender:
-                  type: string
-                  example: "bKash"
-                body:
-                  type: string
-                  example: "You have received Tk 500.00 from 01700000000. Ref: pi_xxx. Fee: Tk 0.00. Balance Tk 10500.00. TrxID TXN129482938."
-                received_at:
-                  type: string
-                  format: date-time
+              oneOf:
+                - $ref: '#/components/schemas/SingleSmsUploadRequest'
+                - $ref: '#/components/schemas/BatchSmsUploadRequest'
       responses:
         '200':
           description: SMS processed successfully.
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SingleSmsUploadResponse'
+                  - $ref: '#/components/schemas/BatchSmsUploadResponse'
+        '422':
+          description: Validation Error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/mobile/v1/sms/queue:
     get:
@@ -600,6 +649,10 @@ paths:
       responses:
         '200':
           description: Queue details.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsQueueResponse'
 
   /api/mobile/v1/notifications:
     get:
@@ -611,6 +664,10 @@ paths:
       responses:
         '200':
           description: Push notifications payload.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ActiveNotificationsResponse'
 
   /api/mobile/v1/notifications/ack:
     post:
@@ -631,9 +688,15 @@ paths:
                   type: array
                   items:
                     type: integer
+                  description: Array of notification IDs to acknowledge
+                  example: [12, 13]
       responses:
         '200':
           description: Acknowledged.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessOnlyResponse'
 
   /api/mobile/v1/dashboard:
     get:
@@ -645,6 +708,10 @@ paths:
       responses:
         '200':
           description: Aggregated stats.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileDashboardResponse'
 
   /api/mobile/v1/config/filter-rules:
     get:
@@ -656,6 +723,10 @@ paths:
       responses:
         '200':
           description: SMS filter configurations.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FilterRulesResponse'
 
   # Admin API endpoints
   /api/admin/v1/sms-templates:
@@ -668,6 +739,10 @@ paths:
       responses:
         '200':
           description: List of templates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsTemplateListResponse'
 
   /api/admin/v1/sms-templates/{id}:
     put:
@@ -680,6 +755,7 @@ paths:
         - name: id
           in: path
           required: true
+          description: The template database ID
           schema:
             type: integer
       requestBody:
@@ -687,13 +763,20 @@ paths:
         content:
           application/json:
             schema:
-              type: object
-              properties:
-                pattern: { type: string }
-                sender: { type: string }
+              $ref: '#/components/schemas/SmsTemplateUpdateRequest'
       responses:
         '200':
           description: Template updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsTemplateDetailResponse'
+        '404':
+          description: Template not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/admin/v1/sms-queue:
     get:
@@ -705,6 +788,10 @@ paths:
       responses:
         '200':
           description: SMS log entries.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminSmsQueueResponse'
 
   /api/admin/v1/sms-queue/{id}/retry:
     post:
@@ -717,11 +804,22 @@ paths:
         - name: id
           in: path
           required: true
+          description: The parsed SMS ID
           schema:
             type: integer
       responses:
         '200':
           description: Job dispatched.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessWithMessageResponse'
+        '404':
+          description: SMS record not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/admin/v1/devices:
     get:
@@ -733,23 +831,38 @@ paths:
       responses:
         '200':
           description: Devices list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AdminDeviceListResponse'
 
   /api/admin/v1/devices/{id}/revoke:
     post:
       tags: [Admin - Devices]
       summary: Force Revoke Device
-      description: System-wide admin revocation of a paired device.
+      description: System-wide admin revocation of a paired device by device database ID or UUID.
       security:
         - BearerApiKey: []
       parameters:
         - name: id
           in: path
           required: true
+          description: Unique device database ID or UUID
           schema:
-            type: integer
+            type: string
       responses:
         '200':
           description: Device revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessOnlyResponse'
+        '404':
+          description: Device not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
 
   /api/admin/v1/domains/verify:
     post:
@@ -761,6 +874,10 @@ paths:
       responses:
         '200':
           description: DNS scan completed.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessWithMessageResponse'
 
 components:
   securitySchemes:
@@ -773,3 +890,992 @@ components:
       scheme: bearer
       bearerFormat: JWT
       description: "JWT access token returned by device pairing (header: `Authorization: Bearer eyJ...`)"
+
+  schemas:
+    ErrorResponse:
+      type: object
+      required: [success, error]
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Invalid API key or token expired"
+
+    SuccessOnlyResponse:
+      type: object
+      required: [success]
+      properties:
+        success:
+          type: boolean
+          example: true
+
+    SuccessWithMessageResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Operation completed successfully"
+
+    HealthResponse:
+      type: object
+      required: [success, version, server_time]
+      properties:
+        success:
+          type: boolean
+          example: true
+        version:
+          type: string
+          example: "0.1.0"
+        server_time:
+          type: string
+          format: date-time
+          example: "2026-05-21T02:40:00+06:00"
+
+    PaymentIntentInitiateRequest:
+      type: object
+      required: [amount, currency]
+      properties:
+        amount:
+          type: number
+          format: float
+          minimum: 0.01
+          example: 500.00
+          description: "Transaction amount with up to 2 decimal places"
+        currency:
+          type: string
+          pattern: "^[A-Z]{3}$"
+          example: "BDT"
+          description: "ISO 4217 3-letter currency code (e.g. BDT, USD)"
+        description:
+          type: string
+          maxLength: 255
+          example: "Order #104829"
+          description: "Human readable transaction summary"
+        redirect_url:
+          type: string
+          format: uri
+          example: "https://myshop.com/success"
+          description: "URL customer is redirected to after successful payment"
+        cancel_url:
+          type: string
+          format: uri
+          example: "https://myshop.com/cancel"
+          description: "URL customer is redirected to if payment is cancelled"
+        webhook_url:
+          type: string
+          format: uri
+          example: "https://myshop.com/webhook"
+          description: "Outbound HTTP callback URL destination for status changes"
+        metadata:
+          type: object
+          example:
+            invoice_id: 12948
+            product: "Ultra Gaming Chair"
+          description: "Arbitrary JSON payload linked to the transaction for merchant query acceleration"
+
+    PaymentIntentResponse:
+      type: object
+      required: [success, token, checkout_url]
+      properties:
+        success:
+          type: boolean
+          example: true
+        token:
+          type: string
+          example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+          description: "The unique payment intent token"
+        checkout_url:
+          type: string
+          format: uri
+          example: "https://pay.myshop.com/checkout/intent/pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+          description: "The dynamic customer-facing white-label checkout URL"
+
+    PaymentIntentDetailResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required: [id, uuid, amount, currency, status, metadata]
+          properties:
+            id:
+              type: integer
+              example: 45
+            uuid:
+              type: string
+              example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+            amount:
+              type: string
+              example: "500.00"
+            currency:
+              type: string
+              example: "BDT"
+            status:
+              type: string
+              enum: [pending, completed, failed, cancelled, refunded]
+              example: "completed"
+            metadata:
+              type: object
+              example:
+                invoice_id: 12948
+                product: "Ultra Gaming Chair"
+
+    Transaction:
+      type: object
+      required: [id, transaction_no, merchant_id, customer_id, gateway_id, amount, currency, status, created_at]
+      properties:
+        id:
+          type: integer
+          example: 102
+        transaction_no:
+          type: string
+          example: "TXN-10482938"
+        merchant_id:
+          type: integer
+          example: 1
+        customer_id:
+          type: integer
+          example: 22
+        gateway_id:
+          type: integer
+          example: 5
+        amount:
+          type: string
+          example: "500.00"
+        currency:
+          type: string
+          example: "BDT"
+        status:
+          type: string
+          enum: [pending, completed, failed, cancelled, refunded]
+          example: "completed"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T02:45:00.000000+06:00"
+
+    TransactionListResponse:
+      type: object
+      required: [success, data, pagination]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        pagination:
+          type: object
+          required: [page, per_page, total_records, total_pages]
+          properties:
+            page:
+              type: integer
+              example: 1
+            per_page:
+              type: integer
+              example: 20
+            total_records:
+              type: integer
+              example: 145
+            total_pages:
+              type: integer
+              example: 8
+
+    TransactionDetailResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Transaction'
+
+    RefundCreateRequest:
+      type: object
+      required: [transaction_id, amount]
+      properties:
+        transaction_id:
+          type: string
+          description: "Transaction number or payment intent UUID to refund"
+          example: "TXN-10482938"
+        amount:
+          type: number
+          format: float
+          minimum: 0.01
+          description: "Amount to refund (can be partial or full)"
+          example: 250.00
+        reason:
+          type: string
+          maxLength: 255
+          description: "Reason for the refund"
+          example: "Customer return request"
+
+    RefundCreateResponse:
+      type: object
+      required: [success, refund_id]
+      properties:
+        success:
+          type: boolean
+          example: true
+        refund_id:
+          type: string
+          example: "RFD-28391823"
+
+    RefundDetailResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          required: [id, refund_no, transaction_id, amount, reason, created_at]
+          properties:
+            id:
+              type: integer
+              example: 12
+            refund_no:
+              type: string
+              example: "RFD-28391823"
+            transaction_id:
+              type: integer
+              example: 102
+            amount:
+              type: string
+              example: "250.00"
+            reason:
+              type: string
+              example: "Customer return request"
+            created_at:
+              type: string
+              format: date-time
+              example: "2026-05-21T03:00:00.000000+06:00"
+
+    Customer:
+      type: object
+      required: [id, merchant_id, name, email, phone, created_at]
+      properties:
+        id:
+          type: integer
+          example: 22
+        merchant_id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        phone:
+          type: string
+          example: "+8801700000000"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T02:45:00.000000+06:00"
+
+    CustomerListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Customer'
+
+    CustomerCreateRequest:
+      type: object
+      required: [name, phone]
+      properties:
+        name:
+          type: string
+          example: "John Doe"
+        email:
+          type: string
+          format: email
+          example: "john@example.com"
+        phone:
+          type: string
+          example: "+8801700000000"
+
+    CustomerDetailResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          $ref: '#/components/schemas/Customer'
+
+    ApiKey:
+      type: object
+      required: [id, name, key_preview, scope, status, created_at]
+      properties:
+        id:
+          type: integer
+          example: 3
+        name:
+          type: string
+          example: "Production Server Key"
+        key_preview:
+          type: string
+          example: "opk_live_xxxx...abcd"
+        scope:
+          type: string
+          enum: [admin, merchant]
+          example: "merchant"
+        status:
+          type: string
+          enum: [active, revoked]
+          example: "active"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T02:45:00.000000+06:00"
+
+    ApiKeyListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ApiKey'
+
+    ApiKeyGenerateRequest:
+      type: object
+      required: [name]
+      properties:
+        name:
+          type: string
+          maxLength: 100
+          example: "Production Server Key"
+        scope:
+          type: string
+          enum: [admin, merchant]
+          default: "merchant"
+          example: "merchant"
+
+    ApiKeyGenerateResponse:
+      type: object
+      required: [success, token, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        token:
+          type: string
+          example: "opk_live_abcdef1234567890abcdef1234567890"
+          description: "The full unmasked API key token. ONLY returned during generation."
+        data:
+          $ref: '#/components/schemas/ApiKey'
+
+    WebhookTestResponse:
+      type: object
+      required: [success, message]
+      properties:
+        success:
+          type: boolean
+          example: true
+        message:
+          type: string
+          example: "Test webhook dispatched successfully to http://myshop.com/webhook"
+
+    WebhookDeliveryLog:
+      type: object
+      required: [id, transaction_id, url, payload, status_code, attempt, is_success, created_at]
+      properties:
+        id:
+          type: integer
+          example: 124
+        transaction_id:
+          type: integer
+          example: 102
+        url:
+          type: string
+          format: uri
+          example: "https://myshop.com/webhook"
+        payload:
+          type: string
+          example: "{\"event\":\"payment.completed\",\"transaction_id\":\"TXN-10482938\",\"amount\":\"500.00\",\"currency\":\"BDT\",\"gateway\":\"bkash\",\"status\":\"completed\",\"timestamp\":\"2026-05-21T02:45:00+06:00\"}"
+        status_code:
+          type: integer
+          example: 200
+        attempt:
+          type: integer
+          example: 1
+        is_success:
+          type: integer
+          enum: [0, 1]
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T02:45:05.000000+06:00"
+
+    WebhookDeliveriesResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/WebhookDeliveryLog'
+
+    DevicePairRequest:
+      type: object
+      required: [pairing_code, device_id]
+      properties:
+        pairing_code:
+          type: string
+          pattern: "^[0-9]{6}$"
+          example: "594830"
+          description: "6-digit temporary OTP pairing code"
+        device_id:
+          type: string
+          example: "android_id_string_or_unique_identifier"
+          description: "Unique persistent device fingerprint / platform ID"
+        device_name:
+          type: string
+          example: "Samsung S24 Ultra"
+        platform:
+          type: string
+          enum: [android, ios]
+          default: "android"
+        app_version:
+          type: string
+          example: "1.0.0"
+
+    DevicePairResponse:
+      type: object
+      required: [success, access_token, device_uuid, refresh_token, expires_in]
+      properties:
+        success:
+          type: boolean
+          example: true
+        access_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIs..."
+          description: "JWT access token for subsequent API calls (TTL: 24h)"
+        device_uuid:
+          type: string
+          example: "device-uuid-value"
+          description: "Server-assigned unique device ID"
+        refresh_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIs..."
+          description: "JWT refresh token used to rotate credentials (TTL: 30 days)"
+        aes_key:
+          type: string
+          example: "aabbccddeeff00112233..."
+          description: "Base16 / Hex end-to-end payload encryption key"
+        expires_in:
+          type: integer
+          example: 86400
+          description: "Access token lifetime in seconds"
+
+    HeartbeatResponse:
+      type: object
+      required: [success, server_time]
+      properties:
+        success:
+          type: boolean
+          example: true
+        server_time:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:30:00+06:00"
+
+    BulkRevokeRequest:
+      type: object
+      required: [device_ids]
+      properties:
+        device_ids:
+          type: array
+          items:
+            type: integer
+          example: [3, 4, 12]
+
+    BulkRevokeResponse:
+      type: object
+      required: [success, revoked]
+      properties:
+        success:
+          type: boolean
+          example: true
+        revoked:
+          type: integer
+          example: 3
+          description: "Number of successfully revoked devices"
+
+    TokenRefreshResponse:
+      type: object
+      required: [success, access_token, refresh_token, expires_in, server_time]
+      properties:
+        success:
+          type: boolean
+          example: true
+        access_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIs..."
+        refresh_token:
+          type: string
+          example: "eyJhbGciOiJIUzI1NiIs..."
+        expires_in:
+          type: integer
+          example: 86400
+        server_time:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:32:00+06:00"
+
+    DeviceStatusResponse:
+      type: object
+      required: [success, device_id, device_name, platform, status, merchant_id, server_time]
+      properties:
+        success:
+          type: boolean
+          example: true
+        device_id:
+          type: string
+          example: "device-uuid-value"
+        device_name:
+          type: string
+          example: "Samsung S24 Ultra"
+        platform:
+          type: string
+          example: "android"
+        status:
+          type: string
+          enum: [active, revoked, inactive]
+          example: "active"
+        last_heartbeat:
+          type: string
+          format: date-time
+          nullable: true
+          example: "2026-05-21T03:30:00+06:00"
+        merchant_id:
+          type: integer
+          example: 1
+        server_time:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:32:15+06:00"
+
+    SmsUploadItem:
+      type: object
+      required: [sender]
+      properties:
+        local_id:
+          type: integer
+          nullable: true
+          example: 42
+        sender:
+          type: string
+          example: "bKash"
+        encrypted_payload:
+          type: string
+          description: "AES-256-GCM ciphertext base64 encoded, or raw text body"
+          example: "M2MxOWMy..."
+        body:
+          type: string
+          description: "Alternative raw payload text (fallback)"
+          example: "You have received Tk 500.00 from 01700000000. Ref: pi_xxx. TrxID TXN129482938."
+        received_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:00:00+06:00"
+
+    SingleSmsUploadRequest:
+      $ref: '#/components/schemas/SmsUploadItem'
+
+    BatchSmsUploadRequest:
+      type: object
+      required: [messages]
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/SmsUploadItem'
+
+    SingleSmsUploadResponse:
+      type: object
+      required: [success, status]
+      properties:
+        success:
+          type: boolean
+          example: true
+        status:
+          type: string
+          enum: [accepted, duplicate, rejected, parsed, unparsed, parse_error]
+          example: "accepted"
+        server_ref:
+          type: string
+          nullable: true
+          example: "sms_abc123"
+        error:
+          type: string
+          nullable: true
+          example: null
+
+    SmsUploadResultItem:
+      type: object
+      required: [local_id, status]
+      properties:
+        local_id:
+          type: integer
+          nullable: true
+          example: 42
+        status:
+          type: string
+          enum: [accepted, duplicate, rejected, parsed, unparsed, parse_error]
+          example: "accepted"
+        server_ref:
+          type: string
+          nullable: true
+          example: "sms_abc123"
+        error:
+          type: string
+          nullable: true
+          example: null
+
+    BatchSmsUploadResponse:
+      type: object
+      required: [success, results]
+      properties:
+        success:
+          type: boolean
+          example: true
+        results:
+          type: array
+          items:
+            $ref: '#/components/schemas/SmsUploadResultItem'
+
+    SmsQueueItem:
+      type: object
+      required: [id, sender, body, status, created_at]
+      properties:
+        id:
+          type: integer
+          example: 1045
+        sender:
+          type: string
+          example: "bKash"
+        body:
+          type: string
+          example: "You have received Tk 500.00 from 01700000000. Ref: pi_xxx."
+        status:
+          type: string
+          enum: [pending, processing, failed, resolved]
+          example: "pending"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:00:00+06:00"
+
+    SmsQueueResponse:
+      type: object
+      required: [success, queue]
+      properties:
+        success:
+          type: boolean
+          example: true
+        queue:
+          type: array
+          items:
+            $ref: '#/components/schemas/SmsQueueItem'
+
+    ActiveNotification:
+      type: object
+      required: [id, type, title, body, created_at]
+      properties:
+        id:
+          type: integer
+          example: 12
+        type:
+          type: string
+          example: "payment_received"
+        title:
+          type: string
+          example: "Payment Completed"
+        body:
+          type: string
+          example: "Received BDT 500.00 for order pi_xxx"
+        payload:
+          type: object
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:00:05+06:00"
+
+    ActiveNotificationsResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ActiveNotification'
+
+    MobileDashboardResponse:
+      type: object
+      required: [success, stats, recent_transactions, unread_count, server_time]
+      properties:
+        success:
+          type: boolean
+          example: true
+        stats:
+          type: object
+          required: [today_total, today_count]
+          properties:
+            today_total:
+              type: number
+              example: 12500.00
+            today_count:
+              type: integer
+              example: 25
+        recent_transactions:
+          type: array
+          items:
+            $ref: '#/components/schemas/Transaction'
+        unread_count:
+          type: integer
+          example: 2
+        server_time:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:32:00+06:00"
+
+    FilterRulesResponse:
+      type: object
+      required: [success, version, updated_at, allowed_senders, positive_keywords, negative_keywords, check_interval_hours]
+      properties:
+        success:
+          type: boolean
+          example: true
+        version:
+          type: integer
+          example: 1
+        updated_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:00:00+06:00"
+        allowed_senders:
+          type: array
+          items:
+            type: string
+          example: ["bKash", "16247", "Nagad", "DBBL"]
+        positive_keywords:
+          type: array
+          items:
+            type: string
+          example: ["received", "credited", "TrxID", "deposited", "Tk"]
+        negative_keywords:
+          type: array
+          items:
+            type: string
+          example: ["OTP", "PIN", "password", "verify"]
+        check_interval_hours:
+          type: integer
+          example: 24
+
+    SmsTemplate:
+      type: object
+      required: [id, merchant_id, sender_pattern, regex_pattern, transaction_type, provider_name, currency, priority, is_active, created_at]
+      properties:
+        id:
+          type: integer
+          example: 1
+        merchant_id:
+          type: integer
+          example: 1
+        sender_pattern:
+          type: string
+          example: "bKash"
+        regex_pattern:
+          type: string
+          example: "/You have received Tk (?<amount>[\\d.]+)/i"
+        transaction_type:
+          type: string
+          enum: [credit, debit]
+          example: "credit"
+        provider_name:
+          type: string
+          example: "bKash"
+        currency:
+          type: string
+          example: "BDT"
+        priority:
+          type: integer
+          example: 10
+        is_active:
+          type: integer
+          enum: [0, 1]
+          example: 1
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:00:00.000000+06:00"
+
+    SmsTemplateListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SmsTemplate'
+
+    SmsTemplateDetailResponse:
+      type: object
+      required: [success, template]
+      properties:
+        success:
+          type: boolean
+          example: true
+        template:
+          $ref: '#/components/schemas/SmsTemplate'
+
+    SmsTemplateUpdateRequest:
+      type: object
+      properties:
+        sender_pattern:
+          type: string
+          example: "bKash"
+        regex_pattern:
+          type: string
+          example: "/You have received Tk (?<amount>[\\d.]+)/i"
+        transaction_type:
+          type: string
+          enum: [credit, debit]
+        provider_name:
+          type: string
+          example: "bKash"
+        currency:
+          type: string
+          example: "BDT"
+        priority:
+          type: integer
+          example: 10
+        is_active:
+          type: boolean
+          example: true
+
+    ParsedSmsLog:
+      type: object
+      required: [id, merchant_id, device_id, sender, body, status, created_at]
+      properties:
+        id:
+          type: integer
+          example: 204
+        merchant_id:
+          type: integer
+          example: 1
+        device_id:
+          type: string
+          example: "device-uuid-value"
+        sender:
+          type: string
+          example: "bKash"
+        body:
+          type: string
+          example: "You have received Tk 500.00 from 01700000000. TrxID TXN129482938."
+        amount:
+          type: string
+          nullable: true
+          example: "500.00"
+        trx_id:
+          type: string
+          nullable: true
+          example: "TXN129482938"
+        status:
+          type: string
+          enum: [pending, matched, unmatched, ignored, accepted, parse_error, admin_review]
+          example: "accepted"
+        created_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:00:00.000000+06:00"
+
+    AdminSmsQueueResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ParsedSmsLog'
+
+    AdminDevice:
+      type: object
+      required: [id, merchant_id, device_id, device_name, platform, status, paired_at]
+      properties:
+        id:
+          type: integer
+          example: 4
+        merchant_id:
+          type: integer
+          example: 1
+        device_id:
+          type: string
+          example: "device-uuid-value"
+        device_name:
+          type: string
+          example: "Samsung S24 Ultra"
+        platform:
+          type: string
+          example: "android"
+        status:
+          type: string
+          enum: [active, revoked, inactive]
+          example: "active"
+        paired_at:
+          type: string
+          format: date-time
+          example: "2026-05-21T03:00:00.000000+06:00"
+
+    AdminDeviceListResponse:
+      type: object
+      required: [success, data]
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/AdminDevice'

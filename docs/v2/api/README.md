@@ -2,7 +2,7 @@
 
 Welcome to the official API Reference for **OwnPay**. OwnPay provides developer-friendly REST endpoints to initiate payments, track transactions, manage customer profiles, pair companion mobile devices, and audit double-entry ledger balances.
 
-This documentation is designed to be easily imported into Readme.io, Swagger UI, or Postman. The full OpenAPI v3 specification is located at [`openapi.yaml`](file:///c:/laragon/www/ownpay/docs/v2/api/openapi.yaml).
+This documentation is fully structured to follow the **OpenAPI Specification v3.2.0**. The complete OpenAPI specification is located at [`openapi.yaml`](file:///c:/laragon/www/ownpay/docs/v2/api/openapi.yaml).
 
 ---
 
@@ -22,7 +22,7 @@ Authentication is scoped based on the API target group. The key must be passed w
 | API Group | Endpoint Prefix | Auth Mechanism | Example Token |
 |-----------|-----------------|----------------|---------------|
 | **Merchant API** | `/api/v1/*` | Bearer API Key | `Authorization: Bearer opk_live_xxxxxxxx` |
-| **Mobile API** | `/api/mobile/v1/*` | Bearer JWT | `Authorization: Bearer eyJhbGciOiJIUzI1NiIs...` |
+| **Mobile API** | `/api/mobile/v1/*` | Bearer JWT (Access token) | `Authorization: Bearer eyJhbGciOiJIUzI1NiIs...` |
 | **Admin API** | `/api/admin/v1/*` | Bearer API Key (Admin Scope) | `Authorization: Bearer opk_live_xxxxxxxx` |
 
 ### Getting a Merchant/Admin API Key
@@ -33,7 +33,13 @@ Authentication is scoped based on the API target group. The key must be passed w
 ### Pairing a Companion Mobile Device
 1. Navigate to the Admin Dashboard.
 2. Go to **Mobile & SMS → Paired Devices** and click **Generate Pairing Code** (generates a short-lived 6-digit numeric OTP).
-3. Post the OTP to the pair endpoint `/api/mobile/v1/devices/pair` to retrieve your JWT access token and refresh token.
+3. Post the OTP to the pair endpoint `/api/mobile/v1/devices/pair` to retrieve your JWT access token, refresh token, and AES-256-GCM encryption key.
+
+### JWT Token Rotation (Mobile API)
+The Mobile API uses a rotation policy on the `/api/mobile/v1/devices/refresh` endpoint:
+* Requesting a new access token requires a valid refresh token.
+* A new access token and a **new refresh token** are returned.
+* The previous refresh token is instantly blacklisted.
 
 ---
 
@@ -63,7 +69,7 @@ All API responses are returned as JSON. Successful responses contain a `success:
 * `201 Created` — Resource created (e.g., Payment Intent, customer).
 * `400 Bad Request` — Missing or malformed parameters.
 * `401 Unauthenticated` — Invalid or missing authorization headers.
-* `403 Forbidden` — Access denied due to role restrictions.
+* `403 Forbidden` — Access denied due to role restrictions or device deactivation.
 * `404 Not Found` — Resource or endpoint does not exist.
 * `422 Unprocessable Entity` — Request body failed validation.
 * `429 Too Many Requests` — Rate limit exceeded (Default: 60 requests/min).
@@ -194,9 +200,59 @@ echo "OK";
 
 ## 6. Detailed Endpoint Directory
 
-Refer to [`openapi.yaml`](file:///c:/laragon/www/ownpay/docs/v2/api/openapi.yaml) for complete request schemas, query filters, and response models of the remaining endpoints:
-* **Refund Management**: POST `/api/v1/refunds` and GET `/api/v1/refunds/{trx_id}`.
-* **Customer Registry**: GET `/api/v1/customers`, POST `/api/v1/customers`, GET `/api/v1/customers/{identifier}`.
-* **API Credentials Management**: GET `/api/v1/api-keys` and POST `/api/v1/api-keys/{id}/revoke`.
-* **Mobile Synchronization**: POST `/api/mobile/v1/sms` (forwarding gateway texts) and GET `/api/mobile/v1/config/filter-rules`.
-* **DNS Verification**: POST `/api/admin/v1/domains/verify`.
+Under OpenAPI v3.2.0, the endpoint directory is organized into hierarchical groupings:
+
+### Category A: Merchant Group (`Merchant`)
+* **Health**:
+  * `GET /api/v1/health` — Returns application version and status check.
+* **Payments**:
+  * `POST /api/v1/payments/initiate` — Starts a payment intent lifecycle.
+  * `GET /api/v1/payments/{trx_id}` — Resolves status of a payment intent.
+* **Transactions**:
+  * `GET /api/v1/transactions` — Queries paginated ledgered transactions.
+  * `GET /api/v1/transactions/{trx_id}` — Detailed settled transaction audit.
+* **Refunds**:
+  * `POST /api/v1/refunds` — Reverses a completed transaction.
+  * `GET /api/v1/refunds/{trx_id}` — Resolves refund audit details.
+* **Customers**:
+  * `GET /api/v1/customers` — Lists merchant customer profiles.
+  * `POST /api/v1/customers` — Inserts new customer records.
+  * `GET /api/v1/customers/{identifier}` — Retrieves a profile by ID, email, or phone.
+* **API Keys**:
+  * `GET /api/v1/api-keys` — Lists registered keys (masked format).
+  * `POST /api/v1/api-keys` — Generates a new merchant key.
+  * `POST /api/v1/api-keys/{id}/revoke` — Deactivates a credential.
+* **Webhooks**:
+  * `POST /api/v1/webhooks/test` — Dispatches test notification callbacks.
+  * `GET /api/v1/webhooks/deliveries` — Outbound webhook logs.
+
+### Category B: Mobile Group (`Mobile`)
+* **Mobile - Devices**:
+  * `POST /api/mobile/v1/devices/pair` — Validates pairing OTP to establish session JWT.
+  * `POST /api/mobile/v1/devices/heartbeat` — Periodic ping updating connectivity status.
+  * `POST /api/mobile/v1/devices/revoke` — Self-deactivates active device.
+  * `POST /api/mobile/v1/devices/bulk-revoke` — Deactivates multiple devices in one call.
+  * `POST /api/mobile/v1/devices/refresh` — Rotates and updates session credentials.
+  * `GET /api/mobile/v1/devices/status` — Retrieves connection details and merchant ID mapping.
+* **Mobile - SMS**:
+  * `POST /api/mobile/v1/sms` — Accepts single or batch forwarded SMS notification messages.
+  * `GET /api/mobile/v1/sms/queue` — Checks pending parse queue.
+* **Mobile - Notifications**:
+  * `GET /api/mobile/v1/notifications` — Lists unacknowledged push tasks.
+  * `POST /api/mobile/v1/notifications/ack` — Acknowledges processed notifications.
+* **Mobile - Dashboard**:
+  * `GET /api/mobile/v1/dashboard` — Aggregated today statistics for mobile panels.
+* **Mobile - Config**:
+  * `GET /api/mobile/v1/config/filter-rules` — SMS whitelist and processing metadata.
+
+### Category C: Admin Group (`Admin`)
+* **Admin - SMS**:
+  * `GET /api/admin/v1/sms-templates` — Lists active analyzer regex match patterns.
+  * `PUT /api/admin/v1/sms-templates/{id}` — Updates specific matching templates.
+  * `GET /api/admin/v1/sms-queue` — System-wide list of parsed and unparsed SMS logs.
+  * `POST /api/admin/v1/sms-queue/{id}/retry` — Reprocesses raw messages.
+* **Admin - Devices**:
+  * `GET /api/admin/v1/devices` — Lists registered devices system-wide.
+  * `POST /api/admin/v1/devices/{id}/revoke` — Force-revokes device sessions.
+* **Admin - Domains**:
+  * `POST /api/admin/v1/domains/verify` — Triggers DNS mapping status checks.
