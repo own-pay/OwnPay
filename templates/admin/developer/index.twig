@@ -58,7 +58,7 @@
             </p>
         </div>
     </div>
-    <script>
+    <script nonce="{{ csp_nonce }}">
     function copyGeneratedKey() {
         const input = document.getElementById('generated-key-input');
         navigator.clipboard.writeText(input.value).then(() => {

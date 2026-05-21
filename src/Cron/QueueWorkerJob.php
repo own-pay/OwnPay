@@ -53,11 +53,15 @@ final class QueueWorkerJob
         $failed = 0;
 
         foreach ($jobs as $job) {
-            // Lock job
-            $this->db->update(
+            // Lock job atomically
+            // BUG-52 FIX: Check row count — if 0, another worker claimed this job.
+            $affected = $this->db->update(
                 "UPDATE op_job_queue SET status = 'processing', started_at = NOW() WHERE id = :id AND status = 'pending'",
                 ['id' => $job['id']]
             );
+            if ($affected === 0) {
+                continue; // Another worker already claimed this job
+            }
 
             $type = $job['type'] ?? '';
             $payload = json_decode($job['payload'] ?? '{}', true) ?: [];

@@ -70,12 +70,12 @@ final class CommLogRepository extends BaseRepository
     {
         return $this->db->fetchOne(
             "SELECT
-                COUNT(CASE WHEN status='pending' THEN 1 END) as pending,
+                COUNT(CASE WHEN status='queued' THEN 1 END) as queued,
                 COUNT(CASE WHEN status='sent' THEN 1 END) as sent,
                 COUNT(CASE WHEN status='failed' THEN 1 END) as failed
              FROM {$this->table} WHERE channel='sms' AND merchant_id = :mid",
             ['mid' => $merchantId]
-        ) ?? ['pending' => 0, 'sent' => 0, 'failed' => 0];
+        ) ?? ['queued' => 0, 'sent' => 0, 'failed' => 0];
     }
 
     /**
@@ -85,19 +85,20 @@ final class CommLogRepository extends BaseRepository
     {
         return $this->db->fetchAll(
             "SELECT id, recipient as `to`, body FROM {$this->table}
-             WHERE channel = 'sms' AND status = 'pending' AND merchant_id = :mid
+             WHERE channel = 'sms' AND status = 'queued' AND merchant_id = :mid
              ORDER BY created_at ASC LIMIT {$limit}",
             ['mid' => $merchantId]
         );
     }
 
     /**
-     * Reset SMS entry to pending for retry.
+     * Reset SMS entry to queued for retry.
+     * BUG-49 FIX: Removed non-existent 'attempt' column; use 'queued' not 'pending'.
      */
     public function retrySms(int $id, int $merchantId): void
     {
         $this->db->execute(
-            "UPDATE {$this->table} SET status = 'pending', attempt = 0 WHERE id = :id AND merchant_id = :mid AND channel = 'sms'",
+            "UPDATE {$this->table} SET status = 'queued', error = NULL WHERE id = :id AND merchant_id = :mid AND channel = 'sms'",
             ['id' => $id, 'mid' => $merchantId]
         );
     }

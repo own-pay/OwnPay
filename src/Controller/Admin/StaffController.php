@@ -69,6 +69,22 @@ final class StaffController
         $data = $req->post();
         $roleId = !empty($data['role_id']) ? (int) $data['role_id'] : null;
 
+        // BUG-45 FIX: Validate role_id belongs to this brand.
+        // Without this, attacker can assign a role from another brand.
+        if ($roleId !== null) {
+            $validRole = false;
+            foreach ($roles as $r) {
+                if ((int) $r['id'] === $roleId) {
+                    $validRole = true;
+                    break;
+                }
+            }
+            if (!$validRole) {
+                $this->session->flashError('Invalid role for this brand.');
+                return Response::redirect('/admin/staff/create');
+            }
+        }
+
         // If no role selected, use default Staff role
         if ($roleId === null) {
             foreach ($roles as $r) {
@@ -137,7 +153,18 @@ final class StaffController
             $update['password_hash'] = password_hash($data['password'], PASSWORD_ARGON2ID);
         }
         if (!empty($data['role_id'])) {
-            $update['role_id'] = (int) $data['role_id'];
+            // BUG-45 FIX: Validate role_id belongs to this user's brand.
+            $newRoleId = (int) $data['role_id'];
+            $validRole = false;
+            foreach ($roles as $r) {
+                if ((int) $r['id'] === $newRoleId) {
+                    $validRole = true;
+                    break;
+                }
+            }
+            if ($validRole) {
+                $update['role_id'] = $newRoleId;
+            }
         }
 
         $this->userRepo->updateStaff($id, $update, $merchantScope);

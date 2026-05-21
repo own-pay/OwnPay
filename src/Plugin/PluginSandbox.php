@@ -33,7 +33,10 @@ final class PluginSandbox
                 return false;
             }
         }
-        return str_starts_with($real, $this->pluginDir);
+        // BUG-51 FIX: Append trailing separator to prevent sibling-plugin path traversal.
+        // Without this, plugin dir "/stripe" could match "/stripe-payment/file.php".
+        $pluginDirWithSep = rtrim($this->pluginDir, '/\\') . DIRECTORY_SEPARATOR;
+        return str_starts_with($real, $pluginDirWithSep) || $real === rtrim($this->pluginDir, '/\\');
     }
 
     /**

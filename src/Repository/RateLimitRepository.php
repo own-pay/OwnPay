@@ -4,68 +4,61 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
-use OwnPay\Support\DateHelper;
-
 /**
- * DB-backed sliding window storage for rate limiting.
+ * Repository for op_rate_limits — sliding window rate limiting.
  *
- * Uses op_rate_limits table. If the table doesn't exist,
- * gracefully degrades (rate limiting disabled).
- *
- * NOTE: TenantScope is declared for interface consistency but is NOT
- * applied in queries because the op_rate_limits table is keyed by
- * rate_key (which already encodes the tenant context, e.g. "api_key:123")
- * and has no merchant_id column.
+ * BUG-19 FIX: Completely rewritten to match the database schema.
+ * Schema uses a counter model: key_name, hits, window_start, expires_at
+ * (NOT the per-row hit model the old code used with rate_key + hit_at).
  */
 final class RateLimitRepository extends BaseRepository
 {
-    use TenantScope;
-
     protected string $table = 'op_rate_limits';
 
     /**
-     * Record a request hit and return the current window count.
+     * Record a hit for the given key and return the current hit count.
+     * Uses atomic INSERT ON DUPLICATE KEY UPDATE for concurrency safety.
      */
     public function hit(string $key, int $windowSec = 60): int
     {
-        $windowStart = DateHelper::ago($windowSec);
-
+        $now = time();
+        $expires = $now + $windowSec;
         try {
             $this->db->execute(
-                "INSERT INTO {$this->table} (rate_key, hit_at) VALUES (:rk, NOW(6))",
-                ['rk' => $key]
+                "INSERT INTO {$this->table} (key_name, hits, window_start, expires_at)
+                 VALUES (:k, 1, :ws, :exp)
+                 ON DUPLICATE KEY UPDATE
+                    hits = IF(expires_at > :now2, hits + 1, 1),
+                    window_start = IF(expires_at > :now3, window_start, :ws2),
+                    expires_at = IF(expires_at > :now4, expires_at, :exp2)",
+                [
+                    'k' => $key, 'ws' => $now, 'exp' => $expires,
+                    'now2' => $now, 'now3' => $now, 'ws2' => $now,
+                    'now4' => $now, 'exp2' => $expires,
+                ]
             );
-
             $row = $this->db->fetchOne(
-                "SELECT COUNT(*) as cnt FROM {$this->table} WHERE rate_key = :rk AND hit_at >= :ws",
-                ['rk' => $key, 'ws' => $windowStart]
+                "SELECT hits FROM {$this->table} WHERE key_name = :k AND expires_at > :now",
+                ['k' => $key, 'now' => $now]
             );
-
-            return (int) ($row['cnt'] ?? 0);
+            return (int) ($row['hits'] ?? 0);
         } catch (\PDOException $e) {
-            // L-02 FIX: Use Logger for rotation + sanitization
-            try {
-                (new \OwnPay\Service\System\Logger('ratelimit'))->warning('DB error: ' . $e->getMessage());
-            } catch (\Throwable) {
-                error_log("[RateLimit] DB error: " . $e->getMessage());
-            }
             return 0;
         }
     }
 
     /**
-     * Get remaining hits in the current window.
+     * Get remaining hits before rate limit is reached.
      */
     public function remaining(string $key, int $limit, int $windowSec = 60): int
     {
-        $windowStart = DateHelper::ago($windowSec);
-
+        $now = time();
         try {
             $row = $this->db->fetchOne(
-                "SELECT COUNT(*) as cnt FROM {$this->table} WHERE rate_key = :rk AND hit_at >= :ws",
-                ['rk' => $key, 'ws' => $windowStart]
+                "SELECT hits FROM {$this->table} WHERE key_name = :k AND expires_at > :now",
+                ['k' => $key, 'now' => $now]
             );
-            $count = (int) ($row['cnt'] ?? 0);
+            $count = (int) ($row['hits'] ?? 0);
             return max(0, $limit - $count);
         } catch (\PDOException $e) {
             return $limit;
@@ -73,15 +66,14 @@ final class RateLimitRepository extends BaseRepository
     }
 
     /**
-     * Purge expired entries (housekeeping).
+     * Purge expired rate limit entries.
      */
     public function purgeExpired(int $olderThanSec = 300): int
     {
-        $cutoff = DateHelper::ago($olderThanSec);
-
+        $cutoff = time() - $olderThanSec;
         try {
             $stmt = $this->db->execute(
-                "DELETE FROM {$this->table} WHERE hit_at < :cutoff",
+                "DELETE FROM {$this->table} WHERE expires_at < :cutoff",
                 ['cutoff' => $cutoff]
             );
             return $stmt->rowCount();
@@ -90,4 +82,3 @@ final class RateLimitRepository extends BaseRepository
         }
     }
 }
-

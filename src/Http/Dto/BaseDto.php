@@ -49,9 +49,16 @@ abstract class BaseDto
 
                 $property->setValue($dto, $value);
             } else {
-                // Check if property is initialized (has default value or is nullable)
-                if (!$property->isInitialized($dto) && (!$property->getType() || !$property->getType()->allowsNull())) {
-                     throw new InvalidArgumentException("Missing required property '{$name}'.");
+                // BUG-2 FIX: Nullable properties without defaults (e.g. `public ?string $note;`)
+                // are uninitialized but should default to null, not throw.
+                $type = $property->getType();
+                if (!$property->isInitialized($dto)) {
+                    if ($type && $type->allowsNull()) {
+                        // Nullable + uninitialized + missing from input → set to null
+                        $property->setValue($dto, null);
+                    } else {
+                        throw new InvalidArgumentException("Missing required property '{$name}'.");
+                    }
                 }
             }
         }

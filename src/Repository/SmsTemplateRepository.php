@@ -74,11 +74,13 @@ final class SmsTemplateRepository extends BaseRepository
 
     /**
      * List all templates for merchant (admin page).
+     * BUG-20 FIX: Sanitize orderBy to prevent SQL injection.
      */
     public function listForAdmin(int $merchantId, string $orderBy = 'priority ASC, created_at DESC'): array
     {
+        $safeOrder = $this->sanitizeOrderBy($orderBy);
         return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE merchant_id = :mid ORDER BY {$orderBy}",
+            "SELECT * FROM {$this->table} WHERE merchant_id = :mid ORDER BY {$safeOrder}",
             ['mid' => $merchantId]
         );
     }
@@ -159,13 +161,15 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * List all active templates (any merchant).
+     * List active templates scoped to tenant.
+     * BUG-39 FIX: Was globally unscoped, leaking all merchants' SMS senders.
      * Used by Mobile ConfigController for filter rules.
      */
-    public function listActive(): array
+    public function listActiveForTenant(int $merchantId): array
     {
         return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE status = 'active' ORDER BY priority ASC"
+            "SELECT * FROM {$this->table} WHERE status = 'active' AND (merchant_id IS NULL OR merchant_id = :mid) ORDER BY priority ASC",
+            ['mid' => $merchantId]
         );
     }
 }

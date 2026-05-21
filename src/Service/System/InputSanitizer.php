@@ -24,9 +24,10 @@ final class InputSanitizer
             return $result;
         }
         if (is_string($input)) {
-            $stripped = strip_tags($input);
-            $trimmed = trim($stripped);
-            return htmlspecialchars($trimmed, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // BUG-24 FIX: Do NOT pre-escape with htmlspecialchars here.
+            // Data is stored raw; Twig's auto-escaping handles output.
+            // Pre-escaping causes double-encoding (e.g., &amp;amp;).
+            return trim(strip_tags($input));
         }
         return $input;
     }

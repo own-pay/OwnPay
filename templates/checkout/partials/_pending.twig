@@ -110,4 +110,4 @@
 </div>
 
 {# Auto-refresh every 15 seconds for pending/processing states #}
-<script>setTimeout(function(){location.reload()},15000);</script>
+<script nonce="{{ csp_nonce }}">setTimeout(function(){location.reload()},15000);</script>

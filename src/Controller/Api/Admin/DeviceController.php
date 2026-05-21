@@ -13,7 +13,12 @@ final class DeviceController
     /** @phpstan-ignore property.onlyWritten */
     private Container $c;
     private DevicePairingService $devices;
-    public function __construct(Container $c, DevicePairingService $devices) { $this->c = $c; $this->devices = $devices; }
+
+    public function __construct(Container $c, DevicePairingService $devices)
+    {
+        $this->c = $c;
+        $this->devices = $devices;
+    }
 
     public function index(Request $req): Response
     {
@@ -24,10 +29,10 @@ final class DeviceController
 
     public function revoke(Request $req): Response
     {
-        $id = (int) $req->param('id');
+        // BUG-47 FIX: Params were swapped — revoke(string $deviceUuid, int $merchantId)
+        $deviceUuid = (string) $req->param('id');
         $mid = (int) $req->getAttribute('merchant_id');
-        /** @phpstan-ignore-next-line */
-        $this->devices->revoke($mid, $id);
+        $this->devices->revoke($deviceUuid, $mid);
         return Response::json(['success' => true]);
     }
 }

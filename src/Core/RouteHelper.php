@@ -20,11 +20,14 @@ final class RouteHelper
             $requestUri = $_SERVER['REQUEST_URI'] ?? '';
         }
 
-        $hostParts = explode('.', $host);
+        // BUG-5 FIX: Strip port from host before domain parsing.
+        // 'ownpay.test:8443' → explode('.') produces 'test:8443' as last part.
+        $hostWithoutPort = preg_replace('/:\d+$/', '', $host);
+        $hostParts = explode('.', $hostWithoutPort);
         $numParts = count($hostParts);
         $mainDomain = ($numParts >= 2)
             ? $hostParts[$numParts - 2] . '.' . $hostParts[$numParts - 1]
-            : $host;
+            : $hostWithoutPort;
 
         return match (strtolower($type)) {
             'fulldomain' => $protocol . $host,

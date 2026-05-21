@@ -178,7 +178,23 @@ final class Database
 
         $start = hrtime(true);
         $stmt = $this->pdo->prepare($sql);
-        $stmt->execute($params);
+
+        // BUG-14/34 FIX: With ATTR_EMULATE_PREPARES=false, PDO requires
+        // LIMIT/OFFSET bound as PDO::PARAM_INT. Using $stmt->execute()
+        // binds everything as PDO::PARAM_STR, causing MySQL errors.
+        foreach ($params as $key => $value) {
+            $paramKey = is_int($key) ? $key + 1 : ":{$key}";
+            if (is_int($value)) {
+                $stmt->bindValue($paramKey, $value, PDO::PARAM_INT);
+            } elseif ($value === null) {
+                $stmt->bindValue($paramKey, null, PDO::PARAM_NULL);
+            } elseif (is_bool($value)) {
+                $stmt->bindValue($paramKey, $value, PDO::PARAM_BOOL);
+            } else {
+                $stmt->bindValue($paramKey, $value, PDO::PARAM_STR);
+            }
+        }
+        $stmt->execute();
         $durationMs = (hrtime(true) - $start) / 1_000_000;
 
         // AUD-G3: Fire db.query.after action — profiling, audit logging

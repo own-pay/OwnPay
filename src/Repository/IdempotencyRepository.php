@@ -12,6 +12,10 @@ final class IdempotencyRepository extends BaseRepository
     use TenantScope;
 
     protected string $table = 'op_idempotency_keys';
+    protected array $fillable = [
+        'merchant_id', 'idempotency_key', 'request_hash',
+        'response_code', 'response_body', 'expires_at',
+    ];
 
     protected function hasPublicId(): bool
     {
@@ -21,24 +25,26 @@ final class IdempotencyRepository extends BaseRepository
     /**
      * Acquire an idempotency lock.
      * Returns existing row if key already exists (replay), null if new.
+     * BUG-16 FIX: Removed non-existent 'scope' column. Added expires_at check.
      */
-    public function findByKey(string $scope, string $key): ?array
+    public function findByKey(string $key): ?array
     {
         return $this->db->fetchOne(
-            "SELECT * FROM `{$this->table}` WHERE `scope` = :scope AND `idempotency_key` = :key AND `merchant_id` = :mid LIMIT 1",
-            ['scope' => $scope, 'key' => $key, 'mid' => $this->requireTenant()]
+            "SELECT * FROM `{$this->table}` WHERE `idempotency_key` = :key AND `merchant_id` = :mid AND `expires_at` > NOW(6) LIMIT 1",
+            ['key' => $key, 'mid' => $this->requireTenant()]
         );
     }
 
     /**
      * Store the response payload for a completed request.
+     * BUG-16 FIX: Use correct column names: response_body, response_code.
+     * Schema has no 'status' column.
      */
-    public function complete(int|string $id, string $responsePayload, int $httpStatus): int
+    public function complete(int|string $id, string $responseBody, int $responseCode): int
     {
         return $this->updateScoped($id, [
-            'response_payload' => $responsePayload,
-            'http_status' => $httpStatus,
-            'status' => 'completed',
+            'response_body' => $responseBody,
+            'response_code' => $responseCode,
         ]);
     }
 

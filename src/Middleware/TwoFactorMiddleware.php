@@ -45,7 +45,9 @@ final class TwoFactorMiddleware
                 if ($request->expectsJson()) {
                     return Response::json(['success' => false, 'message' => 'Session expired'], 401);
                 }
-                return Response::redirect('/login');
+                // BUG-44 FIX: Use dynamic login slug.
+                $loginSlug = $this->resolveLoginSlug();
+                return Response::redirect("/{$loginSlug}");
             }
             $request->setAttribute('auth_user', $user);
         }
@@ -172,5 +174,19 @@ final class TwoFactorMiddleware
         }
 
         return $output;
+    }
+
+    /**
+     * Resolve dynamic login slug from settings.
+     * BUG-44 FIX: Hardcoded '/login' fails when custom slug is configured.
+     */
+    private function resolveLoginSlug(): string
+    {
+        try {
+            $settings = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
+            return $settings->get('security', 'admin_login_slug', 'login');
+        } catch (\Throwable) {
+            return 'login';
+        }
     }
 }

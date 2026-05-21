@@ -92,21 +92,28 @@ final class DeviceController
 
     /**
      * POST /api/mobile/v1/devices/bulk-revoke
-     * Body: { device_ids: [1, 2, 3] }
+     * Body: { device_ids: ["uuid1", "uuid2"] }
+     *
+     * BUG-38 FIX: Accept string UUIDs, not integers.
+     * revoke() expects UUID strings; intval('uuid') = 0, filtering out all valid devices.
      */
     public function bulkRevoke(Request $req): Response
     {
         $mid  = (int) $req->getAttribute('merchant_id');
         $body = $req->json();
-        $ids  = array_filter(array_map('intval', $body['device_ids'] ?? []));
+        $ids  = array_filter(
+            array_map(fn($id) => InputSanitizer::string((string) $id), $body['device_ids'] ?? []),
+            fn($id) => $id !== ''
+        );
         if (empty($ids)) {
             return Response::json(['success' => false, 'error' => 'device_ids required'], 422);
         }
 
         $count = 0;
-        foreach ($ids as $id) {
-            $this->devices->revoke((string) $id, $mid);
-            $count++;
+        foreach ($ids as $deviceUuid) {
+            if ($this->devices->revoke($deviceUuid, $mid)) {
+                $count++;
+            }
         }
         return Response::json(['success' => true, 'revoked' => $count]);
     }

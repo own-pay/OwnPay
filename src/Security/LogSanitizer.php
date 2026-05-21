@@ -112,7 +112,12 @@ final class LogSanitizer
         $input = preg_replace('/(?:\+?88)?01[3-9]\d{8}/', '[PHONE_REDACTED]', $input) ?? $input;
 
         // Maestro/UnionPay 13-19 digit card redaction (with space/hyphen separators)
-        $input = preg_replace('/\b(?:\d[ -]*?){13,19}\b/', '[CARD_REDACTED]', $input) ?? $input;
+        // BUG-25 FIX: Only redact sequences that pass Luhn checksum validation
+        // to avoid redacting transaction IDs and database identifiers.
+        $input = preg_replace_callback('/\b(?:\d[ -]*?){13,19}\b/', function (array $match): string {
+            $digits = preg_replace('/\D/', '', $match[0]);
+            return self::passesLuhn($digits) ? '[CARD_REDACTED]' : $match[0];
+        }, $input) ?? $input;
 
         // Bangladesh NID strict-mode checks (13 or 17 digit numeric sequences)
         if ($this->strict) {
@@ -133,6 +138,28 @@ final class LogSanitizer
             return json_encode($this->sanitizeArray($data)) ?: '{}';
         }
         return $json;
+    }
+
+    /**
+     * Validate a number sequence against the Luhn algorithm.
+     * BUG-25 FIX: Used to distinguish card numbers from transaction IDs.
+     */
+    private static function passesLuhn(string $number): bool
+    {
+        $sum = 0;
+        $len = strlen($number);
+        $parity = $len % 2;
+        for ($i = 0; $i < $len; $i++) {
+            $digit = (int) $number[$i];
+            if ($i % 2 === $parity) {
+                $digit *= 2;
+                if ($digit > 9) {
+                    $digit -= 9;
+                }
+            }
+            $sum += $digit;
+        }
+        return $sum % 10 === 0;
     }
 
     private static function containsSensitiveKey(string $key): bool

@@ -64,6 +64,9 @@ trait TenantScope
     public function updateScoped(int|string $id, array $data): int
     {
         $filtered = $this->filterFillable($data);
+        // BUG-13 FIX: Never allow merchant_id to be changed via update.
+        // This prevents cross-tenant resource migration attacks.
+        unset($filtered['merchant_id']);
         if (empty($filtered)) {
             return 0;
         }

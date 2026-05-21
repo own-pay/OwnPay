@@ -11,7 +11,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/admin.css?v=012">
-    <script>/* Prevent FOUC: apply saved theme before paint */
+    <script nonce="{{ csp_nonce }}">/* Prevent FOUC: apply saved theme before paint */
     (function(){var t=localStorage.getItem('op-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}})();
     </script>
     {% block head %}{% endblock %}
@@ -47,7 +47,7 @@
 
     {% include 'admin/layout/modals.twig' %}
 
-    <script>window.OP_CSRF='{{ csrf_token }}';</script>
+    <script nonce="{{ csp_nonce }}">window.OP_CSRF='{{ csrf_token }}';</script>
     <script src="/assets/js/admin.js"></script>
     {% block scripts %}{% endblock %}
     {{ hook('admin.footer')|raw }}

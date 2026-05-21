@@ -51,7 +51,15 @@ final class SettingsRenderer
             /** @phpstan-ignore-next-line */
             $help = $field['help'] ?? '';
             /** @phpstan-ignore-next-line */
-            $value = $currentValues[$name] ?? (string) $default;
+            // BUG-30 FIX: $default may be int, float, bool, or array — (string) on
+            // array throws TypeError. Cast scalars safely, stringify arrays as JSON.
+            $rawDefault = $field['default'] ?? '';
+            if (is_array($rawDefault)) {
+                $defaultStr = json_encode($rawDefault, JSON_UNESCAPED_UNICODE) ?: '';
+            } else {
+                $defaultStr = (string) $rawDefault;
+            }
+            $value = $currentValues[$name] ?? $defaultStr;
 
             $html .= '<div class="op-field-group">';
             $html .= '<label for="setting_' . self::e($name) . '">' . self::e($label) . '</label>';

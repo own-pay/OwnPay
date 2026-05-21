@@ -74,7 +74,11 @@ final class RateLimiterMiddleware
             try {
                 /** @var \OwnPay\Cache\RedisCache $cache */
                 $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
-                return (int) ($cache->get($key) ?? 0);
+                // BUG-10 FIX: Use raw Redis GET, not cache->get().
+                // INCR stores plain integers; cache->get() unserializes and
+                // unserialize("5") returns false → always reads 0.
+                $val = $cache->redis()->get('op:' . $key);
+                return $val !== false ? (int) $val : 0;
             } catch (\Throwable $e) {
                 $this->logWarning('Redis getHits failed: ' . $e->getMessage());
             }
@@ -97,13 +101,25 @@ final class RateLimiterMiddleware
      */
     private function increment(string $key, int $now, int $window): void
     {
-        // Try Redis (already atomic via incr)
+        // Try Redis (atomic via native INCR — no TOCTOU)
         if ($this->container->has(\OwnPay\Cache\RedisCache::class)) {
             try {
                 /** @var \OwnPay\Cache\RedisCache $cache */
                 $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
-                $current = (int) ($cache->get($key) ?? 0);
-                $cache->set($key, $current + 1, $window);
+                $redis = $cache->redis();
+                $prefixedKey = 'op:' . $key;
+
+                // BUG-10 FIX: Use native Redis INCR — single atomic operation.
+                // Previous code did get() then set(current+1), losing counts
+                // under concurrent requests (two requests read same value,
+                // both write value+1, effectively counting 1 hit instead of 2).
+                $hits = $redis->incr($prefixedKey);
+
+                // Set TTL only on first increment (when key was just created)
+                if ($hits === 1) {
+                    $redis->expire($prefixedKey, $window);
+                }
+
                 return;
             } catch (\Throwable $e) {
                 $this->logWarning('Redis increment failed: ' . $e->getMessage());

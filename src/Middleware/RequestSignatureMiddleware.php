@@ -76,24 +76,20 @@ final class RequestSignatureMiddleware
             ], 401);
         }
 
-        // H-08 FIX: Replay protection — X-Timestamp header is now REQUIRED.
-        // Without it, signed requests can be replayed indefinitely.
-        // FIX: header() returns string not null — check empty string
+        // H-08 FIX: Replay protection via X-Timestamp header.
+        // BUG-11 FIX: Made OPTIONAL — standard gateway webhooks (Stripe, PayPal,
+        // SSLCommerz) don't send X-Timestamp. Blocking them breaks all payments.
+        // Enforce replay check only when the header IS present.
         $timestamp = $request->header('X-Timestamp');
-        if ($timestamp === '') {
-            return Response::json([
-                'success' => false,
-                'message' => 'X-Timestamp header required for signed requests',
-            ], 401);
-        }
-
-        $requestTime = (int) $timestamp;
-        $tolerance = 300; // 5 minutes
-        if (abs(time() - $requestTime) > $tolerance) {
-            return Response::json([
-                'success' => false,
-                'message' => 'Request timestamp too old (replay rejected)',
-            ], 401);
+        if ($timestamp !== '') {
+            $requestTime = (int) $timestamp;
+            $tolerance = 300; // 5 minutes
+            if (abs(time() - $requestTime) > $tolerance) {
+                return Response::json([
+                    'success' => false,
+                    'message' => 'Request timestamp too old (replay rejected)',
+                ], 401);
+            }
         }
 
         return $next($request);
