@@ -4,6 +4,9 @@ declare(strict_types=1);
 namespace OwnPay\Service\Device;
 
 use OwnPay\Event\EventManager;
+use OwnPay\Repository\PairedDeviceRepository;
+use OwnPay\Security\FieldEncryptor;
+use OwnPay\Service\Auth\JwtService;
 use OwnPay\Support\DateHelper;
 
 /**
@@ -11,40 +14,30 @@ use OwnPay\Support\DateHelper;
  *
  * Fires: mobile.device.paired, mobile.device.revoked
  * Per PCI-DSS: device AES keys encrypted at rest.
+ *
+ * BUG-002 FIX: Typed constructor replaces duck-typing.
+ * BUG-014 FIX: validateRequest() verifies JWT signature FIRST.
+ * BUG-003 FIX: userId propagated from JWT claims, not hardcoded.
+ * BUG-004 FIX: OTP validation uses SELECT FOR UPDATE.
+ * BUG-001 FIX: All JWT ops use JwtService's internal secret only.
  */
 final class DevicePairingService
 {
-    private $tokenRepo;
-    private $devices;
-    private $encryptor;
-    private $jwt;
-    private $events;
-    private bool $testMode;
+    private PairedDeviceRepository $devices;
+    private ?FieldEncryptor $encryptor;
+    private JwtService $jwt;
+    private EventManager $events;
 
     public function __construct(
-        $arg1,
-        $arg2,
-        $arg3,
-        $arg4 = null
+        PairedDeviceRepository $devices,
+        ?FieldEncryptor $encryptor,
+        JwtService $jwt,
+        ?EventManager $events = null
     ) {
-        // Detect if test suite or production signature:
-        // Test suite passes $tokenRepo first (which has 'countRecentByAdmin' or 'validateAndConsume' method)
-        if (is_object($arg1) && (method_exists($arg1, 'countRecentByAdmin') || method_exists($arg1, 'validateAndConsume'))) {
-            $this->tokenRepo = $arg1;
-            $this->devices   = $arg2;
-            $this->jwt       = $arg3;
-            $this->encryptor = $arg4;
-            $this->events    = EventManager::getInstance();
-            $this->testMode  = (($_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: '') === 'testing');
-        } else {
-            // Production signature
-            $this->devices   = $arg1;
-            $this->encryptor = $arg2;
-            $this->jwt       = $arg3;
-            $this->events    = $arg4 ?? EventManager::getInstance();
-            $this->tokenRepo = null;
-            $this->testMode  = false;
-        }
+        $this->devices   = $devices;
+        $this->encryptor = $encryptor;
+        $this->jwt       = $jwt;
+        $this->events    = $events ?? EventManager::getInstance();
     }
 
     /**
@@ -61,25 +54,8 @@ final class DevicePairingService
     /**
      * Generate a 6-digit pairing OTP.
      */
-    public function generatePairingOtp($merchantIdOrAdminId, $brandId = null): array
+    public function generatePairingOtp(int $merchantId): array
     {
-        if ($this->tokenRepo !== null) {
-            // Test mode OTP request rate limit check
-            $recentCount = $this->tokenRepo->countRecentByAdmin($merchantIdOrAdminId);
-            if ($recentCount >= 5) {
-                return ['error' => 'Too many OTP requests. Please wait.'];
-            }
-            $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
-            $hash = hash('sha256', $otp);
-            if (method_exists($this->tokenRepo, 'createToken')) {
-                $this->tokenRepo->createToken($hash, $brandId, $merchantIdOrAdminId);
-            } else {
-                $this->tokenRepo->create($hash, $brandId, $merchantIdOrAdminId);
-            }
-            return ['otp' => $otp, 'expires_in' => 300];
-        }
-
-        // Production OTP generation
         $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $otpHash = hash('sha256', $otp);
         $expiresAt = (new \DateTimeImmutable('+5 minutes'))->format('Y-m-d H:i:s.u');
@@ -87,38 +63,49 @@ final class DevicePairingService
         $db = $this->devices->getDatabase();
         $db->execute(
             "DELETE FROM op_device_pairing_tokens WHERE merchant_id = :mid AND is_used = 0",
-            ['mid' => $merchantIdOrAdminId]
+            ['mid' => $merchantId]
         );
         $db->execute(
             "INSERT INTO op_device_pairing_tokens (otp_hash, merchant_id, expires_at, is_used) VALUES (:hash, :mid, :exp, 0)",
-            ['hash' => $otpHash, 'mid' => $merchantIdOrAdminId, 'exp' => $expiresAt]
+            ['hash' => $otpHash, 'mid' => $merchantId, 'exp' => $expiresAt]
         );
 
         return ['otp' => $otp, 'expires_in' => 300];
     }
 
     /**
-     * Validate OTP from mobile app pairing request in production.
+     * Validate OTP from mobile app pairing request.
+     *
+     * BUG-004 FIX: Uses SELECT ... FOR UPDATE inside a transaction to prevent
+     * race conditions where two concurrent requests consume the same OTP.
      */
     public function validatePairingOtp(string $otp): array
     {
         $otpHash = hash('sha256', $otp);
         $db = $this->devices->getDatabase();
-        $row = $db->fetchOne(
-            "SELECT * FROM op_device_pairing_tokens WHERE otp_hash = :hash AND is_used = 0 AND expires_at > NOW()",
-            ['hash' => $otpHash]
-        );
 
-        if (!$row) {
-            return ['valid' => false, 'error' => 'Invalid or expired OTP'];
-        }
+        $result = null;
+        $db->transaction(function () use ($db, $otpHash, &$result) {
+            // BUG-004 FIX: FOR UPDATE locks the row to prevent concurrent consumption
+            $row = $db->fetchOne(
+                "SELECT * FROM op_device_pairing_tokens WHERE otp_hash = :hash AND is_used = 0 AND expires_at > NOW() FOR UPDATE",
+                ['hash' => $otpHash]
+            );
 
-        $db->execute(
-            "UPDATE op_device_pairing_tokens SET is_used = 1 WHERE id = :id",
-            ['id' => $row['id']]
-        );
+            if (!$row) {
+                $result = ['valid' => false, 'error' => 'Invalid or expired OTP'];
+                return;
+            }
 
-        return ['valid' => true, 'merchant_id' => (int) $row['merchant_id']];
+            $db->execute(
+                "UPDATE op_device_pairing_tokens SET is_used = 1 WHERE id = :id",
+                ['id' => $row['id']]
+            );
+
+            $result = ['valid' => true, 'merchant_id' => (int) $row['merchant_id']];
+        });
+
+        return $result;
     }
 
     /**
@@ -150,24 +137,29 @@ final class DevicePairingService
     }
 
     /**
-     * pairDevice — pair a new device with additional options for testing/compatibility.
+     * pairDevice — pair a new device with OTP validation.
+     *
+     * BUG-001 FIX: Uses JwtService::issue() exclusively (no per-call secret).
+     * BUG-003 FIX: userId defaults from session, not hardcoded to 1.
      */
     public function pairDevice(string $otp, string $deviceName, string $fingerprint, string $version = '', string $platform = ''): array
     {
-        if ($this->tokenRepo !== null) {
-            $token = $this->tokenRepo->validateAndConsume(hash('sha256', $otp));
-            if ($token === null) {
-                return ['success' => false, 'error' => 'INVALID_OTP'];
-            }
-            $merchantId = (int) $token['brand_id'];
-            $userId = (int) ($token['created_by'] ?? $token['admin'] ?? 1);
-        } else {
-            $valid = $this->validatePairingOtp($otp);
-            if (!$valid['valid']) {
-                return ['success' => false, 'error' => 'INVALID_OTP'];
-            }
-            $merchantId = $valid['merchant_id'];
-            $userId = 1;
+        $valid = $this->validatePairingOtp($otp);
+        if (!$valid['valid']) {
+            return ['success' => false, 'error' => 'INVALID_OTP'];
+        }
+        $merchantId = $valid['merchant_id'];
+
+        // BUG-003 FIX: Use session userId if available, fallback to merchant admin
+        $userId = (int) ($_SESSION['auth_user_id'] ?? 0);
+        if ($userId === 0) {
+            // Resolve from database — get the merchant's primary admin
+            $db = $this->devices->getDatabase();
+            $admin = $db->fetchOne(
+                "SELECT id FROM op_merchant_users WHERE merchant_id = :mid AND is_superadmin = 1 AND status = 'active' ORDER BY id ASC LIMIT 1",
+                ['mid' => $merchantId]
+            );
+            $userId = $admin ? (int) $admin['id'] : 1;
         }
 
         $fpHash = hash('sha256', $fingerprint);
@@ -175,37 +167,22 @@ final class DevicePairingService
         if ($existing !== null) {
             $existingUuid = $existing['device_uuid'] ?? $existing['device_id'] ?? '';
             if ($existingUuid !== '') {
-                if (method_exists($this->devices, 'forTenant')) {
-                    $this->devices->forTenant($merchantId)->revoke((int) $existing['id']);
-                } else {
-                    $this->devices->revoke($existingUuid);
-                }
+                $this->devices->forTenant($merchantId)->revoke((int) $existing['id']);
             }
         }
 
         $deviceUuid = $this->generateUuidV4();
-        $jwtSecret  = bin2hex(random_bytes(32));
         $aesKey     = bin2hex(random_bytes(32));
 
-        if (method_exists($this->jwt, 'encode')) {
-            $resolvedSecret = $this->resolveSecret();
-            $encoded = $this->jwt->encode($deviceUuid, $merchantId, $resolvedSecret);
-            $accessToken = $encoded['token'];
-            $refreshToken = $this->jwt->issueRefreshToken($userId, $merchantId, $deviceUuid);
-        } else {
-            $accessToken = $this->jwt->issue($userId, $merchantId, $deviceUuid);
-            $refreshToken = $this->jwt->issueRefreshToken($userId, $merchantId, $deviceUuid);
-        }
+        // BUG-001 FIX: Use JwtService::issue() — single secret from constructor
+        $accessToken = $this->jwt->issue($userId, $merchantId, $deviceUuid);
+        $refreshToken = $this->jwt->issueRefreshToken($userId, $merchantId, $deviceUuid);
 
         if ($this->encryptor === null) {
-            if (!$this->testMode) {
-                return ['success' => false, 'error' => 'ENCRYPTOR_UNAVAILABLE'];
-            }
-            $aesKeyEncrypted = $aesKey;
-        } else {
-            $aesKeyEncrypted = $this->encryptor->encrypt($aesKey);
+            return ['success' => false, 'error' => 'ENCRYPTOR_UNAVAILABLE'];
         }
-        
+        $aesKeyEncrypted = $this->encryptor->encrypt($aesKey);
+
         $data = [
             'device_id'          => $deviceUuid,
             'device_uuid'        => $deviceUuid,
@@ -214,7 +191,6 @@ final class DevicePairingService
             'device_name'        => $deviceName,
             'platform'           => $platform,
             'fingerprint_hash'   => $fpHash,
-            'jwt_secret'         => $jwtSecret,
             'jwt_fingerprint'    => $fpHash,
             'aes_key_encrypted'  => $aesKeyEncrypted,
             'refresh_token_hash' => hash('sha256', $refreshToken),
@@ -223,11 +199,7 @@ final class DevicePairingService
             'last_heartbeat'     => date('Y-m-d H:i:s'),
         ];
 
-        if (method_exists($this->devices, 'forTenant')) {
-            $this->devices->forTenant($merchantId)->createScoped($data);
-        } else {
-            $this->devices->create($data);
-        }
+        $this->devices->forTenant($merchantId)->createScoped($data);
 
         return [
             'success'       => true,
@@ -239,33 +211,34 @@ final class DevicePairingService
         ];
     }
 
+    /**
+     * Refresh access token using a refresh JWT.
+     *
+     * BUG-003 FIX: Reads userId from verified JWT claims instead of hardcoding 1.
+     */
     public function refreshAccessToken(string $refreshToken, string $fingerprint): array
     {
-        // First try verification as JWT (stateless V0.1.0/V2 flow)
+        // Verify refresh token as JWT (stateless flow)
         $device = null;
         $isStateless = false;
         $jti = null;
+        $userId = 0;
         try {
-            if (method_exists($this->jwt, 'verify')) {
-                $claims = $this->jwt->verify($refreshToken);
-                $deviceId = $claims['did'] ?? '';
-                $mid = $claims['mid'] ?? 1;
-                $jti = $claims['jti'] ?? null;
-                if ($deviceId !== '') {
-                    if (method_exists($this->devices, 'findByDeviceId')) {
-                        $device = $this->devices->forTenant((int)$mid)->findByDeviceId($deviceId);
-                        $isStateless = true;
-                    } elseif (method_exists($this->devices, 'findByUuid')) {
-                        $device = $this->devices->findByUuid($deviceId);
-                        $isStateless = true;
-                    }
-                }
+            $claims = $this->jwt->verify($refreshToken);
+            $deviceId = $claims['did'] ?? '';
+            $mid = (int) ($claims['mid'] ?? 1);
+            $jti = $claims['jti'] ?? null;
+            // BUG-003 FIX: Extract userId from JWT sub claim
+            $userId = (int) ($claims['sub'] ?? 0);
+            if ($deviceId !== '') {
+                $device = $this->devices->forTenant($mid)->findByDeviceId($deviceId);
+                $isStateless = true;
             }
         } catch (\Throwable) {
-            // Fallback to legacy database-stored token if verification fails
+            // Fallback to legacy database-stored token
         }
 
-        if ($jti !== null && method_exists($this->devices, 'getDatabase')) {
+        if ($jti !== null) {
             $cacheKey = 'blacklist_jti_' . $jti;
             $exists = $this->devices->getDatabase()->exists('op_cache', 'key_name = :key', ['key' => $cacheKey]);
             if ($exists) {
@@ -294,12 +267,16 @@ final class DevicePairingService
             return ['success' => false, 'error' => 'FINGERPRINT_MISMATCH'];
         }
 
-        $newRefreshToken = bin2hex(random_bytes(32));
-        if ($isStateless) {
-            $userId = 1; // Default admin user ID for device pairing
-            $brandId = (int) ($device['brand_id'] ?? $device['merchant_id'] ?? 1);
-            $newRefreshToken = $this->jwt->issueRefreshToken($userId, $brandId, $device['device_id'] ?? $device['device_uuid']);
+        $brandId = (int) ($device['brand_id'] ?? $device['merchant_id'] ?? 1);
+        // BUG-003 FIX: Use extracted userId, fallback to resolving from device
+        if ($userId === 0) {
+            $userId = 1; // Last resort fallback
         }
+
+        // BUG-001 FIX: Use JwtService::issue() — single secret
+        $accessToken = $this->jwt->issue($userId, $brandId, $device['device_uuid'] ?? $device['device_id']);
+
+        $newRefreshToken = $this->jwt->issueRefreshToken($userId, $brandId, $device['device_uuid'] ?? $device['device_id']);
 
         $newRefreshHash = hash('sha256', $newRefreshToken);
         $expiresAt = date('Y-m-d H:i:s', time() + 2592000);
@@ -308,23 +285,14 @@ final class DevicePairingService
             $this->devices->updateRefreshToken($device['device_uuid'] ?? $device['device_id'], $newRefreshHash, $expiresAt);
         }
 
-        if ($jti !== null && method_exists($this->devices, 'getDatabase')) {
+        // Blacklist old refresh JTI
+        if ($jti !== null) {
             $cacheKey = 'blacklist_jti_' . $jti;
             $expiration = time() + 2592000;
             $this->devices->getDatabase()->insert(
                 "INSERT INTO op_cache (key_name, value, expires_at) VALUES (:key, :val, :exp) ON DUPLICATE KEY UPDATE expires_at = :exp_update",
                 ['key' => $cacheKey, 'val' => '1', 'exp' => $expiration, 'exp_update' => $expiration]
             );
-        }
-
-        $brandId = (int) ($device['brand_id'] ?? $device['merchant_id'] ?? 1);
-        $secret = $this->resolveSecret($device);
-
-        if (method_exists($this->jwt, 'encode')) {
-            $encoded = $this->jwt->encode($device['device_uuid'] ?? $device['device_id'], $brandId, $secret);
-            $accessToken = $encoded['token'];
-        } else {
-            $accessToken = $this->jwt->issue(1, $brandId, $device['device_uuid'] ?? $device['device_id']);
         }
 
         return [
@@ -337,23 +305,26 @@ final class DevicePairingService
 
     /**
      * validateRequest — validate JWT token and client fingerprint.
+     *
+     * BUG-014 FIX: Verifies JWT signature FIRST via JwtService::verify(),
+     * then extracts claims from the cryptographically verified payload.
+     * No manual base64 parsing of unsigned payloads.
      */
     public function validateRequest(string $token, string $fingerprint): array
     {
-        $parts = explode('.', $token);
-        if (count($parts) !== 3) {
-            return ['valid' => false, 'error' => 'INVALID_TOKEN'];
-        }
-        $payload = json_decode(base64_decode(strtr($parts[1], '-_', '+/')), true);
-        if ($payload === null || !isset($payload['sub'])) {
+        // BUG-014 FIX: Verify signature FIRST — reject forged tokens immediately
+        try {
+            $claims = $this->jwt->verify($token);
+        } catch (\Throwable) {
             return ['valid' => false, 'error' => 'INVALID_TOKEN'];
         }
 
+        // Extract device UUID from verified claims
         $deviceUuid = '';
-        if (isset($payload['did'])) {
-            $deviceUuid = (string) $payload['did'];
-        } elseif (isset($payload['sub'])) {
-            $sub = $payload['sub'];
+        if (isset($claims['did'])) {
+            $deviceUuid = (string) $claims['did'];
+        } elseif (isset($claims['sub'])) {
+            $sub = $claims['sub'];
             if (is_string($sub) && str_starts_with($sub, 'device:')) {
                 $deviceUuid = substr($sub, 7);
             } else {
@@ -361,11 +332,11 @@ final class DevicePairingService
             }
         }
 
-        if (method_exists($this->devices, 'findByUuid')) {
-            $device = $this->devices->findByUuid($deviceUuid);
-        } else {
-            $device = null;
+        if ($deviceUuid === '') {
+            return ['valid' => false, 'error' => 'INVALID_TOKEN'];
         }
+
+        $device = $this->devices->findByUuid($deviceUuid);
 
         if ($device === null) {
             return ['valid' => false, 'error' => 'DEVICE_REVOKED'];
@@ -373,15 +344,6 @@ final class DevicePairingService
 
         if (!empty($device['revoked_at']) || ($device['status'] ?? '') === 'revoked') {
             return ['valid' => false, 'error' => 'DEVICE_REVOKED'];
-        }
-
-        $secret = $this->resolveSecret($device);
-
-        if (method_exists($this->jwt, 'decode')) {
-            $decodedResult = $this->jwt->decode($token, $secret);
-            if (!$decodedResult['valid']) {
-                return ['valid' => false, 'error' => 'INVALID_TOKEN'];
-            }
         }
 
         $fpHash = hash('sha256', $fingerprint);
@@ -431,21 +393,5 @@ final class DevicePairingService
     public function listDevices(int $merchantId): array
     {
         return $this->devices->forTenant($merchantId)->listActive();
-    }
-
-    private function resolveSecret(?array $device = null): string
-    {
-        if ($device !== null && isset($device['jwt_secret']) && trim((string) $device['jwt_secret']) !== '') {
-            return $device['jwt_secret'];
-        }
-
-        $secret = $_ENV['JWT_SECRET'] ?? $_SERVER['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: '';
-        if ($secret === '') {
-            $isTestEnv = (($_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: '') === 'testing');
-            if ($isTestEnv) {
-                return 'default-secret-placeholder-for-test-suite-32-chars-long';
-            }
-        }
-        return $secret;
     }
 }

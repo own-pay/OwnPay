@@ -73,9 +73,13 @@ abstract class BaseRepository
      */
     public function paginate(int $page = 1, int $perPage = 20, string $where = '1=1', array $params = [], string $orderBy = 'id DESC'): array
     {
-        // Basic SQL injection guard on WHERE clause — reject dangerous keywords.
-        $lowerWhere = strtolower($where);
-        $blocked = ['drop ', 'alter ', 'truncate ', 'union ', 'insert ', 'update ', 'delete ', 'create ', '--', ';'];
+        // BUG-015 FIX: Strengthened WHERE clause validation.
+        // Strip SQL comments to prevent bypass via /* */ or -- sequences
+        $cleanedWhere = preg_replace('/\/\*.*?\*\//s', ' ', $where) ?? $where;
+        $cleanedWhere = preg_replace('/--.*$/m', ' ', $cleanedWhere) ?? $cleanedWhere;
+        // Collapse all whitespace and lowercase for consistent checking
+        $lowerWhere = strtolower(preg_replace('/\s+/', ' ', trim($cleanedWhere)));
+        $blocked = ['drop ', 'alter ', 'truncate ', 'union ', 'insert ', 'update ', 'delete ', 'create ', 'select ', 'into outfile', 'into dumpfile', 'load_file', '--', ';'];
         foreach ($blocked as $kw) {
             if (str_contains($lowerWhere, $kw)) {
                 throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');

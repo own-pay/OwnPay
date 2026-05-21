@@ -52,8 +52,9 @@ final class DomainMiddleware
         $domainRecord = $repo->findByDomain($domain);
 
         if ($domainRecord === null || $domainRecord['status'] !== 'active') {
-            // Unknown domain — could show landing or 404
-            return $next($request);
+            // BUG-006 FIX: Block unknown/inactive domains — return 404.
+            // Previously this passed through, allowing unscoped access.
+            return Response::html('<h1>404 Not Found</h1>', 404);
         }
 
         if (!(bool) $domainRecord['dns_verified']) {

@@ -60,24 +60,26 @@ final class LedgerService
         $drAccount = $this->ledger->findOrCreateAccount($debitAccountCode, $drType, $currency, $merchantId);
         $crAccount = $this->ledger->findOrCreateAccount($creditAccountCode, $crType, $currency, $merchantId);
 
-        $this->ledger->forTenant($merchantId);
-        $db = $this->ledger->getDatabase();
-        $db->transaction(function () use ($merchantId, $eventType, $amount, $currency, $drAccount, $crAccount, $referenceType, $referenceId, $description) {
+        // BUG-009 FIX: Capture the scoped clone — forTenant() returns a new instance.
+        // Using $this->ledger inside the closure would lose the tenant scope.
+        $scopedLedger = $this->ledger->forTenant($merchantId);
+        $db = $scopedLedger->getDatabase();
+        $db->transaction(function () use ($scopedLedger, $merchantId, $eventType, $amount, $currency, $drAccount, $crAccount, $referenceType, $referenceId, $description) {
             
-            // 2. Create Journal Header
-            $txnId = $this->ledger->createTransaction(
+            // 2. Create Journal Header (uses tenantId from scoped clone)
+            $txnId = $scopedLedger->createTransaction(
                 $referenceType,
                 (int) $referenceId,
                 $description ?? $eventType
             );
 
             // 3. Create Entries (Debit + Credit)
-            $this->ledger->createEntry($txnId, (int) $drAccount['id'], 'debit', $amount);
-            $this->ledger->createEntry($txnId, (int) $crAccount['id'], 'credit', $amount);
+            $scopedLedger->createEntry($txnId, (int) $drAccount['id'], 'debit', $amount);
+            $scopedLedger->createEntry($txnId, (int) $crAccount['id'], 'credit', $amount);
 
             // 4. Update Balances
-            $this->ledger->adjustBalance((int) $drAccount['id'], $amount, 'debit');
-            $this->ledger->adjustBalance((int) $crAccount['id'], $amount, 'credit');
+            $scopedLedger->adjustBalance((int) $drAccount['id'], $amount, 'debit');
+            $scopedLedger->adjustBalance((int) $crAccount['id'], $amount, 'credit');
 
             // Fire event
             $this->events->doAction('ledger.entry.created', [

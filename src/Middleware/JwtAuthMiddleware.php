@@ -55,18 +55,19 @@ final class JwtAuthMiddleware
                 ], 401);
             }
 
-            // H-04 FIX: Validate issuer and audience claims.
-            // Prevents cross-system token reuse if JWT_SECRET is shared.
+            // BUG-017 FIX: iss and aud are now REQUIRED — reject tokens without them.
+            // Previously these were only checked IF present, allowing bypass via
+            // crafted tokens that omit these claims entirely.
             $expectedIss = getenv('APP_NAME') ?: 'OwnPay';
             $expectedAud = 'ownpay-mobile';
 
-            if (isset($payload->iss) && $payload->iss !== $expectedIss) {
+            if (!isset($payload->iss) || $payload->iss !== $expectedIss) {
                 return Response::json([
                     'success' => false,
                     'message' => 'Invalid JWT issuer',
                 ], 401);
             }
-            if (isset($payload->aud) && $payload->aud !== $expectedAud) {
+            if (!isset($payload->aud) || $payload->aud !== $expectedAud) {
                 return Response::json([
                     'success' => false,
                     'message' => 'Invalid JWT audience',

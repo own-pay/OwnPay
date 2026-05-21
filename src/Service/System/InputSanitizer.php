@@ -103,6 +103,13 @@ final class InputSanitizer
      */
     public static function array(array $input, string $method = 'string'): array
     {
+        // BUG-022 FIX: Only allow known sanitization methods to prevent
+        // arbitrary static method invocation via dynamic dispatch.
+        $allowedMethods = ['string', 'html', 'email', 'url', 'phone', 'slug', 'attr', 'trim'];
+        if (!in_array($method, $allowedMethods, true)) {
+            throw new \InvalidArgumentException("Unsupported sanitization method: {$method}");
+        }
+
         return array_map(function ($value) use ($method) {
             if (is_array($value)) {
                 return self::array($value, $method);

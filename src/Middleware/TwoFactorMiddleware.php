@@ -85,15 +85,31 @@ final class TwoFactorMiddleware
 
     /**
      * Verify TOTP code (RFC 6238).
-     * Window of Â±1 period (30 sec each side).
+     * Window of ±1 period (30 sec each side).
+     *
+     * BUG-021 FIX: Tracks last used time slice in $_SESSION to prevent
+     * TOTP replay within the ±1 period window.
      */
     public static function verifyTotp(string $secret, string $code, int $window = 1): bool
     {
+        if (strlen($code) !== 6 || !ctype_digit($code)) {
+            return false;
+        }
+
         $timeSlice = intdiv(time(), 30);
+        // BUG-021 FIX: Get last used window to prevent replay
+        $lastUsedWindow = (int) ($_SESSION['totp_last_used_window'] ?? 0);
 
         for ($i = -$window; $i <= $window; $i++) {
-            $expectedCode = self::generateTotp($secret, $timeSlice + $i);
+            $checkSlice = $timeSlice + $i;
+            // BUG-021 FIX: Skip already-used time slices
+            if ($checkSlice <= $lastUsedWindow) {
+                continue;
+            }
+            $expectedCode = self::generateTotp($secret, $checkSlice);
             if (hash_equals($expectedCode, $code)) {
+                // BUG-021 FIX: Record this time slice as used
+                $_SESSION['totp_last_used_window'] = $checkSlice;
                 return true;
             }
         }

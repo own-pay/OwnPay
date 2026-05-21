@@ -26,7 +26,8 @@ final class DashboardController
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $did = (int) $req->getAttribute('device_id');
+        // BUG-008 FIX: device_id is a UUID string — don't cast to int
+        $did = (string) $req->getAttribute('device_id');
 
         $today   = $this->txnRepo->getTodayStats($mid);
         $recent  = $this->txnRepo->getRecentTransactions($mid, 5);

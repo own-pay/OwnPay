@@ -83,7 +83,8 @@ final class Router
         // Convert {param} to regex capture groups
         $regex = preg_replace_callback('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', static function (array $m) use (&$paramNames): string {
             $paramNames[] = $m[1];
-            return '([a-zA-Z0-9_\-\.@\+]+)';
+            // BUG-023 FIX: Removed @ and + to prevent injection via route params
+            return '([a-zA-Z0-9_\-\.]+)';
         }, $pattern);
 
         $regex = '#^' . $regex . '$#';
