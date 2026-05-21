@@ -13,13 +13,43 @@ use OwnPay\Repository\MerchantRepository;
 use OwnPay\Repository\SettingsRepository;
 use OwnPay\Support\DateHelper;
 
+/**
+ * Controller handling public payment link checkouts.
+ *
+ * This controller resolves payment links by slug, checks expiration, status, usage limits,
+ * handles custom amount user forms (with min/max bounds validation via BCMath), and routes the
+ * customer to the transaction room. It includes deduplication rules to prevent double-click transactions.
+ */
 final class PaymentLinkCheckoutController
 {
+    /**
+     * @var \OwnPay\Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var \OwnPay\Event\EventManager The event manager instance.
+     */
     private EventManager $events;
+
+    /**
+     * @var \OwnPay\Repository\PaymentLinkRepository The payment link repository.
+     */
     private PaymentLinkRepository $linkRepo;
+
+    /**
+     * @var \OwnPay\Repository\TransactionRepository The transaction repository.
+     */
     private TransactionRepository $txnRepo;
 
+    /**
+     * Initializes the controller with necessary system dependencies.
+     *
+     * @param \OwnPay\Container $c The dependency injection container.
+     * @param \OwnPay\Event\EventManager $events The event manager.
+     * @param \OwnPay\Repository\PaymentLinkRepository $linkRepo Repository for payment link database access.
+     * @param \OwnPay\Repository\TransactionRepository $txnRepo Repository for transaction database access.
+     */
     public function __construct(Container $c, EventManager $events, PaymentLinkRepository $linkRepo, TransactionRepository $txnRepo)
     {
         $this->c        = $c;
@@ -29,11 +59,15 @@ final class PaymentLinkCheckoutController
     }
 
     /**
-     * GET /pay/{slug} — show payment link checkout (fixed amount) or amount entry form.
+     * Renders the payment link checkout screen or redirects to the transaction.
      *
-     * C-01 FIX: Session-bind txn creation → reuse existing pending txn on refresh.
-     * Prevents DB flooding on repeated GET visits. use_count NOT incremented here
-     * (moved to payment completion).
+     * If the payment link has a fixed amount, it initializes a pending transaction (if one does not
+     * already exist in session) and redirects the user to the checkout room. If it is a variable-amount
+     * link, it presents the amount entry form. Enforces validation of limits, expiration, and min/max amount.
+     *
+     * @param \OwnPay\Http\Request $req The incoming HTTP request.
+     * @return \OwnPay\Http\Response The HTTP response.
+     * @throws \Exception If transaction token creation fails.
      */
     public function show(Request $req): Response
     {
@@ -45,7 +79,7 @@ final class PaymentLinkCheckoutController
             return $this->renderExpired($twig);
         }
 
-        // Check max_uses (only count COMPLETED transactions, not pending ones)
+        // Verify usage limits: ensure the link has not exceeded its maximum allowed completions.
         if ($link['max_uses'] > 0 && ($link['use_count'] ?? 0) >= $link['max_uses']) {
             return $this->renderExpired($twig);
         }
@@ -56,7 +90,7 @@ final class PaymentLinkCheckoutController
         $amount = (string) ($link['amount'] ?? $req->query('amount', '0'));
         if (!is_numeric($amount)) $amount = '0';
 
-        // CHK-004 FIX: Validate GET ?amount param against min/max bounds (DS-02: BCMath)
+        // Validate query amount: verify that the amount parameter remains within the configured minimum and maximum limits (using high-precision BCMath comparisons).
         if (bccomp($amount, '0', 2) > 0) {
             $minAmount = (string) ($link['min_amount'] ?? '0');
             $maxAmount = (string) ($link['max_amount'] ?? '0');
@@ -67,7 +101,7 @@ final class PaymentLinkCheckoutController
         }
 
         if (bccomp($amount, '0', 2) <= 0) {
-            // M-02 FIX: Inject CSRF token into template data
+            // Retrieve the dynamic CSRF token to secure the form submission.
             $csrf = \OwnPay\Security\SecurityHelpers::csrfToken();
             $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
             $queryAmt = $req->query('amount', '');
@@ -81,14 +115,14 @@ final class PaymentLinkCheckoutController
             ]));
         }
 
-        // C-01 FIX: Check session for existing pending txn for this link
+        // Check for an existing active transaction session key to avoid duplicate ledger allocations.
         $sessionKey = 'pay_link_txn_' . $link['id'];
         if (!empty($_SESSION[$sessionKey])) {
             $existingTxn = $this->txnRepo->findActiveForCheckout($_SESSION[$sessionKey]);
             if ($existingTxn) {
                 return Response::redirect("/checkout/{$existingTxn['trx_id']}");
             }
-            // Stale session entry — remove it
+            // Clear stale or completed session references to allow a fresh transaction session.
             unset($_SESSION[$sessionKey]);
         }
 
@@ -108,19 +142,24 @@ final class PaymentLinkCheckoutController
             'metadata'     => json_encode(['payment_link_id' => $link['id']]),
         ]);
 
-        // C-01 FIX: Store txn ref in session for dedup on refresh
+        // Save transaction reference within the session store to enable deduplication upon page reload.
         $_SESSION[$sessionKey] = $trxId;
 
-        // NOTE: use_count NOT incremented here — moved to payment completion hook
+        // Note: Link usage counter is only incremented during final payment capture events.
 
         return Response::redirect("/checkout/{$trxId}");
     }
 
     /**
-     * POST /pay/{slug}/submit — customer-entered amount form submission.
+     * Handles variable amount form submission for a payment link.
      *
-     * H-02 FIX: Validate min/max amount bounds.
-     * H-04 FIX: Session dedup prevents double-click duplicate transactions.
+     * Validates the entered amount using high-precision BCMath against the configured minimum and
+     * maximum bounds. If validation passes, a new pending transaction is created (using session-based
+     * deduplication to prevent double-clicks) and redirects the user to checkout.
+     *
+     * @param \OwnPay\Http\Request $req The incoming HTTP request.
+     * @return \OwnPay\Http\Response The HTTP response.
+     * @throws \Exception If transaction token creation fails.
      */
     public function submit(Request $req): Response
     {
@@ -136,7 +175,7 @@ final class PaymentLinkCheckoutController
         if (!is_numeric($amountStr)) $amountStr = '0';
         $csrf = \OwnPay\Security\SecurityHelpers::csrfToken();
 
-        // Basic validation (DS-02: BCMath instead of float)
+        // Perform basic sanity check using high-precision BCMath comparison (must be greater than zero).
         if (bccomp($amountStr, '0', 2) <= 0) {
             $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
             return Response::html($twig->render($tpl, [
@@ -146,7 +185,7 @@ final class PaymentLinkCheckoutController
             ]));
         }
 
-        // H-02 FIX: Enforce min/max amount bounds (DS-02: BCMath)
+        // Enforce configured minimum and maximum boundary constraints utilizing BCMath.
         $minAmount = (string) ($link['min_amount'] ?? '0');
         $maxAmount = (string) ($link['max_amount'] ?? '0');
 
@@ -169,7 +208,7 @@ final class PaymentLinkCheckoutController
             ]));
         }
 
-        // H-04 FIX: Session dedup — prevent double-click creating duplicate txns
+        // Prevent double-submission: reuse existing pending transaction reference registered in current session.
         $sessionKey = 'pay_link_txn_' . $link['id'];
         if (!empty($_SESSION[$sessionKey])) {
             $existingTxn = $this->txnRepo->findActiveForCheckout($_SESSION[$sessionKey]);
@@ -201,7 +240,10 @@ final class PaymentLinkCheckoutController
     }
 
     /**
-     * Render expired/invalid status page with proper brand data (M-01 FIX).
+     * Renders the expired or invalid payment link status page.
+     *
+     * @param \Twig\Environment $twig The Twig template engine environment.
+     * @return \OwnPay\Http\Response The HTML response.
      */
     private function renderExpired(\Twig\Environment $twig): Response
     {

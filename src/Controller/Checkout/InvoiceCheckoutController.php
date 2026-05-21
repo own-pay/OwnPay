@@ -11,13 +11,43 @@ use OwnPay\Repository\InvoiceRepository;
 use OwnPay\Repository\TransactionRepository;
 use Ramsey\Uuid\Uuid;
 
+/**
+ * Controller handling checkout routing for white-labeled brand invoices.
+ *
+ * This controller processes public checkout links for invoices, resolves the invoice
+ * context from the unique token parameter, checks validation rules (including overdue statuses),
+ * handles existing or new transaction mapping, and routes the user to the transaction room.
+ */
 final class InvoiceCheckoutController
 {
+    /**
+     * @var \OwnPay\Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var \OwnPay\Event\EventManager The event manager instance.
+     */
     private EventManager $events;
+
+    /**
+     * @var \OwnPay\Repository\InvoiceRepository The invoice repository.
+     */
     private InvoiceRepository $invoiceRepo;
+
+    /**
+     * @var \OwnPay\Repository\TransactionRepository The transaction repository.
+     */
     private TransactionRepository $txnRepo;
 
+    /**
+     * Initializes the controller with necessary system dependencies.
+     *
+     * @param \OwnPay\Container $c The dependency injection container.
+     * @param \OwnPay\Event\EventManager $events The global event manager.
+     * @param \OwnPay\Repository\InvoiceRepository $invoiceRepo Repository for invoice DB access.
+     * @param \OwnPay\Repository\TransactionRepository $txnRepo Repository for transaction DB access.
+     */
     public function __construct(Container $c, EventManager $events, InvoiceRepository $invoiceRepo, TransactionRepository $txnRepo)
     {
         $this->c           = $c;
@@ -26,27 +56,33 @@ final class InvoiceCheckoutController
         $this->txnRepo     = $txnRepo;
     }
 
+    /**
+     * Resolves an invoice from token and redirects user to the transaction checkout session.
+     *
+     * @param \OwnPay\Http\Request $req The incoming HTTP request.
+     * @return \OwnPay\Http\Response The HTTP response (redirect or rendering status).
+     * @throws \Exception If transaction token creation fails.
+     */
     public function show(Request $req): Response
     {
         $token = (string) $req->param('token');
-        // AUD-A2 fix: use token (globally unique) instead of invoice_number (per-merchant).
-        // findUnpaidByNumber was unscoped → cross-tenant data leak.
+        
+        // Resolve the invoice using its globally unique token to prevent cross-tenant parameter leakage.
         $invoice = $this->invoiceRepo->findByToken($token);
 
-        // CHK-001 FIX: Only allow payable statuses (whitelist approach)
+        // Apply a whitelist verification checks on status to only permit payable invoices.
         $allowedStatuses = ['sent', 'overdue'];
 
-        // BUG-33 FIX: Initialize Twig BEFORE using it in renderExpired().
-        // Previously $twig was used on line 46 but not assigned until line 62.
+        // Initialize Twig template engine environment prior to processing render loops.
         $twig = $this->c->get(\Twig\Environment::class);
 
+        // If no active invoice record exists, return an expired/unavailable response page.
         if (!$invoice) {
-            // M-01 FIX: Pass brand/status_label to status page
             return $this->renderExpired($twig);
         }
 
         if (!in_array($invoice['status'], $allowedStatuses, true)) {
-            // Show contextual error messages for non-payable statuses
+            // Direct non-payable invoices to the expired status view with appropriate context labeling.
             $statusLabels = [
                 'draft' => 'Invoice Not Ready',
                 'paid'  => 'Invoice Already Paid',
@@ -56,11 +92,11 @@ final class InvoiceCheckoutController
             return $this->renderExpired($twig, $label);
         }
 
-        // CHK-002 FIX: Check due_date expiry — auto-mark overdue
+        // Assess invoice deadline: automatically transition 'sent' invoices to 'overdue' if the due date has elapsed.
         if (!empty($invoice['due_date'])) {
             $dueDate = strtotime($invoice['due_date']);
             if ($dueDate !== false && $dueDate < strtotime('today')) {
-                // Auto-update DB status to overdue if still 'sent'
+                // Update database status of the invoice context if currently marked as sent.
                 if ($invoice['status'] === 'sent') {
                     $this->invoiceRepo->forTenant((int) $invoice['merchant_id'])
                         ->updateScoped((int) $invoice['id'], ['status' => 'overdue']);
@@ -69,7 +105,7 @@ final class InvoiceCheckoutController
             }
         }
 
-        // C-02 FIX: Reuse existing pending transaction (query by metadata JSON)
+        // Retrieve any existing pending transaction session linked to this invoice to prevent double-billing.
         $existingTxn = $this->invoiceRepo->findPendingTransaction((int) $invoice['id']);
         if ($existingTxn) {
             return Response::redirect("/checkout/{$existingTxn['trx_id']}");
@@ -97,7 +133,11 @@ final class InvoiceCheckoutController
     }
 
     /**
-     * M-01 FIX: Render expired status with proper brand data.
+     * Renders the expired/unavailable invoice error page.
+     *
+     * @param \Twig\Environment $twig The Twig template engine.
+     * @param string $label The message label to show.
+     * @return \OwnPay\Http\Response The HTML response.
      */
     private function renderExpired(\Twig\Environment $twig, string $label = 'Invoice Expired'): Response
     {

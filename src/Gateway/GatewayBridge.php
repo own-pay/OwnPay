@@ -9,12 +9,15 @@ use OwnPay\Repository\SettingsRepository;
 use OwnPay\Security\FieldEncryptor;
 
 /**
- * Gateway bridge — routes payment operations to correct adapter.
+ * GatewayBridge routes payment operations to the corresponding gateway adapter.
  *
- * Adapters are registered exclusively by PluginLoader::loadActive() during boot.
- * Only plugins marked active in op_plugins are loaded — no filesystem bypass.
+ * Gateway adapters are dynamically registered during the system boot phase
+ * via `PluginLoader::loadActive()`. This class supports initiating payments,
+ * verifying callbacks, processing refunds, and validating webhook signatures.
  *
- * Fires: gateway.capture.before (filter), gateway.capture.after (action)
+ * Hooks:
+ * - Filter 'gateway.capture.before': Allows modification of parameters before passing to the adapter.
+ * - Action 'gateway.capture.after': Fired after a payment is successfully initiated.
  */
 final class GatewayBridge
 {
@@ -23,9 +26,19 @@ final class GatewayBridge
     private EventManager $events;
     private SettingsRepository $settings;
 
-    /** @var array<string, GatewayAdapterInterface> */
+    /**
+     * @var array<string, \OwnPay\Gateway\GatewayAdapterInterface> Registered adapters list.
+     */
     private array $adapters = [];
 
+    /**
+     * Initialize the GatewayBridge service.
+     *
+     * @param \OwnPay\Repository\GatewayConfigRepository $configs Repository for retrieving gateway configurations.
+     * @param \OwnPay\Security\FieldEncryptor $encryptor Decryption service for sensitive gateway credentials.
+     * @param \OwnPay\Event\EventManager $events Event manager to fire system action and filter hooks.
+     * @param \OwnPay\Repository\SettingsRepository $settings Repository to access brand/system settings.
+     */
     public function __construct(
         GatewayConfigRepository $configs,
         FieldEncryptor $encryptor,
@@ -39,7 +52,10 @@ final class GatewayBridge
     }
 
     /**
-     * Register gateway adapter.
+     * Register a gateway adapter in the bridge registry.
+     *
+     * @param \OwnPay\Gateway\GatewayAdapterInterface $adapter The gateway adapter instance to register.
+     * @return void
      */
     public function registerAdapter(GatewayAdapterInterface $adapter): void
     {
@@ -47,7 +63,15 @@ final class GatewayBridge
     }
 
     /**
-     * Initiate payment via gateway.
+     * Initiate a payment capture/charge process via the specified gateway adapter.
+     *
+     * Decrypts credentials for the brand (merchantId) and applies hook filters before initiating.
+     *
+     * @param string $gatewaySlug Unique identifier of the gateway adapter (e.g., 'stripe', 'paypal').
+     * @param int $merchantId The ID of the brand/merchant context.
+     * @param array<string, mixed> $params Payment parameters (amount, currency, customer details, etc.).
+     * @return array<string, mixed> The response from the gateway adapter (redirect URL, status, etc.).
+     * @throws \RuntimeException If the adapter is not found.
      */
     public function initiate(string $gatewaySlug, int $merchantId, array $params): array
     {
@@ -65,7 +89,13 @@ final class GatewayBridge
     }
 
     /**
-     * Verify payment callback.
+     * Verify a payment return/callback payload from the external gateway.
+     *
+     * @param string $gatewaySlug Unique identifier of the gateway adapter.
+     * @param int $merchantId The ID of the brand/merchant context.
+     * @param array<string, mixed> $callbackData Parameters received via the gateway callback request.
+     * @return array<string, mixed> Verification result (status, transaction ID, error message, etc.).
+     * @throws \RuntimeException If the adapter is not found.
      */
     public function verify(string $gatewaySlug, int $merchantId, array $callbackData): array
     {
@@ -76,7 +106,14 @@ final class GatewayBridge
     }
 
     /**
-     * Process refund via gateway.
+     * Process a refund for a transaction via the specified gateway.
+     *
+     * @param string $gatewaySlug Unique identifier of the gateway adapter.
+     * @param int $merchantId The ID of the brand/merchant context.
+     * @param string $gatewayTrxId The transaction identifier assigned by the gateway.
+     * @param string $amount High-precision amount string (BCMath-compatible) to refund.
+     * @return array<string, mixed> The refund processing status and result details.
+     * @throws \RuntimeException If the adapter is not found.
      */
     public function refund(string $gatewaySlug, int $merchantId, string $gatewayTrxId, string $amount): array
     {
@@ -87,9 +124,16 @@ final class GatewayBridge
     }
 
     /**
-     * AUD-G6: Verify webhook signature via gateway adapter.
+     * Verify the signature of an incoming webhook call from the payment provider.
      *
-     * @return bool True if signature valid (or adapter has no verification)
+     * AUD-G6: Secure webhook validation using gateway credentials. If no adapter is found,
+     * signature verification is skipped to allow fallback behavior.
+     *
+     * @param string $gatewaySlug Unique identifier of the gateway adapter.
+     * @param int $merchantId The ID of the brand/merchant context.
+     * @param string $rawBody Raw HTTP request body.
+     * @param array<string, string> $headers HTTP request headers.
+     * @return bool True if signature is valid (or adapter does not implement verification), false otherwise.
      */
     public function verifyWebhookSignature(string $gatewaySlug, int $merchantId, string $rawBody, array $headers): bool
     {
@@ -102,7 +146,10 @@ final class GatewayBridge
     }
 
     /**
-     * Check if an adapter is registered for a gateway slug.
+     * Verify whether a gateway adapter is currently registered in the bridge.
+     *
+     * @param string $slug Unique identifier of the gateway adapter.
+     * @return bool True if registered, false otherwise.
      */
     public function hasAdapter(string $slug): bool
     {
@@ -110,9 +157,9 @@ final class GatewayBridge
     }
 
     /**
-     * Get all registered adapter slugs (for diagnostics).
+     * Fetch all registered gateway adapter slugs for diagnostic purposes.
      *
-     * @return string[]
+     * @return string[] Array of registered gateway slug identifiers.
      */
     public function getRegisteredSlugs(): array
     {
@@ -120,9 +167,12 @@ final class GatewayBridge
     }
 
     /**
-     * Get supported currencies for a gateway.
-     * Empty = any currency accepted.
-     * @return string[]
+     * Fetch the list of currencies supported by the specified gateway adapter.
+     *
+     * An empty array indicates the gateway can accept any currency.
+     *
+     * @param string $slug Unique identifier of the gateway adapter.
+     * @return string[] Array of uppercase ISO-4217 currency codes.
      */
     public function getSupportedCurrencies(string $slug): array
     {
@@ -132,6 +182,13 @@ final class GatewayBridge
         return $this->adapters[$slug]->supportedCurrencies();
     }
 
+    /**
+     * Resolve a registered gateway adapter instance.
+     *
+     * @param string $slug Unique identifier of the gateway adapter.
+     * @return \OwnPay\Gateway\GatewayAdapterInterface The resolved adapter instance.
+     * @throws \RuntimeException If the adapter has not been registered.
+     */
     private function resolveAdapter(string $slug): GatewayAdapterInterface
     {
         if (!isset($this->adapters[$slug])) {
@@ -141,8 +198,14 @@ final class GatewayBridge
     }
 
     /**
-     * Decrypt gateway credentials from DB.
-     * @return array<string, string>
+     * Decrypt and parse gateway configuration credentials for the specified merchant.
+     *
+     * Decrypts DB credentials from GatewayConfigRepository. If empty, falls back to brand-scoped
+     * settings via SettingsRepository.
+     *
+     * @param string $gatewaySlug Unique identifier of the gateway adapter.
+     * @param int $merchantId The ID of the brand/merchant context.
+     * @return array<string, string> Decrypted configuration key-value pairs.
      */
     private function decryptCredentials(string $gatewaySlug, int $merchantId): array
     {

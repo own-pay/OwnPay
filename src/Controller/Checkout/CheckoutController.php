@@ -15,19 +15,60 @@ use OwnPay\Repository\SettingsRepository;
 use OwnPay\Support\DateHelper;
 
 /**
- * Checkout controller — renders checkout page, handles gateway selection.
- * Fires: checkout.before, checkout.render, checkout.gateway.selected
+ * Controller managing the main customer payment checkout operations.
+ *
+ * This controller orchestrates the checkout UI lifecycle, including rendering the checkout page,
+ * retrieving manual and API payment gateways, enforcing session expirations, executing HMAC integrity
+ * handshakes, routing callback/redirect transactions, and processing verification submissions.
  */
 final class CheckoutController
 {
+    /**
+     * @var \OwnPay\Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var \OwnPay\Event\EventManager The event manager instance.
+     */
     private EventManager $events;
+
+    /**
+     * @var \OwnPay\Repository\TransactionRepository The transaction repository.
+     */
     private TransactionRepository $txnRepo;
+
+    /**
+     * @var \OwnPay\Repository\ManualGatewayRepository The manual gateway repository.
+     */
     private ManualGatewayRepository $manualGw;
+
+    /**
+     * @var \OwnPay\Repository\GatewayConfigRepository The API gateway configuration repository.
+     */
     private GatewayConfigRepository $apiGw;
+
+    /**
+     * @var \OwnPay\Repository\MerchantRepository The merchant repository.
+     */
     private MerchantRepository $merchants;
+
+    /**
+     * @var \OwnPay\Repository\SettingsRepository The settings repository.
+     */
     private SettingsRepository $settings;
 
+    /**
+     * Initializes the checkout controller with required system dependencies.
+     *
+     * @param \OwnPay\Container $c The dependency injection container.
+     * @param \OwnPay\Event\EventManager $events The event manager.
+     * @param \OwnPay\Repository\TransactionRepository $txnRepo Repository for transactions.
+     * @param \OwnPay\Repository\ManualGatewayRepository $manualGw Repository for manual payment gateways.
+     * @param \OwnPay\Repository\GatewayConfigRepository $apiGw Repository for API payment gateway credentials.
+     * @param \OwnPay\Repository\MerchantRepository $merchants Repository for merchant details.
+     * @param \OwnPay\Repository\SettingsRepository $settings Repository for system configurations.
+     */
     public function __construct(
         Container $c,
         EventManager $events,
@@ -47,7 +88,15 @@ final class CheckoutController
     }
 
     /**
-     * GET /checkout/{ref}
+     * Displays the main checkout screen for a specific active transaction.
+     *
+     * Validates transaction existence, expiry constraints, associated payment link statuses,
+     * resolves brand information, categorizes available manual and API gateways, builds
+     * JS timer configurations, and generates a security HMAC token for the transaction payload.
+     *
+     * @param \OwnPay\Http\Request $req The incoming HTTP request.
+     * @return \OwnPay\Http\Response The checkout HTML response.
+     * @throws \RuntimeException If the required HMAC_KEY or APP_KEY configuration is missing.
      */
     public function show(Request $req): Response
     {
@@ -58,12 +107,12 @@ final class CheckoutController
             return $this->renderStatus($ref, 'expired');
         }
 
-        // H-06 FIX: Enforce payment intent expiry — reject expired sessions.
+        // Enforce session timeout: cancel processing if the transaction timeline has expired.
         if (!empty($txn['expires_at']) && DateHelper::isPast($txn['expires_at'])) {
             return $this->renderStatus($ref, 'expired');
         }
 
-        // CHK-005 FIX: Check if associated payment link is still active
+        // Check payment link validity: cancel the transaction if the parent payment link is inactive or expired.
         $meta = json_decode($txn['metadata'] ?? '{}', true);
         $linkId = $meta['payment_link_id'] ?? null;
         if ($linkId !== null) {
@@ -78,7 +127,7 @@ final class CheckoutController
 
         $mid = (int) $txn['merchant_id'];
 
-        // L-02 FIX: Resolve currency symbol from DB — not hardcoded ৳
+        // Dynamic currency resolution: fetch the localized currency symbol instead of a hardcoded value.
         if ($this->c->has(\OwnPay\Service\Payment\CurrencyService::class)) {
             $currSvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
             $txn['currency_symbol'] = $currSvc->getSymbol($txn['currency'] ?? 'BDT');
@@ -86,11 +135,11 @@ final class CheckoutController
 
         $this->events->doAction('checkout.before', $txn);
 
-        // Load gateways via repos
+        // Query active manual and API-based gateways configured for this merchant.
         $manualGateways = $this->manualGw->forTenant($mid)->listActive();
         $apiGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
 
-        // Build category + icon + color maps from plugin manifests
+        // Read active plugin metadata manifests to map colors, icons, and categories.
         $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
         $manifests = $loader->discover();
         $categoryMap = [];
@@ -103,8 +152,8 @@ final class CheckoutController
             ];
         }
 
-        // Categorize into checkout tabs: mfs | bank | global (cards)
-        // CK-01/05 FIX: Remap logo_path→logo so template can find it
+        // Distribute gateways into checkout categorizations.
+        // Normalize properties mapping logo path keys to logo for template consistency.
         $gateways = ['mfs' => [], 'bank' => [], 'global' => []];
         foreach ($manualGateways as $gw) {
             $cat = $gw['category'] ?? 'mfs';
@@ -121,11 +170,11 @@ final class CheckoutController
             $gateways[$cat][] = array_merge($gw, ['mode' => 'api']);
         }
 
-        // Brand + settings
+        // Load white-label brand themes and general checkout settings.
         $brand = $this->loadBrand($mid);
         $faqs = json_decode($this->settings->get('general', 'faqs', '[]'), true);
 
-        // Invoice items — H-01 FIX: invoice_id is in metadata JSON, not a column
+        // Extract associated invoice identifier from transaction metadata payload to retrieve invoice line items.
         $items = [];
         $invoiceId = $meta['invoice_id'] ?? null;
         if ($invoiceId) {
@@ -133,16 +182,16 @@ final class CheckoutController
             $items = $invoiceRepo->listItems((int) $invoiceId);
         }
 
-        // M-05 FIX: HMAC integrity hash binds amount+currency+token to prevent relay attacks.
-        // H-05 FIX: Use $_ENV fallback chain — getenv() may not read phpdotenv vars.
-        // BUG-010 FIX: Require configured HMAC key — never fall back to a hardcoded constant.
+        // Compute cryptographic HMAC checksum binding amount, currency, and reference token to prevent relay tampering.
+        // Retrieve the system cryptographic key using fallback chains.
+        // Ensure an operational HMAC key is configured in the host environment.
         $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
         if ($hmacKey === '') {
             throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
         }
         $checkoutHash = hash_hmac('sha256', $txn['amount'] . '|' . $txn['currency'] . '|' . $ref, $hmacKey);
 
-        // Build manual gateway details map for JS popup (C-5: no separate API endpoint needed)
+        // Build structured instructions and settings configuration maps for manual gateways.
         $manualDetails = [];
         foreach ($manualGateways as $gw) {
             $slug = $gw['slug'] ?? $gw['name'] ?? '';
@@ -156,7 +205,7 @@ final class CheckoutController
                 $instructions = [$instructionsObj];
             }
 
-            // CK-07: Extract payment number from input_fields for JS popup convenience
+            // Isolate the primary payment address fields for inline client reference.
             $paymentNumber = '';
             foreach ($inputFields as $field) {
                 if (($field['type'] ?? '') === 'payment_number' || ($field['name'] ?? '') === 'payment_number') {
@@ -183,7 +232,7 @@ final class CheckoutController
             'show_faq'        => $this->settings->get('checkout', 'show_faq', '1') === '1',
             'config'          => $this->buildJsConfig($txn, $brand, $manifests),
             'checkout_hash'   => $checkoutHash,
-            // M-03 FIX: JSON_HEX_TAG prevents XSS via </script> in gateway names
+            // Render manual gateway configuration with XSS entity escaping.
             'manual_gateways' => json_encode($manualDetails, JSON_HEX_TAG | JSON_HEX_AMP),
         ];
 
@@ -194,6 +243,15 @@ final class CheckoutController
         return Response::html($twig->render($tplName, $data));
     }
 
+    /**
+     * Renders the transaction status view (e.g. success, processing, failed, expired).
+     *
+     * Resolves human-readable labels, currency symbols, and brand assets for the targeted state page.
+     *
+     * @param string $ref The transaction reference identifier.
+     * @param string $status The current status code of the transaction.
+     * @return \OwnPay\Http\Response The status HTML response.
+     */
     private function renderStatus(string $ref, string $status): Response
     {
         $twig = $this->c->get(\Twig\Environment::class);
@@ -201,7 +259,7 @@ final class CheckoutController
         $mid = (int) ($txn['merchant_id'] ?? 0);
         $brand = $mid > 0 ? $this->loadBrand($mid) : ['name' => 'Own Pay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''];
 
-        // CK-08/11 FIX: Pass brand + human-readable status labels + custom messages
+        // Map current transaction state to user-friendly messaging layouts.
         $statusLabels = [
             'success' => 'Payment Successful', 'completed' => 'Payment Successful',
             'failed' => 'Payment Failed', 'cancelled' => 'Payment Cancelled',
@@ -211,7 +269,7 @@ final class CheckoutController
             'processing' => 'Payment Processing',
         ];
 
-        // L-02 FIX: Resolve currency symbol for status pages
+        // Retrieve dynamic currency symbols for status confirmation page.
         if ($txn && $this->c->has(\OwnPay\Service\Payment\CurrencyService::class)) {
             $currSvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
             $txn['currency_symbol'] = $currSvc->getSymbol($txn['currency'] ?? 'BDT');
@@ -231,6 +289,15 @@ final class CheckoutController
         ]));
     }
 
+    /**
+     * Resolves theme styling configurations and brand visual assets for the merchant.
+     *
+     * Utilizes BrandThemeService for white-labeled customization when active, falling back
+     * to global default settings if unresolved.
+     *
+     * @param int $mid The merchant identifier.
+     * @return array<string, mixed> The array containing visual style settings.
+     */
     private function loadBrand(int $mid): array
     {
         // White-label: Use BrandThemeService for full per-brand theming
@@ -249,6 +316,16 @@ final class CheckoutController
         ];
     }
 
+    /**
+     * Constructs the JS configurations injected into checkout template views.
+     *
+     * Computes remaining session session timer limits and collects gateway metadata.
+     *
+     * @param array<string, mixed> $txn The active transaction record.
+     * @param array<string, mixed> $brand The active brand theme settings.
+     * @param array<\OwnPay\Plugin\PluginInterface> $manifests Discovered gateway plugins metadata array.
+     * @return array<string, mixed> The compiled JS configuration.
+     */
     private function buildJsConfig(array $txn, array $brand, array $manifests = []): array
     {
         // CK-03 FIX: Read timer from checkout settings instead of hardcoding
@@ -287,7 +364,15 @@ final class CheckoutController
     }
 
     /**
-     * POST /checkout/{token}/pay — gateway selection + manual payment submission.
+     * Processes payment gateway selection or manual checkout submission.
+     *
+     * Validates the request with double-submit guards, checks payment link status, and verifies
+     * the transaction HMAC integrity token. Delegates API transactions to the GatewayApiService,
+     * resolving custom callbacks under the brand domain context, or registers manual details directly.
+     *
+     * @param \OwnPay\Http\Request $req The incoming HTTP request.
+     * @return \OwnPay\Http\Response The JSON redirect, HTML payload, or HTTP redirect response.
+     * @throws \RuntimeException If the required HMAC_KEY or APP_KEY configuration is missing.
      */
     public function pay(Request $req): Response
     {
@@ -301,7 +386,7 @@ final class CheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
-        // CHK-011 FIX: State-based double-submit guard — only pending txns can proceed
+        // Prevent double processing: allow only pending transactions to request capture.
         if ($txn['status'] !== 'pending') {
             if ($req->isAjax()) {
                 return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
@@ -309,7 +394,7 @@ final class CheckoutController
             return $this->renderStatus($token, $txn['status']);
         }
 
-        // CHK-005 FIX: Re-check payment link status at pay time
+        // Re-verify payment link availability: enforce status limits during final capture step.
         $meta = json_decode($txn['metadata'] ?? '{}', true);
         $linkId = $meta['payment_link_id'] ?? null;
         if ($linkId !== null) {
@@ -325,11 +410,8 @@ final class CheckoutController
             }
         }
 
-        // M-05 FIX: Verify checkout integrity hash — reject tampered sessions.
-        // Support both form POST and JSON body (AJAX via opPost)
+        // Enforce security handshake verification checking submitted HMAC against local signature.
         $submittedHash = $req->input('checkout_hash', '');
-        // H-05 FIX: Use $_ENV fallback chain
-        // BUG-010 FIX: Require configured HMAC key — never fall back to a hardcoded constant.
         $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
         if ($hmacKey === '') {
             throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
@@ -360,22 +442,12 @@ final class CheckoutController
             return Response::redirect("/checkout/{$token}/status");
         }
 
-        // API gateway — call external gateway via GatewayBridge pipeline.
-        // CRITICAL: Do NOT update transaction status before the external API responds.
-        // Status stays 'pending' until we have a confirmed redirect URL from the gateway.
-        //
-        // ARCHITECTURE (matching PipraPay reference):
-        //   1. Frontend POSTs via fetch/AJAX (not form submit)
-        //   2. Controller returns JSON with redirect_url
-        //   3. Frontend does window.location.href = redirect_url (hard redirect OUT)
-        //   4. User pays on external gateway (Stripe/bKash)
-        //   5. Gateway redirects back to /checkout/{token}/status
-        //   6. Webhook/IPN updates DB state asynchronously
+        // API Handshake: delegate connection requests targeting external gateways.
         if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
             try {
                 $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
                 
-                // White-label: Resolve callback URL via brand's custom domain
+                // Multi-brand white-labeling: build callback target endpoints utilizing the active custom domain.
                 $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
                 $callbackUrl = $urlService->buildLegacyCallbackUrl((int) $txn['merchant_id'], $token, $req);
 
@@ -389,23 +461,19 @@ final class CheckoutController
                 ]);
 
                 if ($result['success'] && !empty($result['redirect_url'])) {
-                    // External gateway returned a valid redirect URL — NOW we transition state.
-                    // This is the only safe point to update: the external handshake succeeded.
                     $this->txnRepo->setGatewayAndStatus(
                         (int) $txn['id'], $gateway, 'processing', (int) $txn['merchant_id']
                     );
 
-                    // AJAX request: return JSON so frontend does window.location.href
+                    // Dispatch ajax redirects for asynchronous capture handlers.
                     if ($req->isAjax()) {
                         return Response::json([
                             'success'      => true,
                             'redirect_url' => $result['redirect_url'],
                         ]);
                     }
-                    // Non-AJAX fallback: 302 redirect
                     return Response::redirect($result['redirect_url']);
                 } elseif ($result['success'] && !empty($result['form_html'])) {
-                    // External gateway returned a form HTML instead of redirect URL — transition state
                     $this->txnRepo->setGatewayAndStatus(
                         (int) $txn['id'], $gateway, 'processing', (int) $txn['merchant_id']
                     );
@@ -419,7 +487,6 @@ final class CheckoutController
                     return Response::html($result['form_html']);
                 }
 
-                // Gateway returned success=false or no redirect URL
                 $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
                 $this->c->get(\OwnPay\Service\System\Logger::class)->warning(
                     "Gateway {$gateway} failed for trx {$txn['trx_id']}: {$errorMsg}"
@@ -432,8 +499,6 @@ final class CheckoutController
                     ], 422);
                 }
             } catch (\Throwable $e) {
-                // Gateway bridge threw (adapter not found, API error, etc.)
-                // Transaction stays 'pending' — user can retry with a different gateway.
                 $this->c->get(\OwnPay\Service\System\Logger::class)->error(
                     "Gateway {$gateway} initiation failed: " . $e->getMessage()
                 );
@@ -454,14 +519,17 @@ final class CheckoutController
             }
         }
 
-        // Non-AJAX fallback: redirect to status page. Transaction is still 'pending'.
         return Response::redirect("/checkout/{$token}/status");
     }
 
     /**
-     * POST /checkout/{token}/cancel
+     * Cancels the active checkout transaction.
      *
-     * H-03 FIX: Require checkout_hash to prevent unauthenticated cancellation.
+     * Authenticates cancellation requests using transaction HMAC key checks.
+     *
+     * @param \OwnPay\Http\Request $req The incoming HTTP request.
+     * @return \OwnPay\Http\Response The cancelled status response.
+     * @throws \RuntimeException If the required HMAC_KEY or APP_KEY configuration is missing.
      */
     public function cancel(Request $req): Response
     {
@@ -472,12 +540,11 @@ final class CheckoutController
             return $this->renderStatus($token, 'cancelled');
         }
 
-        // H-03 FIX: Verify HMAC hash — prevent anyone with trx_id from cancelling
+        // Authenticate cancellation requests: verify HMAC token against registered keys.
         $submittedHash = $req->input('checkout_hash', '');
         if (empty($submittedHash)) {
             return $this->renderStatus($token, 'expired');
         }
-        // BUG-010 FIX: Require configured HMAC key — never fall back to a hardcoded constant.
         $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
         if ($hmacKey === '') {
             throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
@@ -493,10 +560,13 @@ final class CheckoutController
     }
 
     /**
-     * GET /checkout/{token}/status
+     * Handles payment status lookups and external callback captures.
      *
-     * Also handles gateway callbacks — bKash redirects here with paymentID + status
-     * query params after customer pays. We execute the payment capture on first visit.
+     * Monitors query params (e.g. paymentID/payment_id) from external redirect flows,
+     * invoking the API callback capture loop on initial resolution visits.
+     *
+     * @param \OwnPay\Http\Request $req The incoming HTTP request.
+     * @return \OwnPay\Http\Response The checkout status HTML response.
      */
     public function status(Request $req): Response
     {
@@ -504,7 +574,7 @@ final class CheckoutController
         $txn = $this->txnRepo->findAnyByTrxId($token);
         $status = $txn['status'] ?? 'expired';
 
-        // Gateway callback handling — execute payment when bKash/SSLCommerz redirects back.
+        // Redirect callback loop: execute final capture steps when external providers redirect.
         $callbackPaymentId = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
         $callbackStatus = $req->query('status') ?? '';
 
@@ -542,7 +612,12 @@ final class CheckoutController
     }
 
     /**
-     * POST /checkout/{token}/manual-verify — customer submits manual payment proof.
+     * Registers manual verification transaction proof provided by customers.
+     *
+     * Transitions status to review pending and records tracking numbers in transaction metadata.
+     *
+     * @param \OwnPay\Http\Request $req The incoming HTTP request.
+     * @return \OwnPay\Http\Response The pending review HTML response.
      */
     public function manualVerify(Request $req): Response
     {

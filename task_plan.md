@@ -1,55 +1,47 @@
-# Task Plan: Production-Readiness Audit of OwnPay
+# Task Plan: Codebase Comment Refactoring & PHPDoc Standardization
 
 ## Goal
-Conduct a comprehensive production-readiness audit of OwnPay, identifying missing business logic, security vulnerabilities, edge-case bugs, compliance gaps, and deliver a detailed plan of issues and recommendations.
+Conduct a line-by-line rewrite and optimization of code comments across the entire OwnPay codebase to meet enterprise-grade, PSR-5 compliant PHPDoc standards, removing redundant comments and documenting complex logic, without altering functional application logic.
 
 ## Current Phase
-Phase 1: Research & Discovery
+Phase 2: Payment & Checkout Controllers
 
 ## Phases
 
-### Phase 1: Research & Discovery
-- [ ] List and review core architectural components (controllers, repositories, middleware, services)
-- [ ] Map out the database schema, especially tables relating to ledger, transactions, and merchant configuration
-- [ ] Audit the list of gateway plugins and dynamic CSP settings
-- [ ] Document initial findings in `findings.md`
-- **Status:** in_progress
+### Phase 1: Direct Core Layer
+- [x] Refactor [Container.php](file:///c:/laragon/www/ownpay/src/Container.php)
+- [x] Refactor [GatewayBridge.php](file:///c:/laragon/www/ownpay/src/Gateway/GatewayBridge.php)
+- [x] Refactor [PluginLoader.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginLoader.php)
+- [x] Refactor [Router.php](file:///c:/laragon/www/ownpay/src/Http/Router.php)
+- [x] Refactor [DomainMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/DomainMiddleware.php)
+- [x] Perform verification (PHP syntax check, run unit tests, phpstan checks)
+- **Status:** complete
 
-### Phase 2: Deep-Dive Analysis of Core Logic
-- [ ] Audit double-entry ledger implementation and merchant scoping
-- [ ] Audit white-label custom domain pipeline and URL generation
-- [ ] Analyze transaction state machine and payment flow edge cases
-- [ ] Inspect mobile API authentication and Device pairing/heartbeat mechanisms
-- [ ] Review system security configurations (CSRF helper, rate limiting, encryption)
+### Phase 2: Payment & Checkout Controllers
+- [ ] Refactor checkout and API controllers comments
+- [ ] Verify syntax and tests
 - **Status:** pending
 
-### Phase 3: Identify Gaps and Bugs
-- [ ] Audit for PCI DSS and OWASP compliance gaps
-- [ ] Verify if there are missing business logic components (e.g. refunds, chargebacks/disputes, webhook retry queue, settlement)
-- [ ] Identify any database, logic, or concurrency bugs (e.g. race conditions in ledgers, division by zero, timezone discrepancies)
+### Phase 3: Financial & Gateway Modules
+- [ ] Refactor LedgerService, CurrencyService, and Gateway adapters comments
+- [ ] Verify syntax and tests
 - **Status:** pending
 
-### Phase 4: Synthesis & Reporting
-- [ ] Compile comprehensive audit findings in `findings.md`
-- [ ] Deliver a production-readiness roadmap/report
+### Phase 4: Database Models & Schema Interfaces
+- [ ] Refactor Repositories and TenantScope trait comments
+- [ ] Verify syntax and tests
 - **Status:** pending
 
 ## Key Questions
-1. Are there missing business logic pieces like refunds, settlement schedules, or invoice/payment link expiration logic?
-2. Are ledger updates transactionally isolated and safe against double-spending or duplicate debit/credits?
-3. Are webhook dispatches and companion app sync mechanisms reliable and resilient to network/timeout failures?
-4. Are security systems (CORS, Rate Limiting, CSRF, JWT validation) robust enough for live deployment?
+1. Do any of the files in Phase 1 contain tricky constructs that require careful handling (e.g. PHP tokens parsing)?
+   - Yes, `PluginLoader.php` uses `token_get_all` to scan for dangerous function calls. We should document this process carefully.
 
 ## Decisions Made
 | Decision | Rationale |
 |----------|-----------|
-| Use file-based planning | Organize audit work systematically per the planning-with-files workflow |
+| Comment-only refactor | Ensure zero logical changes to prevent regression or system crashes |
+| PSR-5 PHPDoc standard | Ensure consistent IDE auto-completion and static analysis compatibility |
 
 ## Errors Encountered
 | Error | Attempt | Resolution |
 |-------|---------|------------|
-
-## Notes
-- Update phase status as you progress: pending → in_progress → complete
-- Re-read this plan before major decisions (attention manipulation)
-- Log ALL errors - they help avoid repetition
