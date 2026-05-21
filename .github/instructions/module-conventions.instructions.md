@@ -1,10 +1,10 @@
 # OwnPay Module Conventions
 
 ## 1) Module Placement
-- Gateways go in: `app/modules/gateways`
-- Addons go in: `app/modules/addons`
-- Plugins go in: `app/modules/plugins`
-- Themes go in: `app/modules/themes`
+- Gateways go in: `modules/gateways`
+- Addons go in: `modules/addons`
+- Plugins go in: `modules/plugins`
+- Themes go in: `modules/themes`
 - Shared core cross-cutting services belong in: `src/`
 
 ## 2) Module Design
