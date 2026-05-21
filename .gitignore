@@ -48,3 +48,8 @@ storage/backups/*
 
 # Mobile app
 mobile_app
+
+# Documentation and planning
+findings.md
+progress.md
+task_plan.md

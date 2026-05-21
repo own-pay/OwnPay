@@ -70,10 +70,10 @@ final class SecurityHeadersMiddleware
             $scriptSrc  = array_unique(array_merge(["'self'", "'nonce-{$nonce}'"], $gatewayCsp['script_src']));
             $styleSrc   = array_unique(array_merge(["'self'", "'nonce-{$nonce}'", 'https://fonts.googleapis.com'], $gatewayCsp['style_src']));
             $frameSrc   = array_unique(array_merge(["'self'"], $gatewayCsp['frame_src']));
-            $connectSrc = array_unique(array_merge(["'self'", 'https:'], $gatewayCsp['connect_src']));
+            $connectSrc = array_unique(array_merge(["'self'"], $gatewayCsp['connect_src']));
 
             $csp = implode('; ', [
-                "default-src 'self' https:",
+                "default-src 'self'",
                 'script-src ' . implode(' ', $scriptSrc),
                 'style-src ' . implode(' ', $styleSrc),
                 "font-src 'self' data: https://fonts.gstatic.com https:",

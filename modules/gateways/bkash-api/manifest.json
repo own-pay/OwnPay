@@ -15,7 +15,8 @@
     "csp": {
         "script_src": ["https://*.bkash.com"],
         "style_src": ["https://*.bkash.com"],
-        "frame_src": ["https://*.bkash.com"]
+        "frame_src": ["https://*.bkash.com"],
+        "connect_src": ["https://*.bkash.com"]
     },
     "permissions": ["gateway.process"]
 }

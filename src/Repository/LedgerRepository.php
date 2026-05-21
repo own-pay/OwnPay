@@ -233,10 +233,11 @@ final class LedgerRepository extends BaseRepository
     public function merchantBalance(int $merchantId, string $currency = 'BDT'): string
     {
         $row = $this->db->fetchOne(
-            "SELECT COALESCE(SUM(balance), 0) as total FROM op_ledger_accounts
-             WHERE merchant_id = :mid AND currency = :cur",
+            "SELECT balance FROM op_ledger_accounts
+             WHERE merchant_id = :mid AND currency = :cur AND name = 'MERCHANT_PAYABLE'
+             LIMIT 1",
             ['mid' => $merchantId, 'cur' => $currency]
         );
-        return $row['total'] ?? '0.00';
+        return $row['balance'] ?? '0.00';
     }
 }

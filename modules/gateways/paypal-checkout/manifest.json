@@ -18,7 +18,8 @@
     "csp": {
         "script_src": ["https://*.paypal.com", "https://*.paypalobjects.com"],
         "style_src": ["https://*.paypal.com"],
-        "frame_src": ["https://*.paypal.com"]
+        "frame_src": ["https://*.paypal.com"],
+        "connect_src": ["https://*.paypal.com", "https://*.paypalobjects.com"]
     },
     "permissions": ["gateway.process"]
 }

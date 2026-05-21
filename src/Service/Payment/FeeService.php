@@ -3,6 +3,10 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\Payment;
 
+use OwnPay\Core\Database;
+use OwnPay\Event\EventManager;
+use OwnPay\Repository\SettingsRepository;
+
 /**
  * Fee service — calculates transaction fees.
  *
@@ -10,15 +14,18 @@ namespace OwnPay\Service\Payment;
  */
 final class FeeService
 {
-    private \OwnPay\Event\EventManager $events;
-    private \OwnPay\Repository\SettingsRepository $settings;
+    private EventManager $events;
+    private SettingsRepository $settings;
+    private Database $db;
 
     public function __construct(
-        \OwnPay\Event\EventManager $events,
-        \OwnPay\Repository\SettingsRepository $settings
+        EventManager $events,
+        SettingsRepository $settings,
+        Database $db
     ) {
         $this->events = $events;
         $this->settings = $settings;
+        $this->db = $db;
     }
 
     /**
@@ -29,24 +36,32 @@ final class FeeService
      */
     public function calculate(string $amount, string $currency, string $gatewaySlug, int $merchantId): string
     {
-        $feeConfig = $this->getFeeConfig($gatewaySlug);
+        // 1. Resolve custom fee rules from the op_fee_rules table
+        $rule = $this->resolveActiveRule($merchantId, $gatewaySlug, $currency);
 
-        $percentFee = bcmul($amount, bcdiv($feeConfig['percentage'], '100', 6), 2);
-        $fixedFee = $feeConfig['fixed'];
+        if ($rule !== null) {
+            $fee = $this->calculateRuleFee($amount, $rule);
+        } else {
+            // Fall back to default settings config
+            $feeConfig = $this->getFeeConfig($gatewaySlug);
 
-        // Use whichever is greater, or sum
-        $fee = match ($feeConfig['mode']) {
-            'sum'     => bcadd($percentFee, $fixedFee, 2),
-            'greater' => bccomp($percentFee, $fixedFee, 2) >= 0 ? $percentFee : $fixedFee,
-            default   => bcadd($percentFee, $fixedFee, 2),
-        };
+            $percentFee = bcmul($amount, bcdiv($feeConfig['percentage'], '100', 6), 2);
+            $fixedFee = $feeConfig['fixed'];
 
-        // Min/max cap
-        if (bccomp($fee, $feeConfig['min'], 2) < 0) {
-            $fee = $feeConfig['min'];
-        }
-        if ($feeConfig['max'] !== '0.00' && bccomp($fee, $feeConfig['max'], 2) > 0) {
-            $fee = $feeConfig['max'];
+            // Use whichever is greater, or sum
+            $fee = match ($feeConfig['mode']) {
+                'sum'     => bcadd($percentFee, $fixedFee, 2),
+                'greater' => bccomp($percentFee, $fixedFee, 2) >= 0 ? $percentFee : $fixedFee,
+                default   => bcadd($percentFee, $fixedFee, 2),
+            };
+
+            // Min/max cap for default config
+            if (bccomp($fee, $feeConfig['min'], 2) < 0) {
+                $fee = $feeConfig['min'];
+            }
+            if ($feeConfig['max'] !== '0.00' && bccomp($fee, $feeConfig['max'], 2) > 0) {
+                $fee = $feeConfig['max'];
+            }
         }
 
         // Plugin filter
@@ -58,6 +73,116 @@ final class FeeService
         ]);
 
         return $fee;
+    }
+
+    /**
+     * Resolve active rule prioritized by specificity.
+     */
+    private function resolveActiveRule(int $merchantId, string $gatewaySlug, string $currency): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM op_fee_rules
+              WHERE status = 'active'
+                AND currency = :currency
+                AND (merchant_id = :merchant_id OR merchant_id IS NULL)
+                AND (gateway_slug = :gateway_slug OR gateway_slug IS NULL)
+              ORDER BY
+                CASE
+                  WHEN merchant_id = :merchant_id_ob1 AND gateway_slug = :gateway_slug_ob1 THEN 1
+                  WHEN merchant_id = :merchant_id_ob2 AND gateway_slug IS NULL THEN 2
+                  WHEN merchant_id IS NULL AND gateway_slug = :gateway_slug_ob2 THEN 3
+                  ELSE 4
+                END ASC,
+                id DESC
+              LIMIT 1",
+            [
+                'merchant_id'         => $merchantId,
+                'gateway_slug'        => $gatewaySlug,
+                'currency'            => $currency,
+                'merchant_id_ob1'     => $merchantId,
+                'merchant_id_ob2'     => $merchantId,
+                'gateway_slug_ob1'    => $gatewaySlug,
+                'gateway_slug_ob2'    => $gatewaySlug,
+            ]
+        );
+    }
+
+    /**
+     * Calculate fee based on custom fee rule.
+     */
+    private function calculateRuleFee(string $amount, array $rule): string
+    {
+        $type = $rule['type'];
+        $value = (string) $rule['value'];
+
+        if ($type === 'flat') {
+            $fee = $value;
+        } elseif ($type === 'percentage') {
+            $fee = bcmul($amount, bcdiv($value, '100', 6), 2);
+        } elseif ($type === 'tiered') {
+            $tiers = null;
+            if (is_string($rule['tiers'])) {
+                $tiers = json_decode($rule['tiers'], true);
+            } elseif (is_array($rule['tiers'])) {
+                $tiers = $rule['tiers'];
+            }
+
+            if (!is_array($tiers)) {
+                $fee = '0.00';
+            } else {
+                // Sort tiers by limit ascending
+                usort($tiers, static function (array $a, array $b) {
+                    $limA = $a['limit'] ?? null;
+                    $limB = $b['limit'] ?? null;
+                    if ($limA === null && $limB === null) {
+                        return 0;
+                    }
+                    if ($limA === null) {
+                        return 1;
+                    }
+                    if ($limB === null) {
+                        return -1;
+                    }
+                    return bccomp((string) $limA, (string) $limB, 4);
+                });
+
+                // Find matching tier
+                $matchedTier = null;
+                foreach ($tiers as $tier) {
+                    $limit = $tier['limit'] ?? null;
+                    if ($limit === null || bccomp($amount, (string) $limit, 4) <= 0) {
+                        $matchedTier = $tier;
+                        break;
+                    }
+                }
+
+                if ($matchedTier !== null) {
+                    $tierType = $matchedTier['type'] ?? 'percentage';
+                    $tierValue = (string) ($matchedTier['value'] ?? '0.00');
+
+                    if ($tierType === 'flat') {
+                        $fee = $tierValue;
+                    } else {
+                        // percentage
+                        $fee = bcmul($amount, bcdiv($tierValue, '100', 6), 2);
+                    }
+                } else {
+                    $fee = '0.00';
+                }
+            }
+        } else {
+            $fee = '0.00';
+        }
+
+        // Apply min/max caps from rule
+        if ($rule['min_fee'] !== null && bccomp($fee, (string) $rule['min_fee'], 2) < 0) {
+            $fee = (string) $rule['min_fee'];
+        }
+        if ($rule['max_fee'] !== null && bccomp((string) $rule['max_fee'], '0.00', 2) > 0 && bccomp($fee, (string) $rule['max_fee'], 2) > 0) {
+            $fee = (string) $rule['max_fee'];
+        }
+
+        return bcadd($fee, '0', 2);
     }
 
     /**

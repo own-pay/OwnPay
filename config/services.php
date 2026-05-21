@@ -295,7 +295,8 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Service\Payment\FeeService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\FeeService {
         return new \OwnPay\Service\Payment\FeeService(
             $c->get(\OwnPay\Event\EventManager::class),
-            $c->get(\OwnPay\Repository\SettingsRepository::class)
+            $c->get(\OwnPay\Repository\SettingsRepository::class),
+            $c->get(\OwnPay\Core\Database::class)
         );
     });
 
@@ -310,7 +311,8 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Service\Payment\LedgerService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\LedgerService {
         return new \OwnPay\Service\Payment\LedgerService(
             $c->get(\OwnPay\Repository\LedgerRepository::class),
-            $c->get(\OwnPay\Event\EventManager::class)
+            $c->get(\OwnPay\Event\EventManager::class),
+            $c->get(\OwnPay\Repository\TransactionRepository::class)
         );
     });
 
@@ -422,7 +424,8 @@ return static function (\OwnPay\Container $c): void {
             $c->get(\OwnPay\Service\Payment\TransactionService::class),
             $c->get(\OwnPay\Repository\TransactionRepository::class),
             $c->get(\OwnPay\Service\System\AuditLogger::class),
-            $c->get(\OwnPay\Service\System\Logger::class)
+            $c->get(\OwnPay\Service\System\Logger::class),
+            $c->get(\OwnPay\Service\Payment\LedgerService::class)
         );
     });
 

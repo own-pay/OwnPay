@@ -6,6 +6,7 @@ namespace OwnPay\Gateway;
 
 use OwnPay\Core\Database;
 use OwnPay\Service\Payment\TransactionService;
+use OwnPay\Service\Payment\LedgerService;
 use OwnPay\Service\System\AuditLogger;
 use OwnPay\Service\System\Logger;
 use OwnPay\Repository\WebhookEventRepository;
@@ -27,19 +28,22 @@ final class WebhookInboundProcessor
     private TransactionRepository $transactionRepo;
     private AuditLogger $audit;
     private Logger $logger;
+    private LedgerService $ledgerService;
 
     public function __construct(
         Database $db,
         TransactionService $transactionService,
         TransactionRepository $transactionRepo,
         AuditLogger $audit,
-        Logger $logger
+        Logger $logger,
+        LedgerService $ledgerService
     ) {
         $this->db = $db;
         $this->transactionService = $transactionService;
         $this->transactionRepo = $transactionRepo;
         $this->audit = $audit;
         $this->logger = $logger;
+        $this->ledgerService = $ledgerService;
     }
 
     /**
@@ -203,6 +207,16 @@ final class WebhookInboundProcessor
         $txn = $this->resolveTransaction($payload, $merchantId);
         if ($txn['status'] !== 'completed') {
             $this->transactionService->complete((int) $txn['id'], $merchantId);
+            $updatedTxn = $this->transactionRepo->forTenant($merchantId)->findScoped((int) $txn['id']);
+            if ($updatedTxn !== null) {
+                $this->ledgerService->recordPaymentReceived(
+                    $merchantId,
+                    (int) $updatedTxn['id'],
+                    (string) $updatedTxn['amount'],
+                    (string) ($updatedTxn['fee'] ?? '0.00'),
+                    (string) $updatedTxn['currency']
+                );
+            }
         }
     }
 
@@ -229,6 +243,13 @@ final class WebhookInboundProcessor
         $txn = $this->findTransaction($reference, $merchantId);
         if ($txn !== null && $txn['status'] === 'completed') {
             $this->transactionRepo->forTenant($merchantId)->updateScoped((int) $txn['id'], ['status' => 'refunded']);
+            $amount = (string) ($payload['data']['refund_amount'] ?? $payload['data']['amount'] ?? $txn['amount']);
+            $this->ledgerService->recordRefund(
+                $merchantId,
+                (int) $txn['id'],
+                $amount,
+                $txn['currency']
+            );
         }
     }
 

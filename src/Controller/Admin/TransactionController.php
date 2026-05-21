@@ -118,8 +118,40 @@ final class TransactionController
             return Response::redirect('/admin/transactions');
         }
 
+        if ($txn['status'] === $newStatus || ($newStatus === 'canceled' && $txn['status'] === 'cancelled')) {
+            $this->session->flashSuccess("Transaction is already {$newStatus}");
+            return Response::redirect("/admin/transactions/{$id}");
+        }
+
+        $transactionService = $this->c->get(\OwnPay\Service\Payment\TransactionService::class);
+        $ledgerService = $this->c->get(\OwnPay\Service\Payment\LedgerService::class);
+
         $this->events->doAction('transaction.status.before', $txn, $newStatus);
-        $this->txns->forTenant($mid)->updateScoped($id, ['status' => $newStatus, 'updated_at' => DateHelper::now()]);
+
+        if ($newStatus === 'completed') {
+            $transactionService->complete($id, $mid);
+            $updatedTxn = $this->txns->forTenant($mid)->findScoped($id);
+            if ($updatedTxn !== null) {
+                $ledgerService->recordPaymentReceived(
+                    $mid,
+                    $id,
+                    (string) $updatedTxn['amount'],
+                    (string) ($updatedTxn['fee'] ?? '0.00'),
+                    (string) $updatedTxn['currency']
+                );
+            }
+        } elseif ($newStatus === 'refunded') {
+            $this->txns->forTenant($mid)->updateScoped($id, ['status' => 'refunded', 'updated_at' => DateHelper::now()]);
+            $ledgerService->recordRefund(
+                $mid,
+                $id,
+                (string) $txn['amount'],
+                (string) $txn['currency']
+            );
+        } elseif ($newStatus === 'canceled') {
+            $transactionService->cancel($id, $mid);
+        }
+
         $this->events->doAction('transaction.status.changed', array_merge($txn, ['status' => $newStatus]));
         $this->audit->log('transaction.status_changed', 'transaction', $id, ['status' => $txn['status']], ['status' => $newStatus]);
 
