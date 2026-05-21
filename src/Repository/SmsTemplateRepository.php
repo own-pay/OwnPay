@@ -3,19 +3,41 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
+/**
+ * Repository class responsible for managing database persistence, retrieval, and matching
+ * of SMS parsing templates within the 'op_sms_templates' table.
+ *
+ * SMS templates contain regular expressions used by mobile companion devices or local parsers
+ * to extract transaction IDs (trx_id) and payment amounts from incoming SMS text notifications
+ * (e.g. from bKash, Nagad, etc.). Scoped by merchant (brand) or configured globally.
+ */
 final class SmsTemplateRepository extends BaseRepository
 {
     use TenantScope;
 
+    /**
+     * The database table name associated with this repository.
+     *
+     * @var string
+     */
     protected string $table = 'op_sms_templates';
+
+    /**
+     * The list of columns that are safe to be bulk-filled on insertion or update.
+     *
+     * @var array<int, string>
+     */
     protected array $fillable = [
         'merchant_id', 'gateway_slug', 'sender_pattern', 'amount_regex',
         'trx_id_regex', 'sender_regex', 'priority', 'status',
     ];
 
     /**
-     * Get all active templates ordered by priority (for SMS parser).
-     * Global (NULL merchant_id) templates included alongside merchant-specific ones.
+     * Retrieves all active parsing templates ordered by priority, including both
+     * merchant-specific templates and global fallback templates (where merchant_id is NULL).
+     *
+     * @param int|null $merchantId The unique identifier of the merchant brand, or null to load only globals.
+     * @return array<int, array<string, mixed>> List of active SMS template records.
      */
     public function listActiveForMerchant(?int $merchantId): array
     {
@@ -28,16 +50,14 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * Find active templates whose sender_pattern EXACTLY matches the SMS "From" field.
+     * Finds active templates whose sender pattern exactly matches the incoming SMS sender string.
      *
-     * Matching rules:
-     *   - Case-sensitive exact string match (BINARY compare) — "bKash" ≠ "bkash"
-     *   - Scoped to merchant OR global (merchant_id IS NULL)
-     *   - Ordered by priority ASC (lower number = higher priority)
+     * Performs a BINARY exact string match (case-sensitive) to differentiate SMS senders
+     * like "bKash" from "bkash" or fake senders, retrieving both merchant-specific and global configurations.
      *
-     * @param  string $sender   Exact "From" field as received from mobile app
-     * @param  int    $brandId  Merchant/brand ID
-     * @return array  Matching template rows, empty if sender not whitelisted
+     * @param string $sender The exact sender identifier (From field) received from the mobile app.
+     * @param int $brandId The unique identifier of the merchant brand.
+     * @return array<int, array<string, mixed>> Matching template records ordered by priority ascending.
      */
     public function findBySender(string $sender, int $brandId): array
     {
@@ -52,11 +72,11 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * Get all distinct active sender_pattern values for a brand.
-     * Used as the mobile app sender whitelist.
+     * Retrieves a distinct list of active sender patterns for a specific merchant.
+     * Used by companion devices to whitelist and filter SMS messages on the device before transmission.
      *
-     * @param int $brandId
-     * @return string[]  e.g. ['bKash', 'AD-NAGAD', '01700000000']
+     * @param int $brandId The unique identifier of the merchant brand.
+     * @return string[] List of distinct non-empty sender pattern strings.
      */
     public function getSenderWhitelist(int $brandId): array
     {
@@ -73,8 +93,11 @@ final class SmsTemplateRepository extends BaseRepository
     // ─── Admin methods ───────────────────────────────────────────
 
     /**
-     * List all templates for merchant (admin page).
-     * BUG-20 FIX: Sanitize orderBy to prevent SQL injection.
+     * Retrieves all templates registered for a merchant for administration display.
+     *
+     * @param int $merchantId The unique identifier of the merchant brand.
+     * @param string $orderBy Column sorting specification. Sanity checks are applied internally.
+     * @return array<int, array<string, mixed>> List of matching template records.
      */
     public function listForAdmin(int $merchantId, string $orderBy = 'priority ASC, created_at DESC'): array
     {
@@ -86,7 +109,11 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * Find template scoped to merchant.
+     * Finds a single template scoped strictly to a specific merchant brand.
+     *
+     * @param int $id The internal primary key identifier of the template.
+     * @param int $merchantId The unique identifier of the merchant brand.
+     * @return array<string, mixed>|null The template record, or null if not found.
      */
     public function findForAdmin(int $id, int $merchantId): ?array
     {
@@ -97,7 +124,11 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * Create a new parsing template.
+     * Creates a new parsing template for the specified merchant.
+     *
+     * @param int $merchantId The unique identifier of the merchant brand.
+     * @param array<string, mixed> $data Field value pairs containing configuration patterns.
+     * @return string The newly generated template's auto-increment or primary key.
      */
     public function createTemplate(int $merchantId, array $data): string
     {
@@ -114,7 +145,12 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * Update parsing template fields.
+     * Updates parsing template fields for a given merchant.
+     *
+     * @param int $id The internal primary key of the target template.
+     * @param int $merchantId The unique identifier of the merchant brand.
+     * @param array<string, mixed> $data Set of field key-value pairs to modify.
+     * @return void
      */
     public function updateTemplate(int $id, int $merchantId, array $data): void
     {
@@ -138,7 +174,11 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * Delete a template.
+     * Deletes a template scoped strictly to a specific merchant brand.
+     *
+     * @param int $id The internal primary key of the template to delete.
+     * @param int $merchantId The unique identifier of the merchant brand.
+     * @return void
      */
     public function deleteTemplate(int $id, int $merchantId): void
     {
@@ -149,7 +189,10 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * Count templates for merchant.
+     * Counts the total number of templates registered for the specified merchant.
+     *
+     * @param int $merchantId The unique identifier of the merchant brand.
+     * @return int The total template count.
      */
     public function countForMerchant(int $merchantId): int
     {
@@ -161,9 +204,10 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * List active templates scoped to tenant.
-     * BUG-39 FIX: Was globally unscoped, leaking all merchants' SMS senders.
-     * Used by Mobile ConfigController for filter rules.
+     * Retrieves active templates scoped to tenant, preventing cross-tenant leakage.
+     *
+     * @param int $merchantId The unique identifier of the merchant brand.
+     * @return array<int, array<string, mixed>> List of matching template records.
      */
     public function listActiveForTenant(int $merchantId): array
     {
@@ -174,7 +218,10 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * Compatibility alias for listActiveForTenant using tenantId.
+     * Compatibility alias for listActiveForTenant resolving merchant ID from context.
+     *
+     * @return array<int, array<string, mixed>> List of active template records.
+     * @throws \RuntimeException If the active tenant context cannot be resolved.
      */
     public function listActive(): array
     {

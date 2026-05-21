@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace OwnPay\Repository;
 
 /**
- * Repository for op_disputes table.
+ * Repository layer for customer disputes (`op_disputes` table).
+ *
+ * Scopes CRUD operations per active tenant via the TenantScope trait.
+ * Manages chargebacks, status transitions, evidence submission, and counts.
  */
 final class DisputeRepository extends BaseRepository
 {
@@ -14,7 +17,12 @@ final class DisputeRepository extends BaseRepository
     protected string $table = 'op_disputes';
 
     /**
-     * Find disputes for a merchant with pagination.
+     * Lists dispute records for a specific merchant with sorting and pagination.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param int $limit Maximum records to return.
+     * @param int $offset Records offset.
+     * @return list<array<string, mixed>> List of matching dispute records.
      */
     public function findByMerchant(int $merchantId, int $limit = 20, int $offset = 0): array
     {
@@ -31,8 +39,10 @@ final class DisputeRepository extends BaseRepository
     }
 
     /**
-     * Find dispute by ID (tenant-scoped).
-     * BUG-15 FIX: op_disputes has no 'public_id' column. Using 'id' instead.
+     * Finds a single dispute record by its primary key identifier, scoped by active tenant.
+     *
+     * @param int $id Primary key identifier of the dispute.
+     * @return array<string, mixed>|null Dispute database record, or null if not found.
      */
     public function findByIdScoped(int $id): ?array
     {
@@ -42,7 +52,12 @@ final class DisputeRepository extends BaseRepository
     }
 
     /**
-     * Find a dispute by transaction ID.
+     * Finds a dispute associated with a specific transaction identifier.
+     *
+     * Limits results to active status states ('open', 'under_review').
+     *
+     * @param int $transactionId Primary key identifier of the transaction.
+     * @return array<string, mixed>|null Dispute database record, or null if not found.
      */
     public function findByTransactionId(int $transactionId): ?array
     {
@@ -57,8 +72,14 @@ final class DisputeRepository extends BaseRepository
     }
 
     /**
-     * Resolve a dispute.
-     * BUG-15 FIX: op_disputes has no 'resolution' column. Use evidence JSON for resolution details.
+     * Resolves an open dispute, setting the final status and evidence.
+     *
+     * Uses microsecond-precision timestamps.
+     *
+     * @param int $id Primary key identifier of the dispute.
+     * @param string $status Target dispute resolution status.
+     * @param string|null $evidence Optional JSON-encoded resolution evidence details.
+     * @return void
      */
     public function resolve(int $id, string $status, ?string $evidence = null): void
     {
@@ -71,7 +92,10 @@ final class DisputeRepository extends BaseRepository
     }
 
     /**
-     * Count open disputes by merchant.
+     * Counts open disputes ('open', 'under_review') under a specific merchant.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @return int Active disputes count.
      */
     public function countOpenByMerchant(int $merchantId): int
     {

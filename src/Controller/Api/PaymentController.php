@@ -12,16 +12,35 @@ use OwnPay\Event\EventManager;
 use OwnPay\Service\System\InputSanitizer;
 
 /**
- * Payment API — initiate and query payments.
- * OWASP: Input validation, no PII in error responses.
- * PCI: Never logs/stores card data. Tokenized via gateway.
+ * Payment API Controller
+ *
+ * Exposes endpoints to initiate and query payment states. Integrates input validation
+ * controls, filters customer PII vectors, and enforces transport security bounds.
  */
 final class PaymentController
 {
+    /**
+     * @var Container The service container instance.
+     */
     private Container $c;
+
+    /**
+     * @var TransactionRepository Repository handling transaction entities.
+     */
     private TransactionRepository $transactions;
+
+    /**
+     * @var \OwnPay\Service\Payment\PaymentService Service layer managing payment intents.
+     */
     private \OwnPay\Service\Payment\PaymentService $paymentService;
 
+    /**
+     * Constructor.
+     *
+     * @param Container $c The service container instance.
+     * @param TransactionRepository $transactions Repository handling transaction entities.
+     * @param \OwnPay\Service\Payment\PaymentService $paymentService Service layer managing payment intents.
+     */
     public function __construct(
         Container $c,
         TransactionRepository $transactions,
@@ -33,15 +52,19 @@ final class PaymentController
     }
 
     /**
+     * Initiate a new payment session and create a payment intent.
+     *
      * POST /api/v1/payments/initiate
-     * Body: { amount, currency, reference?, customer_email?, customer_name?, customer_phone?, metadata?, callback_url?, redirect_url?, cancel_url? }
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response detailing initiation status or validation failures.
      */
     public function initiate(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
         $body = $req->json();
 
-        // OWASP: Validate required fields
+        // Validate required request parameters for input validation standards.
         $errors = [];
         if (empty($body['amount']) || !is_numeric($body['amount']) || bccomp((string) $body['amount'], '0', 2) <= 0) {
             $errors[] = 'amount must be a positive number';
@@ -50,7 +73,7 @@ final class PaymentController
             $errors[] = 'currency is required';
         }
 
-        // CHK-009 FIX: Validate currency format + existence in DB
+        // Validate currency formatting and verify existence against registered codes.
         if (!empty($body['currency'])) {
             $currencyCode = strtoupper(InputSanitizer::string($body['currency']));
             if (strlen($currencyCode) !== 3 || !preg_match('/^[A-Z]{3}$/', $currencyCode)) {
@@ -63,7 +86,7 @@ final class PaymentController
             }
         }
 
-        // CHK-008 FIX: Validate callback_url, redirect_url, cancel_url schemes (http/https only)
+        // Verify callback schemes enforce safe transport standards.
         foreach (['callback_url', 'redirect_url', 'cancel_url'] as $urlField) {
             if (!empty($body[$urlField])) {
                 $urlVal = filter_var($body[$urlField], FILTER_VALIDATE_URL);
@@ -82,16 +105,16 @@ final class PaymentController
             return Response::json(['success' => false, 'errors' => $errors], 422);
         }
 
-        // CHK-008 FIX: Sanitize customer PII fields
+        // Sanitize customer PII inputs to prevent injection vectors.
         $customerEmail = !empty($body['customer_email']) ? InputSanitizer::email($body['customer_email']) : null;
         $customerName = !empty($body['customer_name']) ? InputSanitizer::string($body['customer_name']) : null;
         $customerPhone = !empty($body['customer_phone']) ? preg_replace('/[^\d+\-\s()]/', '', (string) $body['customer_phone']) : null;
 
-        // Truncate to safe lengths
+        // Truncate variable values to enforce database column sizing constraints.
         if ($customerName !== null) $customerName = mb_substr($customerName, 0, 150);
         if ($customerPhone !== null) $customerPhone = mb_substr($customerPhone, 0, 30);
 
-        // CHK-010 FIX: Resolve or create customer_id from PII
+        // Resolve existing customer reference or provision a new customer entity.
         $customerId = null;
         if ($customerEmail !== null && $customerEmail !== '') {
             try {
@@ -107,8 +130,8 @@ final class PaymentController
                     ]);
                     $customerId = (int) ($created['id'] ?? 0) ?: null;
                 }
-            } catch (\Throwable) {
-                // Customer resolution failed — proceed without customer_id
+            } catch (\Throwable $e) {
+                // Proceed with intent creation without a linked customer reference if mapping fails.
             }
         }
 
@@ -133,7 +156,7 @@ final class PaymentController
         try {
             $intent = $this->paymentService->createIntent($mid, $intentData);
 
-            // White-label: Build checkout URL using brand's custom domain
+            // Construct white-labeled checkout URL using the primary custom domain mapping.
             $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
             $checkoutUrl = $urlService->buildCheckoutUrl($mid, $intent['token'], $req);
 
@@ -151,8 +174,12 @@ final class PaymentController
     }
 
     /**
+     * Retrieve details for a specific transaction by transaction ID.
+     *
      * GET /api/v1/payments/{trx_id}
-     * Lookup by transaction ID (TXN-XXXX format), NOT database ID.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response detailing transaction parameters or error states.
      */
     public function show(Request $req): Response
     {
@@ -183,7 +210,7 @@ final class PaymentController
             'completed_at' => $payment['completed_at'] ?? null,
         ];
 
-        // Resolve customer from FK — columns are encrypted (name_enc, email_enc)
+        // Resolve decrypted customer PII details mapped via foreign key.
         if (!empty($payment['customer_id'])) {
             try {
                 $pii = $this->c->get(\OwnPay\Service\Customer\CustomerPiiService::class);
@@ -194,12 +221,11 @@ final class PaymentController
                         'email' => $customer['email'] ?? null,
                     ];
                 }
-            } catch (\Throwable) {
-                // Customer lookup failed — skip
+            } catch (\Throwable $e) {
+                // Skip appending customer details if lookup fails.
             }
         }
 
         return Response::json(['success' => true, 'payment' => $response]);
     }
-
 }

@@ -20,24 +20,89 @@ use OwnPay\Support\DateHelper;
 
 /**
  * Payment Intent Checkout Controller
- * Manages the checkout flow, currency conversions, external gateway handshakes,
- * and 5-second countdown redirects.
+ * 
+ * Manages the checkout lifecycle, including customer presentation pages, currency 
+ * conversion workflows for regional processors, integration handshake redirects, 
+ * double-capture idempotency checks, and status confirmation templates.
  */
 final class PaymentIntentCheckoutController
 {
+    /**
+     * @var Container The service container instance.
+     */
     private Container $c;
+
+    /**
+     * @var EventManager The system-wide event manager.
+     */
     private EventManager $events;
+
+    /**
+     * @var TransactionRepository Repository mapping transactions.
+     */
     private TransactionRepository $txnRepo;
+
+    /**
+     * @var ManualGatewayRepository Repository handling manual payment configurations.
+     */
     private ManualGatewayRepository $manualGw;
+
+    /**
+     * @var GatewayConfigRepository Repository handling API payment configurations.
+     */
     private GatewayConfigRepository $apiGw;
+
+    /**
+     * @var MerchantRepository Repository handling brand/merchant operations.
+     */
     private MerchantRepository $merchants;
+
+    /**
+     * @var SettingsRepository Repository handling site configuration variables.
+     */
     private SettingsRepository $settings;
+
+    /**
+     * @var PaymentIntentRepository Repository handling intent records.
+     */
     private PaymentIntentRepository $intents;
+
+    /**
+     * @var PaymentService Service layer managing payment intents.
+     */
     private PaymentService $paymentService;
+
+    /**
+     * @var CurrencyService Service handling currency rates and conversion.
+     */
     private CurrencyService $currencyService;
+
+    /**
+     * @var TransactionService Service managing transaction states.
+     */
     private TransactionService $transactionService;
+
+    /**
+     * @var \OwnPay\Core\Database Database driver wrapper.
+     */
     private \OwnPay\Core\Database $db;
 
+    /**
+     * Constructor.
+     *
+     * @param Container $c The service container instance.
+     * @param EventManager $events The system-wide event manager.
+     * @param TransactionRepository $txnRepo Repository mapping transactions.
+     * @param ManualGatewayRepository $manualGw Repository handling manual payment configurations.
+     * @param GatewayConfigRepository $apiGw Repository handling API payment configurations.
+     * @param MerchantRepository $merchants Repository handling brand/merchant operations.
+     * @param SettingsRepository $settings Repository handling site configuration variables.
+     * @param PaymentIntentRepository $intents Repository handling intent records.
+     * @param PaymentService $paymentService Service layer managing payment intents.
+     * @param CurrencyService $currencyService Service handling currency rates and conversion.
+     * @param TransactionService $transactionService Service managing transaction states.
+     * @param \OwnPay\Core\Database $db Database driver wrapper.
+     */
     public function __construct(
         Container $c,
         EventManager $events,
@@ -67,7 +132,13 @@ final class PaymentIntentCheckoutController
     }
 
     /**
+     * Display the checkout page for a specific payment intent.
+     *
      * GET /checkout/intent/{token}
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The rendered checkout interface or status redirect.
+     * @throws \RuntimeException If the required secure signature keys are missing from environmental config.
      */
     public function show(Request $req): Response
     {
@@ -84,14 +155,14 @@ final class PaymentIntentCheckoutController
 
         $mid = (int) $intent['merchant_id'];
 
-        // Get active gateways
+        // Resolve active payment gateway configurations and manual gateway endpoints.
         $manualGateways = $this->manualGw->forTenant($mid)->listActive();
         $apiGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
 
-        // Resolve symbol for original currency
+        // Retrieve the localized symbol representing the invoice's original currency.
         $intent['currency_symbol'] = $this->currencyService->getSymbol($intent['currency']);
 
-        // Discover theme/manifest details
+        // Discover active plugins to extract metadata and theme assets for MFS/gateways.
         $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
         $manifests = $loader->discover();
         $categoryMap = [];
@@ -106,7 +177,7 @@ final class PaymentIntentCheckoutController
 
         $gateways = ['mfs' => [], 'bank' => [], 'global' => []];
 
-        // Helper to check and convert currency
+        // In-line closure helper to evaluate gateway requirements and execute cross-currency conversion.
         $checkAndConvert = function(array $gw, string $slug) use ($intent): array {
             $supportedCurrencies = ['BDT'];
             if ($slug === 'bkash-api' || $slug === 'nagad' || $slug === 'rocket' || $slug === 'sslcommerz') {
@@ -139,7 +210,7 @@ final class PaymentIntentCheckoutController
             $gw['color'] = json_decode($gw['colors'] ?? '{}', true)['primary'] ?? '#0D9488';
             $gw = array_merge($gw, ['mode' => 'manual']);
             
-            // For manual MFS gateways, convert currency if they process BDT
+            // Perform cross-currency translation for manual Mobile Financial Services (MFS) processing BDT.
             $gwSlugLower = strtolower($gw['slug'] ?? $gw['name'] ?? '');
             if (str_contains($gwSlugLower, 'bkash') || str_contains($gwSlugLower, 'nagad') || str_contains($gwSlugLower, 'rocket') || str_contains($gwSlugLower, 'upay')) {
                 $gw = $checkAndConvert($gw, 'bkash-api');
@@ -156,7 +227,7 @@ final class PaymentIntentCheckoutController
             $gw['color'] = $manifestMeta[$slug]['color'] ?? '#0D9488';
             $gw = array_merge($gw, ['mode' => 'api']);
             
-            // Check cross-currency translation for regional API gateways
+            // Evaluate and perform cross-currency translation for regional API gateways.
             $gw = $checkAndConvert($gw, $slug);
 
             $gateways[$cat][] = $gw;
@@ -165,15 +236,15 @@ final class PaymentIntentCheckoutController
         $brand = $this->loadBrand($mid);
         $faqs = json_decode($this->settings->get('general', 'faqs', '[]'), true);
 
-        // Generate HMAC hash binding amount+currency+token
-        // BUG-010 FIX: No static fallback key — throw if unconfigured
+        // Generate HMAC signature securing amount, currency, and token details against checkout tampering.
+        // Security check: ensure HMAC_KEY or APP_KEY is properly configured; fallback or throw if missing.
         $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
         if ($hmacKey === '') {
             throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
         }
         $checkoutHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
 
-        // Build manual details map for JS popup
+        // Compile details mapping for manual gateway instructions shown in the checkout modal.
         $manualDetails = [];
         foreach ($manualGateways as $gw) {
             $slug = $gw['slug'] ?? $gw['name'] ?? '';
@@ -195,7 +266,7 @@ final class PaymentIntentCheckoutController
                 }
             }
 
-            // Calculate converted BDT value for JS manual payment prompt popup
+            // Calculate the equivalent BDT amount for manual payment prompt visualization.
             $gwSlugLower = strtolower($gw['slug'] ?? $gw['name'] ?? '');
             $convAmount = null;
             $convCurrency = null;
@@ -204,7 +275,7 @@ final class PaymentIntentCheckoutController
                     try {
                         $convAmount = $this->currencyService->convert((string) $intent['amount'], $intent['currency'], 'BDT');
                         $convCurrency = 'BDT';
-                    } catch (\Throwable) {}
+                    } catch (\Throwable $e) {}
                 }
             }
 
@@ -219,7 +290,7 @@ final class PaymentIntentCheckoutController
             ];
         }
 
-        // JS Timer setup
+        // Calculate remaining session time bounds for checkout expiration timer.
         $timerEnabled = $this->settings->get('checkout', 'timer_enabled', '1');
         $timerSeconds = (int) $this->settings->get('checkout', 'timer_seconds', '600');
         $remaining = $timerSeconds;
@@ -254,14 +325,14 @@ final class PaymentIntentCheckoutController
             'gatewayMeta'           => $gatewayMeta,
         ];
 
-        // Format items from metadata
+        // Extract and decode payment invoice line items from intent metadata.
         $items = [];
         $metaObj = json_decode($intent['metadata'] ?? '{}', true) ?: [];
         if (isset($metaObj['items'])) {
             $items = $metaObj['items'];
         }
 
-        // Mock a transaction record so templates render seamlessly
+        // Construct mock transaction entity schema structure for compatibility with legacy Twig templates.
         $txnMock = [
             'trx_id'            => $intent['token'],
             'amount'            => $intent['amount'],
@@ -295,7 +366,13 @@ final class PaymentIntentCheckoutController
     }
 
     /**
+     * Process checkout form submission for a payment intent.
+     *
      * POST /checkout/intent/{token}/pay
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response Redirection, gateway form html, or JSON state payload.
+     * @throws \RuntimeException If the required secure signature keys are missing from environmental config.
      */
     public function pay(Request $req): Response
     {
@@ -316,9 +393,9 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, $intent['status'], $intent);
         }
 
-        // Verify HMAC integrity hash
+        // Verify checkout integrity via HMAC signature validation.
         $submittedHash = $req->input('checkout_hash', '');
-        // BUG-010 FIX: No static fallback key — throw if unconfigured
+        // Security check: ensure HMAC key is present and validate parameters against tampering.
         $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
         if ($hmacKey === '') {
             throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
@@ -338,7 +415,7 @@ final class PaymentIntentCheckoutController
         $amount = $intent['amount'];
         $currency = $intent['currency'];
 
-        // Perform Cross-Currency Conversion if selected gateway is regional/BDT-only
+        // Resolve and apply currency translation rules if the gateway dictates localized currency.
         if ($gateway === 'bkash-api' || $gateway === 'nagad' || $gateway === 'rocket' || $gateway === 'sslcommerz' || str_contains(strtolower($gateway), 'bkash') || str_contains(strtolower($gateway), 'nagad')) {
             if ($currency !== 'BDT') {
                 try {
@@ -353,7 +430,7 @@ final class PaymentIntentCheckoutController
             }
         }
 
-        // Create transaction linked to the Payment Intent
+        // Initialize and write a database transaction record mapped to this intent.
         $txnData = [
             'merchant_id'       => $mid,
             'payment_intent_id' => $intent['id'],
@@ -370,7 +447,7 @@ final class PaymentIntentCheckoutController
         try {
             $txn = $this->transactionService->create($mid, $txnData);
         } catch (\Throwable $e) {
-            // BUG-016 FIX: Log real error, return generic message to client
+            // Log failure context for administration auditing; response contains sanitized user message.
             $this->c->get(\OwnPay\Service\System\Logger::class)->error('Transaction creation failed: ' . $e->getMessage());
             if ($req->isAjax()) {
                 return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
@@ -388,7 +465,7 @@ final class PaymentIntentCheckoutController
                 $this->txnRepo->updateMetadata((int) $txn['id'], $metaObj, $mid);
             }
 
-            // Update intent to processing
+            // Update intent to processing.
             $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
 
             if ($req->isAjax()) {
@@ -400,29 +477,29 @@ final class PaymentIntentCheckoutController
             return Response::redirect("/checkout/intent/{$token}/status");
         }
 
-        // API gateway — initiate handshake redirect
+        // Initialize gateway integration handshake and resolve external redirection parameters.
         if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
             try {
                 $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
                 
-                // White-label: Resolve callback URL via brand's custom domain
+                // Resolve the white-labeled payment callback URL bound to the merchant domain context.
                 $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
                 $callbackUrl = $urlService->buildCallbackUrl($mid, $token, $req);
 
-                // Currency exchange: convert if gateway requires different currency
+                // Enforce dynamic cross-currency conversion if gateway requirements differ from request currency.
                 $payAmount = $txn['amount'];
                 $payCurrency = $txn['currency'];
                 if ($this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
                     $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
                     $supported = $bridge->getSupportedCurrencies($gateway);
                     if (!empty($supported) && !in_array($payCurrency, $supported, true)) {
-                        // Gateway doesn't accept this currency — convert to gateway's primary currency
-                        $targetCurrency = $supported[0]; // First = preferred
+                        // Apply currency conversion using exchange rate service and update metadata audits.
+                        $targetCurrency = $supported[0];
                         if ($this->c->has(\OwnPay\Service\Payment\CurrencyService::class)) {
                             $currSvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
                             $converted = $currSvc->convert($payAmount, $payCurrency, $targetCurrency);
                             if ($converted !== '0') {
-                                // Store original amount in metadata for audit
+                                // Record pre-conversion amount and exchange rate variables for financial audit trails.
                                 $existingMeta = json_decode($txn['metadata'] ?? '{}', true) ?: [];
                                 $existingMeta['original_amount'] = $payAmount;
                                 $existingMeta['original_currency'] = $payCurrency;
@@ -450,7 +527,7 @@ final class PaymentIntentCheckoutController
                 ]);
 
                 if ($result['success'] && !empty($result['redirect_url'])) {
-                    // Update Transaction Status to processing (Intent stays pending/initiated)
+                    // Track external gateway initiation stage by updating transaction state to processing.
                     $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'processing', $mid);
                     $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
 
@@ -462,7 +539,7 @@ final class PaymentIntentCheckoutController
                     }
                     return Response::redirect($result['redirect_url']);
                 } elseif ($result['success'] && !empty($result['form_html'])) {
-                    // Update Transaction Status to processing (Intent stays pending/initiated)
+                    // Track external gateway initiation stage by updating transaction state to processing.
                     $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'processing', $mid);
                     $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
 
@@ -483,7 +560,7 @@ final class PaymentIntentCheckoutController
                 $this->c->get(\OwnPay\Service\System\Logger::class)->error(
                     "Gateway {$gateway} initiation failed: " . $e->getMessage()
                 );
-                // BUG-016 FIX: Generic error message, real error already logged above
+                // Return standardized exception feedback for presentation to client.
                 if ($req->isAjax()) {
                     return Response::json(['success' => false, 'error' => 'Gateway connection error. Please try again.'], 422);
                 }
@@ -498,10 +575,12 @@ final class PaymentIntentCheckoutController
     }
 
     /**
+     * Display status page for the payment intent, and handle regional callback captures.
+     *
      * GET /checkout/intent/{token}/status
      *
-     * Also handles gateway callbacks — bKash redirects here with paymentID + status
-     * query params after customer pays. We execute the payment capture on first visit.
+     * @param Request $req The incoming HTTP request.
+     * @return Response The rendered transaction status view.
      */
     public function status(Request $req): Response
     {
@@ -514,22 +593,20 @@ final class PaymentIntentCheckoutController
 
         $mid = (int) $intent['merchant_id'];
 
-        // Gateway callback handling — execute payment when bKash/SSLCommerz redirects back.
-        // bKash sends: ?paymentID=xxx&status=success
-        // SSLCommerz sends POST to success_url with tran_id, val_id, etc.
+        // Handle callback parameters and execute transaction settlement checks.
+        // Map query inputs from regional integration interfaces.
         $callbackPaymentId = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
         $callbackStatus = $req->query('status') ?? '';
 
         if ($callbackPaymentId !== '' && $intent['status'] === 'processing') {
-            // Find the linked transaction
+            // Retrieve corresponding active transaction context record.
             $txn = $this->db->fetchOne(
                 "SELECT * FROM op_transactions WHERE payment_intent_id = :pi AND merchant_id = :mid AND status = 'processing' ORDER BY id DESC LIMIT 1",
                 ['pi' => $intent['id'], 'mid' => $mid]
             );
 
             if ($txn && $this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
-                // BUG-011 FIX: Atomic idempotency guard — claim the row before processing.
-                // If another request already claimed it (0 rows affected), skip callback.
+                // Acquire database-level transaction status lock to prevent concurrent double-capture callback processing.
                 $claimed = $this->db->update(
                     "UPDATE op_transactions SET status = 'callback_processing' WHERE id = :id AND merchant_id = :mid AND status = 'processing'",
                     ['id' => $txn['id'], 'mid' => $mid]
@@ -554,21 +631,21 @@ final class PaymentIntentCheckoutController
                             $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'completed']);
                             $intent['status'] = 'completed';
                         } else {
-                            // If bKash status=cancel or failure, mark as failed
+                            // Handle explicit rejection status by updating database records to failed.
                             if (in_array($callbackStatus, ['cancel', 'failure', 'failed'], true)) {
                                 $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'failed', $mid);
                                 $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'failed']);
                                 $intent['status'] = 'failed';
                             } else {
-                                // Restore to processing if callback didn't resolve
+                                // Revert status to processing state to support retrying checkout verification.
                                 $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'processing', $mid);
                             }
                         }
                     }
                 } catch (\Throwable $e) {
-                    // Restore to processing on error so it can be retried
+                    // Revert status on capture failure to permit subsequent verification attempts.
                     $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $txn['gateway_slug'] ?? '', 'processing', $mid);
-                    // Log but don't crash the status page
+                    // Log settlement capture exceptions without disrupting presentation page rendering.
                     if ($this->c->has(\OwnPay\Service\System\Logger::class)) {
                         $this->c->get(\OwnPay\Service\System\Logger::class)->error(
                             "Gateway callback execution failed for intent {$token}: " . $e->getMessage()
@@ -582,7 +659,13 @@ final class PaymentIntentCheckoutController
     }
 
     /**
+     * Terminate / cancel a payment intent session manually.
+     *
      * POST /checkout/intent/{token}/cancel
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response Redirect to external merchant landing URL or local status screen.
+     * @throws \RuntimeException If the secure signature keys are missing from environmental config.
      */
     public function cancel(Request $req): Response
     {
@@ -597,7 +680,7 @@ final class PaymentIntentCheckoutController
         if (empty($submittedHash)) {
             return $this->renderStatus($token, 'expired');
         }
-        // BUG-010 FIX: No static fallback key
+        // Validate signature integrity protecting status state against manipulation.
         $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
         if ($hmacKey === '') {
             throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
@@ -610,7 +693,7 @@ final class PaymentIntentCheckoutController
         $mid = (int) $intent['merchant_id'];
         $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'cancelled']);
 
-        // Cancel any pending transactions linked to this intent
+        // Terminate active child transactions mapped to the cancelled checkout intent.
         $this->db->execute(
             "UPDATE op_transactions SET status = 'cancelled' WHERE payment_intent_id = :pi AND merchant_id = :mid AND status = 'pending'",
             ['pi' => $intent['id'], 'mid' => $mid]
@@ -627,7 +710,12 @@ final class PaymentIntentCheckoutController
     }
 
     /**
+     * Submit verification details for manual payment gateway processing.
+     *
      * POST /checkout/intent/{token}/manual-verify
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response Redirect status response object.
      */
     public function manualVerify(Request $req): Response
     {
@@ -659,7 +747,7 @@ final class PaymentIntentCheckoutController
 
         $this->txnRepo->setStatusWithMeta((int) $txn['id'], 'pending_review', $existingMeta, $mid);
 
-        // Update payment intent to processing
+        // Elevate checkout intent status to reflect review processing.
         $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
 
         $this->events->doAction('checkout.manual_verify.submitted', $txn, $verifyData);
@@ -667,6 +755,14 @@ final class PaymentIntentCheckoutController
         return Response::redirect("/checkout/intent/{$token}/status");
     }
 
+    /**
+     * Render the payment confirmation status page.
+     *
+     * @param string $ref Unique transaction reference token.
+     * @param string $status Target transaction status tag.
+     * @param array|null $intent The active intent details, if found.
+     * @return Response HTML template response.
+     */
     private function renderStatus(string $ref, string $status, ?array $intent = null): Response
     {
         $twig = $this->c->get(\Twig\Environment::class);
@@ -693,13 +789,13 @@ final class PaymentIntentCheckoutController
 
         $txn = null;
         if ($intent) {
-            // BUG-012 FIX: Added merchant_id scope to prevent cross-brand data leakage
+            // Query transaction scoped strictly to merchant ID to guarantee tenant isolation.
             $txn = $this->db->fetchOne(
                 "SELECT * FROM op_transactions WHERE payment_intent_id = :pi AND merchant_id = :mid ORDER BY id DESC LIMIT 1",
                 ['pi' => $intent['id'], 'mid' => $mid]
             );
 
-            // Sync payment intent status if transaction is completed/failed
+            // Reconcile and synchronize parent intent status with final transaction outcomes.
             if ($txn) {
                 if ($txn['status'] === 'completed' && $intent['status'] !== 'completed') {
                     $this->paymentService->markPaid((int) $intent['id'], $mid);
@@ -750,14 +846,20 @@ final class PaymentIntentCheckoutController
         ]));
     }
 
+    /**
+     * Resolve branding parameters for a given merchant ID.
+     *
+     * @param int $mid Brand/Merchant ID.
+     * @return array Brand details styling array.
+     */
     private function loadBrand(int $mid): array
     {
-        // White-label: Use BrandThemeService for full per-brand theming
+        // Load customized white-label styling assets via brand context layout services.
         if ($this->c->has(\OwnPay\Service\Brand\BrandThemeService::class)) {
             return $this->c->get(\OwnPay\Service\Brand\BrandThemeService::class)->getBrandTheme($mid);
         }
 
-        // Fallback: basic brand data
+        // Fallback: resolve basic branding elements using core configuration parameters.
         $merchant = $this->merchants->find($mid);
         $s = $this->settings->getGroup('general');
         return [

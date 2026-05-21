@@ -7,8 +7,9 @@ namespace OwnPay\Repository;
 use OwnPay\Support\DateHelper;
 
 /**
- * DevicePairingTokenRepository — CRUD for `op_device_pairing_tokens`.
+ * Repository layer for device pairing tokens (`op_device_pairing_tokens` table).
  *
+ * Scopes CRUD operations per active tenant via the TenantScope trait.
  * Manages short-lived OTP tokens used in the 5-minute device pairing handshake.
  * OTPs are stored as SHA-256 hashes — raw OTP only lives in the QR code.
  */
@@ -23,7 +24,13 @@ final class DevicePairingTokenRepository extends BaseRepository
     ];
 
     /**
-     * Create a new pairing token.
+     * Creates a new pairing token under the active tenant context.
+     *
+     * @param string $otpHash SHA-256 hash of the generated one-time password token.
+     * @param int $brandId Associated brand/store identifier context.
+     * @param int $createdBy User ID of the administrator generating the pairing token.
+     * @param int $ttlSeconds Token lifetime duration in seconds (default is 300).
+     * @return string Last inserted primary key ID of the token record.
      */
     public function createToken(string $otpHash, int $brandId, int $createdBy, int $ttlSeconds = 300): string
     {
@@ -38,8 +45,12 @@ final class DevicePairingTokenRepository extends BaseRepository
     }
 
     /**
-     * Validate and consume an OTP hash atomically.
-     * Checks: exists, not used, not expired.
+     * Validates and consumes an OTP hash atomically.
+     *
+     * Performs a SELECT FOR UPDATE to block concurrent handshakes.
+     *
+     * @param string $otpHash SHA-256 hash of the generated one-time password token.
+     * @return array<string, mixed>|null Token database record, or null if validation fails.
      */
     public function validateAndConsume(string $otpHash): ?array
     {
@@ -70,7 +81,11 @@ final class DevicePairingTokenRepository extends BaseRepository
     }
 
     /**
-     * Count recent tokens created by an admin (for rate limiting).
+     * Counts recent tokens created by an admin (for rate limiting).
+     *
+     * @param int $createdBy User ID of the administrator context.
+     * @param int $windowSeconds Expiration boundary window in seconds (default is 300).
+     * @return int Recent tokens count.
      */
     public function countRecentByAdmin(int $createdBy, int $windowSeconds = 300): int
     {
@@ -86,8 +101,12 @@ final class DevicePairingTokenRepository extends BaseRepository
     }
 
     /**
-     * Purge expired/used tokens older than specified age.
-     * NOTE: Global housekeeping — no tenant scope.
+     * Purges expired or consumed tokens older than specified age.
+     *
+     * Global housekeeper task; intentionally unscoped.
+     *
+     * @param int $olderThanSeconds Cutoff age threshold in seconds (default is 3600).
+     * @return int Number of deleted records.
      */
     public function purgeExpired(int $olderThanSeconds = 3600): int
     {

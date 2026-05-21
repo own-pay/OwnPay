@@ -7,15 +7,29 @@ namespace OwnPay\Repository;
 use OwnPay\Support\DateHelper;
 
 /**
- * SmsDataRepository — CRUD for `op_sms_parsed`.
+ * Repository class responsible for database operations, persistence, and querying
+ * of parsed SMS data entries within the 'op_sms_parsed' table.
  *
- * Stores parsed SMS data submitted by mobile companion devices.
+ * This repository processes incoming notification streams transmitted by mobile companion
+ * devices. It manages duplicate checking, merchant-scoped listing, and queue counts
+ * under strict tenant contexts to ensure brand-level isolation.
  */
 final class SmsDataRepository extends BaseRepository
 {
     use TenantScope;
 
+    /**
+     * The database table name associated with this repository.
+     *
+     * @var string
+     */
     protected string $table = 'op_sms_parsed';
+
+    /**
+     * The list of columns that are safe to be bulk-filled on insertion or update.
+     *
+     * @var array<int, string>
+     */
     protected array $fillable = [
         'merchant_id', 'device_id', 'local_id', 'sender', 'body', 'amount',
         'trx_id', 'parsed_sender', 'parsed_balance', 'gateway_slug',
@@ -25,7 +39,15 @@ final class SmsDataRepository extends BaseRepository
     ];
 
     /**
-     * Check for duplicate: same device + sender + received_at within 1-second window.
+     * Detects if an incoming SMS entry is a duplicate by scanning for records
+     * from the same device, matching sender, and matching received timestamp
+     * within a strict ±1 second tolerance window.
+     *
+     * @param string $deviceId The pairing identifier of the originating device.
+     * @param string $sender The raw sender address or number.
+     * @param string $receivedAt The date-time string of when the SMS was received.
+     * @return bool True if a matching duplicate is found, false otherwise.
+     * @throws \RuntimeException If the active tenant context cannot be resolved.
      */
     public function isDuplicate(string $deviceId, string $sender, string $receivedAt): bool
     {
@@ -46,7 +68,14 @@ final class SmsDataRepository extends BaseRepository
     }
 
     /**
-     * List parsed SMS for merchant with pagination.
+     * Retrieves a paginated list of parsed SMS records scoped under the active tenant,
+     * optionally filtered by their transaction matching status.
+     *
+     * @param int $limit Maximum number of records to return. Defaults to 20.
+     * @param int $offset Numerical offset for database query pagination. Defaults to 0.
+     * @param string|null $status Optional status filter (e.g., 'matched', 'pending', 'ignored').
+     * @return array{items: array<int, array<string, mixed>>, total: int} A structure containing list of items and total count.
+     * @throws \RuntimeException If the active tenant context cannot be resolved.
      */
     public function listPaginated(int $limit = 20, int $offset = 0, ?string $status = null): array
     {
@@ -75,7 +104,11 @@ final class SmsDataRepository extends BaseRepository
     }
 
     /**
-     * Count unparsed entries for merchant (admin review queue).
+     * Counts the total number of unresolved or unmatched SMS entries for the active tenant,
+     * which represent the pending review queue for administrator verification.
+     *
+     * @return int The total count of pending SMS entries.
+     * @throws \RuntimeException If the active tenant context cannot be resolved.
      */
     public function countUnparsed(): int
     {
@@ -87,7 +120,13 @@ final class SmsDataRepository extends BaseRepository
     }
 
     /**
-     * Update parsed data on existing SMS record (admin reprocess/resolve).
+     * Updates key attributes on an existing SMS record to assist in admin-level
+     * resolution, transaction matching, or reprocessing.
+     *
+     * @param int $id The internal primary identifier of the target SMS record.
+     * @param array<string, mixed> $data Array of updated values to apply.
+     * @return int The number of affected database rows.
+     * @throws \RuntimeException If the active tenant context cannot be resolved.
      */
     public function updateParsedData(int $id, array $data): int
     {

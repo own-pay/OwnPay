@@ -323,7 +323,7 @@ final class CheckoutController
      *
      * @param array<string, mixed> $txn The active transaction record.
      * @param array<string, mixed> $brand The active brand theme settings.
-     * @param array<\OwnPay\Plugin\PluginInterface> $manifests Discovered gateway plugins metadata array.
+     * @param array<\OwnPay\Plugin\PluginManifest> $manifests Discovered gateway plugins metadata array.
      * @return array<string, mixed> The compiled JS configuration.
      */
     private function buildJsConfig(array $txn, array $brand, array $manifests = []): array

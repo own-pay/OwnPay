@@ -4,16 +4,32 @@ declare(strict_types=1);
 namespace OwnPay\Service\Payment;
 
 /**
- * Currency service — conversion, formatting, exchange rates.
+ * Service for currency conversion, formatting, and exchange rate operations.
  *
- * All amounts stored as DECIMAL(18,2) strings using bcmath.
+ * All financial amounts are processed as decimal strings utilizing BCMath functions
+ * to preserve numeric precision without floating-point inaccuracies.
  */
 final class CurrencyService
 {
-    /** @var array<string, array{rate: string, symbol: string, decimals: int}> */
+    /**
+     * Cache of active currencies.
+     *
+     * @var array<string, array{rate: string, symbol: string, decimals: int}>
+     */
     private array $currencies = [];
+
+    /**
+     * The site's primary base currency code.
+     *
+     * @var string
+     */
     private string $baseCurrency;
 
+    /**
+     * Initializes the currency service by retrieving the base currency and loading active rates.
+     *
+     * @param \OwnPay\Core\Database $db Core database interface.
+     */
     public function __construct(private readonly \OwnPay\Core\Database $db)
     {
         // AUD-C7 fix: load base currency from system settings instead of hardcoding USD
@@ -25,7 +41,13 @@ final class CurrencyService
     }
 
     /**
-     * Convert amount between currencies.
+     * Converts an amount from one currency to another using high-precision BCMath math operations.
+     *
+     * @param string $amount The numeric amount to convert.
+     * @param string $from The source currency ISO 4217 code.
+     * @param string $to The target currency ISO 4217 code.
+     * @return string The converted amount as a decimal string.
+     * @throws \RuntimeException If exchange rates for the currencies are not configured.
      */
     public function convert(string $amount, string $from, string $to): string
     {
@@ -46,7 +68,11 @@ final class CurrencyService
     }
 
     /**
-     * Format amount with currency symbol.
+     * Formats the given amount with the corresponding currency symbol and decimal configuration.
+     *
+     * @param string $amount The numeric amount to format.
+     * @param string $currency The target currency ISO 4217 code.
+     * @return string The formatted currency representation (e.g., "$100.00").
      */
     public function format(string $amount, string $currency): string
     {
@@ -57,26 +83,42 @@ final class CurrencyService
     }
 
     /**
-     * Get exchange rate to base currency.
+     * Retrieves the current exchange rate for a currency relative to the base currency.
+     *
+     * @param string $currency The currency ISO 4217 code.
+     * @return string The exchange rate as a decimal string, or '0' if not found.
      */
     public function getRate(string $currency): string
     {
         return $this->currencies[$currency]['rate'] ?? '0';
     }
 
+    /**
+     * Retrieves the currency symbol for the specified currency code.
+     *
+     * @param string $currency The currency ISO 4217 code.
+     * @return string The currency symbol (e.g., "$", "৳"), or code with space suffix if not found.
+     */
     public function getSymbol(string $currency): string
     {
         return $this->currencies[$currency]['symbol'] ?? $currency . ' ';
     }
 
+    /**
+     * Retrieves the decimal place precision configured for the specified currency.
+     *
+     * @param string $currency The currency ISO 4217 code.
+     * @return int The number of decimal places (defaults to 2).
+     */
     public function getDecimals(string $currency): int
     {
         return $this->currencies[$currency]['decimals'] ?? 2;
     }
 
     /**
-     * Get all supported currencies.
-     * @return string[]
+     * Returns an array of all active supported currency codes.
+     *
+     * @return string[] List of active currency ISO 4217 codes.
      */
     public function supported(): array
     {
@@ -84,7 +126,11 @@ final class CurrencyService
     }
 
     /**
-     * Validate amount is positive and has correct precision.
+     * Validates that an amount is positive and does not exceed the target currency's decimal precision.
+     *
+     * @param string $amount The numeric amount string.
+     * @param string $currency The currency ISO 4217 code.
+     * @return bool True if the amount is numeric, positive, and matches precision rules; false otherwise.
      */
     public function validateAmount(string $amount, string $currency): bool
     {
@@ -102,6 +148,11 @@ final class CurrencyService
         return true;
     }
 
+    /**
+     * Loads active currencies and exchange rates from the database into the in-memory cache.
+     *
+     * @return void
+     */
     private function loadCurrencies(): void
     {
         $rows = $this->db->fetchAll("SELECT code, symbol, decimal_places FROM op_currencies WHERE status = 'active'");
@@ -129,7 +180,14 @@ final class CurrencyService
     }
 
     /**
-     * Create or update a currency.
+     * Creates a new currency or updates an existing currency definition in the database.
+     *
+     * @param string $code The currency ISO 4217 code.
+     * @param string $name The friendly name of the currency.
+     * @param string $symbol The symbol character or string.
+     * @param string $status The status of the currency ('active' or 'inactive').
+     * @param int $decimalPlaces The currency precision (number of decimal places).
+     * @return void
      */
     public function upsert(string $code, string $name, string $symbol, string $status = 'active', int $decimalPlaces = 2): void
     {
@@ -148,7 +206,9 @@ final class CurrencyService
     }
 
     /**
-     * List all currencies (for admin settings).
+     * Retrieves all currency codes and names registered in the system.
+     *
+     * @return array<int, array{code: string, name: string}> List of currency metadata arrays.
      */
     public function listAll(): array
     {
@@ -156,7 +216,11 @@ final class CurrencyService
     }
 
     /**
-     * Update exchange rate for a currency (admin settings).
+     * Updates or creates the exchange rate for the specified target currency.
+     *
+     * @param string $targetCurrency The target currency ISO 4217 code.
+     * @param string $rate The exchange rate relative to the base currency.
+     * @return void
      */
     public function updateExchangeRate(string $targetCurrency, string $rate): void
     {
@@ -181,3 +245,4 @@ final class CurrencyService
         }
     }
 }
+

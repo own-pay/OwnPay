@@ -4,63 +4,78 @@ declare(strict_types=1);
 namespace OwnPay\Gateway;
 
 /**
- * Gateway adapter interface — every API gateway plugin implements this.
+ * Interface for payment gateway adapters.
+ *
+ * Defines the contract that every gateway adapter plugin must implement to orchestrate
+ * transactions, handle webhooks, process refunds, and expose capability matrices.
  */
 interface GatewayAdapterInterface
 {
     /**
-     * Gateway identifier.
+     * Returns the unique slug identifying the gateway adapter (e.g., 'stripe', 'bkash').
+     *
+     * @return string The unique slug identifier.
      */
     public function slug(): string;
 
     /**
-     * Initialize payment — returns redirect URL or form data.
+     * Initiates a payment process with the payment provider.
      *
-     * @param array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url: string, metadata?: array} $params
-     * @return array{redirect_url?: string, form_html?: string, session_id?: string}
+     * @param array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url: string, metadata?: array<string, mixed>} $params Core transaction parameters.
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured gateway credentials.
+     * @return array{redirect_url?: string, form_html?: string, session_id?: string} payment response containing the redirect URL or raw HTML form.
      */
     public function initiate(array $params, array $credentials): array;
 
     /**
-     * Verify payment callback/webhook.
+     * Verifies the authenticity and status of a payment callback or webhook.
      *
-     * @return array{success: bool, gateway_trx_id?: string, amount?: string, status?: string}
+     * @param array<string, mixed> $callbackData Payload received from the payment provider.
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured gateway credentials.
+     * @return array{success: bool, gateway_trx_id?: string, amount?: string, status?: string} Verification outcome metadata.
      */
     public function verify(array $callbackData, array $credentials): array;
 
     /**
-     * AUD-G6: Verify webhook signature/authenticity.
+     * Validates the integrity of an incoming webhook payload using signatures or callback endpoints.
      *
-     * Each gateway implements its own verification:
-     *   - Stripe: HMAC-SHA256 via Stripe-Signature header
-     *   - PayPal: IPN verification POST back
-     *   - SSLCommerz: store_passwd hash check
+     * Each gateway implements its own validation routines:
+     *   - Stripe: HMAC-SHA256 signature calculation using webhook signing secret.
+     *   - PayPal: IPN verification loop via verification POST back.
+     *   - SSLCommerz: Hash check utilizing MD5 and the configured store password.
      *
-     * Default: returns true (backward compat for gateways without webhook signing).
-     *
-     * @param string $rawBody   Raw request body (for HMAC computation)
-     * @param array  $headers   All request headers
-     * @param array  $credentials Gateway credentials
-     * @return bool True if signature is valid
+     * @param string $rawBody The raw HTTP request payload.
+     * @param array<string, string> $headers Inbound HTTP request headers.
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured gateway credentials.
+     * @return bool True if the webhook signature is authentic; false otherwise.
      */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool;
 
     /**
-     * Process refund.
+     * Processes a refund request against the transaction at the payment gateway.
      *
-     * @return array{success: bool, refund_id?: string, error?: string}
+     * @param string $gatewayTrxId The processor's transaction identifier.
+     * @param string $amount The numeric amount to refund.
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured gateway credentials.
+     * @return array{success: bool, refund_id?: string, error?: string} Refund operation results.
      */
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array;
 
     /**
-     * Check if gateway supports feature.
+     * Checks whether the gateway adapter supports a specific capability or feature.
+     *
+     * @param string $feature Name of the capability (e.g., 'refund', 'subscription').
+     * @return bool True if supported; false otherwise.
      */
     public function supports(string $feature): bool;
 
     /**
-     * Currencies this gateway accepts.
-     * Empty array = any currency.
-     * @return string[] ISO 4217 codes, e.g. ['BDT', 'INR']
+     * Returns a list of currency codes supported natively by the gateway.
+     *
+     * An empty array indicates that the gateway is currency-agnostic or relies on dynamic rates.
+     *
+     * @return string[] Array of supported ISO 4217 currency codes.
      */
     public function supportedCurrencies(): array;
 }
+

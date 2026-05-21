@@ -1,35 +1,71 @@
 <?php
+
 declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
 use OwnPay\Security\FieldEncryptor;
 
+/**
+ * Repository layer for brand-specific administrators and staff users (`op_merchant_users` table).
+ *
+ * Scopes queries and operations to specific merchants (brands/stores) using the TenantScope trait.
+ * Manages administrative credentials, security configurations (TOTP 2FA), staff management,
+ * and profile adjustments.
+ *
+ * @package OwnPay\Repository
+ */
 final class MerchantUserRepository extends BaseRepository
 {
     use TenantScope;
 
+    /**
+     * @var string Database table name.
+     */
     protected string $table = 'op_merchant_users';
+
+    /**
+     * @var FieldEncryptor|null Utility service to encrypt/decrypt sensitive fields like 2FA secrets.
+     */
     private ?FieldEncryptor $encryptor;
 
+    /**
+     * MerchantUserRepository constructor.
+     *
+     * @param \OwnPay\Core\Database $db Core database connection adapter.
+     * @param FieldEncryptor|null $encryptor Field encryptor instance for secure operations.
+     */
     public function __construct(\OwnPay\Core\Database $db, ?FieldEncryptor $encryptor = null)
     {
         parent::__construct($db);
         $this->encryptor = $encryptor;
     }
+
+    /**
+     * @var list<string> List of fields that can be mass-assigned.
+     */
     protected array $fillable = [
         'merchant_id', 'role_id', 'name', 'email', 'password_hash',
         'phone', 'avatar_path', 'totp_secret_enc', 'two_factor_enabled',
         'last_login_at', 'last_login_ip', 'status',
     ];
 
+    /**
+     * Finds a user record by their email address.
+     *
+     * @param string $email The user's email address.
+     * @return array<string, mixed>|null The user database record, or null if not found.
+     */
     public function findByEmail(string $email): ?array
     {
         return $this->findBy('email', $email);
     }
 
     /**
-     * Find active user by email (for auth).
+     * Finds an active user record by their email address for authentication checks.
+     *
+     * @param string $email The user's email address.
+     * @return array<string, mixed>|null The active user database record, or null if not found.
      */
     public function findActiveByEmail(string $email): ?array
     {
@@ -40,7 +76,12 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Find active user by email OR username (for login form).
+     * Finds an active user by their email or username login identifier.
+     *
+     * Used directly in authentication/login workflows.
+     *
+     * @param string $login The email address or username string.
+     * @return array<string, mixed>|null The matching active user record, or null if not found.
      */
     public function findActiveByLogin(string $login): ?array
     {
@@ -50,6 +91,13 @@ final class MerchantUserRepository extends BaseRepository
         );
     }
 
+    /**
+     * Updates a user's last login timestamp and IP address.
+     *
+     * @param int $userId The primary key ID of the user.
+     * @param string $ip The request source IP address.
+     * @return void
+     */
     public function updateLastLogin(int $userId, string $ip): void
     {
         $this->db->update(
@@ -59,7 +107,12 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Find user by ID (for profile page, 2FA setup).
+     * Finds a user record by ID, selecting only non-sensitive columns.
+     *
+     * Commonly used for profile management and 2FA configuration screens.
+     *
+     * @param int $id The primary key ID of the user.
+     * @return array<string, mixed>|null The filtered user record, or null if not found.
      */
     public function findById(int $id): ?array
     {
@@ -71,7 +124,12 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Update user profile (name + email).
+     * Updates standard profile details for a user.
+     *
+     * @param int $id The user's primary key ID.
+     * @param string $name The updated display name.
+     * @param string $email The updated email address.
+     * @return void
      */
     public function updateProfile(int $id, string $name, string $email): void
     {
@@ -82,7 +140,11 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Update password hash.
+     * Updates the password hash for a user.
+     *
+     * @param int $id The user's primary key ID.
+     * @param string $hash The raw Argon2id password hash.
+     * @return void
      */
     public function updatePassword(int $id, string $hash): void
     {
@@ -93,7 +155,10 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Get password hash for verification.
+     * Retrieves the password hash for a user to perform authentication verification.
+     *
+     * @param int $id The user's primary key ID.
+     * @return string|null The password hash, or null if the user does not exist.
      */
     public function getPasswordHash(int $id): ?string
     {
@@ -105,7 +170,12 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Paginated staff listing with role names.
+     * Returns a paginated list of staff users for a specific merchant, joining role labels.
+     *
+     * @param int $merchantId The merchant brand ID.
+     * @param int $limit Total records to return.
+     * @param int $offset Offset sequence number.
+     * @return array{items: array<int, array<string, mixed>>, total: int} A structure containing the paginated items and total count.
      */
     public function listStaffPaginated(int $merchantId, int $limit, int $offset): array
     {
@@ -123,7 +193,9 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * List all staff (global view for superadmin).
+     * Retrieves all staff users across all brands for superadmin views.
+     *
+     * @return list<array<string, mixed>> List of all staff records with brand and role names.
      */
     public function listAllStaff(): array
     {
@@ -137,7 +209,10 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * List staff for specific merchant.
+     * Lists all staff members associated with a specific merchant.
+     *
+     * @param int $merchantId The merchant brand ID.
+     * @return list<array<string, mixed>> List of matching staff records.
      */
     public function listStaffForMerchant(int $merchantId): array
     {
@@ -152,7 +227,11 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Find staff by ID (optionally scoped to merchant).
+     * Finds a staff user record by ID, optionally verifying merchant context.
+     *
+     * @param int $id The user ID.
+     * @param int|null $merchantId Optional merchant context scope check.
+     * @return array<string, mixed>|null The staff user record, or null if not found.
      */
     public function findStaff(int $id, ?int $merchantId = null): ?array
     {
@@ -166,8 +245,14 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Create staff user.
-     * AUD-05 FIX: Accept optional $roleId so callers can pass resolved role.
+     * Creates a new staff member for a brand.
+     *
+     * @param int $merchantId The merchant ID to assign the staff member to.
+     * @param string $name The display name.
+     * @param string $email The contact/login email.
+     * @param string $passwordHash The hashed password.
+     * @param int|null $roleId Optional role ID override (defaults to finding 'staff' slug or role ID 1).
+     * @return string The primary key ID of the newly created staff member.
      */
     public function createStaff(int $merchantId, string $name, string $email, string $passwordHash, ?int $roleId = null): string
     {
@@ -191,9 +276,15 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Update staff fields dynamically.
-     * BUG-18 FIX: Whitelist allowed columns to prevent SQL injection
-     * and privilege escalation via unfiltered field keys.
+     * Updates specific fields of a staff user.
+     *
+     * Validates fields against an allowed column whitelist to prevent SQL injection 
+     * and unauthorized privilege escalation via raw parameter arrays.
+     *
+     * @param int $id The target user ID.
+     * @param array<string, mixed> $fields Key-value pairs of parameters to update.
+     * @param int|null $merchantId Optional merchant context scope verification.
+     * @return void
      */
     public function updateStaff(int $id, array $fields, ?int $merchantId = null): void
     {
@@ -216,7 +307,11 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Delete non-superadmin staff.
+     * Deletes a staff member (excluding superadmin users to protect administrative system integrity).
+     *
+     * @param int $id The staff user ID.
+     * @param int|null $merchantId Optional merchant context scope verification.
+     * @return void
      */
     public function deleteStaff(int $id, ?int $merchantId = null): void
     {
@@ -236,7 +331,10 @@ final class MerchantUserRepository extends BaseRepository
     // ─── 2FA Methods ─────────────────────────────────────────────
 
     /**
-     * Get TOTP secret for user.
+     * Retrieves the decrypted TOTP secret for a user.
+     *
+     * @param int $id The user's primary key ID.
+     * @return string|null The decrypted TOTP secret string, or null if not configured.
      */
     public function getTotpSecret(int $id): ?string
     {
@@ -252,7 +350,11 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Store pending TOTP secret.
+     * Encrypts and stores the TOTP secret key for a user.
+     *
+     * @param int $id The user's primary key ID.
+     * @param string $secret The plaintext TOTP secret key.
+     * @return void
      */
     public function setTotpSecret(int $id, string $secret): void
     {
@@ -264,7 +366,10 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Enable TOTP (after code verification).
+     * Enables 2FA TOTP enforcement for the user.
+     *
+     * @param int $id The user's primary key ID.
+     * @return void
      */
     public function enableTotp(int $id): void
     {
@@ -275,7 +380,10 @@ final class MerchantUserRepository extends BaseRepository
     }
 
     /**
-     * Disable TOTP + clear secret.
+     * Disables 2FA TOTP enforcement and clears the stored secret.
+     *
+     * @param int $id The user's primary key ID.
+     * @return void
      */
     public function disableTotp(int $id): void
     {
@@ -285,3 +393,4 @@ final class MerchantUserRepository extends BaseRepository
         );
     }
 }
+
