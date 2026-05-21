@@ -6,10 +6,10 @@ You are working on **OwnPay**, an enterprise-grade payment gateway with a modula
 - Treat OwnPay as a **modern standalone codebase**.
 - Preserve strict separation between:
   - `src/` → core framework/services/shared infrastructure
-  - `app/modules/gateways` → payment gateway integrations
-  - `app/modules/addons` → optional extensions/features
-  - `app/modules/plugins` → feature plugins (implement PluginInterface)
-  - `app/modules/themes` → presentation/theme modules
+  - `modules/gateways` → payment gateway integrations
+  - `modules/addons` → optional extensions/features
+  - `modules/plugins` → feature plugins (implement PluginInterface)
+  - `modules/themes` → presentation/theme modules
 - Do not leak module-specific business logic into core services unless explicitly justified and reviewed.
 
 ## 2) Naming and Legacy Prohibition
@@ -18,7 +18,7 @@ You are working on **OwnPay**, an enterprise-grade payment gateway with a modula
   - `pp-gateways`, `pp-addons`, `pp-themes`, `pp-modules`
   - `pp_` database table prefix
 - Preferred examples:
-  - `app/modules/gateways`, `app/modules/addons`, `app/modules/plugins`, `app/modules/themes`
+  - `modules/gateways`, `modules/addons`, `modules/plugins`, `modules/themes`
   - dynamic DB prefix with default `op_`
 
 ## 3) Dependency and Integration Boundaries
