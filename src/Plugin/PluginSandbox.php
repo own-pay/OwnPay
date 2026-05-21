@@ -33,7 +33,10 @@ final class PluginSandbox
                 return false;
             }
         }
-        return str_starts_with($real, $this->pluginDir);
+        // BUG-51 FIX: Append trailing separator to prevent sibling-plugin path traversal.
+        // Without this, plugin dir "/stripe" could match "/stripe-payment/file.php".
+        $pluginDirWithSep = rtrim($this->pluginDir, '/\\') . DIRECTORY_SEPARATOR;
+        return str_starts_with($real, $pluginDirWithSep) || $real === rtrim($this->pluginDir, '/\\');
     }
 
     /**
@@ -58,12 +61,16 @@ final class PluginSandbox
         // Collapse whitespace
         $sql = preg_replace('/\s+/', ' ', strtolower(trim($sql))) ?? $sql;
 
-        // Block dangerous operations
-        $blocked = ['drop ', 'truncate ', 'alter ', 'create database', 'grant ', 'revoke '];
-        foreach ($blocked as $pattern) {
-            if (str_contains($sql, $pattern)) {
-                return false;
-            }
+        // BUG-013 FIX: Use regex word-boundary matching instead of str_contains.
+        // Prevents bypass via tabs, newlines, unicode spaces, or comment injection.
+        $blocked = [
+            'drop', 'truncate', 'alter', 'grant', 'revoke',
+            'load_file', 'into\\s+outfile', 'into\\s+dumpfile',
+            'create\\s+database', 'create\\s+user', 'create\\s+table',
+        ];
+        $pattern = '/\b(' . implode('|', $blocked) . ')\b/i';
+        if (preg_match($pattern, $sql)) {
+            return false;
         }
 
         // Plugins can only access op_plugin_* tables or their own prefixed tables

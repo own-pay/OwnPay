@@ -29,10 +29,23 @@ final class RequestValidator
         $data = $request->expectsJson() ? $request->json() : $request->post();
         
         // Sanitize strings globally before binding
+        // BUG-23 FIX: Skip strip_tags for sensitive fields that may contain
+        // special characters (passwords, API keys, signatures, tokens).
+        $sensitivePatterns = ['password', 'secret', 'key', 'token', 'signature', 'hash', 'credential'];
         foreach ($data as $key => $value) {
             if (is_string($value)) {
-                // If it looks like an email, sanitize as email, else string
-                if (filter_var($value, FILTER_VALIDATE_EMAIL)) {
+                // Check if this field should skip strip_tags
+                $lowerKey = strtolower($key);
+                $isSensitive = false;
+                foreach ($sensitivePatterns as $pattern) {
+                    if (str_contains($lowerKey, $pattern)) {
+                        $isSensitive = true;
+                        break;
+                    }
+                }
+                if ($isSensitive) {
+                    $data[$key] = trim($value); // Only trim, no strip_tags
+                } elseif (filter_var($value, FILTER_VALIDATE_EMAIL)) {
                     $data[$key] = InputSanitizer::email($value);
                 } else {
                     $data[$key] = InputSanitizer::string($value);

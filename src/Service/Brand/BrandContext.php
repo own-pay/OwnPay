@@ -38,14 +38,17 @@ final class BrandContext
         }
 
         // 2. Session
-        if (isset($_SESSION['active_brand_id'])) {
-            $this->activeBrandId = (int) $_SESSION['active_brand_id'];
-            return $this->activeBrandId;
-        }
+        // BUG-27 FIX: Guard $_SESSION access — not available in CLI/API contexts.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            if (isset($_SESSION['active_brand_id'])) {
+                $this->activeBrandId = (int) $_SESSION['active_brand_id'];
+                return $this->activeBrandId;
+            }
 
-        if (isset($_SESSION['auth_merchant_id'])) {
-            $this->activeBrandId = (int) $_SESSION['auth_merchant_id'];
-            return $this->activeBrandId;
+            if (isset($_SESSION['auth_merchant_id'])) {
+                $this->activeBrandId = (int) $_SESSION['auth_merchant_id'];
+                return $this->activeBrandId;
+            }
         }
 
         // 3. Default (first brand)
@@ -64,11 +67,14 @@ final class BrandContext
         }
 
         // Fall back to session
-        if (isset($_SESSION['active_brand_id'])) {
-            return (int) $_SESSION['active_brand_id'];
-        }
-        if (isset($_SESSION['auth_merchant_id'])) {
-            return (int) $_SESSION['auth_merchant_id'];
+        // BUG-27 FIX: Guard $_SESSION access for CLI/API safety.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            if (isset($_SESSION['active_brand_id'])) {
+                return (int) $_SESSION['active_brand_id'];
+            }
+            if (isset($_SESSION['auth_merchant_id'])) {
+                return (int) $_SESSION['auth_merchant_id'];
+            }
         }
 
         return null;
@@ -77,7 +83,10 @@ final class BrandContext
     public function setActiveBrandId(int $id): void
     {
         $this->activeBrandId = $id;
-        $_SESSION['active_brand_id'] = $id;
+        // BUG-27 FIX: Only write to session if active.
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION['active_brand_id'] = $id;
+        }
     }
 
     /**
@@ -85,13 +94,18 @@ final class BrandContext
      */
     public function isGlobalView(): bool
     {
-        return ($this->getActiveBrandId() === null)
-            || (($_SESSION['brand_view_mode'] ?? 'single') === 'global');
+        $mode = 'single';
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $mode = $_SESSION['brand_view_mode'] ?? 'single';
+        }
+        return ($this->getActiveBrandId() === null) || ($mode === 'global');
     }
 
     public function setGlobalView(bool $global): void
     {
-        $_SESSION['brand_view_mode'] = $global ? 'global' : 'single';
+        if (session_status() === PHP_SESSION_ACTIVE) {
+            $_SESSION['brand_view_mode'] = $global ? 'global' : 'single';
+        }
     }
 
     /**

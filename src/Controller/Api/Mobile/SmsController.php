@@ -33,26 +33,65 @@ final class SmsController
         $deviceId = (string) $req->getAttribute('device_id');
         $body = $req->json();
 
-        if (empty($body['sender']) || empty($body['body'])) {
-            return Response::json(['success' => false, 'error' => 'sender and body required'], 422);
+        // Check if batch payload or single
+        $isBatch = false;
+        $messages = [];
+
+        if (isset($body['messages']) && is_array($body['messages'])) {
+            $isBatch = true;
+            $messages = $body['messages'];
+        } elseif (is_array($body) && isset($body[0])) {
+            $isBatch = true;
+            $messages = $body;
+        } else {
+            $messages = [$body];
+        }
+
+        if (empty($messages)) {
+            return Response::json(['success' => false, 'error' => 'No messages provided'], 422);
+        }
+
+        // Validate messages
+        foreach ($messages as $msg) {
+            if (empty($msg['sender']) || (empty($msg['encrypted_payload']) && empty($msg['body']))) {
+                return Response::json(['success' => false, 'error' => 'sender and encrypted_payload/body required'], 422);
+            }
         }
 
         $this->events->doAction('sms.received.before', $body);
 
-        $result = $this->parser->parseAndStore((string) $deviceId, $mid, [
-            'sender'      => $body['sender'],
-            'body'        => $body['body'],
-            'received_at' => $body['received_at'] ?? DateHelper::now(),
-            'device_id'   => $deviceId,
-        ]);
+        $parsedMessages = [];
+        foreach ($messages as $msg) {
+            $parsedMessages[] = [
+                'local_id'          => isset($msg['local_id']) ? (int) $msg['local_id'] : null,
+                'sender'            => $msg['sender'],
+                'encrypted_payload' => $msg['encrypted_payload'] ?? $msg['body'] ?? '',
+                'received_at'       => $msg['received_at'] ?? DateHelper::now(),
+                'device_id'         => $deviceId,
+            ];
+        }
 
-        $this->events->doAction('sms.received.after', $result);
+        $results = $this->parser->processBatch((string) $deviceId, $mid, $parsedMessages);
+
+        $this->events->doAction('sms.received.after', $results);
+
+        if ($isBatch) {
+            return Response::json([
+                'success' => true,
+                'results' => $results,
+            ]);
+        }
+
+        // For single message compatibility, return top-level keys
+        $singleResult = $results[0] ?? [];
+        $status = $singleResult['status'] ?? 'rejected';
+        $success = ($status === 'accepted' || $status === 'duplicate');
 
         return Response::json([
-            'success' => true,
-            'parsed'  => $result['parsed'] ?? false,
-            'matched' => $result['matched'] ?? false,
-            'trx_id'  => $result['trx_id'] ?? null,
+            'success'    => $success,
+            'status'     => $status,
+            'server_ref' => $singleResult['server_ref'] ?? null,
+            'error'      => $singleResult['error'] ?? null,
         ]);
     }
 

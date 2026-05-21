@@ -32,8 +32,9 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
     {
         parent::setUp(); // triggers DB-available skip check
 
-        $this->tokenRepo = new DevicePairingTokenRepository();
-        $this->deviceRepo = new PairedDeviceRepository();
+        $db = Database::getInstance();
+        $this->tokenRepo = (new DevicePairingTokenRepository($db))->forTenant(12);
+        $this->deviceRepo = (new PairedDeviceRepository($db))->forTenant(12);
         $this->jwt = new JwtService();
         $this->pairingService = new DevicePairingService(
             $this->tokenRepo,
@@ -50,14 +51,14 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         }
 
         // Clean up test data
-        $pdo = Database::getInstance()->getPdo();
+        $pdo = Database::getInstance()->pdo();
 
         foreach ($this->createdDeviceUuids as $uuid) {
-            $pdo->prepare("DELETE FROM op_paired_devices WHERE device_uuid = ?")->execute([$uuid]);
+            $pdo->prepare("DELETE FROM op_paired_devices WHERE device_id = ?")->execute([$uuid]);
         }
 
-        // Clean up test tokens (created by admin 999999)
-        $pdo->exec("DELETE FROM op_device_pairing_tokens WHERE created_by = 999999");
+        // Clean up test tokens
+        $pdo->exec("DELETE FROM op_device_pairing_tokens WHERE brand_id = 12 OR created_by = 999999");
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -67,7 +68,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
     public function testFullPairingLifecycle(): void
     {
         // ── Step 1: Admin generates OTP ──────────────────────────
-        $otpResult = $this->pairingService->generatePairingOtp(1, 999999);
+        $otpResult = $this->pairingService->generatePairingOtp(1, 12);
 
         $this->assertArrayHasKey('otp', $otpResult, 'OTP generation should return an OTP');
         $this->assertSame(300, $otpResult['expires_in']);
@@ -100,8 +101,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $this->assertNotNull($device, 'Device should exist in DB after pairing');
         $this->assertSame('Integration Test Device', $device['device_name']);
         $this->assertSame('android', $device['platform']);
-        $this->assertSame('1.0.0-test', $device['app_version']);
-        $this->assertNull($device['revoked_at']);
+        $this->assertSame('active', $device['status']);
         $this->assertTrue($this->deviceRepo->isActive($deviceUuid));
 
         // ── Step 3: Verify the OTP is consumed (cannot reuse) ───
@@ -114,10 +114,9 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
             $pairResult['access_token'],
             $fingerprint
         );
-
         $this->assertTrue($validateResult['valid'], 'JWT should validate successfully');
         $this->assertSame($deviceUuid, $validateResult['device']['device_uuid']);
-        $this->assertSame(1, $validateResult['device']['brand_id']);
+        $this->assertSame(12, $validateResult['device']['brand_id']);
         $this->assertNull($validateResult['error']);
 
         // ── Step 5: Validate fails with wrong fingerprint ────────
@@ -159,10 +158,10 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $this->assertTrue($newValidate['valid'], 'New JWT from refresh should validate');
 
         // ── Step 9: Admin revokes the device ─────────────────────
-        $this->deviceRepo->revoke($deviceUuid);
+        $this->pairingService->revoke($deviceUuid, 12);
 
         $revokedDevice = $this->deviceRepo->findByUuid($deviceUuid);
-        $this->assertNotNull($revokedDevice['revoked_at'], 'Device should be marked revoked');
+        $this->assertSame('revoked', $revokedDevice['status'], 'Device should be marked revoked');
         $this->assertFalse($this->deviceRepo->isActive($deviceUuid));
 
         // ── Step 10: JWT now fails validation (revoked) ──────────
@@ -190,7 +189,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $fingerprint = 'repairing_test_fp:cert_sha';
 
         // First pairing
-        $otp1 = $this->pairingService->generatePairingOtp(1, 999999);
+        $otp1 = $this->pairingService->generatePairingOtp(1, 12);
         $pair1 = $this->pairingService->pairDevice($otp1['otp'], 'Phone v1', $fingerprint, '1.0');
         $this->assertTrue($pair1['success']);
         $this->createdDeviceUuids[] = $pair1['device_id'];
@@ -198,14 +197,14 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $oldUuid = $pair1['device_id'];
 
         // Second pairing with same fingerprint
-        $otp2 = $this->pairingService->generatePairingOtp(1, 999999);
+        $otp2 = $this->pairingService->generatePairingOtp(1, 12);
         $pair2 = $this->pairingService->pairDevice($otp2['otp'], 'Phone v2', $fingerprint, '2.0');
         $this->assertTrue($pair2['success']);
         $this->createdDeviceUuids[] = $pair2['device_id'];
 
         // Old device should be revoked
         $oldDevice = $this->deviceRepo->findByUuid($oldUuid);
-        $this->assertNotNull($oldDevice['revoked_at'], 'Old device should be auto-revoked on re-pair');
+        $this->assertSame('revoked', $oldDevice['status'], 'Old device should be auto-revoked on re-pair');
 
         // New device should be active
         $this->assertTrue($this->deviceRepo->isActive($pair2['device_id']));
@@ -219,12 +218,12 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
     {
         // Generate 5 OTPs (the limit)
         for ($i = 0; $i < 5; $i++) {
-            $result = $this->pairingService->generatePairingOtp(1, 999999);
+            $result = $this->pairingService->generatePairingOtp(1, 12);
             $this->assertArrayHasKey('otp', $result, "OTP #{$i} should succeed");
         }
 
         // 6th should be rate limited
-        $result = $this->pairingService->generatePairingOtp(1, 999999);
+        $result = $this->pairingService->generatePairingOtp(1, 12);
         $this->assertArrayHasKey('error', $result, 'Should be rate limited after 5 OTPs');
         $this->assertStringContainsString('Too many', $result['error']);
     }

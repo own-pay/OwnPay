@@ -57,7 +57,11 @@ final class DomainService
 
         $this->events->doAction('domain.mapped', $domain, $merchantId);
 
-        $serverIp = gethostbyname($_SERVER['HTTP_HOST'] ?? '127.0.0.1');
+        // BUG-29 FIX: Strip port from HTTP_HOST before DNS lookup.
+        // gethostbyname('ownpay.test:8443') fails silently.
+        $httpHost = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
+        $hostOnly = parse_url("https://{$httpHost}", PHP_URL_HOST) ?: $httpHost;
+        $serverIp = gethostbyname($hostOnly);
 
         return [
             'success'            => true,
@@ -91,7 +95,10 @@ final class DomainService
         }
 
         // Step 2: A record check (routing — warning only, not blocking)
-        $serverIp = gethostbyname($_SERVER['HTTP_HOST'] ?? '127.0.0.1');
+        // BUG-29 FIX: Strip port from HTTP_HOST before DNS lookup.
+        $httpHost = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
+        $hostOnly = parse_url("https://{$httpHost}", PHP_URL_HOST) ?: $httpHost;
+        $serverIp = gethostbyname($hostOnly);
         $aRecordOk = $this->dnsVerifier->verifyARecord($domain['domain'], $serverIp);
 
         $this->domains->forTenant($merchantId)->updateScoped($domainId, [

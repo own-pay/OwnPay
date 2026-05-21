@@ -56,6 +56,12 @@ final class WebhookRetryJob
 
             if ($success) {
                 $succeeded++;
+                // BUG-53 FIX: Mark as delivered so it's not retried again.
+                // Without this, status stays 'failed' causing infinite retries.
+                $this->db->update(
+                    "UPDATE op_comm_log SET status = 'delivered', sent_at = NOW(6) WHERE id = :id",
+                    ['id' => $delivery['id']]
+                );
             } else {
                 // Schedule next retry with backoff
                 /** @phpstan-ignore-next-line */

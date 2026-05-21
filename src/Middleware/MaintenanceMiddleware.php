@@ -9,7 +9,7 @@ use OwnPay\Http\Response;
 
 /**
  * Maintenance mode middleware — returns 503 when maintenance lock active.
- * Checks op_maintenance_locks table.
+ * Checks file-based lock at storage/.maintenance.
  */
 final class MaintenanceMiddleware
 {
@@ -29,7 +29,11 @@ final class MaintenanceMiddleware
         }
 
         // Skip for admin routes when authenticated (allows disabling maintenance from admin)
-        if (str_starts_with($request->path(), '/admin') && !empty($_SESSION['auth_user_id'])) {
+        // BUG-8 FIX: Guard $_SESSION — maintenance runs in 'global' group
+        // BEFORE session middleware starts, so $_SESSION may not exist.
+        if (str_starts_with($request->path(), '/admin')
+            && session_status() === PHP_SESSION_ACTIVE
+            && !empty($_SESSION['auth_user_id'])) {
             return $next($request);
         }
 

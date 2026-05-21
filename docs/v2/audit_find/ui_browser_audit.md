@@ -33,9 +33,9 @@ This report documents the newly discovered UI/UX, functional, and database-integ
 - **Target Component:** Merchant Management / Brand Configuration
 - **Exact File & Line Numbers:**
   - Twig Template: [edit.twig](file:///c:/laragon/www/ownpay/templates/admin/brands/edit.twig#L33)
-  - Database Schema: [ownpay.sql](file:///c:/laragon/www/ownpay/database/ownpay.sql#L440)
+  - Database Schema: [schema.sql](file:///c:/laragon/www/ownpay/database/schema.sql#L25)
 - **Flaw Description:**
-  In the Brand Edit form, the HTML status combobox includes an option with `value="inactive"` (`<option value="inactive" ...>Inactive</option>`). However, the `op_merchants` status column in the database is defined as `enum('active','suspended','pending')`. The value `inactive` is missing from the database ENUM definition.
+  In the Brand Edit form, the HTML status combobox includes an option with `value="inactive"` (`<option value="inactive" ...>Inactive</option>`). However, the `op_merchants` status column in the database is defined as `enum('active','suspended','pending')` (in [schema.sql](file:///c:/laragon/www/ownpay/database/schema.sql#L25)). The value `inactive` is missing from the database ENUM definition.
 - **Exploit Scenario / Failure Mode:**
   When an admin edits a Brand (e.g. Test Brand) and selects the "Inactive" status, the database layer throws a strict mode warning/error: `SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1`, crashing the application and displaying a raw PDO exception to the user.
 - **Architectural Fix Plan:**

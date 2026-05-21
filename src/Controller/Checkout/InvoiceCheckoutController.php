@@ -35,7 +35,17 @@ final class InvoiceCheckoutController
 
         // CHK-001 FIX: Only allow payable statuses (whitelist approach)
         $allowedStatuses = ['sent', 'overdue'];
-        if ($invoice && !in_array($invoice['status'], $allowedStatuses, true)) {
+
+        // BUG-33 FIX: Initialize Twig BEFORE using it in renderExpired().
+        // Previously $twig was used on line 46 but not assigned until line 62.
+        $twig = $this->c->get(\Twig\Environment::class);
+
+        if (!$invoice) {
+            // M-01 FIX: Pass brand/status_label to status page
+            return $this->renderExpired($twig);
+        }
+
+        if (!in_array($invoice['status'], $allowedStatuses, true)) {
             // Show contextual error messages for non-payable statuses
             $statusLabels = [
                 'draft' => 'Invoice Not Ready',
@@ -47,7 +57,7 @@ final class InvoiceCheckoutController
         }
 
         // CHK-002 FIX: Check due_date expiry — auto-mark overdue
-        if ($invoice && !empty($invoice['due_date'])) {
+        if (!empty($invoice['due_date'])) {
             $dueDate = strtotime($invoice['due_date']);
             if ($dueDate !== false && $dueDate < strtotime('today')) {
                 // Auto-update DB status to overdue if still 'sent'
@@ -57,13 +67,6 @@ final class InvoiceCheckoutController
                     $invoice['status'] = 'overdue';
                 }
             }
-        }
-
-        $twig = $this->c->get(\Twig\Environment::class);
-
-        if (!$invoice) {
-            // M-01 FIX: Pass brand/status_label to status page
-            return $this->renderExpired($twig);
         }
 
         // C-02 FIX: Reuse existing pending transaction (query by metadata JSON)

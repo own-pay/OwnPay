@@ -138,6 +138,18 @@ return static function (\OwnPay\Container $c): void {
         });
         $twig->addGlobal('app_name', $_ENV['APP_NAME'] ?? 'Own Pay');
         $twig->addGlobal('lang', []);   // i18n placeholder — populated by locale plugin
+
+        // BUG-12 FIX: Expose CSP nonce to all templates.
+        // SecurityHeadersMiddleware stores nonce in Container as 'csp_nonce'.
+        // Use lazy proxy since nonce isn't generated until middleware runs.
+        $twig->addGlobal('csp_nonce', new class($c) implements \Stringable {
+            private \OwnPay\Container $c;
+            public function __construct(\OwnPay\Container $c) { $this->c = $c; }
+            public function __toString(): string
+            {
+                return $this->c->has('csp_nonce') ? (string) $this->c->get('csp_nonce') : '';
+            }
+        });
         return $twig;
     });
 

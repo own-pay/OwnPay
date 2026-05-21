@@ -33,6 +33,14 @@ final class PairedDeviceRepository extends BaseRepository
         );
     }
 
+    public function findByFingerprintHash(string $hash, int $merchantId): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE jwt_fingerprint = :hash AND merchant_id = :mid LIMIT 1",
+            ['hash' => $hash, 'mid' => $merchantId]
+        );
+    }
+
     public function updateHeartbeat(string $deviceId): void
     {
         $this->db->update(
@@ -60,5 +68,11 @@ final class PairedDeviceRepository extends BaseRepository
             "SELECT * FROM {$this->table} WHERE merchant_id = :mid ORDER BY paired_at DESC",
             ['mid' => $this->requireTenant()]
         );
+    }
+
+    public function isActive(string $deviceId): bool
+    {
+        $device = $this->findByUuid($deviceId);
+        return $device !== null && ($device['status'] ?? '') === 'active';
     }
 }

@@ -287,17 +287,10 @@ final class Kernel
         foreach (array_reverse($stack) as $middlewareClass) {
             $pipeline = function (Request $req) use ($middlewareClass, $pipeline): Response {
                 if (!class_exists($middlewareClass)) {
-                    // AUD-Phase3: In production, a missing middleware is a critical config error
+                    // BUG-1 FIX: A missing middleware is ALWAYS a critical config error
                     // that could silently bypass CSRF, JWT, or permission checks.
-                    // FIX: Use consistent APP_DEBUG detection (same as handleException)
-                    $debug = filter_var(
-                        $_ENV['APP_DEBUG'] ?? getenv('APP_DEBUG') ?: 'false',
-                        FILTER_VALIDATE_BOOLEAN
-                    );
-                    if (!$debug) {
-                        throw new \RuntimeException("Middleware class not found: {$middlewareClass}");
-                    }
-                    return $pipeline($req);
+                    // Throw in ALL environments — debug mode must not weaken security.
+                    throw new \RuntimeException("Middleware class not found: {$middlewareClass}");
                 }
 
                 // AUD-Phase3: Resolve middleware via DI container for proper autowiring.

@@ -49,6 +49,9 @@ final class CorsMiddleware
             $response->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');
             $response->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-CSRF-Token, X-Requested-With');
             $response->withHeader('Access-Control-Max-Age', '86400');
+            // BUG-020 FIX: Explicitly deny credentials with wildcard origin
+            // Per OWASP, wildcard + credentials is a critical CORS misconfiguration
+            $response->withHeader('Access-Control-Allow-Credentials', 'false');
             return $response;
         }
 

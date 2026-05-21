@@ -64,7 +64,10 @@ final class Authenticator
 
         // Check if 2FA required
         if ((bool) $user['two_factor_enabled']) {
-            $this->logAttempt($email, $ip, $userAgent, true);
+            // BUG-26 FIX: Do NOT log as success before 2FA verification.
+            // This falsified login logs and bypassed brute-force detection.
+            // Log as false (pending) — the actual success log happens after TOTP verify.
+            $this->logAttempt($email, $ip, $userAgent, false);
             return [
                 'success'      => true,
                 'requires_2fa' => true,

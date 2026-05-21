@@ -31,7 +31,9 @@ final class PermissionMiddleware
             if ($request->expectsJson()) {
                 return Response::json(['success' => false, 'message' => 'Authentication required'], 401);
             }
-            return Response::redirect('/login');
+            // BUG-44 FIX: Use dynamic login slug instead of hardcoded /login.
+            $loginSlug = $this->resolveLoginSlug();
+            return Response::redirect("/{$loginSlug}");
         }
 
         // Lazy load user from DB if not passed in attributes
@@ -45,7 +47,8 @@ final class PermissionMiddleware
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_regenerate_id(true);
                 }
-                return Response::redirect('/login');
+                $loginSlug = $this->resolveLoginSlug();
+                return Response::redirect("/{$loginSlug}");
             }
             $request->setAttribute('auth_user', $user);
         }
@@ -116,6 +119,8 @@ final class PermissionMiddleware
     private function resolvePermission(string $path, string $method): ?string
     {
         $map = [
+            // BUG-9 FIX: Dashboard routes were missing from permission map.
+            '/admin'                      => 'dashboard.view',
             '/admin/transactions'         => 'transactions.view',
             '/admin/invoices'             => 'invoices.view',
             '/admin/payment-links'        => 'payment_links.view',
@@ -175,5 +180,19 @@ final class PermissionMiddleware
         }
 
         return null;
+    }
+
+    /**
+     * Resolve the dynamic login slug from settings.
+     * BUG-44 FIX: Avoid hardcoded '/login' which fails when slug is customized.
+     */
+    private function resolveLoginSlug(): string
+    {
+        try {
+            $settings = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
+            return $settings->get('security', 'admin_login_slug', 'login');
+        } catch (\Throwable) {
+            return 'login';
+        }
     }
 }

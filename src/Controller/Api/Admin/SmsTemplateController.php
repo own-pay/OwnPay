@@ -29,8 +29,12 @@ final class SmsTemplateController
         $mid = (int) $req->getAttribute('merchant_id');
         $body = $req->json();
 
-        /** @phpstan-ignore-next-line */
-        $this->tplRepo->updateTemplate($id, $mid, $body['body'] ?? '', (bool) ($body['enabled'] ?? true));
+        // BUG-50 FIX: updateTemplate expects (int $id, int $mid, array $data),
+        // not (int, int, string, bool). Was passing wrong arg count/types.
+        $this->tplRepo->updateTemplate($id, $mid, [
+            'body'    => $body['body'] ?? '',
+            'enabled' => (bool) ($body['enabled'] ?? true),
+        ]);
         return Response::json(['success' => true]);
     }
 }

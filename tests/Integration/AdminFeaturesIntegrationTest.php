@@ -35,11 +35,15 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
+        if (!isset($this->templateRepo)) {
+            return;
+        }
+
         if (!static::$dbAvailable) {
             return;
         }
 
-        $pdo = Database::getInstance()->getPdo();
+        $pdo = Database::getInstance()->pdo();
         $pdo->exec("DELETE FROM op_sms_parsed WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
         $pdo->exec("DELETE FROM op_mobile_notifications WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
         $pdo->exec("DELETE FROM op_paired_devices WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");

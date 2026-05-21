@@ -50,6 +50,23 @@ final class BrandThemeService
             ['id' => $merchantId]
         );
 
+        // BUG-28 FIX: Return sensible defaults if merchant doesn't exist.
+        // Without this, null array access causes TypeError crashes.
+        if ($merchant === null || $merchant === false) {
+            return [
+                'name'           => 'Own Pay',
+                'logo'           => '',
+                'favicon'        => '',
+                'color'          => '#0D9488',
+                'accent_color'   => '#0F766E',
+                'support_email'  => '',
+                'custom_css'     => '',
+                'custom_js'      => '',
+                'footer_text'    => 'Secured by Own Pay · 256-bit encryption',
+                'show_powered_by'=> true,
+            ];
+        }
+
         // 2. Brand-scoped settings override (uses merchant_id-aware uk_group_key_merchant)
         $brandSettings = $this->getBrandSettings($merchantId);
 

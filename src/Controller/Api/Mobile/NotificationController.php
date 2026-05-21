@@ -21,8 +21,9 @@ final class NotificationController
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $did = (int) $req->getAttribute('device_id');
-        $notifs = $this->notifRepo->listForDevice($mid, (string) $did);
+        // BUG-008 FIX: device_id is a UUID string — don't cast to int
+        $did = (string) $req->getAttribute('device_id');
+        $notifs = $this->notifRepo->listForDevice($mid, $did);
         return Response::json(['success' => true, 'data' => $notifs]);
     }
 
@@ -33,7 +34,10 @@ final class NotificationController
         if (empty($ids)) return Response::json(['success' => false, 'error' => 'ids required'], 422);
 
         $mid = (int) $req->getAttribute('merchant_id');
-        $count = $this->notifRepo->acknowledgeIds($ids, $mid);
+        // BUG-007 FIX: Scope ack by device_id to prevent IDOR.
+        // Previously any device in a brand could silence another device's notifications.
+        $did = (string) $req->getAttribute('device_id');
+        $count = $this->notifRepo->acknowledgeIds($ids, $mid, $did);
         return Response::json(['success' => true, 'acknowledged' => $count]);
     }
 }

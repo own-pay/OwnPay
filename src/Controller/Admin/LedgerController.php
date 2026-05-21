@@ -31,7 +31,14 @@ final class LedgerController
         $page = max(1, (int) $req->query('page', '1'));
 
         $ledger = $ledgerService->entries($mid, $page, 50);
-        $balance = $ledgerService->calculateBalance($mid, 'BDT');
+
+        // BUG-43 FIX: Resolve brand's default currency instead of hardcoding 'BDT'.
+        // Hardcoded BDT shows wrong balance for any non-BDT brand.
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $merchant = $db->fetchOne("SELECT default_currency FROM op_merchants WHERE id = :id LIMIT 1", ['id' => $mid]);
+        $currency = $merchant['default_currency'] ?? 'USD';
+
+        $balance = $ledgerService->calculateBalance($mid, $currency);
 
         return $this->renderAdminPage('admin/ledger/index.twig', [
             'active_page'     => 'ledger',

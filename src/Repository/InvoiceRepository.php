@@ -41,12 +41,13 @@ final class InvoiceRepository extends BaseRepository
 
     /**
      * Find unpaid invoice by number (public checkout).
+     * BUG-17 FIX: Scoped by merchant_id to prevent cross-tenant leakage.
      */
-    public function findUnpaidByNumber(string $invoiceNumber): ?array
+    public function findUnpaidByNumber(string $invoiceNumber, int $merchantId): ?array
     {
         return $this->db->fetchOne(
-            "SELECT * FROM {$this->table} WHERE invoice_number = :num AND status != 'paid'",
-            ['num' => $invoiceNumber]
+            "SELECT * FROM {$this->table} WHERE invoice_number = :num AND merchant_id = :mid AND status != 'paid'",
+            ['num' => $invoiceNumber, 'mid' => $merchantId]
         );
     }
 

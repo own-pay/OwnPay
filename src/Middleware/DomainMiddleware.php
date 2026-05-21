@@ -33,8 +33,16 @@ final class DomainMiddleware
             return $next($request);
         }
 
-        // Strip port
-        $domain = explode(':', $host)[0];
+        // Strip port from host (handles IPv6 like [::1]:8080)
+        if (str_starts_with($host, '[')) {
+            // IPv6: extract between brackets
+            $closeBracket = strpos($host, ']');
+            $domain = $closeBracket !== false ? substr($host, 1, $closeBracket - 1) : $host;
+        } else {
+            // IPv4 or hostname: strip port at last colon
+            $colonPos = strrpos($host, ':');
+            $domain = $colonPos !== false ? substr($host, 0, $colonPos) : $host;
+        }
 
         // Resolve master domain: APP_DOMAIN env, or parse host from APP_URL
         $masterDomain = $this->resolveMasterDomain();
@@ -52,8 +60,9 @@ final class DomainMiddleware
         $domainRecord = $repo->findByDomain($domain);
 
         if ($domainRecord === null || $domainRecord['status'] !== 'active') {
-            // Unknown domain — could show landing or 404
-            return $next($request);
+            // BUG-006 FIX: Block unknown/inactive domains — return 404.
+            // Previously this passed through, allowing unscoped access.
+            return Response::html('<h1>404 Not Found</h1>', 404);
         }
 
         if (!(bool) $domainRecord['dns_verified']) {

@@ -59,6 +59,7 @@ final class JwtService
             'did' => $deviceId,
             'iat' => $now,
             'exp' => $now + ($ttl ?? $this->ttl),
+            'jti' => bin2hex(random_bytes(8)),
         ];
 
         return JWT::encode($payload, $this->secret, 'HS256');
@@ -66,18 +67,26 @@ final class JwtService
 
     /**
      * Encode method for compatibility with test assertions.
+     *
+     * BUG-001 FIX: Removed per-call $secret parameter. Uses $this->secret
+     * exclusively to prevent secret mismatch between issue/verify paths.
      */
-    public function encode(string $deviceUuid, int $brandId, string $secret, array $scopes = [], int $ttl = 900): array
+    public function encode(string $deviceUuid, int $brandId, array $scopes = [], int $ttl = 900): array
     {
         $now = time();
         $payload = [
+            'iss'      => $this->issuer,
+            'aud'      => 'ownpay-mobile',
             'sub'      => 'device:' . $deviceUuid,
+            'mid'      => $brandId,
+            'did'      => $deviceUuid,
             'brand_id' => $brandId,
             'scopes'   => $scopes,
             'iat'      => $now,
             'exp'      => $now + $ttl,
+            'jti'      => bin2hex(random_bytes(8)),
         ];
-        $token = JWT::encode($payload, $secret, 'HS256');
+        $token = JWT::encode($payload, $this->secret, 'HS256');
         return [
             'token'      => $token,
             'expires_at' => $now + $ttl,
@@ -87,14 +96,16 @@ final class JwtService
 
     /**
      * Decode method for compatibility with test assertions.
+     *
+     * BUG-001 FIX: Uses $this->secret internally. No per-call secret.
      */
-    public function decode(string $token, string $secret): array
+    public function decode(string $token): array
     {
         if ($token === '') {
             return ['valid' => false, 'error' => 'EMPTY_TOKEN', 'payload' => null];
         }
         try {
-            $decoded = JWT::decode($token, new Key($secret, 'HS256'));
+            $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
             return [
                 'valid'   => true,
                 'error'   => null,

@@ -62,7 +62,8 @@ final class RateLimiterMiddleware
     {
         $ip = $request->ip();
         $prefix = explode('/', trim($request->path(), '/'));
-        $pathKey = implode('.', array_slice($prefix, 0, 3));
+        // BUG-019 FIX: Use 5 segments (not 3) for deeper path uniqueness
+        $pathKey = implode('.', array_slice($prefix, 0, 5));
         return "rl:{$ip}:{$pathKey}";
     }
 
@@ -73,7 +74,11 @@ final class RateLimiterMiddleware
             try {
                 /** @var \OwnPay\Cache\RedisCache $cache */
                 $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
-                return (int) ($cache->get($key) ?? 0);
+                // BUG-10 FIX: Use raw Redis GET, not cache->get().
+                // INCR stores plain integers; cache->get() unserializes and
+                // unserialize("5") returns false → always reads 0.
+                $val = $cache->redis()->get('op:' . $key);
+                return $val !== false ? (int) $val : 0;
             } catch (\Throwable $e) {
                 $this->logWarning('Redis getHits failed: ' . $e->getMessage());
             }
@@ -88,41 +93,60 @@ final class RateLimiterMiddleware
         return $row ? (int) $row['hits'] : 0;
     }
 
+    /**
+     * Atomic increment via Redis or DB.
+     *
+     * BUG-018 FIX: Replaced TOCTOU SELECT+INSERT/UPDATE with atomic
+     * INSERT ... ON DUPLICATE KEY UPDATE for the DB fallback.
+     */
     private function increment(string $key, int $now, int $window): void
     {
-        // Try Redis
+        // Try Redis (atomic via native INCR — no TOCTOU)
         if ($this->container->has(\OwnPay\Cache\RedisCache::class)) {
             try {
                 /** @var \OwnPay\Cache\RedisCache $cache */
                 $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
-                $current = (int) ($cache->get($key) ?? 0);
-                $cache->set($key, $current + 1, $window);
+                $redis = $cache->redis();
+                $prefixedKey = 'op:' . $key;
+
+                // BUG-10 FIX: Use native Redis INCR — single atomic operation.
+                // Previous code did get() then set(current+1), losing counts
+                // under concurrent requests (two requests read same value,
+                // both write value+1, effectively counting 1 hit instead of 2).
+                $hits = $redis->incr($prefixedKey);
+
+                // Set TTL only on first increment (when key was just created)
+                if ($hits === 1) {
+                    $redis->expire($prefixedKey, $window);
+                }
+
                 return;
             } catch (\Throwable $e) {
                 $this->logWarning('Redis increment failed: ' . $e->getMessage());
             }
         }
 
-        // DB fallback — upsert
+        // BUG-018 FIX: Atomic upsert — no TOCTOU race
         $db = $this->container->get(\OwnPay\Core\Database::class);
         $expires = $now + $window;
 
-        $existing = $db->fetchOne(
-            "SELECT id, hits FROM op_rate_limits WHERE key_name = :k AND expires_at > :now LIMIT 1",
-            ['k' => $key, 'now' => $now]
+        $db->execute(
+            "INSERT INTO op_rate_limits (key_name, hits, window_start, expires_at)
+             VALUES (:k, 1, :ws, :exp)
+             ON DUPLICATE KEY UPDATE
+                hits = IF(expires_at > :now2, hits + 1, 1),
+                window_start = IF(expires_at > :now3, window_start, :ws2),
+                expires_at = IF(expires_at > :now4, expires_at, :exp2)",
+            [
+                'k' => $key, 'ws' => $now, 'exp' => $expires,
+                'now2' => $now, 'now3' => $now, 'ws2' => $now,
+                'now4' => $now, 'exp2' => $expires
+            ]
         );
 
-        if ($existing) {
-            $db->update(
-                "UPDATE op_rate_limits SET hits = hits + 1 WHERE id = :id",
-                ['id' => $existing['id']]
-            );
-        } else {
+        // Probabilistic cleanup of expired entries (1% chance)
+        if (random_int(1, 100) === 1) {
             $db->delete("DELETE FROM op_rate_limits WHERE expires_at <= :now", ['now' => $now]);
-            $db->insert(
-                "INSERT INTO op_rate_limits (key_name, hits, window_start, expires_at) VALUES (:k, 1, :ws, :exp)",
-                ['k' => $key, 'ws' => $now, 'exp' => $expires]
-            );
         }
     }
 

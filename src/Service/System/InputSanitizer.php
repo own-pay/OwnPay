@@ -24,9 +24,10 @@ final class InputSanitizer
             return $result;
         }
         if (is_string($input)) {
-            $stripped = strip_tags($input);
-            $trimmed = trim($stripped);
-            return htmlspecialchars($trimmed, ENT_QUOTES | ENT_HTML5, 'UTF-8');
+            // BUG-24 FIX: Do NOT pre-escape with htmlspecialchars here.
+            // Data is stored raw; Twig's auto-escaping handles output.
+            // Pre-escaping causes double-encoding (e.g., &amp;amp;).
+            return trim(strip_tags($input));
         }
         return $input;
     }
@@ -103,6 +104,13 @@ final class InputSanitizer
      */
     public static function array(array $input, string $method = 'string'): array
     {
+        // BUG-022 FIX: Only allow known sanitization methods to prevent
+        // arbitrary static method invocation via dynamic dispatch.
+        $allowedMethods = ['string', 'html', 'email', 'url', 'phone', 'slug', 'attr', 'trim'];
+        if (!in_array($method, $allowedMethods, true)) {
+            throw new \InvalidArgumentException("Unsupported sanitization method: {$method}");
+        }
+
         return array_map(function ($value) use ($method) {
             if (is_array($value)) {
                 return self::array($value, $method);

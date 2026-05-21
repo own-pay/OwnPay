@@ -192,9 +192,18 @@ final class MerchantUserRepository extends BaseRepository
 
     /**
      * Update staff fields dynamically.
+     * BUG-18 FIX: Whitelist allowed columns to prevent SQL injection
+     * and privilege escalation via unfiltered field keys.
      */
     public function updateStaff(int $id, array $fields, ?int $merchantId = null): void
     {
+        // Only allow updating these safe columns
+        $allowed = ['name', 'email', 'phone', 'role_id', 'status', 'avatar_path', 'password_hash'];
+        $fields = array_intersect_key($fields, array_flip($allowed));
+        if (empty($fields)) {
+            return;
+        }
+
         $sets = implode(', ', array_map(fn($k) => "{$k} = :{$k}", array_keys($fields)));
         $fields['id'] = $id;
 

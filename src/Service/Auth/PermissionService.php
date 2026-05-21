@@ -121,16 +121,18 @@ final class PermissionService
 
     /**
      * Delete custom role (prevent system role deletion).
+     * BUG-22 FIX: Uses tenant-scoped methods to prevent cross-tenant IDOR.
      */
-    public function deleteRole(int $roleId): bool
+    public function deleteRole(int $roleId, int $merchantId): bool
     {
         if ($this->roles === null) {
             throw new \RuntimeException('Role repository not configured');
         }
-        $role = $this->roles->find($roleId);
+        $repo = $this->roles->forTenant($merchantId);
+        $role = $repo->findScoped($roleId);
         if ($role === null || (bool) $role['is_system']) {
             return false;
         }
-        return $this->roles->delete($roleId) > 0;
+        return $repo->deleteScoped($roleId) > 0;
     }
 }

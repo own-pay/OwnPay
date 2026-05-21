@@ -5,28 +5,20 @@ declare(strict_types=1);
 namespace Tests\Integration;
 
 use OwnPay\Core\Database;
-use OwnPay\Repository\SmsDataRepository;
 use OwnPay\Repository\SmsTemplateRepository;
-use OwnPay\Service\Sms\SmsParserService;
+use OwnPay\Repository\SmsDataRepository;
 use OwnPay\Service\Sms\SmsRegexParser;
 use OwnPay\Service\Sms\SmsHeuristicParser;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * SmsParsingIntegrationTest â€” End-to-end integration test for the SMS parsing pipeline.
+ * Integration test: SMS parsing round-trip against a live DB.
  *
- * Requires live DB connection. Tests:
- *   1. Template lookup from seeded op_sms_templates
- *   2. Full parse â†’ store â†’ verify round-trip
- *   3. Dedup detection
- *   4. Heuristic fallback round-trip
- *
- * @group Integration
+ * Flow: Match templates, match heuristics, check duplicates, paginate.
  */
-final class SmsParsingIntegrationTest extends IntegrationTestCase
+class SmsParsingIntegrationTest extends IntegrationTestCase
 {
-    private const AES_KEY_HEX = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
-    private const TEST_DEVICE_UUID = 'integ-sms-test-' . '0000-0000';
+    private const TEST_DEVICE_UUID = 'integration-test-device-uuid-999';
 
     private SmsTemplateRepository $templateRepo;
     private SmsDataRepository $dataRepo;
@@ -35,7 +27,26 @@ final class SmsParsingIntegrationTest extends IntegrationTestCase
 
     protected function setUp(): void
     {
-        $this->markTestSkipped('References V1 schema (SmsDataRepository, device_uuid column) — pending schema migration to V0.1.0.');
+        parent::setUp();
+
+        if (!static::$dbAvailable) {
+            return;
+        }
+
+        echo "\nDB ENV values: " . json_encode([
+            'host' => $_ENV['DB_HOST'] ?? null,
+            'name' => $_ENV['DB_NAME'] ?? null,
+            'user' => $_ENV['DB_USER'] ?? null,
+            'pass' => $_ENV['DB_PASS'] ?? null,
+        ]) . "\n";
+
+        $db = Database::getInstance();
+        $this->templateRepo = new SmsTemplateRepository($db);
+        $this->dataRepo = new SmsDataRepository($db);
+        $this->regexParser = new SmsRegexParser();
+        $this->heuristicParser = new SmsHeuristicParser();
+
+        $this->ensureTestDevice();
     }
 
     protected function tearDown(): void
@@ -45,29 +56,33 @@ final class SmsParsingIntegrationTest extends IntegrationTestCase
         }
 
         // Clean up test data
-        $pdo = Database::getInstance()->getPdo();
-        $pdo->exec("DELETE FROM op_sms_parsed WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
-        $pdo->exec("DELETE FROM op_paired_devices WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
+        $pdo = Database::getInstance()->pdo();
+        $pdo->prepare("DELETE FROM op_sms_parsed WHERE device_id = ?")->execute([self::TEST_DEVICE_UUID]);
+        $pdo->prepare("DELETE FROM op_paired_devices WHERE device_id = ?")->execute([self::TEST_DEVICE_UUID]);
     }
 
-    // â”€â”€â”€ Test 1: Template Lookup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ═══════════════════════════════════════════════════════════════
+    //  Test 1: Template Lookup
+    // ═══════════════════════════════════════════════════════════════
 
     public function testTemplateLookupReturnsBkashTemplates(): void
     {
-        $templates = $this->templateRepo->findBySender('bKash');
+        $templates = $this->templateRepo->findBySender('bKash', 1);
 
         $this->assertNotEmpty($templates, 'Expected seeded bKash templates');
         foreach ($templates as $t) {
-            $this->assertSame('bKash', $t['provider_name']);
+            $this->assertSame('bkash', $t['gateway_slug']);
         }
     }
 
-    // â”€â”€â”€ Test 2: Full Regex Parse + Store Round-Trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ═══════════════════════════════════════════════════════════════
+    //  Test 2: Full Regex Parse + Store Round-Trip
+    // ═══════════════════════════════════════════════════════════════
 
     public function testFullRegexPipelineWithDb(): void
     {
         $plaintext = 'You have received Tk 1,500.50 from 01712345678. TrxID INT001. Your new balance is Tk 5,000.00.';
-        $templates = $this->templateRepo->findBySender('bKash');
+        $templates = $this->templateRepo->findBySender('bKash', 1);
         $this->assertNotEmpty($templates);
 
         // Parse with Tier 1
@@ -79,55 +94,56 @@ final class SmsParsingIntegrationTest extends IntegrationTestCase
         $this->assertSame('high', $parsed['parse_confidence']);
 
         // Store to DB
-        $id = $this->dataRepo->create([
-            'device_uuid'      => self::TEST_DEVICE_UUID,
-            'brand_id'         => 1,
+        $id = (int) $this->dataRepo->create([
+            'device_id'        => self::TEST_DEVICE_UUID,
+            'merchant_id'      => 1,
             'local_id'         => 100,
             'sender'           => 'bKash',
             'received_at'      => '2026-04-27 10:30:00',
             'encrypted_raw'    => 'test_encrypted_payload',
-            'raw_message'      => $plaintext,
-            'parsed_amount'    => $parsed['parsed_amount'],
-            'parsed_trx_id'    => $parsed['parsed_trx_id'],
+            'body'             => $plaintext,
+            'amount'           => $parsed['parsed_amount'],
+            'trx_id'           => $parsed['parsed_trx_id'],
             'parsed_sender'    => $parsed['parsed_sender'],
             'parsed_balance'   => $parsed['parsed_balance'],
             'parsed_type'      => $parsed['parsed_type'],
-            'parse_method'     => $parsed['parse_method'],
+            'parser_type'      => $parsed['parse_method'],
             'template_id'      => $parsed['template_id'],
             'parse_confidence' => $parsed['parse_confidence'],
-            'status'           => 'accepted',
+            'match_status'     => 'accepted',
         ]);
 
         $this->assertGreaterThan(0, $id);
 
         // Verify from DB
-        $row = $this->dataRepo->findById($id);
+        $row = $this->dataRepo->find($id);
         $this->assertNotNull($row);
-        $this->assertSame('1500.50', $row['parsed_amount']);
-        $this->assertSame('INT001', $row['parsed_trx_id']);
+        $this->assertSame(1500.50, (float)$row['amount']);
+        $this->assertSame('INT001', $row['trx_id']);
         $this->assertSame('01712345678', $row['parsed_sender']);
-        $this->assertSame('5000.00', $row['parsed_balance']);
         $this->assertSame('credit', $row['parsed_type']);
-        $this->assertSame('regex', $row['parse_method']);
+        $this->assertSame('regex', $row['parser_type']);
         $this->assertSame('high', $row['parse_confidence']);
     }
 
-    // â”€â”€â”€ Test 3: Dedup Detection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ═══════════════════════════════════════════════════════════════
+    //  Test 3: Dedup Detection
+    // ═══════════════════════════════════════════════════════════════
 
     public function testDeduplicateDetection(): void
     {
         // Insert first record
         $this->dataRepo->create([
-            'device_uuid'   => self::TEST_DEVICE_UUID,
-            'brand_id'      => 1,
+            'device_id'     => self::TEST_DEVICE_UUID,
+            'merchant_id'   => 1,
             'sender'        => 'bKash',
             'received_at'   => '2026-04-27 11:00:00',
             'encrypted_raw' => 'test',
-            'status'        => 'accepted',
+            'match_status'  => 'accepted',
         ]);
 
         // Check dedup
-        $isDup = $this->dataRepo->isDuplicate(
+        $isDup = $this->dataRepo->forTenant(1)->isDuplicate(
             self::TEST_DEVICE_UUID,
             'bKash',
             '2026-04-27 11:00:00'
@@ -135,7 +151,7 @@ final class SmsParsingIntegrationTest extends IntegrationTestCase
         $this->assertTrue($isDup, 'Should detect duplicate');
 
         // Different time = not duplicate
-        $isDup2 = $this->dataRepo->isDuplicate(
+        $isDup2 = $this->dataRepo->forTenant(1)->isDuplicate(
             self::TEST_DEVICE_UUID,
             'bKash',
             '2026-04-27 11:00:05'
@@ -143,17 +159,19 @@ final class SmsParsingIntegrationTest extends IntegrationTestCase
         $this->assertFalse($isDup2, 'Different time should not be duplicate');
     }
 
-    // â”€â”€â”€ Test 4: Heuristic Fallback Round-Trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ═══════════════════════════════════════════════════════════════
+    //  Test 4: Heuristic Fallback Round-Trip
+    // ═══════════════════════════════════════════════════════════════
 
     public function testHeuristicFallbackWithDb(): void
     {
         $plaintext = 'Credited BDT 750.00 to your wallet from 01812345678. Ref: HEU555. Balance Tk 3,000.00';
 
-        // No matching regex template for this format
-        $templates = $this->templateRepo->findBySender('CustomBank');
+        // No matching regex template for CustomBank
+        $templates = $this->templateRepo->findBySender('CustomBank', 1);
         $this->assertEmpty($templates);
 
-        // Regex fails â†’ heuristic
+        // Regex fails → heuristic
         $regexResult = $this->regexParser->parse($plaintext, $templates);
         $this->assertNull($regexResult);
 
@@ -164,58 +182,62 @@ final class SmsParsingIntegrationTest extends IntegrationTestCase
         $this->assertSame('credit', $heuristicResult['parsed_type']);
 
         // Store
-        $id = $this->dataRepo->create([
-            'device_uuid'      => self::TEST_DEVICE_UUID,
-            'brand_id'         => 1,
+        $id = (int) $this->dataRepo->create([
+            'device_id'        => self::TEST_DEVICE_UUID,
+            'merchant_id'      => 1,
             'sender'           => 'CustomBank',
             'received_at'      => '2026-04-27 12:00:00',
             'encrypted_raw'    => 'test_encrypted',
-            'raw_message'      => $plaintext,
-            'parsed_amount'    => $heuristicResult['parsed_amount'],
-            'parsed_trx_id'    => $heuristicResult['parsed_trx_id'],
+            'body'             => $plaintext,
+            'amount'           => $heuristicResult['parsed_amount'],
+            'trx_id'           => $heuristicResult['parsed_trx_id'],
             'parsed_sender'    => $heuristicResult['parsed_sender'],
             'parsed_balance'   => $heuristicResult['parsed_balance'],
             'parsed_type'      => $heuristicResult['parsed_type'],
-            'parse_method'     => $heuristicResult['parse_method'],
+            'parser_type'      => $heuristicResult['parse_method'],
             'parse_confidence' => $heuristicResult['parse_confidence'],
-            'status'           => 'accepted',
+            'match_status'     => 'accepted',
         ]);
 
-        $row = $this->dataRepo->findById($id);
+        $row = $this->dataRepo->find($id);
         $this->assertNotNull($row);
-        $this->assertSame('750.00', $row['parsed_amount']);
-        $this->assertSame('heuristic', $row['parse_method']);
+        $this->assertSame(750.00, (float)$row['amount']);
+        $this->assertSame('heuristic', $row['parser_type']);
     }
 
-    // â”€â”€â”€ Test 5: listByBrand pagination â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ═══════════════════════════════════════════════════════════════
+    //  Test 5: listPaginated pagination
+    // ═══════════════════════════════════════════════════════════════
 
     public function testListByBrandWithPagination(): void
     {
         // Insert 3 records
         for ($i = 0; $i < 3; $i++) {
             $this->dataRepo->create([
-                'device_uuid'   => self::TEST_DEVICE_UUID,
-                'brand_id'      => 1,
+                'device_id'     => self::TEST_DEVICE_UUID,
+                'merchant_id'   => 1,
                 'sender'        => 'bKash',
                 'received_at'   => "2026-04-27 14:0{$i}:00",
                 'encrypted_raw' => "test_{$i}",
-                'status'        => 'accepted',
+                'match_status'  => 'accepted',
             ]);
         }
 
-        $page1 = $this->dataRepo->listByBrand(1, 2, 0);
+        $page1 = $this->dataRepo->forTenant(1)->listPaginated(2, 0);
         $this->assertSame(2, count($page1['items']));
         $this->assertGreaterThanOrEqual(3, $page1['total']);
     }
 
-    // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ═══════════════════════════════════════════════════════════════
+    //  Helpers
+    // ═══════════════════════════════════════════════════════════════
 
     private function ensureTestDevice(): void
     {
-        $pdo = Database::getInstance()->getPdo();
+        $pdo = Database::getInstance()->pdo();
 
         // Check if test device already exists
-        $stmt = $pdo->prepare("SELECT id FROM op_paired_devices WHERE device_uuid = :uuid");
+        $stmt = $pdo->prepare("SELECT id FROM op_paired_devices WHERE device_id = :uuid");
         $stmt->execute([':uuid' => self::TEST_DEVICE_UUID]);
         if ($stmt->fetch()) {
             return;
@@ -223,20 +245,14 @@ final class SmsParsingIntegrationTest extends IntegrationTestCase
 
         // Insert test device
         $pdo->prepare(
-            "INSERT INTO op_paired_devices (device_uuid, brand_id, device_name, fingerprint_hash,
-             aes_key_encrypted, refresh_token_hash, refresh_token_expires_at, jwt_secret,
-             platform, app_version, created_at)
+            "INSERT INTO op_paired_devices (device_id, merchant_id, device_name, jwt_fingerprint,
+             aes_key_encrypted, platform, status, paired_at)
              VALUES (:uuid, 1, 'Integration Test Device', :fp_hash,
-             :aes_key, :rt_hash, DATE_ADD(NOW(), INTERVAL 90 DAY), :jwt_secret,
-             'android', '1.0.0', NOW())"
+             :aes_key, 'android', 'active', NOW())"
         )->execute([
-            ':uuid'       => self::TEST_DEVICE_UUID,
-            ':fp_hash'    => hash('sha256', 'test_fingerprint'),
-            ':aes_key'    => 'test_aes_key_for_integration',
-            ':rt_hash'    => hash('sha256', 'test_refresh_token'),
-            ':jwt_secret' => bin2hex(random_bytes(32)),
+            ':uuid'    => self::TEST_DEVICE_UUID,
+            ':fp_hash' => hash('sha256', 'test_fingerprint'),
+            ':aes_key' => 'test_aes_key_for_integration',
         ]);
     }
 }
-
-

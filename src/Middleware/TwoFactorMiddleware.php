@@ -45,7 +45,9 @@ final class TwoFactorMiddleware
                 if ($request->expectsJson()) {
                     return Response::json(['success' => false, 'message' => 'Session expired'], 401);
                 }
-                return Response::redirect('/login');
+                // BUG-44 FIX: Use dynamic login slug.
+                $loginSlug = $this->resolveLoginSlug();
+                return Response::redirect("/{$loginSlug}");
             }
             $request->setAttribute('auth_user', $user);
         }
@@ -85,15 +87,31 @@ final class TwoFactorMiddleware
 
     /**
      * Verify TOTP code (RFC 6238).
-     * Window of Â±1 period (30 sec each side).
+     * Window of ±1 period (30 sec each side).
+     *
+     * BUG-021 FIX: Tracks last used time slice in $_SESSION to prevent
+     * TOTP replay within the ±1 period window.
      */
     public static function verifyTotp(string $secret, string $code, int $window = 1): bool
     {
+        if (strlen($code) !== 6 || !ctype_digit($code)) {
+            return false;
+        }
+
         $timeSlice = intdiv(time(), 30);
+        // BUG-021 FIX: Get last used window to prevent replay
+        $lastUsedWindow = (int) ($_SESSION['totp_last_used_window'] ?? 0);
 
         for ($i = -$window; $i <= $window; $i++) {
-            $expectedCode = self::generateTotp($secret, $timeSlice + $i);
+            $checkSlice = $timeSlice + $i;
+            // BUG-021 FIX: Skip already-used time slices
+            if ($checkSlice <= $lastUsedWindow) {
+                continue;
+            }
+            $expectedCode = self::generateTotp($secret, $checkSlice);
             if (hash_equals($expectedCode, $code)) {
+                // BUG-021 FIX: Record this time slice as used
+                $_SESSION['totp_last_used_window'] = $checkSlice;
                 return true;
             }
         }
@@ -156,5 +174,19 @@ final class TwoFactorMiddleware
         }
 
         return $output;
+    }
+
+    /**
+     * Resolve dynamic login slug from settings.
+     * BUG-44 FIX: Hardcoded '/login' fails when custom slug is configured.
+     */
+    private function resolveLoginSlug(): string
+    {
+        try {
+            $settings = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
+            return $settings->get('security', 'admin_login_slug', 'login');
+        } catch (\Throwable) {
+            return 'login';
+        }
     }
 }

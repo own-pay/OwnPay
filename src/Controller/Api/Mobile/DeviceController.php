@@ -44,18 +44,25 @@ final class DeviceController
         }
 
         try {
-            /** @phpstan-ignore-next-line */
-            $result = $this->devices->pair([
-                'pairing_code' => InputSanitizer::string($body['pairing_code']),
-                'device_id'    => InputSanitizer::string($body['device_id']),
-                'device_name'  => InputSanitizer::string($body['device_name'] ?? 'Unknown'),
-                'platform'     => InputSanitizer::string($body['platform'] ?? 'android'),
-            ]);
+            $result = $this->devices->pairDevice(
+                InputSanitizer::string($body['pairing_code']),
+                InputSanitizer::string($body['device_name'] ?? 'Unknown'),
+                InputSanitizer::string($body['device_id']),
+                InputSanitizer::string($body['app_version'] ?? '1.0.0'),
+                InputSanitizer::string($body['platform'] ?? 'android')
+            );
+
+            if (isset($result['success']) && !$result['success']) {
+                return Response::json(['success' => false, 'error' => $result['error'] ?? 'Pairing failed'], 400);
+            }
+
             return Response::json([
-                'success'    => true,
-                'access_token' => $result['access_token'],
-                'device_uuid'  => $result['device_uuid'],
-                'refresh_token'=> $result['refresh_token'],
+                'success'       => true,
+                'access_token'  => $result['access_token'],
+                'device_uuid'   => $result['device_id'],
+                'refresh_token' => $result['refresh_token'],
+                'aes_key'       => $result['aes_key'] ?? null,
+                'expires_in'    => $result['expires_in'] ?? 900,
             ], 201);
         } catch (\InvalidArgumentException $e) {
             return Response::json(['success' => false, 'error' => $e->getMessage()], 400);
@@ -85,21 +92,28 @@ final class DeviceController
 
     /**
      * POST /api/mobile/v1/devices/bulk-revoke
-     * Body: { device_ids: [1, 2, 3] }
+     * Body: { device_ids: ["uuid1", "uuid2"] }
+     *
+     * BUG-38 FIX: Accept string UUIDs, not integers.
+     * revoke() expects UUID strings; intval('uuid') = 0, filtering out all valid devices.
      */
     public function bulkRevoke(Request $req): Response
     {
         $mid  = (int) $req->getAttribute('merchant_id');
         $body = $req->json();
-        $ids  = array_filter(array_map('intval', $body['device_ids'] ?? []));
+        $ids  = array_filter(
+            array_map(fn($id) => InputSanitizer::string((string) $id), $body['device_ids'] ?? []),
+            fn($id) => $id !== ''
+        );
         if (empty($ids)) {
             return Response::json(['success' => false, 'error' => 'device_ids required'], 422);
         }
 
         $count = 0;
-        foreach ($ids as $id) {
-            $this->devices->revoke((string) $id, $mid);
-            $count++;
+        foreach ($ids as $deviceUuid) {
+            if ($this->devices->revoke($deviceUuid, $mid)) {
+                $count++;
+            }
         }
         return Response::json(['success' => true, 'revoked' => $count]);
     }

@@ -90,7 +90,10 @@ final class GatewayApiService
                 'success'      => true,
                 'transaction'  => $transaction,
                 'redirect_url' => $result['redirect_url'] ?? null,
-                'form_html'    => $result['form_html'] ?? null,
+                // BUG-35 FIX: Defense-in-depth — sanitize form_html even from
+                // trusted gateway plugins. Strip event handlers and javascript: URIs
+                // while preserving forms, inputs, and inline auto-submit scripts.
+                'form_html'    => self::sanitizeFormHtml($result['form_html'] ?? null),
             ];
 
             return $output;
@@ -169,5 +172,40 @@ final class GatewayApiService
         }
 
         return ['success' => false, 'error' => 'Transaction not found or already processed'];
+    }
+
+    /**
+     * BUG-35 FIX: Sanitize gateway form_html — defense-in-depth.
+     *
+     * Gateway plugins are admin-installed and trusted, but a compromised or
+     * buggy plugin could inject dangerous patterns. Strip:
+     *  - Event handler attributes (onclick, onerror, onload, etc.)
+     *  - javascript: URIs in href/action/src attributes
+     *  - External <script src="..."> tags (but preserve inline <script> for auto-submit)
+     *
+     * Preserves: <form>, <input>, <button>, inline <script>document.forms[0].submit()</script>
+     */
+    private static function sanitizeFormHtml(?string $html): ?string
+    {
+        if ($html === null || $html === '') {
+            return $html;
+        }
+
+        // 1. Strip all event handler attributes (on*)
+        $html = preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']/i', '', $html);
+        // Also handle unquoted: onclick=alert(1)
+        $html = preg_replace('/\s+on\w+\s*=\s*[^\s>]+/i', '', $html);
+
+        // 2. Strip javascript: URIs in href/action/src/formaction attributes
+        $html = preg_replace(
+            '/(href|action|src|formaction)\s*=\s*["\']?\s*javascript\s*:/i',
+            '$1="about:blank" data-sanitized="',
+            $html
+        );
+
+        // 3. Strip <script src="..."> (external script loading) but keep inline <script>
+        $html = preg_replace('/<script\s+[^>]*src\s*=\s*[^>]*>.*?<\/script>/is', '', $html);
+
+        return $html;
     }
 }

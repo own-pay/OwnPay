@@ -22,7 +22,8 @@ final class DomainController
         $domainId = (int) ($body['domain_id'] ?? 0);
         if ($domainId <= 0) return Response::json(['success' => false, 'error' => 'domain_id required'], 422);
 
-        $result = $this->domains->verifyDomain($mid, $domainId);
+        // BUG-48 FIX: verifyDomain(int $domainId, int $merchantId) — params were swapped
+        $result = $this->domains->verifyDomain($domainId, $mid);
         return Response::json(['success' => true, 'verified' => $result]);
     }
 }

@@ -6,7 +6,7 @@ This document provides a comprehensive technical overview of the **OwnPay** arch
 
 ## 1. System Vision & Business Model
 
-OwnPay is a self-hosted, enterprise-grade **single-owner, multi-brand (store)** payment orchestrator. It is explicitly **not a multi-tenant SaaS platform**.
+OwnPay is a self-hosted, enterprise-grade **single-owner, multi-brand (store)** payment orchestrator. It is explicitly **not a multi-tenant SaaS platform**. For historical context on the migration from a multi-tenant SaaS model and the details of the single-owner multi-brand layout, see [Business Model Document](file:///c:/laragon/www/ownpay/docs/v2/model/business_model.md).
 
 ```mermaid
 graph TD
@@ -86,7 +86,7 @@ To maintain bulletproof financial audit readiness, OwnPay utilizes a double-entr
   * **Liability / Equity / Revenue**: Credits increase (+), Debits decrease (-).
 
 ### 4.3. Universal Plugin System & Sandbox Security
-Plugins (Gateways, Addons, and Themes) reside in `modules/` and dynamically register callbacks via the `EventManager` hook loop.
+Plugins (Gateways, Addons, and Themes) reside in `modules/` and dynamically register callbacks via the `EventManager` hook loop. For detailed guides on building plugins, see [Plugin Developer Guide](file:///c:/laragon/www/ownpay/docs/v2/plugins/developer-guide.md) and [Hooks Reference](file:///c:/laragon/www/ownpay/docs/v2/plugins/hooks-reference.md).
 
 ```
 Plugin Discovery ──> Manifest Check ──> Static Code Audit ──> Sandbox Execution
@@ -95,6 +95,56 @@ Plugin Discovery ──> Manifest Check ──> Static Code Audit ──> Sandbo
 * **Dynamic Discovery**: Scanned via `manifest.json` files containing metadata, entrypoint endpoints, and configuration schemas.
 * **Static Code Audit Scanner**: Prevents unauthorized OS access, checking files for blocklisted dangerous operations (e.g. `exec`, `shell_exec`, `passthru`, `eval`, `system`).
 * **Gateway Permitted Runtime Hooks (C-13 Fix)**: The scanner explicitly permits standard runtime operations like `fwrite` (writing to standard logs/streams), `ini_set` (setting payload sizes), `header` (for payment portal redirects), and `setcookie` to ensure full plugin capability without compromising core security.
+
+### 4.4. White-Label Custom Domain Pipeline
+
+OwnPay is a sovereign white-labeled fintech engine. The end-customer must **never** see the master domain. For full architectural specifications and detailed request flows, refer to the [White-Label Custom Domain Pipeline Document](file:///c:/laragon/www/ownpay/docs/v2/model/white-label-domain-pipeline.md).
+
+```
+Request → DomainMiddleware → Resolve HTTP_HOST against op_domains → Inject merchant_id
+       → DomainUrlService → Build checkout/callback URLs under brand's custom domain
+       → BrandThemeService → Load per-brand visual identity (logo, colors, CSS/JS)
+```
+
+**Architecture:**
+* `DomainMiddleware` (`src/Middleware/DomainMiddleware.php`): Runs in the `global` middleware group on every request. Resolves `HTTP_HOST` against `op_domains` table. Injects `merchant_id`, `custom_domain`, `domain_type` into request attributes. Blocks `/admin/*` on custom domains (returns 404). Uses `APP_DOMAIN` env var (with `APP_URL` host fallback) to identify the master domain.
+* `DomainUrlService` (`src/Service/Domain/DomainUrlService.php`): Central URL resolver for all customer-facing and gateway-facing URLs. Priority: `GATEWAY_CALLBACK_URL` env > brand custom domain > `APP_URL` > request host > `https://localhost`. Provides `buildCheckoutUrl()`, `buildCallbackUrl()`, `buildLegacyCallbackUrl()`.
+* `APP_DOMAIN` env var: Bare hostname (e.g. `ownpay.test`). NOT a URL. Required for DomainMiddleware to identify master domain vs custom domains.
+
+**Rules:**
+* Never hardcode `APP_URL` or `ownpay.test` for checkout or callback URLs.
+* Always use `DomainUrlService` methods for customer-facing or gateway-facing URL construction.
+* Admin panel is only accessible on the master `APP_DOMAIN` — blocked with 404 on custom domains.
+
+### 4.5. Gateway Currency Declarations & Auto-Conversion
+
+`GatewayAdapterInterface` defines `supportedCurrencies(): array`. Gateways declare which ISO 4217 currency codes they accept. Empty array = any currency (default via `GatewayDefaults` trait).
+
+```
+Checkout Pay Flow:
+  Intent currency (e.g. USD) → GatewayBridge.getSupportedCurrencies('bkash-api') → ['BDT']
+  → CurrencyService.convert('100.00', 'USD', 'BDT') using op_exchange_rates → '12050.00'
+  → Update op_transactions.metadata with audit trail
+  → GatewayApiService.initiatePayment(amount: '12050.00', currency: 'BDT')
+```
+
+* **Exchange rates** are stored in `op_exchange_rates` with `base_currency` and `target_currency` (UNIQUE pair).
+* **Conversion** uses `CurrencyService::convert()` which pivots through the system base currency.
+* **Audit trail**: Original amount, currency, exchange rate, and converted values are persisted in `op_transactions.metadata` JSON.
+
+### 4.6. Brand Theme Engine
+
+`BrandThemeService` (`src/Service/Brand/BrandThemeService.php`) resolves per-brand visual customization.
+
+**Resolution priority (per field):** Brand-scoped `op_system_settings` (theme group, merchant_id scoped) > `op_merchants.settings` JSON column > global `op_system_settings`.
+
+**Returns:** `name`, `logo`, `favicon`, `color`, `accent_color`, `support_email`, `custom_css`, `custom_js`, `footer_text`, `show_powered_by`.
+
+**Template integration** (`templates/checkout/checkout.twig`):
+* CSS variables: `--teal`, `--teal-deep`, `--teal-glow` set from `brand.color` / `brand.accent_color`
+* Custom CSS block: `{% if brand.custom_css %}<style>{{ brand.custom_css|raw }}</style>{% endif %}`
+* Custom JS block: `{% if brand.custom_js %}<script>{{ brand.custom_js|raw }}</script>{% endif %}`
+* Theme plugin hooks: `{{ hook('checkout.head') }}` and `{{ hook('checkout.footer') }}`
 
 ---
 
@@ -111,6 +161,13 @@ Android mobile devices pair with OwnPay to dynamically verify and match incoming
 * **Companion Pairing (C-10 Fix)**: Devices pair securely by exchanging credentials, verifying dynamic OTPs, and saving secure access logs in `op_paired_devices`. Device UUIDs are handled as strict string types.
 * **Issuer Consistency (C-03 Fix)**: JWT tokens issued to devices are checked against issuer values resolving directly from `config/services.php` to prevent authentication failure.
 * **Active Revocation Verification (H-04)**: `JwtAuthMiddleware` validates the token status against the active database state, denying access instantly if a device is deactivated or revoked.
+* **Centralized JWT Secret Resolution**: `DevicePairingService` resolves JWT secrets hierarchically (device-specific stored secret -> global environment secret -> testing fallback) across pair, refresh, and validation pipelines.
+* **Stateless Token Rotation & JTI Blacklisting**: Generates unique JTI-infused stateless refresh tokens and enforces secure rotation. Replay attacks are blocked by blacklisting used refresh token identifiers in the `op_cache` database table.
+
+### 5.3. White-Label Domain Security
+* **Admin Route Blocking**: `DomainMiddleware` returns HTTP 404 for `/admin/*` paths on custom domains.
+* **DNS Verification**: Custom domains require `dns_verified = 1` in `op_domains` before serving content (returns 503 otherwise).
+* **Tenant Isolation**: `DomainMiddleware` injects the correct `merchant_id` from `op_domains`, and `TenantScope` enforces data isolation downstream.
 
 ---
 
@@ -130,6 +187,9 @@ ALTER TABLE `op_transactions`
 ### 6.2. Brand-Scoped Overrides
 `op_system_settings` implements nullable `merchant_id` with unique constraint `uk_group_key_merchant` on `(group_name, key_name, merchant_id)`. NULL values serve as global system fallbacks, while non-NULL keys act as brand-scoped overrides.
 
+### 6.3. Exchange Rates for Currency Conversion
+`op_exchange_rates` stores manual exchange rates with `base_currency CHAR(3)`, `target_currency CHAR(3)`, `rate DECIMAL(18,8)`, `source VARCHAR(50) DEFAULT 'manual'`. UNIQUE constraint on `(base_currency, target_currency)`. Used by `CurrencyService::convert()` at checkout time for automatic gateway currency conversion.
+
 ---
 
 ## 7. Developer Rules & Defensive Coding
@@ -139,3 +199,19 @@ ALTER TABLE `op_transactions`
 3. **No Direct Session CSRF Checks**: Never look up CSRF tokens via `$_SESSION['csrf_token']` manually. Always use the central utility helper: `\OwnPay\Security\SecurityHelpers::csrfToken()`.
 4. **Database Enum Alignment (H-11 Fix)**: When configuring merchant statuses in forms, ensure values match `enum('active','suspended','pending')` exactly. Avoid invalid values like `"inactive"`.
 5. **Gateway URL Asset Prepends**: Always prepend absolute URL prefixes (e.g. `/storage/`) when displaying user-uploaded media like logos and QR codes on checkout pages to avoid relative 404 resource errors.
+6. **DomainUrlService Mandatory**: NEVER use `$_ENV['APP_URL']` or hardcode domain names for checkout or callback URLs. ALWAYS use `DomainUrlService::buildCheckoutUrl()` or `buildCallbackUrl()` to ensure white-label custom domain compliance.
+7. **APP_DOMAIN Env Var**: Must be set in `.env` as a bare hostname (e.g. `ownpay.test`). Used by `DomainMiddleware` to identify the master domain. Without it, admin routes may be exposed on custom domains.
+8. **Gateway supportedCurrencies()**: All gateway adapters MUST implement `supportedCurrencies(): array`. Use `GatewayDefaults` trait for the empty (any currency) default. BDT-only gateways (bKash, Nagad) must explicitly return `['BDT']`.
+9. **Currency Conversion Metadata Integrity**: Do NOT overwrite `original_amount`, `original_currency`, `exchange_rate`, `converted_amount`, `converted_currency` keys in `op_transactions.metadata` — these are the audit trail for automatic currency conversion.
+10. **BrandThemeService for loadBrand()**: Checkout controllers must resolve brand data via `BrandThemeService::getBrandTheme()` (with `$this->c->has()` fallback). Direct `$this->merchants->find()` bypasses brand-scoped theme settings and breaks per-brand custom CSS/JS under custom domains.
+
+---
+
+## 8. API Specifications
+
+OwnPay exposes three main API layers (Merchant, Mobile, and Admin). API schema definitions and integration guides are located in the following documentation files:
+* [API Integration Guide](file:///c:/laragon/www/ownpay/docs/v2/api/README.md) — Authentication patterns, cURL/PHP examples, and webhook verification code.
+* [OpenAPI v3 Specification](file:///c:/laragon/www/ownpay/docs/v2/api/openapi.yaml) — Formal REST schema definition file (can be imported into readme.io, Swagger, or Postman).
+* [Mobile Companion Architecture](file:///c:/laragon/www/ownpay/docs/v2/mobile_app/plan.md) — Technical overview of the companion app and pairing security.
+* [Flutter App Implementation Plan](file:///c:/laragon/www/ownpay/docs/v2/mobile_app/flutter_plan.md) — Frontend architecture, local Hive schema, and offline sync state machine.
+* [Mobile Execution Checklist](file:///c:/laragon/www/ownpay/docs/v2/mobile_app/todo.md) — Full feature checklist and current backend completion status.

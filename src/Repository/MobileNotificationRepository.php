@@ -124,14 +124,26 @@ final class MobileNotificationRepository extends BaseRepository
 
     /**
      * Mark notifications as read by IDs.
+     *
+     * BUG-007 FIX: Added device_uuid scoping to prevent IDOR.
+     * Previously any device in a brand could acknowledge another device's notifications.
      */
-    public function acknowledgeIds(array $ids, int $merchantId): int
+    public function acknowledgeIds(array $ids, int $merchantId, string $deviceUuid = ''): int
     {
         if (empty($ids)) return 0;
         $placeholders = implode(',', array_fill(0, count($ids), '?'));
+        $params = array_merge($ids, [$merchantId]);
+
+        // BUG-007 FIX: Scope by device_uuid when provided
+        $deviceClause = '';
+        if ($deviceUuid !== '') {
+            $deviceClause = ' AND device_uuid = ?';
+            $params[] = $deviceUuid;
+        }
+
         $stmt = $this->db->execute(
-            "UPDATE {$this->table} SET is_read = 1, read_at = NOW() WHERE id IN ({$placeholders}) AND merchant_id = ?",
-            array_merge($ids, [$merchantId])
+            "UPDATE {$this->table} SET is_read = 1, read_at = NOW() WHERE id IN ({$placeholders}) AND merchant_id = ?{$deviceClause}",
+            $params
         );
         return $stmt->rowCount();
     }

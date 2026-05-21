@@ -31,13 +31,13 @@ final class DisputeRepository extends BaseRepository
     }
 
     /**
-     * Find a dispute by public UUID.
+     * Find dispute by ID (tenant-scoped).
+     * BUG-15 FIX: op_disputes has no 'public_id' column. Using 'id' instead.
      */
-    public function findByPublicId(string $publicId): ?array
+    public function findByIdScoped(int $id): ?array
     {
-        return $this->db->fetchOne("SELECT * FROM {$this->table} WHERE public_id = :pid AND merchant_id = :mid LIMIT 1", [
-            'pid' => $publicId,
-            'mid' => $this->requireTenant()
+        return $this->db->fetchOne("SELECT * FROM {$this->table} WHERE id = :id AND merchant_id = :mid LIMIT 1", [
+            'id' => $id, 'mid' => $this->requireTenant()
         ]);
     }
 
@@ -57,22 +57,17 @@ final class DisputeRepository extends BaseRepository
     }
 
     /**
-     * Update dispute status and resolution.
+     * Resolve a dispute.
+     * BUG-15 FIX: op_disputes has no 'resolution' column. Use evidence JSON for resolution details.
      */
-    public function resolve(int $id, string $status, string $resolution, ?string $evidence = null): void
+    public function resolve(int $id, string $status, ?string $evidence = null): void
     {
         $this->db->execute("
             UPDATE {$this->table}
-            SET status = :st, resolution = :res, evidence = :ev,
+            SET status = :st, evidence = :ev,
                 resolved_at = NOW(6), updated_at = NOW(6)
             WHERE id = :id AND merchant_id = :mid
-        ", [
-            'st' => $status,
-            'res' => $resolution,
-            'ev' => $evidence,
-            'id' => $id,
-            'mid' => $this->requireTenant()
-        ]);
+        ", ['st' => $status, 'ev' => $evidence, 'id' => $id, 'mid' => $this->requireTenant()]);
     }
 
     /**

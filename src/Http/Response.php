@@ -17,6 +17,9 @@ final class Response
     /** @var array<string, string> */
     private array $headers = [];
 
+    /** @var string[] BUG-4 FIX: Separate cookie storage for multiple Set-Cookie headers */
+    private array $cookies = [];
+
     public function __construct(string $body = '', int $statusCode = 200)
     {
         $this->body = $body;
@@ -130,6 +133,10 @@ final class Response
 
     /**
      * Set a cookie header.
+     *
+     * BUG-4 FIX: Uses a separate cookies array so multiple withCookie()
+     * calls don't overwrite each other. Each cookie gets its own
+     * Set-Cookie header via header(_, false) in send().
      */
     public function withCookie(
         string $name,
@@ -157,8 +164,9 @@ final class Response
         }
         $cookie .= '; SameSite=' . $samesite;
 
-        // Append — allows multiple Set-Cookie headers
-        $this->headers['Set-Cookie'] = $cookie;
+        // BUG-4 FIX: Append to cookies array instead of overwriting headers['Set-Cookie'].
+        // This allows multiple Set-Cookie headers (session, CSRF, tracking, etc.)
+        $this->cookies[] = $cookie;
         return $this;
     }
 
@@ -186,6 +194,12 @@ final class Response
             header("{$name}: {$value}", true);
         }
 
+        // BUG-4 FIX: Send each cookie as a separate Set-Cookie header.
+        // header(_, false) appends instead of replacing.
+        foreach ($this->cookies as $cookie) {
+            header("Set-Cookie: {$cookie}", false);
+        }
+
         // Body
         if ($this->body !== '') {
             echo $this->body;
@@ -211,7 +225,6 @@ final class Response
     {
         return $this->headers;
     }
-
 
     /**
      * Plain text response (alias for text).

@@ -28,6 +28,11 @@ final class SecurityHeadersMiddleware
         $nonce = base64_encode(random_bytes(16));
         $request->setAttribute('csp_nonce', $nonce);
 
+        // BUG-12 FIX: Store nonce in Container so Twig global can read it.
+        // Without this, templates have no way to add nonce="" to inline <style> tags,
+        // causing CSP to block all inline styles in production mode.
+        $this->container->instance('csp_nonce', $nonce);
+
         $response = $next($request);
 
         $response->withHeader('X-Content-Type-Options', 'nosniff');
@@ -48,7 +53,7 @@ final class SecurityHeadersMiddleware
         $cspHeader = $debug ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
         $csp = implode('; ', [
             "default-src 'self'",
-            "script-src 'self'",
+            "script-src 'self' 'nonce-{$nonce}'",
             "style-src 'self' 'nonce-{$nonce}' https://fonts.googleapis.com",
             "font-src 'self' https://fonts.gstatic.com",
             "img-src 'self' data: https:",

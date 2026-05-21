@@ -1,7 +1,7 @@
 # OwnPay — Agent Context
 
 > [!IMPORTANT]
-> **AI AGENT MANDATORY INSTRUCTION**: Before writing or refactoring any code in this codebase, you MUST read the comprehensive architectural specifications documented in the root directory file [ARCHITECTURE.md](file:///c:/laragon/www/ownpay/ARCHITECTURE.md). Adhere strictly to the boot pipelines, ledger bookkeeping constraints, dynamic CSRF token resolutions, and database generated indexing column guidelines defined therein to prevent logical regressions and system crashes.
+> **AI AGENT MANDATORY INSTRUCTION**: Before writing or refactoring any code in this codebase, you MUST read the comprehensive architectural specifications documented in the root directory file [ARCHITECTURE.md](file:///c:/laragon/www/ownpay/ARCHITECTURE.md). Adhere strictly to the boot pipelines, ledger bookkeeping constraints, dynamic CSRF token resolutions, and database generated indexing column guidelines defined therein to prevent logical regressions and system crashes. **Additionally, you MUST always follow the architecture, design documents, and models. If you make any change to the architecture, routes, schemas, settings, or core logic, you MUST immediately update all relevant documentation files (including [ARCHITECTURE.md](file:///c:/laragon/www/ownpay/ARCHITECTURE.md), [AGENTS.md](file:///c:/laragon/www/ownpay/AGENTS.md), and files in [docs/](file:///c:/laragon/www/ownpay/docs/)) to reflect the latest state. Never let documentation get out of sync with the actual implementation.**
 
 ## Project Overview
 
@@ -32,7 +32,7 @@ It is a **single-owner, multi-brand** system:
 - Each brand can have a **custom domain** (`op_domains`)
 - `merchant_id` column stays in DB everywhere. Only UI labels say "Brand/Store"
 
-**Reference**: `docs/v2_migration/business_model.md`
+**Reference**: `docs/v2/model/business_model.md`
 
 ---
 
@@ -72,9 +72,10 @@ public/index.php → src/Kernel.php
 | **Repository Pattern** | `src/Repository/` — 35 repositories extending `BaseRepository` |
 | **Tenant Scoping** | `TenantScope` trait — auto-scopes queries by `merchant_id` (= brand) |
 | **Hook/Filter System** | `src/Event/EventManager.php` — `addAction()`/`doAction()`/`addFilter()`/`applyFilter()` |
-| **Middleware Pipeline** | `src/Middleware/` — 13 middleware classes, 7 groups in `config/middleware.php` |
+| **Middleware Pipeline** | `src/Middleware/` — 14 middleware classes, 9 groups in `config/middleware.php` |
 | **Plugin System** | `src/Plugin/` — manifest-based discovery, `PluginInterface`, sandboxed execution |
 | **Error Handling** | `Kernel::handleException()` — branded 500/404 pages, path sanitization, no info disclosure |
+| **White-Label Pipeline** | `DomainMiddleware` + `DomainUrlService` — every customer interaction runs under brand's custom domain |
 
 ---
 
@@ -87,7 +88,7 @@ ownpay/
 │   ├── database.php            # DB connection config (reads .env)
 │   ├── hooks.php               # Default hook/filter registrations
 │   ├── middleware.php           # Middleware pipeline definitions
-│   ├── services.php            # DI container bindings (~383 lines)
+│   ├── services.php            # DI container bindings (~463 lines)
 │   └── routes/
 │       ├── web.php             # Admin + public web routes
 │       └── api.php             # REST API routes
@@ -128,11 +129,11 @@ ownpay/
 │   ├── Service/                # Business logic services
 │   │   ├── Admin/              # AdminSession
 │   │   ├── Auth/               # AuthSessionService
-│   │   ├── Brand/              # BrandContext (central brand resolver)
+│   │   ├── Brand/              # BrandContext (central brand resolver), BrandThemeService (per-brand theming)
 │   │   ├── Communication/      # Email/SMS dispatch
 │   │   ├── Customer/           # Customer + API key services
 │   │   ├── Device/             # Mobile device pairing
-│   │   ├── Domain/             # Custom domain management
+│   │   ├── Domain/             # Custom domain management, DomainUrlService (white-label URL resolver)
 │   │   ├── Gateway/            # Gateway configuration
 │   │   ├── Notification/       # Push notifications
 │   │   ├── Payment/            # CurrencyService, LedgerService, IdempotencyService
@@ -314,6 +315,86 @@ Double-entry ledger operations post balanced debits and credits across accounts 
 
 `PluginSandbox` restricts PHP code execution in activated plugins. The security scanner filters out system operations (e.g. `exec`, `shell_exec`, `eval`), but explicitly permits standard runtime helpers (`fwrite`, `ini_set`, `header`, and `setcookie`) so third-party integration gateways can process redirects, stream logs, and manage dynamic responses without entering bricked error states.
 
+### White-Label Custom Domain Pipeline
+
+> **CRITICAL**: OwnPay is a sovereign white-labeled fintech engine. The end-customer must **NEVER** see OwnPay's master domain. Every interaction—API response, checkout room, gateway callback, status page—must run under the merchant's configured custom domain.
+
+**Key Components:**
+- `src/Middleware/DomainMiddleware.php` — Resolves `HTTP_HOST` against `op_domains`, injects `merchant_id` + `custom_domain` into request attributes. Blocks `/admin/*` on custom domains (returns 404).
+- `src/Service/Domain/DomainUrlService.php` — Central URL resolver. **ALL checkout/callback URLs MUST be generated through this service.** Never hardcode `APP_URL` for customer-facing URLs.
+- `APP_DOMAIN` env var — Master domain hostname (e.g., `ownpay.test`). Admin panel only accessible here.
+
+**URL Resolution Priority (DomainUrlService):**
+1. `GATEWAY_CALLBACK_URL` env (dev ngrok override)
+2. Brand's primary active custom domain (`op_domains`)
+3. `APP_URL` env
+4. Request host
+5. Fallback: `https://localhost`
+
+**Usage:**
+```php
+$urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+$checkoutUrl = $urlService->buildCheckoutUrl($merchantId, $token, $req);
+$callbackUrl = $urlService->buildCallbackUrl($merchantId, $token, $req);
+```
+
+**Rules:**
+- NEVER use `$_ENV['APP_URL']` or hardcode `ownpay.test` for checkout/callback URLs
+- ALWAYS use `DomainUrlService` for any URL the customer or gateway will see
+- Admin routes (`/admin/*`) are blocked on custom domains — DomainMiddleware returns 404
+- `APP_DOMAIN` resolves from env, with fallback to parsing host from `APP_URL`
+
+### Gateway Currency Declarations & Auto-Conversion
+
+Each gateway adapter declares its supported currencies via `supportedCurrencies()`:
+
+```php
+// GatewayAdapterInterface
+public function supportedCurrencies(): array;  // Empty = any currency
+
+// GatewayDefaults trait (default)
+public function supportedCurrencies(): array { return []; }
+
+// bKash/Nagad (BDT-only)
+public function supportedCurrencies(): array { return ['BDT']; }
+```
+
+**Auto-conversion at checkout:** When a payment intent's currency doesn't match the gateway's required currency, `PaymentIntentCheckoutController::pay()` automatically converts via `CurrencyService::convert()` using `op_exchange_rates`. Original amount/currency stored in `op_transactions.metadata` for audit:
+
+```json
+{
+  "original_amount": "100.00",
+  "original_currency": "USD",
+  "exchange_rate": "120.50000000",
+  "converted_amount": "12050.00",
+  "converted_currency": "BDT"
+}
+```
+
+**Gateway currency declarations:**
+| Gateway | Currencies |
+|---------|-----------|
+| bKash | `['BDT']` |
+| Nagad | `['BDT']` |
+| SSLCommerz | `['BDT', 'USD', 'EUR', 'GBP', 'AUD', 'CAD', 'SGD']` |
+| Stripe/PayPal/others | `[]` (any currency via GatewayDefaults) |
+
+### Brand Theme Engine (`src/Service/Brand/BrandThemeService.php`)
+
+Per-brand visual customization for checkout pages under custom domains.
+
+**Resolution priority (per field):** Brand-scoped `op_system_settings` > `op_merchants.settings` JSON > global `op_system_settings`
+
+**Data returned by `getBrandTheme(int $merchantId)`:**
+- `name`, `logo`, `favicon`, `color`, `accent_color`, `support_email`
+- `custom_css`, `custom_js` — injected into checkout template
+- `footer_text`, `show_powered_by`
+
+**Checkout template integration (`templates/checkout/checkout.twig`):**
+- Brand custom CSS: `{% if brand.custom_css %}<style>{{ brand.custom_css|raw }}</style>{% endif %}`
+- Brand custom JS: `{% if brand.custom_js %}<script>{{ brand.custom_js|raw }}</script>{% endif %}`
+- Theme hooks: `{{ hook('checkout.head') }}` and `{{ hook('checkout.footer') }}`
+
 ---
 
 ## Environment & Configuration
@@ -331,7 +412,8 @@ Double-entry ledger operations post balanced debits and credits across accounts 
 | `global` | SecurityHeaders, Maintenance, Domain |
 | `web` | Session, CSRF |
 | `admin` | Session, CSRF, RateLimiter, TwoFactor, Permission |
-| `api` | CORS, RateLimiter, BearerAuth |
+| `api` | CORS, RateLimiter, BearerAuth, Idempotency |
+| `api-public` | CORS, RateLimiter |
 | `mobile` | CORS, RateLimiter, JwtAuth |
 | `webhook` | IpAllowlist, RequestSignature |
 | `checkout` | Session, CSRF, RateLimiter |
@@ -501,6 +583,24 @@ GET  /api/mobile/v1/devices/status       → Mobile\DeviceController@status
 19. **Invoice line-items dynamic update & calculation** — `InvoiceService::update()` must compute subtotal dynamically by looping over form line-items (extracting quantity and pricing values) just like `create()`. Failing to calculate dynamically, or saving without a `total` input key, results in subtotal and total being overwritten to `0.00` BDT. It must also purge old entries in `op_invoice_items` and insert new ones to sync the line items database table.
 20. **CSRF empty token on checkout (C-14 Fix)** — Checkout pages dynamically rendering forms must retrieve CSRF tokens strictly via `\OwnPay\Security\SecurityHelpers::csrfToken()`. Manual session retrieval under incorrect indexes like `$_SESSION['csrf_token']` results in empty token fields, causing payment forms to throw immediate 403 Forbidden validation failures.
 21. **Device pairing token fallback** — `DevicePairingService` retrieves owner info from pairing tokens. Ensure to query `created_by` or `admin` columns, falling back to superadmin ID `1` when missing, to avoid JWT validation issues during companionship pairing.
+22. **`DomainUrlService` mandatory for checkout/callback URLs** — NEVER use `$_ENV['APP_URL']` or hardcode `ownpay.test` for customer-facing or gateway-facing URLs. ALWAYS use `DomainUrlService::buildCheckoutUrl()` or `buildCallbackUrl()`. Inline URL resolution blocks were the root cause of the `[2049] Invalid Merchant Callback URL` bKash error and master domain exposure.
+23. **`APP_DOMAIN` env var** — Required for `DomainMiddleware` to identify the master domain. Must be the bare hostname (e.g. `ownpay.test`), NOT a URL. If not set, DomainMiddleware falls back to parsing the host from `APP_URL`. Without this, admin panel may be accessible on custom domains.
+24. **Admin routes blocked on custom domains** — `DomainMiddleware` returns 404 for any path starting with `/admin/` or exactly `/admin` when the request arrives on a custom domain. This is a security requirement — admin panel must only be accessible on the master `APP_DOMAIN`.
+25. **`supportedCurrencies()` on gateway adapters** — All gateway adapters implementing `GatewayAdapterInterface` MUST implement `supportedCurrencies(): array`. Empty array means any currency. `GatewayDefaults` trait provides default (empty). BDT-only gateways (bKash, Nagad) MUST return `['BDT']`. Failing to declare currencies disables automatic currency conversion at checkout.
+26. **Currency conversion audit trail** — When auto-conversion happens at checkout, the original amount/currency and converted amount/currency are stored in `op_transactions.metadata` JSON (`original_amount`, `original_currency`, `exchange_rate`, `converted_amount`, `converted_currency`). These metadata keys must not be overwritten by other code.
+27. **`loadBrand()` must use `BrandThemeService`** — Both `PaymentIntentCheckoutController::loadBrand()` and `CheckoutController::loadBrand()` must resolve via `BrandThemeService::getBrandTheme()` when available (`$this->c->has()` check). This ensures per-brand theming (custom CSS/JS, logo, colors) renders correctly under custom domains. Direct `$this->merchants->find()` bypasses brand-scoped settings.
+28. **Centralized JWT Secret & Stateless Token Rotation** — `DevicePairingService` resolves JWT secrets hierarchically (device-specific -> global -> test fallback) and enforces token rotation on refresh. Replay attacks are prevented by blacklisting rotated JTIs in `op_cache` table (using `key_name` / `expires_at` columns).
+29. **JwtService::encode()/decode() — no per-call secret (BUG-001 Fix)** — `JwtService::encode()` and `decode()` no longer accept a `$secret` parameter. They use `$this->secret` exclusively (resolved from `JWT_SECRET` env). This eliminates the triple-secret-source mismatch between issue/verify paths. All callers must be updated to remove the secret argument.
+30. **JWT iss/aud claims are REQUIRED (BUG-017 Fix)** — `JwtAuthMiddleware` now rejects tokens that lack `iss` or `aud` claims. Previously these were only checked IF present, allowing bypass. All JWT tokens must include `iss` (APP_NAME) and `aud` ('ownpay-mobile').
+31. **TOTP replay protection (BUG-021 Fix)** — `TwoFactorMiddleware::verifyTotp()` tracks the last used time slice in `$_SESSION['totp_last_used_window']`. A TOTP code cannot be replayed within the ±1 window period.
+32. **CSRF canonical key is `_csrf_token` ONLY (BUG-005 Fix)** — Removed all references to legacy `csrf_token` (without underscore). Only `_csrf_token` is valid. This eliminates the dual-key inconsistency.
+33. **HMAC_KEY or APP_KEY REQUIRED for checkout (BUG-010 Fix)** — `PaymentIntentCheckoutController` throws `RuntimeException` if neither `HMAC_KEY` nor `APP_KEY` is configured. The previous `'fallback-key'` static default has been removed.
+34. **DomainMiddleware blocks unknown domains (BUG-006 Fix)** — Requests arriving on domains not in `op_domains` (or with inactive status) now receive a 404 response instead of passing through to the application without brand context.
+35. **LedgerService must use scoped clone (BUG-009 Fix)** — `TenantScope::forTenant()` returns a CLONE. The original `$this->ledger` instance retains its previous scope. Code inside transaction closures must capture and use the returned clone, not `$this->ledger`.
+36. **Notification ack scoped by device_uuid (BUG-007 Fix)** — `MobileNotificationRepository::acknowledgeIds()` now accepts an optional `$deviceUuid` parameter. When provided, only notifications belonging to that device can be acknowledged, preventing IDOR.
+37. **device_id is a UUID string (BUG-008 Fix)** — In mobile API controllers (`NotificationController`, `DashboardController`), `device_id` from request attributes must be cast to `(string)`, not `(int)`. Casting a UUID to int yields 0, breaking all device-scoped queries.
+38. **InputSanitizer::array() method allowlist (BUG-022 Fix)** — The `$method` parameter only accepts: `string`, `html`, `email`, `url`, `phone`, `slug`, `attr`, `trim`. Arbitrary method names are rejected to prevent dynamic dispatch exploitation.
+39. **Router param regex restricted (BUG-023 Fix)** — Route parameter capture regex no longer allows `@` or `+` characters. Only `[a-zA-Z0-9_\-\.]` is permitted.
 
 ---
 

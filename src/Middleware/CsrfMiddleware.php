@@ -151,16 +151,17 @@ final class CsrfMiddleware
             ];
         }
 
-        // Standard CSRF mode — DS-01 FIX: use '_csrf_token' (with underscore prefix)
-        $sessionToken = $_SESSION['_csrf_token'] ?? $_SESSION['csrf_token'] ?? '';
+        // BUG-005 FIX: Canonical key is '_csrf_token' ONLY.
+        // Removed all legacy 'csrf_token' (without underscore) references
+        // to eliminate dual-key inconsistency.
+        $sessionToken = $_SESSION['_csrf_token'] ?? '';
         $submittedToken = $request !== null
-            ? ($request->post('_csrf_token') ?? $request->post('csrf_token') ?? '')
-            : ($_POST['_csrf_token'] ?? $_POST['csrf_token'] ?? '');
+            ? ($request->post('_csrf_token') ?? '')
+            : ($_POST['_csrf_token'] ?? '');
 
         if ($sessionToken === '' || $submittedToken === '' || !hash_equals($sessionToken, $submittedToken)) {
             $newToken = bin2hex(random_bytes(32));
             $_SESSION['_csrf_token'] = $newToken;
-            $_SESSION['csrf_token'] = $newToken;
             return [
                 'valid' => false,
                 'error' => 'Invalid request token',

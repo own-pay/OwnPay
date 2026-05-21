@@ -44,3 +44,6 @@ storage/pdf/*
 storage/sessions/*
 storage/backups/*
 !storage/*/.gitkeep
+
+# Mobile app
+mobile_app

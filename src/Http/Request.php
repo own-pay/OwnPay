@@ -116,7 +116,6 @@ final class Request
         return $this->query[$key] ?? $default;
     }
 
-
     public function post(?string $key = null, mixed $default = null): mixed
     {
         if ($key === null) {
@@ -175,9 +174,6 @@ final class Request
         $all = $this->all();
         return array_intersect_key($all, array_flip($keys));
     }
-
-
-
 
     public function rawBody(): ?string
     {
@@ -286,6 +282,7 @@ final class Request
      * Check if the remote address is a trusted reverse proxy.
      * Configure via TRUSTED_PROXIES env var (comma-separated IPs).
      * AUD-B3: Without this, X-Forwarded-For is trivially spoofable.
+     * BUG-3 FIX: Uses filter_var instead of ip2long to support IPv6.
      */
     private function isTrustedProxy(string $ip): bool
     {
@@ -295,8 +292,8 @@ final class Request
             $trusted = $env !== '' ? array_map('trim', explode(',', $env)) : [];
         }
 
-        $ipLong = ip2long($ip);
-        if ($ipLong === false) {
+        // BUG-3 FIX: filter_var supports both IPv4 and IPv6
+        if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
             return false;
         }
 
@@ -309,16 +306,16 @@ final class Request
             if (str_contains($entry, '/')) {
                 [$subnet, $bits] = explode('/', $entry, 2);
                 $bits = (int) $bits;
-                if ($bits < 0 || $bits > 32) {
-                    continue;
-                }
+                $ipLong = ip2long($ip);
                 $subnetLong = ip2long($subnet);
-                if ($subnetLong === false) {
-                    continue;
-                }
-                $mask = $bits === 0 ? 0 : (~0 << (32 - $bits));
-                if (($ipLong & $mask) === ($subnetLong & $mask)) {
-                    return true;
+                if ($ipLong !== false && $subnetLong !== false) {
+                    if ($bits < 0 || $bits > 32) {
+                        continue;
+                    }
+                    $mask = $bits === 0 ? 0 : (~0 << (32 - $bits));
+                    if (($ipLong & $mask) === ($subnetLong & $mask)) {
+                        return true;
+                    }
                 }
             }
         }
@@ -355,7 +352,7 @@ final class Request
         return $this->routeParams;
     }
 
-
+    // ——— Attributes ————————————————————————————————————————————
 
     public function setAttribute(string $key, mixed $value): void
     {
@@ -376,8 +373,6 @@ final class Request
     {
         return $this->headers;
     }
-
-
 
     /**
      * @return array<string, string>

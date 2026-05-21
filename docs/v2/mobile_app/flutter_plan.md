@@ -54,7 +54,7 @@ SMS Received → Check sender against allowed_senders
                      ↓
 [Connectivity Monitor] → Online? → Batch query: WHERE status IN ('pending','failed') AND retry_count < 5
                      ↓
-[Sync Worker] → POST /api/v1/sms/submit (batch, max 20 per request)
+[Sync Worker] → POST /api/mobile/v1/sms (batch or single)
              → 200 OK → status = 'approved', save server_ref
              → 401    → status = 'failed', reason = 'Auth Error - re-pair required'
              → 500    → status = 'failed', reason = 'Server Error', retry_count++
@@ -78,15 +78,13 @@ Each entry shows: sender, time, status badge, failure reason (if any).
 
 ### Notification Strategy
 
-| Strategy | When | How |
-|---|---|---|
-| **Primary: Short Polling** | Always (default) | Foreground Service polls `GET /api/v1/notifications/poll` every 10-15s |
-
-App receives response → triggers **native local notification** via `flutter_local_notifications`.
+- Companion app Foreground Service polls `GET /api/mobile/v1/notifications` every 10-15s.
+- App receives response → triggers **native local notification** via `flutter_local_notifications`.
+- App acknowledges processed notifications using `POST /api/mobile/v1/notifications/ack` with array of notification `ids`.
 
 ### Offline Dashboard
 
-- App caches last-fetched dashboard data in local Hive box
+- App caches last-fetched dashboard data in local Hive box (from `GET /api/mobile/v1/dashboard`)
 - If offline: show cached data + banner "You are offline. Showing cached data from [timestamp]."
 - On reconnect: auto-refresh
 

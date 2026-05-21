@@ -348,11 +348,10 @@ final class UpdateService
                 continue;
             }
 
-            // Execute migration — split by semicolons for multi-statement support
-            $statements = array_filter(
-                array_map('trim', explode(";\n", $sql)),
-                fn($s) => $s !== '' && !str_starts_with($s, '--')
-            );
+            // BUG-54 FIX: Naive explode(";\\n") breaks for semicolons inside
+            // strings, GENERATED columns, triggers, etc. Use a simple parser
+            // that respects single-quoted string boundaries.
+            $statements = $this->splitSqlStatements($sql);
 
             try {
                 foreach ($statements as $stmt) {
@@ -398,6 +397,57 @@ final class UpdateService
             $this->removeDir($twigCache);
             @mkdir($twigCache, 0755, true);
         }
+    }
+
+    /**
+     * BUG-54 FIX: Split SQL into individual statements, respecting quoted strings.
+     * Semicolons inside single-quoted or double-quoted strings are not treated as delimiters.
+     *
+     * @return string[]
+     */
+    private function splitSqlStatements(string $sql): array
+    {
+        $statements = [];
+        $current = '';
+        $inSingleQuote = false;
+        $inDoubleQuote = false;
+        $length = strlen($sql);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $sql[$i];
+            $prev = $i > 0 ? $sql[$i - 1] : '';
+
+            // Handle escaped quotes
+            if ($prev === '\\') {
+                $current .= $char;
+                continue;
+            }
+
+            if ($char === "'" && !$inDoubleQuote) {
+                $inSingleQuote = !$inSingleQuote;
+            } elseif ($char === '"' && !$inSingleQuote) {
+                $inDoubleQuote = !$inDoubleQuote;
+            }
+
+            if ($char === ';' && !$inSingleQuote && !$inDoubleQuote) {
+                $stmt = trim($current);
+                if ($stmt !== '' && !str_starts_with($stmt, '--')) {
+                    $statements[] = $stmt;
+                }
+                $current = '';
+                continue;
+            }
+
+            $current .= $char;
+        }
+
+        // Handle last statement (no trailing semicolon)
+        $stmt = trim($current);
+        if ($stmt !== '' && !str_starts_with($stmt, '--')) {
+            $statements[] = $stmt;
+        }
+
+        return $statements;
     }
 
     private function removeDir(string $dir): void

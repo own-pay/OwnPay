@@ -166,7 +166,11 @@ final class PaymentIntentCheckoutController
         $faqs = json_decode($this->settings->get('general', 'faqs', '[]'), true);
 
         // Generate HMAC hash binding amount+currency+token
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: 'fallback-key');
+        // BUG-010 FIX: No static fallback key — throw if unconfigured
+        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
         $checkoutHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
 
         // Build manual details map for JS popup
@@ -314,7 +318,11 @@ final class PaymentIntentCheckoutController
 
         // Verify HMAC integrity hash
         $submittedHash = $req->input('checkout_hash', '');
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: 'fallback-key');
+        // BUG-010 FIX: No static fallback key — throw if unconfigured
+        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
         $expectedHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
         if (!hash_equals($expectedHash, $submittedHash)) {
             if ($req->isAjax()) {
@@ -362,8 +370,10 @@ final class PaymentIntentCheckoutController
         try {
             $txn = $this->transactionService->create($mid, $txnData);
         } catch (\Throwable $e) {
+            // BUG-016 FIX: Log real error, return generic message to client
+            $this->c->get(\OwnPay\Service\System\Logger::class)->error('Transaction creation failed: ' . $e->getMessage());
             if ($req->isAjax()) {
-                return Response::json(['success' => false, 'error' => 'Failed to create transaction: ' . $e->getMessage()], 500);
+                return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
             }
             return $this->renderStatus($token, 'failed');
         }
@@ -461,8 +471,9 @@ final class PaymentIntentCheckoutController
                 $this->c->get(\OwnPay\Service\System\Logger::class)->error(
                     "Gateway {$gateway} initiation failed: " . $e->getMessage()
                 );
+                // BUG-016 FIX: Generic error message, real error already logged above
                 if ($req->isAjax()) {
-                    return Response::json(['success' => false, 'error' => 'Payment gateway error: ' . $e->getMessage()], 422);
+                    return Response::json(['success' => false, 'error' => 'Gateway connection error. Please try again.'], 422);
                 }
             }
         } else {
@@ -505,6 +516,17 @@ final class PaymentIntentCheckoutController
             );
 
             if ($txn && $this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
+                // BUG-011 FIX: Atomic idempotency guard — claim the row before processing.
+                // If another request already claimed it (0 rows affected), skip callback.
+                $claimed = $this->db->update(
+                    "UPDATE op_transactions SET status = 'callback_processing' WHERE id = :id AND merchant_id = :mid AND status = 'processing'",
+                    ['id' => $txn['id'], 'mid' => $mid]
+                );
+                if ($claimed === 0) {
+                    // Already being processed or completed — skip duplicate callback
+                    return $this->renderStatus($token, $intent['status'], $intent);
+                }
+
                 try {
                     $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
                     $callbackData = array_merge($req->query() ?? [], [
@@ -525,10 +547,15 @@ final class PaymentIntentCheckoutController
                                 $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'failed', $mid);
                                 $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'failed']);
                                 $intent['status'] = 'failed';
+                            } else {
+                                // Restore to processing if callback didn't resolve
+                                $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'processing', $mid);
                             }
                         }
                     }
                 } catch (\Throwable $e) {
+                    // Restore to processing on error so it can be retried
+                    $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $txn['gateway_slug'] ?? '', 'processing', $mid);
                     // Log but don't crash the status page
                     if ($this->c->has(\OwnPay\Service\System\Logger::class)) {
                         $this->c->get(\OwnPay\Service\System\Logger::class)->error(
@@ -556,7 +583,11 @@ final class PaymentIntentCheckoutController
 
         $submittedHash = $req->input('checkout_hash', '');
         if ($submittedHash) {
-            $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: 'fallback-key');
+            // BUG-010 FIX: No static fallback key
+            $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+            if ($hmacKey === '') {
+                throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+            }
             $expectedHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
             if (!hash_equals($expectedHash, $submittedHash)) {
                 return $this->renderStatus($token, 'expired');
@@ -649,9 +680,10 @@ final class PaymentIntentCheckoutController
 
         $txn = null;
         if ($intent) {
+            // BUG-012 FIX: Added merchant_id scope to prevent cross-brand data leakage
             $txn = $this->db->fetchOne(
-                "SELECT * FROM op_transactions WHERE payment_intent_id = :pi ORDER BY id DESC LIMIT 1",
-                ['pi' => $intent['id']]
+                "SELECT * FROM op_transactions WHERE payment_intent_id = :pi AND merchant_id = :mid ORDER BY id DESC LIMIT 1",
+                ['pi' => $intent['id'], 'mid' => $mid]
             );
 
             // Sync payment intent status if transaction is completed/failed

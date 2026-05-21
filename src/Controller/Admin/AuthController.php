@@ -110,7 +110,15 @@ final class AuthController
             return $this->renderAdminPage('page/2fa.twig', ['error' => '2FA is not properly configured on this account.']);
         }
 
-        if (!\OwnPay\Middleware\TwoFactorMiddleware::verifyTotp($user['totp_secret_enc'], $code)) {
+        // BUG-40 FIX: Decrypt the TOTP secret before verification.
+        // totp_secret_enc is AES-256-GCM encrypted — passing it raw to verifyTotp()
+        // computes HMAC on ciphertext, causing all codes to fail.
+        $decryptedSecret = $this->userRepo->getTotpSecret((int) $user['id']);
+        if ($decryptedSecret === null) {
+            return $this->renderAdminPage('page/2fa.twig', ['error' => '2FA secret could not be decrypted.']);
+        }
+
+        if (!\OwnPay\Middleware\TwoFactorMiddleware::verifyTotp($decryptedSecret, $code)) {
             return $this->renderAdminPage('page/2fa.twig', ['error' => 'Invalid or expired 2FA code. Please try again.']);
         }
 

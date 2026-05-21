@@ -72,9 +72,11 @@ final class IdempotencyMiddleware
             /** @var Response $response */
             $response = $next($request);
 
-            // Cache response body
-            $body = json_decode($response->getBody(), true) ?: [];
-            $svc->storeResponse($scope, $idempotencyKey, $merchantId, $response->getStatusCode(), $body);
+            // Only cache successful responses (2xx) — don't cache transient server errors
+            if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
+                $body = json_decode($response->getBody(), true) ?: [];
+                $svc->storeResponse($scope, $idempotencyKey, $merchantId, $response->getStatusCode(), $body);
+            }
 
             return $response;
         } catch (\Throwable $e) {

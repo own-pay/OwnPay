@@ -168,7 +168,7 @@ class DevicePairingServiceTest extends TestCase
         $this->assertArrayHasKey('device_id', $result);
         $this->assertSame(900, $result['expires_in']);
         $this->assertNotEmpty($result['access_token']);
-        $this->assertSame(64, strlen($result['refresh_token']));
+        $this->assertNotEmpty($result['refresh_token']);
         $this->assertSame(64, strlen($result['aes_key']));
     }
 

@@ -44,15 +44,16 @@ final class DevicePairingTokenRepository extends BaseRepository
     public function validateAndConsume(string $otpHash): ?array
     {
         $mid = $this->requireTenant();
+        $now = DateHelper::nowMicro();
 
-        return $this->db->transaction(function () use ($otpHash, $mid): ?array {
+        return $this->db->transaction(function () use ($otpHash, $mid, $now): ?array {
             $token = $this->db->fetchOne(
                 "SELECT * FROM {$this->table}
-                 WHERE otp_hash = :hash AND is_used = 0 AND expires_at > NOW()
+                 WHERE otp_hash = :hash AND is_used = 0 AND expires_at > :now
                    AND merchant_id = :mid
                  LIMIT 1
                  FOR UPDATE",
-                ['hash' => $otpHash, 'mid' => $mid]
+                ['hash' => $otpHash, 'mid' => $mid, 'now' => $now]
             );
 
             if ($token === null) {
