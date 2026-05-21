@@ -24,13 +24,20 @@ final class SessionMiddleware
         $this->container = $container;
     }
 
-    public function handle(Request $request, callable $next): Response
+    /**
+     * Shared session initialization — ensures session is properly started with all
+     * security hardening, idle timeout, and ID regeneration.
+     *
+     * Called by both SessionMiddleware::handle() and MaintenanceMiddleware
+     * to prevent logic duplication and drift.
+     */
+    public static function ensureStarted(Container $container, Request $request): void
     {
         if (session_status() === PHP_SESSION_ACTIVE) {
-            return $next($request);
+            return;
         }
 
-        $config = $this->container->get('config.app');
+        $config = $container->get('config.app');
         $secure = $request->isSecure();
 
         ini_set('session.use_strict_mode', '1');
@@ -59,7 +66,7 @@ final class SessionMiddleware
                 $_SESSION = [];
                 session_destroy();
                 session_start();
-                return $next($request);
+                return;
             }
         }
         $_SESSION['_last_activity'] = time();
@@ -71,6 +78,11 @@ final class SessionMiddleware
             session_regenerate_id(true);
             $_SESSION['_last_regen'] = time();
         }
+    }
+
+    public function handle(Request $request, callable $next): Response
+    {
+        self::ensureStarted($this->container, $request);
 
         return $next($request);
     }

@@ -135,7 +135,11 @@ final class CheckoutController
 
         // M-05 FIX: HMAC integrity hash binds amount+currency+token to prevent relay attacks.
         // H-05 FIX: Use $_ENV fallback chain — getenv() may not read phpdotenv vars.
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: 'fallback-key');
+        // BUG-010 FIX: Require configured HMAC key — never fall back to a hardcoded constant.
+        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
         $checkoutHash = hash_hmac('sha256', $txn['amount'] . '|' . $txn['currency'] . '|' . $ref, $hmacKey);
 
         // Build manual gateway details map for JS popup (C-5: no separate API endpoint needed)
@@ -325,7 +329,11 @@ final class CheckoutController
         // Support both form POST and JSON body (AJAX via opPost)
         $submittedHash = $req->input('checkout_hash', '');
         // H-05 FIX: Use $_ENV fallback chain
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: 'fallback-key');
+        // BUG-010 FIX: Require configured HMAC key — never fall back to a hardcoded constant.
+        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
         $expectedHash = hash_hmac('sha256', $txn['amount'] . '|' . $txn['currency'] . '|' . $token, $hmacKey);
         if (!hash_equals($expectedHash, $submittedHash)) {
             if ($req->isAjax()) {
@@ -469,7 +477,11 @@ final class CheckoutController
         if (empty($submittedHash)) {
             return $this->renderStatus($token, 'expired');
         }
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: 'fallback-key');
+        // BUG-010 FIX: Require configured HMAC key — never fall back to a hardcoded constant.
+        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
         $expectedHash = hash_hmac('sha256', $txn['amount'] . '|' . $txn['currency'] . '|' . $token, $hmacKey);
         if (!hash_equals($expectedHash, $submittedHash)) {
             return $this->renderStatus($token, 'expired');

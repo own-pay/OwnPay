@@ -15,5 +15,11 @@
         "core": ">=0.1.0",
         "php": ">=8.1"
     },
+    "csp": {
+        "script_src": ["https://*.shurjopayment.com"],
+        "style_src": ["https://*.shurjopayment.com"],
+        "frame_src": ["https://*.shurjopayment.com"],
+        "connect_src": ["https://*.shurjopayment.com"]
+    },
     "permissions": ["gateway.process"]
 }

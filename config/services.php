@@ -355,11 +355,6 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
-    $c->singleton(\OwnPay\Service\Payment\IdempotencyBridge::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\IdempotencyBridge {
-        return new \OwnPay\Service\Payment\IdempotencyBridge(
-            $c->get(\OwnPay\Service\Payment\IdempotencyService::class)
-        );
-    });
 
     $c->singleton(\OwnPay\Service\Payment\PaymentService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentService {
         return new \OwnPay\Service\Payment\PaymentService(

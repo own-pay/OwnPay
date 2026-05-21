@@ -15,5 +15,11 @@
         "core": ">=0.1.0",
         "php": ">=8.1"
     },
+    "csp": {
+        "script_src": ["https://*.oxapay.com"],
+        "style_src": ["https://*.oxapay.com"],
+        "frame_src": ["https://*.oxapay.com"],
+        "connect_src": ["https://*.oxapay.com"]
+    },
     "permissions": ["gateway.process"]
 }

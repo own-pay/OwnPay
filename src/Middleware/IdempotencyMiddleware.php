@@ -49,7 +49,8 @@ final class IdempotencyMiddleware
         }
 
         $svc = $this->container->get(IdempotencyService::class);
-        $requestHash = hash('sha256', $request->rawBody() ?? '');
+        // IDEM-FIX: Include method + path in hash to prevent cross-endpoint response replay.
+        $requestHash = hash('sha256', $request->method() . "\n" . $request->path() . "\n" . ($request->rawBody() ?? ''));
 
         $result = $svc->check($idempotencyKey, $merchantId, $requestHash);
 

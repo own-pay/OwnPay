@@ -277,14 +277,29 @@ Plugins live in `modules/{gateways,addons,themes}/` and are discovered via `mani
   "name": "My Gateway",
   "version": "1.0.0",
   "type": "gateway",
-  "entrypoint": "MyGatewayPlugin.php"
+  "entrypoint": "MyGatewayPlugin.php",
+  "csp": {
+    "script_src": ["https://*.mypayment.com"],
+    "style_src": ["https://*.mypayment.com"],
+    "frame_src": ["https://*.mypayment.com"],
+    "connect_src": ["https://api.mypayment.com"]
+  }
 }
 ```
+
+> **IMPORTANT**: Gateway CSP domains are resolved dynamically from each gateway's `manifest.json` `"csp"` field. **NEVER hardcode gateway domains in `SecurityHeadersMiddleware.php`.** Third-party gateway plugins declare their CSP needs in their own manifest. The middleware also fires the `checkout.csp.sources` filter hook for runtime CSP declarations.
 
 Plugins implement `PluginInterface` and register hooks via `EventManager`:
 ```php
 $events->addAction('payment.completed', [$this, 'onPaymentCompleted']);
 $events->addFilter('checkout.gateways', [$this, 'addGateway']);
+
+// Runtime CSP: declare additional domains dynamically
+$events->addFilter('checkout.csp.sources', function (array $sources): array {
+    $sources['script_src'][] = 'https://*.mypayment.com';
+    $sources['frame_src'][]  = 'https://*.mypayment.com';
+    return $sources;
+});
 ```
 
 ### Admin Controllers
@@ -601,6 +616,7 @@ GET  /api/mobile/v1/devices/status       → Mobile\DeviceController@status
 37. **device_id is a UUID string (BUG-008 Fix)** — In mobile API controllers (`NotificationController`, `DashboardController`), `device_id` from request attributes must be cast to `(string)`, not `(int)`. Casting a UUID to int yields 0, breaking all device-scoped queries.
 38. **InputSanitizer::array() method allowlist (BUG-022 Fix)** — The `$method` parameter only accepts: `string`, `html`, `email`, `url`, `phone`, `slug`, `attr`, `trim`. Arbitrary method names are rejected to prevent dynamic dispatch exploitation.
 39. **Router param regex restricted (BUG-023 Fix)** — Route parameter capture regex no longer allows `@` or `+` characters. Only `[a-zA-Z0-9_\-\.]` is permitted.
+40. **Gateway CSP domains — NEVER hardcode (CSP-PLUGIN Fix)** — `SecurityHeadersMiddleware` builds checkout CSP dynamically from gateway `manifest.json` `"csp"` fields + `checkout.csp.sources` filter hook. Third-party gateway plugins declare their CSP domains in their own manifest. NEVER add gateway-specific domains directly to the middleware source code.
 
 ---
 

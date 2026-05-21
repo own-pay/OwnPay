@@ -178,6 +178,6 @@ final class SmsTemplateRepository extends BaseRepository
      */
     public function listActive(): array
     {
-        return $this->listActiveForTenant($this->tenantId ?? 0);
+        return $this->listActiveForTenant($this->requireTenant());
     }
 }

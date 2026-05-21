@@ -69,6 +69,7 @@ return [
     'checkout.before_render'         => ['type' => 'filter', 'location' => 'CheckoutController'],
     'checkout.after_render'          => ['type' => 'action', 'location' => 'CheckoutController'],
     'checkout.expired'               => ['type' => 'action', 'location' => 'CheckoutController'],
+    'checkout.csp.sources'           => ['type' => 'filter', 'location' => 'SecurityHeadersMiddleware'],
 
     // ── Invoice & Payment Link ──────────────────────────────────
     'invoice.created'                => ['type' => 'action', 'location' => 'InvoiceService'],

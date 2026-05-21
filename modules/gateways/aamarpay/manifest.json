@@ -15,5 +15,11 @@
         "core": ">=0.1.0",
         "php": ">=8.1"
     },
+    "csp": {
+        "script_src": ["https://*.aamarpay.com"],
+        "style_src": ["https://*.aamarpay.com"],
+        "frame_src": ["https://*.aamarpay.com"],
+        "connect_src": ["https://*.aamarpay.com"]
+    },
     "permissions": ["gateway.process"]
 }
