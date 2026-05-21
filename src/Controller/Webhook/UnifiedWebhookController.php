@@ -11,8 +11,9 @@ use OwnPay\Model\WebhookPayload;
 use OwnPay\Service\Payment\GatewayApiService;
 
 /**
- * Unified webhook controller - single dynamic endpoint for ALL gateways.
+ * Class UnifiedWebhookController
  *
+ * Unified webhook controller - single dynamic endpoint for ALL gateways.
  * Route: POST /webhook/{gateway}
  *
  * Flow:
@@ -21,12 +22,27 @@ use OwnPay\Service\Payment\GatewayApiService;
  *
  * OWASP: No user input trust. Raw body preserved for HMAC verification.
  * PCI: Never logs card data. Logs event type + payload hash only.
+ *
+ * @package OwnPay\Controller\Webhook
  */
 final class UnifiedWebhookController
 {
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var EventManager The event manager.
+     */
     private EventManager $events;
 
+    /**
+     * UnifiedWebhookController constructor.
+     *
+     * @param Container    $c      The DI container.
+     * @param EventManager $events The event manager.
+     */
     public function __construct(Container $c, EventManager $events)
     {
         $this->c = $c;
@@ -34,9 +50,10 @@ final class UnifiedWebhookController
     }
 
     /**
-     * Handle incoming webhook/IPN for any gateway.
+     * Handles incoming webhooks and IPNs for any gateway.
      *
-     * @param Request $req Must contain route param 'gateway'
+     * @param Request $req The incoming HTTP request. Must contain route param 'gateway'.
+     * @return Response The HTTP response indicating processing status.
      */
     public function handle(Request $req): Response
     {
@@ -139,7 +156,10 @@ final class UnifiedWebhookController
     }
 
     /**
-     * Fallback: resolve merchant from transaction reference in payload.
+     * Fallback: resolves the merchant ID from a transaction reference in the webhook payload.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return int The resolved merchant/brand ID, or 0 if unable to resolve.
      */
     private function resolveMerchantFromPayload(Request $req): int
     {
@@ -172,7 +192,12 @@ final class UnifiedWebhookController
     }
 
     /**
-     * Log webhook attempt (no-listener / invalid slug).
+     * Logs rejected webhook attempts (no-listener or invalid slug).
+     *
+     * @param string  $gateway The gateway identifier.
+     * @param string  $reason  The rejection reason.
+     * @param Request $req     The incoming HTTP request.
+     * @return void
      */
     private function logAttempt(string $gateway, string $reason, Request $req): void
     {
@@ -184,7 +209,13 @@ final class UnifiedWebhookController
     }
 
     /**
-     * Log successful webhook delivery. PCI: hash only, no raw payload.
+     * Logs a successful webhook delivery to the database.
+     * PCI DSS: Stores only a SHA-256 hash of the payload, never card details.
+     *
+     * @param string $gateway     The gateway identifier.
+     * @param int    $merchantId  The brand ID.
+     * @param string $payloadHash The hash of the request body.
+     * @return void
      */
     private function logDelivery(string $gateway, int $merchantId, string $payloadHash): void
     {

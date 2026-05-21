@@ -6,17 +6,36 @@ namespace OwnPay\Service\Notification;
 use OwnPay\Event\EventManager;
 
 /**
- * Notification service — orchestrates multi-channel notifications.
+ * Orchestrates multi-channel notifications across the enterprise platform.
  *
- * Channels: push (mobile), email, sms, admin alert.
- * Plugins add channels via communication.channels filter.
+ * Dispatches alerts, push notifications, emails, and SMS messages based on
+ * configuration. Enables external plugins to integrate custom communication channels
+ * via Hook/Filter hooks such as `communication.channels`.
  */
 final class NotificationService
 {
+    /**
+     * The event manager for dispatching hooks and filter pipelines.
+     */
     private EventManager $events;
+
+    /**
+     * The system alert service for administrative notifications.
+     */
     private AlertService $alerts;
+
+    /**
+     * The mobile push notification delivery service.
+     */
     private MobileNotificationService $mobile;
 
+    /**
+     * Initializes the notification service with required dependencies.
+     *
+     * @param EventManager $events The event manager for hooks and filter pipelines.
+     * @param AlertService $alerts The system alert service for admin-facing logs.
+     * @param MobileNotificationService $mobile The mobile push notification dispatcher.
+     */
     public function __construct(
         EventManager $events,
         AlertService $alerts,
@@ -28,9 +47,16 @@ final class NotificationService
     }
 
     /**
-     * Send notification via specified channels.
+     * Dispatches notification payloads across designated delivery channels.
      *
-     * @param string[] $channels e.g. ['admin', 'push', 'email']
+     * Each targeted channel is resolved dynamically. Unknown or third-party channel handlers
+     * configured by active plugins are registered and executed downstream via filter hooks.
+     *
+     * @param int $merchantId The unique identifier of the brand/merchant context.
+     * @param string $event The name/identifier of the trigger event (e.g., 'payment.completed').
+     * @param array<string, mixed> $data The payload containing notification context and message content.
+     * @param array<int, string> $channels List of target channels (e.g., ['admin', 'push', 'email']).
+     * @return void
      */
     public function notify(int $merchantId, string $event, array $data, array $channels = ['admin']): void
     {
@@ -40,11 +66,21 @@ final class NotificationService
                 'push'  => $this->notifyPush($merchantId, $event, $data),
                 'email' => $this->notifyEmail($merchantId, $event, $data),
                 'sms'   => $this->notifySms($merchantId, $event, $data),
-                default => null, // Plugin channels handled via event
+                default => null,
             };
         }
     }
 
+    /**
+     * Creates an in-app administrative alert within the merchant database.
+     *
+     * Logs the transaction or system event details to the admin dashboard.
+     *
+     * @param int $merchantId The unique identifier of the brand/merchant context.
+     * @param string $event The name of the trigger event.
+     * @param array<string, mixed> $data Context parameters containing 'title', 'message', and 'severity'.
+     * @return void
+     */
     private function notifyAdmin(int $merchantId, string $event, array $data): void
     {
         $title = $data['title'] ?? $event;
@@ -53,6 +89,16 @@ final class NotificationService
         $this->alerts->create($merchantId, $event, $title, $message, $severity);
     }
 
+    /**
+     * Triggers a push notification to paired mobile companion devices.
+     *
+     * Resolves the target device UUID from the payload and forwards the push message.
+     *
+     * @param int $merchantId The unique identifier of the brand/merchant context.
+     * @param string $event The name of the trigger event.
+     * @param array<string, mixed> $data Context parameters containing 'device_uuid', 'title', and 'message'.
+     * @return void
+     */
     private function notifyPush(int $merchantId, string $event, array $data): void
     {
         $deviceUuid = $data['device_uuid'] ?? null;
@@ -61,9 +107,18 @@ final class NotificationService
         }
     }
 
+    /**
+     * Executes email dispatch via the system communication hook.
+     *
+     * Delegates delivery downstream to the email provider registered on the system.
+     *
+     * @param int $merchantId The unique identifier of the brand/merchant context.
+     * @param string $event The name of the trigger event.
+     * @param array<string, mixed> $data Context parameters containing 'email', 'subject', 'title', and 'message'.
+     * @return void
+     */
     private function notifyEmail(int $merchantId, string $event, array $data): void
     {
-        // Dispatch via communication service hook
         $this->events->doAction('communication.mail.send', [
             'merchant_id' => $merchantId,
             'event'       => $event,
@@ -73,6 +128,16 @@ final class NotificationService
         ]);
     }
 
+    /**
+     * Executes SMS dispatch via the system communication hook.
+     *
+     * Delegates transmission to the mobile carrier or SMS gateway gateway adapters.
+     *
+     * @param int $merchantId The unique identifier of the brand/merchant context.
+     * @param string $event The name of the trigger event.
+     * @param array<string, mixed> $data Context parameters containing 'phone' and 'message'.
+     * @return void
+     */
     private function notifySms(int $merchantId, string $event, array $data): void
     {
         $this->events->doAction('communication.sms.send', [

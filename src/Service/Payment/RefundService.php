@@ -11,13 +11,42 @@ use RuntimeException;
 use OwnPay\Support\DateHelper;
 use OwnPay\Service\Payment\LedgerService;
 
+/**
+ * Service managing partial and full transaction refund lifecycles.
+ *
+ * Checks refund limits and thresholds, interacts with downstream payment gateway integrations
+ * via the GatewayBridge, updates transaction statuses, and registers refund entries in the double-entry ledger.
+ */
 final class RefundService
 {
+    /**
+     * @var RefundRepository Repository logging refund requests.
+     */
     private RefundRepository $refunds;
+
+    /**
+     * @var TransactionRepository Repository accessing core transactions.
+     */
     private TransactionRepository $transactions;
+
+    /**
+     * @var GatewayBridge Gateway adapter connector bridge.
+     */
     private GatewayBridge $bridge;
+
+    /**
+     * @var LedgerService Ledger bookkeeping record publisher.
+     */
     private LedgerService $ledger;
 
+    /**
+     * RefundService constructor.
+     *
+     * @param RefundRepository $refunds Repository managing refunds.
+     * @param TransactionRepository $transactions Repository managing transaction records.
+     * @param GatewayBridge $bridge Payment gateway adapter orchestration bridge.
+     * @param LedgerService $ledger Service posting ledger balances.
+     */
     public function __construct(
         RefundRepository $refunds,
         TransactionRepository $transactions,
@@ -30,9 +59,22 @@ final class RefundService
         $this->ledger = $ledger;
     }
 
+    /**
+     * Creates and executes a refund request for a completed transaction.
+     *
+     * Validates that the transaction belongs to the merchant, verify that it is eligible
+     * for refund (completed), calculates the remaining non-refunded amount, runs the gateway refund API,
+     * and logs double-entry ledger records upon success.
+     *
+     * @param int $merchantId The ID of the merchant/brand.
+     * @param array{transaction_id: int|string, amount?: float|int|string|null, reason?: string} $data Input refund options.
+     * @return array<string, mixed> The generated refund record fields.
+     * @throws InvalidArgumentException If the transaction does not exist, is not completed, or the amount exceeds the limit.
+     * @throws RuntimeException If the downstream payment gateway adapter execution throws an error.
+     */
     public function create(int $merchantId, array $data): array
     {
-        $transactionId = $data['transaction_id'];
+        $transactionId = (int) $data['transaction_id'];
         $amount = $data['amount'] ?? null;
         
         $txn = $this->transactions->forTenant($merchantId)->findScoped($transactionId);
@@ -68,6 +110,9 @@ final class RefundService
         ]);
 
         $refund = $this->refunds->forTenant($merchantId)->findScoped((int)$id);
+        if (!$refund) {
+            throw new RuntimeException("Refund record not found after creation");
+        }
 
         try {
             $result = $this->bridge->refund(
@@ -109,6 +154,13 @@ final class RefundService
         return $refund;
     }
 
+    /**
+     * Retrieves a single refund record by ID, scoped to the brand/merchant.
+     *
+     * @param int $merchantId The unique ID of the merchant.
+     * @param int $id The unique ID of the refund to retrieve.
+     * @return array<string, mixed>|null The refund fields, or null if not found.
+     */
     public function find(int $merchantId, int $id): ?array
     {
         return $this->refunds->forTenant($merchantId)->findScoped($id);

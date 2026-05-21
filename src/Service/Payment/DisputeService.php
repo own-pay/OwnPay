@@ -7,19 +7,48 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\DisputeRepository;
 
 /**
- * Dispute service — chargeback/dispute management.
+ * Manages chargeback and transaction disputes.
+ *
+ * Provides capabilities to open new disputes, track dispute statuses,
+ * resolve disputes, and trigger actions/filters via the system event manager.
  */
 final class DisputeService
 {
+    /**
+     * @var DisputeRepository Repository for accessing and modifying dispute records.
+     */
     private DisputeRepository $disputes;
+
+    /**
+     * @var EventManager Event dispatcher for registering and executing action/filter hooks.
+     */
     private EventManager $events;
 
+    /**
+     * DisputeService constructor.
+     *
+     * @param DisputeRepository $disputes Repository for dispute database operations.
+     * @param EventManager $events Event dispatcher for system hooks.
+     */
     public function __construct(DisputeRepository $disputes, EventManager $events)
     {
         $this->disputes = $disputes;
         $this->events = $events;
     }
 
+    /**
+     * Opens a new dispute record for a transaction.
+     *
+     * Scopes the dispute creation to the designated merchant/brand and fires the
+     * `dispute.opened` event hook upon successful creation.
+     *
+     * @param int $merchantId The unique ID of the merchant/brand owning the transaction.
+     * @param int $transactionId The unique ID of the disputed transaction.
+     * @param string $reason The reason or category of the dispute.
+     * @param string $amount The disputed amount as a decimal string.
+     * @return array<string, mixed> The newly created dispute database record.
+     * @throws \RuntimeException If the dispute record is not found in storage after being created.
+     */
     public function open(int $merchantId, int $transactionId, string $reason, string $amount): array
     {
         $repo = $this->disputes->forTenant($merchantId);
@@ -39,6 +68,16 @@ final class DisputeService
         return $dispute;
     }
 
+    /**
+     * Resolves an active dispute by recording a resolution description.
+     *
+     * Updates the dispute status and fires the `dispute.resolved` action hook.
+     *
+     * @param int $merchantId The unique ID of the merchant/brand owning the dispute.
+     * @param int $disputeId The unique ID of the dispute to resolve.
+     * @param string $resolution Description of the resolution details.
+     * @return void
+     */
     public function resolve(int $merchantId, int $disputeId, string $resolution): void
     {
         $this->disputes->forTenant($merchantId)->resolve($disputeId, 'resolved', $resolution);

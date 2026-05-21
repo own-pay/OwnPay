@@ -6,38 +6,75 @@ namespace OwnPay\Plugin;
 use OwnPay\Repository\PluginRepository;
 
 /**
- * Plugin registry — runtime registry of loaded plugin instances + DB state.
+ * Runtime registry storing activated plugin instances, manifests, and sandboxes.
+ *
+ * Keeps track of plugin status, coordinates capability lookups, and provides
+ * safe sandbox lookup contexts (such as AUD-G8 enforcement) for active plugin execution.
+ *
+ * @category Plugin
+ * @package  OwnPay\Plugin
  */
 final class PluginRegistry
 {
+    /**
+     * Database repository for plugin records.
+     *
+     * @var \OwnPay\Repository\PluginRepository
+     */
     private PluginRepository $repo;
 
-    /** @var array<string, PluginInterface> Loaded instances */
+    /**
+     * Cache of loaded plugin instances.
+     *
+     * @var array<string, \OwnPay\Plugin\PluginInterface>
+     */
     private array $loaded = [];
 
-    /** @var array<string, PluginManifest> Loaded manifests */
+    /**
+     * Cache of loaded plugin manifest configurations.
+     *
+     * @var array<string, \OwnPay\Plugin\PluginManifest>
+     */
     private array $manifests = [];
 
+    /**
+     * Cache of loaded plugin runtime sandboxes.
+     *
+     * @var array<string, \OwnPay\Plugin\PluginSandbox>
+     */
+    private array $sandboxes = [];
+
+    /**
+     * PluginRegistry constructor.
+     *
+     * @param \OwnPay\Repository\PluginRepository $repo Repository for querying plugin database state.
+     */
     public function __construct(PluginRepository $repo)
     {
         $this->repo = $repo;
     }
 
     /**
-     * Get all active plugins from DB.
-     * @return array<int, array<string, mixed>>
+     * Retrieves all active plugin records from the database.
+     *
+     * @return array<int, array<string, mixed>> List of active plugin records.
      */
     public function getActive(): array
     {
         return $this->repo->listActive();
     }
 
-    /** @var array<string, PluginSandbox> Loaded sandboxes */
-    private array $sandboxes = [];
-
     /**
-     * Register a loaded plugin instance.
-     * AUD-G8 fix: Also accepts optional sandbox for runtime capability enforcement.
+     * Registers a successfully instantiated plugin runtime object and its metadata.
+     *
+     * Optionally registers a PluginSandbox context to allow capability and resource
+     * isolation checks during runtime operations.
+     *
+     * @param string                              $slug     Unique plugin identifier.
+     * @param \OwnPay\Plugin\PluginInterface     $instance The plugin implementation instance.
+     * @param \OwnPay\Plugin\PluginManifest      $manifest The validated manifest object.
+     * @param \OwnPay\Plugin\PluginSandbox|null  $sandbox  Optional security containment sandbox.
+     * @return void
      */
     public function registerLoaded(string $slug, PluginInterface $instance, PluginManifest $manifest, ?PluginSandbox $sandbox = null): void
     {
@@ -49,8 +86,9 @@ final class PluginRegistry
     }
 
     /**
-     * Get all loaded plugin instances.
-     * @return array<string, PluginInterface>
+     * Retrieves all loaded plugin instances.
+     *
+     * @return array<string, \OwnPay\Plugin\PluginInterface> Loaded instances mapped by their slug.
      */
     public function getLoaded(): array
     {
@@ -58,7 +96,10 @@ final class PluginRegistry
     }
 
     /**
-     * Get loaded instance by slug.
+     * Resolves a loaded plugin instance by its unique slug identifier.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return \OwnPay\Plugin\PluginInterface|null The plugin instance, or null if not registered.
      */
     public function get(string $slug): ?PluginInterface
     {
@@ -66,7 +107,10 @@ final class PluginRegistry
     }
 
     /**
-     * Get manifest for loaded plugin.
+     * Resolves a loaded plugin manifest object by its unique slug identifier.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return \OwnPay\Plugin\PluginManifest|null The manifest object, or null if not registered.
      */
     public function getManifest(string $slug): ?PluginManifest
     {
@@ -74,8 +118,12 @@ final class PluginRegistry
     }
 
     /**
-     * Get sandbox for loaded plugin.
-     * AUD-G8 fix: Allows runtime capability checks on plugin operations.
+     * Resolves a loaded plugin security sandbox by its unique slug identifier.
+     *
+     * Enables runtime capability assertions to be executed on behalf of the plugin.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return \OwnPay\Plugin\PluginSandbox|null The sandbox context, or null if not registered.
      */
     public function getSandbox(string $slug): ?PluginSandbox
     {
@@ -83,7 +131,10 @@ final class PluginRegistry
     }
 
     /**
-     * Check if plugin is loaded.
+     * Checks if a plugin is currently loaded in memory.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return bool True if registered in the active plugins list.
      */
     public function isLoaded(string $slug): bool
     {
@@ -91,8 +142,10 @@ final class PluginRegistry
     }
 
     /**
-     * Get all plugins with capability.
-     * @return PluginInterface[]
+     * Filters all loaded plugins to return those possessing a specific capability.
+     *
+     * @param \OwnPay\Plugin\Capability $capability The capability to check against.
+     * @return array<string, \OwnPay\Plugin\PluginInterface> Matching plugin instances mapped by slug.
      */
     public function withCapability(Capability $capability): array
     {
@@ -110,7 +163,13 @@ final class PluginRegistry
     }
 
     /**
-     * Mark plugin as errored in DB.
+     * Registers a runtime error for a plugin and flags its DB status as errored.
+     *
+     * Disables the plugin immediately and unloads it from memory cache.
+     *
+     * @param string $slug  Unique plugin identifier.
+     * @param string $error Message detailing the execution failure.
+     * @return void
      */
     public function markError(string $slug, string $error): void
     {
@@ -118,7 +177,6 @@ final class PluginRegistry
         if ($plugin !== null) {
             $this->repo->update((int) $plugin['id'], ['status' => 'error']);
         }
-        // Remove from loaded
         unset($this->loaded[$slug], $this->manifests[$slug], $this->sandboxes[$slug]);
     }
 }

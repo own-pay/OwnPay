@@ -6,23 +6,39 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Repository\IdempotencyRepository;
 
 /**
- * Idempotency service — prevents duplicate transaction processing.
+ * Manages request idempotency to prevent duplicate transaction processing.
  *
- * Uses idempotency key (client-provided) to deduplicate API requests.
+ * Employs client-provided unique idempotency keys combined with request body hashing
+ * to lock, track, and cache API response payloads.
  */
 final class IdempotencyService
 {
+    /**
+     * @var IdempotencyRepository Repository for managing idempotency database keys.
+     */
     private IdempotencyRepository $repo;
 
+    /**
+     * IdempotencyService constructor.
+     *
+     * @param IdempotencyRepository $repo The repository for storing idempotency state.
+     */
     public function __construct(IdempotencyRepository $repo)
     {
         $this->repo = $repo;
     }
 
     /**
-     * Check if request is duplicate. If not, lock the key.
+     * Assesses whether an incoming request is a duplicate using its idempotency key.
      *
-     * @return array{is_duplicate: bool, cached_response?: array, status?: string, http_status?: int, error?: string}
+     * If the key already exists, verifies the payload hash to prevent collision/tampering.
+     * If the key is new, registers a lock in a 'processing' state.
+     *
+     * @param string $key The client-supplied idempotency token.
+     * @param int $merchantId The identifier of the merchant/brand.
+     * @param string $requestHash A SHA-256 hash representing the request payload.
+     * @param int $ttl Time to live in seconds (default is 86400 / 24 hours).
+     * @return array{is_duplicate: bool, cached_response?: array<string, mixed>, status?: string, http_status?: int, error?: string} Execution outcome state.
      */
     public function check(string $key, int $merchantId, string $requestHash, int $ttl = 86400): array
     {
@@ -67,7 +83,13 @@ final class IdempotencyService
     }
 
     /**
-     * Store response for idempotency key.
+     * Stores a finalized HTTP response payload for an active idempotency key lock.
+     *
+     * @param string $key The client-supplied idempotency token.
+     * @param int $merchantId The identifier of the merchant/brand.
+     * @param int $statusCode The HTTP response status code to cache.
+     * @param array<string, mixed> $response The structured array response payload to serialize.
+     * @return void
      */
     public function storeResponse(string $key, int $merchantId, int $statusCode, array $response): void
     {
@@ -79,7 +101,13 @@ final class IdempotencyService
     }
 
     /**
-     * Delete an idempotency key lock (called on request failure to allow retry).
+     * Deletes an idempotency key lock.
+     *
+     * Should be invoked when a request fails prior to final execution, permitting retries.
+     *
+     * @param string $key The client-supplied idempotency token.
+     * @param int $merchantId The identifier of the merchant/brand.
+     * @return void
      */
     public function deleteLock(string $key, int $merchantId): void
     {
@@ -87,7 +115,10 @@ final class IdempotencyService
     }
 
     /**
-     * Cleanup expired idempotency records (cron).
+     * Deletes expired idempotency keys from the database.
+     *
+     * @param int $hoursOld Age threshold in hours.
+     * @return int The total number of rows removed.
      */
     public function cleanup(int $hoursOld = 24): int
     {

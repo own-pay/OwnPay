@@ -11,16 +11,47 @@ use OwnPay\Update\UpdateService;
 use OwnPay\Repository\SettingsRepository;
 use OwnPay\Repository\UpdateHistoryRepository;
 
+/**
+ * Controller for checking and installing system updates.
+ */
 final class SystemUpdateController
 {
     use AdminPageTrait;
 
+    /**
+     * The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * The admin session manager.
+     */
     private AdminSession $session;
+
+    /**
+     * The update service instance.
+     */
     private UpdateService $updater;
+
+    /**
+     * The settings repository.
+     */
     private SettingsRepository $settingsRepo;
+
+    /**
+     * The update history repository.
+     */
     private UpdateHistoryRepository $historyRepo;
 
+    /**
+     * SystemUpdateController constructor.
+     *
+     * @param Container $c The dependency injection container.
+     * @param AdminSession $session The admin session manager.
+     * @param UpdateService $updater The update service instance.
+     * @param SettingsRepository $settingsRepo The settings repository.
+     * @param UpdateHistoryRepository $historyRepo The update history repository.
+     */
     public function __construct(
         Container $c,
         AdminSession $session,
@@ -35,7 +66,13 @@ final class SystemUpdateController
         $this->historyRepo  = $historyRepo;
     }
 
-    /** @phpstan-ignore-next-line */
+    /**
+     * Render the main system updates dashboard page.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response rendering the updates page.
+     * @throws \Exception If database queries fail.
+     */
     public function index(Request $req): Response
     {
         $cacheFile = dirname(__DIR__, 3) . '/storage/cache/update_check.json';
@@ -66,6 +103,12 @@ final class SystemUpdateController
         ]);
     }
 
+    /**
+     * Trigger an update availability check.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     */
     public function check(Request $req): Response
     {
         try {
@@ -87,6 +130,12 @@ final class SystemUpdateController
         return Response::redirect('/admin/system-update');
     }
 
+    /**
+     * Install a selected system update version.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     */
     public function install(Request $req): Response
     {
         $version  = $req->post('version', '');
@@ -105,6 +154,12 @@ final class SystemUpdateController
         return Response::redirect('/admin/system-update');
     }
 
+    /**
+     * Save auto-update system settings.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     */
     public function settings(Request $req): Response
     {
         $val = $req->post('auto_update') ? '1' : '0';

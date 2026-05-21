@@ -7,19 +7,32 @@ use OwnPay\Core\Database;
 use OwnPay\Repository\SettingsRepository;
 
 /**
- * Brand theme service — resolves per-brand visual customization.
+ * OwnPay Brand Theme Service.
  *
- * Reads brand-scoped settings from op_system_settings (merchant_id scoped),
- * active theme configuration, and custom CSS/JS overrides.
+ * Resolves per-brand visual customizations for payment checkouts under custom domains.
+ * Applies hierarchical settings resolution logic: brand-specific settings (merchant_id scoped
+ * in database) > merchant metadata JSON configurations > system-wide fallback defaults.
  *
- * White-label pipeline: Every checkout page under a custom domain
- * renders with the brand's unique visual identity.
+ * @package OwnPay\Service\Brand
  */
 final class BrandThemeService
 {
+    /**
+     * @var Database The database execution wrapper.
+     */
     private Database $db;
+
+    /**
+     * @var SettingsRepository The repository for system-wide configuration settings.
+     */
     private SettingsRepository $settings;
 
+    /**
+     * BrandThemeService constructor.
+     *
+     * @param Database $db The database engine.
+     * @param SettingsRepository $settings System settings repository.
+     */
     public function __construct(Database $db, SettingsRepository $settings)
     {
         $this->db = $db;
@@ -27,8 +40,12 @@ final class BrandThemeService
     }
 
     /**
-     * Get complete brand visual data for checkout rendering.
+     * Retrieves the complete aggregated brand visual data for checkout interface rendering.
      *
+     * Integrates layout colors, logotypes, icons, custom styling blocks (CSS/JS),
+     * support routing addresses, and branding footers.
+     *
+     * @param int $merchantId The primary identifier of the brand/merchant context.
      * @return array{
      *     name: string,
      *     logo: string,
@@ -44,14 +61,13 @@ final class BrandThemeService
      */
     public function getBrandTheme(int $merchantId): array
     {
-        // 1. Merchant record (name, logo)
+        // 1. Resolve merchant core profile configuration
         $merchant = $this->db->fetchOne(
             "SELECT name, slug, logo_path, settings FROM op_merchants WHERE id = :id",
             ['id' => $merchantId]
         );
 
-        // BUG-28 FIX: Return sensible defaults if merchant doesn't exist.
-        // Without this, null array access causes TypeError crashes.
+        // Fallback safely to generic details if the target merchant entity does not exist
         if ($merchant === null) {
             return [
                 'name'           => 'Own Pay',
@@ -67,14 +83,14 @@ final class BrandThemeService
             ];
         }
 
-        // 2. Brand-scoped settings override (uses merchant_id-aware uk_group_key_merchant)
+        // 2. Load brand-specific settings from the database system settings table
         $brandSettings = $this->getBrandSettings($merchantId);
 
-        // 3. Global fallback settings
+        // 3. Load global fallback system configurations
         $globalSettings = $this->settings->getGroup('general');
         $themeSettings = $this->settings->getGroup('theme');
 
-        // Merge: brand-scoped > merchant JSON settings > global settings
+        // Unpack merchant-specific JSON metadata settings overrides
         $merchantJsonSettings = json_decode($merchant['settings'] ?? '{}', true) ?: [];
 
         return [
@@ -92,9 +108,10 @@ final class BrandThemeService
     }
 
     /**
-     * Get brand-scoped settings from op_system_settings.
+     * Retrieves brand-scoped overrides from the system settings database table.
      *
-     * @return array<string, string>
+     * @param int $merchantId The merchant primary identifier.
+     * @return array<string, string> Associative index of setting keys and values.
      */
     private function getBrandSettings(int $merchantId): array
     {
@@ -111,7 +128,18 @@ final class BrandThemeService
     }
 
     /**
-     * Resolve value: brand-scoped > merchant JSON > fallback
+     * Resolves a key value by prioritizing brand overrides over fallback defaults.
+     *
+     * Priority:
+     * 1. Brand settings overrides.
+     * 2. Merchant settings overrides.
+     * 3. Fallback default value.
+     *
+     * @param array<string, string> $brandSettings Loaded brand settings overrides.
+     * @param array<string, mixed> $merchantSettings Loaded merchant metadata overrides.
+     * @param string $key Settings key name.
+     * @param string $fallback Fallback value.
+     * @return string Resolved configuration value.
      */
     private function resolveVal(array $brandSettings, array $merchantSettings, string $key, string $fallback): string
     {

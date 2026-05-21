@@ -8,28 +8,38 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Session middleware — configures and starts PHP session.
+ * Middleware responsible for configuring and starting PHP secure sessions.
  *
- * Per OWASP session management:
- *  - Strict mode, httponly, secure, samesite
- *  - Regenerate ID after login (done in Authenticator)
- *  - Cookie params from config
+ * Implements OWASP-compliant session management: strict mode, httponly, secure, samesite cookies,
+ * explicit idle timeouts, and periodic session ID regeneration to prevent session hijacking.
  */
 final class SessionMiddleware
 {
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $container;
 
+    /**
+     * Constructs a new SessionMiddleware instance.
+     *
+     * @param Container $container The dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
     /**
-     * Shared session initialization — ensures session is properly started with all
-     * security hardening, idle timeout, and ID regeneration.
+     * Shared session initialization helper.
      *
-     * Called by both SessionMiddleware::handle() and MaintenanceMiddleware
-     * to prevent logic duplication and drift.
+     * Ensures session is properly started with all security hardening, idle timeout,
+     * and ID regeneration rules. Called by both handle() and MaintenanceMiddleware
+     * to prevent logic duplication.
+     *
+     * @param Container $container The dependency injection container.
+     * @param Request $request The request context.
+     * @return void
      */
     public static function ensureStarted(Container $container, Request $request): void
     {
@@ -58,8 +68,7 @@ final class SessionMiddleware
 
         $sessionLifetime = (int) ($config['session']['lifetime'] ?? 7200);
 
-        // AUD-14 FIX: Explicit idle timeout — prevents indefinite sessions
-        // when PHP gc_maxlifetime differs from cookie lifetime.
+        // Explicit idle timeout — prevents indefinite sessions when PHP gc_maxlifetime differs.
         if (isset($_SESSION['_last_activity'])) {
             if (time() - $_SESSION['_last_activity'] > $sessionLifetime) {
                 // Session expired — destroy and redirect to login
@@ -80,6 +89,13 @@ final class SessionMiddleware
         }
     }
 
+    /**
+     * Handles starting the PHP session for the incoming request execution pipeline.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param callable(Request): Response $next Next handler in the pipeline.
+     * @return Response The HTTP response.
+     */
     public function handle(Request $request, callable $next): Response
     {
         self::ensureStarted($this->container, $request);

@@ -6,17 +6,36 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Core\Database;
 
 /**
- * Invoice service — CRUD for merchant invoices.
+ * Manages the lifecycle of merchant invoices and their associated items.
+ *
+ * Provides capabilities for listing, paginating, searching, creating, and updating
+ * invoices, calculating sub-totals, discounts, taxes, and generating PDF receipts.
  */
 final class InvoiceService
 {
+    /**
+     * @var Database The database service.
+     */
     private Database $db;
 
+    /**
+     * InvoiceService constructor.
+     *
+     * @param Database $db Direct database service.
+     */
     public function __construct(Database $db)
     {
         $this->db = $db;
     }
 
+    /**
+     * Lists invoices belonging to a specific merchant brand.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @param int $page The current page number for pagination.
+     * @param int $perPage The number of items to fetch per page.
+     * @return array<int, array<string, mixed>> The array of matching invoice records.
+     */
     public function listForMerchant(int $merchantId, int $page = 1, int $perPage = 25): array
     {
         $offset = ($page - 1) * $perPage;
@@ -30,6 +49,14 @@ final class InvoiceService
         );
     }
 
+    /**
+     * Computes pagination parameters for a merchant's invoices query.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @param int $page The current page number.
+     * @param int $perPage The size of each page.
+     * @return array{page: int, per_page: int, total: int, pages: int, offset: int} Pagination metadata.
+     */
     public function pagination(int $merchantId, int $page = 1, int $perPage = 25): array
     {
         $total = (int) $this->db->fetchColumn(
@@ -45,6 +72,13 @@ final class InvoiceService
         ];
     }
 
+    /**
+     * Finds an invoice by its ID and scopes it to the merchant, loading line items.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @param int $id The unique ID of the invoice.
+     * @return array<string, mixed>|null The invoice record with lines, or null if not found.
+     */
     public function find(int $merchantId, int $id): ?array
     {
         $invoice = $this->db->fetchOne(
@@ -61,6 +95,24 @@ final class InvoiceService
         return $invoice;
     }
 
+    /**
+     * Creates a new invoice along with its associated line items.
+     *
+     * Automatically calculates sub-totals, taxes, discounts, and total values.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @param array{
+     *     invoice_number?: string,
+     *     customer_id?: int|string,
+     *     due_date?: string|null,
+     *     notes?: string|null,
+     *     currency?: string,
+     *     tax?: float|int|string,
+     *     discount?: float|int|string,
+     *     items?: array<int, array{description?: string, quantity?: int|string, unit_price?: float|int|string, amount?: float|int|string}>
+     * } $data The invoice and line item fields.
+     * @return array<string, mixed> The newly created invoice record.
+     */
     public function create(int $merchantId, array $data): array
     {
         $number = $data['invoice_number'] ?? ('INV-' . strtoupper(substr(uniqid(), -8)));
@@ -118,6 +170,23 @@ final class InvoiceService
         return $this->find($merchantId, (int) $id) ?? [];
     }
 
+    /**
+     * Updates an existing invoice, recalculating costs and rebuilding line items.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @param int $id The unique ID of the invoice to update.
+     * @param array{
+     *     customer_id?: int|string,
+     *     due_date?: string|null,
+     *     notes?: string|null,
+     *     currency?: string,
+     *     tax?: float|int|string,
+     *     discount?: float|int|string,
+     *     status?: string,
+     *     items?: array<int, array{description?: string, quantity?: int|string, unit_price?: float|int|string, amount?: float|int|string}>
+     * } $data The invoice and line item fields to update.
+     * @return array<string, mixed> The updated invoice record, or empty array if not found.
+     */
     public function update(int $merchantId, int $id, array $data): array
     {
         // First verify that invoice exists and belongs to merchant
@@ -199,6 +268,13 @@ final class InvoiceService
         return $this->find($merchantId, $id) ?? [];
     }
 
+    /**
+     * Generates a PDF representing the specified invoice.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @param int $id The unique ID of the invoice.
+     * @return string A serialized JSON/HTML string acting as the PDF content.
+     */
     public function generatePdf(int $merchantId, int $id): string
     {
         // Stub — return HTML as PDF placeholder

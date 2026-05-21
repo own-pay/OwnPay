@@ -10,12 +10,37 @@ use OwnPay\Repository\TransactionRepository;
 use OwnPay\Repository\MobileNotificationRepository;
 use OwnPay\Support\DateHelper;
 
+/**
+ * Class DashboardController
+ *
+ * Handles API actions related to the mobile dashboard metrics and summary.
+ *
+ * @package OwnPay\Controller\Api\Mobile
+ */
 final class DashboardController
 {
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var TransactionRepository The transaction repository.
+     */
     private TransactionRepository $txnRepo;
+
+    /**
+     * @var MobileNotificationRepository The mobile notification repository.
+     */
     private MobileNotificationRepository $notifRepo;
 
+    /**
+     * DashboardController constructor.
+     *
+     * @param Container                    $c         The DI container.
+     * @param TransactionRepository        $txnRepo   The transaction repository.
+     * @param MobileNotificationRepository $notifRepo The mobile notification repository.
+     */
     public function __construct(Container $c, TransactionRepository $txnRepo, MobileNotificationRepository $notifRepo)
     {
         $this->c         = $c;
@@ -23,6 +48,14 @@ final class DashboardController
         $this->notifRepo = $notifRepo;
     }
 
+    /**
+     * Retrieves dashboard data (stats, transactions, unread notifications) for the mobile app.
+     *
+     * GET /api/mobile/v1/dashboard
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with dashboard dashboard stats.
+     */
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');

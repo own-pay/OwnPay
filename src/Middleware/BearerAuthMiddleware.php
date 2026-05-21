@@ -10,20 +10,39 @@ use OwnPay\Repository\ApiKeyRepository;
 use OwnPay\Support\DateHelper;
 
 /**
- * Bearer auth middleware — authenticates API requests via API key.
+ * Middleware responsible for authenticating REST API requests using Bearer tokens (API keys).
  *
- * Flow: Extract prefix → lookup by prefix → timing-safe hash compare.
- * Per security skill: never log raw keys, use constant-time comparison.
+ * Extracting token prefix is used to locate the key metadata, followed by a sha256 hashing
+ * and constant-time string comparison to defend against timing attacks. This matches OWASP
+ * standards and enforces key state checks (active vs revoked) and expiration times, before
+ * injecting the matched merchant/brand context into request attributes.
  */
 final class BearerAuthMiddleware
 {
+    /**
+     * The PSR-11 dependency injection container instance.
+     *
+     * @var Container
+     */
     private Container $container;
 
+    /**
+     * Constructs a new instance of BearerAuthMiddleware.
+     *
+     * @param Container $container Dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
+    /**
+     * Handles the incoming HTTP request authentication.
+     *
+     * @param Request $request The incoming HTTP request instance.
+     * @param callable(Request): Response $next Next middleware/handler in the execution stack.
+     * @return Response The HTTP response instance.
+     */
     public function handle(Request $request, callable $next): Response
     {
         $token = $request->bearerToken();
@@ -60,7 +79,7 @@ final class BearerAuthMiddleware
             return Response::json(['success' => false, 'message' => 'Invalid API key'], 401);
         }
 
-        // H-05 FIX: Check API key status — revoked/inactive keys must be rejected.
+        // Check API key status — revoked/inactive keys must be rejected.
         if (($apiKey['status'] ?? 'active') !== 'active') {
             return Response::json(['success' => false, 'message' => 'API key has been revoked'], 401);
         }

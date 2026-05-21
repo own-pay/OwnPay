@@ -47,7 +47,7 @@ final class SmsDataRepository extends BaseRepository
      * @param string $sender The raw sender address or number.
      * @param string $receivedAt The date-time string of when the SMS was received.
      * @return bool True if a matching duplicate is found, false otherwise.
-     * @throws \RuntimeException If the active tenant context cannot be resolved.
+     * @throws \LogicException If the active tenant context cannot be resolved.
      */
     public function isDuplicate(string $deviceId, string $sender, string $receivedAt): bool
     {
@@ -75,7 +75,7 @@ final class SmsDataRepository extends BaseRepository
      * @param int $offset Numerical offset for database query pagination. Defaults to 0.
      * @param string|null $status Optional status filter (e.g., 'matched', 'pending', 'ignored').
      * @return array{items: array<int, array<string, mixed>>, total: int} A structure containing list of items and total count.
-     * @throws \RuntimeException If the active tenant context cannot be resolved.
+     * @throws \LogicException If the active tenant context cannot be resolved.
      */
     public function listPaginated(int $limit = 20, int $offset = 0, ?string $status = null): array
     {
@@ -108,7 +108,7 @@ final class SmsDataRepository extends BaseRepository
      * which represent the pending review queue for administrator verification.
      *
      * @return int The total count of pending SMS entries.
-     * @throws \RuntimeException If the active tenant context cannot be resolved.
+     * @throws \LogicException If the active tenant context cannot be resolved.
      */
     public function countUnparsed(): int
     {
@@ -126,7 +126,7 @@ final class SmsDataRepository extends BaseRepository
      * @param int $id The internal primary identifier of the target SMS record.
      * @param array<string, mixed> $data Array of updated values to apply.
      * @return int The number of affected database rows.
-     * @throws \RuntimeException If the active tenant context cannot be resolved.
+     * @throws \LogicException If the active tenant context cannot be resolved.
      */
     public function updateParsedData(int $id, array $data): int
     {

@@ -10,19 +10,36 @@ use OwnPay\Http\Response;
 use OwnPay\Repository\MerchantUserRepository;
 
 /**
- * 2FA Setup Controller — profile-level TOTP enable/disable.
- *
+ * 2FA Setup Controller for managing profile-level TOTP enable/disable configurations.
+ * Works with any RFC 6238 authenticator (Google Authenticator, Authy, etc.).
  * Stores totp_secret in op_merchant_users.
- * Works with any RFC 6238 authenticator (Google Authenticator, Authy, etc.)
  */
 final class TwoFactorSetupController
 {
     use AdminPageTrait;
 
+    /**
+     * The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * The admin session manager.
+     */
     private AdminSession $session;
+
+    /**
+     * The merchant user repository instance.
+     */
     private MerchantUserRepository $userRepo;
 
+    /**
+     * TwoFactorSetupController constructor.
+     *
+     * @param Container $c The dependency injection container.
+     * @param AdminSession $session The admin session manager.
+     * @param MerchantUserRepository $userRepo The merchant user repository instance.
+     */
     public function __construct(Container $c, AdminSession $session, MerchantUserRepository $userRepo)
     {
         $this->c        = $c;
@@ -30,7 +47,13 @@ final class TwoFactorSetupController
         $this->userRepo = $userRepo;
     }
 
-    /** GET /admin/my-account/2fa — show setup page */
+    /**
+     * Show 2FA setup details page with QR Code.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with setup page or redirect.
+     * @throws \Exception If QR uri generation or page rendering fails.
+     */
     public function index(Request $req): Response
     {
         $userId = $this->session->userId();
@@ -65,7 +88,13 @@ final class TwoFactorSetupController
         ]);
     }
 
-    /** POST /admin/my-account/2fa/enable — verify code and activate */
+    /**
+     * Verify the code submitted by the user and enable 2FA on successful match.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If lookup or saving fails.
+     */
     public function enable(Request $req): Response
     {
         $userId = $this->session->userId();
@@ -88,7 +117,13 @@ final class TwoFactorSetupController
         return Response::redirect('/admin/my-account');
     }
 
-    /** POST /admin/my-account/2fa/disable — disable 2FA after password confirmation */
+    /**
+     * Disable 2FA on user account after verifying their current password.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If lookup or saving fails.
+     */
     public function disable(Request $req): Response
     {
         $userId   = $this->session->userId();
@@ -106,8 +141,13 @@ final class TwoFactorSetupController
         return Response::redirect('/admin/my-account');
     }
 
-    // ── Helpers ────────────────────────────────────────────────────
-
+    /**
+     * Generate a cryptographically secure random base32 encoded secret.
+     *
+     * @param int $bytes The length of binary secret before base32 encoding.
+     * @return string The base32 secret.
+     * @throws \Exception If random_bytes fails.
+     */
     private function generateBase32Secret(int $bytes = 20): string
     {
         $chars  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -123,6 +163,14 @@ final class TwoFactorSetupController
         return $result;
     }
 
+    /**
+     * Verify user TOTP code within a drift window.
+     *
+     * @param string $secret The decoded base32 secret.
+     * @param string $code The 6-digit TOTP code.
+     * @param int $window The drift counter window (default = 1, +/- 30 seconds).
+     * @return bool True if valid, false otherwise.
+     */
     private function verifyTotp(string $secret, string $code, int $window = 1): bool
     {
         $time = (int) floor(time() / 30);
@@ -134,6 +182,13 @@ final class TwoFactorSetupController
         return false;
     }
 
+    /**
+     * Generate a TOTP code for a given secret and counter.
+     *
+     * @param string $secret The base32 secret.
+     * @param int $counter The counter value.
+     * @return string The 6-digit code.
+     */
     private function generateTotp(string $secret, int $counter): string
     {
         $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';

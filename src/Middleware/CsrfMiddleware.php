@@ -8,16 +8,23 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * CSRF middleware — validates token on state-changing requests.
+ * Middleware responsible for validating Cross-Site Request Forgery (CSRF) protection.
  *
- * Per OWASP: synchronizer token pattern.
- * Skips GET/HEAD/OPTIONS. API routes use bearer auth instead.
+ * Implements the Synchronizer Token Pattern (STP) using a session-bound token pool
+ * to support multi-tab operations. State-changing HTTP methods (POST, PUT, DELETE, PATCH)
+ * are validated, while safe methods (GET, HEAD, OPTIONS) and stateless API routes
+ * or public webhooks are bypassed.
  */
 final class CsrfMiddleware
 {
     /** @phpstan-ignore property.onlyWritten */
     private Container $container;
 
+    /**
+     * Constructs a new instance of CsrfMiddleware.
+     *
+     * @param Container|null $container Optional dependency injection container.
+     */
     public function __construct(?Container $container = null)
     {
         if ($container !== null) {
@@ -25,6 +32,13 @@ final class CsrfMiddleware
         }
     }
 
+    /**
+     * Handles verification of the CSRF token on incoming request payloads.
+     *
+     * @param Request $request The incoming HTTP request instance.
+     * @param callable(Request): Response $next Next middleware/handler in the execution stack.
+     * @return Response The HTTP response instance.
+     */
     public function handle(Request $request, callable $next): Response
     {
         // Safe methods — no CSRF check needed
@@ -54,7 +68,7 @@ final class CsrfMiddleware
             return $this->forbidden($request, 'CSRF token missing');
         }
 
-        // AUD-09 FIX: Support token pool for multi-tab usage.
+        // Support token pool for multi-tab usage.
         // Check current token + recent pool of old tokens.
         $tokenPool = $_SESSION['_csrf_token_pool'] ?? [];
         $valid = hash_equals($sessionToken, $submittedToken);
@@ -82,6 +96,13 @@ final class CsrfMiddleware
         return $next($request);
     }
 
+    /**
+     * Generates a forbidden response due to a CSRF check failure.
+     *
+     * @param Request $request The incoming HTTP request instance.
+     * @param string $reason Brief details on the cause of the failure.
+     * @return Response The forbidden response or redirect response.
+     */
     private function forbidden(Request $request, string $reason): Response
     {
         if ($request->expectsJson()) {
@@ -109,9 +130,11 @@ final class CsrfMiddleware
     }
 
     /**
-     * Validate CSRF token (legacy helper).
-     * DS-01 FIX: Aligned session key to '_csrf_token' (matching handle()).
-     * DS-04 FIX: Reads from Request object when available, falls back to $_POST.
+     * Validates a given token, supporting legacy helpers and HMAC token validation options.
+     *
+     * @param string $token The token value to validate.
+     * @param Request|null $request The request context when available.
+     * @return array{valid: bool, error: string|null, newToken?: string} Authentication status and errors.
      */
     public function validate(string $token, ?Request $request = null): array
     {
@@ -151,9 +174,7 @@ final class CsrfMiddleware
             ];
         }
 
-        // BUG-005 FIX: Canonical key is '_csrf_token' ONLY.
-        // Removed all legacy 'csrf_token' (without underscore) references
-        // to eliminate dual-key inconsistency.
+        // Canonical key is '_csrf_token' ONLY.
         $sessionToken = $_SESSION['_csrf_token'] ?? '';
         $submittedToken = $request !== null
             ? ($request->post('_csrf_token') ?? '')

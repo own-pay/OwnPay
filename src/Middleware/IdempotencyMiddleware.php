@@ -9,20 +9,38 @@ use OwnPay\Http\Response;
 use OwnPay\Service\Payment\IdempotencyService;
 
 /**
- * CHK-007: Idempotency middleware for API payment endpoints.
+ * Middleware handling idempotency checks for mutating API endpoints.
  *
- * Intercepts Idempotency-Key header. Returns cached response for duplicate
- * requests. Scoped per merchant.
+ * Ensures that identical requests containing an `Idempotency-Key` are processed exactly once,
+ * returning cached responses for duplicates and managing request locks.
  */
 final class IdempotencyMiddleware
 {
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $container;
 
+    /**
+     * Constructs a new IdempotencyMiddleware instance.
+     *
+     * @param Container $container The dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
+    /**
+     * Handles idempotency checking on incoming HTTP requests.
+     *
+     * Scopes requests based on the `Idempotency-Key` header and the active merchant.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param callable(Request): Response $next Next handler in the pipeline.
+     * @return Response The HTTP response.
+     * @throws \Throwable If downstream request handling fails.
+     */
     public function handle(Request $request, callable $next): Response
     {
         // Only enforce on mutating methods
@@ -49,7 +67,8 @@ final class IdempotencyMiddleware
         }
 
         $svc = $this->container->get(IdempotencyService::class);
-        // IDEM-FIX: Include method + URI (including query params) + body in hash to prevent false response replay.
+        
+        // Compute request signature to prevent false replay collisions
         $requestHash = hash('sha256', $request->method() . "\n" . $request->uri() . "\n" . ($request->rawBody() ?? ''));
 
         $result = $svc->check($idempotencyKey, $merchantId, $requestHash);

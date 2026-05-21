@@ -4,14 +4,23 @@ declare(strict_types=1);
 namespace OwnPay\Security;
 
 /**
- * PII masker — mask sensitive data for display/logging.
+ * Class PiiMasker
  *
- * Per pci-compliance + security skills: never log raw PII.
+ * Provides utility methods to mask Personally Identifiable Information (PII)
+ * such as email addresses, phone numbers, credit card numbers, and IP addresses
+ * for presentation, logging, and transmission safety.
+ *
+ * @package OwnPay\Security
  */
 final class PiiMasker
 {
     /**
-     * Mask email: us**@ex****.com
+     * Masks an email address to protect user identity.
+     *
+     * Example: converts "user@example.com" to "us***@ex***.com".
+     *
+     * @param string $email The raw email address.
+     * @return string The masked email address.
      */
     public static function email(string $email): string
     {
@@ -29,7 +38,12 @@ final class PiiMasker
     }
 
     /**
-     * Mask phone: +880****1234
+     * Masks a phone number string.
+     *
+     * Example: converts "+8801700000000" to "+880****0000".
+     *
+     * @param string $phone The raw phone number.
+     * @return string The masked phone number.
      */
     public static function phone(string $phone): string
     {
@@ -45,7 +59,12 @@ final class PiiMasker
     }
 
     /**
-     * Mask card number: ****1234
+     * Masks a payment card number, retaining only the final four digits.
+     *
+     * Example: converts "1234567890123456" to "************3456".
+     *
+     * @param string $number The raw card number.
+     * @return string The masked card number.
      */
     public static function card(string $number): string
     {
@@ -57,7 +76,13 @@ final class PiiMasker
     }
 
     /**
-     * Mask IP: 192.168.***.***
+     * Masks an IP address (IPv4 or IPv6) for logging privacy.
+     *
+     * Example IPv4: "192.168.1.1" to "192.168.***.***".
+     * Example IPv6: masks the final four segment blocks.
+     *
+     * @param string $ip The raw IP address string.
+     * @return string The masked IP address string.
      */
     public static function ip(string $ip): string
     {
@@ -65,7 +90,7 @@ final class PiiMasker
         if (count($parts) === 4) {
             return $parts[0] . '.' . $parts[1] . '.***.' . '***';
         }
-        // IPv6 — mask last 4 groups
+        // Mask the trailing four segment groups for IPv6.
         $parts6 = explode(':', $ip);
         if (count($parts6) >= 4) {
             $visible = array_slice($parts6, 0, 4);
@@ -75,7 +100,12 @@ final class PiiMasker
     }
 
     /**
-     * Generic mask: show first N and last M chars.
+     * Performs a generic masking operation on a string or recursively on an array.
+     *
+     * @param array<string, mixed>|string $value The raw input string or nested array.
+     * @param int $showFirst The number of initial characters to leave visible.
+     * @param int $showLast The number of final characters to leave visible.
+     * @return array<string, mixed>|string The masked representation matching the input structure.
      */
     public static function mask(array|string $value, int $showFirst = 2, int $showLast = 2): array|string
     {
@@ -112,7 +142,10 @@ final class PiiMasker
     }
 
     /**
-     * Alias for email() — called by CustomerPiiService.
+     * Alias method for email masking operations.
+     *
+     * @param string $email The raw email address.
+     * @return string The masked email address.
      */
     public static function maskEmail(string $email): string
     {
@@ -120,7 +153,10 @@ final class PiiMasker
     }
 
     /**
-     * Alias for phone() — called by CustomerPiiService.
+     * Alias method for phone masking operations.
+     *
+     * @param string $phone The raw phone number.
+     * @return string The masked phone number.
      */
     public static function maskPhone(string $phone): string
     {

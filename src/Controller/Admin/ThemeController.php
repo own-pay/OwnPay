@@ -13,18 +13,46 @@ use OwnPay\Repository\PluginRepository;
 use OwnPay\Repository\SettingsRepository;
 
 /**
- * Theme admin controller — list, activate, customize, uninstall.
+ * Theme admin controller for listing, activating, uploading, and uninstalling custom themes.
  */
 final class ThemeController
 {
     use AdminPageTrait;
 
+    /**
+     * The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * The admin session manager.
+     */
     private AdminSession $session;
+
+    /**
+     * The plugin manager instance.
+     */
     private PluginManager $manager;
+
+    /**
+     * The plugin repository.
+     */
     private PluginRepository $repo;
+
+    /**
+     * The settings repository.
+     */
     private SettingsRepository $settings;
 
+    /**
+     * ThemeController constructor.
+     *
+     * @param Container $c The dependency injection container.
+     * @param AdminSession $session The admin session manager.
+     * @param PluginManager $manager The plugin manager instance.
+     * @param PluginRepository $repo The plugin repository.
+     * @param SettingsRepository $settings The settings repository.
+     */
     public function __construct(Container $c, AdminSession $session,
         PluginManager $manager,
         PluginRepository $repo,
@@ -37,6 +65,13 @@ final class ThemeController
         $this->settings = $settings;
     }
 
+    /**
+     * Display a list of all themes (both stored in database and on filesystem).
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The HTTP response with the themes index page.
+     * @throws \Exception If lookup or template rendering fails.
+     */
     public function index(Request $request): Response
     {
         $themes      = $this->repo->listByType('theme');
@@ -106,6 +141,13 @@ final class ThemeController
         ]);
     }
 
+    /**
+     * Show theme upload / installation form.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The HTTP response with the installation page.
+     * @throws \Exception If layout template rendering fails.
+     */
     public function installForm(Request $request): Response
     {
         $maxUpload = min(
@@ -119,6 +161,13 @@ final class ThemeController
         ]);
     }
 
+    /**
+     * Activate a specific theme by slug.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If theme activation fails.
+     */
     public function activate(Request $request): Response
     {
         $slug   = (string) $request->param('slug');
@@ -141,7 +190,7 @@ final class ThemeController
                 return Response::redirect('/admin/themes');
             }
             $result = $this->manager->activate($slug);
-            if (!($result['success'] ?? false)) {
+            if (!$result['success']) {
                 $this->session->flashError($result['error'] ?? 'Failed to activate theme');
                 return Response::redirect('/admin/themes');
             }
@@ -157,6 +206,12 @@ final class ThemeController
         return Response::redirect('/admin/themes');
     }
 
+    /**
+     * Process uploading and installing a theme .zip archive.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     */
     public function upload(Request $request): Response
     {
         $file = $request->file('theme_zip');
@@ -181,6 +236,13 @@ final class ThemeController
         return Response::redirect('/admin/themes');
     }
 
+    /**
+     * Uninstall a theme by slug.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If uninstallation checks fail.
+     */
     public function uninstall(Request $request): Response
     {
         $slug        = (string) $request->param('slug');
@@ -201,12 +263,24 @@ final class ThemeController
         return Response::redirect('/admin/themes');
     }
 
+    /**
+     * Customize settings for a theme redirecting to the theme's plugin configuration page.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     */
     public function customize(Request $request): Response
     {
         $slug = (string) $request->param('slug');
         return Response::redirect("/admin/plugins/{$slug}/settings");
     }
 
+    /**
+     * Helper to parse size string into bytes.
+     *
+     * @param string $size The size string (e.g. '2M', '8M').
+     * @return int The equivalent byte count.
+     */
     private function parseSize(string $size): int
     {
         $unit  = strtolower(substr($size, -1));
@@ -219,6 +293,12 @@ final class ThemeController
         };
     }
 
+    /**
+     * Helper to format a byte count as human readable string.
+     *
+     * @param int $bytes The number of bytes.
+     * @return string Human-friendly size.
+     */
     private function formatSize(int $bytes): string
     {
         if ($bytes >= 1048576) {

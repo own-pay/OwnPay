@@ -7,15 +7,36 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Repository\SmsTemplateRepository;
 
+/**
+ * Class SmsTemplateController
+ *
+ * Handles API actions related to SMS template configurations.
+ *
+ * @package OwnPay\Controller\Api\Admin
+ */
 final class SmsTemplateController
 {
+    /**
+     * @var SmsTemplateRepository The SMS template repository.
+     */
     private SmsTemplateRepository $tplRepo;
 
+    /**
+     * SmsTemplateController constructor.
+     *
+     * @param SmsTemplateRepository $tplRepo The SMS template repository.
+     */
     public function __construct(SmsTemplateRepository $tplRepo)
     {
         $this->tplRepo = $tplRepo;
     }
 
+    /**
+     * Lists all SMS templates for a merchant.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with templates data.
+     */
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
@@ -23,6 +44,12 @@ final class SmsTemplateController
         return Response::json(['success' => true, 'data' => $templates]);
     }
 
+    /**
+     * Updates an SMS template.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response indicating success.
+     */
     public function update(Request $req): Response
     {
         $id  = (int) $req->param('id');

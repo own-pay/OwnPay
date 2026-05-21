@@ -10,20 +10,38 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 /**
- * JWT auth middleware — authenticates mobile/companion app requests.
+ * Middleware handling authentication of mobile/companion app requests using JSON Web Tokens (JWT).
  *
- * Per security skill: validate exp, iss, aud, device fingerprint.
+ * Validates expiration (exp), issuer (iss), audience (aud), and checks for device revocation
+ * against the database prior to granting access.
  */
 final class JwtAuthMiddleware
 {
-    /** @phpstan-ignore property.onlyWritten */
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $container;
 
+    /**
+     * Constructs a new JwtAuthMiddleware instance.
+     *
+     * @param Container $container The dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
+    /**
+     * Authenticates and processes the JWT from the incoming request bearer token.
+     *
+     * Parses payload, validates claim targets, queries the database for revocation checks,
+     * and maps user attributes directly into the Request.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param callable(Request): Response $next Next handler in the pipeline.
+     * @return Response The HTTP response.
+     */
     public function handle(Request $request, callable $next): Response
     {
         $token = $request->bearerToken();
@@ -35,7 +53,7 @@ final class JwtAuthMiddleware
             ], 401);
         }
 
-        // AUD-04 FIX: Use $_ENV fallback chain (phpdotenv may not populate getenv)
+        // Use $_ENV fallback chain (phpdotenv may not populate getenv)
         $secret = $_ENV['JWT_SECRET'] ?? $_SERVER['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: '';
         if ($secret === '') {
             return Response::json([
@@ -55,7 +73,7 @@ final class JwtAuthMiddleware
                 ], 401);
             }
 
-            // BUG-017 FIX: iss and aud are now REQUIRED — reject tokens without them.
+            // iss and aud are now REQUIRED — reject tokens without them.
             // Previously these were only checked IF present, allowing bypass via
             // crafted tokens that omit these claims entirely.
             $expectedIss = getenv('APP_NAME') ?: 'OwnPay';
@@ -74,7 +92,7 @@ final class JwtAuthMiddleware
                 ], 401);
             }
 
-            // B2 FIX: Check device not revoked before granting access
+            // Check device not revoked before granting access
             $deviceRepo = $this->container->get(\OwnPay\Repository\PairedDeviceRepository::class);
             $device = $deviceRepo->forTenant((int) $payload->mid)->findByDeviceId((string) $payload->did);
             if ($device === null || ($device['status'] ?? '') === 'revoked') {

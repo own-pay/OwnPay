@@ -11,18 +11,49 @@ use OwnPay\Plugin\PluginManager;
 use OwnPay\Repository\PluginRepository;
 
 /**
- * Addon admin controller — filtered view of addon-type plugins.
+ * Controller orchestrating administrative management of system addon plugins.
  */
 final class AddonController
 {
     use AdminPageTrait;
 
+    /**
+     * Dependency injection container.
+     *
+     * @var Container
+     */
     private Container $c;
+
+    /**
+     * Session wrapper service for authenticated administrative operations.
+     *
+     * @var AdminSession
+     */
     private AdminSession $session;
-    /** @phpstan-ignore property.onlyWritten */
+
+    /**
+     * Manager facilitating plugin lifecycles, sandbox setups, and activations.
+     *
+     * @var PluginManager
+     * @phpstan-ignore property.onlyWritten
+     */
     private PluginManager $manager;
+
+    /**
+     * Database repository for installed plugins.
+     *
+     * @var PluginRepository
+     */
     private PluginRepository $repo;
 
+    /**
+     * Initialises the AddonController.
+     *
+     * @param Container $c Dependency injection container instance.
+     * @param AdminSession $session Active admin session service.
+     * @param PluginManager $manager Plugin manager service.
+     * @param PluginRepository $repo Plugin database repository.
+     */
     public function __construct(Container $c, AdminSession $session, PluginManager $manager, PluginRepository $repo)
     {
         $this->c = $c;
@@ -31,25 +62,35 @@ final class AddonController
         $this->repo = $repo;
     }
 
+    /**
+     * Displays a list of installed and discovered addon plugins.
+     *
+     * Enriches plugin database records with local manifest details read directly
+     * from the filesystem discovery pipeline.
+     *
+     * @param Request $request Outbound HTTP request instance.
+     * @return Response HTTP response wrapper.
+     */
     public function index(Request $request): Response
     {
         $addons = $this->repo->listByType('addon');
 
-        // Enrich DB rows with manifest data
+        // Enrich database plugin models with manifest parameters
         foreach ($addons as &$addon) {
             $m = json_decode($addon['manifest'] ?? '{}', true) ?: [];
             if (!empty($m['name'])) {
-                $addon['name'] = $m['name']; // prefer manifest name over DB slug
+                $addon['name'] = $m['name']; // Prefer manifest name over database slug representation
             }
             $addon['description'] = $addon['description'] ?? $m['description'] ?? '';
             $addon['author']      = $addon['author']      ?? $m['author']      ?? 'Unknown';
         }
         unset($addon);
+
         /** @var \OwnPay\Plugin\PluginLoader $loader */
         $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
         $discovered = $loader->discover();
 
-        // Build slug→manifest lookup from filesystem
+        // Map discovered filesystem manifests to active lookup table
         $manifestLookup = [];
         foreach ($discovered as $manifest) {
             if ($manifest->type === 'addon') {
@@ -57,12 +98,10 @@ final class AddonController
             }
         }
 
-        // Second pass: enrich DB-stored addons with filesystem manifest name
-        // (handles case where DB manifest column is NULL)
+        // Align DB stored metadata with latest filesystem configurations
         foreach ($addons as &$addon) {
             if (isset($manifestLookup[$addon['slug']])) {
                 $fsManifest = $manifestLookup[$addon['slug']];
-                // Always prefer filesystem manifest name (most up-to-date)
                 $addon['name']        = $fsManifest->name;
                 $addon['description'] = $addon['description'] ?: ($fsManifest->description ?? '');
                 $addon['author']      = $addon['author']      ?: ($fsManifest->author      ?? 'Unknown');
@@ -70,7 +109,7 @@ final class AddonController
         }
         unset($addon);
 
-        // Add undiscovered addons (on filesystem but not in DB)
+        // Include uninstalled addons present on filesystem
         foreach ($manifestLookup as $slug => $manifest) {
             $found = false;
             foreach ($addons as $p) {

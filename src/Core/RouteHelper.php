@@ -4,8 +4,24 @@ declare(strict_types=1);
 
 namespace OwnPay\Core;
 
+/**
+ * Route and URL parsing helper utilities.
+ *
+ * Implements functions for extracting domains, admin path structures, appending query parameters,
+ * and resolving full/main domains.
+ */
 final class RouteHelper
 {
+    /**
+     * Resolves the current site URL, main domain, or full domain depending on resolution type.
+     *
+     * Automatically handles secure protocols, Host headers, and strips port segments to avoid
+     * resolution errors (e.g. during localhost testing on non-standard ports).
+     *
+     * @param string $type The resolution type ('FullDomain', 'MainDomain', or default 'Full').
+     * @param \OwnPay\Http\Request|null $request The current active request instance to parse from.
+     * @return string The resolved URL or domain string.
+     */
     public static function siteUrl(string $type = "Full", ?\OwnPay\Http\Request $request = null): string
     {
         if ($request !== null) {
@@ -36,6 +52,14 @@ final class RouteHelper
         };
     }
 
+    /**
+     * Extracts the relative path within the admin panel area from a given URL string.
+     *
+     * Useful for checking navigation states and parsing routing sub-paths.
+     *
+     * @param string $url The complete URL or path string.
+     * @return string The relative admin path segment.
+     */
     public static function getAdminPath(string $url): string
     {
         $url = explode('?', $url)[0];
@@ -46,6 +70,14 @@ final class RouteHelper
         return trim(substr($url, $pos + strlen('admin/')), '/');
     }
 
+    /**
+     * Validates and standardizes a domain name representation from user input or configuration settings.
+     *
+     * Strips leading protocol schemes and 'www.' prefixes, then validates standard hostname format constraints.
+     *
+     * @param string $input The raw input string containing a domain or URL.
+     * @return string|false The standardized lowercase domain string, or false if invalid.
+     */
     public static function getDomainValue(string $input): string|false
     {
         $input = trim($input);
@@ -72,6 +104,13 @@ final class RouteHelper
         return strtolower($host);
     }
 
+    /**
+     * Appends query parameters to an existing URL string while maintaining existing parameter structures.
+     *
+     * @param string $url The base URL string.
+     * @param array<string, mixed> $params The associative array of query parameters to merge.
+     * @return string The formatted URL with combined query parameters.
+     */
     public static function addQueryParams(string $url, array $params = []): string
     {
         $parsedUrl = parse_url($url);

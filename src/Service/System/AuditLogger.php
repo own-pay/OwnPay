@@ -7,16 +7,30 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\AuditLogRepository;
 
 /**
- * Audit logger — structured audit trail for compliance.
+ * Audit trail logger designed for compliance and transparency.
  *
- * Fires: audit.log.created
- * Per PCI-DSS: immutable logs, actor attribution, before/after snapshots.
+ * Implements structured compliance-grade logging of auditable system and user actions,
+ * capturing before/after snapshots for change tracking, actor attribution, and remote IPs
+ * in accordance with PCI-DSS guidelines.
  */
 final class AuditLogger
 {
+    /**
+     * @var AuditLogRepository The repository storing audit log entries.
+     */
     private AuditLogRepository $repo;
+
+    /**
+     * @var EventManager|null System event dispatcher.
+     */
     private ?EventManager $events;
 
+    /**
+     * AuditLogger constructor.
+     *
+     * @param AuditLogRepository $repo Repository storing log records.
+     * @param EventManager|null $events Optional system-wide event dispatcher.
+     */
     public function __construct(AuditLogRepository $repo, ?EventManager $events = null)
     {
         $this->repo = $repo;
@@ -24,16 +38,20 @@ final class AuditLogger
     }
 
     /**
-     * Log an auditable event.
+     * Records an auditable event.
      *
-     * @param int         $merchantId  Tenant ID
-     * @param int|null    $userId      Actor user ID (null = system)
-     * @param string      $action      Action performed (e.g. 'user.login', 'transaction.created')
-     * @param string      $entityType  Entity type (e.g. 'user', 'transaction', 'gateway')
-     * @param int|string  $entityId    Entity ID
-     * @param array|null  $before      State before change (null for create)
-     * @param array|null  $after       State after change (null for delete)
-     * @param string|null $ip          IP address
+     * Saves action descriptors, target entities, and request metadata, then triggers the
+     * `audit.log.created` action hook.
+     *
+     * @param int $merchantId The tenant brand/merchant ID.
+     * @param int|null $userId The unique ID of the acting user (null implies system process).
+     * @param string $action The action performed (e.g. 'user.login', 'transaction.completed').
+     * @param string $entityType The entity class modified (e.g. 'user', 'transaction').
+     * @param int|string $entityId The unique ID of the modified entity.
+     * @param array<string, mixed>|null $before Key-value state prior to the action execution.
+     * @param array<string, mixed>|null $after Key-value state post-execution.
+     * @param string|null $ip The client IP address triggering the request.
+     * @return void
      */
     public function log(
         int $merchantId,
@@ -72,7 +90,13 @@ final class AuditLogger
     }
 
     /**
-     * Log user action (convenience).
+     * Helper to log user actions with custom detail strings.
+     *
+     * @param int $merchantId The tenant brand/merchant ID.
+     * @param int $userId The unique ID of the user performing the action.
+     * @param string $action The action performed.
+     * @param string $detail Optional additional descriptive context.
+     * @return void
      */
     public function userAction(int $merchantId, int $userId, string $action, string $detail = ''): void
     {
@@ -80,7 +104,12 @@ final class AuditLogger
     }
 
     /**
-     * Log system action (no user).
+     * Helper to log system/automated actions.
+     *
+     * @param int $merchantId The tenant brand/merchant ID.
+     * @param string $action The action performed.
+     * @param string $detail Optional additional descriptive context.
+     * @return void
      */
     public function systemAction(int $merchantId, string $action, string $detail = ''): void
     {

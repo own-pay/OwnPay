@@ -8,15 +8,30 @@ use OwnPay\Repository\PaymentLinkRepository;
 use OwnPay\Support\DateHelper;
 
 /**
- * CHK-003 + CHK-006: Listens for payment.transaction.completed hook.
- * - Marks associated invoice as 'paid'
- * - Increments payment link use_count and deactivates if max_uses reached
+ * Listens for payment transaction completion hooks.
+ *
+ * Implements transaction lifecycle reactions by updating associated invoice states
+ * to 'paid' and checking usage limit rules on payment link instances (incrementing counters
+ * and auto-deactivating when max use thresholds are crossed).
  */
 final class PaymentCompletionListener
 {
+    /**
+     * @var InvoiceRepository Repository accessing invoices.
+     */
     private InvoiceRepository $invoiceRepo;
+
+    /**
+     * @var PaymentLinkRepository Repository accessing payment links.
+     */
     private PaymentLinkRepository $linkRepo;
 
+    /**
+     * PaymentCompletionListener constructor.
+     *
+     * @param InvoiceRepository $invoiceRepo Repository for invoice database actions.
+     * @param PaymentLinkRepository $linkRepo Repository for payment link database actions.
+     */
     public function __construct(InvoiceRepository $invoiceRepo, PaymentLinkRepository $linkRepo)
     {
         $this->invoiceRepo = $invoiceRepo;
@@ -24,7 +39,13 @@ final class PaymentCompletionListener
     }
 
     /**
-     * Handle transaction completion — update invoice status + payment link use_count.
+     * Responds to the transaction completion event.
+     *
+     * Extracts meta-parameters to identify linked invoices and payment links.
+     * Marks invoices as paid and updates link usage constraints.
+     *
+     * @param array<string, mixed> $transaction The completed transaction database record fields.
+     * @return void
      */
     public function onTransactionCompleted(array $transaction): void
     {

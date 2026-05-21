@@ -8,16 +8,35 @@ use OwnPay\Repository\AuditLogRepository;
 use OwnPay\Repository\TransactionRepository;
 
 /**
- * Transaction service — create, complete, fail, cancel transactions.
+ * Service managing transaction states and audit trails.
  *
- * Fires: payment.transaction.before_create, .created, .completed, .failed, .cancelled
+ * Provides capabilities to create, complete, fail, cancel transactions, calculate stats,
+ * and search transactions using local or gateway identifiers. Fires system events and records audit logs.
  */
 final class TransactionService
 {
+    /**
+     * @var TransactionRepository Repository accessing core transactions.
+     */
     private TransactionRepository $transactions;
+
+    /**
+     * @var EventManager Event dispatcher for action/filter hooks.
+     */
     private EventManager $events;
+
+    /**
+     * @var AuditLogRepository Repository logging admin/merchant actions.
+     */
     private AuditLogRepository $audit;
 
+    /**
+     * TransactionService constructor.
+     *
+     * @param TransactionRepository $transactions Repository for transactions.
+     * @param EventManager $events System event dispatcher.
+     * @param AuditLogRepository $audit System audit log recorder.
+     */
     public function __construct(
         TransactionRepository $transactions,
         EventManager $events,
@@ -29,7 +48,13 @@ final class TransactionService
     }
 
     /**
-     * Create a new transaction.
+     * Creates a new transaction record for a merchant brand.
+     *
+     * Runs filters before inserting, triggers the creation event action, and records the event in the audit trail.
+     *
+     * @param int $merchantId The ID of the merchant/brand.
+     * @param array<string, mixed> $data The transaction initialization fields.
+     * @return array<string, mixed> The newly created transaction record fields.
      */
     public function create(int $merchantId, array $data): array
     {
@@ -56,7 +81,13 @@ final class TransactionService
     }
 
     /**
-     * Mark transaction as completed.
+     * Marks a transaction as completed.
+     *
+     * Updates status to completed, triggers completion event hooks, and appends a record to the audit trail.
+     *
+     * @param int $transactionId The unique ID of the transaction.
+     * @param int $merchantId The ID of the merchant/brand.
+     * @return array<string, mixed> The completed transaction record fields.
      */
     public function complete(int $transactionId, int $merchantId): array
     {
@@ -80,7 +111,12 @@ final class TransactionService
     }
 
     /**
-     * Mark transaction as failed.
+     * Marks a transaction as failed with a failure reason.
+     *
+     * @param int $transactionId The unique ID of the transaction.
+     * @param int $merchantId The ID of the merchant/brand.
+     * @param string|null $reason Optional description of the failure reason.
+     * @return array<string, mixed> The failed transaction record fields.
      */
     public function fail(int $transactionId, int $merchantId, ?string $reason = null): array
     {
@@ -98,7 +134,11 @@ final class TransactionService
     }
 
     /**
-     * Cancel transaction.
+     * Cancels an active pending transaction.
+     *
+     * @param int $transactionId The unique ID of the transaction.
+     * @param int $merchantId The ID of the merchant/brand.
+     * @return array<string, mixed> The cancelled transaction record fields.
      */
     public function cancel(int $transactionId, int $merchantId): array
     {
@@ -112,7 +152,12 @@ final class TransactionService
     }
 
     /**
-     * Get dashboard stats for date range.
+     * Retrieves aggregated metrics and charts for a specific merchant and date range.
+     *
+     * @param int $merchantId The unique ID of the merchant.
+     * @param string $from The start date filter (YYYY-MM-DD).
+     * @param string $to The end date filter (YYYY-MM-DD).
+     * @return array<string, mixed> Statistical indicators (totals, volume, status distributions).
      */
     public function stats(int $merchantId, string $from, string $to): array
     {
@@ -120,7 +165,11 @@ final class TransactionService
     }
 
     /**
-     * Find by TRX ID.
+     * Finds a single transaction by its unique local transaction identifier.
+     *
+     * @param int $merchantId The unique ID of the merchant/brand.
+     * @param string $trxId The unique transaction ID (trx_id).
+     * @return array<string, mixed>|null The transaction record fields, or null if not found.
      */
     public function findByTrxId(int $merchantId, string $trxId): ?array
     {
@@ -128,8 +177,13 @@ final class TransactionService
     }
 
     /**
-     * Find by gateway transaction ID (bank/gateway reference).
-     * Used as fallback in webhook callbacks when merchant trx_id is missing.
+     * Finds a transaction using the external gateway reference identifier.
+     *
+     * This is useful during callback/IPN handling when the local merchant reference is missing or unavailable.
+     *
+     * @param int $merchantId The unique ID of the merchant/brand.
+     * @param string $gatewayTrxId The transaction ID supplied by the external gateway or bank.
+     * @return array<string, mixed>|null The transaction record fields, or null if not found.
      */
     public function findByGatewayTrxId(int $merchantId, string $gatewayTrxId): ?array
     {

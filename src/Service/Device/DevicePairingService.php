@@ -10,24 +10,41 @@ use OwnPay\Service\Auth\JwtService;
 use OwnPay\Support\DateHelper;
 
 /**
- * Device pairing service — manages companion app device lifecycle.
+ * Service managing the lifecycle, registration, and authentication of companion mobile devices.
  *
- * Fires: mobile.device.paired, mobile.device.revoked
- * Per PCI-DSS: device AES keys encrypted at rest.
- *
- * BUG-002 FIX: Typed constructor replaces duck-typing.
- * BUG-014 FIX: validateRequest() verifies JWT signature FIRST.
- * BUG-003 FIX: userId propagated from JWT claims, not hardcoded.
- * BUG-004 FIX: OTP validation uses SELECT FOR UPDATE.
- * BUG-001 FIX: All JWT ops use JwtService's internal secret only.
+ * Implements OTP-based pairing, JWT token issuance and validation, device fingerprint checking,
+ * and AES key distribution. Integrates with system-wide event hooks.
  */
 final class DevicePairingService
 {
+    /**
+     * @var PairedDeviceRepository Repository interface for managing device persistence.
+     */
     private PairedDeviceRepository $devices;
+
+    /**
+     * @var FieldEncryptor|null Cryptographic service to encrypt device keys at rest.
+     */
     private ?FieldEncryptor $encryptor;
+
+    /**
+     * @var JwtService Service managing stateless mobile authentication tokens.
+     */
     private JwtService $jwt;
+
+    /**
+     * @var EventManager Event dispatcher system.
+     */
     private EventManager $events;
 
+    /**
+     * Constructs a new DevicePairingService instance.
+     *
+     * @param PairedDeviceRepository $devices Repository for device database records.
+     * @param FieldEncryptor|null $encryptor Cryptographic helper for PII and credentials.
+     * @param JwtService $jwt JSON Web Token service provider.
+     * @param EventManager|null $events Optional custom event dispatcher instance.
+     */
     public function __construct(
         PairedDeviceRepository $devices,
         ?FieldEncryptor $encryptor,
@@ -41,24 +58,33 @@ final class DevicePairingService
     }
 
     /**
-     * Helper to generate UUID v4 for testing and production compatibility.
+     * Generates a UUID v4 string.
+     *
+     * Provides compatibility fallback generation for UUID identifiers.
+     *
+     * @return string Valid UUID v4 representation.
      */
     private function generateUuidV4(): string
     {
         $data = random_bytes(16);
-        $data[6] = chr(ord($data[6]) & 0x0f | 0x40); // set version to 0100
-        $data[8] = chr(ord($data[8]) & 0x3f | 0x80); // set bits 6-7 to 10
+        $data[6] = chr(ord($data[6]) & 0x0f | 0x40);
+        $data[8] = chr(ord($data[8]) & 0x3f | 0x80);
         return vsprintf('%s%s-%s-%s-%s-%s%s%s', str_split(bin2hex($data), 4));
     }
 
     /**
-     * Generate a 6-digit pairing OTP.
+     * Generates a 6-digit one-time pairing OTP for a brand.
+     *
+     * Applies rate limiting checks for individual administrators to prevent abuse.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int|null $adminId Identifier of the admin initiating the request.
+     * @return array{otp: string, expires_in: int}|array{error: string} Pairing results or error.
      */
     public function generatePairingOtp(int $merchantId, ?int $adminId = null): array
     {
         $db = $this->devices->getDatabase();
         if ($adminId !== null) {
-            // TIMEZONE-FIX: Use SQL-native window to avoid PHP/MySQL timezone mismatch.
             $count = $db->fetchOne(
                 "SELECT COUNT(*) as cnt FROM op_device_pairing_tokens WHERE created_by = :admin AND created_at > DATE_SUB(NOW(6), INTERVAL 300 SECOND)",
                 [
@@ -92,10 +118,13 @@ final class DevicePairingService
     }
 
     /**
-     * Validate OTP from mobile app pairing request.
+     * Validates a client pairing OTP.
      *
-     * BUG-004 FIX: Uses SELECT ... FOR UPDATE inside a transaction to prevent
-     * race conditions where two concurrent requests consume the same OTP.
+     * Uses a row-locking transactional pattern (SELECT ... FOR UPDATE) to prevent
+     * concurrent token reuse or replay attacks.
+     *
+     * @param string $otp The plain pairing OTP code.
+     * @return array{valid: bool, merchant_id?: int, error?: string} Validation outcome payload.
      */
     public function validatePairingOtp(string $otp): array
     {
@@ -105,7 +134,6 @@ final class DevicePairingService
 
         $result = null;
         $db->transaction(function () use ($db, $otpHash, $now, &$result) {
-            // BUG-004 FIX: FOR UPDATE locks the row to prevent concurrent consumption
             $row = $db->fetchOne(
                 "SELECT * FROM op_device_pairing_tokens WHERE otp_hash = :hash AND is_used = 0 AND expires_at > :now FOR UPDATE",
                 ['hash' => $otpHash, 'now' => $now]
@@ -128,7 +156,13 @@ final class DevicePairingService
     }
 
     /**
-     * Pair a new device.
+     * Registers and pairs a new device directly without OTP checking.
+     *
+     * @param int $userId Identifer of the user pairing the device.
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param string $deviceName Client-provided identifier label of the device.
+     * @param string $pushToken Optional device push notification token.
+     * @return array{device_uuid: string, access_token: string, refresh_token: string} Generated device credentials.
      */
     public function pair(int $userId, int $merchantId, string $deviceName, string $pushToken = ''): array
     {
@@ -156,10 +190,17 @@ final class DevicePairingService
     }
 
     /**
-     * pairDevice — pair a new device with OTP validation.
+     * Executes client pairing workflow with prior OTP validation.
      *
-     * BUG-001 FIX: Uses JwtService::issue() exclusively (no per-call secret).
-     * BUG-003 FIX: userId defaults from session, not hardcoded to 1.
+     * Verifies the OTP, resolves the authenticating administrative user context,
+     * invalidates matching duplicate client footprints, and registers credentials.
+     *
+     * @param string $otp Pairing OTP.
+     * @param string $deviceName Friendly identifier label for the device.
+     * @param string $fingerprint Client cryptographic hardware fingerprint.
+     * @param string $version Client application version.
+     * @param string $platform OS platform string of the paired device.
+     * @return array{success: true, access_token: string, refresh_token: string, aes_key: string, device_id: string, expires_in: int}|array{success: false, error: string} Pairing payload or error response.
      */
     public function pairDevice(string $otp, string $deviceName, string $fingerprint, string $version = '', string $platform = ''): array
     {
@@ -169,10 +210,8 @@ final class DevicePairingService
         }
         $merchantId = $valid['merchant_id'];
 
-        // BUG-003 FIX: Use session userId if available, fallback to merchant admin
         $userId = (int) ($_SESSION['auth_user_id'] ?? 0);
         if ($userId === 0) {
-            // Resolve from database — get the merchant's primary admin
             $db = $this->devices->getDatabase();
             $admin = $db->fetchOne(
                 "SELECT id FROM op_merchant_users WHERE merchant_id = :mid AND is_superadmin = 1 AND status = 'active' ORDER BY id ASC LIMIT 1",
@@ -193,7 +232,6 @@ final class DevicePairingService
         $deviceUuid = $this->generateUuidV4();
         $aesKey     = bin2hex(random_bytes(32));
 
-        // BUG-001 FIX: Use JwtService::issue() — single secret from constructor
         $accessToken = $this->jwt->issue($userId, $merchantId, $deviceUuid);
         $refreshToken = $this->jwt->issueRefreshToken($userId, $merchantId, $deviceUuid);
 
@@ -231,13 +269,16 @@ final class DevicePairingService
     }
 
     /**
-     * Refresh access token using a refresh JWT.
+     * Issues new credentials using a cryptographically verified refresh token.
      *
-     * BUG-003 FIX: Reads userId from verified JWT claims instead of hardcoding 1.
+     * Validates matching device configuration fingerprints and handles JTI blacklist logging.
+     *
+     * @param string $refreshToken Cryptographically signed refresh JWT.
+     * @param string $fingerprint Device identity fingerprint.
+     * @return array{success: true, access_token: string, refresh_token: string, expires_in: int}|array{success: false, error: string} Refreshed token payload or error message.
      */
     public function refreshAccessToken(string $refreshToken, string $fingerprint): array
     {
-        // Verify refresh token as JWT (stateless flow)
         $device = null;
         $isStateless = false;
         $jti = null;
@@ -247,14 +288,12 @@ final class DevicePairingService
             $deviceId = $claims['did'] ?? '';
             $mid = (int) ($claims['mid'] ?? 1);
             $jti = $claims['jti'] ?? null;
-            // BUG-003 FIX: Extract userId from JWT sub claim
             $userId = (int) ($claims['sub'] ?? 0);
             if ($deviceId !== '') {
                 $device = $this->devices->forTenant($mid)->findByDeviceId($deviceId);
                 $isStateless = true;
             }
         } catch (\Throwable) {
-            // Fallback to legacy database-stored token
         }
 
         if ($jti !== null) {
@@ -287,14 +326,11 @@ final class DevicePairingService
         }
 
         $brandId = (int) ($device['brand_id'] ?? $device['merchant_id'] ?? 1);
-        // BUG-003 FIX: Use extracted userId, fallback to resolving from device
         if ($userId === 0) {
-            $userId = 1; // Last resort fallback
+            $userId = 1;
         }
 
-        // BUG-001 FIX: Use JwtService::issue() — single secret
         $accessToken = $this->jwt->issue($userId, $brandId, $device['device_uuid'] ?? $device['device_id']);
-
         $newRefreshToken = $this->jwt->issueRefreshToken($userId, $brandId, $device['device_uuid'] ?? $device['device_id']);
 
         $newRefreshHash = hash('sha256', $newRefreshToken);
@@ -304,7 +340,6 @@ final class DevicePairingService
             $this->devices->updateRefreshToken($device['device_uuid'] ?? $device['device_id'], $newRefreshHash, $expiresAt);
         }
 
-        // Blacklist old refresh JTI
         if ($jti !== null) {
             $cacheKey = 'blacklist_jti_' . $jti;
             $expiration = time() + 2592000;
@@ -323,22 +358,23 @@ final class DevicePairingService
     }
 
     /**
-     * validateRequest — validate JWT token and client fingerprint.
+     * Verifies the cryptographic authenticity of a client request JWT.
      *
-     * BUG-014 FIX: Verifies JWT signature FIRST via JwtService::verify(),
-     * then extracts claims from the cryptographically verified payload.
-     * No manual base64 parsing of unsigned payloads.
+     * Validates the JWT signature first to reject modified payloads, then verifies
+     * device registration metadata and client fingerprint hashes.
+     *
+     * @param string $token Cryptographically signed access JWT.
+     * @param string $fingerprint Device signature fingerprint.
+     * @return array{valid: true, device: array{device_uuid: string, brand_id: int}, error: null}|array{valid: false, error: string} Validation status wrapper.
      */
     public function validateRequest(string $token, string $fingerprint): array
     {
-        // BUG-014 FIX: Verify signature FIRST — reject forged tokens immediately
         try {
             $claims = $this->jwt->verify($token);
         } catch (\Throwable) {
             return ['valid' => false, 'error' => 'INVALID_TOKEN'];
         }
 
-        // Extract device UUID from verified claims
         $deviceUuid = '';
         if (isset($claims['did'])) {
             $deviceUuid = (string) $claims['did'];
@@ -382,7 +418,11 @@ final class DevicePairingService
     }
 
     /**
-     * Revoke device — deactivate and invalidate.
+     * Revokes a companion device.
+     *
+     * @param string $deviceUuid Cryptographic identifier of the device.
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @return bool True if device was successfully revoked; false otherwise.
      */
     public function revoke(string $deviceUuid, int $merchantId): bool
     {
@@ -399,7 +439,10 @@ final class DevicePairingService
     }
 
     /**
-     * Update heartbeat for device.
+     * Records a client activity heartbeat timestamp.
+     *
+     * @param string $deviceUuid Cryptographic identifier of the device.
+     * @return void
      */
     public function heartbeat(string $deviceUuid): void
     {
@@ -407,7 +450,10 @@ final class DevicePairingService
     }
 
     /**
-     * List active devices for merchant.
+     * Lists active registered companion devices for a merchant.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @return array<int, array<string, mixed>> List of active devices.
      */
     public function listDevices(int $merchantId): array
     {

@@ -5,22 +5,35 @@ declare(strict_types=1);
 namespace OwnPay\Service\Sms;
 
 /**
- * SmsRegexParser — Tier 1: Template-based regex matching engine.
+ * Tier 1: Template-based regex matching engine.
  *
- * Attempts to parse SMS body using regex templates from `op_sms_templates`.
- * Templates use PHP PCRE named capture groups: amount, trx_id, sender_number, balance.
+ * Scans SMS messages against registered templates stored in `op_sms_templates`.
+ * Utilizes PHP PCRE matching structures with named capture groups including:
+ * - amount
+ * - trx_id
+ * - sender_number
+ * - balance
  *
- * On match: returns extracted fields + template_id + confidence=high.
- * On no match: returns null (caller should fall through to Tier 2 heuristic).
+ * If a match succeeds, returns extracted metadata with high parsing confidence.
+ * Otherwise, falls back to downstream heuristic parsers.
  */
 final class SmsRegexParser
 {
     /**
-     * Attempt to parse an SMS body against a set of templates.
+     * Attempts to match and parse an SMS body using a list of templates.
      *
-     * @param string $body      The raw (decrypted) SMS text
-     * @param array  $templates Ordered list of template rows (from SmsTemplateRepository)
-     * @return array|null Parsed data or null if no template matched
+     * @param string $body The raw (decrypted) text content of the SMS.
+     * @param array<int, array<string, mixed>> $templates List of ordered SMS template records.
+     * @return array{
+     *   parsed_amount: float,
+     *   parsed_trx_id: string|null,
+     *   parsed_sender: string|null,
+     *   parsed_balance: float|null,
+     *   parsed_type: string,
+     *   parse_method: string,
+     *   template_id: int,
+     *   parse_confidence: string
+     * }|null Parsed fields if template successfully matches, otherwise null.
      */
     public function parse(string $body, array $templates): ?array
     {
@@ -107,7 +120,10 @@ final class SmsRegexParser
     }
 
     /**
-     * Ensure regex has pattern delimiters. Wrap in /.../i if not.
+     * Enforces valid pattern delimiters on raw regular expression inputs.
+     *
+     * @param string $regex The regex under validation.
+     * @return string The normalized regular expression with standard delimiters.
      */
     private function ensureDelimiters(string $regex): string
     {
@@ -122,7 +138,12 @@ final class SmsRegexParser
     }
 
     /**
-     * Clean and parse an amount string: "1,500.50" ─ 1500.50
+     * Extracts and cleans numeric amounts from match strings.
+     *
+     * Strips thousand separators and casts values. Returns null if invalid or zero.
+     *
+     * @param string|null $raw The raw amount string.
+     * @return float|null Cleaned amount float, or null.
      */
     private function extractAmount(?string $raw): ?float
     {
@@ -138,7 +159,10 @@ final class SmsRegexParser
     }
 
     /**
-     * Trim whitespace, return null if empty.
+     * Cleans whitespace from strings, treating empty strings as null.
+     *
+     * @param string|null $val The raw input.
+     * @return string|null Cleaned string or null.
      */
     private function clean(?string $val): ?string
     {

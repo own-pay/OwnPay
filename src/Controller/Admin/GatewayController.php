@@ -14,19 +14,57 @@ use OwnPay\Service\System\InputSanitizer;
 use OwnPay\Service\System\AuditService;
 
 /**
- * Gateway admin controller — CRUD for manual gateways, list API gateways.
+ * Class GatewayController
+ *
+ * Administrative portal controller handling discovery, configuration, toggling, and CRUD management
+ * of payment gateways, encompassing both dynamic API integrations and custom manual (offline) options.
+ *
+ * @package OwnPay\Controller\Admin
  */
 final class GatewayController
 {
     use AdminPageTrait;
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
+
+    /**
+     * @var ManualGatewayRepository The manual gateway repository.
+     */
     private ManualGatewayRepository $manualGateways;
+
+    /**
+     * @var GatewayConfigRepository The API gateway configuration repository.
+     */
     private GatewayConfigRepository $apiConfigs;
+
+    /**
+     * @var FilesystemService The filesystem operations service.
+     */
     private FilesystemService $fs;
+
+    /**
+     * @var AuditService The application audit logging service.
+     */
     private AuditService $audit;
 
+    /**
+     * GatewayController constructor.
+     *
+     * @param Container               $c              The dependency injection container.
+     * @param AdminSession            $session        The administrative session service.
+     * @param ManualGatewayRepository $manualGateways The manual gateway repository.
+     * @param GatewayConfigRepository $apiConfigs     The API gateway configuration repository.
+     * @param FilesystemService       $fs             The filesystem operations service.
+     * @param AuditService            $audit          The application audit logging service.
+     */
     public function __construct(
         Container $c,
         AdminSession $session,
@@ -43,6 +81,13 @@ final class GatewayController
         $this->audit          = $audit;
     }
 
+    /**
+     * Displays the dashboard interface listing both API and manual gateways for the active brand.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The gateways dashboard page response.
+     */
     public function index(Request $request): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
@@ -113,7 +158,13 @@ final class GatewayController
         ]);
     }
 
-
+    /**
+     * Renders creation form or handles dynamic submission for creating a new manual gateway.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The gateway creation page or redirect response.
+     */
     public function createManual(Request $request): Response
     {
         if ($request->method() === 'GET') {
@@ -139,6 +190,13 @@ final class GatewayController
         return Response::redirect('/admin/gateways');
     }
 
+    /**
+     * Renders edit form or handles updating an existing manual gateway under the active brand context.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The edit page or redirect response.
+     */
     public function editManual(Request $request): Response
     {
         $merchantId = $this->resolveMerchant($request);
@@ -172,6 +230,13 @@ final class GatewayController
         return Response::redirect('/admin/gateways');
     }
 
+    /**
+     * Toggles the active/inactive state of a specific manual gateway.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function toggleStatus(Request $request): Response
     {
         $merchantId = $this->resolveMerchant($request);
@@ -186,10 +251,40 @@ final class GatewayController
         return Response::redirect('/admin/gateways');
     }
 
+    /**
+     * Alias route handler for storing a new manual gateway.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The API/page response.
+     */
     public function storeManual(Request $request): Response { return $this->createManual($request); }
+
+    /**
+     * Alias route handler for updating a manual gateway.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The API/page response.
+     */
     public function updateManual(Request $request): Response { return $this->editManual($request); }
+
+    /**
+     * Alias route handler for toggling manual gateway status.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The API/page response.
+     */
     public function toggle(Request $request): Response { return $this->toggleStatus($request); }
 
+    /**
+     * Permanently deletes a manual gateway.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function delete(Request $request): Response
     {
         $merchantId = $this->resolveMerchant($request);
@@ -202,6 +297,13 @@ final class GatewayController
 
     // ── Extracted Helpers ─────────────────────────────────────────
 
+    /**
+     * Resolves the active merchant context ID from the request.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return int The resolved merchant ID.
+     */
     private function resolveMerchant(Request $request): int
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
@@ -209,6 +311,13 @@ final class GatewayController
         return $brand->getActiveBrandId();
     }
 
+    /**
+     * Formats incoming POST data into a normalized database record array for manual gateways.
+     *
+     * @param array<string, mixed> $data Raw input data from request payload.
+     *
+     * @return array<string, mixed> Normalized manual gateway database payload.
+     */
     private function buildGatewayRecord(array $data): array
     {
         return [
@@ -222,6 +331,13 @@ final class GatewayController
         ];
     }
 
+    /**
+     * Assembles gateway theme colors into a JSON string format.
+     *
+     * @param array<string, mixed> $data Raw input data containing color overrides.
+     *
+     * @return string Serialized JSON color configuration.
+     */
     private function buildColorsJson(array $data): string
     {
         return json_encode([
@@ -231,12 +347,28 @@ final class GatewayController
         ]);
     }
 
+    /**
+     * Cleans and formats step-by-step raw multi-line instruction strings into JSON.
+     *
+     * @param string $raw Unfiltered raw instruction string separated by line breaks.
+     *
+     * @return string Serialized instruction steps mapping.
+     */
     private function buildInstructionsJson(string $raw): string
     {
-        if (empty($raw)) return '{"steps":[]}';
+        if (empty($raw)) {
+            return '{"steps":[]}';
+        }
         return json_encode(['steps' => array_filter(array_map('trim', explode("\n", $raw)))]);
     }
 
+    /**
+     * Processes and stores uploaded merchant gateways branding files (logos, QRs).
+     *
+     * @param array<string, mixed> $record Reference to the gateway payload array to inject storage paths.
+     *
+     * @return void
+     */
     private function applyUploads(array &$record): void
     {
         if (!empty($_FILES['logo']['tmp_name'])) {
@@ -247,17 +379,36 @@ final class GatewayController
         }
     }
 
+    /**
+     * Validates manual gateway inputs.
+     *
+     * @param array<string, mixed> $data   The input data.
+     * @param bool                 $isEdit Flag indicating if it is an update operation.
+     *
+     * @return string[] Array of validation error strings.
+     */
     private function validateManualGateway(array $data, bool $isEdit = false): array
     {
         $errors = [];
-        if (empty($data['name'])) $errors[] = 'Gateway name is required';
-        if (!$isEdit && empty($data['slug'])) $errors[] = 'Slug is required';
+        if (empty($data['name'])) {
+            $errors[] = 'Gateway name is required';
+        }
+        if (!$isEdit && empty($data['slug'])) {
+            $errors[] = 'Slug is required';
+        }
         if (!$isEdit && !empty($data['slug']) && !preg_match('/^[a-z0-9\-]+$/', $data['slug'])) {
             $errors[] = 'Slug must be lowercase alphanumeric with hyphens only';
         }
         return $errors;
     }
 
+    /**
+     * Validates and compiles customizable manual gateway form fields to serialized JSON structure.
+     *
+     * @param array<int, array<string, mixed>> $fields Configurable fields array.
+     *
+     * @return string Serialized custom field configuration mappings.
+     */
     private function buildFieldsJson(array $fields): string
     {
         $clean = [];

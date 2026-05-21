@@ -3,25 +3,55 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\Payment;
 
+use OwnPay\Core\Database;
+
 /**
- * Reconciliation service — verify ledger vs transactions integrity.
+ * Manages ledger and transaction data reconciliation.
+ *
+ * Audits ledger consistency by validating direct ledger balances against computed
+ * transaction net totals, subtracting proportional refund fee margins, and subtracting settlements.
  */
 final class ReconciliationService
 {
-    private \OwnPay\Core\Database $db;
+    /**
+     * @var Database The database service.
+     */
+    private Database $db;
+
+    /**
+     * @var LedgerService Service managing the double-entry bookkeeping ledger.
+     */
     private LedgerService $ledger;
 
-    public function __construct(\OwnPay\Core\Database $db, LedgerService $ledger)
+    /**
+     * ReconciliationService constructor.
+     *
+     * @param Database $db Direct database service.
+     * @param LedgerService $ledger Service handling double-entry ledger queries and balance computation.
+     */
+    public function __construct(Database $db, LedgerService $ledger)
     {
         $this->db = $db;
         $this->ledger = $ledger;
     }
 
     /**
-     * Run reconciliation for merchant.
-     * Compares sum of completed transactions vs ledger balance.
+     * Reconciles completed transactions and settlements against double-entry ledger accounts.
      *
-     * @return array{balanced: bool, transaction_total: string, ledger_balance: string, difference: string}
+     * Summarizes transaction net gains, calculates GAAP-compliant proportional refund amounts,
+     * subtracts settlements, and validates the expected result against the actual ledger balance.
+     *
+     * @param int $merchantId The ID of the merchant/brand.
+     * @param string $currency The transaction/ledger ISO currency code.
+     * @return array{
+     *     balanced: bool,
+     *     transaction_total: string,
+     *     refund_total: string,
+     *     settlement_total: string,
+     *     expected_balance: string,
+     *     ledger_balance: string,
+     *     difference: string
+     * } Detailed reconciliation balance sheet.
      */
     public function reconcile(int $merchantId, string $currency): array
     {

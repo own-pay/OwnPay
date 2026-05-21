@@ -2,27 +2,28 @@
 declare(strict_types=1);
 
 /**
- * Application configuration constants.
+ * System configuration settings.
  *
- * All runtime-specific values (DB, keys, secrets) live in .env.
- * This file holds structural/behavioral constants only.
+ * Defines directory paths, environmental settings, session lifecycles, rate limiting
+ * parameters, security algorithms, and other baseline constants. Sensitive configurations
+ * (e.g. database credentials) are derived from the local environment (.env) parameters.
+ *
+ * @return array<string, mixed>
  */
-
 return [
-    // ─── Identity ──────────────────────────────────────────────
+    // Identity parameters
     'name'    => 'Own Pay',
     'version' => '0.1.0',
     'codename'=> 'Genesis',
 
-    // ─── Environment ───────────────────────────────────────────
-    // Overridden by APP_ENV in .env: 'production', 'staging', 'development'
+    // Environment settings
     'env'   => getenv('APP_ENV') ?: 'production',
     'debug' => filter_var(getenv('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN),
 
-    // ─── Timezone ──────────────────────────────────────────────
+    // System-wide timezone configuration
     'timezone' => getenv('APP_TIMEZONE') ?: 'Asia/Dhaka',
 
-    // ─── Paths (relative to project root) ──────────────────────
+    // Relative system directory structures
     'paths' => [
         'root'      => dirname(__DIR__),
         'public'    => dirname(__DIR__) . '/public',
@@ -41,13 +42,11 @@ return [
         'plugins'   => dirname(__DIR__) . '/storage/plugins',
     ],
 
-    // ─── URL Customization ─────────────────────────────────────
-    // Configurable via admin panel, stored in op_system_settings.
-    // These are fallback defaults if DB not yet available (e.g., installer).
+    // Default route paths (fallback configurations)
     'default_login_path' => '/login',
     'default_admin_path' => '/admin',
 
-    // ─── Session ───────────────────────────────────────────────
+    // Cookie session management lifecycle
     'session' => [
         'name'     => 'op_session',
         'lifetime' => 7200,     // 2 hours in seconds
@@ -56,19 +55,19 @@ return [
         'samesite'  => 'Lax',
     ],
 
-    // ─── Rate Limiting Defaults ────────────────────────────────
+    // Rate limiting parameter thresholds
     'rate_limit' => [
         'api'   => ['max' => 60,  'window' => 60],   // 60 req/min per key
         'login' => ['max' => 5,   'window' => 300],   // 5 attempts per 5 min
         'global'=> ['max' => 120, 'window' => 60],    // 120 req/min per IP
     ],
 
-    // ─── Checkout ──────────────────────────────────────────────
+    // Payment checkout settings
     'checkout' => [
         'timer_seconds' => 600,  // 10 minutes default
     ],
 
-    // ─── Update Server ─────────────────────────────────────────
+    // System updater configuration parameters
     'update' => [
         'check_url'    => 'https://update.ownpay.org/manifest.json',
         'night_window' => ['start' => '02:00', 'end' => '04:00'],
@@ -76,15 +75,14 @@ return [
         'max_retries'  => 3,
     ],
 
-    // ─── Security ──────────────────────────────────────────────
+    // Security policies
     'security' => [
         'password_algo' => PASSWORD_ARGON2ID,
         'encryption'    => 'aes-256-gcm',
         'csrf_rotation' => true,    // Rotate token on every request
     ],
 
-    // ─── Cache/Queue Driver ────────────────────────────────────
-    // 'file' or 'redis'. Auto-detected if not set.
+    // Engine drivers
     'cache_driver' => getenv('CACHE_DRIVER') ?: 'file',
     'queue_driver' => getenv('QUEUE_DRIVER') ?: 'file',
 ];

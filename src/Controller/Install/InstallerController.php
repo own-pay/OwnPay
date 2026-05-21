@@ -8,21 +8,41 @@ use OwnPay\Http\Response;
 use OwnPay\Support\DateHelper;
 
 /**
+ * Class InstallerController
+ *
  * Installer Controller — multi-step wizard.
  * Requirements → DB → Admin → Settings → Done
  * Input validation, Argon2ID, .installed lockout.
+ *
+ * @package OwnPay\Controller\Install
  */
 final class InstallerController
 {
+    /**
+     * @var string The root directory of the application.
+     */
     private string $rootDir;
+
+    /**
+     * @var string The path to the .installed marker file.
+     */
     private string $markerFile;
 
+    /**
+     * InstallerController constructor.
+     */
     public function __construct()
     {
         $this->rootDir    = dirname(__DIR__, 3);
         $this->markerFile = $this->rootDir . '/storage/.installed';
     }
 
+    /**
+     * Renders the installation wizard step view.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTML view response.
+     */
     public function show(Request $req): Response
     {
         if ($this->isInstalled()) {
@@ -44,10 +64,17 @@ final class InstallerController
         return Response::html($this->renderPhpTemplate("install/step{$step}.php", $data));
     }
 
-    //Test DB + import schema
+    /**
+     * Tests DB connection and imports the schema.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response indicating success or failure.
+     */
     public function testDatabase(Request $req): Response
     {
-        if ($this->isInstalled()) return Response::json(['success' => false, 'error' => 'Already installed'], 403);
+        if ($this->isInstalled()) {
+            return Response::json(['success' => false, 'error' => 'Already installed'], 403);
+        }
         $body   = $req->json();
         $host   = trim($body['host']   ?? 'localhost');
         $port   = (int) ($body['port'] ?? 3306);
@@ -56,11 +83,17 @@ final class InstallerController
         $pass   = $body['pass']        ?? '';
         $prefix = trim($body['prefix'] ?? 'op_');
 
-        if (!$name || !$user) return Response::json(['success' => false, 'error' => 'DB name and user required'], 422);
+        if (!$name || !$user) {
+            return Response::json(['success' => false, 'error' => 'DB name and user required'], 422);
+        }
         // Strict validation for DB name — prevents SQL injection in CREATE DATABASE / USE.
         // Only alphanumeric + underscore allowed, max 64 chars (MySQL limit).
-        if (!preg_match('/^[a-zA-Z0-9_]{1,64}$/', $name)) return Response::json(['success' => false, 'error' => 'Invalid database name — alphanumeric and underscores only'], 422);
-        if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
+        if (!preg_match('/^[a-zA-Z0-9_]{1,64}$/', $name)) {
+            return Response::json(['success' => false, 'error' => 'Invalid database name — alphanumeric and underscores only'], 422);
+        }
+        if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
+            return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
+        }
 
         try {
             $pdo = new \PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
@@ -70,11 +103,17 @@ final class InstallerController
             $pdo->exec("USE `{$name}`");
 
             $sqlPath = $this->rootDir . '/database/schema.sql';
-            if (!file_exists($sqlPath)) return Response::json(['success' => false, 'error' => 'Schema file missing'], 500);
+            if (!file_exists($sqlPath)) {
+                return Response::json(['success' => false, 'error' => 'Schema file missing'], 500);
+            }
             $sql = file_get_contents($sqlPath);
-            if (strlen($sql) < 10000) return Response::json(['success' => false, 'error' => 'Schema integrity failed'], 500);
+            if (strlen($sql) < 10000) {
+                return Response::json(['success' => false, 'error' => 'Schema integrity failed'], 500);
+            }
 
-            if ($prefix !== 'op_') $sql = str_replace('`op_', "`{$prefix}", $sql);
+            if ($prefix !== 'op_') {
+                $sql = str_replace('`op_', "`{$prefix}", $sql);
+            }
 
             // Drop existing tables so a re-install works cleanly
             $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
@@ -111,22 +150,37 @@ final class InstallerController
         }
     }
 
-    // Create admin account
+    /**
+     * Creates the superadmin merchant account and seeds default system permissions.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response indicating success or failure.
+     */
     public function createAdmin(Request $req): Response
     {
-        if ($this->isInstalled()) return Response::json(['success' => false, 'error' => 'Already installed'], 403);
+        if ($this->isInstalled()) {
+            return Response::json(['success' => false, 'error' => 'Already installed'], 403);
+        }
         $body     = $req->json();
         $name     = trim($body['name']     ?? '');
         $email    = trim($body['email']    ?? '');
         $username = trim($body['username'] ?? '');
         $password = $body['password']      ?? '';
 
-        if (!$name || !$email || !$username || !$password) return Response::json(['success' => false, 'error' => 'All fields required'], 422);
-        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) return Response::json(['success' => false, 'error' => 'Invalid email'], 422);
-        if (strlen($password) < 8) return Response::json(['success' => false, 'error' => 'Password min 8 chars'], 422);
+        if (!$name || !$email || !$username || !$password) {
+            return Response::json(['success' => false, 'error' => 'All fields required'], 422);
+        }
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            return Response::json(['success' => false, 'error' => 'Invalid email'], 422);
+        }
+        if (strlen($password) < 8) {
+            return Response::json(['success' => false, 'error' => 'Password min 8 chars'], 422);
+        }
 
         $envFile = $this->rootDir . '/storage/.env.temp';
-        if (!file_exists($envFile)) return Response::json(['success' => false, 'error' => 'Complete DB step first'], 400);
+        if (!file_exists($envFile)) {
+            return Response::json(['success' => false, 'error' => 'Complete DB step first'], 400);
+        }
 
         try {
             $env = parse_ini_file($envFile);
@@ -177,7 +231,9 @@ final class InstallerController
                 ['INR', 'Indian Rupee',      '₹',  2],
             ];
             $cs = $pdo->prepare("INSERT IGNORE INTO {$p}currencies (code, name, symbol, decimal_places, status) VALUES (?,?,?,?,'active')");
-            foreach ($currencies as $c) $cs->execute($c);
+            foreach ($currencies as $c) {
+                $cs->execute($c);
+            }
 
             // 5. DS-15 FIX: Seed default permissions
             $permissions = [
@@ -215,12 +271,16 @@ final class InstallerController
                 ['system.balance',        'Balance Verification',     'system'],
             ];
             $ps = $pdo->prepare("INSERT IGNORE INTO {$p}permissions (slug, name, group_name) VALUES (?,?,?)");
-            foreach ($permissions as $perm) $ps->execute($perm);
+            foreach ($permissions as $perm) {
+                $ps->execute($perm);
+            }
 
             // 6. Assign ALL permissions to the Owner role
             $allPerms = $pdo->query("SELECT id FROM {$p}permissions")->fetchAll(\PDO::FETCH_COLUMN);
             $rps = $pdo->prepare("INSERT IGNORE INTO {$p}role_permissions (role_id, permission_id) VALUES (?,?)");
-            foreach ($allPerms as $permId) $rps->execute([$roleId, $permId]);
+            foreach ($allPerms as $permId) {
+                $rps->execute([$roleId, $permId]);
+            }
 
             return Response::json(['success' => true]);
         } catch (\Throwable $e) {
@@ -236,10 +296,17 @@ final class InstallerController
         }
     }
 
-    // Finalize — generate APP_KEY, write .env, seed settings, write .installed marker 
+    /**
+     * Finalizes installation by creating .env file, writing default system settings, and writing lock file.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response indicating success or failure.
+     */
     public function finalize(Request $req): Response
     {
-        if ($this->isInstalled()) return Response::json(['success' => false, 'error' => 'Already installed'], 403);
+        if ($this->isInstalled()) {
+            return Response::json(['success' => false, 'error' => 'Already installed'], 403);
+        }
         $body     = $req->json();
         $appName  = trim($body['app_name']  ?? 'Own Pay');
         $currency = trim($body['currency']  ?? 'BDT');
@@ -248,7 +315,9 @@ final class InstallerController
         $tempEnv  = $this->rootDir . '/storage/.env.temp';
         $finalEnv = $this->rootDir . '/.env';
 
-        if (!file_exists($tempEnv)) return Response::json(['success' => false, 'error' => 'Complete previous steps'], 400);
+        if (!file_exists($tempEnv)) {
+            return Response::json(['success' => false, 'error' => 'Complete previous steps'], 400);
+        }
 
         try {
             // Generate independent keys — PCI-DSS 3.6 requires separate keys per purpose.
@@ -306,7 +375,9 @@ final class InstallerController
                 ['general',  'base_currency',   $currency,                 'string'],
             ];
             $stmt = $pdo->prepare("INSERT IGNORE INTO {$p}system_settings (group_name, key_name, value, type) VALUES (?,?,?,?)");
-            foreach ($seeds as $s) $stmt->execute($s);
+            foreach ($seeds as $s) {
+                $stmt->execute($s);
+            }
 
             // Write .installed marker
             file_put_contents($this->markerFile, "Installed: " . DateHelper::iso() . "\nVersion: 0.1.0\n", LOCK_EX);
@@ -325,7 +396,11 @@ final class InstallerController
         }
     }
 
-    // Requirements check
+    /**
+     * Run system requirements checks.
+     *
+     * @return array The list of requirements checked and their statuses.
+     */
     private function checkRequirements(): array
     {
         return [
@@ -343,22 +418,41 @@ final class InstallerController
         ];
     }
 
+    /**
+     * Checks if the installation marker exists.
+     *
+     * @return bool True if already installed, false otherwise.
+     */
     private function isInstalled(): bool
     {
         return file_exists($this->markerFile);
     }
 
+    /**
+     * Renders a PHP template file with parameters.
+     *
+     * @param string $template The template name/path.
+     * @param array  $data     The template parameters.
+     * @return string The rendered template content.
+     */
     private function renderPhpTemplate(string $template, array $data): string
     {
         $file = $this->rootDir . '/templates/' . $template;
-        if (!file_exists($file)) return '<h1>Template not found: ' . htmlspecialchars($template) . '</h1>';
+        if (!file_exists($file)) {
+            return '<h1>Template not found: ' . htmlspecialchars($template) . '</h1>';
+        }
         extract($data, EXTR_SKIP); // prevent template data overwriting local vars
         ob_start();
         include $file;
         return ob_get_clean() ?: '';
     }
 
-    /** @return string[] */
+    /**
+     * Parses SQL schema file content into discrete SQL statements.
+     *
+     * @param string $sql The raw SQL content.
+     * @return string[] The discrete SQL statements.
+     */
     private function parseSqlStatements(string $sql): array
     {
         $statements = [];
@@ -369,7 +463,9 @@ final class InstallerController
         foreach (explode("\n", str_replace("\r\n", "\n", $sql)) as $line) {
             if (!$inString) {
                 $stripped = preg_replace('/\s*--.*$/', '', $line);
-                if (trim($stripped) === '') continue;
+                if (trim($stripped) === '') {
+                    continue;
+                }
                 $line = $stripped;
             }
             $len = strlen($line);
@@ -377,13 +473,20 @@ final class InstallerController
                 $c = $line[$i];
                 if ($inString) {
                     $current .= $c;
-                    if ($c === '\\' && $i + 1 < $len) { $current .= $line[++$i]; }
-                    elseif ($c === $strChar) { $inString = false; }
+                    if ($c === '\\' && $i + 1 < $len) {
+                        $current .= $line[++$i];
+                    } elseif ($c === $strChar) {
+                        $inString = false;
+                    }
                 } else {
                     if ($c === "'" || $c === '"' || $c === '`') {
-                        $inString = true; $strChar = $c; $current .= $c;
+                        $inString = true;
+                        $strChar = $c;
+                        $current .= $c;
                     } elseif ($c === ';') {
-                        if (trim($current) !== '') $statements[] = trim($current);
+                        if (trim($current) !== '') {
+                            $statements[] = trim($current);
+                        }
                         $current = '';
                     } else {
                         $current .= $c;
@@ -392,7 +495,9 @@ final class InstallerController
             }
             $current .= "\n";
         }
-        if (trim($current) !== '') $statements[] = trim($current);
+        if (trim($current) !== '') {
+            $statements[] = trim($current);
+        }
         return $statements;
     }
 }

@@ -10,21 +10,42 @@ use OwnPay\Service\Customer\CustomerPiiService;
 use OwnPay\Service\System\InputSanitizer;
 
 /**
- * Customer API — CRUD with PII encryption.
- * OWASP: All PII encrypted at rest, lookup by hash only.
+ * Controller for managing customer records via REST API endpoints.
+ * Ensures OWASP and GDPR compliance by encrypting PII at rest and resolving queries by hash lookup.
  */
 final class CustomerController
 {
-    /** @phpstan-ignore property.onlyWritten */
+    /**
+     * The dependency injection container.
+     *
+     * @phpstan-ignore property.onlyWritten
+     */
     private Container $c;
+
+    /**
+     * The customer PII manager service.
+     */
     private CustomerPiiService $pii;
 
+    /**
+     * CustomerController constructor.
+     *
+     * @param Container $c The dependency injection container.
+     * @param CustomerPiiService $pii The customer PII manager service.
+     */
     public function __construct(Container $c, CustomerPiiService $pii)
     {
         $this->c = $c;
         $this->pii = $pii;
     }
 
+    /**
+     * List all customer records for the active brand.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response with customer records.
+     * @throws \Exception If lookup fails.
+     */
     public function index(Request $req): Response
     {
         $mid  = (int) $req->getAttribute('merchant_id');
@@ -48,8 +69,13 @@ final class CustomerController
     }
 
     /**
-     * GET /api/v1/customers/{identifier}
-     * Auto-detect: email (contains @) or phone number.
+     * Show details for a specific customer.
+     *
+     * Auto-detects identifier type (email contains '@', otherwise defaults to phone).
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response with decrypted customer details or error.
+     * @throws \Exception If query fails.
      */
     public function show(Request $req): Response
     {
@@ -76,8 +102,12 @@ final class CustomerController
     }
 
     /**
-     * POST /api/v1/customers
-     * Body: { name, email?, phone? }
+     * Create a new customer record.
+     *
+     * Body format: { name, email?, phone? }
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response with created customer ID / UUID or duplicate error.
      */
     public function create(Request $req): Response
     {

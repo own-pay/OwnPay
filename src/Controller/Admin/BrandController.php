@@ -12,16 +12,52 @@ use OwnPay\Service\System\InputSanitizer;
 use OwnPay\Service\System\AuditService;
 use OwnPay\Repository\MerchantRepository;
 
+/**
+ * Class BrandController
+ *
+ * Coordinates administrative brand (merchant) actions such as creation, updates, deletions,
+ * and contextual switching between brands.
+ *
+ * @package OwnPay\Controller\Admin
+ */
 final class BrandController
 {
     use AdminPageTrait;
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
+
+    /**
+     * @var BrandContext The brand context manager.
+     */
     private BrandContext $brand;
+
+    /**
+     * @var MerchantRepository The repository for merchant records.
+     */
     private MerchantRepository $merchants;
+
+    /**
+     * @var AuditService The system auditing service.
+     */
     private AuditService $audit;
 
+    /**
+     * BrandController constructor.
+     *
+     * @param Container          $c         The dependency injection container.
+     * @param AdminSession       $session   The administrative session service.
+     * @param BrandContext       $brand     The brand context manager.
+     * @param MerchantRepository $merchants The repository for merchant records.
+     * @param AuditService       $audit     The system auditing service.
+     */
     public function __construct(Container $c, AdminSession $session, BrandContext $brand, MerchantRepository $merchants, AuditService $audit)
     {
         $this->c         = $c;
@@ -31,6 +67,13 @@ final class BrandController
         $this->audit     = $audit;
     }
 
+    /**
+     * Lists all registered brands/stores alongside their configured domains.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The brand listing dashboard page.
+     */
     public function index(Request $req): Response
     {
         $brands = $this->merchants->listWithDomains();
@@ -40,6 +83,13 @@ final class BrandController
         ]);
     }
 
+    /**
+     * Renders the brand creation page.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The brand creation page.
+     */
     public function create(Request $req): Response
     {
         return $this->renderAdminPage('admin/brands/edit.twig', [
@@ -49,6 +99,13 @@ final class BrandController
         ]);
     }
 
+    /**
+     * Validates and persists a newly created brand, mapping domains and initializing payment link dependencies.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response to the brand index.
+     */
     public function store(Request $req): Response
     {
         $data = $req->post();
@@ -92,6 +149,13 @@ final class BrandController
         return Response::redirect('/admin/brands');
     }
 
+    /**
+     * Displays details for a single brand instance.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The brand details edit page.
+     */
     public function show(Request $req): Response
     {
         $id = (int) $req->param('id');
@@ -109,6 +173,13 @@ final class BrandController
         ]);
     }
 
+    /**
+     * Updates an existing brand's configurations and domain routing.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response to the brand details page or index.
+     */
     public function update(Request $req): Response
     {
         $id   = (int) $req->param('id');
@@ -138,6 +209,13 @@ final class BrandController
         return Response::redirect('/admin/brands');
     }
 
+    /**
+     * Contextually switches the active administrative brand context.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response back to the source page.
+     */
     public function switchBrand(Request $req): Response
     {
         $id = $req->post('brand_id');
@@ -158,6 +236,13 @@ final class BrandController
         return Response::redirect($ref);
     }
 
+    /**
+     * Removes a brand instance and cascades records via foreign key constraints.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response to the brand index.
+     */
     public function delete(Request $req): Response
     {
         $id = (int) $req->param('id');

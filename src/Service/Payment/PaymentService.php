@@ -6,18 +6,32 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\PaymentIntentRepository;
 use Ramsey\Uuid\Uuid;
-use OwnPay\Support\DateHelper;
+use OwnPay\Support\DateHelper;
 
 /**
- * Payment service — creates and manages payment intents.
+ * Service managing payment intents representing transaction requests.
  *
- * Fires: payment.intent.created, payment.intent.expired, payment.amount.calculate
+ * Creates payment intent templates, manages intent validation lifecycles (pending, expired, paid),
+ * processes expiration sweep actions, and executes system hooks.
  */
 final class PaymentService
 {
+    /**
+     * @var PaymentIntentRepository Repository accessing payment intents.
+     */
     private PaymentIntentRepository $intents;
+
+    /**
+     * @var EventManager Event dispatcher for system hooks.
+     */
     private EventManager $events;
 
+    /**
+     * PaymentService constructor.
+     *
+     * @param PaymentIntentRepository $intents Repository for payment intent database actions.
+     * @param EventManager $events Event dispatcher for system hooks.
+     */
     public function __construct(PaymentIntentRepository $intents, EventManager $events)
     {
         $this->intents = $intents;
@@ -25,9 +39,22 @@ final class PaymentService
     }
 
     /**
-     * Create payment intent.
+     * Creates a new payment intent.
      *
-     * @param array{amount: string, currency: string, description?: string, redirect_url?: string, cancel_url?: string, webhook_url?: string, metadata?: array} $data
+     * Resolves the final processing amount by executing the `payment.amount.calculate` filter,
+     * structures intent metadata, and fires the `payment.intent.created` event hook.
+     *
+     * @param int $merchantId The ID of the merchant/brand.
+     * @param array{
+     *     amount: string,
+     *     currency: string,
+     *     description?: string,
+     *     redirect_url?: string,
+     *     cancel_url?: string,
+     *     webhook_url?: string,
+     *     metadata?: array<string, mixed>
+     * } $data Input parameters for the payment intent.
+     * @return array<string, mixed> The newly created payment intent database record fields.
      */
     public function createIntent(int $merchantId, array $data): array
     {
@@ -52,7 +79,13 @@ final class PaymentService
     }
 
     /**
-     * Find intent by token (public checkout page).
+     * Finds a payment intent using its unique lookup token (used on the public checkout page).
+     *
+     * Verifies that the intent has not expired. If it is pending but past its expires_at timestamp,
+     * marks it as expired and fires the `payment.intent.expired` hook.
+     *
+     * @param string $token The unique payment intent token.
+     * @return array<string, mixed>|null The payment intent fields, or null if not found.
      */
     public function findByToken(string $token): ?array
     {
@@ -73,7 +106,11 @@ final class PaymentService
     }
 
     /**
-     * Expire all stale intents (cron job).
+     * Identifies and marks all stale pending payment intents as expired.
+     *
+     * Triggered by cron runner and fires the `payment.intent.expired` batch action.
+     *
+     * @return int The total number of expired intents.
      */
     public function expireStale(): int
     {
@@ -85,7 +122,11 @@ final class PaymentService
     }
 
     /**
-     * Mark intent as paid.
+     * Marks a specific payment intent as paid.
+     *
+     * @param int $intentId The unique ID of the payment intent.
+     * @param int $merchantId The unique ID of the merchant/brand.
+     * @return void
      */
     public function markPaid(int $intentId, int $merchantId): void
     {

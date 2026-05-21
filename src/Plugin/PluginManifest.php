@@ -4,38 +4,198 @@ declare(strict_types=1);
 namespace OwnPay\Plugin;
 
 /**
- * Plugin manifest — parsed from manifest.json.
+ * Represents the parsed manifest metadata (manifest.json) of a plugin.
+ *
+ * Exposes plugin properties such as capabilities, dependencies, required versions,
+ * database migrations, and background jobs. Facilitates lifecycle checking and
+ * ensures strict integration with the application architecture.
+ *
+ * @category Plugin
+ * @package  OwnPay\Plugin
  */
 final class PluginManifest
 {
+    /**
+     * Human-readable plugin name.
+     *
+     * @var string
+     */
     public readonly string $name;
+
+    /**
+     * Unique url-safe slug identifier.
+     *
+     * @var string
+     */
     public readonly string $slug;
+
+    /**
+     * Current version of the plugin using semantic versioning.
+     *
+     * @var string
+     */
     public readonly string $version;
+
+    /**
+     * Capability type of the plugin (e.g. gateway, addon, theme).
+     *
+     * @var string
+     */
     public readonly string $type;
+
+    /**
+     * Brief description of the plugin functionality.
+     *
+     * @var string
+     */
     public readonly string $description;
+
+    /**
+     * Plugin author name.
+     *
+     * @var string
+     */
     public readonly string $author;
+
+    /**
+     * URL reference to the plugin author.
+     *
+     * @var string
+     */
     public readonly string $authorUrl;
+
+    /**
+     * Software license identifier.
+     *
+     * @var string
+     */
     public readonly string $license;
+
+    /**
+     * Entrypoint PHP filename.
+     *
+     * @var string
+     */
     public readonly string $entrypoint;
+
+    /**
+     * Explicit PHP namespace declared by the plugin.
+     *
+     * @var string
+     */
     public readonly string $namespace;
+
+    /**
+     * Minimum PHP version required to run this plugin safely.
+     *
+     * @var string
+     */
     public readonly string $minPhp;
+
+    /**
+     * Minimum OwnPay core platform version required.
+     *
+     * @var string
+     */
     public readonly string $minApp;
+
+    /**
+     * List of capabilities requested/provided.
+     *
+     * @var array<int, string>
+     */
     public readonly array $capabilities;
+
+    /**
+     * Slugs of other plugins that must be installed/activated beforehand.
+     *
+     * @var array<int, string>
+     */
     public readonly array $dependencies;
+
+    /**
+     * Action and filter hook mappings.
+     *
+     * @var array{actions: array<string, mixed>, filters: array<string, mixed>}
+     */
     public readonly array $hooks;
+
+    /**
+     * Admin menu hierarchy configurations for automatic injection.
+     *
+     * @var array<string, mixed>
+     */
     public readonly array $adminMenu;
+
+    /**
+     * Background cron schedules registered by this plugin.
+     *
+     * @var array<int, array{name: string, schedule: string, class?: string}>
+     */
     public readonly array $cron;
+
+    /**
+     * List of migration file names/classes.
+     *
+     * @var array<int, string>
+     */
     public readonly array $migrations;
+
+    /**
+     * Absolute directory path of the manifest file.
+     *
+     * @var string
+     */
     public readonly string $sourcePath;
 
-    // Backwards compatibility properties
+    /**
+     * Deprecated compatibility permissions array.
+     *
+     * @var array<int, string>
+     */
     public readonly array $permissions;
+
+    /**
+     * Deprecated compatibility category string.
+     *
+     * @var string
+     */
     public readonly string $category;
+
+    /**
+     * Icon image path relative to the plugin root.
+     *
+     * @var string
+     */
     public readonly string $icon;
+
+    /**
+     * Color hex code representing the plugin.
+     *
+     * @var string
+     */
     public readonly string $color;
+
+    /**
+     * Absolute physical directory containing this plugin.
+     *
+     * @var string
+     */
     public readonly string $path;
+
+    /**
+     * Deprecated requirement definitions structure.
+     *
+     * @var array{php: string, core: string}
+     */
     public readonly array $requires;
 
+    /**
+     * PluginManifest constructor.
+     *
+     * @param array<string, mixed> $data       Parsed JSON manifest array.
+     * @param string               $sourcePath Absolute directory path of the plugin.
+     */
     private function __construct(array $data, string $sourcePath)
     {
         $this->name = $data['name'] ?? '';
@@ -57,7 +217,6 @@ final class PluginManifest
 
         $this->capabilities = $data['capabilities'] ?? [];
         
-        // dependencies: filter out non-string and empty values
         $rawDeps = $data['dependencies'] ?? [];
         $dependencies = [];
         if (is_array($rawDeps)) {
@@ -69,7 +228,6 @@ final class PluginManifest
         }
         $this->dependencies = $dependencies;
 
-        // hooks: actions and filters
         $rawHooks = $data['hooks'] ?? [];
         $this->hooks = [
             'actions' => $rawHooks['actions'] ?? [],
@@ -82,7 +240,6 @@ final class PluginManifest
         
         $this->sourcePath = $sourcePath;
         
-        // backwards compatibility properties
         $this->permissions = $data['permissions'] ?? [];
         $this->category = $data['category'] ?? 'global';
         $this->icon = $data['icon'] ?? '';
@@ -95,7 +252,10 @@ final class PluginManifest
     }
 
     /**
-     * Parse from directory.
+     * Parses and builds a manifest from a directory scan.
+     *
+     * @param string $dir Path to the plugin directory.
+     * @return self|null The parsed manifest object, or null if manifest.json does not exist.
      */
     public static function fromDirectory(string $dir): ?self
     {
@@ -114,7 +274,11 @@ final class PluginManifest
     }
 
     /**
-     * Parse from array.
+     * Builds a manifest directly from a raw data array.
+     *
+     * @param array<string, mixed> $data       Metadata values.
+     * @param string               $sourcePath Absolute directory path of the plugin.
+     * @return self Newly instantiated manifest wrapper.
      */
     public static function fromArray(array $data, string $sourcePath = ''): self
     {
@@ -122,7 +286,11 @@ final class PluginManifest
     }
 
     /**
-     * Parse from file.
+     * Parses and instantiates a manifest from a specific JSON file path.
+     *
+     * @param string $path Absolute path to manifest.json.
+     * @return self Manifest instance.
+     * @throws \RuntimeException If the file is missing or contains invalid JSON structure.
      */
     public static function fromFile(string $path): self
     {
@@ -141,7 +309,11 @@ final class PluginManifest
     }
 
     /**
-     * Validate manifest has all required fields.
+     * Validates that the manifest defines all required platform attributes.
+     *
+     * Performs regex checks on the slug pattern and checks for path traversal.
+     *
+     * @return array<int, string> List of validation error messages.
      */
     public function validate(): array
     {
@@ -183,7 +355,10 @@ final class PluginManifest
     }
 
     /**
-     * Check compatibility.
+     * Checks if this plugin is compatible with the running application version.
+     *
+     * @param string $coreVersion Active system platform version.
+     * @return bool True if core satisfies minimum requirements.
      */
     public function isCompatible(string $coreVersion): bool
     {
@@ -192,7 +367,10 @@ final class PluginManifest
     }
 
     /**
-     * Capability check.
+     * Verifies if the plugin declares a specific Capability value.
+     *
+     * @param \OwnPay\Plugin\Capability $cap The capability enum query.
+     * @return bool True if capability is declared.
      */
     public function hasCapability(Capability $cap): bool
     {
@@ -200,7 +378,9 @@ final class PluginManifest
     }
 
     /**
-     * Get capability enum cases.
+     * Resolves the list of Capability enums declared by this plugin.
+     *
+     * @return array<int, \OwnPay\Plugin\Capability> Declared capabilities.
      */
     public function getCapabilities(): array
     {
@@ -215,7 +395,11 @@ final class PluginManifest
     }
 
     /**
-     * Class name resolution.
+     * Resolves the fully qualified class name for the plugin entrypoint class.
+     *
+     * Utilizes PSR-4 standard mappings under the `OwnPayPlugin` root namespace.
+     *
+     * @return string Fully qualified class name.
      */
     public function getFullyQualifiedClassName(): string
     {
@@ -230,7 +414,9 @@ final class PluginManifest
     }
 
     /**
-     * Serialise manifest.
+     * Serializes the manifest model back into a standard array format.
+     *
+     * @return array<string, mixed> Array representation of manifest properties.
      */
     public function toArray(): array
     {

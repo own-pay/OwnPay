@@ -8,68 +8,76 @@ use OwnPay\Http\Request;
 use OwnPay\Repository\DomainRepository;
 
 /**
- * Central URL resolver for the white-label domain pipeline.
+ * Central URL resolver for the white-labeled custom domain pipeline.
  *
- * All checkout URLs, gateway callback URLs, and API response URLs
- * MUST be generated through this service to ensure brand custom
- * domains are used when configured.
- *
- * Priority chain:
- *   1. GATEWAY_CALLBACK_URL env (dev ngrok override)
- *   2. Brand's primary active custom domain (op_domains)
- *   3. APP_URL env
- *   4. Request host
- *   5. Fallback: https://localhost
+ * Directs URL resolution across all checkout processes, callback handlers, and redirects.
+ * Resolves URLs using a priority hierarchy:
+ * 1. GATEWAY_CALLBACK_URL override (for testing tunnels).
+ * 2. Brand-specific primary active custom domain.
+ * 3. General APP_URL configuration.
+ * 4. Request context host metadata.
+ * 5. General fallback domain.
  */
 final class DomainUrlService
 {
+    /**
+     * @var DomainRepository Repository interface for domain records.
+     */
     private DomainRepository $domainRepo;
 
-    /** @var array<int, string|null> In-memory cache of resolved domains per merchant */
+    /**
+     * @var array<int, string|null> In-memory cache of resolved domains mapped by merchant ID.
+     */
     private array $domainCache = [];
 
+    /**
+     * Constructs a new DomainUrlService instance.
+     *
+     * @param DomainRepository $domainRepo The domain repository.
+     */
     public function __construct(DomainRepository $domainRepo)
     {
         $this->domainRepo = $domainRepo;
     }
 
     /**
-     * Resolve the base URL for a specific brand.
+     * Resolves the white-labeled base URL for a specified merchant.
      *
-     * Used for constructing checkout URLs, callback URLs, etc.
-     * Returns scheme + host (no trailing slash).
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param Request|null $req Optional request context.
+     * @return string Resolved base URL (scheme + host, no trailing slash).
      */
     public function resolveBaseUrl(int $merchantId, ?Request $req = null): string
     {
-        // 1. Dev override (ngrok, tunnels) — highest priority
         $gatewayCallback = $this->envGet('GATEWAY_CALLBACK_URL');
         if ($gatewayCallback !== '') {
             return rtrim($gatewayCallback, '/');
         }
 
-        // 2. Brand's primary custom domain from op_domains
         $customDomain = $this->getBrandDomain($merchantId);
         if ($customDomain !== null) {
             return 'https://' . $customDomain;
         }
 
-        // 3. APP_URL
         $appUrl = $this->envGet('APP_URL');
         if ($appUrl !== '') {
             return rtrim($appUrl, '/');
         }
 
-        // 4. Current request host
         if ($req !== null && $req->host() !== '' && $req->host() !== 'localhost') {
             return $req->scheme() . '://' . $req->host();
         }
 
-        // 5. Hard fallback
         return 'https://localhost';
     }
 
     /**
-     * Build checkout URL for a payment intent token.
+     * Builds the public checkout entry URL for a given payment intent token.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param string $token Cryptographically unique token identifying the payment intent.
+     * @param Request|null $req Optional request context.
+     * @return string Fully qualified checkout URL.
      */
     public function buildCheckoutUrl(int $merchantId, string $token, ?Request $req = null): string
     {
@@ -77,7 +85,12 @@ final class DomainUrlService
     }
 
     /**
-     * Build gateway callback/status URL for a payment intent token.
+     * Builds the gateway status callback URL for a payment intent.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param string $token Cryptographically unique token identifying the payment intent.
+     * @param Request|null $req Optional request context.
+     * @return string Fully qualified status callback URL.
      */
     public function buildCallbackUrl(int $merchantId, string $token, ?Request $req = null): string
     {
@@ -85,7 +98,12 @@ final class DomainUrlService
     }
 
     /**
-     * Build gateway callback/status URL for legacy checkout (non-intent).
+     * Builds the legacy callback status URL for non-intent checkout flows.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param string $trxId Transaction identifier.
+     * @param Request|null $req Optional request context.
+     * @return string Fully qualified legacy status callback URL.
      */
     public function buildLegacyCallbackUrl(int $merchantId, string $trxId, ?Request $req = null): string
     {
@@ -93,8 +111,12 @@ final class DomainUrlService
     }
 
     /**
-     * Get the primary active custom domain for a brand.
-     * Returns domain hostname or null if none configured.
+     * Retrieves the primary active custom domain name for a brand.
+     *
+     * Caches resolved hostnames locally to optimize multiple lookups within a single request.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @return string|null Active custom domain name, or null if none is configured or active.
      */
     public function getBrandDomain(int $merchantId): ?string
     {
@@ -113,7 +135,10 @@ final class DomainUrlService
     }
 
     /**
-     * Read env var with standard fallback chain.
+     * Resolves an environment variable value from standard global stores.
+     *
+     * @param string $key Environment key name.
+     * @return string Resolved environment value.
      */
     private function envGet(string $key): string
     {
