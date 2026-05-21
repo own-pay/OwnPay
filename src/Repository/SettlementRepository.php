@@ -5,16 +5,30 @@ declare(strict_types=1);
 namespace OwnPay\Repository;
 
 /**
- * Repository for op_settlements table.
+ * Repository class responsible for managing database persistence and retrieval
+ * of merchant settlement structures within the 'op_settlements' table.
+ *
+ * Provides transactional queries scoped under tenant context (via TenantScope)
+ * to prevent unauthorized cross-brand access to settlement operations.
  */
 final class SettlementRepository extends BaseRepository
 {
     use TenantScope;
 
+    /**
+     * The database table name associated with this repository.
+     *
+     * @var string
+     */
     protected string $table = 'op_settlements';
 
     /**
-     * Find all settlements for a merchant with pagination.
+     * Retrieves a paginated list of settlement records for a specific merchant.
+     *
+     * @param int $merchantId The unique identifier of the target merchant brand.
+     * @param int $limit Maximum number of settlement records to return. Defaults to 20.
+     * @param int $offset Numerical offset for database query pagination. Defaults to 0.
+     * @return array<int, array<string, mixed>> List of matching settlement records.
      */
     public function findByMerchant(int $merchantId, int $limit = 20, int $offset = 0): array
     {
@@ -31,7 +45,12 @@ final class SettlementRepository extends BaseRepository
     }
 
     /**
-     * Find a settlement by its public UUID.
+     * Resolves a single settlement record by its secure, public UUID string
+     * within the active tenant context.
+     *
+     * @param string $publicId The secure public-facing UUID of the settlement.
+     * @return array<string, mixed>|null The settlement details array, or null if not found.
+     * @throws \RuntimeException If the active tenant identifier is not resolved.
      */
     public function findByPublicId(string $publicId): ?array
     {
@@ -42,7 +61,12 @@ final class SettlementRepository extends BaseRepository
     }
 
     /**
-     * Update settlement status.
+     * Updates the status code of a settlement record inside the active tenant scope.
+     *
+     * @param int $id The internal primary key of the settlement record.
+     * @param string $status The target status value (e.g., pending, completed, failed).
+     * @return void
+     * @throws \RuntimeException If the active tenant identifier is not resolved.
      */
     public function updateStatus(int $id, string $status): void
     {
@@ -54,7 +78,10 @@ final class SettlementRepository extends BaseRepository
     }
 
     /**
-     * Count settlements by merchant.
+     * Counts the total number of settlements recorded for the specified merchant.
+     *
+     * @param int $merchantId The unique identifier of the merchant brand.
+     * @return int Total number of settlement records.
      */
     public function countByMerchant(int $merchantId): int
     {

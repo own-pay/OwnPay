@@ -1,21 +1,43 @@
 <?php
+
 declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
+/**
+ * Repository layer for paired devices (`op_paired_devices` table).
+ *
+ * Scopes CRUD operations per active tenant via the TenantScope trait.
+ * Manages mobile device pairings, JWT tokens fingerprints, AES keys for secure communication,
+ * and device statuses.
+ *
+ * @package OwnPay\Repository
+ */
 class PairedDeviceRepository extends BaseRepository
 {
     use TenantScope;
 
+    /**
+     * @var string Database table name.
+     */
     protected string $table = 'op_paired_devices';
+
+    /**
+     * @var list<string> List of fields that can be mass-assigned.
+     */
     protected array $fillable = [
         'merchant_id', 'device_id', 'device_name', 'platform',
         'jwt_fingerprint', 'aes_key_encrypted', 'last_heartbeat', 'status',
     ];
 
     /**
-     * Find device by UUID string (overrides BaseRepository::findByUuid
-     * which looks for a `uuid` column that doesn't exist on this table).
+     * Finds a device record by its unique device UUID string.
+     *
+     * Overrides BaseRepository::findByUuid because this table has a `device_id` column 
+     * instead of a standard `uuid` column.
+     *
+     * @param string $uuid Unique device identifier.
+     * @return array<string, mixed>|null The device record, or null if not found.
      */
     public function findByUuid(string $uuid): ?array
     {
@@ -25,6 +47,12 @@ class PairedDeviceRepository extends BaseRepository
         );
     }
 
+    /**
+     * Finds a device record by device ID under the active tenant context.
+     *
+     * @param string $deviceId Unique device ID.
+     * @return array<string, mixed>|null The device record, or null if not found.
+     */
     public function findByDeviceId(string $deviceId): ?array
     {
         return $this->db->fetchOne(
@@ -33,6 +61,13 @@ class PairedDeviceRepository extends BaseRepository
         );
     }
 
+    /**
+     * Finds a device record by its JWT fingerprint hash.
+     *
+     * @param string $hash The JWT fingerprint hash.
+     * @param int $merchantId The merchant ID.
+     * @return array<string, mixed>|null The device record, or null if not found.
+     */
     public function findByFingerprintHash(string $hash, int $merchantId): ?array
     {
         return $this->db->fetchOne(
@@ -41,6 +76,12 @@ class PairedDeviceRepository extends BaseRepository
         );
     }
 
+    /**
+     * Updates the last heartbeat timestamp for a device.
+     *
+     * @param string $deviceId Unique device ID.
+     * @return void
+     */
     public function updateHeartbeat(string $deviceId): void
     {
         $this->db->update(
@@ -49,11 +90,22 @@ class PairedDeviceRepository extends BaseRepository
         );
     }
 
+    /**
+     * Revokes device pairing by changing its status.
+     *
+     * @param int $id The primary key ID of the paired device.
+     * @return int Number of affected rows.
+     */
     public function revoke(int $id): int
     {
         return $this->updateScoped($id, ['status' => 'revoked']);
     }
 
+    /**
+     * Lists active paired devices under the active tenant context.
+     *
+     * @return list<array<string, mixed>> List of active paired devices.
+     */
     public function listActive(): array
     {
         return $this->db->fetchAll(
@@ -62,6 +114,11 @@ class PairedDeviceRepository extends BaseRepository
         );
     }
 
+    /**
+     * Lists all paired devices associated with the merchant.
+     *
+     * @return list<array<string, mixed>> List of all paired devices.
+     */
     public function listAllForMerchant(): array
     {
         return $this->db->fetchAll(
@@ -70,9 +127,16 @@ class PairedDeviceRepository extends BaseRepository
         );
     }
 
+    /**
+     * Checks if a device is active.
+     *
+     * @param string $deviceId Unique device ID.
+     * @return bool True if active, false otherwise.
+     */
     public function isActive(string $deviceId): bool
     {
         $device = $this->findByUuid($deviceId);
         return $device !== null && ($device['status'] ?? '') === 'active';
     }
 }
+

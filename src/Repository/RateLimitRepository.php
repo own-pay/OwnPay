@@ -5,19 +5,28 @@ declare(strict_types=1);
 namespace OwnPay\Repository;
 
 /**
- * Repository for op_rate_limits — sliding window rate limiting.
+ * Repository layer for the sliding window rate limiting system (`op_rate_limits` table).
  *
- * BUG-19 FIX: Completely rewritten to match the database schema.
- * Schema uses a counter model: key_name, hits, window_start, expires_at
- * (NOT the per-row hit model the old code used with rate_key + hit_at).
+ * Utilizes a counter model structure (key_name, hits, window_start, expires_at) instead of individual hit logs.
+ * Provides atomic hit registration and validation checks to protect endpoints from abusive requests.
+ *
+ * @package OwnPay\Repository
  */
 final class RateLimitRepository extends BaseRepository
 {
+    /**
+     * @var string Database table name.
+     */
     protected string $table = 'op_rate_limits';
 
     /**
-     * Record a hit for the given key and return the current hit count.
-     * Uses atomic INSERT ON DUPLICATE KEY UPDATE for concurrency safety.
+     * Records a hit against a rate limiting key and returns the updated hit count.
+     *
+     * Utilizes an atomic INSERT ON DUPLICATE KEY UPDATE query to handle concurrent requests safely.
+     *
+     * @param string $key Unique key name identifying the rate limit bucket (e.g. IP + endpoint).
+     * @param int $windowSec The duration of the rate limit window in seconds (defaults to 60).
+     * @return int The current count of hits within the valid window.
      */
     public function hit(string $key, int $windowSec = 60): int
     {
@@ -48,7 +57,12 @@ final class RateLimitRepository extends BaseRepository
     }
 
     /**
-     * Get remaining hits before rate limit is reached.
+     * Calculates the remaining hits available before reaching the rate limit threshold.
+     *
+     * @param string $key Unique rate limit key.
+     * @param int $limit Total allowable hits per window.
+     * @param int $windowSec Rate limit window in seconds.
+     * @return int The remaining number of hits available (zero if exceeded).
      */
     public function remaining(string $key, int $limit, int $windowSec = 60): int
     {
@@ -66,7 +80,10 @@ final class RateLimitRepository extends BaseRepository
     }
 
     /**
-     * Purge expired rate limit entries.
+     * Purges expired rate limit records from the database.
+     *
+     * @param int $olderThanSec Threshold age in seconds for expired entries (defaults to 300).
+     * @return int Total number of purged rate limit rows.
      */
     public function purgeExpired(int $olderThanSec = 300): int
     {
@@ -82,3 +99,4 @@ final class RateLimitRepository extends BaseRepository
         }
     }
 }
+

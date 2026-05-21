@@ -12,21 +12,47 @@ use OwnPay\Service\Customer\ApiKeyService;
 use OwnPay\Repository\SettingsRepository;
 
 /**
- * Developer Hub — API keys, endpoint reference, webhook config, documentation.
+ * Class DeveloperController
+ *
+ * Coordinates rendering of the Developer Hub page, including listing API keys, presenting endpoint references,
+ * verifying webhook delivery URLs via cURL tests, and configuring system rate limits.
+ *
+ * @package OwnPay\Controller\Admin
  */
 final class DeveloperController
 {
     use AdminPageTrait;
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
 
+    /**
+     * DeveloperController constructor.
+     *
+     * @param Container    $c       The dependency injection container.
+     * @param AdminSession $session The administrative session service.
+     */
     public function __construct(Container $c, AdminSession $session)
     {
         $this->c       = $c;
         $this->session = $session;
     }
 
+    /**
+     * Renders the developer hub overview, fetching API keys, rate limit specifications,
+     * webhook secrets, and populating API reference lists.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The developer hub page response.
+     */
     public function index(Request $req): Response
     {
         $brand = $this->c->get(BrandContext::class);
@@ -64,6 +90,13 @@ final class DeveloperController
         ]);
     }
 
+    /**
+     * Triggers a cURL test POST payload to the configured webhook delivery target.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response A JSON formatted feedback response.
+     */
     public function webhookTest(Request $req): Response
     {
         $brand = $this->c->get(BrandContext::class);
@@ -117,7 +150,13 @@ final class DeveloperController
         ]);
     }
 
-    /** @return array<string, list<array{method:string, path:string, auth:string, desc:string}>> */
+    /**
+     * Internal endpoint registry definition for the developer hub documentation.
+     *
+     * @param string $baseUrl The API host base path.
+     *
+     * @return array<string, list<array{method:string, path:string, auth:string, desc:string}>>
+     */
     private function getEndpointReference(string $baseUrl): array
     {
         return [
@@ -164,7 +203,13 @@ final class DeveloperController
         ];
     }
 
-    /** POST /admin/developer/save-limits — Save rate limit + webhook settings */
+    /**
+     * Saves general API configurations, rate limits, and webhook settings.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response.
+     */
     public function saveLimits(Request $req): Response
     {
         $settings = $this->c->get(SettingsRepository::class);
@@ -193,7 +238,13 @@ final class DeveloperController
         return Response::redirect('/admin/developer');
     }
 
-    /** POST /admin/developer/generate-key — Generate new API key */
+    /**
+     * Generates a new API access key.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response.
+     */
     public function generateKey(Request $req): Response
     {
         $brand = $this->c->get(BrandContext::class);

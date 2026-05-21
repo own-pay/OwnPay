@@ -9,23 +9,41 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Two-factor auth middleware — enforces 2FA verification when required.
+ * Middleware responsible for enforcing Two-Factor Authentication (2FA) via RFC 6238 TOTP tokens.
  *
- * Fires 'auth.2fa.required' filter for plugin override.
- * Per OWASP: TOTP (RFC 6238) verification.
+ * Checks if the user has 2FA enabled, verifies their active session authorization status,
+ * and intercepts requests that are unverified by redirecting them to the challenge form.
  */
 final class TwoFactorMiddleware
 {
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $container;
 
+    /**
+     * Constructs a new TwoFactorMiddleware instance.
+     *
+     * @param Container $container The dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
+    /**
+     * Enforces the two-factor authentication challenge check.
+     *
+     * Bypasses checks if 2FA is disabled for the user, if the user is already verified,
+     * or if the request is destined for the verification/logout endpoints.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param callable(Request): Response $next Next handler in the pipeline.
+     * @return Response The HTTP response.
+     */
     public function handle(Request $request, callable $next): Response
     {
-        // M-02 FIX: Prefer Request attributes over raw $_SESSION.
+        // Prefer Request attributes over raw $_SESSION.
         $userId = $request->getAttribute('auth_user_id') ?? ($_SESSION['auth_user_id'] ?? null);
         if ($userId === null) {
             return $next($request);
@@ -37,7 +55,6 @@ final class TwoFactorMiddleware
             $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
             if (!$user) {
                 // User deleted/deactivated but session persists — destroy entire session.
-                // AUD-B6 fix: partial unset left stale keys (auth_role_id, auth_email, etc.)
                 $_SESSION = [];
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_regenerate_id(true);
@@ -45,7 +62,7 @@ final class TwoFactorMiddleware
                 if ($request->expectsJson()) {
                     return Response::json(['success' => false, 'message' => 'Session expired'], 401);
                 }
-                // BUG-44 FIX: Use dynamic login slug.
+                // Use dynamic login slug.
                 $loginSlug = $this->resolveLoginSlug();
                 return Response::redirect("/{$loginSlug}");
             }
@@ -69,8 +86,6 @@ final class TwoFactorMiddleware
             return $next($request);
         }
 
-        // Plugin filter — allow override
-        // C-02 FIX: Removed plugin filter 'auth.2fa.required'
         // 2FA enforcement must NEVER be overridable by plugins (PCI-DSS 8.4.2).
 
         // Redirect to 2FA challenge
@@ -86,11 +101,14 @@ final class TwoFactorMiddleware
     }
 
     /**
-     * Verify TOTP code (RFC 6238).
-     * Window of ±1 period (30 sec each side).
+     * Verifies a given TOTP code against a shared secret using a time window check.
      *
-     * BUG-021 FIX: Tracks last used time slice in $_SESSION to prevent
-     * TOTP replay within the ±1 period window.
+     * Tracks the last used time slice to prevent token replay attacks within the window tolerance.
+     *
+     * @param string $secret The shared base32 encoded secret.
+     * @param string $code The 6-digit verification code.
+     * @param int $window The tolerance window (representing multiples of 30-second steps).
+     * @return bool True if valid and not previously replayed; false otherwise.
      */
     public static function verifyTotp(string $secret, string $code, int $window = 1): bool
     {
@@ -99,18 +117,18 @@ final class TwoFactorMiddleware
         }
 
         $timeSlice = intdiv(time(), 30);
-        // BUG-021 FIX: Get last used window to prevent replay
+        // Get last used window to prevent replay
         $lastUsedWindow = (int) ($_SESSION['totp_last_used_window'] ?? 0);
 
         for ($i = -$window; $i <= $window; $i++) {
             $checkSlice = $timeSlice + $i;
-            // BUG-021 FIX: Skip already-used time slices
+            // Skip already-used time slices
             if ($checkSlice <= $lastUsedWindow) {
                 continue;
             }
             $expectedCode = self::generateTotp($secret, $checkSlice);
             if (hash_equals($expectedCode, $code)) {
-                // BUG-021 FIX: Record this time slice as used
+                // Record this time slice as used
                 $_SESSION['totp_last_used_window'] = $checkSlice;
                 return true;
             }
@@ -120,7 +138,11 @@ final class TwoFactorMiddleware
     }
 
     /**
-     * Generate TOTP for a given time slice.
+     * Generates a TOTP code for a specific base32 secret and time slice.
+     *
+     * @param string $secret The shared base32 secret.
+     * @param int $timeSlice The target time slice integer.
+     * @return string The generated 6-digit TOTP code.
      */
     private static function generateTotp(string $secret, int $timeSlice): string
     {
@@ -140,7 +162,10 @@ final class TwoFactorMiddleware
     }
 
     /**
-     * Generate new TOTP secret (base32 encoded).
+     * Generates a random base32 encoded 2FA secret key.
+     *
+     * @param int $length The character length of the generated secret (default 16).
+     * @return string The base32 secret string.
      */
     public static function generateSecret(int $length = 16): string
     {
@@ -152,6 +177,12 @@ final class TwoFactorMiddleware
         return $secret;
     }
 
+    /**
+     * Decodes a base32 encoded string back to binary.
+     *
+     * @param string $b32 The base32 string to decode.
+     * @return string The decoded binary byte string.
+     */
     private static function base32Decode(string $b32): string
     {
         $chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -177,8 +208,9 @@ final class TwoFactorMiddleware
     }
 
     /**
-     * Resolve dynamic login slug from settings.
-     * BUG-44 FIX: Hardcoded '/login' fails when custom slug is configured.
+     * Resolves the dynamic login slug from configuration settings.
+     *
+     * @return string The dynamic login URI segment.
      */
     private function resolveLoginSlug(): string
     {

@@ -4,17 +4,24 @@ declare(strict_types=1);
 namespace OwnPay\Security;
 
 /**
- * URL validator — validates and sanitizes URLs for redirects and webhooks.
+ * Class UrlValidator
  *
- * Per OWASP: prevent SSRF, open redirect, protocol injection.
+ * Provides functions to validate and sanitize URLs, mitigating Server-Side Request Forgery (SSRF),
+ * open redirection, and protocol injection vulnerability vectors in compliance with OWASP guidelines.
+ *
+ * @package OwnPay\Security
  */
 final class UrlValidator
 {
-    /** Allowed schemes for redirects */
+    /**
+     * @var array<int, string> Allowed URL schemes.
+     */
     private const ALLOWED_SCHEMES = ['http', 'https'];
 
-    /** Blocked private IP ranges (SSRF prevention) */
-    /** @phpstan-ignore classConstant.unused */
+    /**
+     * @var array<int, string> Private and loopback IP CIDR ranges blocked to prevent SSRF.
+     * @phpstan-ignore classConstant.unused
+     */
     private const BLOCKED_RANGES = [
         '10.0.0.0/8',
         '172.16.0.0/12',
@@ -24,8 +31,12 @@ final class UrlValidator
         '0.0.0.0/8',
     ];
 
-        /**
-     * Validate URL is safe for outbound client/server calls (no SSRF/open redirect).
+    /**
+     * Validates if a URL is safe for outbound communication (mitigating SSRF and open redirect issues).
+     *
+     * @param string $url The target URL to validate.
+     * @param string|null $reason Output parameter updated with the validation failure key if returning false.
+     * @return bool True if the URL is deemed safe, otherwise false.
      */
     public static function isSafeOutbound(string $url, ?string &$reason = null): bool
     {
@@ -91,23 +102,27 @@ final class UrlValidator
         return true;
     }
 
-/**
-     * Validate URL is safe for redirect (no open redirect).
+    /**
+     * Validates if a URL is safe to perform client redirects (mitigating open redirection).
+     *
+     * @param string $url The target URL to validate.
+     * @param string|null $allowedDomain Optional domain string to restrict the host.
+     * @return bool True if the URL is valid for redirection, otherwise false.
      */
     public static function isValidRedirect(string $url, ?string $allowedDomain = null): bool
     {
-        // Must be absolute URL
+        // Enforce absolute URL parsing criteria.
         $parsed = parse_url($url);
         if ($parsed === false || !isset($parsed['scheme'], $parsed['host'])) {
             return false;
         }
 
-        // Scheme check
+        // Validate scheme matches allowed redirect schemes.
         if (!in_array(strtolower($parsed['scheme']), self::ALLOWED_SCHEMES, true)) {
             return false;
         }
 
-        // Domain restriction
+        // Apply domain restriction logic if specified.
         if ($allowedDomain !== null) {
             $host = strtolower($parsed['host']);
             if ($host !== strtolower($allowedDomain) && !str_ends_with($host, '.' . strtolower($allowedDomain))) {
@@ -119,7 +134,13 @@ final class UrlValidator
     }
 
     /**
-     * Validate URL is safe for server-side request (no SSRF).
+     * Validates if a URL is safe for webhook dispatch (preventing Server-Side Request Forgery).
+     *
+     * Enforces HTTPS, checks for direct private IPs, resolves hostnames to verify that underlying
+     * IPs do not match internal CIDR ranges, and blocks local loopback hostnames.
+     *
+     * @param string $url The target webhook URL.
+     * @return bool True if the webhook URL is safe, otherwise false.
      */
     public static function isValidWebhookUrl(string $url): bool
     {
@@ -128,21 +149,20 @@ final class UrlValidator
             return false;
         }
 
-        // HTTPS only for webhooks
+        // Enforce HTTPS exclusively for webhook outbound triggers.
         if (strtolower($parsed['scheme']) !== 'https') {
             return false;
         }
 
-        // No IP addresses (force DNS resolution)
+        // Validate that the host is not a direct private IP address.
         $host = $parsed['host'];
         if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
-            // Direct IP — check if private
             if (self::isPrivateIp($host)) {
                 return false;
             }
         }
 
-        // Resolve hostname and check resolved IPs
+        // Resolve DNS records to verify and inspect host IP addresses.
         $ips = gethostbynamel($host);
         if ($ips === false || empty($ips)) {
             return false;
@@ -154,7 +174,7 @@ final class UrlValidator
             }
         }
 
-        // No localhost variants
+        // Validate that the host does not resolve to local loopback patterns.
         $blocked = ['localhost', '0.0.0.0', '[::]', '[::1]'];
         if (in_array(strtolower($host), $blocked, true)) {
             return false;
@@ -164,13 +184,16 @@ final class UrlValidator
     }
 
     /**
-     * Sanitize URL — remove javascript:, data:, and other dangerous schemes.
+     * Cleanses a URL string by blocking unsafe URI schemes (e.g. javascript:, data:) and sanitizing content.
+     *
+     * @param string $url The raw URL string.
+     * @return string The sanitized URL string, or empty if dangerous.
      */
     public static function sanitize(string $url): string
     {
         $url = trim($url);
 
-        // Block dangerous schemes
+        // Terminate validation if the URL initiates with a dangerous scheme pattern.
         $dangerous = ['javascript:', 'data:', 'vbscript:', 'file:'];
         foreach ($dangerous as $scheme) {
             if (stripos($url, $scheme) === 0) {
@@ -182,7 +205,10 @@ final class UrlValidator
     }
 
     /**
-     * Check if IP is in private/reserved range.
+     * Checks if an IP falls within private or reserved address blocks.
+     *
+     * @param string $ip The target IP address to check.
+     * @return bool True if the IP is private or reserved, otherwise false.
      */
     private static function isPrivateIp(string $ip): bool
     {

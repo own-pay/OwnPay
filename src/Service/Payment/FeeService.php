@@ -8,16 +8,35 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\SettingsRepository;
 
 /**
- * Fee service — calculates transaction fees.
+ * Manages the calculation of transaction processing fees.
  *
- * Fires: payment.fee.calculate filter
+ * Resolves fee rules based on system-wide settings or brand-specific
+ * overrides, and applies filters allowing external plugins to modify fees dynamically.
  */
 final class FeeService
 {
+    /**
+     * @var EventManager The system-wide event manager for plugin action/filter execution.
+     */
     private EventManager $events;
+
+    /**
+     * @var SettingsRepository The repository for managing site settings.
+     */
     private SettingsRepository $settings;
+
+    /**
+     * @var Database The database abstraction layer instance.
+     */
     private Database $db;
 
+    /**
+     * FeeService constructor.
+     *
+     * @param EventManager $events System event dispatcher.
+     * @param SettingsRepository $settings Settings storage interface.
+     * @param Database $db Direct database query runner.
+     */
     public function __construct(
         EventManager $events,
         SettingsRepository $settings,
@@ -29,10 +48,16 @@ final class FeeService
     }
 
     /**
-     * Calculate fee for amount.
+     * Calculates the processing fee for a given amount, currency, and gateway.
      *
-     * Fee = max(fixed_fee, percentage_fee * amount)
-     * Plugins can override via filter.
+     * Evaluates active fee rules ordered by specificity. Falls back to default gateway settings
+     * if no custom rules match. Lastly, applies the `payment.fee.calculate` filter hook.
+     *
+     * @param string $amount The transaction amount as a decimal string.
+     * @param string $currency The ISO 4217 three-letter currency code.
+     * @param string $gatewaySlug The slug identifying the payment gateway.
+     * @param int $merchantId The unique identifier of the brand/merchant.
+     * @return string The calculated fee amount as a decimal string.
      */
     public function calculate(string $amount, string $currency, string $gatewaySlug, int $merchantId): string
     {
@@ -76,7 +101,15 @@ final class FeeService
     }
 
     /**
-     * Resolve active rule prioritized by specificity.
+     * Resolves the active fee rule prioritised by specificity.
+     *
+     * Rules are sorted so that merchant-and-gateway specific rules take priority,
+     * followed by merchant-only rules, gateway-only rules, and lastly global rules.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @param string $gatewaySlug The gateway slug identifier.
+     * @param string $currency The transaction currency code.
+     * @return array<string, mixed>|null The matched fee rule row, or null if none matches.
      */
     private function resolveActiveRule(int $merchantId, string $gatewaySlug, string $currency): ?array
     {
@@ -108,7 +141,13 @@ final class FeeService
     }
 
     /**
-     * Calculate fee based on custom fee rule.
+     * Calculates the fee using a custom active rule.
+     *
+     * Supports flat, percentage, and tiered fee structures, applying min/max caps.
+     *
+     * @param string $amount The transaction amount.
+     * @param array<string, mixed> $rule The fee rule database configuration row.
+     * @return string The calculated fee decimal string.
      */
     private function calculateRuleFee(string $amount, array $rule): string
     {
@@ -186,7 +225,10 @@ final class FeeService
     }
 
     /**
-     * @return array{percentage: string, fixed: string, min: string, max: string, mode: string}
+     * Retrieves the default system settings for a specific gateway's fees.
+     *
+     * @param string $gatewaySlug The identifier of the payment gateway.
+     * @return array{percentage: string, fixed: string, min: string, max: string, mode: string} Gateway fee setting values.
      */
     private function getFeeConfig(string $gatewaySlug): array
     {

@@ -14,21 +14,63 @@ use OwnPay\Repository\MerchantUserRepository;
 use OwnPay\Repository\SettingsRepository;
 
 /**
- * Auth controller — login, logout, forgot password, 2FA.
- * Fires: auth.login.attempt, auth.login.success, auth.login.failed, auth.logout
+ * Class AuthController
+ *
+ * Coordinates administrative authentication flows including standard logins, multi-factor (2FA) verification,
+ * password resets, and session terminations.
+ *
+ * @package OwnPay\Controller\Admin
  */
 final class AuthController
 {
     use AdminPageTrait;
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
+
+    /**
+     * @var AuthSessionService The authentication session service.
+     */
     private AuthSessionService $auth;
+
+    /**
+     * @var EventManager The system hook and filter event manager.
+     */
     private EventManager $events;
+
+    /**
+     * @var MerchantUserRepository The repository for merchant user accounts.
+     */
     private MerchantUserRepository $userRepo;
+
+    /**
+     * @var AuditService The system auditing service.
+     */
     private AuditService $audit;
+
+    /**
+     * @var SettingsRepository The repository for system settings.
+     */
     private SettingsRepository $settings;
 
+    /**
+     * AuthController constructor.
+     *
+     * @param Container              $c        The dependency injection container.
+     * @param AdminSession           $session  The administrative session service.
+     * @param AuthSessionService     $auth     The authentication session service.
+     * @param EventManager           $events   The system hook and filter event manager.
+     * @param MerchantUserRepository $userRepo The repository for merchant user accounts.
+     * @param AuditService           $audit    The system auditing service.
+     * @param SettingsRepository     $settings The repository for system settings.
+     */
     public function __construct(
         Container $c,
         AdminSession $session,
@@ -47,6 +89,13 @@ final class AuthController
         $this->settings = $settings;
     }
 
+    /**
+     * Renders the administrative login form.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The login page template or redirect to dashboard.
+     */
     public function loginForm(Request $req): Response
     {
         if ($this->auth->isAuthenticated()) {
@@ -60,6 +109,13 @@ final class AuthController
         ]);
     }
 
+    /**
+     * Authenticates credentials and routes requests to either the dashboard or a 2FA challenge.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response Redirect or render response based on authentication results.
+     */
     public function login(Request $req): Response
     {
         $email    = $req->post('email', '');
@@ -86,6 +142,13 @@ final class AuthController
         return Response::redirect('/admin');
     }
 
+    /**
+     * Renders the 2FA verification code input form.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The 2FA input form or redirect to login.
+     */
     public function twoFactorForm(Request $req): Response
     {
         if ($this->session->get('2fa_user_id') === null) {
@@ -94,6 +157,13 @@ final class AuthController
         return $this->renderAdminPage('page/2fa.twig');
     }
 
+    /**
+     * Verifies the submitted TOTP 2FA code and bootstraps the authenticated session.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response Redirect response or error presentation response.
+     */
     public function twoFactorVerify(Request $req): Response
     {
         $userId = $this->session->get('2fa_user_id');
@@ -138,6 +208,13 @@ final class AuthController
         return Response::redirect('/admin');
     }
 
+    /**
+     * Renders the password reset form with contact details of the system superadmin.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The static forgot password presentation layout.
+     */
     public function forgotForm(Request $req): Response
     {
         // AUD-03 FIX: OwnPay is single-owner system.
@@ -148,6 +225,13 @@ final class AuthController
         ]);
     }
 
+    /**
+     * Logs the request to reset a password and provides administrative instructions.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The password reset submission response.
+     */
     public function forgotSubmit(Request $req): Response
     {
         $email = trim($req->post('email', ''));
@@ -168,6 +252,13 @@ final class AuthController
         ]);
     }
 
+    /**
+     * Logs out the active user, terminating sessions and dynamic redirects based on settings.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response to the landing or login route.
+     */
     public function logout(Request $req): Response
     {
         $this->audit->log('logout', 'user', $_SESSION['auth_user_id'] ?? null);

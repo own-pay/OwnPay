@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace OwnPay\Controller\Admin;
@@ -10,14 +11,35 @@ use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Repository\SmsDataRepository;
 use OwnPay\Service\System\PaginationService;
 
+/**
+ * Controller for managing brand-specific SMS data logs in the admin portal.
+ */
 final class SmsDataController
 {
     use AdminPageTrait;
 
+    /**
+     * The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * The admin session manager.
+     */
     private AdminSession $session;
+
+    /**
+     * The SMS data repository instance.
+     */
     private SmsDataRepository $smsRepo;
 
+    /**
+     * SmsDataController constructor.
+     *
+     * @param Container $c The dependency injection container.
+     * @param AdminSession $session The admin session manager.
+     * @param SmsDataRepository $smsRepo The SMS data repository instance.
+     */
     public function __construct(Container $c, AdminSession $session, SmsDataRepository $smsRepo)
     {
         $this->c       = $c;
@@ -25,6 +47,13 @@ final class SmsDataController
         $this->smsRepo = $smsRepo;
     }
 
+    /**
+     * Render the list of SMS data logs for the active brand.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with the rendered page.
+     * @throws \Exception If the brand context or pagination calculation fails.
+     */
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
@@ -49,3 +78,4 @@ final class SmsDataController
         ]);
     }
 }
+

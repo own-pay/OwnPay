@@ -8,16 +8,35 @@ use OwnPay\Repository\DomainRepository;
 use OwnPay\Support\DateHelper;
 
 /**
- * Domain service — custom domain CRUD, DNS verification, URL generation.
+ * Service managing custom domain configurations for brands.
  *
- * Fires: domain.mapped, domain.verified, domain.removed
+ * Handles domain mapping operations, ownership verification via DNS TXT records,
+ * routing checks via DNS A records, and white-label URL generation.
  */
 final class DomainService
 {
+    /**
+     * @var DomainRepository Repository interface for domain records.
+     */
     private DomainRepository $domains;
+
+    /**
+     * @var DnsVerifier DNS query verifier service.
+     */
     private DnsVerifier $dnsVerifier;
+
+    /**
+     * @var EventManager Application event dispatcher.
+     */
     private EventManager $events;
 
+    /**
+     * Constructs a new DomainService instance.
+     *
+     * @param DomainRepository $domains The domain repository.
+     * @param DnsVerifier $dnsVerifier The DNS verification utility.
+     * @param EventManager $events The event dispatcher system.
+     */
     public function __construct(
         DomainRepository $domains,
         DnsVerifier $dnsVerifier,
@@ -29,22 +48,27 @@ final class DomainService
     }
 
     /**
-     * Map custom domain to merchant.
+     * Maps a custom domain name to a merchant brand.
+     *
+     * Validates domain syntax, verifies uniqueness, generates verification tokens,
+     * and maps instructions for routing IP setups.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param string $domain The target custom domain name.
+     * @param string $type The domain mapping type (e.g. 'checkout').
+     * @return array{success: true, domain_id: int|string, verification_token: string, instructions: string}|array{success: false, error: string} Mapping payload or error response.
      */
     public function map(int $merchantId, string $domain, string $type = 'checkout'): array
     {
-        // Validate domain format
         if (!$this->isValidDomain($domain)) {
             return ['success' => false, 'error' => 'Invalid domain format'];
         }
 
-        // Check not already mapped
         $existing = $this->domains->findByDomain($domain);
         if ($existing !== null) {
             return ['success' => false, 'error' => 'Domain already in use'];
         }
 
-        // Generate verification token
         $verificationToken = 'op-verify-' . bin2hex(random_bytes(16));
 
         $id = $this->domains->forTenant($merchantId)->createScoped([
@@ -57,8 +81,6 @@ final class DomainService
 
         $this->events->doAction('domain.mapped', $domain, $merchantId);
 
-        // BUG-29 FIX: Strip port from HTTP_HOST before DNS lookup.
-        // gethostbyname('ownpay.test:8443') fails silently.
         $httpHost = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
         $hostOnly = parse_url("https://{$httpHost}", PHP_URL_HOST) ?: $httpHost;
         $serverIp = gethostbyname($hostOnly);
@@ -72,7 +94,14 @@ final class DomainService
     }
 
     /**
-     * Verify domain DNS — checks TXT record (ownership) and A record (routing).
+     * Verifies the DNS configuration of a mapped domain name.
+     *
+     * Validates ownership via TXT records first, then resolves the server routing target IP
+     * by resolving host components without port numbers.
+     *
+     * @param int $domainId Unique identifier of the domain record.
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @return array{success: true, warning?: string}|array{success: false, error: string} Verification results.
      */
     public function verify(int $domainId, int $merchantId): array
     {
@@ -81,7 +110,6 @@ final class DomainService
             return ['success' => false, 'error' => 'Domain not found'];
         }
 
-        // Step 1: TXT verification (ownership proof)
         $txtVerified = $this->dnsVerifier->verifyTxt(
             $domain['domain'],
             $domain['verification_token']
@@ -94,8 +122,6 @@ final class DomainService
             ];
         }
 
-        // Step 2: A record check (routing — warning only, not blocking)
-        // BUG-29 FIX: Strip port from HTTP_HOST before DNS lookup.
         $httpHost = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
         $hostOnly = parse_url("https://{$httpHost}", PHP_URL_HOST) ?: $httpHost;
         $serverIp = gethostbyname($hostOnly);
@@ -120,7 +146,11 @@ final class DomainService
     }
 
     /**
-     * Remove domain mapping.
+     * Removes a mapped custom domain configuration.
+     *
+     * @param int $domainId Unique identifier of the domain mapping.
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @return void
      */
     public function remove(int $domainId, int $merchantId): void
     {
@@ -132,7 +162,13 @@ final class DomainService
     }
 
     /**
-     * Generate URL for merchant's custom domain.
+     * Resolves a white-labeled URL for the brand's active custom domain.
+     *
+     * Falls back to system default domains if no active custom domain is verified.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param string $path Target URL path component.
+     * @return string Fully qualified domain name URL.
      */
     public function merchantUrl(int $merchantId, string $path = '/'): string
     {
@@ -141,19 +177,28 @@ final class DomainService
             $scheme = (getenv('APP_HTTPS') === 'true') ? 'https' : 'http';
             return $scheme . '://' . $activeDomain['domain'] . '/' . ltrim($path, '/');
         }
-        // Fallback to app domain
+
         $appDomain = getenv('APP_DOMAIN') ?: 'localhost';
         return 'https://' . $appDomain . '/' . ltrim($path, '/');
     }
 
+    /**
+     * Validates domain syntax formatting patterns.
+     *
+     * @param string $domain The candidate domain name.
+     * @return bool True if syntax matches valid patterns; false otherwise.
+     */
     private function isValidDomain(string $domain): bool
     {
         return (bool) preg_match('/^[a-z0-9]([a-z0-9-]*[a-z0-9])?(\.[a-z0-9]([a-z0-9-]*[a-z0-9])?)+$/i', $domain);
     }
 
     /**
-     * Verify domain DNS (alias for verify).
-     * Called by Api\Admin\DomainController.
+     * Verifies the DNS status of a mapped domain (alias handler).
+     *
+     * @param int $domainId Unique identifier of the domain.
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @return array{success: true, warning?: string}|array{success: false, error: string} Verification results.
      */
     public function verifyDomain(int $domainId, int $merchantId): array
     {

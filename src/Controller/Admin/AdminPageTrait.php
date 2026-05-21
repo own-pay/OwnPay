@@ -7,12 +7,25 @@ use OwnPay\Http\Response;
 use OwnPay\Service\Admin\AdminSession;
 
 /**
- * AdminPageTrait — shared rendering for admin controllers.
+ * Trait AdminPageTrait
  *
- * Requires: $this->c (Container), $this->session (AdminSession)
+ * Provides shared rendering capabilities for all administrative controllers.
+ * Expects the incorporating controller to define properties for the DI container ($c)
+ * and the administrative session service ($session).
+ *
+ * @package OwnPay\Controller\Admin
  */
 trait AdminPageTrait
 {
+    /**
+     * Renders an administrative page template injecting default layouts, active context,
+     * flash notifications, active brand parameters, and firing template resolution event filters.
+     *
+     * @param string               $tpl  Relative path or namespace identifier of the Twig template.
+     * @param array<string, mixed> $data Associative array of template variables.
+     *
+     * @return \OwnPay\Http\Response The compiled HTML response object.
+     */
     private function renderAdminPage(string $tpl, array $data = []): Response
     {
         $twig = $this->c->get(\Twig\Environment::class);

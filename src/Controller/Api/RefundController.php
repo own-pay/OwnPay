@@ -11,15 +11,35 @@ use OwnPay\Event\EventManager;
 use OwnPay\Service\System\InputSanitizer;
 
 /**
- * Refund API.
- * OWASP: Validate amount <= original, tenant-scoped.
+ * Refund API Controller
+ *
+ * Exposes endpoints to initiate and query transaction refunds. Enforces validation
+ * checks ensuring refund parameters align with original transaction constraints.
  */
 final class RefundController
 {
+    /**
+     * @var Container The service container instance.
+     */
     private Container $c;
+
+    /**
+     * @var RefundService Service layer managing refund lifecycles.
+     */
     private RefundService $refunds;
+
+    /**
+     * @var EventManager The system-wide event manager.
+     */
     private EventManager $events;
 
+    /**
+     * Constructor.
+     *
+     * @param Container $c The service container instance.
+     * @param RefundService $refunds Service layer managing refund lifecycles.
+     * @param EventManager $events The system-wide event manager.
+     */
     public function __construct(Container $c, RefundService $refunds, EventManager $events)
     {
         $this->c = $c;
@@ -27,6 +47,14 @@ final class RefundController
         $this->events = $events;
     }
 
+    /**
+     * Request a refund for a specific transaction.
+     *
+     * POST /api/v1/refunds
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response detailing refund creation.
+     */
     public function create(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
@@ -53,8 +81,12 @@ final class RefundController
     }
 
     /**
+     * Lookup a single refund using the original transaction reference string.
+     *
      * GET /api/v1/refunds/{trx_id}
-     * Look up refund via transaction trx_id (refunds FK to op_transactions).
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response detailing the refund or an error message.
      */
     public function show(Request $req): Response
     {
@@ -65,7 +97,7 @@ final class RefundController
             return Response::json(['success' => false, 'error' => 'Transaction ID required'], 422);
         }
 
-        // Find the transaction by trx_id first, then find refund by transaction_id
+        // Query transaction record context to resolve matching refund attributes.
         $db = $this->c->get(\OwnPay\Core\Database::class);
         $refund = $db->fetchOne(
             "SELECT r.* FROM op_refunds r

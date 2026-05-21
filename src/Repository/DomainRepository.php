@@ -3,6 +3,12 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
+/**
+ * Repository layer for custom domains (`op_domains` table).
+ *
+ * Scopes CRUD operations per active tenant via the TenantScope trait.
+ * Manages domain verification tokens, DNS state checks, and primary routing.
+ */
 final class DomainRepository extends BaseRepository
 {
     use TenantScope;
@@ -14,11 +20,24 @@ final class DomainRepository extends BaseRepository
         'is_primary', 'status',
     ];
 
+    /**
+     * Finds a domain record by hostname.
+     *
+     * @param string $domain The target domain hostname.
+     * @return array<string, mixed>|null Domain database record, or null if not found.
+     */
     public function findByDomain(string $domain): ?array
     {
         return $this->findBy('domain', $domain);
     }
 
+    /**
+     * Finds the primary active and verified custom domain under the active tenant context.
+     *
+     * Used for routing checkout pages and generating white-labeled brand links.
+     *
+     * @return array<string, mixed>|null Domain database record, or null if none found.
+     */
     public function findActiveDomain(): ?array
     {
         return $this->db->fetchOne(
@@ -27,6 +46,11 @@ final class DomainRepository extends BaseRepository
         );
     }
 
+    /**
+     * Lists all custom domains registered under the active tenant context.
+     *
+     * @return list<array<string, mixed>> List of matching domain records.
+     */
     public function listAllScoped(): array
     {
         return $this->db->fetchAll(
@@ -36,7 +60,11 @@ final class DomainRepository extends BaseRepository
     }
 
     /**
-     * Find all domains pending DNS verification (global — used by cron).
+     * Finds all domains currently pending DNS verification across all merchants.
+     *
+     * Unscoped globally to support background cron verification jobs.
+     *
+     * @return list<array<string, mixed>> List of pending domain records.
      */
     public function findPendingVerification(): array
     {

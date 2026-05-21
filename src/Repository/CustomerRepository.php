@@ -3,6 +3,14 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
+/**
+ * Repository layer for customer records (`op_customers` table).
+ *
+ * Scopes CRUD operations per active tenant via the TenantScope trait.
+ * Handles customer PII (Personally Identifiable Information) data
+ * and resolves records using blind indexing/hashed keys (SHA-256) to
+ * avoid decrypting fields during lookup.
+ */
 final class CustomerRepository extends BaseRepository
 {
     use TenantScope;
@@ -14,7 +22,12 @@ final class CustomerRepository extends BaseRepository
     ];
 
     /**
-     * Find by email hash (for lookup without decryption).
+     * Finds a customer by their email address hash under the active tenant context.
+     *
+     * Enables timing-safe and decryption-free customer lookups.
+     *
+     * @param string $hash SHA-256 hash of the customer's email address.
+     * @return array<string, mixed>|null Customer database record, or null if not found.
      */
     public function findByEmailHash(string $hash): ?array
     {
@@ -25,7 +38,12 @@ final class CustomerRepository extends BaseRepository
     }
 
     /**
-     * Find by phone hash (for lookup without decryption).
+     * Finds a customer by their phone number hash under the active tenant context.
+     *
+     * Enables timing-safe and decryption-free customer lookups.
+     *
+     * @param string $hash SHA-256 hash of the customer's phone number.
+     * @return array<string, mixed>|null Customer database record, or null if not found.
      */
     public function findByPhoneHash(string $hash): ?array
     {
@@ -35,6 +53,17 @@ final class CustomerRepository extends BaseRepository
         );
     }
 
+    /**
+     * Lists customers with transaction statistics, sorting, and pagination.
+     *
+     * Performs blind-indexed email hash search if query is provided.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param string $query Optional search query (matches against email hash).
+     * @param int $page Page number (1-indexed).
+     * @param int $perPage Maximum items per page.
+     * @return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} Pagination envelope.
+     */
     public function paginateWithStats(int $merchantId, string $query, int $page, int $perPage): array
     {
         $where = "WHERE c.merchant_id = :mid";
@@ -72,6 +101,14 @@ final class CustomerRepository extends BaseRepository
         ];
     }
 
+    /**
+     * Lists recent transactions associated with a specific customer.
+     *
+     * @param int $customerId Primary key identifier of the customer.
+     * @param int $merchantId Scoping merchant ID context.
+     * @param int $limit Maximum records to return.
+     * @return list<array<string, mixed>> List of matching transaction records.
+     */
     public function getRecentTransactions(int $customerId, int $merchantId, int $limit = 50): array
     {
         return $this->db->fetchAll(
@@ -81,8 +118,12 @@ final class CustomerRepository extends BaseRepository
     }
 
     /**
-     * Count customers for dashboard (global or merchant-scoped).
-     * @param ?int $merchantId null = global (superadmin)
+     * Counts customer records for dashboard metrics.
+     *
+     * Bypasses tenant scope when merchant ID is null to support superadmin global view.
+     *
+     * @param int|null $merchantId Scoping merchant ID context, or null for all merchants.
+     * @return int Total customers count.
      */
     public function countForDashboard(?int $merchantId): int
     {

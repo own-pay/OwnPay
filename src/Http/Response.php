@@ -4,32 +4,53 @@ declare(strict_types=1);
 namespace OwnPay\Http;
 
 /**
- * HTTP response object.
+ * Class Response
  *
- * Supports HTML, JSON, redirect, and file download responses.
- * All controller methods return a Response instance — never echo directly.
+ * Represents an HTTP response sent back to the client, supporting HTML, JSON,
+ * redirect, text, and file download response formats with fluent modifier structures.
+ *
+ * @package OwnPay\Http
  */
 final class Response
 {
+    /**
+     * @var string The response body content.
+     */
     private string $body;
+
+    /**
+     * @var int The HTTP status code.
+     */
     private int $statusCode;
 
-    /** @var array<string, string> */
+    /**
+     * @var array<string, string> The HTTP headers map.
+     */
     private array $headers = [];
 
-    /** @var string[] BUG-4 FIX: Separate cookie storage for multiple Set-Cookie headers */
+    /**
+     * @var array<int, string> Stored Set-Cookie header payloads.
+     */
     private array $cookies = [];
 
+    /**
+     * Response constructor.
+     *
+     * @param string $body The response body content.
+     * @param int $statusCode The HTTP status code.
+     */
     public function __construct(string $body = '', int $statusCode = 200)
     {
         $this->body = $body;
         $this->statusCode = $statusCode;
     }
 
-    // ——— Factory Methods ———————————————————————————————————————
-
     /**
-     * HTML response.
+     * Creates an HTML response instance.
+     *
+     * @param string $html The HTML content payload.
+     * @param int $status The HTTP status code. Defaults to 200.
+     * @return self The populated Response instance.
      */
     public static function html(string $html, int $status = 200): self
     {
@@ -39,9 +60,13 @@ final class Response
     }
 
     /**
-     * JSON response.
+     * Creates a JSON response instance.
      *
-     * @param array|object $data
+     * @param array<string, mixed>|object $data The dataset to encode.
+     * @param int $status The HTTP status code. Defaults to 200.
+     * @param array<string, string> $headers Additional custom headers.
+     * @return self The populated Response instance.
+     * @throws \JsonException If encoding the data payload fails.
      */
     public static function json(array|object $data, int $status = 200, array $headers = []): self
     {
@@ -56,7 +81,11 @@ final class Response
     }
 
     /**
-     * Redirect response.
+     * Creates a redirect response instance.
+     *
+     * @param string $url The destination URL.
+     * @param int $status The HTTP redirection status code. Defaults to 302.
+     * @return self The populated Response instance.
      */
     public static function redirect(string $url, int $status = 302): self
     {
@@ -66,7 +95,10 @@ final class Response
     }
 
     /**
-     * Empty response (e.g., 204 No Content).
+     * Creates an empty response instance.
+     *
+     * @param int $status The HTTP status code. Defaults to 204.
+     * @return self The populated Response instance.
      */
     public static function empty(int $status = 204): self
     {
@@ -74,7 +106,11 @@ final class Response
     }
 
     /**
-     * Plain text response.
+     * Creates a plain text response instance.
+     *
+     * @param string $text The text content payload.
+     * @param int $status The HTTP status code. Defaults to 200.
+     * @return self The populated Response instance.
      */
     public static function text(string $text, int $status = 200): self
     {
@@ -84,7 +120,12 @@ final class Response
     }
 
     /**
-     * File download response.
+     * Creates a file download attachment response instance.
+     *
+     * @param string $filePath The absolute filesystem path to the file.
+     * @param string $filename The recommended filename for client download.
+     * @param string $contentType The HTTP Content-Type header value. Defaults to 'application/octet-stream'.
+     * @return self The populated Response instance.
      */
     public static function download(string $filePath, string $filename, string $contentType = 'application/octet-stream'): self
     {
@@ -100,7 +141,11 @@ final class Response
     }
 
     /**
-     * Maintenance mode response (503).
+     * Creates a maintenance mode response instance (status 503).
+     *
+     * @param string $message The maintenance notice message.
+     * @param int $retryAfter The Retry-After header interval in seconds. Defaults to 600.
+     * @return self The populated Response instance.
      */
     public static function maintenance(string $message = 'System under maintenance, please try after sometime or contact support.', int $retryAfter = 600): self
     {
@@ -111,10 +156,12 @@ final class Response
         ], 503)->withHeader('Retry-After', (string)$retryAfter);
     }
 
-    // ——— Fluent Modifiers ——————————————————————————————————————
-
     /**
-     * Add or replace a response header.
+     * Fluent modifier to add or replace an HTTP header.
+     *
+     * @param string $name The header name.
+     * @param string $value The header value.
+     * @return self The Response instance with the header set.
      */
     public function withHeader(string $name, string $value): self
     {
@@ -123,7 +170,10 @@ final class Response
     }
 
     /**
-     * Set the HTTP status code.
+     * Fluent modifier to set the HTTP status code.
+     *
+     * @param int $code The HTTP status code.
+     * @return self The Response instance with the status code set.
      */
     public function withStatus(int $code): self
     {
@@ -132,11 +182,19 @@ final class Response
     }
 
     /**
-     * Set a cookie header.
+     * Fluent modifier to append a Set-Cookie header.
      *
-     * BUG-4 FIX: Uses a separate cookies array so multiple withCookie()
-     * calls don't overwrite each other. Each cookie gets its own
-     * Set-Cookie header via header(_, false) in send().
+     * Appends to cookies to avoid overriding other cookies during the response stream.
+     *
+     * @param string $name The cookie name.
+     * @param string $value The cookie value.
+     * @param int $expires The UNIX expiration timestamp. Defaults to 0 (session).
+     * @param string $path The cookie path. Defaults to '/'.
+     * @param string $domain The cookie domain. Defaults to empty.
+     * @param bool $secure If true, sets the Secure flag. Defaults to true.
+     * @param bool $httponly If true, sets the HttpOnly flag. Defaults to true.
+     * @param string $samesite SameSite policy constraint ('Lax', 'Strict', 'None'). Defaults to 'Lax'.
+     * @return self The Response instance with the cookie configuration added.
      */
     public function withCookie(
         string $name,
@@ -164,14 +222,15 @@ final class Response
         }
         $cookie .= '; SameSite=' . $samesite;
 
-        // BUG-4 FIX: Append to cookies array instead of overwriting headers['Set-Cookie'].
-        // This allows multiple Set-Cookie headers (session, CSRF, tracking, etc.)
         $this->cookies[] = $cookie;
         return $this;
     }
 
     /**
-     * Add X-API-Version header.
+     * Fluent modifier to configure the custom API version header.
+     *
+     * @param string $version The API version string. Defaults to '1.0'.
+     * @return self The Response instance with the API version header set.
      */
     public function withApiVersion(string $version = '1.0'): self
     {
@@ -179,47 +238,56 @@ final class Response
         return $this;
     }
 
-    // ——— Send ——————————————————————————————————————————————————
-
     /**
-     * Send the response to the client.
+     * Emits headers, status code, cookies, and body output streams to the HTTP client.
+     *
+     * @return void
      */
     public function send(): void
     {
-        // Status line
+        // Emit status response code.
         http_response_code($this->statusCode);
 
-        // Headers
+        // Emit response headers.
         foreach ($this->headers as $name => $value) {
             header("{$name}: {$value}", true);
         }
 
-        // BUG-4 FIX: Send each cookie as a separate Set-Cookie header.
-        // header(_, false) appends instead of replacing.
+        // Emit Set-Cookie headers.
         foreach ($this->cookies as $cookie) {
             header("Set-Cookie: {$cookie}", false);
         }
 
-        // Body
+        // Emit body contents.
         if ($this->body !== '') {
             echo $this->body;
         }
     }
 
-    // ——— Accessors —————————————————————————————————————————————
-
+    /**
+     * Retrieves the HTTP status code.
+     *
+     * @return int The status code.
+     */
     public function getStatusCode(): int
     {
         return $this->statusCode;
     }
 
+    /**
+     * Retrieves the response body string.
+     *
+     * @return string The response body content.
+     */
     public function getBody(): string
     {
         return $this->body;
     }
 
     /**
-     * @return array<string, string>
+     * Retrieves the response headers map.
+     *
+     * @return array<string, string> The headers map.
      */
     public function getHeaders(): array
     {
@@ -227,8 +295,11 @@ final class Response
     }
 
     /**
-     * Plain text response (alias for text).
-     * Used by CronController.
+     * Alias method for plain text response creation.
+     *
+     * @param string $text The text content payload.
+     * @param int $status The HTTP status code. Defaults to 200.
+     * @return self The populated Response instance.
      */
     public static function plain(string $text, int $status = 200): self
     {

@@ -9,14 +9,41 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\System\PaginationService;
 
+/**
+ * Class CustomerController
+ *
+ * Coordinates administrative customer management operations, handling creation, display,
+ * search/pagination, and deletion of customer profiles while ensuring proper context isolation
+ * and PII decryption.
+ *
+ * @package OwnPay\Controller\Admin
+ */
 final class CustomerController
 {
     use AdminPageTrait;
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
+
+    /**
+     * @var \OwnPay\Repository\CustomerRepository The customer records repository.
+     */
     private \OwnPay\Repository\CustomerRepository $customerRepo;
 
+    /**
+     * CustomerController constructor.
+     *
+     * @param Container                             $c            The dependency injection container.
+     * @param AdminSession                          $session      The administrative session service.
+     * @param \OwnPay\Repository\CustomerRepository $customerRepo The customer records repository.
+     */
     public function __construct(Container $c, AdminSession $session, \OwnPay\Repository\CustomerRepository $customerRepo) 
     { 
         $this->c = $c;
@@ -24,6 +51,13 @@ final class CustomerController
         $this->customerRepo = $customerRepo;
     }
 
+    /**
+     * Lists customers of the active brand with pagination and search filtering.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The customers list overview response.
+     */
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class); 
@@ -67,6 +101,13 @@ final class CustomerController
         ]);
     }
 
+    /**
+     * Displays details for a single customer profile, decrypted, along with transaction history.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The customer details page.
+     */
     public function show(Request $req): Response
     {
         $id = (int) $req->param('id');
@@ -104,6 +145,13 @@ final class CustomerController
         ]);
     }
 
+    /**
+     * Renders the customer creation view.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The customer creation page response.
+     */
     public function create(Request $req): Response
     {
         return $this->renderAdminPage('admin/customers/create.twig', [
@@ -111,6 +159,13 @@ final class CustomerController
         ]);
     }
 
+    /**
+     * Stores a new customer profile encrypting sensitive PII fields.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response to the customer listing.
+     */
     public function store(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
@@ -151,6 +206,13 @@ final class CustomerController
         return Response::redirect('/admin/customers');
     }
 
+    /**
+     * Deletes a customer profile under the scoped merchant context.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response.
+     */
     public function delete(Request $req): Response
     {
         $id = (int) $req->param('id');

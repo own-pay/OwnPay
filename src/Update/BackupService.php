@@ -7,16 +7,46 @@ use OwnPay\Service\System\Logger;
 use OwnPay\Support\DateHelper;
 
 /**
- * Backup service — DB dump + code ZIP for update rollback.
+ * Enterprise system backup and rollback recovery service.
  *
- * Per security skill: backups include DB schema + data, code files.
+ * Facilitates the generation of database dumps and zip archives of core
+ * application directories before update execution, allowing reliable
+ * point-in-time recovery. Uses secure CLI commands and falls back to PDO-driven
+ * schema serialization when CLI utilities are unavailable.
+ *
+ * @category Update
+ * @package  OwnPay\Update
  */
 final class BackupService
 {
+    /**
+     * Directory path where backup files are saved.
+     *
+     * @var string
+     */
     private string $backupDir;
+
+    /**
+     * Application logging service.
+     *
+     * @var \OwnPay\Service\System\Logger|null
+     */
     private ?Logger $logger;
+
+    /**
+     * Database connection wrapper instance.
+     *
+     * @var \OwnPay\Core\Database
+     */
     private \OwnPay\Core\Database $db;
 
+    /**
+     * BackupService constructor.
+     *
+     * @param string|null                $backupDir Custom directory to store backups.
+     * @param \OwnPay\Service\System\Logger|null $logger    Optional logger interface.
+     * @param \OwnPay\Core\Database|null        $db        Optional database instance.
+     */
     public function __construct(?string $backupDir = null, ?Logger $logger = null, ?\OwnPay\Core\Database $db = null)
     {
         $this->backupDir = $backupDir ?? dirname(__DIR__, 2) . '/storage/backups';
@@ -28,8 +58,12 @@ final class BackupService
     }
 
     /**
-     * Create full backup (DB + code).
-     * @return string Path to backup directory
+     * Generates a full system backup containing database schema/data and source code.
+     *
+     * Creates a timestamped directory containing database.sql, code.zip, and
+     * a manifest describing the backup metadata.
+     *
+     * @return string Path to the newly created backup directory.
      */
     public function createFullBackup(): string
     {
@@ -37,13 +71,10 @@ final class BackupService
         $backupPath = $this->backupDir . '/backup_' . $timestamp;
         @mkdir($backupPath, 0755, true);
 
-        // 1. Database dump
         $this->dumpDatabase($backupPath . '/database.sql');
 
-        // 2. Code backup (ZIP key directories)
         $this->backupCode($backupPath . '/code.zip');
 
-        // 3. Write manifest
         file_put_contents($backupPath . '/manifest.json', json_encode([
             'timestamp'  => $timestamp,
             'version'    => getenv('APP_VERSION') ?: '0.1.0',
@@ -56,13 +87,17 @@ final class BackupService
     }
 
     /**
-     * Restore from backup directory.
+     * Restores the application to a previous state from a specified backup path.
+     *
+     * Extracts source code archives and runs sequential restoration of the database dump.
+     *
+     * @param string $backupPath Path to the backup folder.
+     * @return void
      */
     public function restore(string $backupPath): void
     {
         $manifest = json_decode(file_get_contents($backupPath . '/manifest.json') ?: '{}', true);
 
-        // 1. Restore code
         $codeZip = $backupPath . '/code.zip';
         if (file_exists($codeZip)) {
             $zip = new \ZipArchive();
@@ -72,7 +107,6 @@ final class BackupService
             }
         }
 
-        // 2. Restore database
         $dbFile = $backupPath . '/database.sql';
         if (file_exists($dbFile)) {
             $this->restoreDatabase($dbFile);
@@ -80,7 +114,10 @@ final class BackupService
     }
 
     /**
-     * Cleanup old backups (keep last N).
+     * Automatically prunes older backups keeping only a defined number of newest archives.
+     *
+     * @param int $keepLast Maximum number of recent backups to preserve.
+     * @return void
      */
     public function cleanup(int $keepLast = 5): void
     {
@@ -89,7 +126,7 @@ final class BackupService
             return;
         }
 
-        rsort($backups); // Newest first
+        rsort($backups);
         $toDelete = array_slice($backups, $keepLast);
 
         foreach ($toDelete as $dir) {
@@ -97,6 +134,15 @@ final class BackupService
         }
     }
 
+    /**
+     * Dumps the database using mysqldump if available, otherwise falls back to PDO-based extraction.
+     *
+     * Secures credentials by writing a temporary config file (defaults-extra-file) to prevent
+     * credentials from showing up in system process tables.
+     *
+     * @param string $outputPath Path where the SQL file should be saved.
+     * @return void
+     */
     private function dumpDatabase(string $outputPath): void
     {
         $host = getenv('DB_HOST') ?: 'localhost';
@@ -105,7 +151,6 @@ final class BackupService
         $pass = getenv('DB_PASS') ?: '';
         $port = getenv('DB_PORT') ?: '3306';
 
-        // Use --defaults-extra-file to keep password out of process list.
         $tmpCnf = tempnam(sys_get_temp_dir(), 'op_dump_');
         file_put_contents($tmpCnf, "[client]\nuser={$user}\npassword={$pass}\nhost={$host}\nport={$port}\n", LOCK_EX);
         @chmod($tmpCnf, 0600);
@@ -120,13 +165,19 @@ final class BackupService
         $output = [];
         $exitCode = 0;
         exec($cmd, $output, $exitCode);
-        @unlink($tmpCnf); // Always clean up
+        @unlink($tmpCnf);
 
         if ($exitCode !== 0) {
             $this->pdoDump($outputPath);
         }
     }
 
+    /**
+     * Fallback database exporter using PHP PDO connection and dynamic table definition discovery.
+     *
+     * @param string $outputPath Path where the SQL file should be saved.
+     * @return void
+     */
     private function pdoDump(string $outputPath): void
     {
         $db = $this->db;
@@ -152,6 +203,14 @@ final class BackupService
         file_put_contents($outputPath, $sql);
     }
 
+    /**
+     * Restores database schema and records from an SQL file.
+     *
+     * Parses the dump file into single queries and executes them sequentially.
+     *
+     * @param string $sqlFile Absolute path to the SQL dump file.
+     * @return void
+     */
     private function restoreDatabase(string $sqlFile): void
     {
         $sql = file_get_contents($sqlFile);
@@ -172,10 +231,12 @@ final class BackupService
     }
 
     /**
-     * Split SQL into individual statements, respecting quoted strings.
-     * Semicolons inside single-quoted or double-quoted strings are not treated as delimiters.
+     * Splitting logic for SQL dump processing that respects single and double quotes.
      *
-     * @return string[]
+     * Prevents semicolons contained within text fields from incorrectly segmenting queries.
+     *
+     * @param string $sql Raw SQL content.
+     * @return array<int, string> Ordered list of valid SQL queries.
      */
     private function splitSqlStatements(string $sql): array
     {
@@ -189,7 +250,6 @@ final class BackupService
             $char = $sql[$i];
             $prev = $i > 0 ? $sql[$i - 1] : '';
 
-            // Handle escaped quotes
             if ($prev === '\\') {
                 $current .= $char;
                 continue;
@@ -213,7 +273,6 @@ final class BackupService
             $current .= $char;
         }
 
-        // Handle last statement (no trailing semicolon)
         $stmt = trim($current);
         if ($stmt !== '' && !str_starts_with($stmt, '--')) {
             $statements[] = $stmt;
@@ -222,6 +281,14 @@ final class BackupService
         return $statements;
     }
 
+    /**
+     * Backup application directory files into a single ZIP archive.
+     *
+     * Backs up source (src), templates, config, and web root (public) directories.
+     *
+     * @param string $outputPath Path where the ZIP file should be generated.
+     * @return void
+     */
     private function backupCode(string $outputPath): void
     {
         $appRoot = dirname(__DIR__, 2);
@@ -249,6 +316,12 @@ final class BackupService
         $zip->close();
     }
 
+    /**
+     * Recursively purges a directory and its nested file contents.
+     *
+     * @param string $dir Path to the target directory.
+     * @return void
+     */
     private function removeDir(string $dir): void
     {
         $items = new \RecursiveIteratorIterator(

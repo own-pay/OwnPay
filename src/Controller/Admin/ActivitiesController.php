@@ -11,14 +11,41 @@ use OwnPay\Repository\AuditLogRepository;
 use OwnPay\Service\System\PaginationService;
 use OwnPay\Service\Brand\BrandContext;
 
+/**
+ * Controller orchestrating the display of audit logs and system activities within the admin portal.
+ */
 final class ActivitiesController
 {
     use AdminPageTrait;
 
+    /**
+     * Dependency injection container.
+     *
+     * @var Container
+     */
     private Container $c;
+
+    /**
+     * Session wrapper service for authenticated administrative operations.
+     *
+     * @var AdminSession
+     */
     private AdminSession $session;
+
+    /**
+     * Repository containing audit trail logs.
+     *
+     * @var AuditLogRepository
+     */
     private AuditLogRepository $auditRepo;
 
+    /**
+     * Initialises the ActivitiesController.
+     *
+     * @param Container $c Dependency injection container instance.
+     * @param AdminSession $session Active admin session service.
+     * @param AuditLogRepository $auditRepo Audit log data repository.
+     */
     public function __construct(Container $c, AdminSession $session, AuditLogRepository $auditRepo)
     {
         $this->c         = $c;
@@ -26,11 +53,20 @@ final class ActivitiesController
         $this->auditRepo = $auditRepo;
     }
 
+    /**
+     * Renders a list of system activities.
+     *
+     * Scopes results based on permissions: Superadmins can review logs globally,
+     * while standard administrators are restricted to logs matching their active brand context.
+     *
+     * @param Request $req Outbound HTTP request instance.
+     * @return Response HTTP response wrapper.
+     */
     public function index(Request $req): Response
     {
         $isSuperadmin = $_SESSION['is_superadmin'] ?? false;
 
-        // Superadmin sees all brands; others scoped to active brand
+        // Superadmins inspect all records globally; standard staff scope to active brand ID
         $mid = null;
         if (!$isSuperadmin) {
             $brand = $this->c->get(BrandContext::class);

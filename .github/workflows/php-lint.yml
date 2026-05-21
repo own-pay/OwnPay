@@ -2,9 +2,9 @@ name: PHP Lint Guard
 
 on:
   push:
-    branches: [ "main", "v2/complete_refactoring" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main", "v2/complete_refactoring" ]
+    branches: [ "main", "dev" ]
 
 jobs:
   php-lint:

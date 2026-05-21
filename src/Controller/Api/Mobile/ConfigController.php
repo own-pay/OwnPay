@@ -11,23 +11,39 @@ use OwnPay\Repository\SettingsRepository;
 use OwnPay\Support\DateHelper;
 
 /**
+ * Class ConfigController
+ *
  * Mobile Config API — returns dynamic filter rules for the mobile companion app.
- *
- * GET /api/mobile/v1/config/filter-rules
- *
  * The mobile app uses this response to:
  *  - Know which SMS senders (From field) are whitelisted
  *  - Filter positive/negative keywords before sending to server
  *  - Know how often to refresh this config
  *
  * OWASP: Requires JWT auth (MobileAuthMiddleware). Brand-scoped.
+ *
+ * @package OwnPay\Controller\Api\Mobile
  */
 final class ConfigController
 {
+    /**
+     * @var SmsTemplateRepository The SMS template repository.
+     */
     private SmsTemplateRepository $smsTemplates;
+
+    /**
+     * @var SettingsRepository The settings repository.
+     */
     private SettingsRepository $settings;
 
-    /** @phpstan-ignore-next-line */
+    /**
+     * ConfigController constructor.
+     *
+     * @param Container             $c            The DI container.
+     * @param SmsTemplateRepository $smsTemplates The SMS template repository.
+     * @param SettingsRepository    $settings     The settings repository.
+     *
+     * @phpstan-ignore-next-line
+     */
     public function __construct(Container $c, SmsTemplateRepository $smsTemplates, SettingsRepository $settings)
     {
         $this->smsTemplates = $smsTemplates;
@@ -35,9 +51,12 @@ final class ConfigController
     }
 
     /**
+     * Retrieves the sender whitelist + keyword filters for the mobile SMS privacy gate.
+     *
      * GET /api/mobile/v1/config/filter-rules
      *
-     * Returns sender whitelist + keyword filters for the mobile SMS privacy gate.
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with filter rules config.
      */
     public function filterRules(Request $req): Response
     {
@@ -79,11 +98,12 @@ final class ConfigController
     }
 
     /**
-     * Parse a newline/comma separated keyword string into array.
-     * Falls back to $defaults if setting is empty.
+     * Parses a newline/comma separated keyword string into an array.
+     * Falls back to default list if setting is empty.
      *
-     * @param  string[] $defaults
-     * @return string[]
+     * @param string   $raw      The raw settings string.
+     * @param string[] $defaults The fallback defaults list.
+     * @return string[] The parsed keywords array.
      */
     private function parseKeywords(string $raw, array $defaults): array
     {

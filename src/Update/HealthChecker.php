@@ -4,39 +4,51 @@ declare(strict_types=1);
 namespace OwnPay\Update;
 
 /**
- * Health checker — post-update verification.
+ * System diagnostic and integrity verification service.
+ *
+ * Runs post-update checks to verify database connectivity, critical file existence,
+ * required PHP extensions (e.g. BCMath, OpenSSL), environment configuration files,
+ * and appropriate filesystem write permissions.
+ *
+ * @category Update
+ * @package  OwnPay\Update
  */
 final class HealthChecker
 {
+    /**
+     * Database connection wrapper instance.
+     *
+     * @var \OwnPay\Core\Database
+     */
     private \OwnPay\Core\Database $db;
 
+    /**
+     * HealthChecker constructor.
+     *
+     * @param \OwnPay\Core\Database|null $db Optional database instance.
+     */
     public function __construct(?\OwnPay\Core\Database $db = null)
     {
         $this->db = $db ?? \OwnPay\Core\Database::getInstance();
     }
 
     /**
-     * Run health checks after update.
+     * Orchestrates and runs all registered system health checks.
      *
-     * @return array{healthy: bool, checks: array, error?: string}
+     * @return array{healthy: bool, checks: array<string, array{ok: bool, error: ?string}>, error: ?string} Diagnostics summary.
      */
     public function check(): array
     {
         $checks = [];
 
-        // 1. Database connectivity
         $checks['database'] = $this->checkDatabase();
 
-        // 2. Required files exist
         $checks['files'] = $this->checkFiles();
 
-        // 3. PHP extensions
         $checks['extensions'] = $this->checkExtensions();
 
-        // 4. Config loaded
         $checks['config'] = $this->checkConfig();
 
-        // 5. Writable directories
         $checks['writable'] = $this->checkWritable();
 
         $healthy = true;
@@ -55,6 +67,11 @@ final class HealthChecker
         ];
     }
 
+    /**
+     * Verifies connection integrity and basic query execution against the database.
+     *
+     * @return array{ok: bool, error: ?string} Diagnostic result.
+     */
     private function checkDatabase(): array
     {
         try {
@@ -65,6 +82,11 @@ final class HealthChecker
         }
     }
 
+    /**
+     * Verifies that all mandatory source and framework files exist on the filesystem.
+     *
+     * @return array{ok: bool, error: ?string} Diagnostic result.
+     */
     private function checkFiles(): array
     {
         $root = dirname(__DIR__, 2);
@@ -83,6 +105,14 @@ final class HealthChecker
         return ['ok' => true, 'error' => null];
     }
 
+    /**
+     * Validates that all required PHP core and utility extensions are loaded.
+     *
+     * Validates extensions such as 'bcmath' (required for double-entry bookkeeping precision)
+     * and 'openssl' (required for payment credentials encryption).
+     *
+     * @return array{ok: bool, error: ?string} Diagnostic result.
+     */
     private function checkExtensions(): array
     {
         $required = ['pdo', 'pdo_mysql', 'openssl', 'mbstring', 'json', 'bcmath'];
@@ -94,6 +124,11 @@ final class HealthChecker
         return ['ok' => true, 'error' => null];
     }
 
+    /**
+     * Confirms presence of the environment configuration file (.env).
+     *
+     * @return array{ok: bool, error: ?string} Diagnostic result.
+     */
     private function checkConfig(): array
     {
         $configFile = dirname(__DIR__, 2) . '/.env';
@@ -103,6 +138,11 @@ final class HealthChecker
         return ['ok' => true, 'error' => null];
     }
 
+    /**
+     * Verifies write access on local runtime cache and logging directories.
+     *
+     * @return array{ok: bool, error: ?string} Diagnostic result.
+     */
     private function checkWritable(): array
     {
         $root = dirname(__DIR__, 2);

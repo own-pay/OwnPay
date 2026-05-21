@@ -6,38 +6,64 @@ namespace OwnPay\Event;
 use OwnPay\Service\System\Logger;
 
 /**
- * Hook/Filter event engine — sole event API for Own Pay.
+ * Class EventManager
  *
- * Actions: fire-and-forget callbacks.
- * Filters: pass data through callbacks, each can modify and return it.
+ * The sole event dispatching and processing engine for the OwnPay platform.
+ * Provides action (fire-and-forget) and filter (pipeline mutation) hooks allowing addons, custom themes,
+ * and gateway integrations to extend core checkout, billing, and notification features.
+ * Enforces strict error isolation by capturing and logging hook exceptions individually, preventing
+ * third-party plugin failures from crashing critical transaction flows or double-entry ledger bookkeeping tasks.
  *
- * Every callback is wrapped in try/catch — a broken plugin never crashes the system.
+ * @package OwnPay\Event
  */
 final class EventManager
 {
     /**
+     * Registered actions mapped by event hook name.
+     *
      * @var array<string, array<int, array{callable: callable, priority: int, owner: string}>>
      */
     private array $actions = [];
 
     /**
+     * Registered filters mapped by event hook name.
+     *
      * @var array<string, array<int, array{callable: callable, priority: int, owner: string}>>
      */
     private array $filters = [];
 
-    /** @var array<string, int> Hook fire counters for debugging */
+    /**
+     * Counter tracker indicating how many times each hook has been fired.
+     *
+     * @var array<string, int>
+     */
     private array $fireCounts = [];
 
-    /** @var string[] Stack of active plugin owners */
+    /**
+     * Stack tracking the currently active plugin owner execution context.
+     *
+     * @var array<int, string>
+     */
     private array $ownerStack = [];
 
+    /**
+     * The system logging service instance.
+     *
+     * @var \OwnPay\Service\System\Logger|null
+     */
     private ?Logger $logger = null;
 
-    /** @var self|null Singleton instance for static access from cron jobs */
+    /**
+     * The singleton instance for non-dependency injected execution (e.g. cron triggers).
+     *
+     * @var self|null
+     */
     private static ?self $instance = null;
 
     /**
-     * Get the singleton instance.
+     * Retrieve the singleton instance.
+     *
+     * @return self The active event manager instance.
      */
     public static function getInstance(): self
     {
@@ -48,7 +74,12 @@ final class EventManager
     }
 
     /**
-     * Set the singleton instance (called by DI container).
+     * Assign the singleton instance.
+     *
+     * Typically executed by the dependency injection container bootstrap phase.
+     *
+     * @param self $instance The event manager instance to bind.
+     * @return void
      */
     public static function setInstance(self $instance): void
     {
@@ -56,7 +87,11 @@ final class EventManager
     }
 
     /**
-     * Reset the singleton instance (for testing).
+     * Reset the static singleton instance.
+     *
+     * Primary usage resides within unit test suite teardown cycles.
+     *
+     * @return void
      */
     public static function resetInstance(): void
     {
@@ -64,28 +99,36 @@ final class EventManager
     }
 
     /**
-     * Get the currently active plugin owner.
-     * Returns 'core' or the active plugin slug.
+     * Resolve the current execution context owner.
+     *
+     * @return string Returns 'core' or the active plugin slug identifier.
      */
     public function getActiveOwner(): string
     {
         return empty($this->ownerStack) ? 'core' : end($this->ownerStack);
     }
 
+    /**
+     * Set the system logger.
+     *
+     * @param \OwnPay\Service\System\Logger $logger The logging engine instance.
+     * @return void
+     */
     public function setLogger(Logger $logger): void
     {
         $this->logger = $logger;
     }
 
-
-
     /**
      * Register an action callback.
      *
-     * @param string   $hook     Hook name (e.g., 'payment.transaction.completed')
-     * @param callable $callback The callback to fire
-     * @param int      $priority Lower = earlier. Default 10.
-     * @param string   $owner    Plugin slug or 'core'
+     * Actions are fire-and-forget triggers that execute callbacks sequentially when matching events fire.
+     *
+     * @param string $hook The unique event hook namespace (e.g., 'payment.transaction.completed').
+     * @param callable $callback The listener function block or method.
+     * @param int $priority Execution order index; smaller integers execute first.
+     * @param string $owner Slug identifier of the registering plugin or 'core'.
+     * @return void
      */
     public function addAction(
         string $hook,
@@ -102,10 +145,14 @@ final class EventManager
     }
 
     /**
-     * Fire all callbacks registered for an action hook.
+     * Execute all registered action callbacks matching the hook name.
      *
-     * @param string $hook Hook name
-     * @param mixed  ...$args Arguments passed to each callback
+     * Wraps individual listener callbacks in try-catch structures to prevent single listener failures
+     * from disrupting other hooks or the primary thread flow.
+     *
+     * @param string $hook The event hook namespace to trigger.
+     * @param mixed ...$args Variable list of arguments passed to each registered listener.
+     * @return void
      */
     public function doAction(string $hook, mixed ...$args): void
     {
@@ -127,15 +174,16 @@ final class EventManager
         }
     }
 
-
-
     /**
      * Register a filter callback.
      *
-     * @param string   $hook     Filter name (e.g., 'payment.amount.calculate')
-     * @param callable $callback fn($value, ...$args): mixed — must return modified value
-     * @param int      $priority Lower = earlier. Default 10.
-     * @param string   $owner    Plugin slug or 'core'
+     * Filters pass a target value through a pipeline of callbacks where each can modify and return the value.
+     *
+     * @param string $hook The unique event hook namespace (e.g., 'payment.amount.calculate').
+     * @param callable $callback The filter function matching fn($value, ...$args): mixed signature.
+     * @param int $priority Execution order index; smaller integers execute first.
+     * @param string $owner Slug identifier of the registering plugin or 'core'.
+     * @return void
      */
     public function addFilter(
         string $hook,
@@ -152,12 +200,15 @@ final class EventManager
     }
 
     /**
-     * Pass a value through all filter callbacks.
+     * Transform a target value by piping it sequentially through registered filters.
      *
-     * @param string $hook  Filter name
-     * @param mixed  $value The value to filter
-     * @param mixed  ...$args Additional arguments
-     * @return mixed The filtered value
+     * Safeguards execution pipeline by capturing plugin-side exceptions and returning
+     * the last valid mutated value block, ensuring critical processes continue uninterrupted.
+     *
+     * @param string $hook The filter event hook namespace.
+     * @param mixed $value The initial value to be transformed.
+     * @param mixed ...$args Additional contextual parameters forwarded to the filter callbacks.
+     * @return mixed The mutated final filtered value representation.
      */
     public function applyFilter(string $hook, mixed $value, mixed ...$args): mixed
     {
@@ -181,9 +232,11 @@ final class EventManager
         return $value;
     }
 
-
     /**
-     * Remove all action/filter callbacks for a given hook.
+     * Purge all action and filter callbacks bound to the specified event hook.
+     *
+     * @param string $hook The event hook namespace to clean.
+     * @return void
      */
     public function removeHook(string $hook): void
     {
@@ -191,7 +244,10 @@ final class EventManager
     }
 
     /**
-     * Remove all callbacks owned by a specific plugin slug.
+     * Purge all hook registrations belonging to a specific plugin owner.
+     *
+     * @param string $owner The unique slug identifier of the plugin owner.
+     * @return void
      */
     public function removeByOwner(string $owner): void
     {
@@ -216,10 +272,11 @@ final class EventManager
         unset($listeners);
     }
 
-
-
     /**
-     * Check if any callbacks are registered for a hook (action or filter).
+     * Check if one or more listeners are actively bound to the given event hook.
+     *
+     * @param string $hook The event hook namespace.
+     * @return bool True if listeners exist, false otherwise.
      */
     public function hasHook(string $hook): bool
     {
@@ -227,7 +284,10 @@ final class EventManager
     }
 
     /**
-     * Get number of times a hook has been fired.
+     * Retrieve the count of trigger calls dispatched to the specified hook during execution.
+     *
+     * @param string $hook The event hook namespace.
+     * @return int The total fire count value.
      */
     public function getFireCount(string $hook): int
     {
@@ -235,9 +295,9 @@ final class EventManager
     }
 
     /**
-     * Get all registered hooks with their listener counts.
+     * Retrieve a list of all registered event hooks and their respective listener counts.
      *
-     * @return array<string, array{actions: int, filters: int}>
+     * @return array<string, array{actions: int, filters: int}> Map of hook namespaces to listener tallies.
      */
     public function getRegisteredHooks(): array
     {
@@ -254,23 +314,48 @@ final class EventManager
         return $hooks;
     }
 
-
-
+    /**
+     * Alias wrapper method for applyFilter.
+     *
+     * @param string $hook The filter event hook namespace.
+     * @param mixed $value The initial value.
+     * @param mixed ...$args Additional parameters.
+     * @return mixed The mutated value.
+     */
     public function applyFilters(string $hook, mixed $value, mixed ...$args): mixed
     {
         return $this->applyFilter($hook, $value, ...$args);
     }
 
+    /**
+     * Check if action listeners exist for the specified event hook.
+     *
+     * @param string $hook The event hook namespace.
+     * @return bool True if action listeners are registered, false otherwise.
+     */
     public function hasAction(string $hook): bool
     {
         return !empty($this->actions[$hook]);
     }
 
+    /**
+     * Check if filter listeners exist for the specified event hook.
+     *
+     * @param string $hook The event hook namespace.
+     * @return bool True if filter listeners are registered, false otherwise.
+     */
     public function hasFilter(string $hook): bool
     {
         return !empty($this->filters[$hook]);
     }
 
+    /**
+     * Unregister a specific action callback from the hook list.
+     *
+     * @param string $hook The event hook namespace.
+     * @param callable $callback The registered callable instance.
+     * @return bool True if callback was successfully removed, false otherwise.
+     */
     public function removeAction(string $hook, callable $callback): bool
     {
         if (empty($this->actions[$hook])) {
@@ -286,6 +371,13 @@ final class EventManager
         return count($this->actions[$hook] ?? []) < $initialCount;
     }
 
+    /**
+     * Unregister a specific filter callback from the hook list.
+     *
+     * @param string $hook The event hook namespace.
+     * @param callable $callback The registered filter callable instance.
+     * @return bool True if callback was successfully removed, false otherwise.
+     */
     public function removeFilter(string $hook, callable $callback): bool
     {
         if (empty($this->filters[$hook])) {
@@ -301,6 +393,12 @@ final class EventManager
         return count($this->filters[$hook] ?? []) < $initialCount;
     }
 
+    /**
+     * Purge all action and filter hook registrations owned by the specified plugin slug.
+     *
+     * @param string $owner The unique slug identifier of the plugin owner.
+     * @return int The total number of callbacks removed.
+     */
     public function removeAllByOwner(string $owner): int
     {
         $removed = 0;
@@ -331,6 +429,11 @@ final class EventManager
         return $removed;
     }
 
+    /**
+     * Retrieve all registered actions and filters with their current registration tallies.
+     *
+     * @return array{actions: array<string, int>, filters: array<string, int>} Map of registered listeners.
+     */
     public function getRegistered(): array
     {
         $actions = [];
@@ -347,6 +450,14 @@ final class EventManager
         ];
     }
 
+    /**
+     * Inspect all action and filter listeners registered under the specified hook name.
+     *
+     * Sorts the merged list of listeners according to their priority.
+     *
+     * @param string $hook The target hook name to inspect.
+     * @return array<int, array{callable: callable, priority: int, owner: string}> Sorted list of listener data arrays.
+     */
     public function inspectHook(string $hook): array
     {
         $listeners = array_merge(
@@ -357,6 +468,14 @@ final class EventManager
         return $listeners;
     }
 
+    /**
+     * Write error details generated during hook invocation into the system log.
+     *
+     * @param string $hook The triggered hook namespace.
+     * @param string $owner The slug identifier of the plugin that threw the exception.
+     * @param \Throwable $e The exception object.
+     * @return void
+     */
     private function logHookError(string $hook, string $owner, \Throwable $e): void
     {
         $message = sprintf(
@@ -372,3 +491,4 @@ final class EventManager
         }
     }
 }
+

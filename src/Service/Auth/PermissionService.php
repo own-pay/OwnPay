@@ -6,19 +6,36 @@ namespace OwnPay\Service\Auth;
 use OwnPay\Repository\RoleRepository;
 
 /**
- * Permission service — CRUD for roles/permissions, sync operations, and schema helpers.
+ * OwnPay Permission Service.
+ *
+ * Implements administrative role CRUD management, permission mapping schemas,
+ * tenant-scoped validation safeguards, and role permission synchronization.
+ *
+ * @package OwnPay\Service\Auth
  */
 final class PermissionService
 {
+    /**
+     * @var RoleRepository|null Role repository connection, nullable for stateless validation.
+     */
     private ?RoleRepository $roles;
 
+    /**
+     * PermissionService constructor.
+     *
+     * @param RoleRepository|null $roles Role database interface repository.
+     */
     public function __construct(?RoleRepository $roles = null)
     {
         $this->roles = $roles;
     }
 
     /**
-     * Get available permission schema.
+     * Returns the structured default permission schema map.
+     *
+     * Defines accessible dashboard tabs, resource actions, and pages.
+     *
+     * @return array{resources: array<string, array<string, bool>>, pages: array<string, bool>}
      */
     public static function permissionSchema(): array
     {
@@ -37,7 +54,11 @@ final class PermissionService
     }
 
     /**
-     * Count permissions for a specific tab.
+     * Counts the total number of permission flags contained within a specific schema tab group.
+     *
+     * @param string $tab The tab section identifier ('resources' or 'pages').
+     * @param array<string, mixed> $tabData The schema subset array.
+     * @return int Computed count of permission capabilities.
      */
     public static function countPermissions(string $tab, array $tabData): int
     {
@@ -63,7 +84,15 @@ final class PermissionService
     }
 
     /**
-     * Check if a role has permission for a resource and action.
+     * Evaluates if a specific system role possesses capability on a given resource action.
+     *
+     * Superadmin ('admin') role bypasses all checks dynamically.
+     *
+     * @param array{resources?: array<string, array<string, bool>>} $perms Loaded permission map.
+     * @param string $resource Target resource key.
+     * @param string $action Target resource action.
+     * @param string $role User's system role name.
+     * @return bool True if authorized; false otherwise.
      */
     public static function hasPermission(array $perms, string $resource, string $action, string $role): bool
     {
@@ -74,7 +103,12 @@ final class PermissionService
     }
 
     /**
-     * Check if a role can access a page.
+     * Evaluates if a role has structural navigation access to a specific dashboard page.
+     *
+     * @param array{pages?: array<string, bool>} $perms Loaded permission map.
+     * @param string $page Target page route slug.
+     * @param string $role User's system role name.
+     * @return bool True if authorized; false otherwise.
      */
     public static function canAccessPage(array $perms, string $page, string $role): bool
     {
@@ -85,7 +119,16 @@ final class PermissionService
     }
 
     /**
-     * Create custom role for merchant.
+     * Registers a new merchant/brand custom role and associates permission links.
+     *
+     * Enforces strict merchant segregation scoping.
+     *
+     * @param int $merchantId The owning merchant/brand context identifier.
+     * @param string $name Human readable display name.
+     * @param string $slug Unique route role identifier.
+     * @param int[] $permissionIds List of permission primary IDs to assign.
+     * @return string Generated role ID string.
+     * @throws \RuntimeException If the role repository dependency has not been instantiated.
      */
     public function createRole(int $merchantId, string $name, string $slug, array $permissionIds): string
     {
@@ -108,8 +151,12 @@ final class PermissionService
     }
 
     /**
-     * Update role permissions.
-     * @param int[] $permissionIds
+     * Synchronizes a role's target authorization permissions list.
+     *
+     * @param int $roleId Target role ID.
+     * @param int[] $permissionIds Array of permission IDs.
+     * @return void
+     * @throws \RuntimeException If the role repository has not been initialized.
      */
     public function updatePermissions(int $roleId, array $permissionIds): void
     {
@@ -120,8 +167,14 @@ final class PermissionService
     }
 
     /**
-     * Delete custom role (prevent system role deletion).
-     * BUG-22 FIX: Uses tenant-scoped methods to prevent cross-tenant IDOR.
+     * Removes a custom merchant role.
+     *
+     * Safe-guarded against deleting core system roles or crossing tenant boundaries.
+     *
+     * @param int $roleId Target role ID.
+     * @param int $merchantId The owning merchant/brand context identifier.
+     * @return bool True if deleted successfully; false otherwise.
+     * @throws \RuntimeException If the role repository has not been configured.
      */
     public function deleteRole(int $roleId, int $merchantId): bool
     {

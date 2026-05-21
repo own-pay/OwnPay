@@ -11,12 +11,20 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * Stripe gateway plugin — PluginInterface + GatewayAdapterInterface.
+ * Stripe payment gateway integration implementing cards, wallets, and international payments.
+ * 
+ * Handles payment session initialization, server-side callback/webhook verification,
+ * and refunds via the Stripe API.
  */
 final class StripeGateway implements PluginInterface, GatewayAdapterInterface
 {
     use GatewayDefaults;
 
+    /**
+     * Returns the plugin metadata array.
+     *
+     * @return array{name: string, slug: string, version: string, description: string, author: string, type: string} Plugin metadata.
+     */
     public static function metadata(): array
     {
         return [
@@ -26,21 +34,82 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /**
+     * Returns the unique slug identifying the gateway adapter.
+     *
+     * @return string Unique slug identifier.
+     */
     public function slug(): string { return 'stripe'; }
+
+    /**
+     * Returns the descriptive name of the gateway.
+     *
+     * @return string Descriptive name.
+     */
     public function name(): string { return 'Stripe'; }
+
+    /**
+     * Returns the version of this gateway adapter.
+     *
+     * @return string Version string.
+     */
     public function version(): string { return '1.0.0'; }
+
+    /**
+     * Returns the description of this gateway adapter.
+     *
+     * @return string Description string.
+     */
     public function description(): string { return 'Stripe payment gateway integration'; }
 
+    /**
+     * Registers plugin event listeners and hooks.
+     *
+     * @param EventManager $events Hook/filter event manager.
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function register(EventManager $events, Container $container): void {}
+
+    /**
+     * Boots the plugin during application startup.
+     *
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function boot(Container $container): void {}
+
+    /**
+     * Runs cleanup routine on plugin deactivation.
+     *
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function deactivate(Container $container): void {}
+
+    /**
+     * Runs database and file cleanup on plugin uninstallation.
+     *
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function uninstall(Container $container): void {}
 
+    /**
+     * Returns the capability set registered by this plugin.
+     *
+     * @return array<int, Capability> List of capabilities.
+     */
     public function capabilities(): array
     {
         return [Capability::GATEWAY];
     }
 
+    /**
+     * Defines configuration fields required to set up the gateway in the admin interface.
+     *
+     * @return array<int, array{name: string, label: string, type: string, required: bool, options?: array<string, string>}> Configuration schema arrays.
+     */
     public function fields(): array
     {
         return [
@@ -51,6 +120,14 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /**
+     * Initiates a payment checkout session with Stripe.
+     *
+     * @param array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url: string, metadata?: array<string, mixed>} $params Core transaction parameters.
+     * @param array{secret_key: string, publishable_key: string, webhook_secret?: string, mode: string} $credentials Decrypted, merchant-configured gateway credentials.
+     * @return array{redirect_url: string|null, session_id: string|null} Payment response containing redirect details.
+     * @throws \RuntimeException If the Stripe API returns a non-200 HTTP code.
+     */
     public function initiate(array $params, array $credentials): array
     {
         $secretKey = $credentials['secret_key'] ?? '';
@@ -92,6 +169,13 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /**
+     * Verifies the checkout session status with Stripe via server-side check.
+     *
+     * @param array<string, mixed> $callbackData Raw callback or webhook query parameters/JSON payload.
+     * @param array{secret_key: string, publishable_key: string, webhook_secret?: string, mode: string} $credentials Decrypted, merchant-configured gateway credentials.
+     * @return array{success: bool, gateway_trx_id: string, amount?: string|null, status: string, trx_id?: string} Verification outcome.
+     */
     public function verify(array $callbackData, array $credentials): array
     {
         // Resolve session ID from multiple payload formats:
@@ -153,8 +237,14 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
     }
 
     /**
-     * AUD-G6: Stripe webhook signature verification.
-     * Uses HMAC-SHA256 via Stripe-Signature header + webhook_secret credential.
+     * Verifies the authenticity of Stripe webhook payloads using HMAC-SHA256.
+     *
+     * Protects against replay attacks by verifying the Stripe-Signature timestamp is within 5 minutes.
+     *
+     * @param string $rawBody Raw JSON payload from the request body.
+     * @param array<string, string> $headers HTTP request headers (case-insensitive keys).
+     * @param array{secret_key: string, publishable_key: string, webhook_secret?: string, mode: string} $credentials Decrypted, merchant-configured gateway credentials.
+     * @return bool True if signature matches and is fresh, false otherwise.
      */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
@@ -198,6 +288,14 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
         return hash_equals($computedSig, $expectedSig);
     }
 
+    /**
+     * Processes a payment refund request with Stripe.
+     *
+     * @param string $gatewayTrxId The original Stripe Payment Intent ID (`payment_intent`).
+     * @param string $amount Refund amount.
+     * @param array{secret_key: string, publishable_key: string, webhook_secret?: string, mode: string} $credentials Decrypted, merchant-configured gateway credentials.
+     * @return array{success: bool, refund_id: string|null, error: string|null} Refund execution status.
+     */
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array
     {
         $secretKey = $credentials['secret_key'] ?? '';
@@ -226,6 +324,12 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /**
+     * Checks if the gateway adapter supports a given optional payment feature.
+     *
+     * @param string $feature Feature key (e.g. 'refund', 'recurring', 'verification').
+     * @return bool True if feature is supported, false otherwise.
+     */
     public function supports(string $feature): bool
     {
         return match ($feature) {

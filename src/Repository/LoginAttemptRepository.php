@@ -5,14 +5,35 @@ namespace OwnPay\Repository;
 
 use OwnPay\Support\DateHelper;
 
+/**
+ * Repository layer for login attempt logs (`op_login_attempts` table).
+ *
+ * Tracks administrative and merchant login attempts for brute-force protection 
+ * and audit trails.
+ *
+ * @package OwnPay\Repository
+ */
 final class LoginAttemptRepository extends BaseRepository
 {
+    /**
+     * @var string Database table name.
+     */
     protected string $table = 'op_login_attempts';
+
+    /**
+     * @var list<string> List of fields that can be mass-assigned.
+     */
     protected array $fillable = ['email', 'ip_address', 'user_agent', 'success'];
 
     /**
-     * Count recent failed attempts (for rate limiting).
-     * Per security skill: brute-force protection.
+     * Counts recent failed login attempts for brute-force rate-limiting.
+     *
+     * Queries within a rolling time window by either email address or source IP address.
+     *
+     * @param string $email The email address targeted in the login attempt.
+     * @param string $ip The source IP address of the request.
+     * @param int $windowSeconds The rolling time window in seconds (defaults to 300 / 5 minutes).
+     * @return int Total number of failed attempts detected in the window.
      */
     public function recentFailedCount(string $email, string $ip, int $windowSeconds = 300): int
     {
@@ -26,7 +47,12 @@ final class LoginAttemptRepository extends BaseRepository
     }
 
     /**
-     * Cleanup old entries (cron job).
+     * Cleans up old login attempt logs.
+     *
+     * Intended to be invoked via cron/scheduled maintenance jobs.
+     *
+     * @param int $days Cutoff age in days (defaults to 30).
+     * @return int Total number of deleted log records.
      */
     public function cleanOlderThan(int $days = 30): int
     {

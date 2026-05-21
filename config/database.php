@@ -2,12 +2,14 @@
 declare(strict_types=1);
 
 /**
- * Database configuration — sourced entirely from .env.
+ * Database connection configuration settings.
  *
- * Used by Container to build the PDO singleton.
- * No op-config.php dependency.
+ * Resolves connection coordinates, credentials, and drivers from environmental
+ * variables (.env). Configures custom PDO parameters to ensure strict preparation,
+ * exception handling, and consistent object mappings.
+ *
+ * @return array<string, mixed>
  */
-
 return [
     'driver'   => 'mysql',
     'host'     => $_ENV['DB_HOST'] ?? getenv('DB_HOST') ?: '127.0.0.1',
@@ -18,7 +20,7 @@ return [
     'charset'  => $_ENV['DB_CHARSET'] ?? getenv('DB_CHARSET') ?: 'utf8mb4',
     'collation'=> getenv('DB_COLLATION') ?: 'utf8mb4_unicode_ci',
 
-    // PDO options — strict mode, emulated prepares off, exceptions on
+    // PDO initialization attributes
     'options' => [
         \PDO::ATTR_ERRMODE            => \PDO::ERRMODE_EXCEPTION,
         \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,

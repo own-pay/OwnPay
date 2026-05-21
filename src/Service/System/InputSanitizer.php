@@ -4,15 +4,22 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * Input sanitizer — centralized XSS/injection prevention.
+ * Service facilitating centralized input sanitization and verification.
  *
- * Per OWASP: context-aware output encoding, SQL param binding (in DB layer).
+ * Implements context-aware sanitization routines to prevent common vulnerabilities
+ * such as Cross-Site Scripting (XSS) and injection attacks, aligning with OWASP best practices.
  */
 final class InputSanitizer
 {
     /**
-     * Sanitize string for HTML output (XSS prevention).
-     * If array, maps recursively. Strips tags and trims strings.
+     * Sanitizes input to prevent HTML injection and XSS exploits.
+     *
+     * Processes input arrays recursively. Note: In compliance with database architecture
+     * guidelines, this method avoids pre-escaping characters with `htmlspecialchars` to prevent
+     * double-encoding, since data is stored raw and escaped dynamically by templates (e.g. Twig).
+     *
+     * @param mixed $input Value to sanitize (array, string, numeric, object, etc.).
+     * @return mixed The stripped and trimmed output matching the source structure type.
      */
     public static function html(mixed $input): mixed
     {
@@ -33,7 +40,10 @@ final class InputSanitizer
     }
 
     /**
-     * Sanitize for attribute output.
+     * Encodes a string for safe output within HTML attributes.
+     *
+     * @param string $input String to sanitize.
+     * @return string Attribute-safe encoded string.
      */
     public static function attr(string $input): string
     {
@@ -41,7 +51,10 @@ final class InputSanitizer
     }
 
     /**
-     * Sanitize string — strip HTML tags, trim.
+     * Sanitizes a string by stripping HTML tags and trimming outer whitespace.
+     *
+     * @param string $input String to sanitize.
+     * @return string Cleansed string.
      */
     public static function string(string $input): string
     {
@@ -49,7 +62,10 @@ final class InputSanitizer
     }
 
     /**
-     * Sanitize email address.
+     * Sanitizes an email address, removing forbidden characters.
+     *
+     * @param string $input Email string candidate.
+     * @return string Sanitized email string.
      */
     public static function email(string $input): string
     {
@@ -57,7 +73,10 @@ final class InputSanitizer
     }
 
     /**
-     * Sanitize integer.
+     * Sanitizes a numeric value into an integer structure.
+     *
+     * @param mixed $input Target variable to sanitize.
+     * @return int Sanitized integer value.
      */
     public static function int(mixed $input): int
     {
@@ -65,7 +84,10 @@ final class InputSanitizer
     }
 
     /**
-     * Sanitize float/decimal.
+     * Sanitizes a currency or decimal value string, removing non-numeric markers.
+     *
+     * @param mixed $input Decimal candidate representation.
+     * @return string Normalized decimal string.
      */
     public static function decimal(mixed $input): string
     {
@@ -74,7 +96,10 @@ final class InputSanitizer
     }
 
     /**
-     * Sanitize URL.
+     * Sanitizes a URL, stripping forbidden path and protocol characters.
+     *
+     * @param string $input URL string candidate.
+     * @return string Sanitized URL.
      */
     public static function url(string $input): string
     {
@@ -82,7 +107,12 @@ final class InputSanitizer
     }
 
     /**
-     * Sanitize slug (alphanumeric + hyphens).
+     * Formats a string to compile with standard alphanumeric slug conventions.
+     *
+     * Converts characters to lowercase and transforms non-alphanumeric elements to hyphens.
+     *
+     * @param string $input Source string candidate.
+     * @return string Slug formatted string.
      */
     public static function slug(string $input): string
     {
@@ -92,7 +122,10 @@ final class InputSanitizer
     }
 
     /**
-     * Sanitize phone number.
+     * Sanitizes a telephone string, preserving standard phone symbols.
+     *
+     * @param string $input Telephone input string candidate.
+     * @return string Sanitized phone number.
      */
     public static function phone(string $input): string
     {
@@ -100,7 +133,15 @@ final class InputSanitizer
     }
 
     /**
-     * Sanitize array recursively.
+     * Processes arrays recursively using a selected local sanitization routine.
+     *
+     * Refuses execution if an unregistered helper method is requested, preventing
+     * dynamic invocation exploits.
+     *
+     * @param array<mixed> $input Target dataset array.
+     * @param string $method Target sanitization filter method name.
+     * @return array<mixed> The sanitized array output.
+     * @throws \InvalidArgumentException If the selected sanitization method name is not permitted.
      */
     public static function array(array $input, string $method = 'string'): array
     {
@@ -123,7 +164,10 @@ final class InputSanitizer
     }
 
     /**
-     * Trim surrounding whitespace recursively.
+     * Recursively trims whitespace from strings and array elements.
+     *
+     * @param mixed $input Value candidate to trim.
+     * @return mixed The trimmed value matching the source structure type.
      */
     public static function trim(mixed $input): mixed
     {
@@ -141,7 +185,12 @@ final class InputSanitizer
     }
 
     /**
-     * Validate slug (alphanumeric + hyphen + underscores).
+     * Validates and returns a string if it conforms strictly to alphanumeric conventions.
+     *
+     * Allows letters, numbers, hyphens, and underscores.
+     *
+     * @param string $input Alphanumeric string candidate.
+     * @return string|null The trimmed validated string, or null if empty or containing invalid markers.
      */
     public static function alphanumeric(string $input): ?string
     {

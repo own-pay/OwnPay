@@ -13,17 +13,44 @@ use OwnPay\Service\System\InputSanitizer;
 use OwnPay\Support\DateHelper;
 
 /**
+ * Class DeviceController
+ *
  * Mobile Device API — pair, heartbeat, revoke, refresh JWT, status.
  * OWASP: JWT auth, device fingerprint validation.
+ *
+ * @package OwnPay\Controller\Api\Mobile
  */
 final class DeviceController
 {
-    /** @phpstan-ignore property.onlyWritten */
+    /**
+     * @var Container The dependency injection container.
+     * @phpstan-ignore property.onlyWritten
+     */
     private Container $c;
+
+    /**
+     * @var DevicePairingService The device pairing service.
+     */
     private DevicePairingService $devices;
+
+    /**
+     * @var PairedDeviceRepository The repository for paired devices.
+     */
     private PairedDeviceRepository $deviceRepo;
+
+    /**
+     * @var JwtService The JWT utility service.
+     */
     private JwtService $jwt;
 
+    /**
+     * DeviceController constructor.
+     *
+     * @param Container              $c          The DI container.
+     * @param DevicePairingService   $devices    The device pairing service.
+     * @param PairedDeviceRepository $deviceRepo The paired device repository.
+     * @param JwtService             $jwt        The JWT utility service.
+     */
     public function __construct(Container $c, DevicePairingService $devices, PairedDeviceRepository $deviceRepo, JwtService $jwt)
     {
         $this->c          = $c;
@@ -33,8 +60,13 @@ final class DeviceController
     }
 
     /**
+     * Pairs a mobile companion device.
+     *
      * POST /api/mobile/v1/devices/pair
-     * Body: { pairing_code, device_name, platform, device_id }
+     * Input Body: { pairing_code, device_name, platform, device_id }
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with access token, refresh token, and device UUID.
      */
     public function pair(Request $req): Response
     {
@@ -52,8 +84,8 @@ final class DeviceController
                 InputSanitizer::string($body['platform'] ?? 'android')
             );
 
-            if (isset($result['success']) && !$result['success']) {
-                return Response::json(['success' => false, 'error' => $result['error'] ?? 'Pairing failed'], 400);
+            if (!$result['success']) {
+                return Response::json(['success' => false, 'error' => $result['error']], 400);
             }
 
             return Response::json([
@@ -61,8 +93,8 @@ final class DeviceController
                 'access_token'  => $result['access_token'],
                 'device_uuid'   => $result['device_id'],
                 'refresh_token' => $result['refresh_token'],
-                'aes_key'       => $result['aes_key'] ?? null,
-                'expires_in'    => $result['expires_in'] ?? 900,
+                'aes_key'       => $result['aes_key'],
+                'expires_in'    => $result['expires_in'],
             ], 201);
         } catch (\InvalidArgumentException $e) {
             return Response::json(['success' => false, 'error' => $e->getMessage()], 400);
@@ -70,7 +102,12 @@ final class DeviceController
     }
 
     /**
+     * Heartbeat endpoint for active mobile companion devices.
+     *
      * POST /api/mobile/v1/devices/heartbeat
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with server time.
      */
     public function heartbeat(Request $req): Response
     {
@@ -80,7 +117,12 @@ final class DeviceController
     }
 
     /**
+     * Revokes a specific mobile device.
+     *
      * POST /api/mobile/v1/devices/revoke
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response indicating success.
      */
     public function revoke(Request $req): Response
     {
@@ -99,11 +141,16 @@ final class DeviceController
     }
 
     /**
+     * Revokes multiple mobile devices in bulk.
+     *
      * POST /api/mobile/v1/devices/bulk-revoke
-     * Body: { device_ids: ["uuid1", "uuid2"] }
+     * Input Body: { device_ids: ["uuid1", "uuid2"] }
      *
      * BUG-38 FIX: Accept string UUIDs, not integers.
      * revoke() expects UUID strings; intval('uuid') = 0, filtering out all valid devices.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with the count of revoked devices.
      */
     public function bulkRevoke(Request $req): Response
     {
@@ -127,13 +174,16 @@ final class DeviceController
     }
 
     /**
-     * POST /api/mobile/v1/devices/refresh
+     * Refreshes JWT using a valid refresh token.
      *
-     * Re-issues a new JWT using a valid refresh token.
-     * Body: { refresh_token: "<jwt_with_long_ttl>" }
+     * POST /api/mobile/v1/devices/refresh
+     * Input Body: { refresh_token: "<jwt_with_long_ttl>" }
      *
      * The refresh token is itself a JWT issued with 30-day TTL.
      * On success, returns a new short-lived access JWT (24h).
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with the new access token and refresh token.
      */
     public function refresh(Request $req): Response
     {
@@ -178,10 +228,13 @@ final class DeviceController
     }
 
     /**
-     * GET /api/mobile/v1/devices/status
+     * Retrieves current device connection status, last heartbeat, and brand details.
      *
-     * Returns current device connection status, last heartbeat, and brand info.
+     * GET /api/mobile/v1/devices/status
      * Requires valid JWT (device must be active).
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response containing status details.
      */
     public function status(Request $req): Response
     {

@@ -11,15 +11,41 @@ use OwnPay\Service\System\InputSanitizer;
 use OwnPay\Service\Brand\BrandContext;
 use OwnPay\Repository\MerchantUserRepository;
 
+/**
+ * Controller for managing brand-specific staff members and their roles.
+ */
 final class StaffController
 {
     use AdminPageTrait;
 
+    /**
+     * The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * The admin session manager.
+     */
     private AdminSession $session;
+
+    /**
+     * The brand context service.
+     */
     private BrandContext $brand;
+
+    /**
+     * The merchant user repository.
+     */
     private MerchantUserRepository $userRepo;
 
+    /**
+     * StaffController constructor.
+     *
+     * @param Container $c The dependency injection container.
+     * @param AdminSession $session The admin session manager.
+     * @param BrandContext $brand The brand context service.
+     * @param MerchantUserRepository $userRepo The merchant user repository.
+     */
     public function __construct(Container $c, AdminSession $session, BrandContext $brand, MerchantUserRepository $userRepo)
     {
         $this->c        = $c;
@@ -28,6 +54,13 @@ final class StaffController
         $this->userRepo = $userRepo;
     }
 
+    /**
+     * List all staff members for the active brand or globally for superadmins.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with the rendered staff index page.
+     * @throws \Exception If database queries fail.
+     */
     public function index(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
@@ -45,6 +78,13 @@ final class StaffController
         return $this->renderAdminPage('admin/staff/index.twig', ['staff' => $staff, 'active_page' => 'staff']);
     }
 
+    /**
+     * Handle staff creation flow (both GET form and POST submissions).
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with form or redirect.
+     * @throws \Exception If validation or creation fails.
+     */
     public function create(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
@@ -70,7 +110,6 @@ final class StaffController
         $roleId = !empty($data['role_id']) ? (int) $data['role_id'] : null;
 
         // BUG-45 FIX: Validate role_id belongs to this brand.
-        // Without this, attacker can assign a role from another brand.
         if ($roleId !== null) {
             $validRole = false;
             foreach ($roles as $r) {
@@ -122,6 +161,13 @@ final class StaffController
         return Response::redirect('/admin/staff');
     }
 
+    /**
+     * Handle staff editing flow (both GET form and POST update submissions).
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with form or redirect.
+     * @throws \Exception If lookup or update fails.
+     */
     public function edit(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
@@ -172,10 +218,40 @@ final class StaffController
         return Response::redirect('/admin/staff');
     }
 
+    /**
+     * Alias endpoint to handle POST store actions.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If staff creation fails.
+     */
     public function store(Request $req): Response { return $this->create($req); }
+
+    /**
+     * Alias endpoint to handle GET show actions.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with the edit form.
+     * @throws \Exception If staff lookup fails.
+     */
     public function show(Request $req): Response { return $this->edit($req); }
+
+    /**
+     * Alias endpoint to handle POST update actions.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If staff update fails.
+     */
     public function update(Request $req): Response { return $this->edit($req); }
 
+    /**
+     * Delete a staff member.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If deletion fails.
+     */
     public function delete(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
@@ -189,6 +265,13 @@ final class StaffController
         return Response::redirect('/admin/staff');
     }
 
+    /**
+     * Resolve roles configured under a specific merchant.
+     *
+     * @param int $merchantId The merchant ID.
+     * @return array The list of roles.
+     * @throws \Exception If DB query fails.
+     */
     private function getRolesForMerchant(int $merchantId): array
     {
         $db = $this->c->get(\OwnPay\Core\Database::class);
@@ -198,6 +281,11 @@ final class StaffController
         );
     }
 
+    /**
+     * Resolve global static permissions whitelist.
+     *
+     * @return string[] The list of permissions.
+     */
     private function getPermissions(): array
     {
         return [

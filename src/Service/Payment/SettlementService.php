@@ -4,16 +4,32 @@ declare(strict_types=1);
 namespace OwnPay\Service\Payment;
 
 use OwnPay\Repository\SettlementRepository;
-use OwnPay\Support\DateHelper;
+use OwnPay\Support\DateHelper;
 
 /**
- * Settlement service — batch payouts to merchant bank accounts.
+ * Service managing merchant payouts and bank settlements.
+ *
+ * Verifies that the merchant possesses sufficient ledger balances prior to creating
+ * payout batches, updates batch progress, and records corresponding settlement postings in the ledger.
  */
 final class SettlementService
 {
+    /**
+     * @var SettlementRepository Repository managing payout records.
+     */
     private SettlementRepository $settlements;
+
+    /**
+     * @var LedgerService Bookkeeping service posting settlement transactions.
+     */
     private LedgerService $ledger;
 
+    /**
+     * SettlementService constructor.
+     *
+     * @param SettlementRepository $settlements Repository for settlement database operations.
+     * @param LedgerService $ledger Service compiling merchant account balances.
+     */
     public function __construct(SettlementRepository $settlements, LedgerService $ledger)
     {
         $this->settlements = $settlements;
@@ -21,7 +37,16 @@ final class SettlementService
     }
 
     /**
-     * Create settlement batch.
+     * Creates a new pending settlement payout batch for a brand.
+     *
+     * Validates that the brand/merchant has a sufficient balance in the target currency
+     * before creating the entry in the database.
+     *
+     * @param int $merchantId The ID of the merchant/brand.
+     * @param string $amount The payout amount.
+     * @param string $currency The transaction ISO currency code.
+     * @param string|null $bankReference Optional wire reference identifier.
+     * @return array{success: bool, error?: string, settlement_id?: int|string} Payout creation status.
      */
     public function createBatch(int $merchantId, string $amount, string $currency, ?string $bankReference = null): array
     {
@@ -43,7 +68,12 @@ final class SettlementService
     }
 
     /**
-     * Mark settlement as completed (after bank confirms).
+     * Marks a settlement batch as completed after receiving bank confirmation.
+     *
+     * Updates the status and commits the corresponding settlement balance removal to the ledger.
+     *
+     * @param int $settlementId The unique ID of the settlement batch to complete.
+     * @return void
      */
     public function markCompleted(int $settlementId): void
     {

@@ -2,11 +2,16 @@
 declare(strict_types=1);
 
 /**
- * Middleware pipeline configuration.
+ * OwnPay Middleware Pipeline Configuration.
  *
- * Defines ordered middleware stacks for different request contexts.
- * Each entry is a fully-qualified class name.
- * Middleware are executed top-to-bottom on request, bottom-to-top on response.
+ * This file defines the ordered middleware stacks executed for different HTTP request contexts.
+ * Each middleware group corresponds to a routing channel (e.g., global, web, admin, api, mobile).
+ * The pipeline runs sequentially top-to-bottom for processing incoming requests, and in reverse
+ * order (bottom-to-top) for modifying outbound HTTP responses.
+ *
+ * @package OwnPay\Config
+ * @see \OwnPay\Middleware\DomainMiddleware
+ * @see \OwnPay\Middleware\PermissionMiddleware
  */
 
 return [

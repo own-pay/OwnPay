@@ -6,24 +6,50 @@ namespace OwnPay\Service\Notification;
 use OwnPay\Core\Database;
 use OwnPay\Service\System\Logger;
 use OwnPay\Event\EventManager;
-use OwnPay\Support\DateHelper;
+use OwnPay\Support\DateHelper;
 
 /**
- * Outbound webhook dispatcher — sends signed POST to merchant webhook_url.
+ * Outbound webhook dispatcher.
  *
- * Universal for ALL gateway types (api, manual, bank).
- * HMAC-SHA256 signed. Retry with exponential backoff.
- * PCI: Never sends raw card data. Standardized payload only.
+ * Facilitates asynchronous transaction notifications to merchant endpoints.
+ * All outgoing payloads are cryptographically signed using HMAC-SHA256 based on the configured webhook secret.
+ * Features automated retry management with exponential backoff delays.
+ * Ensures strict PCI DSS compliance by stripping and never transmitting raw cardholder data.
  */
 final class WebhookDispatcher
 {
+    /**
+     * Maximum number of attempts allowed for delivery before marking a webhook as failed.
+     */
     private const MAX_RETRIES = 3;
-    private const RETRY_DELAYS = [60, 300, 1800]; // 1m, 5m, 30m
 
+    /**
+     * Exponential delay strategy backoffs in seconds (1 minute, 5 minutes, 30 minutes).
+     */
+    private const RETRY_DELAYS = [60, 300, 1800];
+
+    /**
+     * The core database manager.
+     */
     private Database $db;
+
+    /**
+     * The system logging service.
+     */
     private Logger $logger;
+
+    /**
+     * The event manager for dispatching system hooks.
+     */
     private EventManager $events;
 
+    /**
+     * Initializes the WebhookDispatcher with required dependencies.
+     *
+     * @param Database $db The database manager instance.
+     * @param Logger $logger The system logging service.
+     * @param EventManager $events The event manager for hooks and filter pipelines.
+     */
     public function __construct(Database $db, Logger $logger, EventManager $events)
     {
         $this->db = $db;
@@ -32,30 +58,30 @@ final class WebhookDispatcher
     }
 
     /**
-     * Send webhook notification to merchant.
+     * Dispatches a signed, standardized transaction event payload to all active registered webhooks for a merchant.
      *
-     * @param int    $merchantId
-     * @param string $event       e.g. "payment.completed"
-     * @param array  $data        Transaction data (standardized)
+     * Validates subscription permissions against JSON event configurations.
+     *
+     * @param int $merchantId The unique identifier of the brand/merchant context.
+     * @param string $event The event name identifier (e.g., 'payment.completed').
+     * @param array<string, mixed> $data Standardized transaction metadata properties.
+     * @return void
      */
     public function dispatch(int $merchantId, string $event, array $data): void
     {
-        // Load active webhooks for this merchant from op_webhooks
         $webhooks = $this->db->fetchAll(
             "SELECT url, secret, events FROM op_webhooks WHERE merchant_id = :mid AND status = 'active'",
             ['mid' => $merchantId]
         );
 
         if (empty($webhooks)) {
-            return; // No webhooks configured
+            return;
         }
 
-        // Build standardized payload
         $payload = $this->buildPayload($event, $data);
         $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 
         foreach ($webhooks as $webhook) {
-            // Check if webhook subscribes to this event
             $subscribedEvents = json_decode($webhook['events'] ?? '[]', true) ?: [];
             if (!empty($subscribedEvents) && !in_array($event, $subscribedEvents, true) && !in_array('*', $subscribedEvents, true)) {
                 continue;
@@ -70,8 +96,13 @@ final class WebhookDispatcher
     }
 
     /**
-     * Build standardized outbound webhook payload.
-     * Works for ALL gateway types: api, manual, bank.
+     * Constructs the standardized outgoing webhook payload structure.
+     *
+     * Normalizes transaction representations across standard API gateways, manual processors, and bank channels.
+     *
+     * @param string $event The event type descriptor.
+     * @param array<string, mixed> $data Raw source transaction entity columns and parameters.
+     * @return array<string, mixed> Standardized webhook request payload.
      */
     public function buildPayload(string $event, array $data): array
     {
@@ -94,7 +125,13 @@ final class WebhookDispatcher
     }
 
     /**
-     * Sign payload with HMAC-SHA256.
+     * Signs the outbound webhook body payload.
+     *
+     * Generates a secure HMAC-SHA256 signature using the private shared merchant webhook secret key.
+     *
+     * @param string $payload The raw string payload to sign.
+     * @param string $secret The shared secret key configured on the webhook endpoint.
+     * @return string The hex-encoded cryptographic signature.
      */
     public function sign(string $payload, string $secret): string
     {
@@ -102,11 +139,15 @@ final class WebhookDispatcher
     }
 
     /**
-     * Send test webhook to merchant.
+     * Dispatches a mock transaction event to test webhook endpoint connectivity.
+     *
+     * Uses dummy parameters to verify signature generation and host configuration.
+     *
+     * @param int $merchantId The unique identifier of the brand/merchant context.
+     * @return array<string, mixed> Returns array with 'success' status flag and optional 'error' message details.
      */
     public function sendTest(int $merchantId): array
     {
-        // Find first active webhook for this merchant from op_webhooks
         $webhook = $this->db->fetchOne(
             "SELECT url, secret FROM op_webhooks WHERE merchant_id = :mid AND status = 'active' ORDER BY created_at ASC LIMIT 1",
             ['mid' => $merchantId]
@@ -132,7 +173,15 @@ final class WebhookDispatcher
     }
 
     /**
-     * Send with exponential backoff retry.
+     * Transmits a payload with exponential delay retry rules on request failures.
+     *
+     * @param string $url Target merchant webhook endpoint URL.
+     * @param string $payload Serialized JSON payload string.
+     * @param string $signature HMAC-SHA256 signature of the payload.
+     * @param int $timestamp The signature generation UNIX timestamp.
+     * @param int $merchantId The unique identifier of the brand/merchant context.
+     * @param string $event The name of the triggered event.
+     * @return void
      */
     private function sendWithRetry(string $url, string $payload, string $signature, int $timestamp, int $merchantId, string $event): void
     {
@@ -146,11 +195,9 @@ final class WebhookDispatcher
                 return;
             }
 
-            // Wait before retry (skip wait on last attempt)
             if ($attempt < self::MAX_RETRIES) {
                 /** @phpstan-ignore nullCoalesce.offset */
                 $delay = self::RETRY_DELAYS[$attempt - 1] ?? 60;
-                // In production: queue delayed job instead of sleep
                 $this->logger->warning("Webhook retry #{$attempt} for merchant={$merchantId} event={$event} delay={$delay}s");
             }
         }
@@ -160,7 +207,13 @@ final class WebhookDispatcher
     }
 
     /**
-     * Execute HTTP POST to merchant webhook URL.
+     * Performs the raw HTTP POST request to the merchant webhook endpoint via cURL.
+     *
+     * @param string $url Target merchant webhook endpoint URL.
+     * @param string $payload Serialized JSON payload string.
+     * @param string $signature HMAC-SHA256 signature.
+     * @param int $timestamp The signature generation UNIX timestamp.
+     * @return array<string, mixed> Structured response mapping containing HTTP code, duration, status, and error details.
      */
     private function doSend(string $url, string $payload, string $signature, int $timestamp): array
     {
@@ -203,7 +256,16 @@ final class WebhookDispatcher
     }
 
     /**
-     * Log webhook delivery attempt.
+     * Logs webhook delivery information to the database audit record.
+     *
+     * Writes details to `op_webhook_deliveries` for analytics and developer troubleshooting.
+     *
+     * @param int $merchantId The unique identifier of the brand/merchant context.
+     * @param string $event The name of the event dispatched.
+     * @param string $url The endpoint URL the payload was targeted to.
+     * @param array<string, mixed> $result Request results containing status codes, response time, and errors.
+     * @param int $attempt The numeric attempt iteration count.
+     * @return void
      */
     private function logDelivery(int $merchantId, string $event, string $url, array $result, int $attempt): void
     {
@@ -223,7 +285,11 @@ final class WebhookDispatcher
     }
 
     /**
-     * List recent webhook deliveries for merchant.
+     * Lists recent webhook deliveries logged for a given merchant.
+     *
+     * @param int $merchantId The unique identifier of the brand/merchant context.
+     * @param int $limit Maximum number of delivery records to retrieve.
+     * @return array<int, array<string, mixed>> Collection of delivery record fields.
      */
     public function listDeliveries(int $merchantId, int $limit = 50): array
     {

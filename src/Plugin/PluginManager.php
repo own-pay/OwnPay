@@ -9,20 +9,70 @@ use OwnPay\Repository\PluginRepository;
 use OwnPay\Repository\GatewayRepository;
 
 /**
- * Plugin manager — high-level API for install/activate/deactivate/uninstall.
+ * High-level orchestration manager for the OwnPay plugin ecosystem.
  *
- * Orchestrates PluginInstaller, PluginMigrator, PluginRegistry.
- * Fires lifecycle hooks at each step for other plugins to react.
+ * Provides a unified API to handle plugin installation, activation, deactivation,
+ * and uninstallation. Coordinates operations between PluginInstaller, PluginMigrator,
+ * and PluginRegistry while triggering lifecycle actions that allow external
+ * modules to hook into core state changes.
+ *
+ * @category Plugin
+ * @package  OwnPay\Plugin
  */
 final class PluginManager
 {
+    /**
+     * The PSR-11 compatible dependency injection container.
+     *
+     * @var \OwnPay\Container
+     */
     private Container $container;
+
+    /**
+     * The application event and hook manager.
+     *
+     * @var \OwnPay\Event\EventManager
+     */
     private EventManager $events;
+
+    /**
+     * Database repository for plugin records.
+     *
+     * @var \OwnPay\Repository\PluginRepository
+     */
     private PluginRepository $repo;
+
+    /**
+     * File system ZIP installer and validator service.
+     *
+     * @var \OwnPay\Plugin\PluginInstaller
+     */
     private PluginInstaller $installer;
+
+    /**
+     * Database migrations manager for plugins.
+     *
+     * @var \OwnPay\Plugin\PluginMigrator
+     */
     private PluginMigrator $migrator;
+
+    /**
+     * Active plugin runtime instance registry.
+     *
+     * @var \OwnPay\Plugin\PluginRegistry
+     */
     private PluginRegistry $registry;
 
+    /**
+     * PluginManager constructor.
+     *
+     * @param \OwnPay\Container                 $container Dependency injection container.
+     * @param \OwnPay\Event\EventManager        $events    Central event/hook manager.
+     * @param \OwnPay\Repository\PluginRepository $repo      Repository for persisting plugin state.
+     * @param \OwnPay\Plugin\PluginInstaller    $installer Installer for handling ZIP archives.
+     * @param \OwnPay\Plugin\PluginMigrator     $migrator  Migrator for running schema changes.
+     * @param \OwnPay\Plugin\PluginRegistry     $registry  Registry storing instantiated plugins.
+     */
     public function __construct(
         Container $container,
         EventManager $events,
@@ -40,8 +90,12 @@ final class PluginManager
     }
 
     /**
-     * Install plugin from ZIP.
-     * @return array{success: bool, slug?: string, error?: string}
+     * Installs a plugin from a local ZIP file.
+     *
+     * Fires pre and post installation hooks and registers the plugin record in the DB.
+     *
+     * @param string $zipPath Absolute path to the plugin ZIP archive.
+     * @return array{success: bool, slug?: string, error?: string} Status of the installation.
      */
     public function install(string $zipPath): array
     {
@@ -54,7 +108,6 @@ final class PluginManager
 
         $slug = $result['slug'];
 
-        // Discover manifest for DB record
         $loader = $this->container->get(PluginLoader::class);
         $manifests = $loader->discover();
         $manifest = $manifests[$slug] ?? null;
@@ -63,7 +116,6 @@ final class PluginManager
             return ['success' => false, 'error' => 'Plugin installed but manifest not found'];
         }
 
-        // Register in DB
         $this->repo->create([
             'slug'         => $manifest->slug,
             'name'         => $manifest->name,
@@ -81,13 +133,18 @@ final class PluginManager
     }
 
     /**
-     * Activate plugin — run migrations, load it.
+     * Activates a plugin, executing database migrations and loading its instance.
+     *
+     * If the plugin is a payment gateway, it will auto-register the corresponding definition
+     * in the `op_gateways` table to ensure checkout UI visibility.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return array{success: bool, message?: string, error?: string, migrations_run?: int} Activation outcome.
      */
     public function activate(string $slug): array
     {
         $plugin = $this->repo->findBySlug($slug);
         if ($plugin === null) {
-            // Discover manifest for DB record
             $loader = $this->container->get(PluginLoader::class);
             $manifests = $loader->discover();
             $manifest = $manifests[$slug] ?? null;
@@ -96,7 +153,6 @@ final class PluginManager
                 return ['success' => false, 'error' => 'Plugin not found'];
             }
 
-            // Register in DB
             $this->repo->create([
                 'slug'         => $manifest->slug,
                 'name'         => $manifest->name,
@@ -117,7 +173,6 @@ final class PluginManager
 
         $this->events->doAction('plugin.before_activate', $slug);
 
-        // Run migrations
         $migrationsDir = $this->resolveDir($plugin) . '/migrations';
         try {
             $ran = $this->migrator->migrate($slug, $migrationsDir);
@@ -125,17 +180,14 @@ final class PluginManager
             return ['success' => false, 'error' => 'Migration failed: ' . $e->getMessage()];
         }
 
-        // Activate in DB
         $this->repo->activate($slug);
 
-        // Verify plugin can actually boot — if it can't, revert
         try {
             $loader = $this->container->get(PluginLoader::class);
             $manifest = $loader->discover()[$slug] ?? null;
             if ($manifest !== null) {
                 $entrypointFile = $manifest->path . '/' . $manifest->entrypoint;
                 if (file_exists($entrypointFile)) {
-                    // Validate the entrypoint is loadable
                     $errors = $manifest->validate();
                     if (!empty($errors)) {
                         throw new \RuntimeException('Invalid manifest: ' . implode(', ', $errors));
@@ -143,12 +195,10 @@ final class PluginManager
                 }
             }
         } catch (\Throwable $e) {
-            // Boot will fail — revert activation
             $this->repo->deactivate($slug);
             return ['success' => false, 'error' => 'Plugin activation failed: ' . $e->getMessage()];
         }
 
-        // Auto-register gateway definition in op_gateways (required for checkout visibility)
         if ($plugin['type'] === 'gateway') {
             $this->registerGatewayDefinition($slug, $plugin);
         }
@@ -159,7 +209,12 @@ final class PluginManager
     }
 
     /**
-     * Deactivate plugin.
+     * Deactivates an active plugin, disabling its hooks and gateway configurations.
+     *
+     * Triggers the plugin's `deactivate` method to perform memory or session teardown.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return array{success: bool, error?: string} Deactivation outcome.
      */
     public function deactivate(string $slug): array
     {
@@ -170,7 +225,6 @@ final class PluginManager
 
         $this->events->doAction('plugin.before_deactivate', $slug);
 
-        // Call deactivate on instance if loaded
         $instance = $this->registry->get($slug);
         if ($instance !== null) {
             $instance->deactivate($this->container);
@@ -178,7 +232,6 @@ final class PluginManager
 
         $this->repo->deactivate($slug);
 
-        // Deactivate gateway definition if this is a gateway plugin
         if ($plugin['type'] === 'gateway') {
             $gwRepo = $this->container->get(GatewayRepository::class);
             $gw = $gwRepo->findBySlug($slug);
@@ -193,7 +246,12 @@ final class PluginManager
     }
 
     /**
-     * Uninstall plugin — deactivate, rollback migrations, remove files.
+     * Uninstalls a plugin by removing database records, rolling back migrations, and deleting files.
+     *
+     * Ensures all database modifications are rolled back sequentially before removing files.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return array{success: bool, error?: string} Uninstallation outcome.
      */
     public function uninstall(string $slug): array
     {
@@ -204,27 +262,22 @@ final class PluginManager
 
         $this->events->doAction('plugin.before_uninstall', $slug);
 
-        // Deactivate first
         if ($plugin['status'] === 'active') {
             $this->deactivate($slug);
         }
 
-        // Call uninstall on instance if available
         $instance = $this->registry->get($slug);
         if ($instance !== null) {
             $instance->uninstall($this->container);
         }
 
-        // Rollback all migrations
         $migrationsDir = $this->resolveDir($plugin) . '/migrations';
         while (!empty($this->migrator->rollback($slug, $migrationsDir))) {
-            // Keep rolling back batches
+            // Roll back in batches.
         }
 
-        // Remove files
         $this->installer->uninstall($slug, $plugin['type']);
 
-        // Remove DB record
         $this->repo->delete((int) $plugin['id']);
 
         $this->events->doAction('plugin.uninstalled', $slug);
@@ -233,8 +286,9 @@ final class PluginManager
     }
 
     /**
-     * Get plugin info for admin UI.
-     * @return array{installed: array, available: array}
+     * Compiles a list of both active/installed and available plugins.
+     *
+     * @return array{installed: array<string, array<string, mixed>>, available: array<string, \OwnPay\Plugin\PluginManifest>} Map of plugins.
      */
     public function listAll(): array
     {
@@ -253,6 +307,12 @@ final class PluginManager
         ];
     }
 
+    /**
+     * Resolves the absolute directory path of a plugin.
+     *
+     * @param array<string, mixed> $plugin DB plugin representation.
+     * @return string Absolute file path.
+     */
     private function resolveDir(array $plugin): string
     {
         $paths = $this->container->get('config.app')['paths'];
@@ -265,8 +325,13 @@ final class PluginManager
     }
 
     /**
-     * Register gateway plugin in op_gateways table (upsert).
-     * Required so checkout can discover API gateways via GatewayConfigRepository JOIN.
+     * Registers or updates a gateway plugin in the `op_gateways` table.
+     *
+     * Maps the plugin metadata to the gateway fields required for checkout configurations.
+     *
+     * @param string               $slug   Unique plugin identifier.
+     * @param array<string, mixed> $plugin DB plugin representation.
+     * @return void
      */
     private function registerGatewayDefinition(string $slug, array $plugin): void
     {
@@ -274,7 +339,6 @@ final class PluginManager
         $existing = $gwRepo->findBySlug($slug);
 
         if ($existing !== null) {
-            // Re-activate existing definition + update logo
             $loader = $this->container->get(PluginLoader::class);
             $manifest = $loader->discover()[$slug] ?? null;
             $logoPath = $this->resolveIconPath($slug, $plugin, $manifest);
@@ -283,7 +347,6 @@ final class PluginManager
                 'logo_path' => $logoPath,
             ]);
         } else {
-            // Create new gateway definition from plugin metadata
             $loader = $this->container->get(PluginLoader::class);
             $manifest = $loader->discover()[$slug] ?? null;
             $logoPath = $this->resolveIconPath($slug, $plugin, $manifest);
@@ -302,8 +365,14 @@ final class PluginManager
     }
 
     /**
-     * Resolve gateway icon to a public-accessible path.
-     * Copies icon from module dir to public/assets/img/gateways/ if it exists.
+     * Resolves the gateway icon path and deploys it to the public directory.
+     *
+     * Copies the asset from the plugin folder to public/assets/img/gateways/ to allow web browsers to load it.
+     *
+     * @param string                       $slug     Unique plugin identifier.
+     * @param array<string, mixed>         $plugin   DB plugin representation.
+     * @param \OwnPay\Plugin\PluginManifest|null $manifest The plugin manifest schema wrapper.
+     * @return string|null Path to the public-accessible asset, or null if no icon exists.
      */
     private function resolveIconPath(string $slug, array $plugin, ?PluginManifest $manifest): ?string
     {
@@ -322,7 +391,6 @@ final class PluginManager
             return null;
         }
 
-        // Copy to public assets
         $destDir = $paths['public'] . '/assets/img/gateways';
         if (!is_dir($destDir)) {
             mkdir($destDir, 0755, true);

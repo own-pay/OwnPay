@@ -11,14 +11,44 @@ use OwnPay\Repository\CommLogRepository;
 use OwnPay\Event\EventManager;
 use OwnPay\Support\DateHelper;
 
+/**
+ * Class SmsController
+ *
+ * Handles API actions related to receiving SMS payloads and listing outbound SMS queues for the companion app.
+ *
+ * @package OwnPay\Controller\Api\Mobile
+ */
 final class SmsController
 {
-    /** @phpstan-ignore property.onlyWritten */
+    /**
+     * @var Container The dependency injection container.
+     * @phpstan-ignore property.onlyWritten
+     */
     private Container $c;
+
+    /**
+     * @var SmsParserService The SMS parser service.
+     */
     private SmsParserService $parser;
+
+    /**
+     * @var CommLogRepository The communication log repository.
+     */
     private CommLogRepository $commRepo;
+
+    /**
+     * @var EventManager The event manager.
+     */
     private EventManager $events;
 
+    /**
+     * SmsController constructor.
+     *
+     * @param Container         $c        The DI container.
+     * @param SmsParserService  $parser   The SMS parser service.
+     * @param CommLogRepository $commRepo The communication log repository.
+     * @param EventManager      $events   The event manager.
+     */
     public function __construct(Container $c, SmsParserService $parser, CommLogRepository $commRepo, EventManager $events)
     {
         $this->c        = $c;
@@ -27,6 +57,15 @@ final class SmsController
         $this->events   = $events;
     }
 
+    /**
+     * Handles receiving SMS payloads from the mobile companion app.
+     * Supports both single SMS and batch arrays.
+     *
+     * POST /api/mobile/v1/sms/receive
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with receipt details.
+     */
     public function receive(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
@@ -95,6 +134,14 @@ final class SmsController
         ]);
     }
 
+    /**
+     * Lists pending outbound SMS messages waiting to be sent via the mobile app gateway.
+     *
+     * GET /api/mobile/v1/sms/queue
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with queue list.
+     */
     public function queue(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');

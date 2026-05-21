@@ -4,33 +4,90 @@ declare(strict_types=1);
 namespace OwnPay\Http;
 
 /**
- * Immutable HTTP request wrapper.
+ * Class Request
  *
- * Encapsulates $_GET, $_POST, $_SERVER, $_FILES, $_COOKIE.
- * Controllers MUST use this — no direct superglobal access.
+ * An immutable HTTP request wrapper encapsulating superglobals ($_GET, $_POST, $_SERVER, $_FILES, $_COOKIE),
+ * raw request payloads, headers, route parameters, and custom middleware attributes.
+ *
+ * @package OwnPay\Http
  */
 final class Request
 {
+    /**
+     * @var string The HTTP method.
+     */
     private readonly string $method;
+
+    /**
+     * @var string The full request URI.
+     */
     private readonly string $uri;
+
+    /**
+     * @var string The parsed request path.
+     */
     private readonly string $path;
+
+    /**
+     * @var array<string, mixed> The query parameters.
+     */
     private readonly array $query;
+
+    /**
+     * @var array<string, mixed> The POST parameters.
+     */
     private readonly array $post;
+
+    /**
+     * @var array<string, mixed> The server configuration parameters.
+     */
     private readonly array $server;
+
+    /**
+     * @var array<string, array<string, mixed>> The uploaded files data.
+     */
     private readonly array $files;
+
+    /**
+     * @var array<string, string> The cookie variables.
+     */
     private readonly array $cookies;
+
+    /**
+     * @var array<string, string> The normalized HTTP headers.
+     */
     private readonly array $headers;
+
+    /**
+     * @var string|null The raw request body stream payload.
+     */
     private readonly ?string $rawBody;
 
-    /** @var array<string, string> Route parameters (e.g., {id}, {token}) */
+    /**
+     * @var array<string, string> Route parameters (e.g., {id}, {token}).
+     */
     private array $routeParams = [];
 
-    /** @var array<string, mixed> Extra attributes set by middleware */
+    /**
+     * @var array<string, mixed> Extra attributes set by middleware.
+     */
     private array $attributes = [];
 
-    /** @var ?array<string, mixed> Cached decoded JSON body */
+    /**
+     * @var array<string, mixed>|null Cached decoded JSON body.
+     */
     private ?array $jsonCache = null;
 
+    /**
+     * Request constructor.
+     *
+     * @param array<string, mixed> $query The query parameters.
+     * @param array<string, mixed> $post The POST parameters.
+     * @param array<string, mixed> $server The server variables.
+     * @param array<string, array<string, mixed>> $files The uploaded files variables.
+     * @param array<string, string> $cookies The request cookies.
+     * @param string|null $rawBody The raw input body stream.
+     */
     public function __construct(
         array $query = [],
         array $post = [],
@@ -53,7 +110,9 @@ final class Request
     }
 
     /**
-     * Create Request from PHP superglobals.
+     * Captures and constructs a new Request instance using current PHP superglobals.
+     *
+     * @return self The captured Request instance.
      */
     public static function capture(): self
     {
@@ -67,38 +126,74 @@ final class Request
         );
     }
 
-    // ——— Getters ———————————————————————————————————————————————
-
+    /**
+     * Retrieves the HTTP request method in uppercase.
+     *
+     * @return string The HTTP method.
+     */
     public function method(): string
     {
         return $this->method;
     }
 
+    /**
+     * Retrieves the request URI.
+     *
+     * @return string The request URI.
+     */
     public function uri(): string
     {
         return $this->uri;
     }
 
+    /**
+     * Retrieves the parsed URL path.
+     *
+     * @return string The URL path.
+     */
     public function path(): string
     {
         return $this->path;
     }
 
+    /**
+     * Checks if the request method matches the specified verb.
+     *
+     * @param string $method The HTTP verb to verify.
+     * @return bool True if the method matches, otherwise false.
+     */
     public function isMethod(string $method): bool
     {
         return $this->method === strtoupper($method);
     }
 
+    /**
+     * Checks if the request was made via AJAX (XMLHttpRequest).
+     *
+     * @return bool True if the request is an AJAX request, otherwise false.
+     */
     public function isAjax(): bool
     {
         return $this->header('X-Requested-With') === 'XMLHttpRequest';
     }
 
+    /**
+     * Checks if the request Content-Type header specifies application/json.
+     *
+     * @return bool True if the payload is JSON, otherwise false.
+     */
     public function isJson(): bool
     {
         return str_contains($this->header('Content-Type', ''), 'application/json');
     }
 
+    /**
+     * Evaluates if the client expects a JSON response.
+     *
+     * Matches request path prefixes, content headers, or AJAX flags.
+     *
+     * @return bool True if a JSON response is expected, otherwise false.
+     */
     public function expectsJson(): bool
     {
         return str_contains($this->header('Accept', ''), 'application/json')
@@ -106,8 +201,13 @@ final class Request
             || str_starts_with($this->path, '/api/');
     }
 
-    // ——— Input Access ——————————————————————————————————————————
-
+    /**
+     * Retrieves a query string parameter, or the full query array if no key is provided.
+     *
+     * @param string|null $key The parameter name.
+     * @param mixed $default The fallback value if parameter is not found.
+     * @return mixed The parameter value, the query array, or the default fallback.
+     */
     public function query(?string $key = null, mixed $default = null): mixed
     {
         if ($key === null) {
@@ -116,6 +216,13 @@ final class Request
         return $this->query[$key] ?? $default;
     }
 
+    /**
+     * Retrieves a POST parameter, or the full POST array if no key is provided.
+     *
+     * @param string|null $key The parameter name.
+     * @param mixed $default The fallback value if parameter is not found.
+     * @return mixed The parameter value, the POST array, or the default fallback.
+     */
     public function post(?string $key = null, mixed $default = null): mixed
     {
         if ($key === null) {
@@ -125,8 +232,11 @@ final class Request
     }
 
     /**
-     * Decode JSON request body (cached after first call).
-     * Returns the full decoded array, or a single key if $key is provided.
+     * Decodes and retrieves JSON request payload data.
+     *
+     * @param string|null $key The parameter name to fetch.
+     * @param mixed $default The fallback value if key is not found.
+     * @return mixed The parameter value, the decoded JSON array, or the default fallback.
      */
     public function json(?string $key = null, mixed $default = null): mixed
     {
@@ -145,19 +255,33 @@ final class Request
     }
 
     /**
-     * Unified input — checks POST body, then JSON body, then query string.
-     * Use this when a route may receive either form-encoded or JSON data.
+     * Retrieves request input parameters, searching POST, JSON, and query string in priority order.
+     *
+     * @param string $key The parameter name.
+     * @param mixed $default The fallback value if parameter is not found.
+     * @return mixed The input parameter value, or the default fallback.
      */
     public function input(string $key, mixed $default = null): mixed
     {
         return $this->post[$key] ?? $this->json($key) ?? $this->query[$key] ?? $default;
     }
 
+    /**
+     * Aggregates and returns all request inputs from query string, JSON payload, and POST body.
+     *
+     * @return array<string, mixed> The merged input parameters.
+     */
     public function all(): array
     {
         return array_merge($this->query, $this->json() ?: [], $this->post);
     }
 
+    /**
+     * Checks if a specified parameter key is present in the request input array.
+     *
+     * @param string $key The parameter key.
+     * @return bool True if the key exists, otherwise false.
+     */
     public function has(string $key): bool
     {
         return array_key_exists($key, $this->post)
@@ -166,8 +290,10 @@ final class Request
     }
 
     /**
-     * @param string[] $keys
-     * @return array<string, mixed>
+     * Retrieves only the specified key-value pairs from all request inputs.
+     *
+     * @param array<int, string> $keys The list of keys to retrieve.
+     * @return array<string, mixed> The filtered key-value inputs.
      */
     public function only(array $keys): array
     {
@@ -175,32 +301,57 @@ final class Request
         return array_intersect_key($all, array_flip($keys));
     }
 
+    /**
+     * Retrieves the raw request body stream.
+     *
+     * @return string|null The raw body content, or null if empty.
+     */
     public function rawBody(): ?string
     {
         return $this->rawBody;
     }
 
-    // ——— Files —————————————————————————————————————————————————
-
+    /**
+     * Retrieves uploaded file variables for the specified key.
+     *
+     * @param string $key The file parameter name.
+     * @return array<string, mixed>|null The uploaded file details, or null if not found.
+     */
     public function file(string $key): ?array
     {
         return $this->files[$key] ?? null;
     }
 
+    /**
+     * Checks if a file was successfully uploaded for the given key.
+     *
+     * @param string $key The file parameter name.
+     * @return bool True if a valid file was uploaded, otherwise false.
+     */
     public function hasFile(string $key): bool
     {
         return isset($this->files[$key])
             && ($this->files[$key]['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK;
     }
 
-    // ——— Headers ———————————————————————————————————————————————
-
+    /**
+     * Retrieves the specified HTTP header value.
+     *
+     * @param string $key The header name.
+     * @param string $default The default value if header is not present.
+     * @return string The header value, or default fallback.
+     */
     public function header(string $key, string $default = ''): string
     {
         $normalized = strtolower($key);
         return $this->headers[$normalized] ?? $default;
     }
 
+    /**
+     * Extracts the Bearer token from the Authorization header.
+     *
+     * @return string|null The Bearer token value, or null if not present/invalid format.
+     */
     public function bearerToken(): ?string
     {
         $auth = $this->header('Authorization');
@@ -210,31 +361,43 @@ final class Request
         return null;
     }
 
-    // ——— Server ————————————————————————————————————————————————
-
+    /**
+     * Retrieves the specified server parameter.
+     *
+     * @param string $key The server variable name.
+     * @param string $default The default value if variable is not present.
+     * @return string The server variable value, or default fallback.
+     */
     public function server(string $key, string $default = ''): string
     {
         return $this->server[$key] ?? $default;
     }
 
+    /**
+     * Resolves the client's IP address.
+     *
+     * Features proxy verification to trust forward headers (e.g. X-Forwarded-For)
+     * exclusively from configured trusted reverse proxy IPs.
+     *
+     * @return string The resolved IP address.
+     */
     public function ip(): string
     {
-        // AUD-B3 fix: Trust proxy headers only from known proxy IPs
         $remoteAddr = $this->server['REMOTE_ADDR'] ?? '0.0.0.0';
 
         if ($this->isTrustedProxy($remoteAddr)) {
-            // X-Forwarded-For: client, proxy1, proxy2 — leftmost is original client
+            // X-Forwarded-For: client, proxy1, proxy2 — leftmost is original client.
             $xff = $this->server['HTTP_X_FORWARDED_FOR'] ?? '';
             if ($xff !== '') {
                 $ips = array_map('trim', explode(',', $xff));
                 $clientIp = $ips[0];
-                // Validate IP format
+                // Validate IP format.
                 if (filter_var($clientIp, FILTER_VALIDATE_IP)) {
                     return $clientIp;
                 }
             }
 
-            // Fallback: X-Real-IP (single IP, set by Nginx)
+            // Fallback: X-Real-IP (single IP, set by Nginx).
             $realIp = $this->server['HTTP_X_REAL_IP'] ?? '';
             if ($realIp !== '' && filter_var($realIp, FILTER_VALIDATE_IP)) {
                 return $realIp;
@@ -244,16 +407,31 @@ final class Request
         return $remoteAddr;
     }
 
+    /**
+     * Retrieves the client User-Agent string.
+     *
+     * @return string The User-Agent string.
+     */
     public function userAgent(): string
     {
         return $this->server['HTTP_USER_AGENT'] ?? '';
     }
 
+    /**
+     * Resolves the HTTP request hostname.
+     *
+     * @return string The resolved host name.
+     */
     public function host(): string
     {
         return $this->server['HTTP_HOST'] ?? $this->server['SERVER_NAME'] ?? 'localhost';
     }
 
+    /**
+     * Resolves the request protocol scheme (http or https).
+     *
+     * @return string The protocol scheme.
+     */
     public function scheme(): string
     {
         $https = $this->server['HTTPS'] ?? '';
@@ -261,7 +439,7 @@ final class Request
             return 'https';
         }
 
-        // AUD-B3 fix: Check X-Forwarded-Proto from trusted proxy
+        // Check X-Forwarded-Proto from trusted proxy.
         $remoteAddr = $this->server['REMOTE_ADDR'] ?? '0.0.0.0';
         if ($this->isTrustedProxy($remoteAddr)) {
             $proto = $this->server['HTTP_X_FORWARDED_PROTO'] ?? '';
@@ -273,16 +451,23 @@ final class Request
         return 'http';
     }
 
+    /**
+     * Checks if the request was served over a secure connection (HTTPS).
+     *
+     * @return bool True if secure, otherwise false.
+     */
     public function isSecure(): bool
     {
         return $this->scheme() === 'https';
     }
 
     /**
-     * Check if the remote address is a trusted reverse proxy.
-     * Configure via TRUSTED_PROXIES env var (comma-separated IPs).
-     * AUD-B3: Without this, X-Forwarded-For is trivially spoofable.
-     * BUG-3 FIX: Uses filter_var instead of ip2long to support IPv6.
+     * Checks if the remote client address matches the trusted proxy configurations.
+     *
+     * Supports both direct IPv4/IPv6 comparisons and subnet matches.
+     *
+     * @param string $ip The target client IP address to check.
+     * @return bool True if the IP is a trusted proxy, otherwise false.
      */
     private function isTrustedProxy(string $ip): bool
     {
@@ -292,17 +477,16 @@ final class Request
             $trusted = $env !== '' ? array_map('trim', explode(',', $env)) : [];
         }
 
-        // BUG-3 FIX: filter_var supports both IPv4 and IPv6
         if (filter_var($ip, FILTER_VALIDATE_IP) === false) {
             return false;
         }
 
         foreach ($trusted as $entry) {
-            // Exact IP match
+            // Exact IP match.
             if ($entry === $ip) {
                 return true;
             }
-            // CIDR range match (e.g. 172.16.0.0/12)
+            // CIDR range match (e.g. 172.16.0.0/12).
             if (str_contains($entry, '/')) {
                 [$subnet, $bits] = explode('/', $entry, 2);
                 $bits = (int) $bits;
@@ -322,52 +506,79 @@ final class Request
         return false;
     }
 
-    // ——— Cookies ———————————————————————————————————————————————
-
+    /**
+     * Retrieves a cookie value.
+     *
+     * @param string $key The cookie name.
+     * @param string $default The default value if cookie is not present.
+     * @return string The cookie value, or default fallback.
+     */
     public function cookie(string $key, string $default = ''): string
     {
         return $this->cookies[$key] ?? $default;
     }
 
-    // ——— Route Parameters ——————————————————————————————————————
-
     /**
-     * @param array<string, string> $params
+     * Assigns the parsed route parameter array.
+     *
+     * @param array<string, string> $params The route parameters.
+     * @return void
      */
     public function setRouteParams(array $params): void
     {
         $this->routeParams = $params;
     }
 
+    /**
+     * Retrieves the value of a specific route parameter.
+     *
+     * @param string $key The parameter name.
+     * @param string $default The default value if not set.
+     * @return string The parameter value, or default fallback.
+     */
     public function param(string $key, string $default = ''): string
     {
         return $this->routeParams[$key] ?? $default;
     }
 
     /**
-     * @return array<string, string>
+     * Retrieves all assigned route parameters.
+     *
+     * @return array<string, string> The route parameters.
      */
     public function routeParams(): array
     {
         return $this->routeParams;
     }
 
-    // ——— Attributes ————————————————————————————————————————————
-
+    /**
+     * Assigns an extra attribute to the request context (used by middlewares).
+     *
+     * @param string $key The attribute key.
+     * @param mixed $value The attribute value.
+     * @return void
+     */
     public function setAttribute(string $key, mixed $value): void
     {
         $this->attributes[$key] = $value;
     }
 
+    /**
+     * Retrieves an attribute value from the request context.
+     *
+     * @param string $key The attribute key.
+     * @param mixed $default The default value if not set.
+     * @return mixed The attribute value, or default fallback.
+     */
     public function getAttribute(string $key, mixed $default = null): mixed
     {
         return $this->attributes[$key] ?? $default;
     }
 
     /**
-     * Get all parsed request headers.
+     * Retrieves all request headers.
      *
-     * @return array<string, string>
+     * @return array<string, string> The headers map.
      */
     public function allHeaders(): array
     {
@@ -375,7 +586,12 @@ final class Request
     }
 
     /**
-     * @return array<string, string>
+     * Extracts and normalizes request headers from server parameters.
+     *
+     * Handles Apache and PHP-FPM Authorization header extraction overrides.
+     *
+     * @param array<string, mixed> $server The server variables.
+     * @return array<string, string> The normalized headers map.
      */
     private function parseHeaders(array $server): array
     {

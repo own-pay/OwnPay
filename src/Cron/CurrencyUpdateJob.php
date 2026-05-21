@@ -6,19 +6,46 @@ namespace OwnPay\Cron;
 use OwnPay\Service\System\HttpClient;
 
 /**
- * Currency update job — fetches exchange rates from external API.
+ * Class CurrencyUpdateJob
+ *
+ * Enterprise cron job executing currency exchange rate updates for multi-currency transaction operations.
+ * Synchronizes the `op_exchange_rates` table with external exchange rate services to enable
+ * real-time, gateway-scoped currency conversions during checkout processes.
+ *
+ * @package OwnPay\Cron
  */
 final class CurrencyUpdateJob
 {
+    /**
+     * @var \OwnPay\Core\Database The database connection instance.
+     */
     private \OwnPay\Core\Database $db;
+
+    /**
+     * @var HttpClient HTTP client used to fetch rate feeds from the remote provider.
+     */
     private HttpClient $http;
 
+    /**
+     * CurrencyUpdateJob constructor.
+     *
+     * @param \OwnPay\Core\Database $db   The database connection instance.
+     * @param HttpClient|null      $http Optional HTTP client service.
+     */
     public function __construct(\OwnPay\Core\Database $db, ?HttpClient $http = null)
     {
         $this->db = $db;
         $this->http = $http ?? new HttpClient(10, 5);
     }
 
+    /**
+     * Runs the exchange rate synchronisation process.
+     *
+     * Fetches current USD-based rates, parses the payload, and dynamically inserts or updates
+     * matching records in `op_exchange_rates` under strict float representation standards.
+     *
+     * @return array{success: bool, updated?: int, error?: string} The synchronization result payload.
+     */
     public function run(): array
     {
         $apiUrl = getenv('EXCHANGE_RATE_API_URL') ?: 'https://api.exchangerate-api.com/v4/latest/USD';

@@ -9,18 +9,31 @@ use OwnPay\Http\Response;
 use OwnPay\Support\DateHelper;
 
 /**
- * Health check — requires Bearer auth.
- * Returns: version, DB status, mobile app connection, gateway count.
+ * Controller for performing system health check operations.
  */
 final class HealthController
 {
+    /**
+     * The dependency injection container.
+     */
     private Container $c;
 
+    /**
+     * HealthController constructor.
+     *
+     * @param Container $c The dependency injection container.
+     */
     public function __construct(Container $c)
     {
         $this->c = $c;
     }
 
+    /**
+     * Execute a system health check and return detailed statuses (DB connectivity, paired devices, gateways, customer metrics).
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response with health status parameters.
+     */
     public function check(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');

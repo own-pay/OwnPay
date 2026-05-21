@@ -4,22 +4,41 @@ declare(strict_types=1);
 namespace OwnPay\Cron;
 
 use OwnPay\Update\UpdateService;
-use OwnPay\Support\DateHelper;
+use OwnPay\Support\DateHelper;
 
 /**
- * Update check cron job — runs daily, triggers update during night window.
+ * Class UpdateCheckJob
+ *
+ * Enterprise cron job executing system update validations and executing automated deployments.
+ * Queries the core update manager for release packages and executes downloads/installs under
+ * safe operational schedules, specifically targeting a low-traffic nighttime maintenance window (2-5 AM).
+ *
+ * @package OwnPay\Cron
  */
 final class UpdateCheckJob
 {
+    /**
+     * @var UpdateService Service managing system self-update downloads and script executions.
+     */
     private UpdateService $updateService;
 
+    /**
+     * UpdateCheckJob constructor.
+     *
+     * @param UpdateService $updateService Service managing system self-update downloads and script executions.
+     */
     public function __construct(UpdateService $updateService)
     {
         $this->updateService = $updateService;
     }
 
     /**
-     * Check for updates and auto-apply during night window (2-5 AM).
+     * Runs the daily system update validation and maintenance cycle.
+     *
+     * Inspects current updates availability, checks configuration flags and active local server hour,
+     * and performs unattended updates deployment if inside the scheduled night window.
+     *
+     * @return array{action: string, message?: string, version?: string, success?: bool, error?: string|null} The update execution summary.
      */
     public function run(): array
     {

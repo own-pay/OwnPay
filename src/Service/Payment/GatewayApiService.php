@@ -8,18 +8,48 @@ use OwnPay\Repository\GatewayConfigRepository;
 use OwnPay\Repository\GatewayRepository;
 
 /**
- * Gateway API service — public API for gateway operations.
+ * Provides a public entry point for executing gateway API operations.
  *
- * Orchestrates GatewayBridge + TransactionService for full payment flow.
+ * Orchestrates interaction between the GatewayBridge, TransactionService,
+ * FeeService, and LedgerService to execute complete transaction life cycles,
+ * including payment initiation, callback verification, and double-entry ledger posting.
  */
 final class GatewayApiService
 {
+    /**
+     * @var GatewayBridge The bridge adapter manager for payment gateways.
+     */
     private GatewayBridge $bridge;
+
+    /**
+     * @var GatewayRepository The gateway definition storage repository.
+     */
     private GatewayRepository $gateways;
+
+    /**
+     * @var TransactionService Service layer for managing transaction models.
+     */
     private TransactionService $transactions;
+
+    /**
+     * @var FeeService Service layer for fee calculations.
+     */
     private FeeService $fees;
+
+    /**
+     * @var LedgerService Service layer for bookkeeping and ledger accounting.
+     */
     private LedgerService $ledger;
 
+    /**
+     * GatewayApiService constructor.
+     *
+     * @param GatewayBridge $bridge Payment gateway adapter orchestration bridge.
+     * @param GatewayRepository $gateways Repository to look up gateway metadata.
+     * @param TransactionService $transactions Service managing transaction state.
+     * @param FeeService $fees Service running fee rule matrices.
+     * @param LedgerService $ledger Service posting ledger balances.
+     */
     public function __construct(
         GatewayBridge $bridge,
         GatewayRepository $gateways,
@@ -35,12 +65,16 @@ final class GatewayApiService
     }
 
     /**
-     * Initiate payment through API gateway.
+     * Initiates a payment process through a specified gateway.
      *
-     * @param int $merchantId
-     * @param string $gatewaySlug
-     * @param array $params
-     * @return array
+     * Calculates fees and creates a pending transaction if one is not already provided.
+     * Invokes the underlying gateway's adapter, sanitizes custom redirection HTML forms,
+     * and handles unexpected failures by marking transactions as failed.
+     *
+     * @param int $merchantId The ID of the merchant/brand.
+     * @param string $gatewaySlug The identifier string of the target payment gateway.
+     * @param array<string, mixed> $params The transaction parameters (amount, currency, etc.).
+     * @return array{success: bool, error?: string, transaction?: array<string, mixed>, redirect_url?: string|null, form_html?: string|null} Payment outcome payload.
      */
     public function initiatePayment(int $merchantId, string $gatewaySlug, array $params): array
     {
@@ -114,12 +148,15 @@ final class GatewayApiService
     }
 
     /**
-     * Handle gateway callback/IPN.
+     * Handles gateway callback/IPN verification and transaction completion.
      *
-     * @param int $merchantId
-     * @param string $gatewaySlug
-     * @param array $callbackData
-     * @return array
+     * Validates callback parameters via the GatewayBridge. Resolves transaction references
+     * from key callback attributes, and commits completion records along with ledger entries.
+     *
+     * @param int $merchantId The ID of the merchant/brand.
+     * @param string $gatewaySlug The identifier string of the payment gateway.
+     * @param array<string, mixed> $callbackData Incoming callback request payload parameters.
+     * @return array{success: bool, error?: string, transaction?: array<string, mixed>} Verification response.
      */
     public function handleCallback(int $merchantId, string $gatewaySlug, array $callbackData): array
     {
@@ -177,13 +214,11 @@ final class GatewayApiService
     /**
      * Sanitize gateway form_html — defense-in-depth.
      *
-     * Gateway plugins are admin-installed and trusted, but a compromised or
-     * buggy plugin could inject dangerous patterns. Strip:
-     *  - Event handler attributes (onclick, onerror, onload, etc.)
-     *  - javascript: URIs in href/action/src attributes
-     *  - External <script src="..."> tags (but preserve inline <script> for auto-submit)
+     * Removes dangerous scripts and attributes while keeping basic form inputs, submit buttons,
+     * and inline submission scripts (e.g. document.forms[0].submit()) intact.
      *
-     * Preserves: <form>, <input>, <button>, inline <script>document.forms[0].submit()</script>
+     * @param string|null $html Unsanitized raw redirection form HTML from gateway integrations.
+     * @return string|null The cleaned form HTML string, or null/empty string as passed.
      */
     private static function sanitizeFormHtml(?string $html): ?string
     {

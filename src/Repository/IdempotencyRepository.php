@@ -5,7 +5,11 @@ declare(strict_types=1);
 namespace OwnPay\Repository;
 
 /**
- * Repository for op_idempotency_keys — API replay prevention.
+ * Repository layer for idempotency keys (`op_idempotency_keys` table).
+ *
+ * Scopes CRUD operations per active tenant via the TenantScope trait.
+ * Implements API replay prevention by recording requests, hashing signatures,
+ * caching response envelopes, and purging expired keys.
  */
 final class IdempotencyRepository extends BaseRepository
 {
@@ -17,15 +21,23 @@ final class IdempotencyRepository extends BaseRepository
         'response_code', 'response_body', 'expires_at',
     ];
 
+    /**
+     * Determines whether the table has a public ID column.
+     *
+     * @return bool False since this table does not contain a public_id column.
+     */
     protected function hasPublicId(): bool
     {
-        return false; // This table has no public_id column
+        return false;
     }
 
     /**
-     * Acquire an idempotency lock.
-     * Returns existing row if key already exists (replay), null if new.
-     * BUG-16 FIX: Removed non-existent 'scope' column. Added expires_at check.
+     * Finds an idempotency record by its key under the active tenant context.
+     *
+     * Ensures keys are only matches if they have not yet expired.
+     *
+     * @param string $key The idempotency key string.
+     * @return array<string, mixed>|null Idempotency key record, or null if not found or expired.
      */
     public function findByKey(string $key): ?array
     {
@@ -36,9 +48,12 @@ final class IdempotencyRepository extends BaseRepository
     }
 
     /**
-     * Store the response payload for a completed request.
-     * BUG-16 FIX: Use correct column names: response_body, response_code.
-     * Schema has no 'status' column.
+     * Stores the cached response payload for a completed API request execution.
+     *
+     * @param int|string $id Primary key identifier of the idempotency record.
+     * @param string $responseBody The cached raw JSON response payload.
+     * @param int $responseCode The HTTP status code returned by the operation.
+     * @return int Number of affected rows.
      */
     public function complete(int|string $id, string $responseBody, int $responseCode): int
     {
@@ -49,7 +64,10 @@ final class IdempotencyRepository extends BaseRepository
     }
 
     /**
-     * Delete an idempotency key lock (called on request failure to allow retry).
+     * Deletes an active idempotency key lock to permit execution retries on transient failures.
+     *
+     * @param string $key The target idempotency key string.
+     * @return int Number of affected rows.
      */
     public function deleteKey(string $key): int
     {
@@ -60,8 +78,12 @@ final class IdempotencyRepository extends BaseRepository
     }
 
     /**
-     * Clean up expired keys (older than $hours).
-     * NOTE: This is a global housekeeping operation — no tenant scoping applied.
+     * Purges expired idempotency records older than the specified duration.
+     *
+     * Global housekeeper task; intentionally unscoped.
+     *
+     * @param int $hours The cutoff age threshold in hours (default is 24).
+     * @return int Number of deleted records.
      */
     public function cleanup(int $hours = 24): int
     {

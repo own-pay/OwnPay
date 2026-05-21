@@ -6,17 +6,34 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Core\Database;
 
 /**
- * Payment link service — CRUD for merchant payment links.
+ * Service managing merchant payment links and their dynamic configurations.
+ *
+ * Handles creation, lookup, validation, updates, and initialization of default payment links
+ * that customers use to pay custom or fixed amounts directly via unique public URLs.
  */
 final class PaymentLinkService
 {
+    /**
+     * @var Database The database abstraction service.
+     */
     private Database $db;
 
+    /**
+     * PaymentLinkService constructor.
+     *
+     * @param Database $db The database helper instance.
+     */
     public function __construct(Database $db)
     {
         $this->db = $db;
     }
 
+    /**
+     * Lists all payment links created by a specific merchant/brand.
+     *
+     * @param int $merchantId The unique ID of the merchant.
+     * @return array<int, array<string, mixed>> The array of payment link records.
+     */
     public function listForMerchant(int $merchantId): array
     {
         return $this->db->fetchAll(
@@ -25,6 +42,15 @@ final class PaymentLinkService
         );
     }
 
+    /**
+     * Finds a specific payment link by ID and scopes it to the merchant.
+     *
+     * Loads any dynamically configured fields associated with the payment link.
+     *
+     * @param int $merchantId The unique ID of the merchant.
+     * @param int $id The unique ID of the payment link.
+     * @return array<string, mixed>|null The payment link fields and config, or null if not found.
+     */
     public function find(int $merchantId, int $id): ?array
     {
         $link = $this->db->fetchOne(
@@ -41,6 +67,27 @@ final class PaymentLinkService
         return $link;
     }
 
+    /**
+     * Creates a new payment link.
+     *
+     * Generates a clean URL slug if one is not explicitly supplied in the parameters.
+     *
+     * @param int $merchantId The unique ID of the merchant.
+     * @param array{
+     *     title?: string,
+     *     slug?: string,
+     *     description?: string|null,
+     *     amount?: float|int|string|null,
+     *     currency?: string,
+     *     is_amount_fixed?: bool|int,
+     *     min_amount?: float|int|string|null,
+     *     max_amount?: float|int|string|null,
+     *     redirect_url?: string|null,
+     *     max_uses?: int|string|null,
+     *     expires_at?: string|null
+     * } $data Payment link properties.
+     * @return array<string, mixed> The newly created payment link database record fields.
+     */
     public function create(int $merchantId, array $data): array
     {
         $slug = $data['slug'] ?? (preg_replace('/[^a-z0-9\-]+/', '', str_replace(' ', '-', strtolower($data['title'] ?? 'link'))) . '-' . substr(uniqid(), -4));
@@ -69,6 +116,20 @@ final class PaymentLinkService
         return $this->find($merchantId, (int) $id) ?? [];
     }
 
+    /**
+     * Updates an existing payment link.
+     *
+     * @param int $merchantId The unique ID of the merchant.
+     * @param int $id The unique ID of the payment link.
+     * @param array{
+     *     title?: string,
+     *     description?: string|null,
+     *     amount?: float|int|string|null,
+     *     currency?: string,
+     *     status?: string
+     * } $data Updated payment link fields.
+     * @return array<string, mixed> The updated payment link database record fields.
+     */
     public function update(int $merchantId, int $id, array $data): array
     {
         $this->db->update(
@@ -87,8 +148,16 @@ final class PaymentLinkService
     }
 
     /**
-     * Ensure a brand has at least one default payment link.
-     * Called on brand creation. Idempotent — skips if links already exist.
+     * Ensures that a merchant/brand has at least one active default payment link.
+     *
+     * This is typically executed during brand initialization. It is idempotent and skips
+     * creation if the brand already has configured links.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @param string $brandName The human-readable name of the brand/merchant.
+     * @param string $brandSlug The clean URL-safe slug of the brand.
+     * @param string $currency The default transaction currency (defaults to BDT).
+     * @return void
      */
     public function ensureDefault(int $merchantId, string $brandName, string $brandSlug, string $currency = 'BDT'): void
     {
@@ -102,12 +171,14 @@ final class PaymentLinkService
             'slug'        => $brandSlug . '-pay',
             'description' => 'Default payment link for ' . $brandName,
             'currency'    => $currency,
-            // amount left null = customer enters custom amount
         ]);
     }
 
     /**
-     * Find payment link by slug (public checkout).
+     * Finds an active payment link using its URL slug (used during public checkout).
+     *
+     * @param string $slug The unique payment link URL slug.
+     * @return array<string, mixed>|null The payment link record fields, or null if inactive or not found.
      */
     public function findBySlug(string $slug): ?array
     {

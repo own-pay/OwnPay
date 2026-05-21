@@ -4,51 +4,61 @@ declare(strict_types=1);
 namespace OwnPay\Service\Sms;
 
 /**
- * SmartSmsAnalyzer — Heuristic field extractor for Method B.
+ * Heuristic field extractor for Method B processing.
  *
- * Architecture (3 independent methods):
- *   Method A: Admin-defined regex templates (op_sms_templates) ← handled by SmsRegexParser
- *   Method B: THIS CLASS — heuristic extraction from SMS body (credit fields only)
- *   Method C: AI prompt generator — static, returns copy-ready prompt for Gemini/Claude/ChatGPT
+ * Implements proximity-based lexical analysis to identify credit-only fields
+ * within raw SMS content. Part of the three-tiered processing engine (Regex matching,
+ * Heuristic fallback, and AI prompt assistance).
  *
- * CRITICAL RULES:
- *   - Sender ("From") ALWAYS comes from the actual SMS sender field — NEVER from body text
- *   - Gateway identity NEVER guessed from body text — comes only from matched template
- *   - Sender whitelist = admin-configured sender_pattern values (case-sensitive exact match)
- *   - Credit/received transactions ONLY — debit/send/OTP SMS rejected
- *   - Zero external dependencies. Pure PHP.
+ * Strict Architectural Rules:
+ * - Sender identity ("From") must originate from the native carrier SMS headers, never parsed from body text.
+ * - Gateway configurations are only matched against whitelisted sender patterns.
+ * - Non-credit events (debits, OTP codes, outgoing payments) are aggressively ignored and rejected.
  *
- * @see SmsTemplateRepository::getSenderWhitelist()  for whitelist source
- * @see SmsTemplateRepository::findBySender()        for template matching (case-sensitive BINARY)
+ * @see \OwnPay\Repository\SmsTemplateRepository::getSenderWhitelist() For source details on whitelisted senders.
  */
 final class SmartSmsAnalyzer
 {
     /**
-     * @param list<string> $senderWhitelist Exact sender_pattern values from op_sms_templates for this brand.
-     *                                      Case-sensitive. Empty = no whitelist configured (accept any sender).
+     * Exact sender pattern values configured in database templates for case-sensitive matching.
+     *
+     * @var array<int, string>
+     */
+    private readonly array $senderWhitelist;
+
+    /**
+     * Initializes the analyzer with a whitelist of approved senders.
+     *
+     * @param array<int, string> $senderWhitelist Exact sender_pattern values from op_sms_templates.
      */
     public function __construct(
-        private readonly array $senderWhitelist = []
-    ) {}
+        array $senderWhitelist = []
+    ) {
+        $this->senderWhitelist = $senderWhitelist;
+    }
 
-    // ── Credit-indicator keywords ────────────────────────────────────────────
-
+    /**
+     * Keywords indicating a credit or inbound financial transfer event.
+     */
     private const CREDIT_WORDS = [
         'received', 'credited', 'deposited', 'added', 'cash in',
         'পেয়েছেন', 'জমা', 'ক্রেডিট', 'receive', 'incoming',
         'you have received', 'has been credited', 'received tk',
     ];
 
-    /** Debit / OTP signals — SMS containing these are NOT credit transactions */
+    /**
+     * Keywords indicating debit, cash out, or administrative OTP actions that abort analysis.
+     */
     private const SKIP_WORDS = [
         'sent', 'payment successful', 'paid', 'cash out', 'withdrawn',
         'your otp', 'otp is', 'otp:', 'verification code',
-        'পাঠিয়েছেন', 'উত্তোলন', 'ক্যাশ আউট',
+        'পাঠিয়েছেন', 'উত্তোলন', 'ক্যাশ',
         'password reset', 'login code', 'security code',
     ];
 
-    // ── Amount patterns ──────────────────────────────────────────────────────
-
+    /**
+     * Regexp matching structures for transaction amount resolution.
+     */
     private const AMOUNT_PATTERNS = [
         '/(?:Tk\.?|TK)\s*([\d,]+(?:\.\d{1,2})?)/ui'                           => 'high',
         '/BDT\s*([\d,]+(?:\.\d{1,2})?)/ui'                                    => 'high',
@@ -58,8 +68,9 @@ final class SmartSmsAnalyzer
         '/received\s+(?:Tk\.?|BDT|৳)?\s*([\d,]+(?:\.\d{1,2})?)/ui'           => 'low',
     ];
 
-    // ── Transaction ID patterns ──────────────────────────────────────────────
-
+    /**
+     * Regexp matching structures for transaction identifier resolution.
+     */
     private const TRXID_PATTERNS = [
         '/(?:TrxID|Trx\s*ID|TxnID|TransactionID)[:\s]+([A-Z0-9]{4,20})/i'   => 'high',
         '/(?:Ref(?:erence)?(?:\s*No\.?|#)?)[:\s]*([A-Z0-9]{4,20})/i'        => 'high',
@@ -67,33 +78,33 @@ final class SmartSmsAnalyzer
         '/\b([A-Z]{2,4}[0-9]{6,14})\b/'                                      => 'low',
     ];
 
-    // ── Balance patterns ─────────────────────────────────────────────────────
-
+    /**
+     * Regexp matching structures for account balance resolution.
+     */
     private const BALANCE_PATTERNS = [
         '/(?:balance|bal\.?|নতুন ব্যালেন্স)[:\s]+(?:Tk\.?|BDT|৳)?\s*([\d,]+(?:\.\d{1,2})?)/ui' => 'high',
         '/([\d,]+(?:\.\d{1,2})?)\s*(?:Tk\.?|BDT)?\s*(?:balance|bal\.?)/ui'                        => 'medium',
     ];
 
     /**
-     * Analyze raw SMS body and extract credit-relevant fields.
+     * Analyzes raw SMS text using heuristic matching strategies.
      *
-     * @param  string      $rawSms  The SMS body text
-     * @param  string|null $sender  The actual "From" field of the SMS (set by mobile app).
-     *                              If provided, checked case-sensitively against whitelist.
-     *                              If null, whitelist check is skipped (admin preview mode).
+     * Extracts fields like transaction amount, transaction ID, and final account balance.
      *
+     * @param string $rawSms The raw text content of the SMS.
+     * @param string|null $sender The sender identity value from the SMS header, used for whitelist lookups.
      * @return array{
-     *   sender:              string|null,
-     *   sender_whitelisted:  bool,
-     *   is_credit:           bool,
-     *   skip_reason:         string|null,
-     *   amount:              string|null,
-     *   trx_id:              string|null,
-     *   balance:             string|null,
-     *   confidence:          array<string,string>,
-     *   suggested_regexes:   array<string,string>,
-     *   raw_sms:             string,
-     * }
+     *   sender: string|null,
+     *   sender_whitelisted: bool,
+     *   is_credit: bool,
+     *   skip_reason: string|null,
+     *   amount: string|null,
+     *   trx_id: string|null,
+     *   balance: string|null,
+     *   confidence: array<string, string>,
+     *   suggested_regexes: array<string, string>,
+     *   raw_sms: string
+     * } Extraction analytics mapping containing resolved variables and confidence scores.
      */
     public function analyze(string $rawSms, ?string $sender = null): array
     {
@@ -113,12 +124,10 @@ final class SmartSmsAnalyzer
             'raw_sms'            => $text,
         ];
 
-        // ── 1. Sender whitelist check (case-sensitive exact match) ───────────
         if ($sender !== null) {
             $result['sender_whitelisted'] = $this->checkSenderWhitelist($sender);
         }
 
-        // ── 2. Skip OTP / debit ──────────────────────────────────────────────
         foreach (self::SKIP_WORDS as $skip) {
             if (str_contains($lower, $skip)) {
                 $result['skip_reason'] = "Skipped: contains debit/OTP keyword '{$skip}'";
@@ -126,7 +135,6 @@ final class SmartSmsAnalyzer
             }
         }
 
-        // ── 3. Credit check ──────────────────────────────────────────────────
         $isCredit = false;
         foreach (self::CREDIT_WORDS as $cw) {
             if (str_contains($lower, $cw)) {
@@ -139,7 +147,6 @@ final class SmartSmsAnalyzer
             $result['skip_reason'] = 'No credit keyword found. Verify this is a received-payment SMS.';
         }
 
-        // ── 4. Amount ────────────────────────────────────────────────────────
         foreach (self::AMOUNT_PATTERNS as $pattern => $confidence) {
             if (preg_match($pattern, $text, $m)) {
                 $result['amount']                            = str_replace(',', '', $m[1]);
@@ -149,7 +156,6 @@ final class SmartSmsAnalyzer
             }
         }
 
-        // ── 5. Transaction ID ────────────────────────────────────────────────
         foreach (self::TRXID_PATTERNS as $pattern => $confidence) {
             if (preg_match($pattern, $text, $m)) {
                 $result['trx_id']                            = $m[1];
@@ -159,7 +165,6 @@ final class SmartSmsAnalyzer
             }
         }
 
-        // ── 6. Balance ───────────────────────────────────────────────────────
         foreach (self::BALANCE_PATTERNS as $pattern => $confidence) {
             if (preg_match($pattern, $text, $m)) {
                 $result['balance']               = str_replace(',', '', $m[1]);
@@ -172,17 +177,13 @@ final class SmartSmsAnalyzer
     }
 
     /**
-     * Generate a ready-to-paste AI prompt for Gemini / ChatGPT / Claude (Method C).
+     * Generates a structural instruction prompt for large language model execution (Method C).
      *
-     * The prompt:
-     *   - Includes the raw SMS body
-     *   - Includes the exact SMS sender (From) so AI knows the source
-     *   - Instructs AI to reply with ONLY a JSON code block — no prose, no explanation
-     *   - Output JSON matches op_sms_templates schema exactly
-     *   - Admin pastes output directly into Method A (New Template form)
+     * Provides templates to format dynamic data into a structured layout copy-ready for AI copy-pasting.
      *
-     * @param string $rawSms   The SMS body text
-     * @param string $sender   The exact "From" field of the SMS (e.g. "bKash", "AD-NAGAD")
+     * @param string $rawSms The raw message content to inject.
+     * @param string $sender The source sender identity header of the message.
+     * @return string The structured prompt text.
      */
     public static function buildAiPrompt(string $rawSms, string $sender = ''): string
     {
@@ -227,21 +228,28 @@ Reply with ONLY this JSON in a code block — nothing else:
 PROMPT;
     }
 
-    // ── Private helpers ──────────────────────────────────────────────────────
-
     /**
-     * Check actual SMS sender against admin-configured whitelist.
-     * Case-sensitive exact match — "bKash" ≠ "bkash".
+     * Validates SMS sender against whitelist rules.
+     *
+     * Performs strict, case-sensitive string matching against values.
+     *
+     * @param string $sender The sender identity under validation.
+     * @return bool True if permitted or if whitelist configurations are empty.
      */
     private function checkSenderWhitelist(string $sender): bool
     {
         if (empty($this->senderWhitelist)) {
-            return true; // No whitelist configured = accept all senders
+            return true;
         }
         return in_array($sender, $this->senderWhitelist, strict: true);
     }
 
-    /** Strip regex delimiters + flags for display */
+    /**
+     * Sanitizes regex patterns for display suggestions.
+     *
+     * @param string $pattern The raw regex string.
+     * @return string Sanitized regex representation without outer delimiters or modifiers.
+     */
     private function patternToSuggestion(string $pattern): string
     {
         return (string) preg_replace('/^\/(.*)\/[a-z]*$/u', '$1', $pattern);

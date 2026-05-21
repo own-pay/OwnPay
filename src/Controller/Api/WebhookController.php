@@ -8,18 +8,43 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Notification\WebhookDispatcher;
 
+/**
+ * Webhook API Controller
+ *
+ * Exposes endpoints for managing, dispatching, and reviewing merchant webhook
+ * notifications and delivery histories.
+ */
 final class WebhookController
 {
-    /** @phpstan-ignore property.onlyWritten */
+    /**
+     * @var Container The service container instance.
+     * @phpstan-ignore property.onlyWritten
+     */
     private Container $c;
+
+    /**
+     * @var WebhookDispatcher Service handling outbound webhook notifications.
+     */
     private WebhookDispatcher $webhooks;
 
+    /**
+     * Constructor.
+     *
+     * @param Container $c The service container instance.
+     * @param WebhookDispatcher $webhooks Service handling outbound webhook notifications.
+     */
     public function __construct(Container $c, WebhookDispatcher $webhooks)
     {
         $this->c = $c;
         $this->webhooks = $webhooks;
     }
 
+    /**
+     * Dispatch a test webhook payload to the configured merchant endpoint.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response detailing the outcome of the dispatch test.
+     */
     public function test(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
@@ -35,6 +60,12 @@ final class WebhookController
         return Response::json($response, $result['success'] ? 200 : 400);
     }
 
+    /**
+     * Retrieve the recent webhook delivery history for the merchant.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response listing recent webhook delivery attempts.
+     */
     public function deliveries(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');

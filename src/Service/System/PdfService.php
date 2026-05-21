@@ -4,16 +4,27 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * PDF service — invoice/receipt generation using HTML templates.
+ * Service orchestrating invoice/receipt rendering.
  *
- * Generates HTML output for invoices. For production PDF output,
- * use a headless browser (wkhtmltopdf, Puppeteer) or integrate
- * a composer PDF library in a future sprint.
+ * Compiles dynamic print-friendly HTML representations of invoice objects
+ * for generation, preview, or translation to physical PDFs via external providers.
  */
 final class PdfService
 {
+    /**
+     * Absolute directory path where rendered files will be saved.
+     *
+     * @var string
+     */
     private string $outputDir;
 
+    /**
+     * Initialises the PDF service.
+     *
+     * Creates the output folder structure if missing.
+     *
+     * @param string|null $outputDir Override destination folder path. Defaults to system storage/pdf.
+     */
     public function __construct(?string $outputDir = null)
     {
         $this->outputDir = $outputDir ?? dirname(__DIR__, 3) . '/storage/pdf';
@@ -23,9 +34,12 @@ final class PdfService
     }
 
     /**
-     * Generate PDF-ready HTML from template.
+     * Wraps raw markup with print-friendly styles and writes it to an HTML file.
      *
-     * @return string File path to generated HTML
+     * @param string $html Raw body content.
+     * @param string $filename Target output filename (without extension).
+     * @param array<string, mixed> $options Optional engine parameters.
+     * @return string Absolute file path to the generated HTML document.
      */
     public function generateFromHtml(string $html, string $filename, array $options = []): string
     {
@@ -35,7 +49,14 @@ final class PdfService
     }
 
     /**
-     * Generate invoice HTML.
+     * Renders a printable invoice document by compiling transaction data into an HTML template.
+     *
+     * Iterates over invoice parameters, applies HTML encoding, parses line items,
+     * and exports the output file to the designated directory.
+     *
+     * @param array<string, mixed> $invoiceData Parameter map containing the invoice details and line items.
+     * @param string $templateHtml Base HTML layout layout string.
+     * @return string Absolute file path to the compiled HTML document.
      */
     public function generateInvoice(array $invoiceData, string $templateHtml): string
     {
@@ -63,7 +84,12 @@ final class PdfService
     }
 
     /**
-     * Wrap HTML with print-friendly styles for browser PDF print.
+     * Encloses the HTML body in a print-ready document structure.
+     *
+     * Applies standard A4 page margin specifications and clean font hierarchies.
+     *
+     * @param string $body Document content markup.
+     * @return string Compiled printable document HTML string.
      */
     private function wrapPrintableHtml(string $body): string
     {

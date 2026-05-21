@@ -10,21 +10,44 @@ use OwnPay\Repository\TransactionRepository;
 use OwnPay\Service\System\PaginationService;
 
 /**
- * Transaction API — list and show transactions.
- * OWASP: Tenant-scoped queries, field whitelisting.
+ * Transaction API Controller
+ *
+ * Exposes endpoints to search, paginate, and detail transaction records. Implements
+ * brand-level tenant isolation checks and strict output field filtering.
  */
 final class TransactionController
 {
-    /** @phpstan-ignore property.onlyWritten */
+    /**
+     * @var Container The service container instance.
+     * @phpstan-ignore property.onlyWritten
+     */
     private Container $c;
+
+    /**
+     * @var TransactionRepository Repository handling transaction data operations.
+     */
     private TransactionRepository $txns;
 
+    /**
+     * Constructor.
+     *
+     * @param Container $c The service container instance.
+     * @param TransactionRepository $txns Repository handling transaction data operations.
+     */
     public function __construct(Container $c, TransactionRepository $txns)
     {
         $this->c = $c;
         $this->txns = $txns;
     }
 
+    /**
+     * Retrieve a filtered, paginated list of transactions.
+     *
+     * GET /api/v1/transactions
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response detailing the paginated transaction list.
+     */
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
@@ -43,7 +66,7 @@ final class TransactionController
         /** @phpstan-ignore-next-line */
         $transactions = $repo->listFiltered($filters, $pagination['per_page'], $pagination['offset']);
 
-        // OWASP: Whitelist output fields
+        // Whitelist fields to filter sensitive internal transaction data.
         $safe = array_map(fn($t) => $this->safeFields($t), $transactions);
 
         return Response::json([
@@ -59,8 +82,12 @@ final class TransactionController
     }
 
     /**
+     * Lookup a single transaction by its unique reference string.
+     *
      * GET /api/v1/transactions/{trx_id}
-     * Lookup by TXN-XXXX format, NOT database ID.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response detailing the transaction or an error message.
      */
     public function show(Request $req): Response
     {
@@ -81,8 +108,10 @@ final class TransactionController
     }
 
     /**
-     * Whitelist output fields — maps actual DB columns.
-     * op_transactions has gateway_slug (not gateway), no customer_name/email.
+     * Map transaction data to a safe output schema matching database definitions.
+     *
+     * @param array $t The database transaction record array.
+     * @return array The filtered, safe presentation array representation.
      */
     private function safeFields(array $t): array
     {
@@ -91,7 +120,7 @@ final class TransactionController
             'trx_id'      => $t['trx_id'],
             'amount'      => $t['amount'],
             'currency'    => $t['currency'],
-            'fee'         => $t['fee'] ?? '0.00',
+            'fee'          => $t['fee'] ?? '0.00',
             'net_amount'  => $t['net_amount'] ?? null,
             'status'      => $t['status'],
             'gateway'     => $t['gateway_slug'] ?? null,

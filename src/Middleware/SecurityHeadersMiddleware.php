@@ -8,27 +8,42 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Security headers middleware — adds all hardening headers.
+ * Middleware responsible for appending security hardening HTTP headers to all outgoing responses.
  *
- * Per OWASP configuration & headers rules.
+ * Implements strict Content Security Policy (CSP) rules, generates per-request CSP nonces,
+ * dynamically resolves CSP source exclusions declared by payment gateways, and applies standard OWASP recommendations.
  */
 final class SecurityHeadersMiddleware
 {
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $container;
 
+    /**
+     * Constructs a new SecurityHeadersMiddleware instance.
+     *
+     * @param Container $container The dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
+    /**
+     * Injects HTTP security headers and generates CSP rules for the response.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param callable(Request): Response $next Next handler in the pipeline.
+     * @return Response The HTTP response.
+     */
     public function handle(Request $request, callable $next): Response
     {
-        // M-12 FIX: Generate per-request CSP nonce for inline styles.
-        // This eliminates 'unsafe-inline' from style-src.
+        // Generate per-request CSP nonce for inline styles to avoid 'unsafe-inline'.
         $nonce = base64_encode(random_bytes(16));
         $request->setAttribute('csp_nonce', $nonce);
 
-        // BUG-12 FIX: Store nonce in Container so Twig global can read it.
+        // Store nonce in Container so Twig global can read it.
         // Without this, templates have no way to add nonce="" to inline <style> tags,
         // causing CSP to block all inline styles in production mode.
         $this->container->instance('csp_nonce', $nonce);
@@ -37,10 +52,10 @@ final class SecurityHeadersMiddleware
 
         $response->withHeader('X-Content-Type-Options', 'nosniff');
         $response->withHeader('X-Frame-Options', 'DENY');
-        $response->withHeader('X-XSS-Protection', '0'); // Modern browsers: CSP replaces this
+        $response->withHeader('X-XSS-Protection', '0'); // CSP replaces this in modern browsers
         $response->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-        // M-13: Keep payment=() — OwnPay uses gateway redirects, not Payment Request API.
+        // Keep payment=() — OwnPay uses gateway redirects, not Payment Request API.
         $response->withHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
 
         // HSTS — only on HTTPS
@@ -56,15 +71,9 @@ final class SecurityHeadersMiddleware
         $isCheckout = str_starts_with($path, '/checkout') || str_starts_with($path, '/invoice') || str_starts_with($path, '/pay');
 
         if ($isCheckout) {
-            // CSP-PLUGIN FIX: Build checkout CSP dynamically from gateway plugin manifests
+            // Build checkout CSP dynamically from gateway plugin manifests
             // instead of hardcoding domains. Third-party gateway plugins declare their CSP
-            // needs via the "csp" field in manifest.json, e.g.:
-            //   "csp": {
-            //     "script_src": ["https://*.mypayment.com"],
-            //     "style_src":  ["https://*.mypayment.com"],
-            //     "frame_src":  ["https://*.mypayment.com"],
-            //     "connect_src": ["https://api.mypayment.com"]
-            //   }
+            // needs via the "csp" field in manifest.json.
             $gatewayCsp = $this->collectGatewayCspSources();
 
             $scriptSrc  = array_unique(array_merge(["'self'", "'nonce-{$nonce}'"], $gatewayCsp['script_src']));
@@ -111,7 +120,7 @@ final class SecurityHeadersMiddleware
      * Also fires the 'checkout.csp.sources' filter hook so plugins can add
      * CSP domains dynamically at runtime (e.g., for conditional loading).
      *
-     * @return array{script_src: string[], style_src: string[], frame_src: string[], connect_src: string[]}
+     * @return array{script_src: string[], style_src: string[], frame_src: string[], connect_src: string[]} Directives mapping.
      */
     private function collectGatewayCspSources(): array
     {
@@ -158,12 +167,6 @@ final class SecurityHeadersMiddleware
         }
 
         // 2. Apply filter hook so plugins can add CSP domains dynamically at runtime.
-        // Gateway plugins can hook this in their boot() method:
-        //   $events->addFilter('checkout.csp.sources', function (array $sources): array {
-        //       $sources['script_src'][] = 'https://*.mypayment.com';
-        //       $sources['frame_src'][]  = 'https://*.mypayment.com';
-        //       return $sources;
-        //   });
         if ($this->container->has(\OwnPay\Event\EventManager::class)) {
             try {
                 $events = $this->container->get(\OwnPay\Event\EventManager::class);
@@ -177,10 +180,12 @@ final class SecurityHeadersMiddleware
     }
 
     /**
-     * Validate a CSP origin string — only allow safe patterns.
+     * Validates a Content Security Policy origin string to prevent script/header injection.
      *
-     * Accepts: 'https://*.example.com', 'https://api.example.com'
-     * Rejects: 'data:', 'unsafe-inline', '*', javascript:, etc.
+     * Ensures origins strictly follow secure protocols and exclude whitespace or malicious characters.
+     *
+     * @param string $origin The origin string (e.g. 'https://*.example.com').
+     * @return bool True if valid; false otherwise.
      */
     private function isValidCspOrigin(string $origin): bool
     {

@@ -8,19 +8,52 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Domain\DomainService;
 
+/**
+ * Class DomainController
+ *
+ * Handles API actions related to domain verification.
+ *
+ * @package OwnPay\Controller\Api\Admin
+ */
 final class DomainController
 {
-    /** @phpstan-ignore property.onlyWritten */
+    /**
+     * @var Container The dependency injection container.
+     * @phpstan-ignore property.onlyWritten
+     */
     private Container $c;
-    private DomainService $domains;
-    public function __construct(Container $c, DomainService $domains) { $this->c = $c; $this->domains = $domains; }
 
+    /**
+     * @var DomainService The domain management service.
+     */
+    private DomainService $domains;
+
+    /**
+     * DomainController constructor.
+     *
+     * @param Container     $c       The DI container.
+     * @param DomainService $domains The domain management service.
+     */
+    public function __construct(Container $c, DomainService $domains)
+    {
+        $this->c = $c;
+        $this->domains = $domains;
+    }
+
+    /**
+     * Verifies domain ownership and configuration.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response indicating whether verification was successful.
+     */
     public function verify(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
         $body = $req->json();
         $domainId = (int) ($body['domain_id'] ?? 0);
-        if ($domainId <= 0) return Response::json(['success' => false, 'error' => 'domain_id required'], 422);
+        if ($domainId <= 0) {
+            return Response::json(['success' => false, 'error' => 'domain_id required'], 422);
+        }
 
         // BUG-48 FIX: verifyDomain(int $domainId, int $merchantId) — params were swapped
         $result = $this->domains->verifyDomain($domainId, $mid);

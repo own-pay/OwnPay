@@ -3,6 +3,13 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
+/**
+ * Repository layer for audit logs (`op_audit_logs` table).
+ *
+ * Keeps track of user actions, modified entity values (both old and new values),
+ * user metadata (IP address, user agent), and brand contexts.
+ * Unscoped globally to support superadmin views across multiple brands/tenants.
+ */
 final class AuditLogRepository extends BaseRepository
 {
     protected string $table = 'op_audit_logs';
@@ -12,7 +19,21 @@ final class AuditLogRepository extends BaseRepository
     ];
 
     /**
-     * Record audit event. Never use tenant scope — audit logs cross-tenant for superadmin.
+     * Records a new audit event in the system log.
+     *
+     * In accordance with compliance, this operation bypasses tenant scoping
+     * to ensure audit records remain universally discoverable by superadmins.
+     *
+     * @param int|null $merchantId Associated merchant identifier, or null if system-wide.
+     * @param int|null $userId Associated user identifier, or null if system-triggered.
+     * @param string $action The log action key descriptor.
+     * @param string|null $entityType The class or database table name of the target entity.
+     * @param int|null $entityId The primary key identifier of the target entity.
+     * @param array<string, mixed>|null $oldValues Entity attribute values before execution.
+     * @param array<string, mixed>|null $newValues Entity attribute values after execution.
+     * @param string|null $ip The client IP address executing the operation.
+     * @param string|null $userAgent The client browser user agent header.
+     * @return string Last inserted primary key ID of the log record.
      */
     public function record(
         ?int $merchantId,
@@ -39,8 +60,14 @@ final class AuditLogRepository extends BaseRepository
     }
 
     /**
-     * Paginated activity listing with user names.
-     * @param ?int $merchantId null = global (superadmin)
+     * Lists audit log records with sorting and pagination, optionally scoped by merchant ID.
+     *
+     * Joins user profiles to obtain displayable operator names.
+     *
+     * @param int|null $merchantId Scoping merchant ID context, or null for all merchants.
+     * @param int $limit Maximum records to return.
+     * @param int $offset Records offset.
+     * @return list<array<string, mixed>> List of audit log records.
      */
     public function listPaginated(?int $merchantId, int $limit, int $offset): array
     {
@@ -61,8 +88,10 @@ final class AuditLogRepository extends BaseRepository
     }
 
     /**
-     * Count audit logs.
-     * @param ?int $merchantId null = global (superadmin)
+     * Counts the total audit log records matching criteria.
+     *
+     * @param int|null $merchantId Scoping merchant ID context, or null for all merchants.
+     * @return int Matching records count.
      */
     public function countFiltered(?int $merchantId): int
     {
@@ -73,7 +102,11 @@ final class AuditLogRepository extends BaseRepository
     }
 
     /**
-     * List audit log entries for a specific entity.
+     * Retrieves all audit log entries associated with a specific entity.
+     *
+     * @param string $entityType The entity's structural type name.
+     * @param int $entityId The primary key identifier of the target entity.
+     * @return list<array<string, mixed>> List of matching audit log entries.
      */
     public function listForEntity(string $entityType, int $entityId): array
     {
