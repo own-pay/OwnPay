@@ -16,6 +16,7 @@ enum TransactionStatus: string
     case AwaitingVerification = 'awaiting_verification';
     case PendingReview = 'pending_review';
     case Processing = 'processing';
+    case CallbackProcessing = 'callback_processing';
     case Completed = 'completed';
     case Failed = 'failed';
     case Cancelled = 'cancelled';
@@ -61,6 +62,7 @@ enum TransactionStatus: string
             self::AwaitingVerification => 'Awaiting Verification',
             self::PendingReview => 'Pending Review',
             self::Processing => 'Processing',
+            self::CallbackProcessing => 'Callback Processing',
             self::Completed => 'Completed',
             self::Failed => 'Failed',
             self::Cancelled => 'Cancelled',
@@ -73,7 +75,7 @@ enum TransactionStatus: string
     {
         return match ($this) {
             self::Completed => 'green',
-            self::Pending, self::Created, self::Processing => 'yellow',
+            self::Pending, self::Created, self::Processing, self::CallbackProcessing => 'yellow',
             self::AwaitingVerification, self::PendingReview => 'blue',
             self::Failed => 'red',
             self::Cancelled, self::Expired => 'gray',

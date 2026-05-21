@@ -5,7 +5,7 @@ namespace OwnPay\Cron;
 
 use OwnPay\Repository\DomainRepository;
 use OwnPay\Service\Domain\DnsVerifier;
-use OwnPay\Support\DateHelper;
+use OwnPay\Support\DateHelper;
 
 /**
  * DNS verification job — re-checks pending domains every 6 hours.
@@ -40,9 +40,9 @@ final class DnsVerificationJob
 
             if ($result) {
                 $this->domains->update((int) $domain['id'], [
-                    'dns_verified' => 1,
-                    'status'       => 'active',
-                    'verified_at'  => DateHelper::now(),
+                    'dns_verified'    => 1,
+                    'status'          => 'active',
+                    'dns_verified_at' => DateHelper::now(),
                 ]);
                 $verified++;
             } else {

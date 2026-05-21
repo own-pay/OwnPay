@@ -141,12 +141,24 @@ final class BrandController
     public function switchBrand(Request $req): Response
     {
         $id = $req->post('brand_id');
+        $isSuperAdmin = !empty($_SESSION['is_superadmin']);
+        $homeMerchantId = (int) ($_SESSION['auth_merchant_id'] ?? 0);
+
         if ($id === 'global') {
+            if (!$isSuperAdmin) {
+                $this->session->flashError('Permission denied to switch to global view');
+                return Response::redirect('/admin');
+            }
             $this->brand->setGlobalView(true);
             $this->brand->setActiveBrandId(0);
         } elseif (is_numeric($id)) {
+            $brandId = (int) $id;
+            if (!$isSuperAdmin && $brandId !== $homeMerchantId) {
+                $this->session->flashError('Permission denied to switch to this brand');
+                return Response::redirect('/admin');
+            }
             $this->brand->setGlobalView(false);
-            $this->brand->setActiveBrandId((int) $id);
+            $this->brand->setActiveBrandId($brandId);
         }
 
         // Regenerate session ID on brand switch (auth context change).

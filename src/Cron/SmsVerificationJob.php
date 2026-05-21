@@ -7,6 +7,8 @@ use OwnPay\Core\Database;
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\TransactionRepository;
+use OwnPay\Service\Payment\TransactionService;
+use OwnPay\Service\Payment\LedgerService;
 
 /**
  * SMS verification job — matches parsed SMS to pending transactions.
@@ -17,17 +19,23 @@ final class SmsVerificationJob
 {
     private SmsParsedRepository $smsParsed;
     private TransactionRepository $transactions;
+    private TransactionService $transactionService;
+    private LedgerService $ledgerService;
     private EventManager $events;
     private Database $db;
 
     public function __construct(
         SmsParsedRepository $smsParsed,
         TransactionRepository $transactions,
+        TransactionService $transactionService,
+        LedgerService $ledgerService,
         EventManager $events,
         Database $db
     ) {
         $this->smsParsed = $smsParsed;
         $this->transactions = $transactions;
+        $this->transactionService = $transactionService;
+        $this->ledgerService = $ledgerService;
         $this->events = $events;
         $this->db = $db;
     }
@@ -77,6 +85,16 @@ final class SmsVerificationJob
                 if ($transaction !== null && $transaction['status'] === 'pending') {
                     $this->smsParsed->forTenant($merchantId)
                         ->linkToTransaction((int) $sms['id'], (int) $transaction['id']);
+
+                    // AUD-008: Complete transaction state + post ledger entries
+                    $this->transactionService->complete((int) $transaction['id'], $merchantId);
+                    $this->ledgerService->recordPaymentReceived(
+                        $merchantId,
+                        (int) $transaction['id'],
+                        $transaction['amount'],
+                        $transaction['fee'] ?? '0.00',
+                        $transaction['currency']
+                    );
 
                     $this->events->doAction('mobile.sms.matched', $sms, $transaction);
                     $matched++;

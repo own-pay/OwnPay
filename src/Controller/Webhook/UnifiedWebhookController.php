@@ -59,6 +59,25 @@ final class UnifiedWebhookController
         // Resolve merchant ID - injected by DomainResolverMiddleware or fallback
         $merchantId = $req->getAttribute('merchant_id') ?? $this->resolveMerchantFromPayload($req);
 
+        if ((int) $merchantId <= 0) {
+            $this->logAttempt($gateway, 'no_merchant_resolved', $req);
+            return Response::json(['error' => 'Could not resolve merchant'], 400);
+        }
+
+        // AUD-G6: Delegate webhook signature verification to gateway adapter before plugin or core dispatch
+        if ($this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
+            $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
+            try {
+                if (!$bridge->verifyWebhookSignature($gateway, (int) $merchantId, $rawBody, $req->allHeaders())) {
+                    $this->logAttempt($gateway, 'signature_verification_failed', $req);
+                    return Response::json(['error' => 'Webhook signature verification failed'], 403);
+                }
+            } catch (\Throwable $e) {
+                $this->logAttempt($gateway, 'signature_verification_error: ' . $e->getMessage(), $req);
+                return Response::json(['error' => 'Webhook signature verification error'], 403);
+            }
+        }
+
         $hookName = "webhook.incoming.{$gateway}";
 
         // 1. Plugin hook — if a plugin registered a listener, let it handle
@@ -93,21 +112,7 @@ final class UnifiedWebhookController
                 $callbackData = array_merge($queryParams, $callbackData);
             }
 
-            if ((int) $merchantId <= 0) {
-                $this->logAttempt($gateway, 'no_merchant_resolved', $req);
-                return Response::json(['error' => 'Could not resolve merchant'], 400);
-            }
-
             try {
-                // AUD-G6: Delegate webhook signature verification to gateway adapter
-                if ($this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
-                    $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
-                    if (!$bridge->verifyWebhookSignature($gateway, (int) $merchantId, $rawBody, $req->allHeaders())) {
-                        $this->logAttempt($gateway, 'signature_verification_failed', $req);
-                        return Response::json(['error' => 'Webhook signature verification failed'], 403);
-                    }
-                }
-
                 $svc = $this->c->get(GatewayApiService::class);
                 $result = $svc->handleCallback((int) $merchantId, $gateway, $callbackData);
 

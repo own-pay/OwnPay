@@ -51,16 +51,16 @@ return static function (\OwnPay\Http\Router $router): void {
             // DB not ready (install phase) — use default
         }
     }
-    $router->get('/' . $loginSlug,  'Admin\\AuthController@loginForm', 'web');
-    $router->post('/' . $loginSlug, 'Admin\\AuthController@login',     'web');
+    $router->get('/' . $loginSlug,  'Admin\\AuthController@loginForm', 'web-auth');
+    $router->post('/' . $loginSlug, 'Admin\\AuthController@login',     'web-auth');
     // Backward compat: if slug changed away from 'login', /login returns 404 (no route registered)
     $router->get('/logout',  'Admin\\AuthController@logout', 'web');
     $router->post('/logout', 'Admin\\AuthController@logout', 'web');
     $router->post('/admin/logout', 'Admin\\AuthController@logout', 'admin');
-    $router->get('/forgot-password',  'Admin\\AuthController@forgotForm',   'web');
-    $router->post('/forgot-password', 'Admin\\AuthController@forgotSubmit', 'web');
-    $router->get('/2fa',  'Admin\\AuthController@twoFactorForm',   'web');
-    $router->post('/2fa', 'Admin\\AuthController@twoFactorVerify', 'web');
+    $router->get('/forgot-password',  'Admin\\AuthController@forgotForm',   'web-auth');
+    $router->post('/forgot-password', 'Admin\\AuthController@forgotSubmit', 'web-auth');
+    $router->get('/2fa',  'Admin\\AuthController@twoFactorForm',   'web-auth');
+    $router->post('/2fa', 'Admin\\AuthController@twoFactorVerify', 'web-auth');
 
     // ─── Checkout (public, minimal middleware) ─────────────────
     $router->get('/checkout/{token}', 'Checkout\\CheckoutController@show', 'checkout');
