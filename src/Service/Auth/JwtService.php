@@ -143,7 +143,7 @@ final class JwtService
 
     /**
      * Verify and decode JWT.
-     * @return array{sub: int, mid: int, did: string, exp: int, iat: int, iss: string}
+     * @return array<string, mixed>
      * @throws \RuntimeException
      */
     public function verify(string $token): array

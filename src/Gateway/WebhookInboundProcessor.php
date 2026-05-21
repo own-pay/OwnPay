@@ -22,11 +22,9 @@ final class WebhookInboundProcessor
 {
     private const MAX_TIMESTAMP_SKEW = 300;
 
-    /** @phpstan-ignore property.onlyWritten */
     private Database $db;
     private TransactionService $transactionService;
     private TransactionRepository $transactionRepo;
-    private WebhookEventRepository $webhookEvents;
     private AuditLogger $audit;
     private Logger $logger;
 
@@ -34,14 +32,12 @@ final class WebhookInboundProcessor
         Database $db,
         TransactionService $transactionService,
         TransactionRepository $transactionRepo,
-        WebhookEventRepository $webhookEvents,
         AuditLogger $audit,
         Logger $logger
     ) {
         $this->db = $db;
         $this->transactionService = $transactionService;
         $this->transactionRepo = $transactionRepo;
-        $this->webhookEvents = $webhookEvents;
         $this->audit = $audit;
         $this->logger = $logger;
     }
@@ -60,9 +56,14 @@ final class WebhookInboundProcessor
 
         $eventId   = $whHeaders['eventId'];
         $eventType = $whHeaders['eventType'];
+        $payloadHash = hash('sha256', $rawBody);
 
         // Dedup
-        if ($this->webhookEvents->findByEventId($eventId) !== null) {
+        $existing = $this->db->fetchOne(
+            "SELECT id FROM op_webhook_deliveries WHERE merchant_id = :mid AND direction = 'inbound' AND payload_hash = :hash LIMIT 1",
+            ['mid' => $merchantId, 'hash' => $payloadHash]
+        );
+        if ($existing !== null) {
             return $this->result(true, 'Event already processed (idempotent).', $eventId);
         }
 
@@ -73,8 +74,8 @@ final class WebhookInboundProcessor
         }
 
         // Record + route
-        $this->recordEvent($merchantId, $eventId, $eventType, $rawBody);
-        return $this->executeEvent($eventType, $payload, $merchantId, $eventId);
+        $this->recordEvent($merchantId, $eventId, $eventType, $payloadHash);
+        return $this->executeEvent($eventType, $payload, $merchantId, $eventId, $payloadHash);
     }
 
     // ── Extracted Methods ─────────────────────────────────────────
@@ -124,34 +125,55 @@ final class WebhookInboundProcessor
     /**
      * Record webhook event for audit trail.
      */
-    private function recordEvent(int $merchantId, string $eventId, string $eventType, string $rawBody): void
+    private function recordEvent(int $merchantId, string $eventId, string $eventType, string $payloadHash): void
     {
-        $this->webhookEvents->insert([
-            'merchant_id' => $merchantId,
-            'event_id'    => $eventId,
-            'event_type'  => $eventType,
-            'payload'     => $rawBody,
-            'source_ip'   => $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0',
-            'status'      => 'processing',
-        ]);
+        $this->db->insert(
+            "INSERT INTO op_webhook_deliveries (merchant_id, gateway, event, direction, status, payload_hash, attempt, created_at) 
+             VALUES (:mid, :gw, :evt, 'inbound', 'received', :hash, 1, NOW(6))",
+            [
+                'mid' => $merchantId,
+                'gw' => 'system',
+                'evt' => $eventType,
+                'hash' => $payloadHash
+            ]
+        );
     }
 
     /**
      * Execute event handler with error recovery.
      */
-    private function executeEvent(string $eventType, array $payload, int $merchantId, string $eventId): array
+    private function executeEvent(string $eventType, array $payload, int $merchantId, string $eventId, string $payloadHash): array
     {
         try {
             $this->routeEvent($eventType, $payload, $merchantId);
-            $this->webhookEvents->updateStatusByEventId($eventId, 'processed');
+            $this->updateDeliveryStatus($merchantId, $payloadHash, 'delivered');
             /** @phpstan-ignore-next-line */
             $this->audit->log($merchantId, 'webhook.inbound_processed', 'webhook_event', $eventId, 'system', 'webhook_processor', null, ['event_type' => $eventType]);
             return $this->result(true, 'Event processed successfully.', $eventId);
         } catch (\Throwable $e) {
             $this->logger->error("Processing failed for {$eventId}: " . $e->getMessage());
-            $this->webhookEvents->updateStatusByEventId($eventId, 'failed');
+            $this->updateDeliveryStatus($merchantId, $payloadHash, 'failed', substr($e->getMessage(), 0, 500));
             return $this->result(false, 'Event processing failed.', $eventId);
         }
+    }
+
+    /**
+     * Update status in op_webhook_deliveries.
+     */
+    private function updateDeliveryStatus(int $merchantId, string $payloadHash, string $status, ?string $error = null): void
+    {
+        $this->db->execute(
+            "UPDATE op_webhook_deliveries 
+             SET status = :status, error = :error
+             WHERE merchant_id = :mid AND direction = 'inbound' AND payload_hash = :hash
+             ORDER BY created_at DESC LIMIT 1",
+            [
+                'status' => $status,
+                'error' => $error,
+                'mid' => $merchantId,
+                'hash' => $payloadHash
+            ]
+        );
     }
 
     /**

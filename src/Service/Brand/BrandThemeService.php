@@ -52,7 +52,7 @@ final class BrandThemeService
 
         // BUG-28 FIX: Return sensible defaults if merchant doesn't exist.
         // Without this, null array access causes TypeError crashes.
-        if ($merchant === null || $merchant === false) {
+        if ($merchant === null) {
             return [
                 'name'           => 'Own Pay',
                 'logo'           => '',

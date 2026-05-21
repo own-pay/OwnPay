@@ -23,15 +23,13 @@ use OwnPay\Repository\DomainRepository;
  */
 final class DomainUrlService
 {
-    private Database $db;
     private DomainRepository $domainRepo;
 
     /** @var array<int, string|null> In-memory cache of resolved domains per merchant */
     private array $domainCache = [];
 
-    public function __construct(Database $db, DomainRepository $domainRepo)
+    public function __construct(DomainRepository $domainRepo)
     {
-        $this->db = $db;
         $this->domainRepo = $domainRepo;
     }
 

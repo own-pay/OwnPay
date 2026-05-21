@@ -272,7 +272,7 @@ final class PluginController
     private function redirectBack(Request $request, string $error): Response
     {
         $this->session->flashError($error);
-        $referer = $request->header('Referer') ?? '';
+        $referer = $request->header('Referer');
         // Prevent open redirect: only use Referer if it's a relative path
         $path = parse_url($referer, PHP_URL_PATH) ?: '/admin/plugins/install';
         if (!str_starts_with($path, '/admin/')) {
@@ -286,8 +286,7 @@ final class PluginController
      */
     private function redirectTarget(Request $request): string
     {
-        /** @phpstan-ignore nullCoalesce.expr */
-        $referer = $request->header('Referer') ?? '';
+        $referer = $request->header('Referer');
         foreach (['/admin/gateways', '/admin/addons', '/admin/themes'] as $path) {
             if (str_contains($referer, $path)) {
                 return $path;

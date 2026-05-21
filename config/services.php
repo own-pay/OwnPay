@@ -377,7 +377,6 @@ return static function (\OwnPay\Container $c): void {
     // White-label domain pipeline — central URL resolver
     $c->singleton(\OwnPay\Service\Domain\DomainUrlService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Domain\DomainUrlService {
         return new \OwnPay\Service\Domain\DomainUrlService(
-            $c->get(\OwnPay\Core\Database::class),
             $c->get(\OwnPay\Repository\DomainRepository::class)
         );
     });
@@ -424,11 +423,11 @@ return static function (\OwnPay\Container $c): void {
     // ─── Webhook ──────────────────────────────────────────────────
     $c->singleton(\OwnPay\Gateway\WebhookInboundProcessor::class, static function (\OwnPay\Container $c): \OwnPay\Gateway\WebhookInboundProcessor {
         return new \OwnPay\Gateway\WebhookInboundProcessor(
-            $c->get(\OwnPay\Gateway\GatewayBridge::class),
+            $c->get(\OwnPay\Core\Database::class),
             $c->get(\OwnPay\Service\Payment\TransactionService::class),
+            $c->get(\OwnPay\Repository\TransactionRepository::class),
             $c->get(\OwnPay\Service\System\AuditLogger::class),
-            $c->get(\OwnPay\Repository\WebhookEventRepository::class),
-            $c->get(\OwnPay\Repository\TransactionRepository::class)
+            $c->get(\OwnPay\Service\System\Logger::class)
         );
     });
 

@@ -20,7 +20,7 @@ class Database
 {
     private PDO $pdo;
 
-    /** @var static|null */
+    /** @var self|null */
     private static ?self $instance = null;
 
     /**

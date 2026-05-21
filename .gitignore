@@ -14,7 +14,7 @@ phpstan_report*.txt
 phpstan_results.json
 
 # Dependencies
-vendor/
+vendor/*
 node_modules/
 
 # OS files
