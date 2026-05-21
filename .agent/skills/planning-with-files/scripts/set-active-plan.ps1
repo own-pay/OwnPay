@@ -19,7 +19,7 @@ if ($PlanId -eq "") {
             Write-Output "Active plan: $current"
             Write-Output "Path: $planDir"
         } elseif ($current -ne "") {
-            Write-Output "Active plan pointer: $current (directory not found — stale pointer)"
+            Write-Output "Active plan pointer: $current (directory not found - stale pointer)"
         } else {
             Write-Output "No active plan set."
         }

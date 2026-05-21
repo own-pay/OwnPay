@@ -124,7 +124,7 @@ final class GatewayApiService
                 'success'      => true,
                 'transaction'  => $transaction,
                 'redirect_url' => $result['redirect_url'] ?? null,
-                // BUG-35 FIX: Defense-in-depth — sanitize form_html even from
+                // Defense-in-depth — sanitize form_html even from
                 // trusted gateway plugins. Strip event handlers and javascript: URIs
                 // while preserving forms, inputs, and inline auto-submit scripts.
                 'form_html'    => self::sanitizeFormHtml($result['form_html'] ?? null),
@@ -166,7 +166,7 @@ final class GatewayApiService
             return ['success' => false, 'error' => 'Verification failed'];
         }
 
-        // AUD-C1 fix: Resolve transaction using multiple callback field names.
+        // Resolve transaction using multiple callback field names.
         // Different gateways use different parameter names for the merchant trx reference:
         //   SSLCommerz → tran_id, Stripe → reference, bKash → trx_id
         $trxId = '';
@@ -178,7 +178,7 @@ final class GatewayApiService
             }
         }
 
-        // FIX: Use TransactionService methods (not repo methods) so audit/event hooks fire
+        // Use TransactionService methods (not repo methods) so audit/event hooks fire
         $transaction = null;
         if ($trxId !== '') {
             $transaction = $this->transactions->findByTrxId($merchantId, $trxId);
@@ -192,8 +192,8 @@ final class GatewayApiService
             );
         }
 
-        if ($transaction !== null && $transaction['status'] === 'pending') {
-            // FIX: Use TransactionService::complete() — fires events + audit log
+        if ($transaction !== null && in_array($transaction['status'], ['pending', 'processing', 'callback_processing'], true)) {
+            // Use TransactionService::complete() — fires events + audit log
             $this->transactions->complete((int) $transaction['id'], $merchantId);
 
             // Record in ledger
@@ -212,7 +212,7 @@ final class GatewayApiService
     }
 
     /**
-     * Sanitizes gateway form HTML strings for defense-in-depth security (BUG-35).
+     * Sanitize gateway form_html — defense-in-depth.
      *
      * Removes dangerous scripts and attributes while keeping basic form inputs, submit buttons,
      * and inline submission scripts (e.g. document.forms[0].submit()) intact.

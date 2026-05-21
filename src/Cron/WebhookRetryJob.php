@@ -61,14 +61,13 @@ final class WebhookRetryJob
     public function run(): array
     {
         $failedDeliveries = $this->db->fetchAll(
-            "SELECT cl.*, we.url, we.secret, we.merchant_id
-             FROM op_comm_log cl
-             JOIN op_webhook_endpoints we ON we.id = cl.entity_id
-             WHERE cl.channel = 'webhook'
-               AND cl.status = 'failed'
-               AND cl.retry_count < :max_retries
-               AND cl.next_retry_at <= NOW()
-             ORDER BY cl.created_at ASC
+            "SELECT we.*, w.url, w.secret, w.merchant_id
+             FROM op_webhook_events we
+             JOIN op_webhooks w ON w.id = we.webhook_id
+             WHERE we.status = 'failed'
+               AND we.attempts < :max_retries
+               AND we.next_retry_at <= NOW(6)
+             ORDER BY we.next_retry_at ASC
              LIMIT 50",
             ['max_retries' => self::MAX_RETRIES]
         );
@@ -77,7 +76,7 @@ final class WebhookRetryJob
         $succeeded = 0;
 
         foreach ($failedDeliveries as $delivery) {
-            $retryCount = (int) ($delivery['retry_count'] ?? 0);
+            $attempts = (int) ($delivery['attempts'] ?? 0);
 
             $webhook = [
                 'url'         => $delivery['url'],
@@ -85,23 +84,25 @@ final class WebhookRetryJob
                 'merchant_id' => $delivery['merchant_id'],
             ];
 
-            $eventData = json_decode($delivery['content'] ?? '{}', true) ?: [];
+            $eventData = json_decode($delivery['payload'] ?? '{}', true) ?: [];
             $success = $this->webhookService->deliver($webhook, $delivery['event_type'] ?? '', $eventData);
 
             if ($success) {
                 $succeeded++;
-                // Update dispatch log status to delivered on successful remote host response, avoiding future retry dispatches.
                 $this->db->update(
-                    "UPDATE op_comm_log SET status = 'delivered', sent_at = NOW(6) WHERE id = :id",
+                    "UPDATE op_webhook_events SET status = 'delivered', last_attempt_at = NOW(6), attempts = attempts + 1 WHERE id = :id",
                     ['id' => $delivery['id']]
                 );
             } else {
-                // Schedule subsequent delivery attempts utilizing the exponential backoff interval lookup.
-                /** @phpstan-ignore-next-line */
-                $nextBackoff = self::BACKOFF_SECONDS[$retryCount] ?? end(self::BACKOFF_SECONDS);
+                // Schedule next retry with backoff
+                $nextBackoff = self::BACKOFF_SECONDS[$attempts] ?? end(self::BACKOFF_SECONDS);
                 $this->db->update(
-                    "UPDATE op_comm_log SET retry_count = :rc, next_retry_at = DATE_ADD(NOW(), INTERVAL :secs SECOND) WHERE id = :id",
-                    ['rc' => $retryCount + 1, 'secs' => $nextBackoff, 'id' => $delivery['id']]
+                    "UPDATE op_webhook_events 
+                     SET attempts = :att, 
+                         last_attempt_at = NOW(6), 
+                         next_retry_at = DATE_ADD(NOW(6), INTERVAL :secs SECOND) 
+                     WHERE id = :id",
+                    ['att' => $attempts + 1, 'secs' => $nextBackoff, 'id' => $delivery['id']]
                 );
             }
 

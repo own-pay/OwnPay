@@ -28,6 +28,13 @@ return [
         \OwnPay\Middleware\CsrfMiddleware::class,
     ],
 
+    // ─── Web Auth: rate-limited web auth routes (login, 2fa, forgot password) ─────
+    'web-auth' => [
+        \OwnPay\Middleware\SessionMiddleware::class,
+        \OwnPay\Middleware\CsrfMiddleware::class,
+        \OwnPay\Middleware\RateLimiterMiddleware::class,
+    ],
+
     // ─── Admin: web + auth + permissions ───────────────────────
     'admin' => [
         \OwnPay\Middleware\SessionMiddleware::class,

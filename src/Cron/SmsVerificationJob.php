@@ -7,6 +7,8 @@ use OwnPay\Core\Database;
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\TransactionRepository;
+use OwnPay\Service\Payment\TransactionService;
+use OwnPay\Service\Payment\LedgerService;
 
 /**
  * Class SmsVerificationJob
@@ -31,10 +33,8 @@ final class SmsVerificationJob
      * @var TransactionRepository Repository managing gateway transactions.
      */
     private TransactionRepository $transactions;
-
-    /**
-     * @var EventManager The enterprise event hook and action dispatcher.
-     */
+    private TransactionService $transactionService;
+    private LedgerService $ledgerService;
     private EventManager $events;
 
     /**
@@ -53,11 +53,15 @@ final class SmsVerificationJob
     public function __construct(
         SmsParsedRepository $smsParsed,
         TransactionRepository $transactions,
+        TransactionService $transactionService,
+        LedgerService $ledgerService,
         EventManager $events,
         Database $db
     ) {
         $this->smsParsed = $smsParsed;
         $this->transactions = $transactions;
+        $this->transactionService = $transactionService;
+        $this->ledgerService = $ledgerService;
         $this->events = $events;
         $this->db = $db;
     }
@@ -112,6 +116,16 @@ final class SmsVerificationJob
                 if ($transaction !== null && $transaction['status'] === 'pending') {
                     $this->smsParsed->forTenant($merchantId)
                         ->linkToTransaction((int) $sms['id'], (int) $transaction['id']);
+
+                    // AUD-008: Complete transaction state + post ledger entries
+                    $this->transactionService->complete((int) $transaction['id'], $merchantId);
+                    $this->ledgerService->recordPaymentReceived(
+                        $merchantId,
+                        (int) $transaction['id'],
+                        $transaction['amount'],
+                        $transaction['fee'] ?? '0.00',
+                        $transaction['currency']
+                    );
 
                     $this->events->doAction('mobile.sms.matched', $sms, $transaction);
                     $matched++;

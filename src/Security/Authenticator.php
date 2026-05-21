@@ -80,8 +80,8 @@ final class Authenticator
         $user = $this->users->findActiveByLogin($email);
 
         if ($user === null) {
-            // Log failure and execute constant-time hash verification to mitigate timing-based user enumeration.
-            password_verify($password, '$argon2id$v=19$m=65536,t=4,p=1$dummy$dummy');
+            // Log failed attempt (constant time — don't reveal whether account exists)
+            password_verify($password, '$argon2id$v=19$m=65536,t=4,p=1$c29tZXNhbHRzb21lc2FsdA$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
             $this->logAttempt($email, $ip, $userAgent, false);
             $this->events->doAction('auth.login.failed', $email, $ip);
             return ['success' => false, 'error' => 'Invalid credentials'];
