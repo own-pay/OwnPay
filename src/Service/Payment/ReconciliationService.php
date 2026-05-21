@@ -34,15 +34,31 @@ final class ReconciliationService
         );
         $txnTotal = $txnRow['total'] ?? '0.00';
 
-        // Sum refunds
-        $refundRow = $this->db->fetchOne(
-            "SELECT COALESCE(SUM(r.amount), 0) as total
+        // Sum refunds (calculating proportional net refund amounts to match new GAAP model)
+        $refundRows = $this->db->fetchAll(
+            "SELECT r.amount as refund_amount, t.amount as tx_amount, COALESCE(t.fee, 0) as tx_fee
              FROM op_refunds r
              JOIN op_transactions t ON t.id = r.transaction_id
              WHERE r.merchant_id = :mid AND t.currency = :cur AND r.status = 'completed'",
             ['mid' => $merchantId, 'cur' => $currency]
         );
-        $refundTotal = $refundRow['total'] ?? '0.00';
+
+        $refundNetTotal = '0.00';
+        foreach ($refundRows as $row) {
+            $refAmt = (string)$row['refund_amount'];
+            $txAmt = (string)$row['tx_amount'];
+            $txFee = (string)$row['tx_fee'];
+
+            if (bccomp($txAmt, '0.00', 4) > 0) {
+                $ratio = bcdiv($txFee, $txAmt, 18);
+                $refundFee = bcmul($refAmt, $ratio, 4);
+            } else {
+                $refundFee = '0.00';
+            }
+            $refundNet = bcsub($refAmt, $refundFee, 4);
+            $refundNetTotal = bcadd($refundNetTotal, $refundNet, 4);
+        }
+        $refundTotal = bcadd('0.00', $refundNetTotal, 2);
 
         // Expected balance = transactions - refunds - settlements
         $settlementRow = $this->db->fetchOne(

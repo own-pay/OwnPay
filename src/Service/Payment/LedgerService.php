@@ -5,9 +5,10 @@ namespace OwnPay\Service\Payment;
 
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\LedgerRepository;
+use OwnPay\Repository\TransactionRepository;
 
 /**
- * Ledger service Ã¢€— double-entry bookkeeping for every money movement.
+ * Ledger service — double-entry bookkeeping for every money movement.
  * Uses strict triple-table schema (accounts, transactions, entries).
  *
  * Fires: ledger.entry.created
@@ -16,11 +17,16 @@ final class LedgerService
 {
     private LedgerRepository $ledger;
     private EventManager $events;
+    private TransactionRepository $transactions;
 
-    public function __construct(LedgerRepository $ledger, EventManager $events)
-    {
+    public function __construct(
+        LedgerRepository $ledger,
+        EventManager $events,
+        TransactionRepository $transactions
+    ) {
         $this->ledger = $ledger;
         $this->events = $events;
+        $this->transactions = $transactions;
     }
 
     /**
@@ -35,6 +41,8 @@ final class LedgerService
                 return 'asset';
             case 'MERCHANT_PAYABLE':
                 return 'liability';
+            case 'PLATFORM_FEE_REVENUE':
+                return 'revenue';
             default:
                 return 'asset';
         }
@@ -54,17 +62,58 @@ final class LedgerService
         string $referenceId,
         ?string $description = null
     ): void {
-        // 1. Ensure accounts exist with correct resolved types
-        $drType = $this->getAccountType($debitAccountCode);
-        $crType = $this->getAccountType($creditAccountCode);
-        $drAccount = $this->ledger->findOrCreateAccount($debitAccountCode, $drType, $currency, $merchantId);
-        $crAccount = $this->ledger->findOrCreateAccount($creditAccountCode, $crType, $currency, $merchantId);
+        $entries = [
+            ['account' => $debitAccountCode, 'type' => 'debit', 'amount' => $amount],
+            ['account' => $creditAccountCode, 'type' => 'credit', 'amount' => $amount]
+        ];
+        $this->postEntries($merchantId, $eventType, $currency, $entries, $referenceType, $referenceId, $description);
+    }
 
-        // BUG-009 FIX: Capture the scoped clone — forTenant() returns a new instance.
-        // Using $this->ledger inside the closure would lose the tenant scope.
+    /**
+     * Post a balanced multi-entry journal transaction.
+     */
+    public function postEntries(
+        int $merchantId,
+        string $eventType,
+        string $currency,
+        array $entries,
+        string $referenceType,
+        string $referenceId,
+        ?string $description = null
+    ): void {
+        $resolvedEntries = [];
+        $totalDebit = '0.00';
+        $totalCredit = '0.00';
+
+        foreach ($entries as $entry) {
+            $code = $entry['account'];
+            $type = $entry['type']; // 'debit' or 'credit'
+            $amount = $entry['amount'];
+
+            $acctType = $this->getAccountType($code);
+            $account = $this->ledger->findOrCreateAccount($code, $acctType, $currency, $merchantId);
+
+            $resolvedEntries[] = [
+                'account_id' => (int) $account['id'],
+                'type' => $type,
+                'amount' => $amount
+            ];
+
+            if ($type === 'debit') {
+                $totalDebit = bcadd($totalDebit, $amount, 4);
+            } else {
+                $totalCredit = bcadd($totalCredit, $amount, 4);
+            }
+        }
+
+        // Safety check to ensure debits equal credits
+        if (bccomp($totalDebit, $totalCredit, 4) !== 0) {
+            throw new \InvalidArgumentException("Ledger transaction is not balanced. Debits: {$totalDebit}, Credits: {$totalCredit}");
+        }
+
         $scopedLedger = $this->ledger->forTenant($merchantId);
         $db = $scopedLedger->getDatabase();
-        $db->transaction(function () use ($scopedLedger, $merchantId, $eventType, $amount, $currency, $drAccount, $crAccount, $referenceType, $referenceId, $description) {
+        $db->transaction(function () use ($scopedLedger, $merchantId, $eventType, $resolvedEntries, $currency, $referenceType, $referenceId, $description, $totalDebit) {
             
             // 2. Create Journal Header (uses tenantId from scoped clone)
             $txnId = $scopedLedger->createTransaction(
@@ -73,19 +122,17 @@ final class LedgerService
                 $description ?? $eventType
             );
 
-            // 3. Create Entries (Debit + Credit)
-            $scopedLedger->createEntry($txnId, (int) $drAccount['id'], 'debit', $amount);
-            $scopedLedger->createEntry($txnId, (int) $crAccount['id'], 'credit', $amount);
-
-            // 4. Update Balances
-            $scopedLedger->adjustBalance((int) $drAccount['id'], $amount, 'debit');
-            $scopedLedger->adjustBalance((int) $crAccount['id'], $amount, 'credit');
+            // 3. Create Entries and Update Balances
+            foreach ($resolvedEntries as $entry) {
+                $scopedLedger->createEntry($txnId, $entry['account_id'], $entry['type'], $entry['amount']);
+                $scopedLedger->adjustBalance($entry['account_id'], $entry['amount'], $entry['type']);
+            }
 
             // Fire event
             $this->events->doAction('ledger.entry.created', [
                 'transaction_id' => $txnId,
                 'merchant_id'    => $merchantId,
-                'amount'         => $amount,
+                'amount'         => $totalDebit,
                 'currency'       => $currency
             ]);
         });
@@ -98,13 +145,17 @@ final class LedgerService
     {
         $net = bcsub($amount, $fee, 4);
         
-        $this->postJournal(
+        $entries = [
+            ['account' => 'CASH', 'type' => 'debit', 'amount' => $amount],
+            ['account' => 'MERCHANT_PAYABLE', 'type' => 'credit', 'amount' => $net],
+            ['account' => 'PLATFORM_FEE_REVENUE', 'type' => 'credit', 'amount' => $fee],
+        ];
+
+        $this->postEntries(
             $merchantId,
             'payment_received',
-            $net,
             $currency,
-            'CASH',
-            'MERCHANT_PAYABLE',
+            $entries,
             'transaction',
             (string) $transactionId,
             "Payment received (fee: {$fee})"
@@ -116,13 +167,34 @@ final class LedgerService
      */
     public function recordRefund(int $merchantId, int $transactionId, string $amount, string $currency): void
     {
-        $this->postJournal(
+        $txn = $this->transactions->forTenant($merchantId)->findScoped($transactionId);
+        if ($txn === null) {
+            throw new \RuntimeException("Transaction not found: {$transactionId}");
+        }
+
+        $origGross = (string) $txn['amount'];
+        $origFee = (string) ($txn['fee'] ?? '0.00');
+
+        if (bccomp($origGross, '0.00', 4) > 0) {
+            $ratio = bcdiv($origFee, $origGross, 18);
+            $refundFee = bcmul($amount, $ratio, 4);
+        } else {
+            $refundFee = '0.00';
+        }
+
+        $refundNet = bcsub($amount, $refundFee, 4);
+
+        $entries = [
+            ['account' => 'CASH', 'type' => 'credit', 'amount' => $amount],
+            ['account' => 'MERCHANT_PAYABLE', 'type' => 'debit', 'amount' => $refundNet],
+            ['account' => 'PLATFORM_FEE_REVENUE', 'type' => 'debit', 'amount' => $refundFee],
+        ];
+
+        $this->postEntries(
             $merchantId,
             'refund',
-            $amount,
             $currency,
-            'MERCHANT_PAYABLE',
-            'CASH',
+            $entries,
             'transaction',
             (string) $transactionId,
             "Refund issued"

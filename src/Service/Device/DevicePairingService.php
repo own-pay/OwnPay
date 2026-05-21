@@ -58,12 +58,11 @@ final class DevicePairingService
     {
         $db = $this->devices->getDatabase();
         if ($adminId !== null) {
-            $since = date('Y-m-d H:i:s', time() - 300);
+            // TIMEZONE-FIX: Use SQL-native window to avoid PHP/MySQL timezone mismatch.
             $count = $db->fetchOne(
-                "SELECT COUNT(*) as cnt FROM op_device_pairing_tokens WHERE created_by = :admin AND created_at > :since",
+                "SELECT COUNT(*) as cnt FROM op_device_pairing_tokens WHERE created_by = :admin AND created_at > DATE_SUB(NOW(6), INTERVAL 300 SECOND)",
                 [
-                    'admin' => $adminId,
-                    'since' => $since
+                    'admin' => $adminId
                 ]
             );
             if ($count && (int)$count['cnt'] >= 5) {

@@ -15,5 +15,11 @@
         "core": ">=0.1.0",
         "php": ">=8.1"
     },
+    "csp": {
+        "script_src": ["https://*.cmaal.com"],
+        "style_src": ["https://*.cmaal.com"],
+        "frame_src": ["https://*.cmaal.com"],
+        "connect_src": ["https://*.cmaal.com"]
+    },
     "permissions": ["gateway.process"]
 }

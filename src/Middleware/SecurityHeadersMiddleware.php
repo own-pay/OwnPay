@@ -56,14 +56,30 @@ final class SecurityHeadersMiddleware
         $isCheckout = str_starts_with($path, '/checkout') || str_starts_with($path, '/invoice') || str_starts_with($path, '/pay');
 
         if ($isCheckout) {
+            // CSP-PLUGIN FIX: Build checkout CSP dynamically from gateway plugin manifests
+            // instead of hardcoding domains. Third-party gateway plugins declare their CSP
+            // needs via the "csp" field in manifest.json, e.g.:
+            //   "csp": {
+            //     "script_src": ["https://*.mypayment.com"],
+            //     "style_src":  ["https://*.mypayment.com"],
+            //     "frame_src":  ["https://*.mypayment.com"],
+            //     "connect_src": ["https://api.mypayment.com"]
+            //   }
+            $gatewayCsp = $this->collectGatewayCspSources();
+
+            $scriptSrc  = array_unique(array_merge(["'self'", "'nonce-{$nonce}'"], $gatewayCsp['script_src']));
+            $styleSrc   = array_unique(array_merge(["'self'", "'nonce-{$nonce}'", 'https://fonts.googleapis.com'], $gatewayCsp['style_src']));
+            $frameSrc   = array_unique(array_merge(["'self'"], $gatewayCsp['frame_src']));
+            $connectSrc = array_unique(array_merge(["'self'"], $gatewayCsp['connect_src']));
+
             $csp = implode('; ', [
-                "default-src 'self' https:",
-                "script-src 'self' 'nonce-{$nonce}' 'unsafe-inline' 'unsafe-eval' https://*.stripe.com https://*.sslcommerz.com https://*.bkash.com https://*.paypal.com https://*.paypalobjects.com",
-                "style-src 'self' 'nonce-{$nonce}' 'unsafe-inline' https://fonts.googleapis.com https://*.stripe.com https://*.sslcommerz.com https://*.bkash.com https://*.paypal.com",
+                "default-src 'self'",
+                'script-src ' . implode(' ', $scriptSrc),
+                'style-src ' . implode(' ', $styleSrc),
                 "font-src 'self' data: https://fonts.gstatic.com https:",
                 "img-src 'self' data: https:",
-                "connect-src 'self' https:",
-                "frame-src 'self' https://*.stripe.com https://*.paypal.com https://*.bkash.com https://*.sslcommerz.com",
+                'connect-src ' . implode(' ', $connectSrc),
+                'frame-src ' . implode(' ', $frameSrc),
                 "frame-ancestors 'self' https:",
                 "base-uri 'self'",
                 "form-action 'self' https:",
@@ -86,5 +102,98 @@ final class SecurityHeadersMiddleware
         $response->withHeader($cspHeader, $csp);
 
         return $response;
+    }
+
+    /**
+     * Collect CSP source domains from all gateway plugin manifests.
+     *
+     * Reads the "csp" field from each gateway manifest.json under modules/gateways/.
+     * Also fires the 'checkout.csp.sources' filter hook so plugins can add
+     * CSP domains dynamically at runtime (e.g., for conditional loading).
+     *
+     * @return array{script_src: string[], style_src: string[], frame_src: string[], connect_src: string[]}
+     */
+    private function collectGatewayCspSources(): array
+    {
+        $sources = [
+            'script_src'  => [],
+            'style_src'   => [],
+            'frame_src'   => [],
+            'connect_src' => [],
+        ];
+
+        // 1. Read CSP declarations from gateway manifests
+        try {
+            $modulesPath = $this->container->get('config.app')['paths']['modules'] ?? '';
+            $gatewaysDir = $modulesPath . '/gateways';
+
+            if ($modulesPath !== '' && is_dir($gatewaysDir)) {
+                $manifests = glob($gatewaysDir . '/*/manifest.json');
+                if ($manifests !== false) {
+                    foreach ($manifests as $manifestPath) {
+                        $content = @file_get_contents($manifestPath);
+                        if ($content === false) {
+                            continue;
+                        }
+                        $manifest = json_decode($content, true);
+                        if (!is_array($manifest) || empty($manifest['csp'])) {
+                            continue;
+                        }
+                        $csp = $manifest['csp'];
+                        foreach (['script_src', 'style_src', 'frame_src', 'connect_src'] as $directive) {
+                            if (!empty($csp[$directive]) && is_array($csp[$directive])) {
+                                // Sanitize: only allow https:// origins
+                                foreach ($csp[$directive] as $origin) {
+                                    if (is_string($origin) && $this->isValidCspOrigin($origin)) {
+                                        $sources[$directive][] = $origin;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (\Throwable) {
+            // Graceful degradation — CSP will just be more restrictive
+        }
+
+        // 2. Apply filter hook so plugins can add CSP domains dynamically at runtime.
+        // Gateway plugins can hook this in their boot() method:
+        //   $events->addFilter('checkout.csp.sources', function (array $sources): array {
+        //       $sources['script_src'][] = 'https://*.mypayment.com';
+        //       $sources['frame_src'][]  = 'https://*.mypayment.com';
+        //       return $sources;
+        //   });
+        if ($this->container->has(\OwnPay\Event\EventManager::class)) {
+            try {
+                $events = $this->container->get(\OwnPay\Event\EventManager::class);
+                $sources = $events->applyFilter('checkout.csp.sources', $sources);
+            } catch (\Throwable) {
+                // Filter application failed — continue with manifest-only sources
+            }
+        }
+
+        return $sources;
+    }
+
+    /**
+     * Validate a CSP origin string — only allow safe patterns.
+     *
+     * Accepts: 'https://*.example.com', 'https://api.example.com'
+     * Rejects: 'data:', 'unsafe-inline', '*', javascript:, etc.
+     */
+    private function isValidCspOrigin(string $origin): bool
+    {
+        // Must start with https:// (enforce secure origins only)
+        if (!str_starts_with($origin, 'https://')) {
+            return false;
+        }
+
+        // Must not contain spaces, semicolons, or single quotes (CSP injection prevention)
+        if (preg_match('/[\s;\'"\\\\]/', $origin)) {
+            return false;
+        }
+
+        return true;
     }
 }

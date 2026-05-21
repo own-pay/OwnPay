@@ -88,7 +88,7 @@ final class DeviceController
         $mid      = (int) $req->getAttribute('merchant_id');
 
         if (ctype_digit($deviceId)) {
-            $device = $this->deviceRepo->forTenant($mid)->find((int) $deviceId);
+            $device = $this->deviceRepo->forTenant($mid)->findScoped((int) $deviceId);
             if ($device !== null) {
                 $deviceId = (string) $device['device_id'];
             }

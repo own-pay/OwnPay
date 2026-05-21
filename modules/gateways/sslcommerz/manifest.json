@@ -12,5 +12,11 @@
     "namespace": "OwnPay\\Modules\\Gateways\\SslCommerz",
     "capabilities": ["gateway"],
     "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+    "csp": {
+        "script_src": ["https://*.sslcommerz.com"],
+        "style_src": ["https://*.sslcommerz.com"],
+        "frame_src": ["https://*.sslcommerz.com"],
+        "connect_src": ["https://*.sslcommerz.com"]
+    },
     "permissions": ["gateway.process"]
 }

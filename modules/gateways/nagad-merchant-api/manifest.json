@@ -15,5 +15,11 @@
         "core": ">=0.1.0",
         "php": ">=8.1"
     },
+    "csp": {
+        "script_src": ["https://*.mynagad.com"],
+        "style_src": ["https://*.mynagad.com"],
+        "frame_src": ["https://*.mynagad.com"],
+        "connect_src": ["https://*.mynagad.com"]
+    },
     "permissions": ["gateway.process"]
 }

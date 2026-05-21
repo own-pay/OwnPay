@@ -9,7 +9,7 @@ use PHPUnit\Framework\TestCase;
 
 class InputSanitizerTest extends TestCase
 {
-    public function testHtmlEncodesSpecialChars(): void
+    public function testHtmlStripsScriptTags(): void
     {
         $result = InputSanitizer::html('<script>alert("x")</script>');
         $this->assertSame('alert("x")', $result);
