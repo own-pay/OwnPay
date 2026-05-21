@@ -1,4 +1,4 @@
-# OwnPay — Sovereign Payment Gateway Infrastructure
+# OwnPay - OPEN SOURCE PAYMENT INFRASTRUCTURE
 
 ![OwnPay Banner](docs/images/own_pay_banner.png)
 

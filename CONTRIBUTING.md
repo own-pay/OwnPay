@@ -2,12 +2,8 @@
 
 Thank you for your interest in contributing to **OwnPay**! As an enterprise-grade, self-hosted payment gateway orchestrator, we welcome high-quality contributions from the community. To keep the project stable, secure, and maintainable, we enforce a strict set of contributing guidelines.
 
----
-
-## ⚖️ License & Agreements
-By contributing to this repository, you agree that your contributions will be licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. 
-
----
+## ⚖️ License
+By contributing to this repository, you agree that your contributions will be licensed under the **GNU Affero General Public License v3.0 or later (AGPL-3.0-or-later)**.
 
 ## 🚦 Pull Request Process & Branching Model
 
