@@ -13,7 +13,7 @@ We only provide security updates for the latest stable version of Own Pay. Pleas
 
 **Do not open a public issue for security vulnerabilities.**
 
-If you discover a security vulnerability within Own Pay, please report it privately via email to **security@ownpay.org**. 
+If you discover a security vulnerability within Own Pay, please report it privately via email to **ping@ownpay.org**. 
 
 ### What to include in your report:
 - A detailed description of the vulnerability.

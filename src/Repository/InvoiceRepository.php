@@ -5,6 +5,13 @@ namespace OwnPay\Repository;
 
 use Ramsey\Uuid\Uuid;
 
+/**
+ * Repository layer for invoices (`op_invoices` table).
+ *
+ * Scopes CRUD operations per active tenant via the TenantScope trait.
+ * Manages invoice numbers generation, unique security checkout tokens,
+ * invoice items querying, and link lookups to pending transactions.
+ */
 final class InvoiceRepository extends BaseRepository
 {
     use TenantScope;
@@ -16,6 +23,12 @@ final class InvoiceRepository extends BaseRepository
         'due_date', 'status', 'paid_at',
     ];
 
+    /**
+     * Creates a new invoice with UUID and dynamic token.
+     *
+     * @param array<string, mixed> $data Invoice creation attributes.
+     * @return string Last inserted primary key ID.
+     */
     public function createInvoice(array $data): string
     {
         $data['uuid'] = Uuid::uuid4()->toString();
@@ -24,6 +37,14 @@ final class InvoiceRepository extends BaseRepository
         return $this->createScoped($data);
     }
 
+    /**
+     * Finds an invoice record by its unique secure checkout token.
+     *
+     * Public helper; intentionally unscoped.
+     *
+     * @param string $token Secure checkout token.
+     * @return array<string, mixed>|null Invoice database record, or null if not found.
+     */
     public function findByToken(string $token): ?array
     {
         return $this->db->fetchOne(
@@ -32,6 +53,11 @@ final class InvoiceRepository extends BaseRepository
         );
     }
 
+    /**
+     * Generates a unique invoice number for the active merchant.
+     *
+     * @return string Generated invoice number.
+     */
     private function generateNumber(): string
     {
         $mid = $this->requireTenant();
@@ -40,8 +66,13 @@ final class InvoiceRepository extends BaseRepository
     }
 
     /**
-     * Find unpaid invoice by number (public checkout).
-     * BUG-17 FIX: Scoped by merchant_id to prevent cross-tenant leakage.
+     * Finds an unpaid invoice by number.
+     *
+     * Scoped by merchant_id to prevent cross-tenant leakage.
+     *
+     * @param string $invoiceNumber Invoice sequence number.
+     * @param int $merchantId Scoping merchant ID context.
+     * @return array<string, mixed>|null Invoice database record, or null if not found/paid.
      */
     public function findUnpaidByNumber(string $invoiceNumber, int $merchantId): ?array
     {
@@ -52,8 +83,13 @@ final class InvoiceRepository extends BaseRepository
     }
 
     /**
-     * Find pending transaction for invoice.
-     * C-02 FIX: op_transactions has no invoice_id column — ID stored in metadata JSON.
+     * Finds a pending transaction associated with an invoice.
+     *
+     * Leverages the STORED generated indexing column `invoice_id` in `op_transactions`
+     * for high-performance direct lookups.
+     *
+     * @param int $invoiceId Primary key identifier of the invoice.
+     * @return array<string, mixed>|null Pending transaction row (with key trx_id) or null.
      */
     public function findPendingTransaction(int $invoiceId): ?array
     {
@@ -66,7 +102,10 @@ final class InvoiceRepository extends BaseRepository
     }
 
     /**
-     * List invoice items.
+     * Lists invoice items for a specific invoice.
+     *
+     * @param int $invoiceId Primary key identifier of the invoice.
+     * @return list<array<string, mixed>> List of invoice item rows.
      */
     public function listItems(int $invoiceId): array
     {

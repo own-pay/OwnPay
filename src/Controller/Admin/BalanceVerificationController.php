@@ -10,15 +10,45 @@ use OwnPay\Http\Response;
 use OwnPay\Service\Payment\ReconciliationService;
 use OwnPay\Repository\TransactionRepository;
 
+/**
+ * Class BalanceVerificationController
+ *
+ * Provides administrative functionality to run reconciliation audits on ledger accounts vs transaction logs.
+ *
+ * @package OwnPay\Controller\Admin
+ */
 final class BalanceVerificationController
 {
     use AdminPageTrait;
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
+
+    /**
+     * @var ReconciliationService The reconciliation service.
+     */
     private ReconciliationService $recon;
+
+    /**
+     * @var TransactionRepository The transaction repository.
+     */
     private TransactionRepository $txnRepo;
 
+    /**
+     * BalanceVerificationController constructor.
+     *
+     * @param Container             $c       The dependency injection container.
+     * @param AdminSession          $session The administrative session service.
+     * @param ReconciliationService $recon   The reconciliation service.
+     * @param TransactionRepository $txnRepo The transaction repository.
+     */
     public function __construct(Container $c, AdminSession $session, ReconciliationService $recon, TransactionRepository $txnRepo)
     {
         $this->c       = $c;
@@ -27,7 +57,13 @@ final class BalanceVerificationController
         $this->txnRepo = $txnRepo;
     }
 
-    /** @phpstan-ignore-next-line */
+    /**
+     * Displays the balance verification status and reconciliation summaries for all active currencies.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The balance verification overview response.
+     */
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
@@ -49,6 +85,13 @@ final class BalanceVerificationController
         ]);
     }
 
+    /**
+     * Triggers manual reconciliation verification for a specific currency context.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function run(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
@@ -60,8 +103,9 @@ final class BalanceVerificationController
             $result = $this->recon->reconcile($mid, $currency);
             $this->session->flashSuccess(sprintf(
                 'Verification complete — %s: Expected %.2f, Actual %.2f',
-            /** @phpstan-ignore-next-line */
-                $currency, $result['expected'] ?? 0, $result['actual'] ?? 0
+                $currency,
+                (float) $result['expected_balance'],
+                (float) $result['ledger_balance']
             ));
         } catch (\Throwable $e) {
             $this->session->flashError('Verification failed: ' . $e->getMessage());

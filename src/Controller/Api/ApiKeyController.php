@@ -8,18 +8,42 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Service\Customer\ApiKeyService;
 
+/**
+ * Controller for brand API keys management via REST API endpoints.
+ */
 final class ApiKeyController
 {
-    /** @phpstan-ignore property.onlyWritten */
+    /**
+     * The dependency injection container.
+     *
+     * @phpstan-ignore property.onlyWritten
+     */
     private Container $c;
+
+    /**
+     * The API key service.
+     */
     private ApiKeyService $keys;
 
+    /**
+     * ApiKeyController constructor.
+     *
+     * @param Container $c The dependency injection container.
+     * @param ApiKeyService $keys The API key service.
+     */
     public function __construct(Container $c, ApiKeyService $keys)
     {
         $this->c = $c;
         $this->keys = $keys;
     }
 
+    /**
+     * List all API keys for the active brand.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response with safe API key metadata.
+     * @throws \Exception If lookup fails.
+     */
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
@@ -39,6 +63,13 @@ final class ApiKeyController
         return Response::json(['success' => true, 'data' => $safe]);
     }
 
+    /**
+     * Generate a new API key for the active brand.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response containing the plain API key (displayed only once).
+     * @throws \Exception If key generation fails.
+     */
     public function generate(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
@@ -55,6 +86,13 @@ final class ApiKeyController
         ], 201);
     }
 
+    /**
+     * Revoke an API key by ID.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON success response.
+     * @throws \Exception If revocation fails.
+     */
     public function revoke(Request $req): Response
     {
         $id = (int) $req->param('id');

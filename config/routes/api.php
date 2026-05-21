@@ -2,13 +2,18 @@
 declare(strict_types=1);
 
 /**
- * API Routes — Unified routing for Merchant, Mobile, and Admin APIs.
- * OWASP: All routes require auth middleware. No wildcard CORS.
- * PCI: Payment routes never log/store card data.
+ * OwnPay API Routing Configuration.
  *
- * @param \OwnPay\Http\Router $router
+ * This file registers all API endpoints for the OwnPay gateway platform.
+ * It maps incoming HTTP request patterns to their respective API controllers,
+ * grouping endpoints by functional domain:
+ * 1. Merchant REST API: Authenticated via bearer API keys (scopes: read, write).
+ * 2. Mobile Companion App API: Authenticated via JWT tokens.
+ * 3. Administrative API: Authenticated via superadmin authorization.
+ *
+ * @param \OwnPay\Http\Router $router The global application Router instance.
+ * @return void
  */
-
 return static function (\OwnPay\Http\Router $router): void {
 
     // ======================== MERCHANT API (Bearer Auth) ========================

@@ -2,12 +2,14 @@
 declare(strict_types=1);
 
 /**
- * Web routes — admin panel, checkout, pages, cron.
+ * OwnPay Web Routing Configuration.
  *
- * Called by Router::loadRoutes(). Each route maps:
- *   method, pattern, handler (Controller@method), middleware group
+ * This file registers all public web routes, payment checkout endpoints,
+ * administrative dashboard fragment targets, third-party webhook handlers,
+ * background cron executions, and the multi-step installation wizard interface.
  *
- * @param \OwnPay\Http\Router $router
+ * @param \OwnPay\Http\Router $router The global application Router instance.
+ * @return void
  */
 
 return static function (\OwnPay\Http\Router $router): void {

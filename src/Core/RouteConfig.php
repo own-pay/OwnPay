@@ -38,6 +38,10 @@ final class RouteConfig
 
     /**
      * Get an environment value with a default fallback.
+     *
+     * @param string $key The environment configuration key.
+     * @param string $default The default fallback value.
+     * @return string Resolved environment value or the fallback default.
      */
     private static function env(string $key, string $default): string
     {

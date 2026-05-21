@@ -9,22 +9,56 @@ use PDO;
 use PDOStatement;
 
 /**
- * Thin database wrapper around PDO.
+ * Class Database
  *
+ * Thin database wrapper around PDO.
  * Provides convenience methods for common queries while maintaining
  * full prepared-statement safety. No raw string interpolation ever.
- *
  * Injected via DI container — never instantiate directly.
+ *
+ * @package OwnPay\Core
  */
 class Database
 {
+    /**
+     * @var PDO The underlying PDO instance.
+     */
     private PDO $pdo;
 
-    /** @var self|null */
+    /**
+     * @var self|null The singleton instance used for testing/fallback context.
+     */
     private static ?self $instance = null;
 
     /**
-     * Reset the singleton instance (used for testing).
+     * @var EventManager|null Optional EventManager for query hooks.
+     */
+    private ?EventManager $events = null;
+
+    /**
+     * @var PluginRegistry|null Optional PluginRegistry for sandbox checks.
+     */
+    private ?PluginRegistry $registry = null;
+
+    /**
+     * @var bool Guard against infinite recursion when hooks themselves query the database.
+     */
+    private bool $firingHooks = false;
+
+    /**
+     * Database constructor.
+     *
+     * @param PDO $pdo The underlying PDO connection.
+     */
+    public function __construct(PDO $pdo)
+    {
+        $this->pdo = $pdo;
+    }
+
+    /**
+     * Resets the singleton instance (used for testing).
+     *
+     * @return void
      */
     public static function reset(): void
     {
@@ -32,27 +66,11 @@ class Database
     }
 
     /**
-     * AUD-G3: Optional EventManager for query hooks.
-     * Lazily injected after container build to avoid circular DI.
-     */
-    private ?EventManager $events = null;
-
-    /**
-     * AUD-G8: Optional PluginRegistry for sandbox checks.
-     */
-    private ?PluginRegistry $registry = null;
-
-    /** Guard against infinite recursion when hooks themselves query DB */
-    private bool $firingHooks = false;
-
-    public function __construct(PDO $pdo)
-    {
-        $this->pdo = $pdo;
-    }
-
-    /**
-     * AUD-G3: Inject EventManager after container build.
+     * Injects the EventManager after container build.
      * Called by Kernel::boot() once DI is ready.
+     *
+     * @param EventManager $events The event manager.
+     * @return void
      */
     public function setEventManager(EventManager $events): void
     {
@@ -60,19 +78,27 @@ class Database
     }
 
     /**
-     * AUD-G8: Inject PluginRegistry after container build.
+     * Injects the PluginRegistry after container build.
      * Called by Kernel::boot() once DI is ready.
+     *
+     * @param PluginRegistry $registry The plugin registry.
+     * @return void
      */
     public function setPluginRegistry(PluginRegistry $registry): void
     {
         $this->registry = $registry;
     }
 
-    
-
     /**
-     * Create and store a singleton instance from connection parameters.
+     * Creates and stores a singleton instance from connection parameters.
      * Used by integration tests that cannot access the DI container.
+     *
+     * @param string $host   The database host.
+     * @param string $name   The database name.
+     * @param string $user   The database username.
+     * @param string $pass   The database password.
+     * @param int    $port   The database port.
+     * @return self The initialized Database instance.
      */
     public static function init(
         string $host,
@@ -92,9 +118,10 @@ class Database
     }
 
     /**
-     * Retrieve the singleton set by init().
+     * Retrieves the singleton set by init().
      *
-     * @throws \RuntimeException if init() was never called.
+     * @throws \RuntimeException If init() was never called.
+     * @return self The active Database instance.
      */
     public static function getInstance(): self
     {
@@ -104,16 +131,22 @@ class Database
         return self::$instance;
     }
 
-    /** Return the underlying PDO connection. */
+    /**
+     * Returns the underlying PDO connection.
+     *
+     * @return PDO The PDO connection object.
+     */
     public function pdo(): PDO
     {
         return $this->pdo;
     }
 
-    
-
     /**
-     * @return array<int, array<string, mixed>>
+     * Fetches all matching rows for a query.
+     *
+     * @param string $sql    The SQL query.
+     * @param array  $params The parameters to bind.
+     * @return array<int, array<string, mixed>> The array of query results.
      */
     public function fetchAll(string $sql, array $params = []): array
     {
@@ -122,7 +155,11 @@ class Database
     }
 
     /**
-     * @return array<string, mixed>|null
+     * Fetches a single row.
+     *
+     * @param string $sql    The SQL query.
+     * @param array  $params The parameters to bind.
+     * @return array<string, mixed>|null The result row or null if not found.
      */
     public function fetchOne(string $sql, array $params = []): ?array
     {
@@ -131,6 +168,14 @@ class Database
         return $row !== false ? $row : null;
     }
 
+    /**
+     * Fetches a single column value.
+     *
+     * @param string $sql    The SQL query.
+     * @param array  $params The parameters to bind.
+     * @param int    $column The 0-indexed column offset to fetch.
+     * @return mixed The column value or null if not found.
+     */
     public function fetchColumn(string $sql, array $params = [], int $column = 0): mixed
     {
         $stmt = $this->execute($sql, $params);
@@ -138,6 +183,14 @@ class Database
         return $value !== false ? $value : null;
     }
 
+    /**
+     * Prepares and executes an SQL statement with parameter binding.
+     *
+     * @param string $sql    The SQL query.
+     * @param array  $params The parameters to bind.
+     * @throws \RuntimeException If the query is blocked by sandbox policy.
+     * @return PDOStatement The executed PDO statement.
+     */
     public function execute(string $sql, array $params = []): PDOStatement
     {
         // AUD-G8 fix: Validate SQL query safety if executed within plugin context.
@@ -210,28 +263,50 @@ class Database
         return $stmt;
     }
 
+    /**
+     * Executes an INSERT query and returns the last insert ID.
+     *
+     * @param string $sql    The SQL INSERT statement.
+     * @param array  $params The parameters to bind.
+     * @return string The auto-incremented last insert ID.
+     */
     public function insert(string $sql, array $params = []): string
     {
         $this->execute($sql, $params);
         return $this->pdo->lastInsertId();
     }
 
+    /**
+     * Executes an UPDATE query and returns the number of affected rows.
+     *
+     * @param string $sql    The SQL UPDATE statement.
+     * @param array  $params The parameters to bind.
+     * @return int The count of affected rows.
+     */
     public function update(string $sql, array $params = []): int
     {
         return $this->execute($sql, $params)->rowCount();
     }
 
+    /**
+     * Executes a DELETE query and returns the number of deleted rows.
+     *
+     * @param string $sql    The SQL DELETE statement.
+     * @param array  $params The parameters to bind.
+     * @return int The count of deleted rows.
+     */
     public function delete(string $sql, array $params = []): int
     {
         return $this->execute($sql, $params)->rowCount();
     }
 
-    
-
     /**
+     * Wraps execution in a transaction context.
+     *
      * @template T
-     * @param callable(): T $callback
-     * @return T
+     * @param callable(): T $callback The transaction operations.
+     * @throws \Throwable If a statement fails, transaction is rolled back.
+     * @return T The callback result.
      */
     public function transaction(callable $callback): mixed
     {
@@ -246,28 +321,55 @@ class Database
         }
     }
 
+    /**
+     * Begins an SQL transaction.
+     *
+     * @return void
+     */
     public function beginTransaction(): void
     {
         $this->pdo->beginTransaction();
     }
 
+    /**
+     * Commits the active transaction.
+     *
+     * @return void
+     */
     public function commit(): void
     {
         $this->pdo->commit();
     }
 
+    /**
+     * Rolls back the active transaction.
+     *
+     * @return void
+     */
     public function rollBack(): void
     {
         $this->pdo->rollBack();
     }
 
+    /**
+     * Checks if transaction is active.
+     *
+     * @return bool True if currently in transaction, false otherwise.
+     */
     public function inTransaction(): bool
     {
         return $this->pdo->inTransaction();
     }
 
-    
-
+    /**
+     * Checks if a row exists in the database.
+     *
+     * @param string $table  The table name.
+     * @param string $where  The SQL WHERE clause.
+     * @param array  $params The parameters to bind.
+     * @throws \InvalidArgumentException If table name contains forbidden characters.
+     * @return bool True if row exists, false otherwise.
+     */
     public function exists(string $table, string $where, array $params = []): bool
     {
         // Validate table name to prevent SQL injection via caller
@@ -278,6 +380,15 @@ class Database
         return $this->fetchColumn($sql, $params) !== null;
     }
 
+    /**
+     * Counts rows matching selection parameters.
+     *
+     * @param string $table  The table name.
+     * @param string $where  The SQL WHERE clause.
+     * @param array  $params The parameters to bind.
+     * @throws \InvalidArgumentException If table name contains forbidden characters.
+     * @return int The row count.
+     */
     public function count(string $table, string $where = '1=1', array $params = []): int
     {
         // Validate table name to prevent SQL injection via caller
@@ -288,6 +399,11 @@ class Database
         return (int) $this->fetchColumn($sql, $params);
     }
 
+    /**
+     * Returns the last auto-incremented ID.
+     *
+     * @return string The last insert ID.
+     */
     public function lastInsertId(): string
     {
         return $this->pdo->lastInsertId();

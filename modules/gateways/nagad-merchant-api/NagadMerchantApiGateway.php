@@ -11,15 +11,27 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * Nagad Merchant API gateway — PluginInterface + GatewayAdapterInterface.
+ * Nagad Merchant API payment gateway adapter implementing Nagad's RSA-encrypted checkout flow.
  */
 final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterInterface
 {
     use GatewayDefaults;
 
+    /**
+     * Base URL for the Nagad sandbox API endpoint.
+     */
     private const SANDBOX_URL = 'http://sandbox.mynagad.com:10080/remote-payment-gateway-1.0/api/dfs/';
+
+    /**
+     * Base URL for the Nagad production API endpoint.
+     */
     private const LIVE_URL    = 'https://api.mynagad.com/api/dfs/';
 
+    /**
+     * Returns the plugin metadata array.
+     *
+     * @return array{name: string, slug: string, version: string, description: string, author: string, type: string} Plugin metadata keys.
+     */
     public static function metadata(): array
     {
         return [
@@ -29,21 +41,82 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         ];
     }
 
+    /**
+     * Returns the unique slug identifying the gateway adapter.
+     *
+     * @return string Unique slug identifier.
+     */
     public function slug(): string { return 'nagad-merchant-api'; }
+
+    /**
+     * Returns the descriptive name of the gateway.
+     *
+     * @return string Descriptive name.
+     */
     public function name(): string { return 'Nagad Merchant API'; }
+
+    /**
+     * Returns the version of this gateway adapter.
+     *
+     * @return string Version string.
+     */
     public function version(): string { return '1.0.0'; }
+
+    /**
+     * Returns the description of this gateway adapter.
+     *
+     * @return string Description string.
+     */
     public function description(): string { return 'Nagad Merchant API payment gateway integration'; }
 
+    /**
+     * Registers plugin event listeners and hooks.
+     *
+     * @param EventManager $events Hook/filter event manager.
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function register(EventManager $events, Container $container): void {}
+
+    /**
+     * Boots the plugin during application startup.
+     *
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function boot(Container $container): void {}
+
+    /**
+     * Runs cleanup routine on plugin deactivation.
+     *
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function deactivate(Container $container): void {}
+
+    /**
+     * Runs database and file cleanup on plugin uninstallation.
+     *
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function uninstall(Container $container): void {}
 
+    /**
+     * Returns the capability set registered by this plugin.
+     *
+     * @return array<int, Capability> List of capabilities.
+     */
     public function capabilities(): array
     {
         return [Capability::GATEWAY];
     }
 
+    /**
+     * Defines configuration fields required to set up the gateway in the admin interface.
+     *
+     * @return array<int, array{name: string, label: string, type: string, required: bool, options?: array<string, string>}> Configuration schema arrays.
+     */
     public function fields(): array
     {
         return [
@@ -55,6 +128,14 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         ];
     }
 
+    /**
+     * Initiates a payment session with the Nagad DFS checkout APIs.
+     *
+     * @param array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url: string, metadata?: array<string, mixed>} $params Core transaction parameters.
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured gateway credentials.
+     * @return array{redirect_url: string, session_id: string|null} payment response containing the redirect URL or raw HTML form.
+     * @throws \RuntimeException If initialization or complete phase requests fail.
+     */
     public function initiate(array $params, array $credentials): array
     {
         $mode = $credentials['nagad_mode'] ?? 'sandbox';
@@ -189,6 +270,13 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         ];
     }
 
+    /**
+     * Executes the payment verification call against the Nagad API.
+     *
+     * @param array<string, mixed> $callbackData Request query/post payload from the gateway callback.
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured credentials.
+     * @return array{success: bool, gateway_trx_id: string, amount: string|null, status: string, trx_id?: string} Verification metadata.
+     */
     public function verify(array $callbackData, array $credentials): array
     {
         $status = $callbackData['status'] ?? '';
@@ -237,6 +325,14 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         ];
     }
 
+    /**
+     * Encrypts the payload data string using Nagad's RSA public key.
+     *
+     * @param string $data Plaintext string to encrypt.
+     * @param string $rawKey Raw public key configured for Nagad PG.
+     * @return string Base64-encoded encrypted payload.
+     * @throws \RuntimeException If the key is invalid or encryption fails.
+     */
     private function encryptWithPublicKey(string $data, string $rawKey): string
     {
         $publicKey = $this->cleanPublicKey($rawKey);
@@ -251,6 +347,14 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         throw new \RuntimeException('Nagad public key encryption failed.');
     }
 
+    /**
+     * Decrypts the encrypted payload using the Merchant's private key.
+     *
+     * @param string $cryptoText Base64-encoded ciphertext payload.
+     * @param string $rawKey Raw merchant private key.
+     * @return string Decrypted plaintext data.
+     * @throws \RuntimeException If the private key is invalid or decryption fails.
+     */
     private function decryptWithPrivateKey(string $cryptoText, string $rawKey): string
     {
         $privateKey = $this->cleanPrivateKey($rawKey);
@@ -265,6 +369,14 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         throw new \RuntimeException('Nagad private key decryption failed.');
     }
 
+    /**
+     * Signs the sensitive JSON payload using the Merchant private key with SHA256.
+     *
+     * @param string $data The plaintext JSON payload string.
+     * @param string $rawKey Raw merchant private key.
+     * @return string Base64-encoded signature.
+     * @throws \RuntimeException If the private key is invalid or signing fails.
+     */
     private function signWithPrivateKey(string $data, string $rawKey): string
     {
         $privateKey = $this->cleanPrivateKey($rawKey);
@@ -279,6 +391,12 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         throw new \RuntimeException('Nagad signing failed.');
     }
 
+    /**
+     * Cleans and formats the private key to standard PEM structure.
+     *
+     * @param string $key Raw input private key.
+     * @return string Formatted PEM private key string.
+     */
     private function cleanPrivateKey(string $key): string
     {
         $key = trim($key);
@@ -290,6 +408,12 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         return "-----BEGIN RSA PRIVATE KEY-----\n" . chunk_split($key, 64, "\n") . "-----END RSA PRIVATE KEY-----";
     }
 
+    /**
+     * Cleans and formats the public key to standard PEM structure.
+     *
+     * @param string $key Raw input public key.
+     * @return string Formatted PEM public key string.
+     */
     private function cleanPublicKey(string $key): string
     {
         $key = trim($key);
@@ -300,6 +424,12 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         return "-----BEGIN PUBLIC KEY-----\n" . chunk_split($key, 64, "\n") . "-----END PUBLIC KEY-----";
     }
 
+    /**
+     * Generates a random alphanumeric string.
+     *
+     * @param int $length Desired string character length (defaults to 40).
+     * @return string Random challenge string.
+     */
     private function generateRandomString(int $length = 40): string
     {
         $characters = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -311,14 +441,26 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         return $randomString;
     }
 
+    /**
+     * Resolves the client's IPv4/IPv6 address.
+     *
+     * @return string Client IP address.
+     */
     private function getClientIp(): string
     {
         return $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
     }
 
-    /** Nagad exclusively operates in BDT. */
+    /**
+     * Returns an array containing the currencies supported by this gateway.
+     *
+     * Nagad exclusively operates in BDT.
+     *
+     * @return string[] Array of supported currency codes.
+     */
     public function supportedCurrencies(): array
     {
         return ['BDT'];
     }
 }
+

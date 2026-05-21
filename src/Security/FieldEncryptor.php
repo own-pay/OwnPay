@@ -4,30 +4,48 @@ declare(strict_types=1);
 namespace OwnPay\Security;
 
 /**
- * AES-256-GCM field-level encryption for PII columns.
+ * Class FieldEncryptor
  *
- * Per pci-compliance skill: encrypt PII at rest, unique IV per operation.
- * Used for: customer name, email, phone stored in op_customers.
+ * Implements AES-256-GCM field-level encryption for securing Personally Identifiable Information (PII) at rest
+ * compliant with PCI DSS and OWASP guidelines. Utilizes a cryptographically secure pseudo-random Initialization Vector (IV)
+ * per operation, generating authenticated ciphertext via Galois/Counter Mode (GCM).
+ *
+ * @package OwnPay\Security
  */
 class FieldEncryptor
 {
     private const CIPHER = 'aes-256-gcm';
     private const TAG_LENGTH = 16;
 
+    /**
+     * @var string The 32-byte derived cryptographic key.
+     */
     private string $key;
 
+    /**
+     * FieldEncryptor constructor.
+     *
+     * Initializes the encryption key from environment configurations and derives a 32-byte cryptographic key.
+     *
+     * @param string|null $key Optional raw key string override.
+     * @throws \RuntimeException If the ENCRYPTION_KEY is not configured.
+     */
     public function __construct(?string $key = null)
     {
         $this->key = $key ?? ($_ENV['ENCRYPTION_KEY'] ?? $_ENV['APP_KEY'] ?? (getenv('ENCRYPTION_KEY') ?: (getenv('APP_KEY') ?: '')));
         if ($this->key === '') {
             throw new \RuntimeException('ENCRYPTION_KEY not configured');
         }
-        // Derive 32-byte key from whatever was provided
+        // Derive 32-byte key from whatever was provided.
         $this->key = hash('sha256', $this->key, true);
     }
 
     /**
-     * Encrypt plaintext -> base64(iv + tag + ciphertext).
+     * Encrypts plaintext into a base64-encoded representation containing the IV, authorization tag, and ciphertext.
+     *
+     * @param string $plaintext The sensitive raw text to encrypt.
+     * @return string The base64-encoded representation of the concatenated IV, tag, and ciphertext payload.
+     * @throws \RuntimeException If the cryptographic encryption operation fails.
      */
     public function encrypt(string $plaintext): string
     {
@@ -49,12 +67,18 @@ class FieldEncryptor
             throw new \RuntimeException('Encryption failed');
         }
 
-        // Pack: IV (12) + TAG (16) + CIPHERTEXT
+        // Pack: IV (12) + TAG (16) + CIPHERTEXT.
         return base64_encode($iv . $tag . $ciphertext);
     }
 
     /**
-     * Decrypt base64(iv + tag + ciphertext) ─ plaintext.
+     * Decrypts a base64-encoded encrypted string payload back to its original plaintext.
+     *
+     * Features cryptographic key rotation fallback compatibility via the ENCRYPTION_KEY_OLD configuration.
+     *
+     * @param string $encoded The base64-encoded string representing the concatenated IV, tag, and ciphertext payload.
+     * @return string The decrypted raw plaintext.
+     * @throws \RuntimeException If the payload structure is invalid, key resolution fails, or decryption is rejected (tampered/corrupted data).
      */
     public function decrypt(string $encoded): string
     {
@@ -106,8 +130,12 @@ class FieldEncryptor
     }
 
     /**
-     * Generate a deterministic hash for lookup (not reversible).
-     * Used for email_hash, phone_hash columns.
+     * Generates a deterministic hash for indexed database lookups using HMAC-SHA-256.
+     *
+     * Used to query encrypted PII fields (e.g. email_hash, phone_hash) without exposing the raw plaintext values.
+     *
+     * @param string $value The raw input value.
+     * @return string The deterministic hex-encoded HMAC representation.
      */
     public function hash(string $value): string
     {
@@ -115,7 +143,10 @@ class FieldEncryptor
     }
 
     /**
-     * Alias for hash() — deterministic HMAC for PII lookups.
+     * Alias for hash() to support standard deterministic HMAC PII lookups.
+     *
+     * @param string $value The raw input value.
+     * @return string The deterministic hex-encoded HMAC representation.
      */
     public function deterministicHash(string $value): string
     {

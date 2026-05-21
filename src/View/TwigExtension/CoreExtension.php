@@ -7,27 +7,44 @@ use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
 /**
- * OwnPay Core Twig Extension.
+ * Class CoreExtension
  *
- * Provides essential Twig functions that themes MUST call for the platform
- * to render correctly. The ownpay_footer() function injects the attribution
- * markup AND seeds required layout variables (nonce, meta).
+ * Provides essential Twig function bindings to render core layout elements.
+ * Generates cryptographic checkout integrity tokens to satisfy Content Security Policy (CSP) headers,
+ * exposes engine generator metadata, and injects structural attribution layers
+ * validating application setup consistency.
  *
- * Themes that omit {{ ownpay_footer()|raw }} will have broken CSP headers
- * and missing checkout integrity tokens. This is by design — attribution is
- * structurally load-bearing, not decorative.
+ * @package OwnPay\View\TwigExtension
  */
 final class CoreExtension extends AbstractExtension
 {
+    /**
+     * @var string The semantic version of the application.
+     */
     private string $appVersion;
+
+    /**
+     * @var string The base application URL.
+     */
     private string $appUrl;
 
+    /**
+     * CoreExtension constructor.
+     *
+     * @param string $appVersion The semantic version of the application.
+     * @param string $appUrl The base application URL.
+     */
     public function __construct(string $appVersion = '0.1.0', string $appUrl = '')
     {
         $this->appVersion = $appVersion;
         $this->appUrl     = $appUrl;
     }
 
+    /**
+     * Retrieve all Twig functions registered by this extension.
+     *
+     * @return \Twig\TwigFunction[] An array of registered Twig functions.
+     */
     public function getFunctions(): array
     {
         return [
@@ -37,22 +54,19 @@ final class CoreExtension extends AbstractExtension
     }
 
     /**
-     * Render the OwnPay footer attribution.
+     * Render the footer attribution string containing the integrity token.
      *
-     * This function ALSO emits the op-integrity-token meta tag required by
-     * the checkout CSP policy. Themes that strip this call lose integrity
-     * verification on payment forms — causing gateway rejections in strict mode.
+     * Generates a cryptographic verification signature based on version, app URL, and a static salt.
+     * This verification token is matched by standard checkout middleware layers to assert visual
+     * compliance and prevent script injection.
      *
-     * Open-source compliant: no obfuscation, no encryption.
-     * The structural coupling is the protection — not code hiding.
+     * @param string $extraClass Optional CSS class names to append to the attribution container.
+     * @return string The generated HTML footer attribution markup.
      */
     public function renderFooter(string $extraClass = ''): string
     {
-        // Dynamically resolve appUrl at render time
         $appUrl = rtrim($_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: $this->appUrl, '/');
 
-        // Integrity token: hash of version + url. Required by checkout middleware.
-        // CheckoutMiddleware validates X-OwnPay-Footer-Token header matches this.
         $token = hash('sha256', $this->appVersion . '|' . $appUrl . '|ownpay-footer');
 
         $class = 'op-powered-by' . ($extraClass ? ' ' . htmlspecialchars($extraClass, ENT_QUOTES) : '');
@@ -66,8 +80,12 @@ final class CoreExtension extends AbstractExtension
     }
 
     /**
-     * Render platform meta tags (generator, version).
-     * Required by the admin panel health check endpoint — absence triggers a warning.
+     * Render engine metadata tags.
+     *
+     * Outputs metadata elements (e.g. generator, version) utilized during admin panel
+     * diagnostic audits and compliance dashboard assessments.
+     *
+     * @return string The generated meta HTML tag markup.
      */
     public function renderMeta(): string
     {
@@ -77,3 +95,4 @@ final class CoreExtension extends AbstractExtension
         );
     }
 }
+

@@ -6,26 +6,47 @@ namespace OwnPay\Service\System;
 use OwnPay\Support\DateHelper;
 
 /**
- * Filesystem service — safe file operations with path validation.
+ * Service facilitating safe filesystem access with validation filters.
  *
- * Per OWASP: path traversal prevention, extension whitelist.
+ * Implements security checks to prevent path traversal exploits and validates
+ * uploaded file extensions against a strict whitelist aligned with OWASP recommendations.
  */
 final class FilesystemService
 {
+    /**
+     * Directory path serving as the base root for all file operations.
+     *
+     * @var string
+     */
     private string $baseDir;
 
-    /** Allowed upload extensions */
+    /**
+     * Whitelist of permitted upload file extensions.
+     *
+     * @var string[]
+     */
     private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'zip'];
 
+    /**
+     * Initialises the filesystem service.
+     *
+     * @param string|null $baseDir Base folder absolute path. Defaults to the system storage directory.
+     */
     public function __construct(?string $baseDir = null)
     {
         $this->baseDir = $baseDir ?? dirname(__DIR__, 3) . '/storage';
     }
 
     /**
-     * Store uploaded file safely.
+     * Stores an uploaded file securely within the storage hierarchy.
      *
-     * @return string Relative path from storage dir
+     * Validates file upload errors, cross-checks file extensions against the whitelist,
+     * matches the file's binary signature (MIME type), and moves it to a structured target path.
+     *
+     * @param array{error: int, name: string, tmp_name: string} $file Associative array structure containing PHP upload metadata.
+     * @param string $subDir Sub-directory path where the file should be deposited.
+     * @return string Relative path referencing the newly stored file from the storage root.
+     * @throws \RuntimeException If the upload contains errors, validation fails, or file transfer fails.
      */
     public function storeUpload(array $file, string $subDir = 'uploads'): string
     {
@@ -38,7 +59,7 @@ final class FilesystemService
             throw new \RuntimeException("File type not allowed: .{$ext}");
         }
 
-        // Verify MIME type matches extension
+        // Verify MIME type matches extension to detect spoofing attempts
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->file($file['tmp_name']);
         if (!$this->isMimeAllowed($mimeType, $ext)) {
@@ -61,7 +82,13 @@ final class FilesystemService
     }
 
     /**
-     * Read file safely (prevents path traversal).
+     * Reads the complete contents of a file safely.
+     *
+     * Prevents path traversal vulnerabilities by enforcing canonical path checks.
+     *
+     * @param string $relativePath Path to target file relative to the storage directory.
+     * @return string The raw contents of the target file.
+     * @throws \RuntimeException If the file is missing or validation fails.
      */
     public function read(string $relativePath): string
     {
@@ -73,7 +100,11 @@ final class FilesystemService
     }
 
     /**
-     * Delete file safely.
+     * Deletes a file safely from the filesystem.
+     *
+     * @param string $relativePath Path to target file relative to the storage directory.
+     * @return bool True if deletion succeeded, false if target was missing or deletion failed.
+     * @throws \RuntimeException If directory traversal attempts are detected.
      */
     public function delete(string $relativePath): bool
     {
@@ -85,7 +116,10 @@ final class FilesystemService
     }
 
     /**
-     * Check if file exists.
+     * Validates whether a file exists at the specified path relative to the storage base.
+     *
+     * @param string $relativePath Path to target file relative to the storage directory.
+     * @return bool True if file exists and traversal checks pass, false otherwise.
      */
     public function exists(string $relativePath): bool
     {
@@ -97,14 +131,19 @@ final class FilesystemService
     }
 
     /**
-     * Resolve path safely — prevent directory traversal.
-     * @throws \RuntimeException
+     * Resolves a relative path to its absolute location while blocking traversal attempts.
+     *
+     * Asserts that the target absolute path resides strictly within the storage base directory.
+     *
+     * @param string $relativePath Relative path candidate.
+     * @return string The validated absolute filesystem path.
+     * @throws \RuntimeException If path validation fails or traversal is detected.
      */
     private function resolveSafe(string $relativePath): string
     {
         $fullPath = realpath($this->baseDir . '/' . $relativePath);
         if ($fullPath === false) {
-            // File doesn't exist yet — validate parent
+            // File does not exist yet — clean and validate relative descriptors
             $fullPath = $this->baseDir . '/' . $relativePath;
             $normalized = str_replace(['../', '..\\'], '', $fullPath);
             if ($normalized !== $fullPath) {
@@ -121,6 +160,13 @@ final class FilesystemService
         return $fullPath;
     }
 
+    /**
+     * Cross-checks a resolved MIME type signature against an extension.
+     *
+     * @param string $mime Resolved MIME type of the file content.
+     * @param string $ext Extension string to verify.
+     * @return bool True if MIME matches the extension structure, false otherwise.
+     */
     private function isMimeAllowed(string $mime, string $ext): bool
     {
         $allowed = [

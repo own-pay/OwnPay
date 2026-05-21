@@ -2,11 +2,11 @@ name: SQL Anti-Pattern Guard
 
 on:
   pull_request:
-    branches: [ "main", "v2/complete_refactoring" ]
+    branches: [ "main", "dev" ]
     paths:
       - '**.sql'
   push:
-    branches: [ "main", "v2/complete_refactoring" ]
+    branches: [ "main", "dev" ]
     paths:
       - '**.sql'
 

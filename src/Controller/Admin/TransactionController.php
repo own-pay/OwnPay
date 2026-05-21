@@ -15,18 +15,59 @@ use OwnPay\Service\System\AuditService;
 use OwnPay\Event\EventManager;
 use OwnPay\Support\DateHelper;
 
+/**
+ * Controller for managing payment transactions within the admin portal.
+ */
 final class TransactionController
 {
     use AdminPageTrait;
 
+    /**
+     * The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * The admin session manager.
+     */
     private AdminSession $session;
+
+    /**
+     * The transaction repository.
+     */
     private TransactionRepository $txns;
+
+    /**
+     * The parsed SMS repository.
+     */
     private SmsParsedRepository $smsRepo;
+
+    /**
+     * The audit log repository.
+     */
     private AuditLogRepository $auditRepo;
+
+    /**
+     * The event manager instance.
+     */
     private EventManager $events;
+
+    /**
+     * The audit service instance.
+     */
     private AuditService $audit;
 
+    /**
+     * TransactionController constructor.
+     *
+     * @param Container $c The dependency injection container.
+     * @param AdminSession $session The admin session manager.
+     * @param TransactionRepository $txns The transaction repository.
+     * @param SmsParsedRepository $smsRepo The parsed SMS repository.
+     * @param AuditLogRepository $auditRepo The audit log repository.
+     * @param EventManager $events The event manager instance.
+     * @param AuditService $audit The audit service instance.
+     */
     public function __construct(
         Container $c,
         AdminSession $session,
@@ -45,6 +86,13 @@ final class TransactionController
         $this->audit     = $audit;
     }
 
+    /**
+     * Display a paginated list of transactions filtered by the active brand and user query.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with the transaction index page.
+     * @throws \Exception If lookup or rendering fails.
+     */
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
@@ -75,6 +123,13 @@ final class TransactionController
         ]);
     }
 
+    /**
+     * Show details for a specific transaction including SMS verification logs and audits.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with transaction details or redirect.
+     * @throws \Exception If lookup or rendering fails.
+     */
     public function show(Request $req): Response
     {
         $id = (int) $req->param('id');
@@ -99,6 +154,13 @@ final class TransactionController
         ]);
     }
 
+    /**
+     * Update status of a transaction (e.g. mark completed, refund, cancel) and post double-entry ledger lines.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If transaction service operations, double-entry ledger bookkeeping, or audits fail.
+     */
     public function updateStatus(Request $req): Response
     {
         $id = (int) $req->param('id');

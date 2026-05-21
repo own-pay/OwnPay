@@ -10,16 +10,55 @@ use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
 use OwnPay\Service\System\AuditService;
 
+/**
+ * Class SettingsController
+ *
+ * Administrative controller managing platform-wide settings (general settings, maintenance mode,
+ * branding uploads, landing page content, checkout settings, and currencies exchange rates).
+ *
+ * Fired actions:
+ * - `settings.saved`: Triggered immediately after settings are modified.
+ *
+ * @package OwnPay\Controller\Admin
+ */
 final class SettingsController
 {
     use AdminPageTrait;
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
+
+    /**
+     * @var EventManager The hooks and actions event manager.
+     */
     private EventManager $events;
+
+    /**
+     * @var \OwnPay\Repository\SettingsRepository The settings repository.
+     */
     private \OwnPay\Repository\SettingsRepository $settingsRepo;
+
+    /**
+     * @var AuditService The application audit logging service.
+     */
     private AuditService $audit;
 
+    /**
+     * SettingsController constructor.
+     *
+     * @param Container                             $c            The dependency injection container.
+     * @param AdminSession                          $session      The administrative session service.
+     * @param EventManager                          $events       The hooks and actions event manager.
+     * @param \OwnPay\Repository\SettingsRepository $settingsRepo The settings repository.
+     * @param AuditService                          $audit        The application audit logging service.
+     */
     public function __construct(Container $c, AdminSession $session, EventManager $events, \OwnPay\Repository\SettingsRepository $settingsRepo, AuditService $audit)
     {
         $this->c = $c;
@@ -29,6 +68,14 @@ final class SettingsController
         $this->audit = $audit;
     }
 
+    /**
+     * Renders settings manager page with settings loaded for all groups.
+     *
+     * @param Request $req       The incoming HTTP request.
+     * @param string  $activeTab The currently active settings tab.
+     *
+     * @return Response The settings manager page response.
+     */
     public function index(Request $req, string $activeTab = 'general'): Response
     {
         $settings    = $this->settingsRepo->getGroup('general');
@@ -78,6 +125,13 @@ final class SettingsController
         ]);
     }
 
+    /**
+     * Processes settings updates submitted via forms.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function save(Request $req): Response
     {
         $tab  = $req->post('_tab', 'general');
@@ -112,7 +166,13 @@ final class SettingsController
         return Response::redirect('/admin/settings/' . $tab);
     }
 
-    /** POST /admin/settings/upload — handle logo/favicon uploads */
+    /**
+     * Handles uploading branding logos and favicon files, saving them securely to the uploads folder.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function upload(Request $req): Response
     {
         $uploadDir = dirname(__DIR__, 3) . '/public/assets/uploads/';
@@ -147,7 +207,13 @@ final class SettingsController
         return Response::redirect('/admin/settings/branding');
     }
 
-    /** GET /admin/settings/{tab} — tabbed settings view */
+    /**
+     * Renders settings manager index page showing the requested settings tab.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The settings manager page response.
+     */
     public function tab(Request $req): Response
     {
         $tab = $req->param('tab', 'general');
@@ -161,6 +227,13 @@ final class SettingsController
 
     // ─── Private save helpers ─────────────────────────────────
 
+    /**
+     * Persists general settings parameters and manages the system-wide maintenance lock file.
+     *
+     * @param array<string, mixed> $data General configuration parameters.
+     *
+     * @return void
+     */
     private function saveGeneral(array $data): void
     {
         $checkboxFields = [
@@ -194,12 +267,20 @@ final class SettingsController
                 'reason'      => 'System maintenance in progress. Please try again shortly.',
                 'retry_after' => 600,
                 'started_at'  => date('c'),
-            ]));
+            ], JSON_THROW_ON_ERROR));
         } elseif (file_exists($lockFile)) {
             @unlink($lockFile);
         }
     }
 
+    /**
+     * Persists settings parameters under the branding group.
+     *
+     * @param array<string, mixed> $data Branding parameters.
+     * @param Request              $req  The incoming request context.
+     *
+     * @return void
+     */
     private function saveBranding(array $data, Request $req): void
     {
         // Exclude file fields — handled by upload()
@@ -207,6 +288,13 @@ final class SettingsController
         $this->settingsRepo->bulkSet('branding', $data);
     }
 
+    /**
+     * Persists settings parameters under the landing page group.
+     *
+     * @param array<string, mixed> $data Landing editor parameters.
+     *
+     * @return void
+     */
     private function saveLanding(array $data): void
     {
         $checkboxFields = ['landing_enabled', 'landing_show_faq', 'landing_show_features'];
@@ -226,6 +314,13 @@ final class SettingsController
         $this->settingsRepo->bulkSet('landing', $data);
     }
 
+    /**
+     * Saves general payment rules and updates currency exchange rates.
+     *
+     * @param array<string, mixed> $data Payment parameters.
+     *
+     * @return void
+     */
     private function savePayment(array $data): void
     {
         $checkboxFields = ['auto_approve_payments'];
@@ -251,6 +346,13 @@ final class SettingsController
         $this->settingsRepo->bulkSet('general', $data);
     }
 
+    /**
+     * Segregates and persists configurations for checkout and general settings groups.
+     *
+     * @param array<string, mixed> $data Raw checkout settings fields.
+     *
+     * @return void
+     */
     private function saveCheckout(array $data): void
     {
         // Checkout tab has fields for TWO groups:

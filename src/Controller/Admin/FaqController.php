@@ -9,14 +9,39 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Repository\SettingsRepository;
 
+/**
+ * Class FaqController
+ *
+ * Handles management of frequently asked questions (FAQs) for the active brand/merchant.
+ *
+ * @package OwnPay\Controller\Admin
+ */
 final class FaqController
 {
     use AdminPageTrait;
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
+
+    /**
+     * @var SettingsRepository The settings repository.
+     */
     private SettingsRepository $settings;
 
+    /**
+     * FaqController constructor.
+     *
+     * @param Container          $c        The dependency injection container.
+     * @param AdminSession       $session  The administrative session service.
+     * @param SettingsRepository $settings The settings repository.
+     */
     public function __construct(Container $c, AdminSession $session, SettingsRepository $settings)
     {
         $this->c        = $c;
@@ -24,11 +49,25 @@ final class FaqController
         $this->settings = $settings;
     }
 
+    /**
+     * Redirects to the system settings page with the FAQ tab active.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function index(Request $req): Response
     {
         return Response::redirect('/admin/settings#tab-faq');
     }
 
+    /**
+     * Processes and persists updated FAQs, scoped to the active brand if available.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function save(Request $req): Response
     {
         $faqs  = $req->post('faqs', []);

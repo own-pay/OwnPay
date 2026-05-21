@@ -2,14 +2,15 @@
 declare(strict_types=1);
 
 /**
- * Service container bindings.
+ * OwnPay Service Container Bindings.
  *
- * Called by Kernel::boot() to register all core services.
- * Each binding is a closure that receives the Container.
+ * This file is invoked by the application Kernel during boot to bootstrap and register
+ * all core services, repositories, handlers, and configuration dependencies into the
+ * lightweight PSR-11 compatible Dependency Injection Container.
  *
- * @param \OwnPay\Container $c
+ * @param \OwnPay\Container $c The application's service container instance.
+ * @return void
  */
-
 return static function (\OwnPay\Container $c): void {
 
     // ─── Configuration ─────────────────────────────────────────
@@ -22,6 +23,15 @@ return static function (\OwnPay\Container $c): void {
     });
 
     // ─── PDO Database Connection ───────────────────────────────
+    /**
+     * Registers the shared \PDO database connection instance.
+     *
+     * Configures the connection with explicit strict-mode SQL options
+     * to safeguard transactional state execution.
+     *
+     * @param \OwnPay\Container $c
+     * @return \PDO
+     */
     $c->singleton(\PDO::class, static function (\OwnPay\Container $c): \PDO {
         $cfg = $c->get('config.database');
         $dsn = sprintf(
@@ -93,6 +103,15 @@ return static function (\OwnPay\Container $c): void {
     });
 
     // ─── Twig ──────────────────────────────────────────────────
+    /**
+     * Registers the Twig Environment rendering engine.
+     *
+     * Configures template loaders, filesystem overrides, autoescape,
+     * lazy-loaded global CSRF variables, and CSP nonces.
+     *
+     * @param \OwnPay\Container $c
+     * @return \Twig\Environment
+     */
     $c->singleton(\Twig\Environment::class, static function (\OwnPay\Container $c): \Twig\Environment {
         $paths = $c->get('config.app')['paths'];
         $loader = new \Twig\Loader\FilesystemLoader([
@@ -120,10 +139,12 @@ return static function (\OwnPay\Container $c): void {
         $appVersion = $c->get('config.app')['version'] ?? '0.1.0';
         $appUrl = rtrim($_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '', '/');
         $twig->addExtension(new \OwnPay\View\TwigExtension\CoreExtension($appVersion, $appUrl));
-        // Global vars available to ALL templates (admin, checkout, public)
-        // H-03 FIX: CSRF token must be read lazily at render time, NOT at container build time.
-        // At container build, session may not be started yet → token would be empty string.
-        // Use a __toString() proxy so Twig reads session when rendering {{ csrf_token }}.
+        
+        /**
+         * H-03 FIX: CSRF token must be read lazily at render time, NOT at container build time.
+         * At container build, session may not be started yet → token would be empty string.
+         * Use a __toString() proxy so Twig reads session when rendering {{ csrf_token }}.
+         */
         $twig->addGlobal('csrf_token', new class implements \Stringable {
             public function __toString(): string
             {
@@ -139,9 +160,11 @@ return static function (\OwnPay\Container $c): void {
         $twig->addGlobal('app_name', $_ENV['APP_NAME'] ?? 'Own Pay');
         $twig->addGlobal('lang', []);   // i18n placeholder — populated by locale plugin
 
-        // BUG-12 FIX: Expose CSP nonce to all templates.
-        // SecurityHeadersMiddleware stores nonce in Container as 'csp_nonce'.
-        // Use lazy proxy since nonce isn't generated until middleware runs.
+        /**
+         * BUG-12 FIX: Expose CSP nonce to all templates.
+         * SecurityHeadersMiddleware stores nonce in Container as 'csp_nonce'.
+         * Use lazy proxy since nonce isn't generated until middleware runs.
+         */
         $twig->addGlobal('csp_nonce', new class($c) implements \Stringable {
             private \OwnPay\Container $c;
             public function __construct(\OwnPay\Container $c) { $this->c = $c; }
@@ -215,7 +238,12 @@ return static function (\OwnPay\Container $c): void {
     $c->alias('brand', \OwnPay\Service\Brand\BrandContext::class);
 
     // ─── Eager-boot Database so getInstance() is populated ─────
-    // Must run before any service that calls Database::getInstance() directly.
+    /**
+     * Eager-boots the Database wrapper singleton instance.
+     *
+     * Ensures that Database::getInstance() is properly initialized during boot
+     * for legacy static resolutions, if the application installation is complete.
+     */
     if (file_exists(dirname(__DIR__) . '/storage/.installed')) {
         try {
             $c->get(\OwnPay\Core\Database::class);
@@ -394,7 +422,13 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
-    // Wire listener to hook eagerly during boot
+    // Wiring listener to hook eagerly during boot
+    /**
+     * Registers payment completion hooks.
+     *
+     * Hooks into the global EventManager to listen to 'payment.transaction.completed'
+     * and route events to the PaymentCompletionListener.
+     */
     if (file_exists(dirname(__DIR__) . '/storage/.installed')) {
         try {
             $events = $c->get(\OwnPay\Event\EventManager::class);

@@ -7,22 +7,27 @@ use OwnPay\Plugin\PluginInterface;
 use OwnPay\Repository\PluginRepository;
 
 /**
- * Settings auto-renderer — generates admin settings form from plugin fields().
+ * Class SettingsRenderer
  *
- * Plugins define fields as:
- *   [['name' => 'api_key', 'label' => 'API Key', 'type' => 'text', 'default' => '']]
+ * Provides automated form rendering logic to dynamically build administrative setting controls
+ * based on configuration fields defined by individual gateway or addon plugins.
+ * Enforces secure request flows by automatically injecting CSRF protection tokens resolved via the
+ * system-wide `SecurityHelpers::csrfToken()` helper and guarantees output sanitization across all input types.
  *
- * Supported types: text, textarea, number, email, password, select, checkbox, toggle, color
+ * @package OwnPay\View
  */
 final class SettingsRenderer
 {
     /**
-     * Render settings form HTML from plugin fields().
+     * Render the HTML settings form using settings fields declared by the target plugin.
      *
-     * @param PluginInterface $plugin
-     * @param array<string, string> $currentValues Saved values from op_plugin_settings
-     * @param string $action Form action URL
-     * @return string HTML
+     * Iterates over field definitions and maps them to their respective HTML templates
+     * (e.g. text, textarea, select, toggle, checkbox) while pre-populating existing saved configurations.
+     *
+     * @param \OwnPay\Plugin\PluginInterface $plugin The target plugin instance to extract fields from.
+     * @param array<string, string> $currentValues The current saved setting values from storage.
+     * @param string $action The target URL endpoint for the form post action.
+     * @return string The generated HTML form string.
      */
     public static function render(PluginInterface $plugin, array $currentValues, string $action): string
     {
@@ -51,9 +56,12 @@ final class SettingsRenderer
             /** @phpstan-ignore-next-line */
             $help = $field['help'] ?? '';
             /** @phpstan-ignore-next-line */
-            // BUG-30 FIX: $default may be int, float, bool, or array — (string) on
-            // array throws TypeError. Cast scalars safely, stringify arrays as JSON.
             $rawDefault = $field['default'] ?? '';
+            
+            /**
+             * Safe fallback parsing: if the default parameter is configured as an array,
+             * serialize it to a JSON-compliant string to avoid scalar-to-array type conversions.
+             */
             if (is_array($rawDefault)) {
                 $defaultStr = json_encode($rawDefault, JSON_UNESCAPED_UNICODE) ?: '';
             } else {
@@ -90,6 +98,15 @@ final class SettingsRenderer
         return $html;
     }
 
+    /**
+     * Render a standard HTML input field element.
+     *
+     * @param string $name The name attribute of the input control.
+     * @param string $value The pre-populated value.
+     * @param string $type The specific HTML5 input type (e.g. text, password, number, email, color).
+     * @param bool $required Flag indicating whether the field must be completed.
+     * @return string The generated input element HTML markup.
+     */
     private static function input(string $name, string $value, string $type, bool $required): string
     {
         $req = $required ? ' required' : '';
@@ -99,6 +116,14 @@ final class SettingsRenderer
             . 'class="op-input"' . $req . '>';
     }
 
+    /**
+     * Render an HTML textarea element.
+     *
+     * @param string $name The name attribute of the textarea control.
+     * @param string $value The pre-populated content.
+     * @param bool $required Flag indicating whether the field must be completed.
+     * @return string The generated textarea element HTML markup.
+     */
     private static function textarea(string $name, string $value, bool $required): string
     {
         $req = $required ? ' required' : '';
@@ -108,6 +133,15 @@ final class SettingsRenderer
             . self::e($value) . '</textarea>';
     }
 
+    /**
+     * Render an HTML select dropdown element.
+     *
+     * @param string $name The name attribute of the select control.
+     * @param string $value The currently active option key.
+     * @param array<string|int, string> $options An associative mapping of option values to option labels.
+     * @param bool $required Flag indicating whether the field must be completed.
+     * @return string The generated select element HTML markup.
+     */
     private static function select(string $name, string $value, array $options, bool $required): string
     {
         $req = $required ? ' required' : '';
@@ -125,6 +159,16 @@ final class SettingsRenderer
         return $html;
     }
 
+    /**
+     * Render a custom boolean checkbox/toggle element.
+     *
+     * Includes a hidden input fallback to ensure standard form submissions submit a zero-value
+     * when the toggle switch is not active.
+     *
+     * @param string $name The name attribute of the toggle control.
+     * @param string $value The current string state representing the boolean toggle.
+     * @return string The generated checkbox toggle HTML markup.
+     */
     private static function toggle(string $name, string $value): string
     {
         $checked = ($value === '1' || $value === 'true') ? ' checked' : '';
@@ -135,6 +179,14 @@ final class SettingsRenderer
             . '</label>';
     }
 
+    /**
+     * Securely escapes content for inclusion in HTML attributes.
+     *
+     * Uses htmlspecialchars with ENT_QUOTES and UTF-8 encoding.
+     *
+     * @param string $value The raw content string.
+     * @return string The escaped string safe for HTML output.
+     */
     private static function e(string $value): string
     {
         return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');

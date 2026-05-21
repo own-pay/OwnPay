@@ -2,9 +2,9 @@ name: Enterprise Security Audit
 
 on:
   push:
-    branches: [ "main", "v2/complete_refactoring" ]
+    branches: [ "main", "dev" ]
   pull_request:
-    branches: [ "main", "v2/complete_refactoring" ]
+    branches: [ "main", "dev" ]
   schedule:
     - cron: "0 0 * * 0" # Run weekly on Sundays
 

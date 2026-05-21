@@ -10,23 +10,51 @@ use OwnPay\Service\System\HttpClient;
 use OwnPay\Support\DateHelper;
 
 /**
- * SystemUpdateJob — periodic check for new OwnPay releases.
+ * Class SystemUpdateJob
  *
- * Fetches the update manifest at most once every 10 hours, compares the
- * current version against the configured channel (stable|beta), and fires
- * the `system.update.available` event when a newer release exists.
+ * Enterprise cron job executing automatic system update checks against the official OwnPay release channels.
+ * Fetches remote release manifests, evaluates semantic version thresholds, and records updates in the
+ * `op_system_settings` persistent store, triggering hooks when updates are available.
  *
- * Uses SettingsRepository (op_system_settings) for persistent state.
+ * Fires system hooks:
+ * - system.update.available: Triggered when a version greater than the active running release is detected.
+ *
+ * @package OwnPay\Cron
  */
 final class SystemUpdateJob
 {
+    /**
+     * Remote URL serving the latest JSON release manifest.
+     */
     private const MANIFEST_URL = 'https://update.ownpay.org/manifest.json';
+
+    /**
+     * Minimum cooldown period between automatic update checks (10 hours).
+     */
     private const CHECK_INTERVAL_SECONDS = 10 * 3600;
 
+    /**
+     * @var string The active semantic version string of the running application.
+     */
     private string $currentVersion;
+
+    /**
+     * @var EventManager The enterprise event hook and action dispatcher.
+     */
     private EventManager $events;
+
+    /**
+     * @var SettingsRepository Repository for system configuration settings.
+     */
     private SettingsRepository $settings;
 
+    /**
+     * SystemUpdateJob constructor.
+     *
+     * @param string             $currentVersion The current system version.
+     * @param EventManager       $events         The system event manager.
+     * @param SettingsRepository $settings       The system settings repository.
+     */
     public function __construct(
         string $currentVersion,
         EventManager $events,
@@ -38,7 +66,12 @@ final class SystemUpdateJob
     }
 
     /**
-     * @return array<string, mixed>
+     * Runs the automatic system updates check cycle.
+     *
+     * Validates that auto-updates are enabled, checks rate-limiting, queries the remote manifest feed,
+     * matches update channels, and triggers event hooks if an update is found.
+     *
+     * @return array<string, mixed> Execution status metrics indicating skipped status, errors, or version updates.
      */
     public function run(): array
     {

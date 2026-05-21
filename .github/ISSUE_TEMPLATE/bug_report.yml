@@ -8,7 +8,7 @@ body:
     attributes:
       value: |
         ### 🛡️ Security Note
-        If you found a security vulnerability, please **DO NOT** use this form. Instead, follow the instructions in our [Security Policy](https://github.com/own-pay/ownpay/blob/main/SECURITY.md).
+        If you found a security vulnerability, please **DO NOT** use this form. Instead, follow the instructions in our [Security Policy](https://github.com/own-pay/OwnPay/blob/dev/SECURITY.md).
 
   - type: textarea
     id: description
@@ -47,7 +47,7 @@ body:
       label: Environment
       description: Please provide details about your environment.
       placeholder: |
-        - Own Pay Version:
+        - OwnPay Version:
         - PHP Version:
         - Database & Version:
         - Webserver:

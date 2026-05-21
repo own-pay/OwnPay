@@ -6,37 +6,59 @@ namespace OwnPay\Service\System;
 use OwnPay\Repository\SettingsRepository;
 
 /**
- * Environment service — runtime environment detection and DB-backed key/value store.
+ * Service orchestrating runtime environment detection and DB-backed configuration access.
  *
- * get()/set() persist to op_system_settings (group: 'runtime') with in-memory cache.
+ * Provides utilities to inspect runtime modes (production, development, staging)
+ * and accesses the persistent key/value configuration stored within the database.
+ * Persistent options map to `op_system_settings` under the 'runtime' settings group,
+ * falling back to individual `op_env` records or standard environment variables.
  */
 final class EnvironmentService
 {
     /**
-     * Get current environment mode.
+     * Retrieves the current application environment identifier.
+     *
+     * @return string The resolved environment name (e.g., 'production', 'development').
      */
     public static function mode(): string
     {
         return getenv('APP_ENV') ?: 'production';
     }
 
+    /**
+     * Determines if the application is running in production mode.
+     *
+     * @return bool True if active environment is production, false otherwise.
+     */
     public static function isProduction(): bool
     {
         return self::mode() === 'production';
     }
 
+    /**
+     * Determines if the application is running in development mode.
+     *
+     * @return bool True if active environment matches dev configurations, false otherwise.
+     */
     public static function isDevelopment(): bool
     {
         return in_array(self::mode(), ['development', 'dev', 'local'], true);
     }
 
+    /**
+     * Determines if the application is running in staging mode.
+     *
+     * @return bool True if active environment is staging, false otherwise.
+     */
     public static function isStaging(): bool
     {
         return self::mode() === 'staging';
     }
 
     /**
-     * Check if debug mode is enabled.
+     * Evaluates if debugging output is activated.
+     *
+     * @return bool True if debug variables are set to 'true', false otherwise.
      */
     public static function debugEnabled(): bool
     {
@@ -44,7 +66,9 @@ final class EnvironmentService
     }
 
     /**
-     * Get app version from config/app.php or env.
+     * Retrieves the current system version specifier.
+     *
+     * @return string The defined version identifier.
      */
     public static function version(): string
     {
@@ -52,8 +76,11 @@ final class EnvironmentService
     }
 
     /**
-     * Check PHP requirements.
-     * @return string[] Errors (empty = OK)
+     * Evaluates core PHP and critical extension requirements.
+     *
+     * Checks loaded modules and PHP versions to ensure the environment is fit for operations.
+     *
+     * @return string[] Array of error messages detailing unmet environmental requirements. Empty if all checks pass.
      */
     public static function checkRequirements(): array
     {
@@ -74,7 +101,9 @@ final class EnvironmentService
     }
 
     /**
-     * Get server info.
+     * Generates a descriptive map of the current runtime configuration.
+     *
+     * @return array{php_version: string, os: string, sapi: string, memory_limit: string|false, max_upload: string|false, timezone: string, extensions: string[]} Array describing server stats.
      */
     public static function serverInfo(): array
     {
@@ -91,15 +120,27 @@ final class EnvironmentService
 
     // ——— Persistent Key-Value Store (DB-backed) ————————————————
 
-    /** @var array<string, string> In-memory cache */
+    /**
+     * In-memory cache holding resolved configuration variables.
+     *
+     * @var array<string, string>
+     */
     private static array $cache = [];
 
-    /** @var ?SettingsRepository Injected via boot */
+    /**
+     * Handles physical database writes/reads for system configuration.
+     *
+     * @var SettingsRepository|null
+     */
     private static ?SettingsRepository $settingsRepo = null;
 
     /**
-     * Bootstrap the persistent store with a SettingsRepository.
-     * Called once during Kernel boot.
+     * Initialises the environment service with the persistent database repository.
+     *
+     * Must be invoked during core system kernel initialization.
+     *
+     * @param SettingsRepository $repo Active database repository instance.
+     * @return void
      */
     public static function boot(SettingsRepository $repo): void
     {
@@ -129,7 +170,7 @@ final class EnvironmentService
     {
         $cacheKey = "{$brandId}:{$key}";
 
-        // Memory cache first
+        // Check local in-memory cache
         if (isset(self::$cache[$cacheKey])) {
             return self::$cache[$cacheKey];
         }
@@ -153,7 +194,7 @@ final class EnvironmentService
             }
         }
 
-        // Env fallback
+        // System environment variable fallback
         $env = getenv($key);
         $value = $env !== false ? $env : '';
         self::$cache[$cacheKey] = $value;
@@ -161,7 +202,15 @@ final class EnvironmentService
     }
 
     /**
-     * Set a persistent runtime value.
+     * Persists a runtime configuration setting value.
+     *
+     * Updates both the local runtime memory cache and writes to the DB repository
+     * or tests fallback DB table structures.
+     *
+     * @param string $key Configuration key selector.
+     * @param string $value Target setting content to persist.
+     * @param string $brandId Scope identifier targeting the configuration update.
+     * @return string The saved setting value.
      */
     public static function set(string $key, string $value, string $brandId = 'both'): string
     {
@@ -178,7 +227,7 @@ final class EnvironmentService
                     $repo->set('runtime', $key, $value);
                 }
             } catch (\Throwable) {
-                // DB not available
+                // Database not available
             }
         }
 
@@ -186,7 +235,11 @@ final class EnvironmentService
     }
 
     /**
-     * Delete an environment setting.
+     * Removes a stored environment config variable from database and local cache.
+     *
+     * @param string $key Target configuration key to remove.
+     * @param string $brandId Isolated setting brand scope.
+     * @return bool True if removal completed successfully, false otherwise.
      */
     public static function delete(string $key, string $brandId = 'both'): bool
     {
@@ -211,7 +264,9 @@ final class EnvironmentService
     }
 
     /**
-     * Clear the in-memory cache.
+     * Clears all configurations stored in the memory cache.
+     *
+     * @return void
      */
     public static function clearCache(): void
     {

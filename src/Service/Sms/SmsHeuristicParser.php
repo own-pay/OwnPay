@@ -5,82 +5,93 @@ declare(strict_types=1);
 namespace OwnPay\Service\Sms;
 
 /**
- * SmsHeuristicParser — Tier 2: Lexical/keyword-based SMS analysis.
+ * Tier 2: Lexical/keyword-based SMS parser.
  *
- * Pure PHP engine using proximity-based keyword analysis:
- *   1. Amount detection: Tk/BDT/Taka followed by numeric
- *   2. TrxID detection: TrxID/TxnId/Ref/Transaction ID + alphanumeric
- *   3. Sender detection: 11-digit BD mobile numbers
- *   4. Balance detection: balance/remaining + Tk/BDT + numeric
- *   5. Type detection: credit/debit keyword classification
- *
- * Confidence: medium (if amount + type found), low (if only partial extraction).
- * Returns null only if zero useful data was extracted.
+ * Employs a pure PHP proximity analysis engine to extract transaction metadata:
+ * 1. Resolves amounts based on currency and numeric symbols.
+ * 2. Matches transaction IDs against generic pattern ranges.
+ * 3. Identifies BD phone number footprints.
+ * 4. Separates cash balances from transfer amounts.
+ * 5. Classifies transactions based on semantic keywords.
  */
 final class SmsHeuristicParser
 {
-    // Credit indicators (case-insensitive)
+    /**
+     * Keywords indicating an incoming financial transaction.
+     */
     private const CREDIT_KEYWORDS = [
         'received', 'credited', 'deposited', 'cash in',
         'added', 'refunded', 'payment received',
     ];
 
-    // Debit indicators (case-insensitive)
+    /**
+     * Keywords indicating an outgoing financial transaction.
+     */
     private const DEBIT_KEYWORDS = [
         'debited', 'sent', 'withdrawn', 'cash out',
         'paid', 'deducted', 'transferred', 'payment of',
     ];
 
-    // Transaction ID label patterns
+    /**
+     * Regex patterns used to locate transaction identifiers.
+     */
     private const TRX_ID_PATTERNS = [
         '/(?:TrxID|TxnID|TxnId|TrxId|Txn\s*ID|Transaction\s*ID|Ref(?:erence)?)\s*[:\.\-]?\s*([A-Z0-9]{5,20})/i',
     ];
 
-    // BD mobile number pattern (01XXXXXXXXX)
+    /**
+     * Standard regex pattern for matching Bangladeshi mobile numbers.
+     */
     private const PHONE_PATTERN = '/\b(01[3-9]\d{8})\b/';
 
-    // Amount patterns: "Tk 1,500.00" or "BDT 1500" or "Taka 500.50"
+    /**
+     * Regex patterns for transaction amount matching.
+     */
     private const AMOUNT_PATTERNS = [
         '/(?:Tk\.?\s*|BDT\s*|Taka\s*)([\d,]+(?:\.\d{1,2})?)/i',
     ];
 
-    // Balance-specific patterns (must be near "balance"/"remaining" keywords)
+    /**
+     * Keywords indicating an account balance block.
+     */
     private const BALANCE_KEYWORDS = ['balance', 'remaining', 'bal'];
 
     /**
-     * Attempt heuristic parse of an SMS body.
+     * Attempts to parse an SMS message using heuristics.
      *
-     * @param string $body Decrypted SMS text
-     * @return array|null Parsed fields or null if nothing extracted
+     * Extracts fields including transaction amount, transaction ID, sender phone number, balance and event type.
+     *
+     * @param string $body Decrypted or raw text of the incoming SMS body.
+     * @return array{
+     *   parsed_amount: float|null,
+     *   parsed_trx_id: string|null,
+     *   parsed_sender: string|null,
+     *   parsed_balance: float|null,
+     *   parsed_type: string,
+     *   parse_method: string,
+     *   template_id: int|null,
+     *   parse_confidence: string
+     * }|null Parsed data map, or null if no useful info could be extracted.
      */
     public function parse(string $body): ?array
     {
         $bodyLower = mb_strtolower($body, 'UTF-8');
 
-        // 1. Detect transaction type
         $type = $this->detectType($bodyLower);
-
-        // 2. Extract amounts (separate transaction amount from balance)
         $amounts = $this->extractAmounts($body, $bodyLower);
-
-        // 3. Extract transaction ID
         $trxId = $this->extractTrxId($body);
-
-        // 4. Extract sender phone number
         $senderPhone = $this->extractPhone($body);
 
-        // Nothing useful extracted?
         if ($amounts['amount'] === null && $trxId === null && $senderPhone === null) {
             return null;
         }
 
-        // Determine confidence
         $confidence = 'low';
         if ($amounts['amount'] !== null && $type !== 'unknown') {
             $confidence = 'medium';
         }
         if ($amounts['amount'] !== null && $type !== 'unknown' && $trxId !== null) {
-            $confidence = 'medium'; // Still medium for heuristic (never high)
+            $confidence = 'medium';
         }
 
         return [
@@ -96,7 +107,10 @@ final class SmsHeuristicParser
     }
 
     /**
-     * Detect credit/debit from keyword presence.
+     * Determines transaction direction (credit/debit) based on keyword score.
+     *
+     * @param string $bodyLower Lowercase representation of the SMS message body.
+     * @return string The resolved transaction direction ('credit', 'debit', or 'unknown').
      */
     private function detectType(string $bodyLower): string
     {
@@ -125,12 +139,13 @@ final class SmsHeuristicParser
     }
 
     /**
-     * Extract and classify amounts (transaction vs balance).
+     * Extracts and separates transaction amount from account balance.
      *
-     * Strategy: Find all "Tk/BDT X" occurrences. If one is near a balance keyword,
-     * classify it as balance. The other (or first) is the transaction amount.
+     * Identifies amounts following currency indicators and checks their proximity to balance keywords.
      *
-     * @return array{amount: ?float, balance: ?float}
+     * @param string $body The raw SMS text.
+     * @param string $bodyLower Lowercase representation of the SMS text.
+     * @return array{amount: float|null, balance: float|null}
      */
     private function extractAmounts(string $body, string $bodyLower): array
     {
@@ -154,14 +169,12 @@ final class SmsHeuristicParser
             return ['amount' => null, 'balance' => null];
         }
 
-        // Classify: check if any amount is near a "balance" keyword
         $transactionAmount = null;
         $balanceAmount = null;
 
         foreach ($allMatches as $m) {
             $isBalance = false;
             foreach (self::BALANCE_KEYWORDS as $balKw) {
-                // Look for balance keyword within 40 chars before the amount
                 $searchStart = max(0, $m['offset'] - 40);
                 $searchChunk = mb_strtolower(substr($body, $searchStart, $m['offset'] - $searchStart + 5), 'UTF-8');
                 if (str_contains($searchChunk, $balKw)) {
@@ -184,7 +197,10 @@ final class SmsHeuristicParser
     }
 
     /**
-     * Extract transaction ID from SMS body.
+     * Extracts the transaction ID from the message.
+     *
+     * @param string $body The raw text of the SMS.
+     * @return string|null The extracted transaction ID, or null if not found.
      */
     private function extractTrxId(string $body): ?string
     {
@@ -197,7 +213,10 @@ final class SmsHeuristicParser
     }
 
     /**
-     * Extract first BD mobile phone number.
+     * Extracts a Bangladeshi mobile number from the message body.
+     *
+     * @param string $body The raw text of the SMS.
+     * @return string|null The extracted phone number, or null if not found.
      */
     private function extractPhone(string $body): ?string
     {

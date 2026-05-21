@@ -7,15 +7,30 @@ use OwnPay\Repository\GatewayConfigRepository;
 use OwnPay\Repository\ManualGatewayRepository;
 
 /**
- * Gateway renderer service Ã¢€— provides gateway data for checkout UI rendering.
+ * Prepares and renders gateway profiles for the checkout user interface.
  *
- * Per PCI-DSS: never expose raw credentials to frontend.
+ * Scopes active gateways by merchant brand, formatting lists of both automated (API-based)
+ * and manual payment methods. Conforms strictly to PCI-DSS compliance rules by omitting
+ * raw merchant credentials, keys, or endpoints from checkout UI data vectors.
  */
 final class GatewayRendererService
 {
+    /**
+     * @var GatewayConfigRepository The repository for gateway API settings.
+     */
     private GatewayConfigRepository $apiConfigs;
+
+    /**
+     * @var ManualGatewayRepository The repository for merchant manual gateways.
+     */
     private ManualGatewayRepository $manualGateways;
 
+    /**
+     * GatewayRendererService constructor.
+     *
+     * @param GatewayConfigRepository $apiConfigs Config storage for integrated API gateways.
+     * @param ManualGatewayRepository $manualGateways Config storage for custom manual gateways.
+     */
     public function __construct(
         GatewayConfigRepository $apiConfigs,
         ManualGatewayRepository $manualGateways
@@ -25,9 +40,13 @@ final class GatewayRendererService
     }
 
     /**
-     * Get all available gateways for checkout rendering.
+     * Retrieves and structures active payment gateways for checkout rendering.
      *
-     * @return array{api: array, manual: array}
+     * Queries automated API gateways and manual gateways for the brand, sanitizes them,
+     * formats limit boundaries, and strips all private credentials before sending to the client.
+     *
+     * @param int $merchantId The unique ID of the merchant/brand.
+     * @return array{api: array<int, array<string, mixed>>, manual: array<int, array<string, mixed>>} Structured arrays of frontend-safe gateways.
      */
     public function getForCheckout(int $merchantId): array
     {
@@ -71,7 +90,11 @@ final class GatewayRendererService
     }
 
     /**
-     * Get single gateway render data.
+     * Retrieves the checkout-safe details of a single gateway identified by its slug.
+     *
+     * @param int $merchantId The unique ID of the merchant/brand.
+     * @param string $slug The unique identifier slug of the target gateway.
+     * @return array<string, mixed>|null The formatted gateway details, or null if not active or found.
      */
     public function getGateway(int $merchantId, string $slug): ?array
     {

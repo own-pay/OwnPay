@@ -4,17 +4,36 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * HTTP client — simple cURL wrapper for outbound API calls.
+ * HTTP Client — A secure wrapper for executing outbound cURL requests.
  *
- * Per security skill: timeout enforcement, SSRF prevention, no private IPs.
+ * Implements security hardening guidelines such as timeouts (connection/transfer)
+ * and SSRF (Server-Side Request Forgery) protection by verifying requested URLs
+ * against internal routing restrictions.
  *
- * @method array{status: int, body: string, headers: array} get(string $url, array $headers = [])
+ * @method array{status: int, body: string, headers: array<string, string>} get(string $url, array<string, string> $headers = [])
  */
 final class HttpClient
 {
+    /**
+     * Timeout in seconds for the overall transfer execution.
+     *
+     * @var int
+     */
     private int $timeout;
+
+    /**
+     * Timeout in seconds for establishing the initial socket connection.
+     *
+     * @var int
+     */
     private int $connectTimeout;
 
+    /**
+     * Initialises the HTTP Client wrapper.
+     *
+     * @param int $timeout Max duration in seconds to wait for request resolution.
+     * @param int $connectTimeout Max duration in seconds to wait to establish connection.
+     */
     public function __construct(int $timeout = 30, int $connectTimeout = 5)
     {
         $this->timeout = $timeout;
@@ -22,7 +41,14 @@ final class HttpClient
     }
 
     /**
-     * Magic call for instance method get().
+     * Magic call router to dispatch instance methods.
+     *
+     * Maps `get()` requests to the underlying request dispatcher.
+     *
+     * @param string $name Targeted instance method name.
+     * @param array<int, mixed> $arguments Parameter arguments passed to the call.
+     * @return array{status: int, body: string, headers: array<string, string>} The HTTP response tuple.
+     * @throws \BadMethodCallException If the requested method is not supported.
      */
     public function __call(string $name, array $arguments)
     {
@@ -35,7 +61,14 @@ final class HttpClient
     }
 
     /**
-     * Magic call for static method get().
+     * Magic call router to dispatch static helper methods.
+     *
+     * Maps static `get()` calls to create a short-lived instance and fetch the response body.
+     *
+     * @param string $name Targeted static method name.
+     * @param array<int, mixed> $arguments Parameter arguments passed to the call.
+     * @return string|null The response body on success, or null on request failure.
+     * @throws \BadMethodCallException If the requested static method is not supported.
      */
     public static function __callStatic(string $name, array $arguments)
     {
@@ -54,7 +87,13 @@ final class HttpClient
     }
 
     /**
-     * @return array{status: int, body: string, headers: array}
+     * Executes a POST request to the specified URL.
+     *
+     * @param string $url Target address.
+     * @param mixed $data Payload to dispatch (array, raw string, etc.).
+     * @param array<string, string> $headers Custom request headers.
+     * @return array{status: int, body: string, headers: array<string, string>} The response metadata.
+     * @throws \RuntimeException If the outbound request fails or is blocked.
      */
     public function post(string $url, mixed $data = null, array $headers = []): array
     {
@@ -62,7 +101,13 @@ final class HttpClient
     }
 
     /**
-     * @return array{status: int, body: string, headers: array}
+     * Executes a PUT request to the specified URL.
+     *
+     * @param string $url Target address.
+     * @param mixed $data Payload to dispatch.
+     * @param array<string, string> $headers Custom request headers.
+     * @return array{status: int, body: string, headers: array<string, string>} The response metadata.
+     * @throws \RuntimeException If the outbound request fails or is blocked.
      */
     public function put(string $url, mixed $data = null, array $headers = []): array
     {
@@ -70,7 +115,12 @@ final class HttpClient
     }
 
     /**
-     * @return array{status: int, body: string, headers: array}
+     * Executes a DELETE request to the specified URL.
+     *
+     * @param string $url Target address.
+     * @param array<string, string> $headers Custom request headers.
+     * @return array{status: int, body: string, headers: array<string, string>} The response metadata.
+     * @throws \RuntimeException If the outbound request fails or is blocked.
      */
     public function delete(string $url, array $headers = []): array
     {
@@ -78,7 +128,15 @@ final class HttpClient
     }
 
     /**
-     * POST JSON.
+     * Encodes payload to JSON and dispatches a POST request.
+     *
+     * Automatically applies the JSON Content-Type header to the transaction.
+     *
+     * @param string $url Target address.
+     * @param array<mixed> $data Associative array containing data fields to be encoded.
+     * @param array<string, string> $headers Custom request headers.
+     * @return array{status: int, body: string, headers: array<string, string>} The response metadata.
+     * @throws \RuntimeException If the outbound request fails or is blocked.
      */
     public function postJson(string $url, array $data, array $headers = []): array
     {
@@ -86,9 +144,19 @@ final class HttpClient
         return $this->post($url, json_encode($data), $headers);
     }
 
+    /**
+     * Initialises and executes the cURL transaction with targeted parameters.
+     *
+     * @param string $method HTTP action (e.g. GET, POST, PUT, DELETE).
+     * @param string $url Target address.
+     * @param mixed $data Payload package.
+     * @param array<string, string> $headers Mapping of HTTP headers.
+     * @return array{status: int, body: string, headers: array<string, string>} The output package containing status, body, and headers.
+     * @throws \RuntimeException If SSRF checks reject the URL, or cURL execution encounters issues.
+     */
     private function request(string $method, string $url, mixed $data, array $headers): array
     {
-        // SSRF check
+        // Enforce SSRF protection: reject addresses targeting local or private ranges
         if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($url)) {
             throw new \RuntimeException('URL blocked by SSRF protection');
         }
@@ -113,7 +181,7 @@ final class HttpClient
             },
         ]);
 
-        // Build headers
+        // Build header structures for cURL execution
         $curlHeaders = [];
         foreach ($headers as $key => $value) {
             $curlHeaders[] = "{$key}: {$value}";
@@ -122,7 +190,7 @@ final class HttpClient
             curl_setopt($ch, CURLOPT_HTTPHEADER, $curlHeaders);
         }
 
-        // Set body for POST/PUT
+        // Apply payload content body for outbound mutations
         if ($data !== null && in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
             curl_setopt($ch, CURLOPT_POSTFIELDS, is_string($data) ? $data : http_build_query($data));
         }

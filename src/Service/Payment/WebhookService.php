@@ -8,17 +8,35 @@ use OwnPay\Repository\WebhookRepository;
 use OwnPay\Repository\CommLogRepository;
 
 /**
- * Webhook service — dispatches outbound webhooks to merchant endpoints.
+ * Service managing outbound webhook notifications dispatched to merchant API endpoints.
  *
- * Fires: webhook.delivery.success, webhook.delivery.failed
- * Per security skill: HMAC signing, timeout, no private IPs.
+ * Provides capabilities to queue, sign, and deliver transaction events. Enforces
+ * SSRF domain sanitization controls and computes SHA-256 HMAC digital signatures to guarantee message integrity.
  */
 final class WebhookService
 {
+    /**
+     * @var WebhookRepository The repository storing configured merchant webhook endpoints.
+     */
     private WebhookRepository $webhooks;
+
+    /**
+     * @var CommLogRepository The repository logging communication and notification attempts.
+     */
     private CommLogRepository $commLog;
+
+    /**
+     * @var EventManager The system event manager.
+     */
     private EventManager $events;
 
+    /**
+     * WebhookService constructor.
+     *
+     * @param WebhookRepository $webhooks Webhook endpoints lookup repository.
+     * @param CommLogRepository $commLog Communication logs repository.
+     * @param EventManager $events System event dispatcher.
+     */
     public function __construct(
         WebhookRepository $webhooks,
         CommLogRepository $commLog,
@@ -30,7 +48,14 @@ final class WebhookService
     }
 
     /**
-     * Dispatch event to all matching merchant webhooks.
+     * Dispatches a transaction event to all configured active endpoints registered by a merchant.
+     *
+     * Queries matching webhooks and iterates to initiate delivery processes.
+     *
+     * @param int $merchantId The ID of the merchant/brand.
+     * @param string $eventType The type of transaction event triggered (e.g. `payment.completed`).
+     * @param array<string, mixed> $payload The structured event body fields.
+     * @return void
      */
     public function dispatch(int $merchantId, string $eventType, array $payload): void
     {
@@ -42,7 +67,16 @@ final class WebhookService
     }
 
     /**
-     * Deliver single webhook with HMAC signature.
+     * Executes the network request to deliver a signed webhook to a single endpoint.
+     *
+     * Performs a preemptive SSRF validity check on the URL, calculates a sha256 HMAC signature
+     * of the JSON body using the webhook secret, initializes curl, registers log entries,
+     * and triggers event hooks reflecting the final response.
+     *
+     * @param array<string, mixed> $webhook The configuration fields of the target webhook endpoint.
+     * @param string $eventType The triggered event name.
+     * @param array<string, mixed> $payload The payload body parameters.
+     * @return bool True if the delivery was successful (HTTP status 200-299), false otherwise.
      */
     public function deliver(array $webhook, string $eventType, array $payload): bool
     {
@@ -113,7 +147,10 @@ final class WebhookService
     }
 
     /**
-     * Basic SSRF prevention for webhook URLs.
+     * Prevents SSRF attacks by checking the webhook URL format and domain/IP destination.
+     *
+     * @param string $url The target delivery URL.
+     * @return bool True if the target URL is approved for outgoing requests, false if blocked.
      */
     private function isUrlSafe(string $url): bool
     {

@@ -9,12 +9,37 @@ use OwnPay\Http\Response;
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\SettingsRepository;
 
+/**
+ * Class LandingController
+ *
+ * Handles HTTP requests to render the public landing/marketing page.
+ *
+ * @package OwnPay\Controller\Page
+ */
 final class LandingController
 {
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var EventManager The event manager.
+     */
     private EventManager $events;
+
+    /**
+     * @var SettingsRepository The settings repository.
+     */
     private SettingsRepository $settingsRepo;
 
+    /**
+     * LandingController constructor.
+     *
+     * @param Container          $c            The DI container.
+     * @param EventManager       $events       The event manager.
+     * @param SettingsRepository $settingsRepo The settings repository.
+     */
     public function __construct(Container $c, EventManager $events, SettingsRepository $settingsRepo)
     {
         $this->c            = $c;
@@ -22,6 +47,15 @@ final class LandingController
         $this->settingsRepo = $settingsRepo;
     }
 
+    /**
+     * Renders the public-facing landing page.
+     * Redirects to the login route if the landing page is disabled.
+     *
+     * GET /
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with rendered HTML landing page.
+     */
     public function index(Request $req): Response
     {
         $general  = $this->settingsRepo->getGroup('general');

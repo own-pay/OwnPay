@@ -8,20 +8,38 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Rate limiter — sliding window via DB or Redis.
+ * Middleware handling sliding-window rate limiting.
  *
- * Per OWASP: prevent brute-force and DDoS.
- * Auto-detects Redis; falls back to DB table op_rate_limits.
+ * Implements rate limiting using Redis as the primary engine and falling back to a database
+ * table representation (`op_rate_limits`). Prevents brute-force attacks and DDoS threats.
  */
 final class RateLimiterMiddleware
 {
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $container;
 
+    /**
+     * Constructs a new RateLimiterMiddleware instance.
+     *
+     * @param Container $container The dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
+    /**
+     * Enforces the rate limiting window on incoming HTTP requests.
+     *
+     * Injects rate limit metadata headers (X-RateLimit-Limit, X-RateLimit-Remaining)
+     * and short-circuits with a 429 JSON response when exceeded.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param callable(Request): Response $next Next handler in the pipeline.
+     * @return Response The HTTP response.
+     */
     public function handle(Request $request, callable $next): Response
     {
         try {
@@ -87,15 +105,31 @@ final class RateLimiterMiddleware
         }
     }
 
+    /**
+     * Generates a unique cache/DB rate limiting key based on request metadata.
+     *
+     * Uses 5 segments for deeper path uniqueness.
+     *
+     * @param Request $request The request context.
+     * @return string The generated rate limiting key.
+     */
     private function buildKey(Request $request): string
     {
         $ip = $request->ip();
         $prefix = explode('/', trim($request->path(), '/'));
-        // BUG-019 FIX: Use 5 segments (not 3) for deeper path uniqueness
+        
         $pathKey = implode('.', array_slice($prefix, 0, 5));
         return "rl:{$ip}:{$pathKey}";
     }
 
+    /**
+     * Resolves current request hits count for the rate limit key.
+     *
+     * @param string $key The rate limit key.
+     * @param int $now The current timestamp.
+     * @param int $window The rate limiting window length.
+     * @return int The total hit count.
+     */
     private function getHits(string $key, int $now, int $window): int
     {
         // Try Redis first
@@ -103,7 +137,7 @@ final class RateLimiterMiddleware
             try {
                 /** @var \OwnPay\Cache\RedisCache $cache */
                 $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
-                // BUG-10 FIX: Use raw Redis GET, not cache->get().
+                // Use raw Redis GET, not cache->get().
                 // INCR stores plain integers; cache->get() unserializes and
                 // unserialize("5") returns false → always reads 0.
                 $val = $cache->redis()->get('op:' . $key);
@@ -123,10 +157,15 @@ final class RateLimiterMiddleware
     }
 
     /**
-     * Atomic increment via Redis or DB.
+     * Increments the rate limiting counter atomically.
      *
-     * BUG-018 FIX: Replaced TOCTOU SELECT+INSERT/UPDATE with atomic
-     * INSERT ... ON DUPLICATE KEY UPDATE for the DB fallback.
+     * Leverages native Redis INCR or DB atomic UPSERT (INSERT ON DUPLICATE KEY UPDATE)
+     * to prevent Time-of-Check to Time-of-Use (TOCTOU) race conditions.
+     *
+     * @param string $key The rate limit key.
+     * @param int $now The current timestamp.
+     * @param int $window The window length.
+     * @return void
      */
     private function increment(string $key, int $now, int $window): void
     {
@@ -138,7 +177,7 @@ final class RateLimiterMiddleware
                 $redis = $cache->redis();
                 $prefixedKey = 'op:' . $key;
 
-                // BUG-10 FIX: Use native Redis INCR — single atomic operation.
+                // Use native Redis INCR — single atomic operation.
                 // Previous code did get() then set(current+1), losing counts
                 // under concurrent requests (two requests read same value,
                 // both write value+1, effectively counting 1 hit instead of 2).
@@ -155,7 +194,7 @@ final class RateLimiterMiddleware
             }
         }
 
-        // BUG-018 FIX: Atomic upsert — no TOCTOU race
+        // Atomic upsert — no TOCTOU race
         $db = $this->container->get(\OwnPay\Core\Database::class);
         $expires = $now + $window;
 
@@ -179,6 +218,12 @@ final class RateLimiterMiddleware
         }
     }
 
+    /**
+     * Logs warning messages safely without raising exceptions.
+     *
+     * @param string $message The warning details.
+     * @return void
+     */
     private function logWarning(string $message): void
     {
         try {

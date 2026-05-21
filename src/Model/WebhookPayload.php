@@ -4,11 +4,26 @@ declare(strict_types=1);
 namespace OwnPay\Model;
 
 /**
- * Immutable webhook payload — passed to gateway plugin listeners.
- * Contains raw body for HMAC verification, parsed helpers for convenience.
+ * Class WebhookPayload
+ *
+ * An immutable data container representing an incoming payment gateway webhook notification payload.
+ * Encapsulates the raw payload body to support HMAC signature verification workflows, maps target merchant scoping
+ * parameters, and provides parsed helper utilities for parsing JSON and form-urlencoded HTTP POST requests.
+ *
+ * @package OwnPay\Model
  */
 final readonly class WebhookPayload
 {
+    /**
+     * WebhookPayload constructor.
+     *
+     * @param string $gateway The unique slug identifying the payment gateway adapter.
+     * @param int $merchantId The merchant brand scoping ID associated with this callback.
+     * @param string $rawBody The raw, unparsed HTTP request request body.
+     * @param array<string, string|string[]> $headers The HTTP headers array matching the request.
+     * @param string $ip The source IP address that initiated the callback request.
+     * @param string $method The HTTP request method utilized (e.g. POST, GET).
+     */
     public function __construct(
         public string $gateway,
         public int    $merchantId,
@@ -19,7 +34,11 @@ final readonly class WebhookPayload
     ) {}
 
     /**
-     * Parse body as JSON. Returns empty array on failure.
+     * Parse the raw request body as JSON.
+     *
+     * Returns an empty array if decoding fails or target content is invalid.
+     *
+     * @return array<string, mixed> The decoded JSON object tree as an associative array.
      */
     public function json(): array
     {
@@ -28,7 +47,10 @@ final readonly class WebhookPayload
     }
 
     /**
-     * Get single header (case-insensitive).
+     * Retrieve a specific HTTP header value by key, performing a case-insensitive match.
+     *
+     * @param string $key The key name of the target HTTP header.
+     * @return string|null The header value string, or null if the key is not set.
      */
     public function header(string $key): ?string
     {
@@ -42,7 +64,9 @@ final readonly class WebhookPayload
     }
 
     /**
-     * Parse body as form-urlencoded data.
+     * Parse the raw request body as form-urlencoded data.
+     *
+     * @return array<string, mixed> The parsed query string variables as an associative array.
      */
     public function formData(): array
     {
@@ -51,10 +75,15 @@ final readonly class WebhookPayload
     }
 
     /**
-     * SHA-256 hash of raw body — for idempotency / dedup.
+     * Generate a cryptographic SHA-256 hash of the raw body payload.
+     *
+     * Frequently utilized for request deduplication and message idempotency verification checks.
+     *
+     * @return string The hex-encoded SHA-256 hash representation of the raw body.
      */
     public function bodyHash(): string
     {
         return hash('sha256', $this->rawBody);
     }
 }
+

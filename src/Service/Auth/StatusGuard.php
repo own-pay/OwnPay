@@ -6,15 +6,25 @@ namespace OwnPay\Service\Auth;
 use OwnPay\Support\DateHelper;
 
 /**
- * Status guard — checks entity status for access control.
+ * OwnPay Status Guard.
+ *
+ * Implements centralized state evaluations for merchants, users, gateway setups,
+ * and API keys, asserting active lifetimes and throwing guard exceptions on violations.
+ *
+ * @package OwnPay\Service\Auth
  */
 final class StatusGuard
 {
-    /** Active statuses that allow operations */
+    /**
+     * @var string[] List of system statuses that authorize active operations.
+     */
     private const ACTIVE_STATUSES = ['active'];
 
     /**
-     * Check if merchant is active.
+     * Evaluates if the provided merchant/brand record is in an active state.
+     *
+     * @param array<string, mixed> $merchant The merchant profile entity array.
+     * @return bool True if active; false otherwise.
      */
     public static function isMerchantActive(array $merchant): bool
     {
@@ -22,7 +32,10 @@ final class StatusGuard
     }
 
     /**
-     * Check if user account is active.
+     * Evaluates if a user account is active.
+     *
+     * @param array<string, mixed> $user The system user entity array.
+     * @return bool True if active; false otherwise.
      */
     public static function isUserActive(array $user): bool
     {
@@ -30,7 +43,10 @@ final class StatusGuard
     }
 
     /**
-     * Check if gateway config is live/test mode and active.
+     * Evaluates if a configured gateway is active.
+     *
+     * @param array<string, mixed> $gatewayConfig The gateway configuration entity array.
+     * @return bool True if active; false otherwise.
      */
     public static function isGatewayUsable(array $gatewayConfig): bool
     {
@@ -38,7 +54,10 @@ final class StatusGuard
     }
 
     /**
-     * Check if API key is valid (active + not expired).
+     * Evaluates if an API key is valid (active and not expired).
+     *
+     * @param array{status?: string, expires_at?: string|null} $apiKey The api key entity array.
+     * @return bool True if valid; false otherwise.
      */
     public static function isApiKeyValid(array $apiKey): bool
     {
@@ -52,8 +71,12 @@ final class StatusGuard
     }
 
     /**
-     * Guard check — throws on inactive.
-     * @throws \RuntimeException
+     * Asserts that an entity state is active, throwing an exception upon failure.
+     *
+     * @param array{status?: string} $entity The entity array to check.
+     * @param string $label Debug identifier label for inclusion in the exception.
+     * @return void
+     * @throws \RuntimeException If the entity's status does not match an active status.
      */
     public static function requireActive(array $entity, string $label = 'Entity'): void
     {

@@ -8,21 +8,36 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * IP allowlist middleware — restricts access to configured IPs.
+ * Middleware responsible for restricting request access based on client IP addresses.
  *
- * Per OWASP: defense-in-depth for admin/API routes.
- * Supports IPv4, IPv6, CIDR notation.
+ * Implements CIDR-based and exact IP matching for IPv4/IPv6 addresses configured
+ * in the application's environment.
  */
 final class IpAllowlistMiddleware
 {
-    /** @phpstan-ignore property.onlyWritten */
-    private Container $container;
+    /**
+     * @var Container The dependency injection container instance.
+     */
+    private Container $container; // @phpstan-ignore-line
 
+
+    /**
+     * Constructs a new IpAllowlistMiddleware instance.
+     *
+     * @param Container $container The dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
+    /**
+     * Handles IP authorization check for incoming HTTP requests.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param callable(Request): Response $next Next handler in the pipeline.
+     * @return Response The HTTP response.
+     */
     public function handle(Request $request, callable $next): Response
     {
         $allowlist = $this->getAllowlist();
@@ -51,7 +66,11 @@ final class IpAllowlistMiddleware
     }
 
     /**
-     * Check if IP matches allowed entry (exact or CIDR).
+     * Checks if a client IP address matches an allowed IP pattern (exact or CIDR).
+     *
+     * @param string $ip The client IP address.
+     * @param string $allowed The allowed IP pattern/subnet.
+     * @return bool True if the IP matches; false otherwise.
      */
     private function matches(string $ip, string $allowed): bool
     {
@@ -68,6 +87,15 @@ final class IpAllowlistMiddleware
         return false;
     }
 
+    /**
+     * Evaluates a client IP against a subnet defined in Classless Inter-Domain Routing (CIDR) notation.
+     *
+     * Supports both IPv4 and IPv6 families.
+     *
+     * @param string $ip The client IP address.
+     * @param string $cidr The CIDR subnet string (e.g. 192.168.1.0/24).
+     * @return bool True if the IP resides within the subnet range; false otherwise.
+     */
     private function cidrMatch(string $ip, string $cidr): bool
     {
         [$subnet, $bits] = explode('/', $cidr, 2);
@@ -98,7 +126,9 @@ final class IpAllowlistMiddleware
     }
 
     /**
-     * @return string[]
+     * Resolves the configured list of allowed IP addresses from system environment variables.
+     *
+     * @return string[] List of allowed IP subnets or exact addresses.
      */
     private function getAllowlist(): array
     {

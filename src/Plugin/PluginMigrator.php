@@ -6,23 +6,43 @@ namespace OwnPay\Plugin;
 use OwnPay\Core\Database;
 
 /**
- * Plugin migrator — runs plugin-specific SQL migrations.
+ * Database schema migration engine for OwnPay plugins.
  *
- * Migrations stored in: modules/{type}/{slug}/migrations/
- * Tracked in: op_plugin_migrations table.
+ * Scans, processes, and tracks SQL schema alterations declared by plugins.
+ * Ensures transactions are utilized to maintain atomicity and isolates
+ * execution state tracking within the `op_plugin_migrations` system table.
+ *
+ * @category Plugin
+ * @package  OwnPay\Plugin
  */
 final class PluginMigrator
 {
+    /**
+     * Database connection wrapper instance.
+     *
+     * @var \OwnPay\Core\Database
+     */
     private Database $db;
 
+    /**
+     * PluginMigrator constructor.
+     *
+     * @param \OwnPay\Core\Database $db Core database interface.
+     */
     public function __construct(Database $db)
     {
         $this->db = $db;
     }
 
     /**
-     * Run pending migrations for plugin.
-     * @return string[] List of executed migration files
+     * Executes pending SQL migrations for a specified plugin.
+     *
+     * Processes SQL statements inside a database transaction block, tracking
+     * executed migration names and batches inside `op_plugin_migrations`.
+     *
+     * @param string $pluginSlug    Unique plugin identifier.
+     * @param string $migrationsDir Directory path containing the migration SQL scripts.
+     * @return array<int, string> List of executed migration filenames.
      */
     public function migrate(string $pluginSlug, string $migrationsDir): array
     {
@@ -42,7 +62,6 @@ final class PluginMigrator
             }
 
             $this->db->transaction(function () use ($sql, $pluginSlug, $file, $batch) {
-                // Execute migration SQL (may contain multiple statements)
                 $statements = array_filter(
                     array_map('trim', explode(';', $sql)),
                     fn(string $s) => $s !== ''
@@ -52,7 +71,6 @@ final class PluginMigrator
                     $this->db->execute($stmt);
                 }
 
-                // Record migration
                 $this->db->insert(
                     "INSERT INTO op_plugin_migrations (plugin_slug, migration, batch) VALUES (:slug, :mig, :batch)",
                     ['slug' => $pluginSlug, 'mig' => $file, 'batch' => $batch]
@@ -66,8 +84,14 @@ final class PluginMigrator
     }
 
     /**
-     * Rollback last batch of migrations for plugin.
-     * @return string[] List of rolled back migrations
+     * Rolls back the last batch of executed migrations for a plugin.
+     *
+     * Executes the corresponding rollback scripts (*.down.sql) if present on the filesystem,
+     * and deletes the tracking records from `op_plugin_migrations`.
+     *
+     * @param string $pluginSlug    Unique plugin identifier.
+     * @param string $migrationsDir Directory path containing the migration SQL scripts.
+     * @return array<int, string> List of rolled back migration filenames.
      */
     public function rollback(string $pluginSlug, string $migrationsDir): array
     {
@@ -106,7 +130,10 @@ final class PluginMigrator
     }
 
     /**
-     * @return string[]
+     * Resolves the list of migrations that have already been executed.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return array<int, string> List of completed migration names.
      */
     private function getExecuted(string $slug): array
     {
@@ -118,7 +145,13 @@ final class PluginMigrator
     }
 
     /**
-     * @return string[]
+     * Filters directory files to identify migrations that are pending execution.
+     *
+     * Excludes rollback (.down.sql) scripts and returns a sorted list of files.
+     *
+     * @param string             $dir      Directory path of the migration scripts.
+     * @param array<int, string> $executed List of already executed migrations.
+     * @return array<int, string> Sorted list of pending migration filenames.
      */
     private function getPending(string $dir, array $executed): array
     {
@@ -126,7 +159,6 @@ final class PluginMigrator
         $pending = [];
         foreach ($files as $file) {
             $name = basename($file);
-            // Skip .down.sql files
             if (str_ends_with($name, '.down.sql')) {
                 continue;
             }
@@ -134,15 +166,27 @@ final class PluginMigrator
                 $pending[] = $name;
             }
         }
-        sort($pending); // Alphabetical = chronological with YYYY_MM_DD prefix
+        sort($pending);
         return $pending;
     }
 
+    /**
+     * Calculates the sequence number for the next migration batch.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return int Next batch number.
+     */
     private function getNextBatch(string $slug): int
     {
         return $this->getLastBatch($slug) + 1;
     }
 
+    /**
+     * Resolves the maximum batch sequence number executed for a plugin.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return int Last batch sequence number, default 0 if none run.
+     */
     private function getLastBatch(string $slug): int
     {
         $row = $this->db->fetchOne(
