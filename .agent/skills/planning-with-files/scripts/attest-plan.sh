@@ -12,9 +12,9 @@
 #   4. Legacy ./task_plan.md at project root
 #
 # Usage:
-#   sh scripts/attest-plan.sh         # attest the active plan
-#   sh scripts/attest-plan.sh --show  # print the stored hash
-#   sh scripts/attest-plan.sh --clear # remove the attestation (re-open the plan)
+#   sh .agent/skills/planning-with-files/scripts/attest-plan.sh         # attest the active plan
+#   sh .agent/skills/planning-with-files/scripts/attest-plan.sh --show  # print the stored hash
+#   sh .agent/skills/planning-with-files/scripts/attest-plan.sh --clear # remove the attestation (re-open the plan)
 
 set -u
 

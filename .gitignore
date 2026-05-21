@@ -37,6 +37,7 @@ storage/.installed
 .agents/skills/*/scripts/__pycache__/
 .superpowers
 graphify-out/
+.antigravitycli/
 
 # Runtime storage (keep structure, ignore contents)
 storage/cache/*
@@ -53,3 +54,4 @@ mobile_app
 findings.md
 progress.md
 task_plan.md
+

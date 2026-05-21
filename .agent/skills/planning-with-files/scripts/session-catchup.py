@@ -36,7 +36,8 @@ def json_loads(line: str) -> Optional[Dict[str, Any]]:
 
 
 def normalize_for_compare(path_value: str) -> str:
-    expanded = os.path.expanduser(path_value)
+    cleaned = path_value.strip('\'"')
+    expanded = os.path.expanduser(cleaned)
     try:
         return str(Path(expanded).resolve())
     except (OSError, ValueError):
@@ -135,6 +136,23 @@ def find_current_codex_session(sessions: List[Path]) -> Optional[Path]:
     return None
 
 
+def find_current_antigravity_session(sessions: List[Path]) -> Optional[Path]:
+    source_meta = os.getenv('ANTIGRAVITY_SOURCE_METADATA', '').strip()
+    conv_id = None
+    if source_meta:
+        try:
+            data = json.loads(source_meta)
+            conv_id = data.get('tool', {}).get('conversationId')
+        except Exception:
+            pass
+            
+    if conv_id:
+        for session in sessions:
+            if conv_id in str(session):
+                return session
+    return None
+
+
 def is_codex_project_session(session: Path, project_cmp: str) -> bool:
     if not is_substantial_session(session):
         return False
@@ -167,6 +185,47 @@ def get_codex_sessions(project_path: str) -> Iterable[Path]:
             yield session
 
 
+def is_antigravity_project_session(transcript_file: Path, project_cmp: str) -> bool:
+    if not transcript_file.is_file():
+        return False
+    project_cmp_norm = project_cmp.lower().replace('\\', '/')
+    try:
+        with open(transcript_file, 'r', encoding='utf-8', errors='replace') as f:
+            for i, line in enumerate(f):
+                if i >= 150:
+                    break
+                line_norm = line.lower().replace('\\', '/')
+                if project_cmp_norm in line_norm:
+                    return True
+    except OSError:
+        pass
+    return False
+
+
+def get_antigravity_sessions(project_path: str) -> List[Path]:
+    brain_dir = Path.home() / '.gemini' / 'antigravity' / 'brain'
+    if not brain_dir.exists():
+        return []
+    
+    project_cmp = normalize_for_compare(project_path)
+    candidates = []
+    try:
+        for conv_dir in brain_dir.iterdir():
+            if conv_dir.is_dir():
+                transcript = conv_dir / '.system_generated' / 'logs' / 'transcript.jsonl'
+                if transcript.is_file():
+                    candidates.append(transcript)
+    except OSError:
+        pass
+        
+    project_sessions = []
+    for transcript in candidates:
+        if is_antigravity_project_session(transcript, project_cmp):
+            project_sessions.append(transcript)
+            
+    return sorted(project_sessions, key=safe_stat_mtime, reverse=True)
+
+
 def get_session_candidates(project_path: str) -> Tuple[str, Iterable[Path]]:
     script_path = Path(__file__).resolve().as_posix().lower()
     if '/.codex/' in script_path:
@@ -174,6 +233,11 @@ def get_session_candidates(project_path: str) -> Tuple[str, Iterable[Path]]:
     if '/.opencode/' in script_path:
         # OpenCode dispatch is handled separately via SQLite (v2.38.0+).
         return 'opencode', []
+
+    # Check Antigravity first
+    antigravity_sessions = get_antigravity_sessions(project_path)
+    if antigravity_sessions:
+        return 'antigravity', antigravity_sessions
 
     claude_project_dir = get_claude_project_dir(project_path)
     if claude_project_dir.exists():
@@ -377,8 +441,9 @@ def parse_session_messages(session_file: Path) -> List[Dict[str, Any]]:
 def planning_file_from_path(path_value: Any) -> Optional[str]:
     if not isinstance(path_value, str):
         return None
+    cleaned = path_value.strip('\'"')
     for pf in PLANNING_FILES:
-        if path_value.endswith(pf):
+        if cleaned.endswith(pf):
             return pf
     return None
 
@@ -556,6 +621,93 @@ def extract_messages_after(messages: List[Dict[str, Any]], after_line: int) -> L
     return result
 
 
+def find_antigravity_planning_update(messages: List[Dict[str, Any]]) -> Tuple[int, Optional[str]]:
+    last_update_idx = -1
+    last_update_file = None
+    
+    for idx, msg in enumerate(messages):
+        tool_calls = msg.get('tool_calls')
+        if isinstance(tool_calls, list):
+            for tc in tool_calls:
+                if not isinstance(tc, dict):
+                    continue
+                tool_name = tc.get('name') or tc.get('tool_name') or tc.get('tool')
+                if not tool_name or not isinstance(tool_name, str):
+                    continue
+                if tool_name in ('write_to_file', 'replace_file_content', 'multi_replace_file_content'):
+                    args = tc.get('args') or tc.get('arguments') or tc.get('input') or {}
+                    if isinstance(args, dict):
+                        target_file = args.get('TargetFile')
+                        planning_file = planning_file_from_path(target_file)
+                        if planning_file:
+                            last_update_idx = idx
+                            last_update_file = planning_file
+                            
+    return last_update_idx, last_update_file
+
+
+def extract_antigravity_messages_after(messages: List[Dict[str, Any]], after_idx: int) -> List[Dict[str, Any]]:
+    result = []
+    for idx, msg in enumerate(messages):
+        if idx <= after_idx:
+            continue
+            
+        source = msg.get('source')
+        mtype = msg.get('type')
+        content = msg.get('content') or ''
+        
+        if source == 'USER_EXPLICIT' or mtype == 'USER_INPUT':
+            if isinstance(content, str) and content.strip():
+                if content.startswith(('<local-command', '<command-', '<task-notification')):
+                    continue
+                if len(content) > 20:
+                    result.append({'role': 'user', 'content': content.strip(), 'line': idx})
+                    
+        elif source == 'MODEL' or mtype == 'PLANNER_RESPONSE':
+            text = ''
+            if isinstance(content, str):
+                text = content
+            elif isinstance(content, list):
+                text = '\n'.join(item.get('text', '') for item in content if isinstance(item, dict) and 'text' in item)
+                
+            tool_uses = []
+            tool_calls = msg.get('tool_calls')
+            if isinstance(tool_calls, list):
+                for tc in tool_calls:
+                    if not isinstance(tc, dict):
+                        continue
+                    tool_name = tc.get('name') or tc.get('tool_name') or tc.get('tool')
+                    if not tool_name or not isinstance(tool_name, str):
+                        continue
+                    args = tc.get('args') or tc.get('arguments') or tc.get('input') or {}
+                    if not isinstance(args, dict):
+                        args = {}
+                        
+                    if tool_name == 'write_to_file':
+                        tool_uses.append(f"write_to_file: {args.get('TargetFile', 'unknown')}")
+                    elif tool_name == 'replace_file_content':
+                        tool_uses.append(f"replace_file_content: {args.get('TargetFile', 'unknown')}")
+                    elif tool_name == 'multi_replace_file_content':
+                        tool_uses.append(f"multi_replace_file_content: {args.get('TargetFile', 'unknown')}")
+                    elif tool_name == 'view_file':
+                        tool_uses.append(f"view_file: {args.get('AbsolutePath', 'unknown')}")
+                    elif tool_name == 'run_command':
+                        cmd = args.get('CommandLine', '')[:80]
+                        tool_uses.append(f"run_command: {cmd}")
+                    else:
+                        tool_uses.append(tool_name)
+                        
+            if text or tool_uses:
+                result.append({
+                    'role': 'assistant',
+                    'content': text[:600] if text else '',
+                    'tools': tool_uses,
+                    'line': idx
+                })
+                
+    return result
+
+
 def main():
     project_path = sys.argv[1] if len(sys.argv) > 1 else os.getcwd()
 
@@ -575,8 +727,18 @@ def main():
 
     # Find a substantial previous session
     target_session = None
+    current_session = None
+    if runtime_name == 'antigravity':
+        current_session = find_current_antigravity_session(sessions)
+        if not current_session and len(sessions) > 0:
+            current_session = sessions[0]
+
     for session in sessions:
+        if runtime_name == 'antigravity' and session == current_session:
+            continue
         if runtime_name == 'claude' and not is_substantial_session(session):
+            continue
+        if runtime_name == 'antigravity' and not is_substantial_session(session):
             continue
         target_session = session
         break
@@ -585,28 +747,39 @@ def main():
         return
 
     messages = parse_session_messages(target_session)
-    last_update_line, last_update_file = find_last_planning_update(messages)
+    
+    if runtime_name == 'antigravity':
+        last_update_line, last_update_file = find_antigravity_planning_update(messages)
+    else:
+        last_update_line, last_update_file = find_last_planning_update(messages)
 
     # No planning updates in the target session; skip catchup output.
     if last_update_line < 0:
         return
 
     # Only output if there's unsynced content
-    messages_after = extract_messages_after(messages, last_update_line)
+    if runtime_name == 'antigravity':
+        messages_after = extract_antigravity_messages_after(messages, last_update_line)
+    else:
+        messages_after = extract_messages_after(messages, last_update_line)
 
     if not messages_after:
         return
 
     # Output catchup report
     print("\n[planning-with-files] SESSION CATCHUP DETECTED")
-    print(f"Previous session: {target_session.stem}")
+    if runtime_name == 'antigravity':
+        session_id = target_session.parts[-4] if len(target_session.parts) >= 4 else target_session.stem
+        print(f"Previous session: {session_id}")
+    else:
+        print(f"Previous session: {target_session.stem}")
     print(f"Runtime: {runtime_name}")
 
     print(f"Last planning update: {last_update_file} at message #{last_update_line}")
     print(f"Unsynced messages: {len(messages_after)}")
 
     print("\n--- UNSYNCED CONTEXT ---")
-    assistant_label = 'CODEX' if runtime_name == 'codex' else 'CLAUDE'
+    assistant_label = 'ANTIGRAVITY' if runtime_name == 'antigravity' else ('CODEX' if runtime_name == 'codex' else 'CLAUDE')
     for msg in messages_after[-15:]:  # Last 15 messages
         if msg['role'] == 'user':
             print(f"USER: {msg['content'][:300]}")
