@@ -7,15 +7,36 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Repository\CommLogRepository;
 
+/**
+ * Class SmsQueueController
+ *
+ * Handles API actions related to the SMS sending queue.
+ *
+ * @package OwnPay\Controller\Api\Admin
+ */
 final class SmsQueueController
 {
+    /**
+     * @var CommLogRepository The communication log repository.
+     */
     private CommLogRepository $commRepo;
 
+    /**
+     * SmsQueueController constructor.
+     *
+     * @param CommLogRepository $commRepo The communication log repository.
+     */
     public function __construct(CommLogRepository $commRepo)
     {
         $this->commRepo = $commRepo;
     }
 
+    /**
+     * Lists items in the SMS queue.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with queue data.
+     */
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
@@ -23,6 +44,12 @@ final class SmsQueueController
         return Response::json(['success' => true, 'data' => $queue]);
     }
 
+    /**
+     * Retries sending a failed SMS from the queue.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response indicating retry status.
+     */
     public function retry(Request $req): Response
     {
         $id  = (int) $req->param('id');

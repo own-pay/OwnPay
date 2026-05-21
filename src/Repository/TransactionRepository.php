@@ -4,8 +4,20 @@ declare(strict_types=1);
 namespace OwnPay\Repository;
 
 use Ramsey\Uuid\Uuid;
-use OwnPay\Support\DateHelper;
+use OwnPay\Support\DateHelper;
 
+/**
+ * Repository layer for transactions (`op_transactions` table).
+ *
+ * Scopes CRUD operations per active tenant via the TenantScope trait.
+ * Implements transaction lifecycle updates, dashboard metrics retrieval,
+ * reporting extracts, and SMS-to-transaction auto-matching.
+ * 
+ * Note: Database Generated Indexing Columns: The `op_transactions` table contains 
+ * STORED generated columns `invoice_id` and `payment_link_id` extracted from JSON 
+ * metadata to accelerate query operations with direct index keys `idx_invoice_id` 
+ * and `idx_payment_link_id`.
+ */
 final class TransactionRepository extends BaseRepository
 {
     use TenantScope;
@@ -19,7 +31,9 @@ final class TransactionRepository extends BaseRepository
     ];
 
     /**
-     * Generate unique TRX ID: OP-XXXXXXXXXX
+     * Generates a unique transaction identifier with the prefix 'OP-'.
+     *
+     * @return string Unique transaction identifier.
      */
     public function generateTrxId(): string
     {
@@ -29,6 +43,12 @@ final class TransactionRepository extends BaseRepository
         return $trxId;
     }
 
+    /**
+     * Creates a new transaction with a unique transaction ID and UUID.
+     *
+     * @param array<string, mixed> $data Transaction parameters.
+     * @return string Last inserted primary key ID.
+     */
     public function createTransaction(array $data): string
     {
         $data['uuid'] = Uuid::uuid4()->toString();
@@ -37,6 +57,12 @@ final class TransactionRepository extends BaseRepository
         return $this->createScoped($data);
     }
 
+    /**
+     * Finds a transaction by its transaction ID code, scoped by active tenant.
+     *
+     * @param string $trxId Transaction identifier.
+     * @return array<string, mixed>|null Database row array, or null if not found.
+     */
     public function findByTrxId(string $trxId): ?array
     {
         return $this->db->fetchOne(
@@ -45,6 +71,12 @@ final class TransactionRepository extends BaseRepository
         );
     }
 
+    /**
+     * Marks a transaction as completed and updates the completion timestamp.
+     *
+     * @param int $id Primary key identifier.
+     * @return int Number of affected rows.
+     */
     public function markCompleted(int $id): int
     {
         return $this->updateScoped($id, [
@@ -52,8 +84,12 @@ final class TransactionRepository extends BaseRepository
             'completed_at' => DateHelper::nowMicro(),
         ]);
     }
+
     /**
-     * Find transaction by gateway reference ID (tenant-scoped).
+     * Finds a transaction by its gateway reference ID, scoped by active tenant.
+     *
+     * @param string $gatewayTrxId The gateway's reference transaction ID.
+     * @return array<string, mixed>|null Database row array, or null if not found.
      */
     public function findByGatewayTrxId(string $gatewayTrxId): ?array
     {
@@ -64,8 +100,13 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Dashboard stats: total volume + count by status for date range.
-     * Uses composite index idx_merchant_created.
+     * Computes dashboard statistics (volume, fees, counts) for a date range.
+     *
+     * Uses the composite index `idx_merchant_created` for optimal query execution.
+     *
+     * @param string $from Starting datetime boundary.
+     * @param string $to Ending datetime boundary.
+     * @return array<string, mixed> Aggregated statistics array.
      */
     public function stats(string $from, string $to): array
     {
@@ -84,6 +125,13 @@ final class TransactionRepository extends BaseRepository
             ['mid' => $mid, 'from' => $from, 'to' => $to]
         ) ?? [];
     }
+
+    /**
+     * Counts the total transactions matching specific filters under the active tenant.
+     *
+     * @param array{status?: string, gateway?: string, q?: string} $filters Filtering criteria.
+     * @return int Matching records count.
+     */
     public function countFiltered(array $filters): int
     {
         $where = "merchant_id = :mid";
@@ -105,6 +153,14 @@ final class TransactionRepository extends BaseRepository
         return $this->db->count($this->table, $where, $params);
     }
 
+    /**
+     * Lists transactions matching specific filters with sorting and pagination, scoped by active tenant.
+     *
+     * @param array{status?: string, gateway?: string, q?: string} $filters Filtering criteria.
+     * @param int $limit Maximum records to return.
+     * @param int $offset Records offset.
+     * @return list<array<string, mixed>> List of matching transaction rows.
+     */
     public function listFiltered(array $filters, int $limit, int $offset): array
     {
         $where = "merchant_id = :mid";
@@ -129,6 +185,14 @@ final class TransactionRepository extends BaseRepository
         );
     }
 
+    /**
+     * Retrieves aggregated transaction metrics for global or brand-specific dashboards.
+     *
+     * @param bool $isGlobal True if retrieving global (superadmin) statistics, false otherwise.
+     * @param int|null $merchantId Specific brand/store identifier (ignored if global).
+     * @param string $dateFilterSQL Raw SQL snippet for date boundaries.
+     * @return array{total_revenue: string, completed_count: int, pending_count: int} Aggregated dashboard statistics.
+     */
     public function getDashboardStats(bool $isGlobal, ?int $merchantId, string $dateFilterSQL): array
     {
         $merchantWhere = $isGlobal ? '' : 'AND merchant_id = :mid';
@@ -145,6 +209,13 @@ final class TransactionRepository extends BaseRepository
         );
     }
 
+    /**
+     * Retrieves recent transactions with joined customer names.
+     *
+     * @param bool $isGlobal True if retrieving global (superadmin) transactions, false otherwise.
+     * @param int|null $merchantId Specific brand/store identifier (ignored if global).
+     * @return list<array<string, mixed>> List of recent transaction rows.
+     */
     public function getRecentDashboardTransactions(bool $isGlobal, ?int $merchantId): array
     {
         $merchantWhere = $isGlobal ? '' : 'AND t.merchant_id = :mid';
@@ -160,6 +231,13 @@ final class TransactionRepository extends BaseRepository
         );
     }
 
+    /**
+     * Computes a global breakdown of revenue and transaction count per brand/merchant.
+     *
+     * Used exclusively in superadmin dashboards.
+     *
+     * @return list<array{id: int, name: string, slug: string, revenue: string, txn_count: int}> Breakdown array list.
+     */
     public function getGlobalBrandBreakdown(): array
     {
         return $this->db->fetchAll(
@@ -176,8 +254,12 @@ final class TransactionRepository extends BaseRepository
     // ─── Checkout-facing methods (no tenant scope — used by public checkout page) ───
 
     /**
-     * Find active (pending/created) transaction by trx_id with merchant info.
-     * Public checkout — no tenant scope needed.
+     * Finds a pending or created transaction with associated merchant information.
+     *
+     * Public checkout endpoint helper; intentionally unscoped.
+     *
+     * @param string $trxId Unique transaction identifier.
+     * @return array<string, mixed>|null Transaction and merchant row data, or null if not found.
      */
     public function findActiveForCheckout(string $trxId): ?array
     {
@@ -192,7 +274,12 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Find any transaction by trx_id (any status). Public checkout status page.
+     * Finds any transaction by its transaction ID code across all tenants.
+     *
+     * Public checkout status endpoint helper; intentionally unscoped.
+     *
+     * @param string $trxId Unique transaction identifier.
+     * @return array<string, mixed>|null Transaction row data, or null if not found.
      */
     public function findAnyByTrxId(string $trxId): ?array
     {
@@ -203,7 +290,12 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Find transaction awaiting verification by trx_id.
+     * Finds a transaction currently in 'awaiting_verification' status by transaction ID code.
+     *
+     * Public checkout callback helper; intentionally unscoped.
+     *
+     * @param string $trxId Unique transaction identifier.
+     * @return array<string, mixed>|null Transaction row data, or null if not found.
      */
     public function findAwaitingVerification(string $trxId): ?array
     {
@@ -214,7 +306,12 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Cancel a pending/created transaction by trx_id.
+     * Cancels a pending or created transaction by transaction ID code.
+     *
+     * Public checkout callback helper; intentionally unscoped.
+     *
+     * @param string $trxId Unique transaction identifier.
+     * @return void
      */
     public function cancelByTrxId(string $trxId): void
     {
@@ -226,8 +323,15 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Set gateway + status on a transaction by ID.
-     * Scoped by merchant_id to prevent cross-tenant IDOR.
+     * Updates the gateway slug and status for a transaction.
+     *
+     * Scoped optionally by merchant ID to prevent cross-tenant IDOR attacks.
+     *
+     * @param int $id Primary key identifier.
+     * @param string $gateway Gateway adapter slug name.
+     * @param string $status Target transaction status string.
+     * @param int $merchantId Scoping merchant ID (0 to bypass scoping).
+     * @return void
      */
     public function setGatewayAndStatus(int $id, string $gateway, string $status, int $merchantId = 0): void
     {
@@ -245,8 +349,14 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Update metadata JSON on a transaction.
-     * Scoped by merchant_id to prevent cross-tenant IDOR.
+     * Merges and updates JSON metadata on a transaction record.
+     *
+     * Scoped optionally by merchant ID to prevent cross-tenant IDOR attacks.
+     *
+     * @param int $id Primary key identifier.
+     * @param array<string, mixed> $metadata New key-value pairs to merge into metadata.
+     * @param int $merchantId Scoping merchant ID (0 to bypass scoping).
+     * @return void
      */
     public function updateMetadata(int $id, array $metadata, int $merchantId = 0): void
     {
@@ -285,8 +395,15 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Set status + metadata atomically.
-     * Scoped by merchant_id to prevent cross-tenant IDOR.
+     * Updates transaction status and merges metadata atomically.
+     *
+     * Scoped optionally by merchant ID to prevent cross-tenant IDOR attacks.
+     *
+     * @param int $id Primary key identifier.
+     * @param string $status Target transaction status string.
+     * @param array<string, mixed> $metadata New key-value pairs to merge into metadata.
+     * @param int $merchantId Scoping merchant ID (0 to bypass scoping).
+     * @return void
      */
     public function setStatusWithMeta(int $id, string $status, array $metadata, int $merchantId = 0): void
     {
@@ -327,7 +444,13 @@ final class TransactionRepository extends BaseRepository
     // ─── Report/Export methods (for admin dashboard) ───
 
     /**
-     * Daily report breakdown by gateway for date range.
+     * Retrieves daily report breakdown by gateway for date range.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param string $from Starting date boundary.
+     * @param string $to Ending date boundary.
+     * @param string|null $gateway Optional gateway slug filter.
+     * @return list<array{date: string, gateway_slug: string, txn_count: int, revenue: string, refunds: string, failed_count: int}> Report records list.
      */
     public function getReportData(int $merchantId, string $from, string $to, ?string $gateway = null): array
     {
@@ -357,7 +480,10 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Get distinct gateways used by a merchant.
+     * Lists distinct gateway slug names used in transactions under a merchant.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @return list<array{slug: string, name: string}> List of used gateway descriptors.
      */
     public function getDistinctGateways(int $merchantId): array
     {
@@ -369,7 +495,13 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Export-ready rows for CSV.
+     * Retrieves transactions ready to be exported for reporting.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param string $from Starting date boundary.
+     * @param string $to Ending date boundary.
+     * @param string|null $gateway Optional gateway slug filter.
+     * @return list<array{id: int, gateway_slug: string, currency: string, amount: string, status: string, created_at: string}> Export-ready rows.
      */
     public function getExportData(int $merchantId, string $from, string $to, ?string $gateway = null): array
     {
@@ -392,7 +524,10 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Get distinct currencies for a merchant.
+     * Lists distinct currency ISO codes present in transactions under a merchant.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @return list<array{currency: string}> List of used currencies.
      */
     public function getDistinctCurrencies(int $merchantId): array
     {
@@ -403,7 +538,10 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Get today's stats for mobile dashboard.
+     * Retrieves today's completed revenue, total count, and pending count metrics.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @return array{revenue: string|int|float, total: int, pending: int} Aggregated today's metrics.
      */
     public function getTodayStats(int $merchantId): array
     {
@@ -417,7 +555,11 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Get recent transactions for mobile dashboard.
+     * Lists recent transactions for the mobile companion dashboard.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param int $limit Maximum records to retrieve.
+     * @return list<array{trx_id: string, amount: string, currency: string, status: string, gateway: string, created_at: string}> Recent transaction rows.
      */
     public function getRecentTransactions(int $merchantId, int $limit = 5): array
     {
@@ -429,8 +571,14 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Find a pending transaction matching SMS amount/gateway for auto-verification.
-     * Used by SmsVerificationJob cron.
+     * Searches for a pending transaction matching amount and gateway for SMS verification.
+     *
+     * Used by cron-based SmsVerificationJob.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param string $amount Matching payment amount string.
+     * @param string $gatewaySlug Matching gateway adapter slug.
+     * @return array<string, mixed>|null Pending transaction row data, or null if no match found.
      */
     public function findPendingMatch(int $merchantId, string $amount, string $gatewaySlug): ?array
     {

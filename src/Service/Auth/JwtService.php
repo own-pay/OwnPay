@@ -7,16 +7,42 @@ use Firebase\JWT\JWT;
 use Firebase\JWT\Key;
 
 /**
- * JWT service — issue and verify tokens for mobile companion app.
+ * OwnPay JSON Web Token (JWT) Service.
  *
- * Claims: sub (user_id/device_id), mid (merchant_id), did (device_id), exp, iat, iss.
+ * Handles the generation, encoding, decoding, and verification of JSON Web Tokens (JWT)
+ * utilized for authenticating the mobile companion application communicating with the API.
+ * Uses the Firebase JWT library, enforcing HS256 sign verification protocols.
+ *
+ * @package OwnPay\Service\Auth
  */
 final class JwtService
 {
+    /**
+     * @var string The symmetric HMAC-SHA256 signature key.
+     */
     private string $secret;
+
+    /**
+     * @var string The issuer identifier claiming token origin (iss claim).
+     */
     private string $issuer;
+
+    /**
+     * @var int Default Time To Live (TTL) of issued tokens in seconds.
+     */
     private int $ttl;
 
+    /**
+     * JwtService constructor.
+     *
+     * Resolves the token verification secret from runtime configurations. Fallbacks
+     * to a test-suite safe mock key if the application is running within unit tests.
+     *
+     * @param string|null $secret Optional override secret key.
+     * @param string|null $issuer Optional override issuer parameter.
+     * @param int $ttl Default expiry lifetime of tokens.
+     * @throws \RuntimeException If the configured JWT_SECRET is empty/invalid in production.
+     */
     public function __construct(?string $secret = null, ?string $issuer = null, int $ttl = 86400)
     {
         $resolvedSecret = $secret;
@@ -38,7 +64,9 @@ final class JwtService
     }
 
     /**
-     * Generate secure hex secret.
+     * Generates a cryptographically secure 256-bit secret key encoded in hexadecimal.
+     *
+     * @return string Hexadecimal encoded key.
      */
     public static function generateSecret(): string
     {
@@ -46,7 +74,16 @@ final class JwtService
     }
 
     /**
-     * Issue JWT for device.
+     * Issues an authenticated JWT for a paired companion device.
+     *
+     * Sets standard and custom claims including issuer, subject, audience, expiration,
+     * issuance timestamp, target brand ID, and unique device identifier.
+     *
+     * @param int $userId The primary identifier of the system administrator/user.
+     * @param int $merchantId The primary merchant/brand context identifier.
+     * @param string $deviceId The registered hardware/app device identifier.
+     * @param int|null $ttl Custom lifetime in seconds.
+     * @return string Encoded JWT string.
      */
     public function issue(int $userId, int $merchantId, string $deviceId, ?int $ttl = null): string
     {
@@ -66,7 +103,16 @@ final class JwtService
     }
 
     /**
-     * Encode method for compatibility with test assertions.
+     * Encodes a token response configuration payload.
+     *
+     * Retains compatibility with legacy dashboard test assertion suites.
+     *
+     * @param string $deviceUuid The companion device registered UUID.
+     * @param int $brandId The system brand/merchant owner identifier.
+     * @param string|null $secret Optional target signing secret key override.
+     * @param string[] $scopes The array of authorization scopes allowed.
+     * @param int $ttl Lifetime duration of the generated token.
+     * @return array{token: string, expires_at: int, expires_in: int}
      */
     public function encode(string $deviceUuid, int $brandId, ?string $secret = null, array $scopes = [], int $ttl = 900): array
     {
@@ -93,7 +139,14 @@ final class JwtService
     }
 
     /**
-     * Decode method for compatibility with test assertions.
+     * Decodes and validates a provided JWT payload structure.
+     *
+     * Handles signature mismatch validations, expired token assertions,
+     * and general parsing syntax failures.
+     *
+     * @param string $token The input JWT string.
+     * @param string|null $secret The cryptographic validation secret key override.
+     * @return array{valid: bool, error: string|null, payload: object|null}
      */
     public function decode(string $token, ?string $secret = null): array
     {
@@ -130,7 +183,10 @@ final class JwtService
     }
 
     /**
-     * Extract device UUID from subject string.
+     * Extracts the raw companion device UUID string from a formatted subject claim.
+     *
+     * @param string $sub The JWT subject string.
+     * @return string|null The extracted device UUID, or null if invalid formatting.
      */
     public function extractDeviceUuid(string $sub): ?string
     {
@@ -142,9 +198,11 @@ final class JwtService
     }
 
     /**
-     * Verify and decode JWT.
-     * @return array<string, mixed>
-     * @throws \RuntimeException
+     * Verifies the authenticity and validity of a JWT string.
+     *
+     * @param string $token The raw token parameter.
+     * @return array<string, mixed> The associative representation of the decoded claims.
+     * @throws \RuntimeException If the token signature is invalid, tampered, or expired.
      */
     public function verify(string $token): array
     {
@@ -159,7 +217,12 @@ final class JwtService
     }
 
     /**
-     * Issue refresh token (longer TTL).
+     * Issues a long-lived refresh token associated with the device context.
+     *
+     * @param int $userId Primary user ID.
+     * @param int $merchantId Active merchant context.
+     * @param string $deviceId Unique companion hardware ID.
+     * @return string Encoded JWT string representing the refresh token.
      */
     public function issueRefreshToken(int $userId, int $merchantId, string $deviceId): string
     {

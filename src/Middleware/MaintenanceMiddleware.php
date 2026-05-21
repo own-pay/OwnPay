@@ -8,18 +8,38 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Maintenance mode middleware — returns 503 when maintenance lock active.
- * Checks file-based lock at storage/.maintenance.
+ * Middleware handling Maintenance Mode checks.
+ *
+ * Intercepts requests when a maintenance lock file exists at `storage/.maintenance`.
+ * Bypasses installation flows, system updates, and active administrative sessions.
  */
 final class MaintenanceMiddleware
 {
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $container;
 
+    /**
+     * Constructs a new MaintenanceMiddleware instance.
+     *
+     * @param Container $container The dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
+    /**
+     * Handles Maintenance Mode logic for incoming HTTP requests.
+     *
+     * Checks for the presence of the file-based maintenance lock and returns a 503 response
+     * unless the request path matches an exempted route.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param callable(Request): Response $next Next handler in the pipeline.
+     * @return Response The HTTP response.
+     */
     public function handle(Request $request, callable $next): Response
     {
         // Skip for install route
@@ -28,7 +48,7 @@ final class MaintenanceMiddleware
         }
 
         // Skip for admin routes when authenticated (allows disabling maintenance from admin)
-        // BUG-8 FIX: Start session if needed before checking auth since maintenance mode runs in global group
+        // Start session if needed before checking auth since maintenance mode runs in global group
         if (str_starts_with($request->path(), '/admin')) {
             // SESSION-DEDUP FIX: Delegate to SessionMiddleware's shared helper
             // to ensure idle timeout, ID regeneration, and cookie params stay in sync.

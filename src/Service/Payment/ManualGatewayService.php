@@ -7,15 +7,29 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\ManualGatewayRepository;
 
 /**
- * Manual gateway service — handles manual payment gateways (bKash, bank transfer, etc).
+ * Service managing custom manual/offline payment gateways.
  *
- * Fires: gateway.manual.render, gateway.manual.verify
+ * Handles gateways such as cash on delivery, bank transfer, and MFS options where
+ * payments are manually verified, resolving display metadata and field validation requirements.
  */
 final class ManualGatewayService
 {
+    /**
+     * @var ManualGatewayRepository Repository accessing manual gateway models.
+     */
     private ManualGatewayRepository $gateways;
+
+    /**
+     * @var EventManager Event dispatcher for action/filter hooks.
+     */
     private EventManager $events;
 
+    /**
+     * ManualGatewayService constructor.
+     *
+     * @param ManualGatewayRepository $gateways Repository for manual gateway database operations.
+     * @param EventManager $events Event dispatcher for system hooks.
+     */
     public function __construct(ManualGatewayRepository $gateways, EventManager $events)
     {
         $this->gateways = $gateways;
@@ -23,7 +37,11 @@ final class ManualGatewayService
     }
 
     /**
-     * Get gateway form data for checkout rendering.
+     * Prepares manual gateway configuration and input rules for checkout forms.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @param string $slug The unique slug identifier of the manual gateway.
+     * @return array<string, mixed>|null Form rendering config, or null if the gateway is invalid/inactive.
      */
     public function getFormData(int $merchantId, string $slug): ?array
     {
@@ -50,7 +68,15 @@ final class ManualGatewayService
     }
 
     /**
-     * Verify manual payment submission.
+     * Verifies submitted manual checkout data against the defined gateway fields.
+     *
+     * Runs basic requirements validation, then passes variables through custom
+     * plugin verification hooks.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @param string $slug The unique slug identifier of the manual gateway.
+     * @param array<string, mixed> $submittedData The user-submitted checkout payload parameters.
+     * @return array{valid: bool, error?: string, errors?: array<int, string>} Validation outcome.
      */
     public function verify(int $merchantId, string $slug, array $submittedData): array
     {
@@ -82,7 +108,10 @@ final class ManualGatewayService
     }
 
     /**
-     * List active manual gateways for checkout.
+     * Lists active manual payment gateways available for merchant checkout pages.
+     *
+     * @param int $merchantId The brand/merchant ID.
+     * @return array<int, array<string, mixed>> List of active manual gateways.
      */
     public function listForCheckout(int $merchantId): array
     {

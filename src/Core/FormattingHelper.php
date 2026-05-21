@@ -1,11 +1,24 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Core;
 
+/**
+ * Class FormattingHelper
+ *
+ * Provides static utility methods for password generation, ID formatting,
+ * name character extraction, and localization resolution.
+ *
+ * @package OwnPay\Core
+ */
 final class FormattingHelper
 {
+    /**
+     * Generates a cryptographically secure strong random password.
+     *
+     * @param int $length The length of the password.
+     * @return string The generated password.
+     */
     public static function generateStrongPassword(int $length = 16): string
     {
         $upper = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
@@ -32,6 +45,13 @@ final class FormattingHelper
         return implode('', $chars);
     }
 
+    /**
+     * Generates a random numeric string identifier.
+     *
+     * @param int $length    The desired length.
+     * @param int $maxLength The maximum bounds.
+     * @return string The numeric ID string.
+     */
     public static function generateItemID(int $length = 10, int $maxLength = 10): string
     {
         $length = min($length, $maxLength);
@@ -44,6 +64,13 @@ final class FormattingHelper
         return $id;
     }
 
+    /**
+     * Extracts initials or name characters from a full name string.
+     *
+     * @param string $fullName The full name.
+     * @param int    $length   The desired number of characters/initials.
+     * @return string The uppercase name characters.
+     */
     public static function getNameChars(string $fullName, int $length = 2): string
     {
         $fullName = trim($fullName);
@@ -64,6 +91,14 @@ final class FormattingHelper
         return strtoupper(substr($parts[0], 0, $length));
     }
 
+    /**
+     * Resolves the target language code for a module from available translations.
+     *
+     * @param string      $brandLanguage      The merchant brand's preferred language.
+     * @param array       $supportedLanguages The key-value array of supported languages.
+     * @param string|null $uiLanguage         The user interface override language.
+     * @return string The resolved language code.
+     */
     public static function resolveModuleLanguage(string $brandLanguage, array $supportedLanguages, ?string $uiLanguage = null): string
     {
         if ($uiLanguage !== null && isset($supportedLanguages[$uiLanguage])) {
@@ -74,9 +109,16 @@ final class FormattingHelper
             return $brandLanguage;
         }
 
-        return array_key_first($supportedLanguages);
+        return (string) array_key_first($supportedLanguages);
     }
 
+    /**
+     * Builds a flattened translations array using the target language fallback.
+     *
+     * @param array       $langText The multidimensional language translations array.
+     * @param string|null $language The target language code.
+     * @return array The resolved flat key-value translations list.
+     */
     public static function buildLangArray(array $langText, ?string $language = 'en'): array
     {
         $lang = [];

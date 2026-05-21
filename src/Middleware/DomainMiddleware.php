@@ -9,23 +9,45 @@ use OwnPay\Http\Response;
 use OwnPay\Repository\DomainRepository;
 
 /**
- * Domain middleware — resolves custom domain to merchant context.
+ * Resolves the incoming custom domain to the corresponding merchant brand context.
  *
- * Maps incoming Host header to op_domains table.
- * Injects merchant_id + domain config into request attributes.
- *
- * White-label pipeline: Every non-master-domain host is resolved as a brand's
- * custom domain. Admin routes are blocked on custom domains (404).
+ * This middleware intercepts requests to perform custom domain mapping for the white-label pipeline.
+ * It matches the incoming Host header against configured domains in the `op_domains` database table.
+ * Successfully resolved hosts propagate the merchant brand context down the routing pipeline by
+ * injecting attributes such as `merchant_id` and domain configuration into the request context.
+ * Additionally, it enforces security containment by blocking access to admin routing endpoints
+ * when accessed via a white-labeled custom domain.
  */
 final class DomainMiddleware
 {
+    /**
+     * @var \OwnPay\Container The dependency injection container.
+     */
     private Container $container;
 
+    /**
+     * Initializes the domain resolution middleware with the DI container.
+     *
+     * @param \OwnPay\Container $container The dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
+    /**
+     * Intercepts and processes the HTTP request to perform brand-scoped domain routing.
+     *
+     * This handler extracts the host header, normalizes the hostname by removing ports
+     * (handling IPv4 and IPv6 structures), resolves the master domain configuration,
+     * and performs brand context mapping. Active custom domains are verified against
+     * the database to inject `merchant_id` context into request attributes. Security rules
+     * are enforced to reject unverified domains or admin path access on custom hostnames.
+     *
+     * @param \OwnPay\Http\Request $request The incoming HTTP request instance.
+     * @param callable(Request): Response $next The next middleware or handler in the pipeline.
+     * @return \OwnPay\Http\Response The HTTP response output.
+     */
     public function handle(Request $request, callable $next): Response
     {
         $host = $request->header('Host');
@@ -33,24 +55,26 @@ final class DomainMiddleware
             return $next($request);
         }
 
-        // Strip port from host (handles IPv6 like [::1]:8080)
+        // Normalize the host string by removing any specified port.
+        // For IPv6 addresses wrapped in square brackets (e.g., [::1]:8080), isolate the bracket contents.
         if (str_starts_with($host, '[')) {
-            // IPv6: extract between brackets
             $closeBracket = strpos($host, ']');
             $domain = $closeBracket !== false ? substr($host, 1, $closeBracket - 1) : $host;
         } else {
-            // IPv4 or hostname: strip port at last colon
+            // For IPv4 hostnames or domains, locate the last colon delimiter to strip out the port number.
             $colonPos = strrpos($host, ':');
             $domain = $colonPos !== false ? substr($host, 0, $colonPos) : $host;
         }
 
-        // Resolve master domain: APP_DOMAIN env, or parse host from APP_URL
+        // Compare normalized hostname against the resolved system-wide master domain and localhost.
+        // Standard admin panel routes are directly processed without mapping tenant scopes.
         $masterDomain = $this->resolveMasterDomain();
         if ($domain === $masterDomain || $domain === 'localhost') {
             return $next($request);
         }
 
-        // If system is not installed, skip DB lookups to prevent PDOExceptions
+        // Ensure database operations are skipped if the installation sequence has not completed.
+        // This avoids throwing PDOExceptions during system initialization or initial installation.
         if (!file_exists(dirname(__DIR__, 2) . '/storage/.installed')) {
             return $next($request);
         }
@@ -59,24 +83,26 @@ final class DomainMiddleware
         $repo = $this->container->get(DomainRepository::class);
         $domainRecord = $repo->findByDomain($domain);
 
+        // Enforce access control: reject requests targeting unrecognized or inactive domain records.
+        // This mitigates unscoped domain spoofing and potential routing leakage.
         if ($domainRecord === null || $domainRecord['status'] !== 'active') {
-            // BUG-006 FIX: Block unknown/inactive domains — return 404.
-            // Previously this passed through, allowing unscoped access.
             return Response::html('<h1>404 Not Found</h1>', 404);
         }
 
+        // Enforce domain verification check: require validated DNS settings for active custom domains.
         if (!(bool) $domainRecord['dns_verified']) {
             return Response::html('<h1>Domain Not Verified</h1><p>DNS verification pending.</p>', 503);
         }
 
-        // WHITE-LABEL SECURITY: Block admin routes on custom domains.
-        // Admin panel must only be accessible on the master domain.
+        // Restrict administrative actions: deny route pathways pointing to `/admin` or `/admin/*`
+        // when requested via a merchant's custom domain, throwing a hard 404 response to maintain
+        // strict isolation of the primary admin panel.
         $path = $request->path();
         if (str_starts_with($path, '/admin/') || $path === '/admin') {
             return Response::html('', 404);
         }
 
-        // Inject merchant context
+        // Set request attributes to propagate resolved brand parameters down the application pipeline.
         $request->setAttribute('domain', $domainRecord);
         $request->setAttribute('merchant_id', (int) $domainRecord['merchant_id']);
         $request->setAttribute('domain_type', $domainRecord['type']);
@@ -86,18 +112,22 @@ final class DomainMiddleware
     }
 
     /**
-     * Resolve the master/admin domain hostname.
-     * Priority: APP_DOMAIN env > parse host from APP_URL > empty string
+     * Resolves the primary master domain hostname from environment configurations.
+     *
+     * Checks variables in order: explicit `APP_DOMAIN` definition, followed by parsing
+     * the hostname directly from the `APP_URL` parameter. Falls back to an empty string if unresolved.
+     *
+     * @return string The resolved master domain hostname.
      */
     private function resolveMasterDomain(): string
     {
-        // 1. Explicit APP_DOMAIN
+        // Step 1: Look for explicit APP_DOMAIN environment override configuration.
         $appDomain = $_ENV['APP_DOMAIN'] ?? $_SERVER['APP_DOMAIN'] ?? getenv('APP_DOMAIN') ?: '';
         if ($appDomain !== '') {
             return $appDomain;
         }
 
-        // 2. Parse from APP_URL
+        // Step 2: Extract host section from the APP_URL environment variable.
         $appUrl = $_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '';
         if ($appUrl !== '') {
             $parsed = parse_url($appUrl, PHP_URL_HOST);

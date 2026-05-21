@@ -6,24 +6,58 @@ namespace OwnPay\Cron;
 use OwnPay\Service\Payment\WebhookService;
 
 /**
- * Webhook retry job — retries failed webhook deliveries.
+ * Class WebhookRetryJob
  *
- * Exponential backoff: 1min, 5min, 30min, 2h, 12h (max 5 attempts).
+ * Enterprise cron job executing webhook delivery retries for failed event notifications.
+ * Processes communication log entries in the `op_comm_log` table matched with endpoint configurations
+ * in the `op_webhook_endpoints` table, utilizing exponential backoff retry algorithms to guarantee delivery integrity.
+ *
+ * @package OwnPay\Cron
  */
 final class WebhookRetryJob
 {
+    /**
+     * @var WebhookService The WebhookService responsible for signing and dispatching webhooks.
+     */
     private WebhookService $webhookService;
+
+    /**
+     * @var \OwnPay\Core\Database The database connection instance.
+     */
     private \OwnPay\Core\Database $db;
 
+    /**
+     * Maximum retry attempts before marking the webhook dispatch permanently failed.
+     */
     private const MAX_RETRIES = 5;
+
+    /**
+     * Exponential backoff interval sequences in seconds.
+     *
+     * @var array<int, int>
+     */
     private const BACKOFF_SECONDS = [60, 300, 1800, 7200, 43200];
 
+    /**
+     * WebhookRetryJob constructor.
+     *
+     * @param WebhookService        $webhookService The WebhookService responsible for signing and dispatching webhooks.
+     * @param \OwnPay\Core\Database $db             The database connection instance.
+     */
     public function __construct(WebhookService $webhookService, \OwnPay\Core\Database $db)
     {
         $this->webhookService = $webhookService;
         $this->db = $db;
     }
 
+    /**
+     * Runs the webhook retry cycle.
+     *
+     * Selects up to 50 failed webhook records due for retry, attempts payload signature validation
+     * and HTTP delivery, and updates transaction communication log statuses or schedules backoffs.
+     *
+     * @return array{retried: int, succeeded: int} Status metrics for retried and succeeded attempts.
+     */
     public function run(): array
     {
         $failedDeliveries = $this->db->fetchAll(
@@ -56,14 +90,13 @@ final class WebhookRetryJob
 
             if ($success) {
                 $succeeded++;
-                // BUG-53 FIX: Mark as delivered so it's not retried again.
-                // Without this, status stays 'failed' causing infinite retries.
+                // Update dispatch log status to delivered on successful remote host response, avoiding future retry dispatches.
                 $this->db->update(
                     "UPDATE op_comm_log SET status = 'delivered', sent_at = NOW(6) WHERE id = :id",
                     ['id' => $delivery['id']]
                 );
             } else {
-                // Schedule next retry with backoff
+                // Schedule subsequent delivery attempts utilizing the exponential backoff interval lookup.
                 /** @phpstan-ignore-next-line */
                 $nextBackoff = self::BACKOFF_SECONDS[$retryCount] ?? end(self::BACKOFF_SECONDS);
                 $this->db->update(

@@ -7,14 +7,38 @@ use OwnPay\Service\Payment\ReconciliationService;
 use OwnPay\Service\Notification\AlertService;
 
 /**
- * Balance verification job — runs reconciliation and alerts on mismatch.
+ * Class BalanceVerificationJob
+ *
+ * Enterprise cron job executing double-entry ledger bookkeeping verification across active brands (merchants).
+ * Performs transactional reconciliation checking integrity between transacted aggregates and ledger entries,
+ * triggering warning alerts on any ledger balance mismatch detected.
+ *
+ * @package OwnPay\Cron
  */
 final class BalanceVerificationJob
 {
+    /**
+     * @var ReconciliationService Service responsible for double-entry ledger bookkeeping reconciliation.
+     */
     private ReconciliationService $reconciliation;
+
+    /**
+     * @var AlertService Service for triggering administrative security/operational alerts.
+     */
     private AlertService $alerts;
+
+    /**
+     * @var \OwnPay\Core\Database The database connection instance.
+     */
     private \OwnPay\Core\Database $db;
 
+    /**
+     * BalanceVerificationJob constructor.
+     *
+     * @param ReconciliationService $reconciliation Service responsible for double-entry ledger bookkeeping reconciliation.
+     * @param AlertService          $alerts         Service for triggering administrative security/operational alerts.
+     * @param \OwnPay\Core\Database $db             The database connection instance.
+     */
     public function __construct(
         ReconciliationService $reconciliation,
         AlertService $alerts,
@@ -25,6 +49,14 @@ final class BalanceVerificationJob
         $this->db = $db;
     }
 
+    /**
+     * Runs the ledger balance verification audit across all active brands.
+     *
+     * Queries all active merchants and their transacted currencies, performs double-entry bookkeeping checks
+     * using the ReconciliationService, and records mismatched ledger balances while alerting the store operators.
+     *
+     * @return array{total_checks: int, mismatches: int} Returns the audit summary metrics.
+     */
     public function run(): array
     {
         $merchants = $this->db->fetchAll(
@@ -37,7 +69,7 @@ final class BalanceVerificationJob
         foreach ($merchants as $merchant) {
             $mid = (int) $merchant['id'];
 
-            // Get currencies with transactions
+            // Retrieve the set of distinct currencies that have active transacted records for this brand context.
             $currencies = $this->db->fetchAll(
                 "SELECT DISTINCT currency FROM op_transactions WHERE merchant_id = :mid",
                 ['mid' => $mid]

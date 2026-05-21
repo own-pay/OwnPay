@@ -14,30 +14,96 @@ use OwnPay\Event\EventManager;
 use OwnPay\Support\DateHelper;
 
 /**
- * SmsParserService — Orchestrator for the 2-tier SMS parsing engine.
+ * Orchestrator for the two-tier SMS parsing engine.
  *
- * Flow per message:
- *   1. Retrieve device's AES-256 key from op_paired_devices (decrypted via FieldEncryptor)
- *   2. Decrypt the SMS payload using the device's AES key
- *   3. Dedup check (same device + sender + received_at within 1s window)
- *   4. Tier 1: Try regex templates matching the sender
- *   5. Tier 2: Heuristic lexical analysis (fallback)
- *   6. Save to op_sms_parsed with appropriate status/confidence
- *
- * Constructor accepts mixed types to allow test stub injection (same pattern as DevicePairingService).
+ * Coordinates message ingestion and processing lifecycles:
+ * 1. Resolves paired companion device encryption credentials.
+ * 2. Performs AES-256-GCM payload decryption.
+ * 3. Identifies and filters duplicates within a temporal deduplication window.
+ * 4. Dispatches the decrypted payload through matching regex templates.
+ * 5. Falls back to lexical proximity heuristics.
+ * 6. Commits parsed metadata records to persistent database tables.
  */
 final class SmsParserService
 {
+    /**
+     * Paired device repository.
+     *
+     * @var PairedDeviceRepository
+     */
     private $deviceRepo;
+
+    /**
+     * SMS templates repository.
+     *
+     * @var SmsTemplateRepository
+     */
     private $templateRepo;
+
+    /**
+     * SMS logs repository.
+     *
+     * @var SmsDataRepository
+     */
     private $dataRepo;
+
+    /**
+     * Regex matching parsing engine.
+     *
+     * @var SmsRegexParser
+     */
     private $regexParser;
+
+    /**
+     * Lexical fallback parsing engine.
+     *
+     * @var SmsHeuristicParser
+     */
     private $heuristicParser;
+
+    /**
+     * Field encryption utility.
+     *
+     * @var FieldEncryptor
+     */
     private $encryptor;
+
+    /**
+     * Notification dispatch helper.
+     *
+     * @var MobileNotificationService
+     */
     private $notifService;
+
+    /**
+     * System event manager.
+     *
+     * @var EventManager
+     */
     private $events;
+
+    /**
+     * System logger service.
+     *
+     * @var Logger
+     */
     private $logger;
 
+    /**
+     * Initializes the parsing orchestrator.
+     *
+     * Constructor signatures remain untyped to facilitate test double and stub injection.
+     *
+     * @param PairedDeviceRepository $deviceRepo Paired device repository.
+     * @param SmsTemplateRepository $templateRepo SMS template configuration repository.
+     * @param SmsDataRepository $dataRepo Parsed SMS logs database repository.
+     * @param SmsRegexParser $regexParser Regex matching parsing engine.
+     * @param SmsHeuristicParser $heuristicParser Lexical heuristics fallback parser.
+     * @param FieldEncryptor $encryptor Cryptographic storage field encryptor.
+     * @param MobileNotificationService $notifService Mobile push notification system service.
+     * @param EventManager|null $events The central system event and filter hooks manager.
+     * @param Logger|null $logger The system logging service.
+     */
     public function __construct(
         $deviceRepo,
         $templateRepo,
@@ -61,7 +127,14 @@ final class SmsParserService
     }
 
     /**
-     * Process a batch of SMS messages from a mobile device.
+     * Processes a batch of SMS messages emitted from a verified paired mobile device.
+     *
+     * Decrypts, normalizes, dedups, and parses each element in the batch sequence.
+     *
+     * @param string $deviceUuid The companion mobile device identifier.
+     * @param int $brandId The unique brand/merchant identity context.
+     * @param array<int, array<string, mixed>> $messages List of encrypted carrier SMS payload dictionaries.
+     * @return array<int, array{local_id: int|null, status: string, server_ref?: string|null, error?: string}> Batch processing outcomes.
      */
     public function processBatch(string $deviceUuid, int $brandId, array $messages): array
     {
@@ -84,8 +157,15 @@ final class SmsParserService
     }
 
     /**
-     * Process a single SMS message.
-     * Decomposed into: validate → dedup → decrypt → parse → store → notify.
+     * Processes a single incoming SMS message sequence.
+     *
+     * Runs authentication, duplicate validation, decryption, parsing, and notifications.
+     *
+     * @param string $deviceUuid Companion mobile device identifier.
+     * @param int $brandId Unique brand/merchant identity context.
+     * @param string $aesKeyHex Decoded hex secret key for AES-256 payload decryption.
+     * @param array<string, mixed> $msg Encrypted carrier message dictionary variables.
+     * @return array{local_id: int|null, status: string, server_ref?: string|null, error?: string} Individual process outcome.
      */
     private function processOne(string $deviceUuid, int $brandId, string $aesKeyHex, array $msg): array
     {
@@ -94,40 +174,36 @@ final class SmsParserService
         $sender     = trim($msg['sender'] ?? '');
         $receivedAt = $this->normalizeTimestamp($msg['received_at'] ?? DateHelper::now());
 
-        // Step 1: Validate
         if ($encrypted === '' || $sender === '') {
             return $this->makeResult($localId, 'rejected', null, 'MISSING_FIELDS');
         }
 
-        // Step 2: Dedup
         if ($this->dataRepo->isDuplicate($deviceUuid, $sender, $receivedAt)) {
             return $this->makeResult($localId, 'duplicate');
         }
 
-        // Step 3: Decrypt
         $rawMessage = $this->tryDecrypt($encrypted, $aesKeyHex);
         if ($rawMessage === null) {
             $id = $this->storeFailedDecryption($deviceUuid, $brandId, $localId, $sender, $receivedAt, $encrypted);
             return $this->makeResult($localId, 'accepted', 'sms_' . $id, 'DECRYPTION_FAILED');
         }
 
-        // Step 4: Parse (sender whitelist gate → tier 1 regex → tier 2 heuristic)
         $parsed = $this->attemptParse($rawMessage, $sender, $brandId);
 
-        // Step 5: Store
         $record = $this->buildRecord($deviceUuid, $brandId, $localId, $sender, $receivedAt, $encrypted, $rawMessage, $parsed);
         $id = $this->dataRepo->create($record);
 
-        // Step 6: Notify
         $this->notifyDevice($parsed, $deviceUuid, $sender);
 
         return $this->makeResult($localId, 'accepted', 'sms_' . $id);
     }
 
-    // ── Extracted Methods ─────────────────────────────────────────
-
     /**
-     * Reject all messages in a batch with same error.
+     * Rejects all messages in a batch with a consistent processing error flag.
+     *
+     * @param array<int, array<string, mixed>> $messages Input message list.
+     * @param string $error Standard error label.
+     * @return array<int, array{local_id: int|null, status: string, server_ref: string|null, error?: string}> List of rejection maps.
      */
     private function rejectAll(array $messages, string $error): array
     {
@@ -135,17 +211,31 @@ final class SmsParserService
     }
 
     /**
-     * Build a standardized result array.
+     * Constructs a structured API status response mapping.
+     *
+     * @param int|null $localId Client-side local sequence database key.
+     * @param string $status Ingestion outcome string.
+     * @param string|null $serverRef Generated server-side unique log reference.
+     * @param string|null $error Error code reason metadata, if rejected.
+     * @return array{local_id: int|null, status: string, server_ref: string|null, error?: string} Outgoing response mapping.
      */
     private function makeResult(?int $localId, string $status, ?string $serverRef = null, ?string $error = null): array
     {
         $r = ['local_id' => $localId, 'status' => $status, 'server_ref' => $serverRef];
-        if ($error !== null) $r['error'] = $error;
+        if ($error !== null) {
+            $r['error'] = $error;
+        }
         return $r;
     }
 
     /**
-     * Attempt AES-256-GCM decryption; return null on failure.
+     * Attempts AES-256-GCM message body decryption.
+     *
+     * Catches and suppresses errors, returning null if keys or tags fail authentication.
+     *
+     * @param string $encryptedB64 Base64-encoded envelope package (IV + ciphertext + authentication tag).
+     * @param string $aesKeyHex Hexadecimal representation of the device key.
+     * @return string|null Plaintext message content string, or null on error.
      */
     private function tryDecrypt(string $encryptedB64, string $aesKeyHex): ?string
     {
@@ -157,7 +247,17 @@ final class SmsParserService
     }
 
     /**
-     * Store record for failed decryption (admin review).
+     * Persists a fallback record representing failed decryption events.
+     *
+     * Flags entries for superadmin validation and diagnostic intervention.
+     *
+     * @param string $deviceUuid Companion mobile device identifier.
+     * @param int $brandId Brand/merchant context identifier.
+     * @param int|null $localId Client-side message identifier.
+     * @param string $sender Original carrier sender identity.
+     * @param string $receivedAt Normalized transmission timestamp.
+     * @param string $encrypted Raw cipher base64 payload.
+     * @return string Generated database insertion unique sequence primary key.
      */
     private function storeFailedDecryption(string $deviceUuid, int $brandId, ?int $localId, string $sender, string $receivedAt, string $encrypted): string
     {
@@ -177,30 +277,51 @@ final class SmsParserService
     }
 
     /**
-     * Run 2-tier parse: exact sender match → regex templates.
-     * If sender not whitelisted (no template matches), returns null (no parse attempt).
-     * Heuristic fallback only runs if a matching template exists but regex fails.
+     * Evaluates message content across the parsing tiers.
+     *
+     * Restricts parsing to whitelisted carrier numbers. Falls back to lexical analysis
+     * only when matching templates exist but strict regex parser rules fail.
+     *
+     * @param string $rawMessage Decrypted plain text message body content.
+     * @param string $sender Carrier identifier patterns.
+     * @param int $brandId Brand/merchant context identifier.
+     * @return array{
+     *   parsed_amount: float,
+     *   parsed_trx_id: string|null,
+     *   parsed_sender: string|null,
+     *   parsed_balance: float|null,
+     *   parsed_type: string,
+     *   parse_method: string,
+     *   template_id: int|null,
+     *   parse_confidence: string
+     * }|null Parsed outcomes or null if not parsed.
      */
     private function attemptParse(string $rawMessage, string $sender, int $brandId): ?array
     {
-        // Gate 1: Find templates whose sender_pattern matches EXACTLY (case-sensitive)
         $templates = $this->templateRepo->findBySender($sender, $brandId);
         $templates  = $this->events->applyFilter('mfs.templates', $templates);
 
-        // Sender not in whitelist → reject silently (store as admin_review)
         if (empty($templates)) {
             return null;
         }
 
-        // Gate 2: Try regex templates (Tier 1)
         $parsed = $this->regexParser->parse($rawMessage, $templates);
 
-        // Tier 2: Heuristic fallback — only if sender matched but regex failed
         return $parsed ?? $this->heuristicParser->parse($rawMessage);
     }
 
     /**
-     * Build op_sms_parsed record from parsed result.
+     * Constructs parsed database record arrays for op_sms_parsed table schema insertion.
+     *
+     * @param string $deviceUuid Companion mobile device identifier.
+     * @param int $brandId Brand/merchant context identifier.
+     * @param int|null $localId Client-side local sequence key.
+     * @param string $sender Carrier sender pattern.
+     * @param string $receivedAt MySQL format timestamp.
+     * @param string $encrypted Raw envelope base64 string.
+     * @param string $raw Plaintext message body.
+     * @param array<string, mixed>|null $parsed Extracted parsing outcomes.
+     * @return array<string, mixed> Prepared database entity payload map.
      */
     private function buildRecord(string $deviceUuid, int $brandId, ?int $localId, string $sender, string $receivedAt, string $encrypted, string $raw, ?array $parsed): array
     {
@@ -225,17 +346,23 @@ final class SmsParserService
     }
 
     /**
-     * Queue mobile notification on successful parse.
+     * Dispatches transactional companion device mobile notifications on parsing success.
+     *
+     * @param array<string, mixed>|null $parsed Parsed fields.
+     * @param string $deviceUuid Companion mobile device identifier.
+     * @param string $sender Carrier sender pattern.
+     * @return void
      */
     private function notifyDevice(?array $parsed, string $deviceUuid, string $sender): void
     {
-        if ($parsed === null || !/** @phpstan-ignore-next-line */ isset($parsed['parsed_amount'])) return;
+        if ($parsed === null || !isset($parsed['parsed_amount'])) {
+            return;
+        }
         try {
             $this->notifService->queuePaymentNotification(
                 $deviceUuid,
                 $parsed['parsed_type'] ?? 'unknown',
-                /** @phpstan-ignore nullCoalesce.offset */
-                $parsed['parsed_amount'] ?? null,
+                $parsed['parsed_amount'],
                 $parsed['parsed_sender'] ?? null,
                 $parsed['parsed_trx_id'] ?? null,
                 $sender,
@@ -245,11 +372,15 @@ final class SmsParserService
         }
     }
 
-    // ── Crypto Helpers ────────────────────────────────────────────
-
     /**
-     * Decrypt an SMS payload encrypted with the device's AES-256 key.
-     * Format: base64(IV(12) + ciphertext + auth_tag(16))
+     * Decrypts an SMS payload utilizing AES-256-GCM algorithm structure.
+     *
+     * Matches companion device mobile specifications (IV(12) + ciphertext + auth_tag(16)).
+     *
+     * @param string $encryptedB64 Base64 encoded payload.
+     * @param string $aesKeyHex Hexadecimal representation of the secret key.
+     * @return string Plaintext output.
+     * @throws \RuntimeException If formatting, key sizes, or authentication verification tag validation fails.
      */
     private function decryptSmsPayload(string $encryptedB64, string $aesKeyHex): string
     {
@@ -275,7 +406,10 @@ final class SmsParserService
     }
 
     /**
-     * Normalize ISO 8601 timestamp → MySQL DATETIME.
+     * Normalizes dynamic date representations to MySQL compatible string timestamps.
+     *
+     * @param string $ts Raw client date representation string.
+     * @return string Normalized MySQL DATETIME representation string.
      */
     private function normalizeTimestamp(string $ts): string
     {
@@ -287,13 +421,14 @@ final class SmsParserService
     }
 
     /**
-     * Parse a single SMS message without storing.
-     * Used by MfsService.
+     * Parses a raw SMS string message dynamically without creating database records.
      *
-     * @param string $rawMessage  The raw SMS body
-     * @param string $sender      Sender identifier
-     * @param int    $brandId     Merchant/brand ID
-     * @return array|null Parsed data or null on failure
+     * Facilitates real-time verification queries executed inside the MfsService logic.
+     *
+     * @param string $rawMessage The raw SMS text body.
+     * @param string $sender Original carrier sender identity pattern.
+     * @param int $brandId Brand/merchant context identifier.
+     * @return array<string, mixed>|null Parsed parameters, or null.
      */
     public function parse(string $rawMessage, string $sender, int $brandId): ?array
     {
@@ -301,8 +436,12 @@ final class SmsParserService
     }
 
     /**
-     * Parse and store a single SMS.
-     * Used by Mobile SmsController.
+     * Parses and persists a single incoming SMS request data frame.
+     *
+     * @param string $deviceUuid Companion mobile device identifier.
+     * @param int $brandId Brand/merchant context identifier.
+     * @param array<string, mixed> $message Encrypted message metadata properties.
+     * @return array<int, array<string, mixed>> Batch execution statuses.
      */
     public function parseAndStore(string $deviceUuid, int $brandId, array $message): array
     {

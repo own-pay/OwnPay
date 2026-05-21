@@ -7,18 +7,43 @@ use OwnPay\Event\EventManager;
 use OwnPay\Service\System\Logger;
 
 /**
- * Cron job runner — central dispatcher for scheduled tasks.
+ * Class CronJobRunner
  *
- * Fires: system.cron.before, system.cron.after
+ * Central dispatcher for scheduled enterprise tasks within the OwnPay infrastructure.
+ * Manages the registration, scheduling, execution, and execution status checking for all cron jobs,
+ * utilizing file-based run locks to avoid race conditions.
+ *
+ * Fires system hooks:
+ * - system.cron.before: Dispatched prior to running due scheduled tasks.
+ * - system.cron.after: Dispatched after all scheduled tasks have completed execution.
+ *
+ * @package OwnPay\Cron
  */
 final class CronJobRunner
 {
+    /**
+     * @var EventManager The application hook and filter system manager.
+     */
     private EventManager $events;
+
+    /**
+     * @var Logger Logger for auditing cron execution performance and logging failures.
+     */
     private Logger $logger;
 
-    /** @var array<string, array{job: object, schedule: string, last_run?: int}> */
+    /**
+     * Cache array holding all registered cron tasks.
+     *
+     * @var array<string, array{job: object, schedule: string, last_run?: int}>
+     */
     private array $jobs = [];
 
+    /**
+     * CronJobRunner constructor.
+     *
+     * @param EventManager $events The event hook manager.
+     * @param Logger|null  $logger Optional logger service; defaults to standard cron channel.
+     */
     public function __construct(EventManager $events, ?Logger $logger = null)
     {
         $this->events = $events;
@@ -26,11 +51,12 @@ final class CronJobRunner
     }
 
     /**
-     * Register a cron job.
+     * Registers a scheduled task with the runner.
      *
-     * @param string $name     Unique job name
-     * @param object $job      Job instance (must have run() method)
-     * @param string $schedule Schedule: 'every_minute', 'every_5min', 'hourly', 'every_6h', 'daily', 'weekly'
+     * @param string $name     Unique cron job identifier.
+     * @param object $job      The job executor instance containing a public run() method.
+     * @param string $schedule Interval string pattern (e.g. 'every_minute', 'every_5min', 'hourly', 'every_6h', 'daily', 'weekly').
+     * @return void
      */
     public function register(string $name, object $job, string $schedule): void
     {
@@ -41,8 +67,12 @@ final class CronJobRunner
     }
 
     /**
-     * Run all due jobs.
-     * @return array<string, array{status: string, duration: float, result?: mixed, error?: string}>
+     * Dispatches and executes all scheduled jobs that are currently due.
+     *
+     * Iterates through the registered registry, verifies schedule eligibility, executes the task,
+     * logs results, and triggers hooks for system execution updates.
+     *
+     * @return array<string, array{status: string, duration: float, result?: mixed, error?: string}> Result matrix of cron execution statuses.
      */
     public function run(): array
     {
@@ -92,6 +122,13 @@ final class CronJobRunner
         return $results;
     }
 
+    /**
+     * Determines whether the specified job is due for execution based on schedule and last run timestamp.
+     *
+     * @param string $name     Unique job name identifier.
+     * @param string $schedule Schedule interval string format.
+     * @return bool True if the job should run, false otherwise.
+     */
     private function isDue(string $name, string $schedule): bool
     {
         $lastRun = $this->getLastRun($name);
@@ -112,6 +149,12 @@ final class CronJobRunner
         };
     }
 
+    /**
+     * Retrieves the Unix timestamp of the job's last recorded successful run.
+     *
+     * @param string $name Unique job name identifier.
+     * @return int|null Last execution timestamp, or null if it has never run.
+     */
     private function getLastRun(string $name): ?int
     {
         $file = $this->lockFile($name);
@@ -121,6 +164,12 @@ final class CronJobRunner
         return null;
     }
 
+    /**
+     * Writes the current Unix timestamp to the job's lock file to record successful execution.
+     *
+     * @param string $name Unique job name identifier.
+     * @return void
+     */
     private function recordLastRun(string $name): void
     {
         $dir = dirname($this->lockFile($name));
@@ -130,6 +179,12 @@ final class CronJobRunner
         file_put_contents($this->lockFile($name), (string) time());
     }
 
+    /**
+     * Computes the absolute file path to the cron lock file for the given job.
+     *
+     * @param string $name Unique job name identifier.
+     * @return string Absolute file path.
+     */
     private function lockFile(string $name): string
     {
         return dirname(__DIR__, 2) . '/storage/cron/' . md5($name) . '.lock';

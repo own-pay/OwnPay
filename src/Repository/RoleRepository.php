@@ -1,15 +1,37 @@
 <?php
+
 declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
+/**
+ * Repository layer for staff roles and access control permissions (`op_roles` table).
+ *
+ * Scopes CRUD operations per active tenant via the TenantScope trait.
+ * Handles permission synchronizations and permission listings.
+ *
+ * @package OwnPay\Repository
+ */
 final class RoleRepository extends BaseRepository
 {
     use TenantScope;
 
+    /**
+     * @var string Database table name.
+     */
     protected string $table = 'op_roles';
+
+    /**
+     * @var list<string> List of fields that can be mass-assigned.
+     */
     protected array $fillable = ['merchant_id', 'name', 'slug', 'description', 'is_system'];
 
+    /**
+     * Finds a role record by its unique slug identifier under the active tenant context.
+     *
+     * @param string $slug Unique role slug name.
+     * @return array<string, mixed>|null The role database record, or null if not found.
+     */
     public function findBySlug(string $slug): ?array
     {
         return $this->db->fetchOne(
@@ -19,8 +41,10 @@ final class RoleRepository extends BaseRepository
     }
 
     /**
-     * Get permissions for role.
-     * @return string[] Permission slugs
+     * Retrieves all permission slugs associated with a role.
+     *
+     * @param int $roleId Primary key ID of the role.
+     * @return list<string> List of permissions slugs.
      */
     public function getPermissions(int $roleId): array
     {
@@ -34,8 +58,13 @@ final class RoleRepository extends BaseRepository
     }
 
     /**
-     * Sync permissions for role (replace all).
-     * @param int[] $permissionIds
+     * Synchronizes role permissions by replacing the existing association mapping.
+     *
+     * Performs atomic delete and insert statements inside a database transaction block.
+     *
+     * @param int $roleId Primary key ID of the role.
+     * @param list<int> $permissionIds List of permission primary key IDs to map to the role.
+     * @return void
      */
     public function syncPermissions(int $roleId, array $permissionIds): void
     {
@@ -50,3 +79,4 @@ final class RoleRepository extends BaseRepository
         });
     }
 }
+

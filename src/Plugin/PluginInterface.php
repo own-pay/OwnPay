@@ -7,50 +7,86 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * Plugin interface — every plugin MUST implement this.
+ * Defines the contract for all plugins integrated into the OwnPay payment engine.
  *
- * Lifecycle: register() ─ boot() ─ deactivate() ─ uninstall()
+ * Every plugin (gateways, themes, or addons) must implement this interface to
+ * integrate with the core lifecycle events, dependency injection container, and
+ * event manager, ensuring safe execution under the single-owner multi-brand model.
+ *
+ * Lifecycle sequence:
+ * 1. register() — Declares event hook and filter bindings.
+ * 2. boot() — Starts services after all dependencies are loaded.
+ * 3. deactivate() — Gracefully suspends execution.
+ * 4. uninstall() — Permanently purges assets, tables, and settings.
+ *
+ * @category Plugin
+ * @package  OwnPay\Plugin
  */
 interface PluginInterface
 {
     /**
-     * Plugin metadata.
-     * @return array{name: string, slug: string, version: string, description: string, author: string, type: string}
+     * Retrieves static metadata describing the plugin.
+     *
+     * @return array{name: string, slug: string, version: string, description: string, author: string, type: string} The plugin metadata.
      */
     public static function metadata(): array;
 
     /**
-     * Declare capabilities this plugin provides.
-     * @return Capability[]
+     * Declares the system capabilities exposed by the plugin.
+     *
+     * @return array<int, \OwnPay\Plugin\Capability> List of capabilities provided.
      */
     public function capabilities(): array;
 
     /**
-     * Register hooks, filters, and event listeners.
-     * Called on every request when plugin is active.
+     * Registers hooks, filters, and action listeners.
+     *
+     * Invoked during the boot phase of every HTTP or CLI request for all active plugins,
+     * allowing routing and middleware pipeline alterations.
+     *
+     * @param \OwnPay\Event\EventManager $events The central event management engine.
+     * @param \OwnPay\Container          $container The dependency injection container.
+     * @return void
      */
     public function register(EventManager $events, Container $container): void;
 
     /**
-     * Boot the plugin after all plugins registered.
-     * Access to full container and other plugins.
+     * Boots the plugin after all plugins have registered their bindings.
+     *
+     * Enables inter-plugin communication and dependency resolution via the DI container.
+     *
+     * @param \OwnPay\Container $container The dependency injection container.
+     * @return void
      */
     public function boot(Container $container): void;
 
     /**
-     * Called when plugin is deactivated.
+     * Handles graceful teardown operations when the plugin is deactivated.
+     *
+     * Safe for temp cleanups; should not destructively delete permanent merchant records.
+     *
+     * @param \OwnPay\Container $container The dependency injection container.
+     * @return void
      */
     public function deactivate(Container $container): void;
 
     /**
-     * Called when plugin is uninstalled (permanent removal).
-     * Clean up DB tables, files, etc.
+     * Handles destructive cleanup operations when the plugin is permanently uninstalled.
+     *
+     * Purges database tables, schema overrides, and config settings to prevent stale records.
+     *
+     * @param \OwnPay\Container $container The dependency injection container.
+     * @return void
      */
     public function uninstall(Container $container): void;
 
     /**
-     * Define settings fields for admin UI auto-rendering.
-     * @return array<int, array{name: string, label: string, type: string, default?: mixed, options?: array}>
+     * Defines configuration fields for administration UI automatic rendering.
+     *
+     * Allows plugins to expose key-value settings (e.g. API credentials for Stripe or bKash)
+     * which are dynamically rendered in the admin dashboard and saved to the settings repository.
+     *
+     * @return array<int, array{name: string, label: string, type: string, default?: mixed, options?: array<string, string>}> List of field definitions.
      */
     public function fields(): array;
 }

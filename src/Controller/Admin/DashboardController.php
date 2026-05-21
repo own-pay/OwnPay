@@ -17,28 +17,83 @@ use OwnPay\Repository\MerchantUserRepository;
 use OwnPay\Support\DateHelper;
 
 /**
- * Dashboard controller — admin home, reports, activities, profile.
+ * Class DashboardController
+ *
+ * Coordinates rendering of the admin panel home/dashboard, reports, activity logs,
+ * account settings, and report data exports.
+ *
+ * @package OwnPay\Controller\Admin
  */
 final class DashboardController
 {
     use AdminPageTrait;
 
-    /** Allowed fragment names — security whitelist against path traversal */
+    /**
+     * @var array<int, string> Allowed fragment names for dynamic template loading.
+     */
     private const ALLOWED_FRAGMENTS = [
         'recent-transactions', 'stats', 'gateway-status',
         'alerts', 'quick-actions',
     ];
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
+
+    /**
+     * @var EventManager The system hook and filter event manager.
+     */
     private EventManager $events;
+
+    /**
+     * @var BrandContext The brand context manager.
+     */
     private BrandContext $brand;
+
+    /**
+     * @var AuthSessionService The authentication session service.
+     */
     private AuthSessionService $auth;
+
+    /**
+     * @var TransactionRepository The transaction repository.
+     */
     private TransactionRepository $txnRepo;
+
+    /**
+     * @var CustomerRepository The customer repository.
+     */
     private CustomerRepository $customerRepo;
+
+    /**
+     * @var AuditLogRepository The audit log repository.
+     */
     private AuditLogRepository $auditRepo;
+
+    /**
+     * @var MerchantUserRepository The repository for merchant users.
+     */
     private MerchantUserRepository $userRepo;
 
+    /**
+     * DashboardController constructor.
+     *
+     * @param Container              $c            The dependency injection container.
+     * @param AdminSession           $session      The administrative session service.
+     * @param EventManager           $events       The system hook and filter event manager.
+     * @param BrandContext           $brand        The brand context manager.
+     * @param AuthSessionService     $auth         The authentication session service.
+     * @param TransactionRepository  $txnRepo      The transaction repository.
+     * @param CustomerRepository     $customerRepo The customer repository.
+     * @param AuditLogRepository     $auditRepo    The audit log repository.
+     * @param MerchantUserRepository $userRepo     The repository for merchant users.
+     */
     public function __construct(
         Container $c,
         AdminSession $session,
@@ -61,7 +116,13 @@ final class DashboardController
         $this->userRepo     = $userRepo;
     }
 
-    /** @phpstan-ignore-next-line */
+    /**
+     * Renders the administrative home dashboard, aggregating performance metrics.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The dashboard page response.
+     */
     public function index(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
@@ -102,18 +163,28 @@ final class DashboardController
     }
 
     /**
-     * GET /admin/fragment/{page} — AJAX fragment loader.
+     * Renders dynamic layout fragments/widgets via AJAX.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTML template snippet response.
      */
     public function fragment(Request $req): Response
     {
-        /** @phpstan-ignore nullCoalesce.expr */
-        $page = (string) ($req->param('page') ?? '');
+        $page = $req->param('page');
         if ($page === '' || !in_array($page, self::ALLOWED_FRAGMENTS, true)) {
             return Response::html('', 404);
         }
         return $this->renderAdminPage("admin/fragments/{$page}.twig");
     }
 
+    /**
+     * Renders transaction volume and analytics reports.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The reporting page response.
+     */
     public function reports(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
@@ -137,6 +208,13 @@ final class DashboardController
         ]);
     }
 
+    /**
+     * Displays a log of administrative activities and audits.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The activities history log page.
+     */
     public function activities(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
@@ -161,6 +239,13 @@ final class DashboardController
         ]);
     }
 
+    /**
+     * Renders the logged in administrator's profile page.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The account settings page.
+     */
     public function myAccount(Request $req): Response
     {
         $userId = $this->session->userId();
@@ -177,6 +262,13 @@ final class DashboardController
         ]);
     }
 
+    /**
+     * Updates profile or credentials of the active administrator user.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response.
+     */
     public function updateAccount(Request $req): Response
     {
         $data   = $req->post();
@@ -217,6 +309,13 @@ final class DashboardController
         return Response::redirect('/admin/my-account');
     }
 
+    /**
+     * Exports transaction data matching the filter parameters into CSV.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The downloadable CSV file attachment response.
+     */
     public function exportCsv(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
@@ -243,13 +342,11 @@ final class DashboardController
             ]);
         }
         fclose($out);
-        $csv = ob_get_clean();
+        $csv = ob_get_clean() ?: '';
 
         $filename = "report_{$from}_{$to}.csv";
-        /** @phpstan-ignore-next-line */
-        return Response::html($csv, 200, [
-            'Content-Type'        => 'text/csv; charset=UTF-8',
-            'Content-Disposition' => "attachment; filename=\"{$filename}\"",
-        ]);
+        return Response::html($csv, 200)
+            ->withHeader('Content-Type', 'text/csv; charset=UTF-8')
+            ->withHeader('Content-Disposition', "attachment; filename=\"{$filename}\"");
     }
 }

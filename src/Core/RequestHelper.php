@@ -1,11 +1,22 @@
 <?php
-
 declare(strict_types=1);
 
 namespace OwnPay\Core;
 
+/**
+ * Class RequestHelper
+ *
+ * Provides static helper methods for extracting API headers and device information from HTTP requests.
+ *
+ * @package OwnPay\Core
+ */
 final class RequestHelper
 {
+    /**
+     * Retrieves the custom X-API-Key authorization header from the request headers or server variables.
+     *
+     * @return string|null The API Key string, or null if not present.
+     */
     public static function getAuthorizationHeader(): ?string
     {
         if (function_exists('getallheaders')) {
@@ -24,6 +35,12 @@ final class RequestHelper
         return null;
     }
 
+    /**
+     * Parses the request metadata to extract IP, Device Type, OS, and Browser.
+     *
+     * @param \OwnPay\Http\Request|null $request The HTTP request instance.
+     * @return array{ip_address: string, device: string, os: string, browser: string} The parsed client information.
+     */
     public static function getUserDeviceInfo(?\OwnPay\Http\Request $request = null): array
     {
         $userAgent = $request?->header('User-Agent') ?? $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';

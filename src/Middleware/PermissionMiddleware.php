@@ -8,21 +8,35 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Permission middleware — checks user has required permission for route.
+ * Middleware handling Role-Based Access Control (RBAC) checks.
  *
- * AUD-01 FIX: Loads user permissions from DB via role_id → op_role_permissions → op_permissions.
- * AUD-02 FIX: Standardized POST permission suffix to '.manage' (was inconsistent '.update').
- * RBAC is NOT overridable by plugins (privilege escalation risk).
+ * Verifies that the authenticated user possesses the permission token associated
+ * with the target route path and HTTP request method. Bypasses checks for superadmins.
  */
 final class PermissionMiddleware
 {
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $container;
 
+    /**
+     * Constructs a new PermissionMiddleware instance.
+     *
+     * @param Container $container The dependency injection container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
+    /**
+     * Handles authorization verification for incoming HTTP requests to admin routes.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param callable(Request): Response $next Next handler in the pipeline.
+     * @return Response The HTTP response.
+     */
     public function handle(Request $request, callable $next): Response
     {
         $userId = $request->getAttribute('auth_user_id') ?? ($_SESSION['auth_user_id'] ?? null);
@@ -31,7 +45,7 @@ final class PermissionMiddleware
             if ($request->expectsJson()) {
                 return Response::json(['success' => false, 'message' => 'Authentication required'], 401);
             }
-            // BUG-44 FIX: Use dynamic login slug instead of hardcoded /login.
+            // Use dynamic login slug instead of hardcoded /login.
             $loginSlug = $this->resolveLoginSlug();
             return Response::redirect("/{$loginSlug}");
         }
@@ -42,7 +56,7 @@ final class PermissionMiddleware
             $db = $this->container->get(\OwnPay\Core\Database::class);
             $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
             if (!$user) {
-                // AUD-B6 fix: full session wipe instead of partial unset
+                // Wipe the full session on invalid user
                 $_SESSION = [];
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_regenerate_id(true);
@@ -66,7 +80,7 @@ final class PermissionMiddleware
             return $next($request);
         }
 
-        // AUD-01 FIX: Load user permissions from DB via role → role_permissions → permissions.
+        // Load user permissions from DB via role → role_permissions → permissions.
         // Previously $userPermissions was always [] because no upstream middleware populated it.
         $userPermissions = $request->getAttribute('user_permissions');
         if ($userPermissions === null) {
@@ -89,7 +103,8 @@ final class PermissionMiddleware
     /**
      * Load permission slugs for a given role ID.
      *
-     * @return string[] Array of permission slugs
+     * @param int $roleId The role identifier.
+     * @return string[] Array of permission slugs.
      */
     private function loadPermissions(int $roleId): array
     {
@@ -114,12 +129,16 @@ final class PermissionMiddleware
     /**
      * Map route path to required permission slug.
      *
-     * AUD-02 FIX: All POST operations now consistently use '.manage' suffix.
+     * All POST operations consistently use '.manage' suffix.
+     *
+     * @param string $path The request path to evaluate.
+     * @param string $method The HTTP request method.
+     * @return string|null The required permission token slug or null if public.
      */
     private function resolvePermission(string $path, string $method): ?string
     {
         $map = [
-            // BUG-9 FIX: Dashboard routes were missing from permission map.
+            // Dashboard routes mapped to permission map
             '/admin/transactions'         => 'transactions.view',
             '/admin/invoices'             => 'invoices.view',
             '/admin/payment-links'        => 'payment_links.view',
@@ -151,7 +170,7 @@ final class PermissionMiddleware
             '/admin'                      => 'dashboard.view',
         ];
 
-        // A6 FIX: Brand switching is read-only, not brand management
+        // Brand switching is read-only, not brand management
         if ($path === '/admin/brands/switch') {
             return 'brands.view';
         }
@@ -165,7 +184,7 @@ final class PermissionMiddleware
             return $perm;
         }
 
-        // Check prefix match — POST uses .manage (AUD-02 FIX: was .update)
+        // Check prefix match — POST uses .manage
         foreach ($map as $prefix => $perm) {
             if (str_starts_with($path, $prefix)) {
                 if ($method === 'POST') {
@@ -184,8 +203,11 @@ final class PermissionMiddleware
     }
 
     /**
-     * Resolve the dynamic login slug from settings.
-     * BUG-44 FIX: Avoid hardcoded '/login' which fails when slug is customized.
+     * Resolve the dynamic login slug from settings database.
+     *
+     * Avoids hardcoded '/login' which fails when slug is customized.
+     *
+     * @return string The resolved login URI component.
      */
     private function resolveLoginSlug(): string
     {

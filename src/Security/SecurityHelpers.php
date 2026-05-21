@@ -4,14 +4,20 @@ declare(strict_types=1);
 namespace OwnPay\Security;
 
 /**
- * Security helpers — CSRF token gen, secure random, input sanitization.
+ * Class SecurityHelpers
  *
- * Per OWASP: cryptographically secure random, output encoding.
+ * Provides cryptographic and sanitization utility methods, including CSRF token management,
+ * secure random generation, XSS prevention escaping, filename cleansing, constant-time comparison,
+ * and secure API key generation.
+ *
+ * @package OwnPay\Security
  */
 final class SecurityHelpers
 {
     /**
-     * Generate or retrieve CSRF token for current session.
+     * Resolves, generates, or retrieves the CSRF token associated with the current session.
+     *
+     * @return string The hex-encoded CSRF token, or an empty string if session is inactive.
      */
     public static function csrfToken(): string
     {
@@ -25,7 +31,9 @@ final class SecurityHelpers
     }
 
     /**
-     * Generate CSRF hidden input field.
+     * Generates a pre-formatted HTML hidden input field containing the active CSRF token.
+     *
+     * @return string The HTML hidden input tag.
      */
     public static function csrfField(): string
     {
@@ -34,7 +42,10 @@ final class SecurityHelpers
     }
 
     /**
-     * Generate cryptographically secure random string.
+     * Generates a cryptographically secure random hexadecimal string.
+     *
+     * @param int $length The desired length of the returned string. Defaults to 32.
+     * @return string The hex-encoded secure random string.
      */
     public static function randomString(int $length = 32): string
     {
@@ -42,7 +53,10 @@ final class SecurityHelpers
     }
 
     /**
-     * Sanitize string for safe HTML output.
+     * Escapes input string to make it safe for rendering in an HTML context (XSS mitigation).
+     *
+     * @param string $value The raw input string.
+     * @return string The escaped safe HTML string.
      */
     public static function escapeHtml(string $value): string
     {
@@ -50,7 +64,10 @@ final class SecurityHelpers
     }
 
     /**
-     * Sanitize for use in URL parameter.
+     * URL-encodes a string parameter value safely according to RFC 3986.
+     *
+     * @param string $value The raw parameter string.
+     * @return string The URL-encoded parameter string.
      */
     public static function escapeUrl(string $value): string
     {
@@ -58,22 +75,30 @@ final class SecurityHelpers
     }
 
     /**
-     * Sanitize filename — remove path traversal, special chars.
+     * Cleanses a filename to mitigate path-traversal attacks and eliminate non-alphanumeric characters.
+     *
+     * Replaces disallowed characters with underscores and truncates lengths exceeding 200 characters.
+     *
+     * @param string $filename The raw filename.
+     * @return string The sanitized safe filename.
      */
     public static function sanitizeFilename(string $filename): string
     {
-        // Remove path components
+        // Extract basic filename components to prevent directory traversal paths.
         $filename = basename($filename);
-        // Remove non-alphanumeric except dot, dash, underscore
+        // Replace non-alphanumeric characters (excluding dot, dash, and underscore) with underscores.
         $filename = preg_replace('/[^a-zA-Z0-9._-]/', '_', $filename) ?? $filename;
-        // Remove leading dots (hidden files)
+        // Strip leading periods to handle potential hidden file vulnerabilities.
         $filename = ltrim($filename, '.');
-        // Limit length
+        // Truncate the filename length to prevent filesystem limits.
         return mb_substr($filename, 0, 200);
     }
 
     /**
-     * Sanitize slug — lowercase, alphanumeric + dashes only.
+     * Standardizes a string into a lowercase URL slug containing only alphanumeric characters and hyphens.
+     *
+     * @param string $value The raw input string.
+     * @return string The formatted slug.
      */
     public static function sanitizeSlug(string $value): string
     {
@@ -84,7 +109,11 @@ final class SecurityHelpers
     }
 
     /**
-     * Constant-time string comparison.
+     * Compares two strings in constant-time to mitigate side-channel timing attacks.
+     *
+     * @param string $known The verified known string.
+     * @param string $user The user-supplied input string.
+     * @return bool True if both strings match, otherwise false.
      */
     public static function timingSafeEquals(string $known, string $user): bool
     {
@@ -92,15 +121,14 @@ final class SecurityHelpers
     }
 
     /**
-     * Generate API key: op_XXXXXXXX.YYYYYYYYYYYY
-     * Returns [full_key, prefix, hash].
+     * Generates a new API key pair conforming to the format 'op_{prefix}.{secret}'.
      *
-     * @return array{key: string, prefix: string, hash: string}
+     * @return array{key: string, prefix: string, hash: string} An array containing the full key, prefix, and sha256 hash.
      */
     public static function generateApiKey(): array
     {
-        $prefix = bin2hex(random_bytes(4)); // 8 hex chars
-        $secret = bin2hex(random_bytes(24)); // 48 hex chars
+        $prefix = bin2hex(random_bytes(4)); // 8 hex chars.
+        $secret = bin2hex(random_bytes(24)); // 48 hex chars.
         $fullKey = "op_{$prefix}.{$secret}";
 
         return [

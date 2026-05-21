@@ -8,17 +8,36 @@ use OwnPay\Repository\LedgerRepository;
 use OwnPay\Repository\TransactionRepository;
 
 /**
- * Ledger service — double-entry bookkeeping for every money movement.
- * Uses strict triple-table schema (accounts, transactions, entries).
+ * Ledger Service
  *
- * Fires: ledger.entry.created
+ * Implements double-entry bookkeeping operations for all financial transactions.
+ * Manages balanced debit/credit posting across merchant asset, liability, and revenue
+ * accounts using precise string calculations (BCMath).
  */
 final class LedgerService
 {
+    /**
+     * @var LedgerRepository Repository handling ledger database accounts and entries.
+     */
     private LedgerRepository $ledger;
+
+    /**
+     * @var EventManager The system-wide event manager.
+     */
     private EventManager $events;
+
+    /**
+     * @var TransactionRepository Repository mapping core transactions.
+     */
     private TransactionRepository $transactions;
 
+    /**
+     * Constructor.
+     *
+     * @param LedgerRepository $ledger Repository handling ledger database accounts and entries.
+     * @param EventManager $events The system-wide event manager.
+     * @param TransactionRepository $transactions Repository mapping core transactions.
+     */
     public function __construct(
         LedgerRepository $ledger,
         EventManager $events,
@@ -30,7 +49,10 @@ final class LedgerService
     }
 
     /**
-     * Resolve type for standard ledger accounts.
+     * Resolve the corresponding classification type for a ledger account code.
+     *
+     * @param string $code The unique account designation code.
+     * @return string The resolved account type ('asset', 'liability', or 'revenue').
      */
     public function getAccountType(string $code): string
     {
@@ -49,7 +71,18 @@ final class LedgerService
     }
 
     /**
-     * Internal method to post a balanced journal entry.
+     * Post a balanced journal entry mapping a simple debit and credit account pairing.
+     *
+     * @param int $merchantId Brand context identifier.
+     * @param string $eventType Event categorization tag.
+     * @param string $amount Value string representation.
+     * @param string $currency ISO 3-letter currency code.
+     * @param string $debitAccountCode Account code to debit.
+     * @param string $creditAccountCode Account code to credit.
+     * @param string $referenceType Source model designation tag.
+     * @param string $referenceId Primary database ID of the source model.
+     * @param string|null $description Narrative context describing the entry.
+     * @return void
      */
     private function postJournal(
         int $merchantId,
@@ -70,7 +103,20 @@ final class LedgerService
     }
 
     /**
-     * Post a balanced multi-entry journal transaction.
+     * Post a balanced multi-entry journal transaction structure.
+     *
+     * Validates that the sum of debit entry amounts equals the sum of credit entry
+     * amounts to guarantee double-entry balance constraints before database writes.
+     *
+     * @param int $merchantId Brand context identifier.
+     * @param string $eventType Event categorization tag.
+     * @param string $currency ISO 3-letter currency code.
+     * @param array $entries Collection of debit/credit entry arrays containing account, type, and amount.
+     * @param string $referenceType Source model designation tag.
+     * @param string $referenceId Primary database ID of the source model.
+     * @param string|null $description Narrative context describing the entry.
+     * @return void
+     * @throws \InvalidArgumentException If debit and credit sums are unbalanced.
      */
     public function postEntries(
         int $merchantId,
@@ -87,7 +133,7 @@ final class LedgerService
 
         foreach ($entries as $entry) {
             $code = $entry['account'];
-            $type = $entry['type']; // 'debit' or 'credit'
+            $type = $entry['type'];
             $amount = $entry['amount'];
 
             $acctType = $this->getAccountType($code);
@@ -106,7 +152,7 @@ final class LedgerService
             }
         }
 
-        // Safety check to ensure debits equal credits
+        // Safety check to ensure debits equal credits.
         if (bccomp($totalDebit, $totalCredit, 4) !== 0) {
             throw new \InvalidArgumentException("Ledger transaction is not balanced. Debits: {$totalDebit}, Credits: {$totalCredit}");
         }
@@ -115,20 +161,20 @@ final class LedgerService
         $db = $scopedLedger->getDatabase();
         $db->transaction(function () use ($scopedLedger, $merchantId, $eventType, $resolvedEntries, $currency, $referenceType, $referenceId, $description, $totalDebit) {
             
-            // 2. Create Journal Header (uses tenantId from scoped clone)
+            // Create Journal Header mapping source reference and merchant id scope.
             $txnId = $scopedLedger->createTransaction(
                 $referenceType,
                 (int) $referenceId,
                 $description ?? $eventType
             );
 
-            // 3. Create Entries and Update Balances
+            // Create individual entry records and recalculate target account balances.
             foreach ($resolvedEntries as $entry) {
                 $scopedLedger->createEntry($txnId, $entry['account_id'], $entry['type'], $entry['amount']);
                 $scopedLedger->adjustBalance($entry['account_id'], $entry['amount'], $entry['type']);
             }
 
-            // Fire event
+            // Dispatch ledger entry hook payload.
             $this->events->doAction('ledger.entry.created', [
                 'transaction_id' => $txnId,
                 'merchant_id'    => $merchantId,
@@ -139,7 +185,14 @@ final class LedgerService
     }
 
     /**
-     * Record payment received (credit merchant).
+     * Record a customer payment capture and split gross amount into payable and fee entries.
+     *
+     * @param int $merchantId Brand context identifier.
+     * @param int $transactionId Linked transaction database identifier.
+     * @param string $amount Gross payment amount captured.
+     * @param string $fee Platform routing fee levied.
+     * @param string $currency ISO 3-letter currency code.
+     * @return void
      */
     public function recordPaymentReceived(int $merchantId, int $transactionId, string $amount, string $fee, string $currency): void
     {
@@ -163,7 +216,17 @@ final class LedgerService
     }
 
     /**
-     * Record refund (debit merchant).
+     * Record a full or partial refund event against a captured payment.
+     *
+     * Calculates the proportionate fee reversal share using ratio calculations
+     * and performs cash and merchant balance adjustments.
+     *
+     * @param int $merchantId Brand context identifier.
+     * @param int $transactionId Linked transaction database identifier.
+     * @param string $amount The refund amount value.
+     * @param string $currency ISO 3-letter currency code.
+     * @return void
+     * @throws \RuntimeException If the referenced transaction record cannot be resolved.
      */
     public function recordRefund(int $merchantId, int $transactionId, string $amount, string $currency): void
     {
@@ -202,7 +265,13 @@ final class LedgerService
     }
 
     /**
-     * Record settlement payout (debit merchant).
+     * Record a settlement payout event and adjust payable/bank accounts.
+     *
+     * @param int $merchantId Brand context identifier.
+     * @param string $amount Payout value string.
+     * @param string $currency ISO 3-letter currency code.
+     * @param string|null $reference Settlement lookup/batch identifier.
+     * @return void
      */
     public function recordSettlement(int $merchantId, string $amount, string $currency, ?string $reference = null): void
     {
@@ -220,7 +289,11 @@ final class LedgerService
     }
 
     /**
-     * Get current balance for merchant in currency.
+     * Compute the current aggregate account balance for a merchant in a specific currency.
+     *
+     * @param int $merchantId Brand context identifier.
+     * @param string $currency ISO 3-letter currency code.
+     * @return string Balance amount string representation.
      */
     public function calculateBalance(int $merchantId, string $currency): string
     {
@@ -228,7 +301,12 @@ final class LedgerService
     }
 
     /**
-     * Get ledger transactions for merchant (paginated).
+     * Retrieve and paginate historical ledger transaction records for a merchant.
+     *
+     * @param int $merchantId Brand context identifier.
+     * @param int $page Target page index mapping.
+     * @param int $perPage Count limit per pagination segment.
+     * @return array Standardized pagination response payload.
      */
     public function entries(int $merchantId, int $page = 1, int $perPage = 50): array
     {

@@ -13,18 +13,46 @@ use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\CommLogRepository;
 
 /**
- * SMS Center — Parsing Templates, Parsed SMS log, Outbound Queue.
+ * SMS Center Controller for managing parsing templates, parsed SMS logs, and the outbound SMS queue.
  */
 final class SmsTemplateAdminController
 {
     use AdminPageTrait;
 
+    /**
+     * The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * The admin session manager.
+     */
     private AdminSession $session;
+
+    /**
+     * The SMS template repository.
+     */
     private SmsTemplateRepository $tplRepo;
+
+    /**
+     * The parsed SMS repository.
+     */
     private SmsParsedRepository $parsedRepo;
+
+    /**
+     * The communication log repository.
+     */
     private CommLogRepository $commRepo;
 
+    /**
+     * SmsTemplateAdminController constructor.
+     *
+     * @param Container $c The dependency injection container.
+     * @param AdminSession $session The admin session manager.
+     * @param SmsTemplateRepository $tplRepo The SMS template repository.
+     * @param SmsParsedRepository $parsedRepo The parsed SMS repository.
+     * @param CommLogRepository $commRepo The communication log repository.
+     */
     public function __construct(
         Container $c,
         AdminSession $session,
@@ -40,7 +68,11 @@ final class SmsTemplateAdminController
     }
 
     /**
-     * Main SMS Center page — 3 tabs.
+     * Main SMS Center page displaying templates, parsed logs, and outbound queues.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response rendering the index page.
+     * @throws \Exception If database queries or rendering fail.
      */
     public function index(Request $req): Response
     {
@@ -75,7 +107,11 @@ final class SmsTemplateAdminController
     }
 
     /**
-     * Create new parsing template.
+     * Create a new SMS parsing template.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If template creation fails.
      */
     public function create(Request $req): Response
     {
@@ -98,7 +134,11 @@ final class SmsTemplateAdminController
     }
 
     /**
-     * Edit template form + save.
+     * Edit template form or update template settings.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP response with form or redirect.
+     * @throws \Exception If template lookup or update fails.
      */
     public function edit(Request $req): Response
     {
@@ -145,7 +185,11 @@ final class SmsTemplateAdminController
     }
 
     /**
-     * Delete template.
+     * Delete an SMS parsing template.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If deletion fails.
      */
     public function delete(Request $req): Response
     {
@@ -161,6 +205,9 @@ final class SmsTemplateAdminController
 
     /**
      * Live regex test endpoint (AJAX).
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response with match results.
      */
     public function testRegex(Request $req): Response
     {
@@ -192,6 +239,10 @@ final class SmsTemplateAdminController
     /**
      * POST /admin/sms-center/analyze — Method B: Smart heuristic extraction.
      * Requires both raw SMS body AND the actual SMS sender (From field).
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response containing parsed components.
+     * @throws \Exception If database queries fail.
      */
     public function analyze(Request $req): Response
     {
@@ -224,6 +275,9 @@ final class SmsTemplateAdminController
     /**
      * POST /admin/sms-center/ai-prompt — Method C: Generate AI-ready prompt.
      * Requires both SMS body AND the exact SMS sender (From field).
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response with the generated prompt.
      */
     public function aiPrompt(Request $req): Response
     {
@@ -248,6 +302,10 @@ final class SmsTemplateAdminController
 
     /**
      * POST /admin/sms-center/save-analysis — Save analysis result as new template.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     * @throws \Exception If template creation fails.
      */
     public function saveAnalysis(Request $req): Response
     {

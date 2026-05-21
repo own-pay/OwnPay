@@ -9,23 +9,74 @@ use OwnPay\Service\System\EnvironmentService;
 use OwnPay\Service\System\Logger;
 
 /**
- * Update service — full 9-step update flow with rollback.
+ * Orchestrates the application self-update lifecycle pipeline.
  *
- * Steps: 1.check → 2.backup → 3.maintenance ON → 4.download →
- *        5.verify → 6.extract → 7.migrate → 8.clear_cache →
- *        9.health_check → 10.maintenance OFF
+ * Implements a strict, multi-step transaction-safe workflow: checking availability,
+ * generating a full database/code rollback backup point, entering maintenance mode,
+ * securely fetching update packages, verifying SHA-256 integrity, extracting
+ * code archives with directory traversal validation, executing incremental database migrations,
+ * clearing cache layers, executing verification diagnostic checks, and returning the platform to active service.
+ * Handles automatic rollback on update failure to ensure minimal service interruption.
  *
- * Fires: update.before, update.after, update.failed, update.rollback
+ * Fires hooks: 'update.before', 'update.after', 'update.failed', 'update.rollback'.
+ *
+ * @category Update
+ * @package  OwnPay\Update
  */
 final class UpdateService
 {
+    /**
+     * Backup and recovery service instance.
+     *
+     * @var \OwnPay\Update\BackupService
+     */
     private BackupService $backup;
+
+    /**
+     * Post-update diagnostic health checker.
+     *
+     * @var \OwnPay\Update\HealthChecker
+     */
     private HealthChecker $health;
+
+    /**
+     * Maintenance mode lock controller.
+     *
+     * @var \OwnPay\Update\MaintenanceMode
+     */
     private MaintenanceMode $maintenance;
+
+    /**
+     * Database repository for persisting update logs.
+     *
+     * @var \OwnPay\Repository\UpdateHistoryRepository
+     */
     private UpdateHistoryRepository $history;
+
+    /**
+     * Platform event manager for trigger registration.
+     *
+     * @var \OwnPay\Event\EventManager
+     */
     private EventManager $events;
+
+    /**
+     * Logging handler instance.
+     *
+     * @var \OwnPay\Service\System\Logger|null
+     */
     private ?Logger $logger;
 
+    /**
+     * UpdateService constructor.
+     *
+     * @param \OwnPay\Update\BackupService             $backup      System backup coordinator.
+     * @param \OwnPay\Update\HealthChecker             $health      Diagnostic checker.
+     * @param \OwnPay\Update\MaintenanceMode           $maintenance Maintenance state locker.
+     * @param \OwnPay\Repository\UpdateHistoryRepository $history      Database history repository.
+     * @param \OwnPay\Event\EventManager               $events       Hook trigger registry.
+     * @param \OwnPay\Service\System\Logger|null       $logger       Logging utility.
+     */
     public function __construct(
         BackupService $backup,
         HealthChecker $health,
@@ -43,9 +94,12 @@ final class UpdateService
     }
 
     /**
-     * Check for available updates from manifest.json.
+     * Queries remote servers for the latest stable platform releases.
      *
-     * @return array
+     * Checks the configured update manifest URL, verifies SSL certificates,
+     * and processes release channel data structures.
+     *
+     * @return array{available: bool, version?: string, url?: string, changelog?: string, checksum?: string, error?: string, message?: string} Update status payload.
      */
     public function check(): array
     {
@@ -77,7 +131,6 @@ final class UpdateService
                 return ['available' => false, 'error' => 'invalid_response'];
             }
 
-            // Read from unified manifest: channels.stable or top-level fallback
             $latestVersion = null;
             $downloadUrl = null;
             $changelog = null;
@@ -90,7 +143,6 @@ final class UpdateService
                 $changelog = $stable['changelog'] ?? null;
                 $checksum = $stable['checksum_sha256'] ?? null;
             } else {
-                // Backward compat: top-level fields
                 $latestVersion = $data['version'] ?? null;
                 $downloadUrl = $data['download_url'] ?? null;
                 $changelog = $data['changelog'] ?? null;
@@ -119,13 +171,21 @@ final class UpdateService
     }
 
     /**
-     * Execute full update flow.
+     * Executes the sequential application update workflow.
      *
-     * @return array
+     * Validates that no concurrent updates are in progress, creates system backup checkpoints,
+     * locks incoming checkout traffic, downloads and validates packages using checksum matching,
+     * extracts package assets, executes incremental SQL migration scripts, purges
+     * caches, executes health check diagnostics, and releases maintenance locks.
+     * Triggers a comprehensive rollback to restore the system state on failure.
+     *
+     * @param string      $version          Target version to upgrade the platform to.
+     * @param string      $downloadUrl      Secure URL to download the update ZIP from.
+     * @param string|null $expectedChecksum Optional SHA-256 hash to verify package integrity.
+     * @return array{success: bool, error?: string, rollback?: bool} Completion result state.
      */
     public function execute(string $version, string $downloadUrl, ?string $expectedChecksum = null): array
     {
-        // Prevent concurrent updates
         if ($this->history->isUpdateInProgress()) {
             return ['success' => false, 'error' => 'Update already in progress'];
         }
@@ -136,24 +196,19 @@ final class UpdateService
         try {
             $this->events->doAction('update.before', $version);
 
-            // Step 1: Backup
             $this->log("Update to v{$version} — Step 1: Creating backup");
             $this->history->updateStep((int) $updateId, 'backup_created');
             $backupPath = $this->backup->createFullBackup();
 
-            // Update backup path in history
             $this->history->updateStep((int) $updateId, 'backup_created');
 
-            // Step 2: Maintenance mode ON
             $this->log("Step 2: Entering maintenance mode");
             $this->maintenance->enter("Updating to v{$version}");
 
-            // Step 3: Download
             $this->log("Step 3: Downloading update package");
             $this->history->updateStep((int) $updateId, 'downloaded');
             $packagePath = $this->downloadPackage($downloadUrl);
 
-            // Step 4: Verify integrity (SHA-256)
             $this->log("Step 4: Verifying package integrity");
             if ($expectedChecksum !== null && $expectedChecksum !== '') {
                 $actualChecksum = hash_file('sha256', $packagePath);
@@ -169,21 +224,17 @@ final class UpdateService
                 $this->log("WARNING: No checksum provided — skipping integrity check");
             }
 
-            // Step 5: Extract
             $this->log("Step 5: Extracting update package");
             $this->history->updateStep((int) $updateId, 'applied');
             $this->extractPackage($packagePath);
 
-            // Step 6: Run migrations
             $this->log("Step 6: Running database migrations");
             $migrationCount = $this->runMigrations();
             $this->log("Migrations completed: {$migrationCount} executed");
 
-            // Step 7: Clear cache
             $this->log("Step 7: Clearing cache");
             $this->clearCache();
 
-            // Step 8: Health check
             $this->log("Step 8: Running health checks");
             $this->history->updateStep((int) $updateId, 'verified');
             $healthResult = $this->health->check();
@@ -192,7 +243,6 @@ final class UpdateService
                 throw new \RuntimeException('Health check failed: ' . ($healthResult['error'] ?? 'unknown'));
             }
 
-            // Step 9: Maintenance mode OFF
             $this->log("Step 9: Exiting maintenance mode");
             $this->maintenance->exit();
             $this->history->completeUpdate((int) $updateId);
@@ -200,7 +250,6 @@ final class UpdateService
             $this->events->doAction('update.after', $version);
             $this->log("Update to v{$version} completed successfully");
 
-            // Cleanup old backups (keep last 5)
             $this->backup->cleanup(5);
 
             return ['success' => true];
@@ -209,7 +258,6 @@ final class UpdateService
             $this->log("Update failed: " . $e->getMessage(), 'error');
             $this->events->doAction('update.failed', $version, $e->getMessage());
 
-            // Rollback
             if ($backupPath !== null) {
                 try {
                     $this->log("Rolling back from backup: {$backupPath}");
@@ -231,6 +279,13 @@ final class UpdateService
         }
     }
 
+    /**
+     * Downloads the release package to a temporary file path.
+     *
+     * @param string $url Secure update download URL.
+     * @return string Path to the temporary zip package.
+     * @throws \RuntimeException If the file cannot be created or cURL execution fails.
+     */
     private function downloadPackage(string $url): string
     {
         $tmpFile = sys_get_temp_dir() . '/op_update_' . bin2hex(random_bytes(8)) . '.zip';
@@ -261,7 +316,6 @@ final class UpdateService
             throw new \RuntimeException("Download failed: HTTP {$httpCode}" . ($curlError ? " — {$curlError}" : ''));
         }
 
-        // Verify it's a valid ZIP
         $fileSize = filesize($tmpFile);
         if ($fileSize === false || $fileSize < 100) {
             @unlink($tmpFile);
@@ -271,6 +325,15 @@ final class UpdateService
         return $tmpFile;
     }
 
+    /**
+     * Extracts files from the downloaded ZIP archive into the application root.
+     *
+     * Validates filenames to block directory traversal attacks before writing files.
+     *
+     * @param string $zipPath Path to the downloaded package.
+     * @return void
+     * @throws \RuntimeException If the file is invalid, contains unsafe paths, or extraction fails.
+     */
     private function extractPackage(string $zipPath): void
     {
         $zip = new \ZipArchive();
@@ -282,7 +345,6 @@ final class UpdateService
 
         $appRoot = dirname(__DIR__, 2);
 
-        // Safety check: verify ZIP doesn't contain path traversal
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
             if ($name === false || str_contains($name, '..') || str_starts_with($name, '/')) {
@@ -315,12 +377,11 @@ final class UpdateService
             return 0;
         }
 
-        sort($files); // Ensure numerical order
+        sort($files);
 
         $db = \OwnPay\Core\Database::getInstance();
         $executed = 0;
 
-        // Create migrations tracking table if not exists
         $db->execute(
             "CREATE TABLE IF NOT EXISTS `op_migrations` (
                 `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -334,7 +395,6 @@ final class UpdateService
         foreach ($files as $file) {
             $filename = basename($file);
 
-            // Skip already executed migrations
             $exists = $db->fetchOne(
                 "SELECT id FROM op_migrations WHERE migration = :m",
                 ['m' => $filename]
@@ -348,9 +408,6 @@ final class UpdateService
                 continue;
             }
 
-            // BUG-54 FIX: Naive explode(";\\n") breaks for semicolons inside
-            // strings, GENERATED columns, triggers, etc. Use a simple parser
-            // that respects single-quoted string boundaries.
             $statements = $this->splitSqlStatements($sql);
 
             try {
@@ -361,7 +418,6 @@ final class UpdateService
                     }
                 }
 
-                // Record successful migration
                 $db->execute(
                     "INSERT INTO op_migrations (migration) VALUES (:m)",
                     ['m' => $filename]
@@ -379,6 +435,11 @@ final class UpdateService
         return $executed;
     }
 
+    /**
+     * Clears runtime memory, cache directories, and compiles Twig cache templates.
+     *
+     * @return void
+     */
     private function clearCache(): void
     {
         $cacheDir = dirname(__DIR__, 2) . '/storage/cache';
@@ -391,7 +452,6 @@ final class UpdateService
             }
         }
 
-        // Also clear Twig cache if exists
         $twigCache = dirname(__DIR__, 2) . '/storage/cache/twig';
         if (is_dir($twigCache)) {
             $this->removeDir($twigCache);
@@ -400,10 +460,12 @@ final class UpdateService
     }
 
     /**
-     * BUG-54 FIX: Split SQL into individual statements, respecting quoted strings.
-     * Semicolons inside single-quoted or double-quoted strings are not treated as delimiters.
+     * Splits multi-statement SQL query blocks, accounting for literal values.
      *
-     * @return string[]
+     * Ensures semicolons inside single or double-quoted strings do not cause early truncation.
+     *
+     * @param string $sql Raw SQL multi-statement block.
+     * @return array<int, string> Ordered list of valid SQL queries.
      */
     private function splitSqlStatements(string $sql): array
     {
@@ -417,7 +479,6 @@ final class UpdateService
             $char = $sql[$i];
             $prev = $i > 0 ? $sql[$i - 1] : '';
 
-            // Handle escaped quotes
             if ($prev === '\\') {
                 $current .= $char;
                 continue;
@@ -441,7 +502,6 @@ final class UpdateService
             $current .= $char;
         }
 
-        // Handle last statement (no trailing semicolon)
         $stmt = trim($current);
         if ($stmt !== '' && !str_starts_with($stmt, '--')) {
             $statements[] = $stmt;
@@ -450,6 +510,12 @@ final class UpdateService
         return $statements;
     }
 
+    /**
+     * Recursively purges a directory and all nested files.
+     *
+     * @param string $dir Target directory path.
+     * @return void
+     */
     private function removeDir(string $dir): void
     {
         $items = new \RecursiveIteratorIterator(
@@ -462,6 +528,13 @@ final class UpdateService
         @rmdir($dir);
     }
 
+    /**
+     * Dispatches informational or error messages to logs.
+     *
+     * @param string $message Log entry content.
+     * @param string $level   Diagnostic level.
+     * @return void
+     */
     private function log(string $message, string $level = 'info'): void
     {
         if ($this->logger !== null) {

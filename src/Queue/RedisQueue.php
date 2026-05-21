@@ -6,18 +6,35 @@ namespace OwnPay\Queue;
 use Ramsey\Uuid\Uuid;
 
 /**
- * Redis-based queue driver — VPS/dedicated with Supervisor worker.
+ * Class RedisQueue
  *
- * Uses Redis lists for O(1) push/pop.
- * Delayed jobs stored in sorted sets, moved to ready queue by worker.
+ * Redis-based implementation of the QueueInterface, designed for high-performance VPS or
+ * dedicated environments. Operates via Redis lists and sorted sets to manage pending, delayed,
+ * active, and failed jobs.
+ *
+ * @package OwnPay\Queue
  */
 final class RedisQueue implements QueueInterface
 {
+    /**
+     * @var \Redis The Redis client connection handler instance.
+     */
     private \Redis $redis;
+
+    /**
+     * @var string The key namespace prefix.
+     */
     private string $prefix;
 
     /**
-     * @throws \RuntimeException If connection fails
+     * RedisQueue constructor.
+     *
+     * Connects to the Redis daemon and selects database DB 1 for queue operation namespaces.
+     *
+     * @param string $host The Redis server host. Defaults to '127.0.0.1'.
+     * @param int $port The Redis server port. Defaults to 6379.
+     * @param string $prefix The global queue prefix namespace. Defaults to 'op:queue:'.
+     * @throws \RuntimeException If connecting to the Redis host fails.
      */
     public function __construct(string $host = '127.0.0.1', int $port = 6379, string $prefix = 'op:queue:')
     {
@@ -28,9 +45,18 @@ final class RedisQueue implements QueueInterface
             throw new \RuntimeException("Cannot connect to Redis at {$host}:{$port}");
         }
 
-        $this->redis->select(1); // Use DB 1 for queues (DB 0 = cache)
+        $this->redis->select(1);
     }
 
+    /**
+     * Pushes a new job message payload onto the specified queue.
+     *
+     * @param string $queue The target queue name.
+     * @param string $handler The fully qualified class name of the job handler.
+     * @param array<string, mixed> $payload The contextual data payload for the job.
+     * @param int $delay The execution delay in seconds. Defaults to 0.
+     * @return string The generated UUID identifier for the job.
+     */
     public function push(string $queue, string $handler, array $payload = [], int $delay = 0): string
     {
         $jobId = Uuid::uuid4()->toString();
@@ -46,26 +72,31 @@ final class RedisQueue implements QueueInterface
         ], JSON_UNESCAPED_UNICODE);
 
         if ($delay > 0) {
-            // Delayed: add to sorted set with score = available_at timestamp
             $this->redis->zAdd(
                 $this->prefix . $queue . ':delayed',
                 time() + $delay,
                 $job
             );
         } else {
-            // Immediate: push to list
             $this->redis->lPush($this->prefix . $queue, $job);
         }
 
         return $jobId;
     }
 
+    /**
+     * Extracts and retrieves the next available job message from the specified queue.
+     *
+     * Migrates available delayed jobs to the ready list, pops the first ready job,
+     * and maps it to the processing registry hash to ensure worker concurrency safety.
+     *
+     * @param string $queue The queue name. Defaults to 'default'.
+     * @return array<string, mixed>|null The job data array, or null if no jobs are available.
+     */
     public function pop(string $queue = 'default'): ?array
     {
-        // First, move delayed jobs that are now ready
         $this->migrateDelayed($queue);
 
-        // Pop from list (blocking pop with 1 second timeout)
         $raw = $this->redis->rPop($this->prefix . $queue);
 
         if ($raw === false || $raw === null /** @phpstan-ignore identical.alwaysFalse */) {
@@ -79,7 +110,6 @@ final class RedisQueue implements QueueInterface
 
         $job['attempts'] = ($job['attempts'] ?? 0) + 1;
 
-        // Track in processing set
         $this->redis->hSet(
             $this->prefix . 'processing',
             $job['id'],
@@ -89,11 +119,24 @@ final class RedisQueue implements QueueInterface
         return $job;
     }
 
+    /**
+     * Marks a job as completed and deletes its record from the active processing hash registry.
+     *
+     * @param string $jobId The UUID identifier of the job.
+     * @return void
+     */
     public function complete(string $jobId): void
     {
         $this->redis->hDel($this->prefix . 'processing', $jobId);
     }
 
+    /**
+     * Marks a job as failed, registering the error trace and moving the record to the failed list.
+     *
+     * @param string $jobId The UUID identifier of the job.
+     * @param string $error The failure reason or stack trace details.
+     * @return void
+     */
     public function fail(string $jobId, string $error): void
     {
         $raw = $this->redis->hGet($this->prefix . 'processing', $jobId);
@@ -113,9 +156,18 @@ final class RedisQueue implements QueueInterface
         $this->redis->hDel($this->prefix . 'processing', $jobId);
     }
 
+    /**
+     * Re-pushes a failed job back onto its original queue for reprocessing.
+     *
+     * Scans the failed list to find the matching job record, removes it from the list,
+     * and queues it with the designated delay interval.
+     *
+     * @param string $jobId The UUID identifier of the job.
+     * @param int $delay The delay interval in seconds before the retried job is made active. Defaults to 60.
+     * @return void
+     */
     public function retry(string $jobId, int $delay = 60): void
     {
-        // Search failed list for the job
         $failedKey = $this->prefix . 'failed';
         $length = $this->redis->lLen($failedKey);
 
@@ -127,10 +179,8 @@ final class RedisQueue implements QueueInterface
 
             $job = json_decode((string) $raw, true);
             if (is_array($job) && ($job['id'] ?? '') === $jobId) {
-                // Remove from failed
                 $this->redis->lRem($failedKey, (string) $raw, 1);
 
-                // Re-push
                 $this->push(
                     $job['queue'] ?? 'default',
                     $job['handler'] ?? '',
@@ -142,6 +192,12 @@ final class RedisQueue implements QueueInterface
         }
     }
 
+    /**
+     * Retrieves the aggregate count of pending and delayed jobs currently in the specified queue.
+     *
+     * @param string $queue The target queue name. Defaults to 'default'.
+     * @return int The total number of pending and delayed jobs.
+     */
     public function size(string $queue = 'default'): int
     {
         $ready = $this->redis->lLen($this->prefix . $queue);
@@ -149,23 +205,29 @@ final class RedisQueue implements QueueInterface
         return (int) $ready + (int) $delayed;
     }
 
+    /**
+     * Deletes all job messages (including pending and delayed) from the specified queue.
+     *
+     * @param string $queue The target queue name. Defaults to 'default'.
+     * @return void
+     */
     public function clear(string $queue = 'default'): void
     {
         $this->redis->del($this->prefix . $queue);
         $this->redis->del($this->prefix . $queue . ':delayed');
     }
 
-    // ——— Private ———————————————————————————————————————————————
-
     /**
-     * Move delayed jobs whose availability time has passed to the ready queue.
+     * Identifies delayed jobs whose activation timestamp has passed and migrates them to the ready list.
+     *
+     * @param string $queue The queue name.
+     * @return void
      */
     private function migrateDelayed(string $queue): void
     {
         $delayedKey = $this->prefix . $queue . ':delayed';
         $readyKey = $this->prefix . $queue;
 
-        // Get all delayed jobs with score <= now
         $jobs = $this->redis->zRangeByScore($delayedKey, '-inf', (string) time());
 
         if (!is_array($jobs) || count($jobs) === 0) {
@@ -173,7 +235,6 @@ final class RedisQueue implements QueueInterface
         }
 
         foreach ($jobs as $job) {
-            // Atomic: remove from sorted set + push to list
             if ($this->redis->zRem($delayedKey, $job) > 0) {
                 $this->redis->lPush($readyKey, $job);
             }
@@ -181,7 +242,9 @@ final class RedisQueue implements QueueInterface
     }
 
     /**
-     * Get underlying Redis instance.
+     * Retrieves the underlying Redis client handler instance.
+     *
+     * @return \Redis The active Redis connection handler.
      */
     public function redis(): \Redis
     {

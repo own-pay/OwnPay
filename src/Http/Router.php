@@ -10,9 +10,11 @@ use RuntimeException;
 /**
  * HTTP router with named parameters, middleware groups, and plugin route injection.
  *
- * Route format: METHOD /path/{param} ─ Controller@method
- * Supports: GET, POST, PUT, DELETE, PATCH
- * Fires 'system.routes.register' hook to allow plugins to register routes.
+ * Route format: METHOD /path/{param} -> Controller@method
+ * Supports standard HTTP verbs (GET, POST, PUT, DELETE, PATCH).
+ *
+ * Hooks:
+ * - Action 'system.routes.register': Fired to allow plugin components to register custom routes dynamically.
  */
 final class Router
 {
@@ -25,47 +27,99 @@ final class Router
      *     paramNames: string[],
      *     handler: string,
      *     middleware: string
-     * }>>
+     * }>> Registered routes dictionary grouped by HTTP request method.
      */
     private array $routes = [];
 
-    /** @var bool Whether routes have been loaded */
+    /**
+     * @var bool Flag tracking whether system/plugin routes have been initialized.
+     */
     private bool $loaded = false;
 
+    /**
+     * Initialize the Router service.
+     *
+     * @param \OwnPay\Container $container The application's DI container.
+     */
     public function __construct(Container $container)
     {
         $this->container = $container;
     }
 
-    // ——— Route Registration ————————————————————————————————————
+    // Route Registration Operations
 
+    /**
+     * Register a GET route.
+     *
+     * @param string $pattern Route URL pattern with placeholder brackets (e.g. '/checkout/{id}').
+     * @param string $handler Controller handler method string reference (e.g., 'CheckoutController@show').
+     * @param string $middleware Middleware stack group name to apply.
+     * @return void
+     */
     public function get(string $pattern, string $handler, string $middleware = 'web'): void
     {
         $this->addRoute('GET', $pattern, $handler, $middleware);
     }
 
+    /**
+     * Register a POST route.
+     *
+     * @param string $pattern Route URL pattern.
+     * @param string $handler Controller handler.
+     * @param string $middleware Middleware stack group name.
+     * @return void
+     */
     public function post(string $pattern, string $handler, string $middleware = 'web'): void
     {
         $this->addRoute('POST', $pattern, $handler, $middleware);
     }
 
+    /**
+     * Register a PUT route.
+     *
+     * @param string $pattern Route URL pattern.
+     * @param string $handler Controller handler.
+     * @param string $middleware Middleware stack group name.
+     * @return void
+     */
     public function put(string $pattern, string $handler, string $middleware = 'web'): void
     {
         $this->addRoute('PUT', $pattern, $handler, $middleware);
     }
 
+    /**
+     * Register a DELETE route.
+     *
+     * @param string $pattern Route URL pattern.
+     * @param string $handler Controller handler.
+     * @param string $middleware Middleware stack group name.
+     * @return void
+     */
     public function delete(string $pattern, string $handler, string $middleware = 'web'): void
     {
         $this->addRoute('DELETE', $pattern, $handler, $middleware);
     }
 
+    /**
+     * Register a PATCH route.
+     *
+     * @param string $pattern Route URL pattern.
+     * @param string $handler Controller handler.
+     * @param string $middleware Middleware stack group name.
+     * @return void
+     */
     public function patch(string $pattern, string $handler, string $middleware = 'web'): void
     {
         $this->addRoute('PATCH', $pattern, $handler, $middleware);
     }
 
     /**
-     * Register a route for any HTTP method.
+     * Register a route matching any of the supported standard HTTP verbs.
+     *
+     * @param string $pattern Route URL pattern.
+     * @param string $handler Controller handler.
+     * @param string $middleware Middleware stack group name.
+     * @return void
      */
     public function any(string $pattern, string $handler, string $middleware = 'web'): void
     {
@@ -75,15 +129,23 @@ final class Router
     }
 
     /**
-     * Internal route registration.
+     * Compile and register a route.
+     *
+     * Converts named parameters in brackets (e.g. `{id}`) to regex groups to prevent parameter injections.
+     *
+     * @param string $method HTTP verb.
+     * @param string $pattern Route URL pattern.
+     * @param string $handler Controller handler string.
+     * @param string $middleware Middleware stack group name.
+     * @return void
      */
     private function addRoute(string $method, string $pattern, string $handler, string $middleware): void
     {
         $paramNames = [];
-        // Convert {param} to regex capture groups
+        // Convert placeholder variables into safe regular expression capture groups.
         $regex = preg_replace_callback('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', static function (array $m) use (&$paramNames): string {
             $paramNames[] = $m[1];
-            // BUG-023 FIX: Removed @ and + to prevent injection via route params
+            // BUG-023: Prevent route-based injection by constraining character set.
             return '([a-zA-Z0-9_\-\.]+)';
         }, $pattern);
 
@@ -98,10 +160,12 @@ final class Router
         ];
     }
 
-    // ——— Route Loading —————————————————————————————————————————
+    // Route Loading and Registration Hook
 
     /**
-     * Load route files and fire plugin hook.
+     * Load core framework routing files and trigger plugin routing registration hook.
+     *
+     * @return void
      */
     public function loadRoutes(): void
     {
@@ -111,7 +175,7 @@ final class Router
 
         $configDir = $this->container->get('config.app')['paths']['config'] ?? dirname(__DIR__, 2) . '/config';
 
-        // Load web routes
+        // Load administration and public web routes.
         $webRoutes = $configDir . '/routes/web.php';
         if (is_file($webRoutes)) {
             $fn = require $webRoutes;
@@ -120,7 +184,7 @@ final class Router
             }
         }
 
-        // Load API routes
+        // Load public and private API routes.
         $apiRoutes = $configDir . '/routes/api.php';
         if (is_file($apiRoutes)) {
             $fn = require $apiRoutes;
@@ -129,7 +193,7 @@ final class Router
             }
         }
 
-        // Allow plugins to register routes
+        // Fire hook allowing loaded plugins to register custom routing paths.
         if ($this->container->has(EventManager::class)) {
             /** @var EventManager $events */
             $events = $this->container->get(EventManager::class);
@@ -139,19 +203,22 @@ final class Router
         $this->loaded = true;
     }
 
-    // ——— Dispatching ———————————————————————————————————————————
+    // Request Matching and Dispatching
 
     /**
-     * Match and dispatch a request.
+     * Match the incoming HTTP request against the registered routes.
      *
-     * @return array{handler: string, params: array<string, string>, middleware: string}|null
+     * Normalizes the path structure and extracts path parameter variables.
+     *
+     * @param \OwnPay\Http\Request $request The incoming HTTP request.
+     * @return array{handler: string, params: array<string, string>, middleware: string}|null Route details or null if unmatched.
      */
     public function match(Request $request): ?array
     {
         $method = $request->method();
         $path   = $request->path();
 
-        // Normalize: strip trailing slash (except root)
+        // Normalize path by stripping trailing slashes except for the root route.
         if ($path !== '/' && str_ends_with($path, '/')) {
             $path = rtrim($path, '/');
         }
@@ -162,7 +229,8 @@ final class Router
 
         foreach ($this->routes[$method] as $route) {
             if (preg_match($route['regex'], $path, $matches)) {
-                array_shift($matches); // Remove full match
+                // Remove full match from regex array to leave only captured named parameters.
+                array_shift($matches);
 
                 $params = [];
                 foreach ($route['paramNames'] as $i => $name) {
@@ -181,11 +249,15 @@ final class Router
     }
 
     /**
-     * Dispatch a matched route — instantiate controller and call method.
+     * Dispatch the request handler by instantiating the controller and executing the targeted method.
      *
-     * @param string $handler Format: 'Namespace\\Controller@method'
-     * @param Request $request
-     * @return Response
+     * Resolves core controller names under 'OwnPay\Controller\' or maps fully-qualified class names
+     * directly for plugin controllers.
+     *
+     * @param string $handler Controller handler reference string (e.g. 'Admin\DashboardController@index').
+     * @param \OwnPay\Http\Request $request The incoming HTTP request.
+     * @return \OwnPay\Http\Response HTTP response object to return.
+     * @throws \RuntimeException If the handler is invalid, controller is missing, or method does not exist.
      */
     public function dispatch(string $handler, Request $request): Response
     {
@@ -195,10 +267,8 @@ final class Router
 
         [$controllerName, $methodName] = explode('@', $handler, 2);
 
-        // AUD-G2 fix: Support fully-qualified class names for plugin controllers.
-        // A FQCN is detected when the class name starts with a vendor/root namespace
-        // that is NOT 'Admin', 'Api', 'Checkout', 'Page', 'Webhook', 'Install' (core sub-namespaces).
-        // Existing routes like 'Admin\\DashboardController' still get the OwnPay\\Controller\\ prefix.
+        // AUD-G2: Support fully-qualified class names for plugin-based controllers.
+        // Determines if a class is a FQCN by checking if its root namespace is a non-core namespace.
         $coreSubNamespaces = ['Admin', 'Api', 'Checkout', 'Page', 'Webhook', 'Install'];
         $firstSegment = explode('\\', $controllerName)[0];
         $isFqcn = str_contains($controllerName, '\\')
@@ -218,17 +288,17 @@ final class Router
 
         $result = $controller->$methodName($request);
 
-        // If controller returns a Response, use it directly
+        // Directly return response objects returned by the controller.
         if ($result instanceof Response) {
             return $result;
         }
 
-        // If array returned, wrap as JSON
+        // Auto-wrap array payloads returned by controllers into JSON response objects.
         if (is_array($result)) {
             return Response::json($result);
         }
 
-        // If string returned, wrap as HTML
+        // Auto-wrap plain string values into HTML response objects.
         if (is_string($result)) {
             return Response::html($result);
         }
@@ -236,12 +306,12 @@ final class Router
         throw new RuntimeException("Controller [{$fqcn}@{$methodName}] must return Response, array, or string.");
     }
 
-    // ——— Introspection —————————————————————————————————————————
+    // Router Introspection and Utility Methods
 
     /**
-     * Get all registered routes (for debugging / documentation).
+     * Retrieve all registered routes for debugging and developer diagnostics.
      *
-     * @return array<string, array<int, array{pattern: string, handler: string, middleware: string}>>
+     * @return array<string, array<int, array{pattern: string, handler: string, middleware: string}>> Registry dictionary.
      */
     public function getRoutes(): array
     {
@@ -259,7 +329,9 @@ final class Router
     }
 
     /**
-     * Count total registered routes.
+     * Get the total count of registered routes across all HTTP verbs.
+     *
+     * @return int Route count.
      */
     public function count(): int
     {
@@ -271,7 +343,11 @@ final class Router
     }
 
     /**
-     * Expose container for use in route files (e.g. reading settings for dynamic slug).
+     * Get the underlying Dependency Injection container.
+     *
+     * Typically used within route configuration files to resolve settings or plugins.
+     *
+     * @return \OwnPay\Container The DI container.
      */
     public function getContainer(): Container
     {

@@ -4,10 +4,14 @@ declare(strict_types=1);
 namespace OwnPay\Enum;
 
 /**
- * TransactionStatus — canonical status values for op_transactions.
+ * Enum TransactionStatus
  *
- * Replaces 21+ magic strings scattered across services/controllers.
- * Use ->value for DB storage, ::from() for deserialization.
+ * Defines the canonical state lifecycle of payment transactions within the system database (op_transactions).
+ * These status states govern transaction eligibility transition rules, determine ledger post triggers
+ * for double-entry bookkeeping (e.g. balancing accounts only upon entering terminal Completed state),
+ * and restrict gateway interaction scopes during checkout execution.
+ *
+ * @package OwnPay\Enum
  */
 enum TransactionStatus: string
 {
@@ -23,8 +27,9 @@ enum TransactionStatus: string
     case Refunded = 'refunded';
 
     /**
-     * Statuses that allow checkout payment submission.
-     * @return self[]
+     * Retrieve status values where checkout payment submissions are actively permitted.
+     *
+     * @return array<int, \OwnPay\Enum\TransactionStatus> An array of active checkout statuses.
      */
     public static function checkoutActive(): array
     {
@@ -32,7 +37,9 @@ enum TransactionStatus: string
     }
 
     /**
-     * SQL IN clause fragment for active checkout statuses.
+     * Generate an SQL IN clause fragment containing escaped active checkout status values.
+     *
+     * @return string SQL safe status value list.
      */
     public static function checkoutActiveIn(): string
     {
@@ -40,19 +47,32 @@ enum TransactionStatus: string
     }
 
     /**
-     * Terminal statuses (no further transitions).
-     * @return self[]
+     * Retrieve statuses representing final terminal nodes in the transaction state machine.
+     *
+     * Terminal statuses prohibit any subsequent programmatic status updates.
+     *
+     * @return array<int, \OwnPay\Enum\TransactionStatus> An array of terminal transaction statuses.
      */
     public static function terminal(): array
     {
         return [self::Completed, self::Failed, self::Cancelled, self::Expired, self::Refunded];
     }
 
+    /**
+     * Determine if this transaction status represents a terminal state.
+     *
+     * @return bool True if terminal, false otherwise.
+     */
     public function isTerminal(): bool
     {
         return in_array($this, self::terminal(), true);
     }
 
+    /**
+     * Retrieve a human-readable display label matching this status.
+     *
+     * @return string The display label.
+     */
     public function label(): string
     {
         return match ($this) {
@@ -69,6 +89,11 @@ enum TransactionStatus: string
         };
     }
 
+    /**
+     * Retrieve the CSS badge color styling identifier associated with this status.
+     *
+     * @return string The color identifier name.
+     */
     public function badgeColor(): string
     {
         return match ($this) {
@@ -81,3 +106,4 @@ enum TransactionStatus: string
         };
     }
 }
+

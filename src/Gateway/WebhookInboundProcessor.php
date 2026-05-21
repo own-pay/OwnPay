@@ -14,22 +14,70 @@ use OwnPay\Repository\TransactionRepository;
 use RuntimeException;
 
 /**
- * WebhookInboundProcessor — secure inbound webhook handler.
+ * Service for securely processing incoming webhook events.
  *
- * Validates HMAC signatures, deduplicates events, and routes
- * payment status updates through the PaymentService state machine.
+ * Validates cryptographic signatures, performs timestamp skew checks, prevents event
+ * duplication using database-level uniqueness, and transitions payment records.
  */
 final class WebhookInboundProcessor
 {
+    /**
+     * Maximum allowed timestamp skew in seconds to prevent replay attacks.
+     */
     private const MAX_TIMESTAMP_SKEW = 300;
 
+    /**
+     * Database interface instance.
+     *
+     * @var Database
+     */
     private Database $db;
+
+    /**
+     * Transaction state manipulation service.
+     *
+     * @var TransactionService
+     */
     private TransactionService $transactionService;
+
+    /**
+     * Transaction database repository.
+     *
+     * @var TransactionRepository
+     */
     private TransactionRepository $transactionRepo;
+
+    /**
+     * System audit logger instance.
+     *
+     * @var AuditLogger
+     */
     private AuditLogger $audit;
+
+    /**
+     * System application logger instance.
+     *
+     * @var Logger
+     */
     private Logger $logger;
+
+    /**
+     * Double-entry bookkeeping ledger service.
+     *
+     * @var LedgerService
+     */
     private LedgerService $ledgerService;
 
+    /**
+     * Initializes the webhook processor with necessary system dependencies.
+     *
+     * @param Database $db Database interface instance.
+     * @param TransactionService $transactionService Transaction state manipulation service.
+     * @param TransactionRepository $transactionRepo Transaction database repository.
+     * @param AuditLogger $audit System audit logger instance.
+     * @param Logger $logger System application logger instance.
+     * @param LedgerService $ledgerService Double-entry bookkeeping ledger service.
+     */
     public function __construct(
         Database $db,
         TransactionService $transactionService,
@@ -47,8 +95,13 @@ final class WebhookInboundProcessor
     }
 
     /**
-     * Process an inbound webhook request.
-     * Decomposed: extractHeaders → validate → dedup → parse → route.
+     * Processes an incoming webhook request payload.
+     *
+     * @param string $rawBody The raw, unmodified HTTP request body.
+     * @param array<string, string> $headers Raw incoming HTTP headers.
+     * @param string $secret Signature secret key configured for the webhook route.
+     * @param int $merchantId Active brand/store identifier context.
+     * @return array{accepted: bool, message: string, event_id: string} Verification and processing results.
      */
     public function process(string $rawBody, array $headers, string $secret, int $merchantId): array
     {
@@ -82,10 +135,13 @@ final class WebhookInboundProcessor
         return $this->executeEvent($eventType, $payload, $merchantId, $eventId, $payloadHash);
     }
 
-    // ── Extracted Methods ─────────────────────────────────────────
-
     /**
-     * Extract webhook-specific headers.
+     * Extracts and normalizes webhook-specific request headers.
+     *
+     * Normalizes header names to lowercase to guarantee case-insensitive retrieval.
+     *
+     * @param array<string, string> $headers All request headers.
+     * @return array{signature: string, timestamp: string, eventId: string, eventType: string} Normalized webhook meta.
      */
     private function extractWebhookHeaders(array $headers): array
     {
@@ -104,8 +160,12 @@ final class WebhookInboundProcessor
     }
 
     /**
-     * Validate headers, timestamp freshness, HMAC signature.
-     * @return array|null null if valid, error result otherwise
+     * Validates headers format, checks timestamp freshness, and evaluates the HMAC signature.
+     *
+     * @param array{signature: string, timestamp: string, eventId: string, eventType: string} $wh Extracted header elements.
+     * @param string $rawBody Raw HTTP body payload.
+     * @param string $secret Configured webhook signing secret.
+     * @return array{accepted: bool, message: string, event_id: string}|null Null if request is valid, error payload array otherwise.
      */
     private function validateRequest(array $wh, string $rawBody, string $secret): ?array
     {
@@ -127,7 +187,13 @@ final class WebhookInboundProcessor
     }
 
     /**
-     * Record webhook event for audit trail.
+     * Persists inbound webhook metadata in the database for debugging and audit trails.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param string $eventId Unique identifier code of the webhook event.
+     * @param string $eventType Category/type of the incoming event (e.g. 'payment.completed').
+     * @param string $payloadHash SHA-256 hash representation of the raw payload body.
+     * @return void
      */
     private function recordEvent(int $merchantId, string $eventId, string $eventType, string $payloadHash): void
     {
@@ -144,7 +210,14 @@ final class WebhookInboundProcessor
     }
 
     /**
-     * Execute event handler with error recovery.
+     * Executes the routing logic inside a managed catch block to handle process errors gracefully.
+     *
+     * @param string $eventType Category/type of the incoming event.
+     * @param array<string, mixed> $payload Parsed payload parameters.
+     * @param int $merchantId Active brand/store identifier context.
+     * @param string $eventId Unique identifier code of the webhook event.
+     * @param string $payloadHash SHA-256 hash representation of the raw payload body.
+     * @return array{accepted: bool, message: string, event_id: string} Result status description.
      */
     private function executeEvent(string $eventType, array $payload, int $merchantId, string $eventId, string $payloadHash): array
     {
@@ -162,7 +235,13 @@ final class WebhookInboundProcessor
     }
 
     /**
-     * Update status in op_webhook_deliveries.
+     * Updates the delivery record status and logs error context when execution fails.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param string $payloadHash SHA-256 hash representation of the raw payload body.
+     * @param string $status State transition label (e.g. 'delivered', 'failed').
+     * @param string|null $error Explanatory exception log string.
+     * @return void
      */
     private function updateDeliveryStatus(int $merchantId, string $payloadHash, string $status, ?string $error = null): void
     {
@@ -181,15 +260,26 @@ final class WebhookInboundProcessor
     }
 
     /**
-     * Build standardized result.
+     * Generates a standard process result array.
+     *
+     * @param bool $accepted Boolean indicating processing validation state.
+     * @param string $message Explanatory response string.
+     * @param string $eventId Identifier code of the webhook event.
+     * @return array{accepted: bool, message: string, event_id: string} Standard webhook outcome layout.
      */
     private function result(bool $accepted, string $message, string $eventId): array
     {
         return ['accepted' => $accepted, 'message' => $message, 'event_id' => $eventId];
     }
 
-    // ── Event Routing ─────────────────────────────────────────────
-
+    /**
+     * Routes the parsed webhook payload based on the event classification code.
+     *
+     * @param string $eventType Category/type of the incoming event.
+     * @param array<string, mixed> $payload Parsed payload parameters.
+     * @param int $merchantId Active brand/store identifier context.
+     * @return void
+     */
     private function routeEvent(string $eventType, array $payload, int $merchantId): void
     {
         match ($eventType) {
@@ -202,6 +292,15 @@ final class WebhookInboundProcessor
         };
     }
 
+    /**
+     * Processes completed payments, updating repositories and registering journal entries.
+     *
+     * Ensures transaction is not already resolved before running database updates.
+     *
+     * @param array<string, mixed> $payload Event data content.
+     * @param int $merchantId Active brand/store identifier context.
+     * @return void
+     */
     private function handlePaymentCompleted(array $payload, int $merchantId): void
     {
         $txn = $this->resolveTransaction($payload, $merchantId);
@@ -220,6 +319,14 @@ final class WebhookInboundProcessor
         }
     }
 
+    /**
+     * Manages terminal payment state updates such as cancellations or processing failures.
+     *
+     * @param array<string, mixed> $payload Event data content.
+     * @param int $merchantId Active brand/store identifier context.
+     * @param string $status The target state to request.
+     * @return void
+     */
     private function handlePaymentStatusChange(array $payload, int $merchantId, string $status): void
     {
         $reference = $payload['data']['reference'] ?? $payload['data']['transaction_id'] ?? '';
@@ -235,6 +342,13 @@ final class WebhookInboundProcessor
         };
     }
 
+    /**
+     * Records refund events, modifying transaction states and issuing counter-ledger entries.
+     *
+     * @param array<string, mixed> $payload Event data content.
+     * @param int $merchantId Active brand/store identifier context.
+     * @return void
+     */
     private function handleRefundCompleted(array $payload, int $merchantId): void
     {
         $reference = $payload['data']['reference'] ?? $payload['data']['transaction_id'] ?? '';
@@ -253,16 +367,26 @@ final class WebhookInboundProcessor
         }
     }
 
+    /**
+     * Log details of newly received disputes to the audit trail.
+     *
+     * @param array<string, mixed> $payload Event data content.
+     * @param int $merchantId Active brand/store identifier context.
+     * @return void
+     */
     private function handleDisputeCreated(array $payload, int $merchantId): void
     {
         /** @phpstan-ignore-next-line */
-            $this->audit->log($merchantId, 'dispute.webhook_received', 'transaction', $payload['data']['reference'] ?? 'unknown', 'system', 'webhook_processor', null, $payload['data'] ?? []);
+        $this->audit->log($merchantId, 'dispute.webhook_received', 'transaction', $payload['data']['reference'] ?? 'unknown', 'system', 'webhook_processor', null, $payload['data'] ?? []);
     }
 
-    // ── Helpers ────────────────────────────────────────────────────
-
     /**
-     * Resolve transaction or throw.
+     * Resolves a transaction record based on payment reference, throwing if missing or invalid.
+     *
+     * @param array<string, mixed> $payload Event data content.
+     * @param int $merchantId Active brand/store identifier context.
+     * @return array<string, mixed> Resolved database transaction row parameters.
+     * @throws RuntimeException If transaction reference is invalid or missing in context.
      */
     private function resolveTransaction(array $payload, int $merchantId): array
     {
@@ -274,7 +398,11 @@ final class WebhookInboundProcessor
     }
 
     /**
-     * Find transaction by trx_id or reference.
+     * Searches database transaction registries for specific transaction ID or references.
+     *
+     * @param string $reference Unique reference key or transaction ID code.
+     * @param int $merchantId Active brand/store identifier context.
+     * @return array<string, mixed>|null Database row array or null if not matching.
      */
     private function findTransaction(string $reference, int $merchantId): ?array
     {
@@ -283,7 +411,11 @@ final class WebhookInboundProcessor
     }
 
     /**
-     * Extract normalized headers from $_SERVER.
+     * Reconstructs incoming request headers from PHP global environment variables.
+     *
+     * Normalizes server parameters (HTTP_ prefix) to build a consistent header key map.
+     *
+     * @return array<string, string> Extracted and normalized header set.
      */
     public static function extractHeaders(): array
     {

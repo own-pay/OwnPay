@@ -6,22 +6,43 @@ namespace OwnPay\Service\Auth;
 use OwnPay\Repository\RoleRepository;
 
 /**
- * Permission guard — checks if user has specific permission.
+ * OwnPay RBAC Permission Guard Service.
+ *
+ * Provides granular evaluation of role capabilities against requested permission keys,
+ * utilizing a localized in-memory runtime cache to reduce duplicate query iterations.
+ *
+ * @package OwnPay\Service\Auth
  */
 final class PermissionGuard
 {
+    /**
+     * @var RoleRepository The repository managing user role assignments and permissions.
+     */
     private RoleRepository $roles;
 
-    /** @var array<int, string[]> Cached permissions by role_id */
+    /**
+     * @var array<int, string[]> Cached permissions index mapped by role identifier.
+     */
     private array $cache = [];
 
+    /**
+     * PermissionGuard constructor.
+     *
+     * @param RoleRepository $roles Role repository data gateway.
+     */
     public function __construct(RoleRepository $roles)
     {
         $this->roles = $roles;
     }
 
     /**
-     * Check if role has permission.
+     * Asserts whether a role is authorized for a specific permission slug.
+     *
+     * Supports global wildcard capability validation ('*').
+     *
+     * @param int $roleId The primary identifier of the role.
+     * @param string $permission The permission slug to evaluate.
+     * @return bool True if authorized; false otherwise.
      */
     public function can(int $roleId, string $permission): bool
     {
@@ -30,7 +51,11 @@ final class PermissionGuard
     }
 
     /**
-     * Check if role has ANY of the given permissions.
+     * Asserts whether a role is authorized for at least one of the provided permission slugs.
+     *
+     * @param int $roleId The primary identifier of the role.
+     * @param string[] $permissions The list of target permission slugs.
+     * @return bool True if authorized for any; false otherwise.
      */
     public function canAny(int $roleId, array $permissions): bool
     {
@@ -42,7 +67,11 @@ final class PermissionGuard
     }
 
     /**
-     * Check if role has ALL of the given permissions.
+     * Asserts whether a role is authorized for all of the provided permission slugs.
+     *
+     * @param int $roleId The primary identifier of the role.
+     * @param string[] $permissions The list of target permission slugs.
+     * @return bool True if authorized for all; false otherwise.
      */
     public function canAll(int $roleId, array $permissions): bool
     {
@@ -54,7 +83,10 @@ final class PermissionGuard
     }
 
     /**
-     * @return string[]
+     * Resolves and caches the list of permission slugs configured for a specific role.
+     *
+     * @param int $roleId The primary identifier of the role.
+     * @return string[] List of authorization slugs.
      */
     public function permissionsFor(int $roleId): array
     {

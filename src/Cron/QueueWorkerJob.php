@@ -6,20 +6,44 @@ namespace OwnPay\Cron;
 use OwnPay\Service\System\Logger;
 
 /**
- * Queue worker job — processes async job queue.
+ * Class QueueWorkerJob
  *
- * Jobs are stored in op_job_queue with type, payload, status, attempts.
+ * Enterprise queue processor running as a cron worker.
+ * Dequeues and dispatches background tasks registered in the `op_job_queue` table using
+ * configurable type-handlers, transaction concurrency management, and retry backoff mechanics.
+ *
+ * @package OwnPay\Cron
  */
 final class QueueWorkerJob
 {
+    /**
+     * @var \OwnPay\Core\Database The database connection instance.
+     */
     private \OwnPay\Core\Database $db;
+
+    /**
+     * @var Logger Logger for queue activity, errors, and backoff warnings.
+     */
     private Logger $logger;
 
-    /** @var array<string, callable> Job handlers keyed by type */
+    /**
+     * Set of handler closures mapped by their respective job types.
+     *
+     * @var array<string, callable>
+     */
     private array $handlers = [];
 
+    /**
+     * The maximum number of retry attempts allowed before marking a job permanently failed.
+     */
     private const MAX_ATTEMPTS = 3;
 
+    /**
+     * QueueWorkerJob constructor.
+     *
+     * @param \OwnPay\Core\Database $db     The database connection instance.
+     * @param Logger|null          $logger Optional logger service instance.
+     */
     public function __construct(\OwnPay\Core\Database $db, ?Logger $logger = null)
     {
         $this->db = $db;
@@ -27,7 +51,11 @@ final class QueueWorkerJob
     }
 
     /**
-     * Register job handler.
+     * Registers a callback handler for a specific job type.
+     *
+     * @param string   $type    The string key naming the job type.
+     * @param callable $handler Callable executing the target task logic.
+     * @return void
      */
     public function registerHandler(string $type, callable $handler): void
     {
@@ -35,7 +63,13 @@ final class QueueWorkerJob
     }
 
     /**
-     * Process queued jobs (batch).
+     * Processes a batch of eligible queued jobs from the database.
+     *
+     * Selects pending tasks, marks them as processing with atomic validation,
+     * routes them to their registered type-handlers, and updates execution metrics or schedules retries.
+     *
+     * @param int $batchSize Maximum number of jobs to fetch in this batch.
+     * @return array{processed: int, failed: int, total: int} Status counts of processed, failed, and total checked jobs.
      */
     public function run(int $batchSize = 20): array
     {
@@ -53,8 +87,8 @@ final class QueueWorkerJob
         $failed = 0;
 
         foreach ($jobs as $job) {
-            // Lock job atomically
-            // BUG-52 FIX: Check row count — if 0, another worker claimed this job.
+            // Acquire exclusive database lock on the job record atomically to avoid race conditions.
+            // Check updated row count; if zero, another worker process has already claimed this execution sequence.
             $affected = $this->db->update(
                 "UPDATE op_job_queue SET status = 'processing', started_at = NOW() WHERE id = :id AND status = 'pending'",
                 ['id' => $job['id']]
@@ -89,7 +123,7 @@ final class QueueWorkerJob
                 $attempts = (int) ($job['attempts'] ?? 0) + 1;
                 $status = $attempts >= self::MAX_ATTEMPTS ? 'failed' : 'pending';
 
-                // Exponential backoff for retry
+                // Compute exponential backoff time interval to delay retrying this failed queue execution.
                 $backoffSeconds = $attempts * $attempts * 60; // 1m, 4m, 9m
                 $this->db->update(
                     "UPDATE op_job_queue SET status = :status, attempts = :att, error = :err,

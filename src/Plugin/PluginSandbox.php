@@ -4,16 +4,37 @@ declare(strict_types=1);
 namespace OwnPay\Plugin;
 
 /**
- * Plugin sandbox - restricts what plugins can access.
+ * Security sandbox isolation layer for plugin execution.
  *
- * Per security skill: plugins cannot access raw DB, filesystem outside their dir,
- * or core internals directly. They interact through provided APIs only.
+ * Restricts plugin resource access by validating file system operations, sanitizing and
+ * auditing SQL statements, and blocking execution of dangerous PHP system functions.
+ * Enforces strict isolation boundaries to maintain payment platform integrity.
+ *
+ * @category Plugin
+ * @package  OwnPay\Plugin
  */
 final class PluginSandbox
 {
+    /**
+     * Absolute path to the plugin directory.
+     *
+     * @var string
+     */
     private string $pluginDir;
+
+    /**
+     * List of capabilities explicitly granted to this plugin.
+     *
+     * @var array<int, string>
+     */
     private array $allowedCapabilities;
 
+    /**
+     * PluginSandbox constructor.
+     *
+     * @param string             $pluginDir    Directory containing the plugin files.
+     * @param array<int, string> $capabilities List of allowed capability strings.
+     */
     public function __construct(string $pluginDir, array $capabilities)
     {
         $this->pluginDir = realpath($pluginDir) ?: $pluginDir;
@@ -21,26 +42,32 @@ final class PluginSandbox
     }
 
     /**
-     * Validate file access is within plugin directory.
+     * Validates that a file access attempt is confined within the plugin directory.
+     *
+     * Appends a directory separator prefix during validation to prevent sibling folder traversal
+     * (e.g., ensuring /stripe-payment does not match /stripe).
+     *
+     * @param string $path Target file or directory path.
+     * @return bool True if path resides safely within the plugin directory boundaries.
      */
     public function validateFilePath(string $path): bool
     {
         $real = realpath($path);
         if ($real === false) {
-            // File doesn't exist yet - check parent
             $real = realpath(dirname($path));
             if ($real === false) {
                 return false;
             }
         }
-        // BUG-51 FIX: Append trailing separator to prevent sibling-plugin path traversal.
-        // Without this, plugin dir "/stripe" could match "/stripe-payment/file.php".
         $pluginDirWithSep = rtrim($this->pluginDir, '/\\') . DIRECTORY_SEPARATOR;
         return str_starts_with($real, $pluginDirWithSep) || $real === rtrim($this->pluginDir, '/\\');
     }
 
     /**
-     * Check if plugin has required capability.
+     * Verifies if the plugin possesses a requested capability.
+     *
+     * @param string $capability Unique capability identifier.
+     * @return bool True if the capability is explicitly allowed.
      */
     public function hasCapability(string $capability): bool
     {
@@ -48,21 +75,20 @@ final class PluginSandbox
     }
 
     /**
-     * Validate SQL - plugins can only use whitelisted table prefixes.
-     * Prevents direct access to core tables.
+     * Audits SQL queries to prevent SQL Injection, table escape, and structural alterations.
+     *
+     * Strips SQL comments and collapses whitespaces to mitigate bypass attempts before checking
+     * for blocked statements (e.g., DROP, ALTER, load_file) and direct access to system-level tables.
+     *
+     * @param string $sql Raw SQL query string.
+     * @return bool True if the SQL query conforms to security policies.
      */
     public function validateSql(string $sql): bool
     {
-        // Strip comments and normalize before validation to prevent bypasses.
-        // Remove block comments (/* ... */) - prevents DR/**/OP bypass
         $sql = preg_replace('/\/\*.*?\*\//s', ' ', $sql) ?? $sql;
-        // Remove line comments (-- ... \n)
         $sql = preg_replace('/--.*$/m', ' ', $sql) ?? $sql;
-        // Collapse whitespace
         $sql = preg_replace('/\s+/', ' ', strtolower(trim($sql))) ?? $sql;
 
-        // BUG-013 FIX: Use regex word-boundary matching instead of str_contains.
-        // Prevents bypass via tabs, newlines, unicode spaces, or comment injection.
         $blocked = [
             'drop', 'truncate', 'alter', 'grant', 'revoke',
             'load_file', 'into\\s+outfile', 'into\\s+dumpfile',
@@ -73,9 +99,7 @@ final class PluginSandbox
             return false;
         }
 
-        // Plugins can only access op_plugin_* tables or their own prefixed tables
         if (preg_match_all('/\bop_(?!plugin)[a-z_]+\b/', $sql, $matches)) {
-            // Accessing core tables directly - blocked
             return false;
         }
 
@@ -83,14 +107,20 @@ final class PluginSandbox
     }
 
     /**
-     * Validate function call - block dangerous PHP functions.
+     * Determines whether a PHP function is flagged as dangerous.
+     *
+     * Blocks system execution commands, arbitrary evaluation commands, direct OS commands,
+     * and destructive filesystem modifications.
+     *
+     * @param string $function Function name to inspect.
+     * @return bool True if the function is dangerous and must be blocked.
      */
     public static function isDangerousFunction(string $function): bool
     {
         $dangerous = [
             'exec', 'shell_exec', 'system', 'passthru', 'popen', 'proc_open',
             'eval', 'assert', 'create_function',
-            'file_put_contents', // Use plugin API instead
+            'file_put_contents',
             'unlink', 'rmdir', 'rename', 'chmod', 'chown',
             'putenv',
             'dl',
@@ -99,7 +129,9 @@ final class PluginSandbox
     }
 
     /**
-     * Get sandboxed storage path for plugin data.
+     * Resolves and prepares the dedicated sandboxed storage directory path for the plugin.
+     *
+     * @return string Absolute directory path.
      */
     public function storagePath(): string
     {

@@ -6,19 +6,41 @@ namespace OwnPay\Service\Notification;
 use OwnPay\Support\DateHelper;
 
 /**
- * Mobile notification service — sends push notifications to paired devices.
+ * Service managing mobile push notifications for paired devices.
+ *
+ * Handles formatting, queuing, polling, and cleaning up notifications
+ * intended for companion application devices.
  */
 final class MobileNotificationService
 {
+    /**
+     * @var mixed Repository interface or database handler resolving notifications storage.
+     */
     private $repo;
 
+    /**
+     * Constructs a new MobileNotificationService instance.
+     *
+     * @param mixed|null $repo Optional custom notification repository instance.
+     */
     public function __construct($repo = null)
     {
         $this->repo = $repo;
     }
 
     /**
-     * Queue payment notification for device.
+     * Queues a payment-related notification for a paired companion device.
+     *
+     * Maps generic event tags to appropriate local notification types, formats bodies
+     * containing amounts and details, and stores the resulting event record.
+     *
+     * @param string $deviceUuid Cryptographic identifier of target device.
+     * @param string $type Transaction type category ('credit', 'received', 'debit', 'sent', etc).
+     * @param string|float|int|null $amount Value/amount involved in the transaction.
+     * @param string|null $senderName Name or label identifying the transaction party.
+     * @param string|null $trxId Unique transaction reference identifier.
+     * @param string|null $smsFrom Gateway identifier/address initiating the transaction notification.
+     * @return int Created notification entry ID or status code indicator.
      */
     public function queuePaymentNotification(
         string $deviceUuid,
@@ -28,7 +50,6 @@ final class MobileNotificationService
         $trxId = null,
         $smsFrom = null
     ): int {
-        // Map type
         $mappedType = match ($type) {
             'credit', 'received' => 'payment_received',
             'debit', 'sent'      => 'payment_sent',
@@ -41,7 +62,6 @@ final class MobileNotificationService
             default            => 'Transaction Detected',
         };
 
-        // Format body
         if ($amount === null && $senderName === null && $trxId === null) {
             $body = 'New transaction detected.';
         } else {
@@ -96,7 +116,6 @@ final class MobileNotificationService
             }
         }
 
-        // Store in notification queue table/file for async processing
         $this->queueNotification([
             'device_uuid' => $deviceUuid,
             'type'        => 'payment_' . $type,
@@ -113,7 +132,11 @@ final class MobileNotificationService
     }
 
     /**
-     * Poll for notifications.
+     * Polls active mobile device notifications.
+     *
+     * @param string $deviceUuid Unique identifier of the polling device.
+     * @param string|null $since ISO timestamp cursor representing the last poll boundary.
+     * @return array{notifications: array<int, array<string, mixed>>, unread_count: int, poll_interval_seconds: int} Poll results packet.
      */
     public function poll(string $deviceUuid, ?string $since = null): array
     {
@@ -145,7 +168,11 @@ final class MobileNotificationService
     }
 
     /**
-     * Mark notifications as read.
+     * Marks a list of device notification records as read.
+     *
+     * @param string $deviceUuid Unique identifier of the targeting device.
+     * @param int[]|string[] $ids List of notification identifiers to flag.
+     * @return int Count of marked notification records.
      */
     public function markRead(string $deviceUuid, array $ids): int
     {
@@ -156,7 +183,10 @@ final class MobileNotificationService
     }
 
     /**
-     * Cleanup old notifications.
+     * Purges historic read notifications beyond the specified day age.
+     *
+     * @param int $olderThanDays Age threshold in days.
+     * @return int Count of deleted notification database records.
      */
     public function cleanup(int $olderThanDays): int
     {
@@ -167,7 +197,13 @@ final class MobileNotificationService
     }
 
     /**
-     * Queue general notification.
+     * Queues and sends a general notifications message packet.
+     *
+     * @param string $deviceUuid Cryptographic identifier of target device.
+     * @param string $title Title header text.
+     * @param string $body Body text description.
+     * @param array<string, mixed> $data Associated parameters payload.
+     * @return void
      */
     public function send(string $deviceUuid, string $title, string $body, array $data = []): void
     {
@@ -180,6 +216,12 @@ final class MobileNotificationService
         ]);
     }
 
+    /**
+     * Stores a notification payload in the system temp directory fallback queue.
+     *
+     * @param array<string, mixed> $payload Notification payload.
+     * @return void
+     */
     private function queueNotification(array $payload): void
     {
         $file = sys_get_temp_dir() . '/op_notifications.json';

@@ -7,14 +7,29 @@ use OwnPay\Repository\AuditLogRepository;
 use OwnPay\Service\Admin\AdminSession;
 
 /**
- * Convenience wrapper for audit logging.
- * Captures user context from injected AdminSession.
+ * Service providing session-aware wrappers for audit log collection.
+ *
+ * Automatically captures details (such as current user ID, active merchant brand, IP address,
+ * and user agent) from the session and HTTP request scopes, routing data directly to the AuditLogRepository.
  */
 final class AuditService
 {
+    /**
+     * @var AuditLogRepository The repository storing audit logs.
+     */
     private AuditLogRepository $repo;
+
+    /**
+     * @var AdminSession|null Wrapper around active session information.
+     */
     private ?AdminSession $session;
 
+    /**
+     * AuditService constructor.
+     *
+     * @param AuditLogRepository $repo The repository for recording log items.
+     * @param AdminSession|null $session Session instance, resolving user and merchant contexts.
+     */
     public function __construct(AuditLogRepository $repo, ?AdminSession $session = null)
     {
         $this->repo = $repo;
@@ -22,7 +37,16 @@ final class AuditService
     }
 
     /**
-     * Log an audit event using current session context.
+     * Logs an audit record with session parameters.
+     *
+     * Falls back to resolving the brand/merchant context and resolves user attribution.
+     *
+     * @param string $action The action identifier (e.g. 'settings.update').
+     * @param string|null $entityType The entity class being edited.
+     * @param int|null $entityId The unique database identifier of the entity.
+     * @param array<string, mixed>|null $oldValues Entity state before the action.
+     * @param array<string, mixed>|null $newValues Entity state after the action.
+     * @return void
      */
     public function log(
         string $action,

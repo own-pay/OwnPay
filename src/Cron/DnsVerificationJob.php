@@ -5,16 +5,35 @@ namespace OwnPay\Cron;
 
 use OwnPay\Repository\DomainRepository;
 use OwnPay\Service\Domain\DnsVerifier;
-use OwnPay\Support\DateHelper;
+use OwnPay\Support\DateHelper;
 
 /**
- * DNS verification job — re-checks pending domains every 6 hours.
+ * Class DnsVerificationJob
+ *
+ * Enterprise cron job executing DNS token-based TXT record verification for pending merchant custom domains.
+ * Ensures the white-label custom domain pipeline resolves correctly, maintaining TLS and hosting validation
+ * standards. Auto-deletes domains remaining unverified for more than 7 days.
+ *
+ * @package OwnPay\Cron
  */
 final class DnsVerificationJob
 {
+    /**
+     * @var DomainRepository Repository handling white-label merchant custom domains.
+     */
     private DomainRepository $domains;
+
+    /**
+     * @var DnsVerifier Service verifying the existence of target DNS TXT records.
+     */
     private DnsVerifier $verifier;
 
+    /**
+     * DnsVerificationJob constructor.
+     *
+     * @param DomainRepository $domains  Repository handling white-label merchant custom domains.
+     * @param DnsVerifier      $verifier Service verifying the existence of target DNS TXT records.
+     */
     public function __construct(DomainRepository $domains, DnsVerifier $verifier)
     {
         $this->domains = $domains;
@@ -22,8 +41,12 @@ final class DnsVerificationJob
     }
 
     /**
-     * Run verification for all pending domains.
-     * @return array{verified: int, failed: int}
+     * Runs verification for all pending custom domains.
+     *
+     * Queries domain records with status pending, checks validation TXT records, and updates
+     * matching merchant custom domains to active status or prunes old expired entries.
+     *
+     * @return array{verified: int, failed: int} Results matrix of verified versus failed domain records.
      */
     public function run(): array
     {
@@ -47,7 +70,7 @@ final class DnsVerificationJob
                 $verified++;
             } else {
                 $failed++;
-                // Auto-remove after 7 days unverified
+                // Prune the pending domain entry if verification remains unresolved after the 7-day validation threshold.
                 $createdAt = (new \DateTimeImmutable($domain['created_at']))->getTimestamp();
                 /** @phpstan-ignore-next-line */
                 if ($createdAt !== false && (time() - $createdAt) > 604800) {

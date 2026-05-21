@@ -8,42 +8,51 @@ use InvalidArgumentException;
 use RuntimeException;
 
 /**
- * Lightweight PSR-11 compatible DI container.
+ * Lightweight PSR-11 compatible Dependency Injection (DI) container.
  *
- * Supports:
- * - Singleton and transient bindings
- * - Factory closures with auto-injection of container
- * - Parameter binding for primitives
- * - Alias resolution
- * - Lazy instantiation (services created only when first requested)
+ * Supports singleton and transient bindings, autowiring via reflection,
+ * parameter bindings, and aliasing.
  */
 final class Container
 {
-    /** @var array<string, Closure> Factory closures keyed by abstract name */
+    /**
+     * @var array<string, \Closure> Factory closures keyed by abstract service names.
+     */
     private array $bindings = [];
 
-    /** @var array<string, mixed> Resolved singleton instances */
+    /**
+     * @var array<string, mixed> Cached singleton instances resolved at runtime.
+     */
     private array $instances = [];
 
-    /** @var array<string, bool> Whether a binding should be treated as singleton */
+    /**
+     * @var array<string, bool> Tracks which registered bindings are singletons.
+     */
     private array $singletons = [];
 
-    /** @var array<string, string> Alias ─ concrete mapping */
+    /**
+     * @var array<string, string> Alias mapping of abstract names to concrete service classes.
+     */
     private array $aliases = [];
 
-    /** @var array<string, mixed> Raw parameter values */
+    /**
+     * @var array<string, mixed> Raw parameters (primitives/arrays) injected into services.
+     */
     private array $parameters = [];
 
-    /** @var array<string, bool> Guard against circular dependencies */
+    /**
+     * @var array<string, bool> Active resolution guard tracking to prevent circular dependencies.
+     */
     private array $resolving = [];
 
-    // ——— Binding ———————————————————————————————————————————————
+    // Service Binding Operations
 
     /**
-     * Register a factory closure. Transient by default.
+     * Register a transient service factory closure.
      *
-     * @param string  $abstract Service identifier (class name or alias)
-     * @param Closure $factory  fn(Container): mixed
+     * @param string $abstract Service identifier or class name.
+     * @param \Closure $factory Factory closure used to instantiate the service.
+     * @return void
      */
     public function bind(string $abstract, Closure $factory): void
     {
@@ -52,10 +61,11 @@ final class Container
     }
 
     /**
-     * Register a factory that will be resolved once and cached.
+     * Register a singleton service factory closure.
      *
-     * @param string  $abstract Service identifier
-     * @param Closure $factory  fn(Container): mixed
+     * @param string $abstract Service identifier or class name.
+     * @param \Closure $factory Factory closure resolved once and cached as a singleton.
+     * @return void
      */
     public function singleton(string $abstract, Closure $factory): void
     {
@@ -65,10 +75,11 @@ final class Container
     }
 
     /**
-     * Register a pre-built instance directly.
+     * Bind a pre-constructed instance directly into the container.
      *
-     * @param string $abstract Service identifier
-     * @param mixed  $instance The concrete instance
+     * @param string $abstract Service identifier or class name.
+     * @param mixed $instance The pre-built concrete instance.
+     * @return void
      */
     public function instance(string $abstract, mixed $instance): void
     {
@@ -78,10 +89,12 @@ final class Container
     }
 
     /**
-     * Create an alias that points to another binding.
+     * Define an alias pointing to an existing service mapping.
      *
-     * @param string $alias    The alias name
-     * @param string $concrete The target binding
+     * @param string $alias The shortcut or alias name.
+     * @param string $concrete The targeted class or service name.
+     * @return void
+     * @throws \InvalidArgumentException If the alias attempts to point to itself.
      */
     public function alias(string $alias, string $concrete): void
     {
@@ -94,36 +107,42 @@ final class Container
     }
 
     /**
-     * Store a raw parameter value (non-service).
+     * Bind a raw parameter value into the container's registry.
+     *
+     * @param string $key Parameter name/key.
+     * @param mixed $value Raw parameter value (scalar, array, or object).
+     * @return void
      */
     public function parameter(string $key, mixed $value): void
     {
         $this->parameters[$key] = $value;
     }
 
-    // ——— Resolution ————————————————————————————————————————————
+    // Service Resolution Operations
 
     /**
-     * Resolve a service from the container. PSR-11 `get()`.
+     * Retrieve and resolve a registered service by its identifier.
      *
-     * @throws RuntimeException If binding not found or circular dependency detected
+     * Part of the PSR-11 container interface implementation.
+     *
+     * @param string $abstract Service identifier (fully qualified class name or alias).
+     * @return mixed Resolved service instance.
+     * @throws \RuntimeException If the service cannot be resolved or a circular dependency is hit.
      */
     public function get(string $abstract): mixed
     {
-        // Resolve alias chain
+        // Traverses alias chains to find the canonical abstract service name.
         $abstract = $this->resolveAlias($abstract);
 
-        // Return cached singleton
+        // Returns the cached singleton instance immediately if previously resolved.
         if (isset($this->instances[$abstract])) {
             return $this->instances[$abstract];
         }
 
         if (!isset($this->bindings[$abstract])) {
-            // AUD-P4 fix: Removed hardcoded repository shortcut that assumed single-arg
-            // constructor (Database only). Now all classes including repos go through
-            // reflection-based autowire() which handles any constructor signature.
-
-            // Generic Autowiring via Reflection
+            // AUD-P4: Bypass hardcoded single-argument repository bindings.
+            // Delegate resolution of all unregistered classes (including repositories)
+            // to the autowire reflection layer to dynamically build dependency graphs.
             if (class_exists($abstract)) {
                 return $this->autowire($abstract);
             }
@@ -133,7 +152,7 @@ final class Container
             );
         }
 
-        // Circular dependency guard
+        // Guards against infinite loops resulting from circular class injection.
         if (isset($this->resolving[$abstract])) {
             throw new RuntimeException(
                 "Circular dependency detected while resolving [{$abstract}]."
@@ -148,7 +167,7 @@ final class Container
             unset($this->resolving[$abstract]);
         }
 
-        // Cache if singleton
+        // Cache the instantiated service if marked as a singleton.
         if (isset($this->singletons[$abstract])) {
             $this->instances[$abstract] = $instance;
         }
@@ -157,7 +176,12 @@ final class Container
     }
 
     /**
-     * Check if a binding or instance exists. PSR-11 `has()`.
+     * Check if a service binding or cached instance exists in the container.
+     *
+     * Part of the PSR-11 container interface implementation.
+     *
+     * @param string $abstract Service identifier.
+     * @return bool True if registered, false otherwise.
      */
     public function has(string $abstract): bool
     {
@@ -168,9 +192,11 @@ final class Container
     }
 
     /**
-     * Retrieve a raw parameter value.
+     * Fetch a raw parameter value from the parameters registry.
      *
-     * @throws RuntimeException If parameter not found
+     * @param string $key Parameter identifier.
+     * @return mixed The raw parameter value.
+     * @throws \RuntimeException If the parameter is not defined.
      */
     public function param(string $key): mixed
     {
@@ -183,7 +209,10 @@ final class Container
     }
 
     /**
-     * Check if a parameter exists.
+     * Verify if a parameter is defined in the registry.
+     *
+     * @param string $key Parameter identifier.
+     * @return bool True if it exists, false otherwise.
      */
     public function hasParam(string $key): bool
     {
@@ -191,11 +220,16 @@ final class Container
     }
 
     /**
-     * Resolve an alias chain to its final concrete name.
+     * Trace an alias chain to determine the canonical concrete service identifier.
+     *
+     * @param string $abstract The alias name to trace.
+     * @return string Canonical service identifier.
+     * @throws \RuntimeException If a circular alias reference chain is encountered.
      */
     private function resolveAlias(string $abstract): string
     {
         $seen = [];
+        // Loop to trace nested alias declarations, guarding against cyclic references.
         while (isset($this->aliases[$abstract])) {
             if (isset($seen[$abstract])) {
                 throw new RuntimeException(
@@ -208,8 +242,15 @@ final class Container
         return $abstract;
     }
 
-    // ——— Autowiring ————————————————————————————————————————————
+    // Reflection Autowiring Layer
 
+    /**
+     * Dynamically construct an object and inject its constructor dependencies using Reflection.
+     *
+     * @param string $class Fully qualified class name to instantiate.
+     * @return mixed Instantiated class with resolved dependencies.
+     * @throws \RuntimeException If class is uninstantiable or constructor arguments cannot be resolved.
+     */
     private function autowire(string $class): mixed
     {
         $reflector = new \ReflectionClass($class);
@@ -227,6 +268,7 @@ final class Container
 
         foreach ($parameters as $parameter) {
             $type = $parameter->getType();
+            // Resolves class-based dependencies via the DI container.
             if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
                 $dependencyClass = $type->getName();
                 if ($dependencyClass === self::class) {
@@ -235,6 +277,7 @@ final class Container
                     $dependencies[] = $this->get($dependencyClass);
                 }
             } else {
+                // If a parameter is a primitive, fall back to its default value if available.
                 if ($parameter->isDefaultValueAvailable()) {
                     $dependencies[] = $parameter->getDefaultValue();
                 } else {
@@ -246,12 +289,12 @@ final class Container
         return $reflector->newInstanceArgs($dependencies);
     }
 
-    // ——— Introspection —————————————————————————————————————————
+    // Container Introspection and Cleanup
 
     /**
      * Get all registered binding keys (excluding aliases).
      *
-     * @return string[]
+     * @return string[] Array of abstract service names.
      */
     public function keys(): array
     {
@@ -264,7 +307,10 @@ final class Container
     }
 
     /**
-     * Remove a binding and its cached instance.
+     * Remove a binding and its resolved singleton instance from memory.
+     *
+     * @param string $abstract Service identifier to remove.
+     * @return void
      */
     public function forget(string $abstract): void
     {
@@ -277,7 +323,11 @@ final class Container
     }
 
     /**
-     * Flush all bindings, instances, aliases, and parameters.
+     * Clear all bindings, aliases, cached singleton instances, and parameters.
+     *
+     * Reset the container back to its initial empty state.
+     *
+     * @return void
      */
     public function flush(): void
     {

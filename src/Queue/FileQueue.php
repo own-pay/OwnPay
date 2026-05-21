@@ -6,23 +6,40 @@ namespace OwnPay\Queue;
 use Ramsey\Uuid\Uuid;
 
 /**
- * File-based queue driver — shared hosting compatible.
+ * Class FileQueue
  *
- * Each job is a JSON file in storage/queue/{queue_name}/.
- * Files named: {timestamp}_{jobId}.json
- * Jobs with delay are timestamped into the future.
+ * File-based implementation of the QueueInterface, providing basic job queuing compatibility
+ * for shared hosting environments. Job data is stored as serialized JSON files with built-in
+ * concurrency controls using standard PHP file locks (flock).
  *
- * Concurrency: file locking prevents double-processing.
+ * @package OwnPay\Queue
  */
 final class FileQueue implements QueueInterface
 {
+    /**
+     * @var string The base directory path where queue folders are structured.
+     */
     private string $baseDir;
 
+    /**
+     * FileQueue constructor.
+     *
+     * @param string $directory The path to the root queue directory.
+     */
     public function __construct(string $directory)
     {
         $this->baseDir = rtrim($directory, '/\\');
     }
 
+    /**
+     * Pushes a new job message payload onto the specified queue.
+     *
+     * @param string $queue The target queue name.
+     * @param string $handler The fully qualified class name of the job handler.
+     * @param array<string, mixed> $payload The contextual data payload for the job.
+     * @param int $delay The execution delay in seconds. Defaults to 0.
+     * @return string The generated UUID identifier for the job.
+     */
     public function push(string $queue, string $handler, array $payload = [], int $delay = 0): string
     {
         $dir = $this->queueDir($queue);
@@ -48,7 +65,16 @@ final class FileQueue implements QueueInterface
         return $jobId;
     }
 
-    /** @phpstan-ignore-next-line */
+    /**
+     * Extracts and retrieves the next available job message from the specified queue.
+     *
+     * Applies non-blocking exclusive file locking (flock) to prevent race conditions
+     * and double-processing by multiple background workers.
+     *
+     * @param string $queue The queue name. Defaults to 'default'.
+     * @return array<string, mixed>|null The job data array, or null if no jobs are available.
+     * @phpstan-ignore-next-line
+     */
     public function pop(string $queue = 'default'): ?array
     {
         $dir = $this->queueDir($queue);
@@ -62,12 +88,12 @@ final class FileQueue implements QueueInterface
             return null;
         }
 
-        sort($files); // Oldest first (sorted by timestamp prefix)
+        sort($files); // Process oldest pending jobs first.
 
         $now = time();
 
         foreach ($files as $file) {
-            // Try exclusive lock — prevents double-processing
+            // Attempt an exclusive read lock to ensure single worker processing execution.
             $fp = @fopen($file, 'r');
             if ($fp === false) {
                 continue;
@@ -75,7 +101,7 @@ final class FileQueue implements QueueInterface
 
             if (!flock($fp, LOCK_EX | LOCK_NB)) {
                 fclose($fp);
-                continue; // Another worker has it
+                continue;
             }
 
             $content = stream_get_contents($fp);
@@ -88,22 +114,22 @@ final class FileQueue implements QueueInterface
 
             $job = json_decode($content, true);
             if (!is_array($job)) {
-                @unlink($file); // Corrupt file
+                @unlink($file); // Remove corrupted job definition files.
                 continue;
             }
 
-            // Check availability time
+            // Verify if the job delay interval has lapsed.
             if (($job['available_at'] ?? 0) > $now) {
-                continue; // Not yet available
+                continue;
             }
 
-            // Move to processing: rename with .processing suffix
+            // Flag the job file status to processing.
             $processingFile = $file . '.processing';
             if (!@rename($file, $processingFile)) {
-                continue; // Another worker got it
+                continue;
             }
 
-            // Increment attempts
+            // Increment execution count metadata.
             $job['attempts'] = ($job['attempts'] ?? 0) + 1;
             $job['_file'] = $processingFile;
 
@@ -113,14 +139,26 @@ final class FileQueue implements QueueInterface
         return null;
     }
 
+    /**
+     * Marks a job as completed and deletes its persistent job file from the active directory.
+     *
+     * @param string $jobId The UUID identifier of the job.
+     * @return void
+     */
     public function complete(string $jobId): void
     {
         $this->removeJobFiles($jobId);
     }
 
+    /**
+     * Marks a job as failed, registering the error trace and moving the record to the failed archive.
+     *
+     * @param string $jobId The UUID identifier of the job.
+     * @param string $error The failure reason or stack trace details.
+     * @return void
+     */
     public function fail(string $jobId, string $error): void
     {
-        // Move to failed directory
         $files = $this->findJobFiles($jobId);
         foreach ($files as $file) {
             $content = @file_get_contents($file);
@@ -147,9 +185,15 @@ final class FileQueue implements QueueInterface
         }
     }
 
+    /**
+     * Re-pushes a failed job back onto its original queue for reprocessing.
+     *
+     * @param string $jobId The UUID identifier of the job.
+     * @param int $delay The delay interval in seconds before the retried job is made active. Defaults to 60.
+     * @return void
+     */
     public function retry(string $jobId, int $delay = 60): void
     {
-        // Find in failed directory
         $failedDir = $this->baseDir . DIRECTORY_SEPARATOR . 'failed';
         if (!is_dir($failedDir)) {
             return;
@@ -171,7 +215,6 @@ final class FileQueue implements QueueInterface
                 continue;
             }
 
-            // Re-push with delay
             $this->push(
                 $job['queue'] ?? 'default',
                 $job['handler'] ?? '',
@@ -183,6 +226,12 @@ final class FileQueue implements QueueInterface
         }
     }
 
+    /**
+     * Retrieves the count of pending job messages currently in the specified queue.
+     *
+     * @param string $queue The target queue name. Defaults to 'default'.
+     * @return int The number of pending jobs.
+     */
     public function size(string $queue = 'default'): int
     {
         $dir = $this->queueDir($queue);
@@ -194,6 +243,12 @@ final class FileQueue implements QueueInterface
         return $files !== false ? count($files) : 0;
     }
 
+    /**
+     * Deletes all job messages (including pending and currently processing) from the specified queue.
+     *
+     * @param string $queue The target queue name. Defaults to 'default'.
+     * @return void
+     */
     public function clear(string $queue = 'default'): void
     {
         $dir = $this->queueDir($queue);
@@ -209,7 +264,6 @@ final class FileQueue implements QueueInterface
             @unlink($file);
         }
 
-        // Also clear processing files
         $procFiles = glob($dir . DIRECTORY_SEPARATOR . '*.processing');
         if ($procFiles !== false) {
             foreach ($procFiles as $file) {
@@ -218,8 +272,12 @@ final class FileQueue implements QueueInterface
         }
     }
 
-    // ——— Private ———————————————————————————————————————————————
-
+    /**
+     * Resolves and prepares the directory path for the specified queue name.
+     *
+     * @param string $queue The queue name.
+     * @return string The resolved absolute queue directory path.
+     */
     private function queueDir(string $queue): string
     {
         $safe = preg_replace('/[^a-zA-Z0-9_\-]/', '_', $queue) ?? $queue;
@@ -230,6 +288,12 @@ final class FileQueue implements QueueInterface
         return $dir;
     }
 
+    /**
+     * Deletes all files matching the given job ID from queue directories.
+     *
+     * @param string $jobId The UUID identifier of the job.
+     * @return void
+     */
     private function removeJobFiles(string $jobId): void
     {
         $files = $this->findJobFiles($jobId);
@@ -239,13 +303,15 @@ final class FileQueue implements QueueInterface
     }
 
     /**
-     * @return string[]
+     * Scans queue directories to retrieve absolute file paths related to the specified job ID.
+     *
+     * @param string $jobId The UUID identifier of the job.
+     * @return array<int, string> List of matching absolute file paths.
      */
     private function findJobFiles(string $jobId): array
     {
         $result = [];
 
-        // Search all queue directories
         $dirs = glob($this->baseDir . DIRECTORY_SEPARATOR . '*', GLOB_ONLYDIR);
         if ($dirs === false) {
             return $result;

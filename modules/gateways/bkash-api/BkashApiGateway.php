@@ -11,15 +11,27 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * bKash API gateway — tokenized checkout flow.
+ * bKash API gateway adapter implementing the tokenized checkout flow.
  */
 final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
 {
     use GatewayDefaults;
 
+    /**
+     * Base URL for the bKash sandbox API endpoint.
+     */
     private const SANDBOX_URL = 'https://tokenized.sandbox.bka.sh/v1.2.0-beta';
+
+    /**
+     * Base URL for the bKash production API endpoint.
+     */
     private const LIVE_URL    = 'https://tokenized.pay.bka.sh/v1.2.0-beta';
 
+    /**
+     * Returns the plugin metadata array.
+     *
+     * @return array{name: string, slug: string, version: string, description: string, author: string, type: string} Plugin metadata keys.
+     */
     public static function metadata(): array
     {
         return [
@@ -29,21 +41,82 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /**
+     * Returns the unique slug identifying the gateway adapter.
+     *
+     * @return string Unique slug identifier.
+     */
     public function slug(): string { return 'bkash-api'; }
+
+    /**
+     * Returns the descriptive name of the gateway.
+     *
+     * @return string Descriptive name.
+     */
     public function name(): string { return 'bKash API'; }
+
+    /**
+     * Returns the version of this gateway adapter.
+     *
+     * @return string Version string.
+     */
     public function version(): string { return '1.0.0'; }
+
+    /**
+     * Returns the description of this gateway adapter.
+     *
+     * @return string Description string.
+     */
     public function description(): string { return 'bKash tokenized checkout API integration'; }
 
+    /**
+     * Registers plugin event listeners and hooks.
+     *
+     * @param EventManager $events Hook/filter event manager.
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function register(EventManager $events, Container $container): void {}
+
+    /**
+     * Boots the plugin during application startup.
+     *
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function boot(Container $container): void {}
+
+    /**
+     * Runs cleanup routine on plugin deactivation.
+     *
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function deactivate(Container $container): void {}
+
+    /**
+     * Runs database and file cleanup on plugin uninstallation.
+     *
+     * @param Container $container DI service container.
+     * @return void
+     */
     public function uninstall(Container $container): void {}
 
+    /**
+     * Returns the capability set registered by this plugin.
+     *
+     * @return array<int, Capability> List of capabilities.
+     */
     public function capabilities(): array
     {
         return [Capability::GATEWAY];
     }
 
+    /**
+     * Defines configuration fields required to set up the gateway in the admin interface.
+     *
+     * @return array<int, array{name: string, label: string, type: string, required: bool, options?: array<string, string>}> Configuration schema arrays.
+     */
     public function fields(): array
     {
         return [
@@ -55,6 +128,14 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /**
+     * Initiates a payment session with the bKash Tokenized API.
+     *
+     * @param array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url: string, metadata?: array<string, mixed>} $params Core transaction parameters.
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured gateway credentials.
+     * @return array{redirect_url: string, session_id: string|null} payment response containing the redirect URL or raw HTML form.
+     * @throws \RuntimeException If required credentials are missing or API response fails.
+     */
     public function initiate(array $params, array $credentials): array
     {
         if (empty($credentials['username']) || empty($credentials['password']) || empty($credentials['app_key']) || empty($credentials['app_secret'])) {
@@ -114,6 +195,13 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /**
+     * Executes the payment verification on bKash API.
+     *
+     * @param array<string, mixed> $callbackData Request query/post payload from the gateway callback.
+     * @param array<string, mixed> $credentials Decrypted, merchant-configured credentials.
+     * @return array{success: bool, gateway_trx_id: string, amount: string|null, status: string, error?: string} Verification metadata.
+     */
     public function verify(array $callbackData, array $credentials): array
     {
         $mode = $credentials['mode'] ?? 'sandbox';
@@ -163,6 +251,12 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /**
+     * Checks if the gateway adapter supports a given capability.
+     *
+     * @param string $feature Name of the capability.
+     * @return bool True if supported; false otherwise.
+     */
     public function supports(string $feature): bool
     {
         return match ($feature) {
@@ -171,7 +265,13 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         };
     }
 
-    /** bKash exclusively operates in BDT. */
+    /**
+     * Returns an array containing the currencies supported by this gateway.
+     *
+     * bKash exclusively operates in BDT.
+     *
+     * @return string[] Array of supported currency codes.
+     */
     public function supportedCurrencies(): array
     {
         return ['BDT'];
@@ -179,12 +279,22 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
 
     /**
      * Cache token per base URL with TTL.
+     *
      * bKash tokens are valid for ~60min — use 55min TTL with safety margin.
      * Static property persists in PHP-FPM workers, so TTL is essential.
+     *
      * @var array<string, array{token: string, expires_at: int}>
      */
     private static array $tokenCache = [];
 
+    /**
+     * Retrieves or grants a token for the bKash API, using the in-memory static cache.
+     *
+     * @param string $baseUrl Target environment base API URL.
+     * @param array<string, mixed> $credentials Decrypted merchant credentials.
+     * @return string Granted API token.
+     * @throws \RuntimeException If the token request fails.
+     */
     private function getToken(string $baseUrl, array $credentials): string
     {
         // Return cached token if available AND not expired
@@ -237,3 +347,4 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         return $token;
     }
 }
+

@@ -10,18 +10,44 @@ use OwnPay\Repository\CommLogRepository;
 use OwnPay\Repository\SettingsRepository;
 
 /**
- * Communication service — unified dispatch for SMS, email, and plugin channels.
+ * OwnPay Communication Service.
  *
- * Auto-discovers communication plugins via Capability::COMMUNICATION.
- * Fires: communication.sms.send, communication.mail.send, communication.channels, communication.template.render
+ * Provides a unified message delivery router for sending transactional SMS notifications
+ * and email confirmations, resolving and dispatching messages via external channel plugins
+ * (auto-discovered through Capability::COMMUNICATION) with transparent database audit logging.
+ *
+ * @package OwnPay\Service\Communication
  */
 final class CommunicationService
 {
+    /**
+     * @var PluginRegistry The plugin system discovery index registry.
+     */
     private PluginRegistry $plugins;
+
+    /**
+     * @var EventManager Global event manager hook/filter dispatcher.
+     */
     private EventManager $events;
+
+    /**
+     * @var CommLogRepository The repository auditing dispatch events and payload logs.
+     */
     private CommLogRepository $commLog;
+
+    /**
+     * @var SettingsRepository The repository managing system settings.
+     */
     private SettingsRepository $settings;
 
+    /**
+     * CommunicationService constructor.
+     *
+     * @param PluginRegistry $plugins Plugin system registry.
+     * @param EventManager $events Hook/filter event manager.
+     * @param CommLogRepository $commLog Audit logger for communications.
+     * @param SettingsRepository $settings Settings parameters gateway.
+     */
     public function __construct(
         PluginRegistry $plugins,
         EventManager $events,
@@ -35,7 +61,12 @@ final class CommunicationService
     }
 
     /**
-     * Send SMS via configured provider.
+     * Transmits a text SMS message through the configured merchant SMS plugin.
+     *
+     * @param int $merchantId The primary identifier of the brand/merchant context.
+     * @param string $to Recipient target telephone number.
+     * @param string $message Text content payload.
+     * @return array{success: bool, error?: string|null} Execution status results.
      */
     public function sendSms(int $merchantId, string $to, string $message): array
     {
@@ -66,13 +97,18 @@ final class CommunicationService
     }
 
     /**
-     * Send email via configured provider.
+     * Transmits an email notification through the configured merchant SMTP/API plugin.
+     *
+     * Falls back to local PHP mail() transport if no external plugin is active.
+     *
+     * @param int $merchantId The primary identifier of the brand/merchant context.
+     * @param array{to?: string, subject?: string, body?: string, html?: string, from?: string} $message Email payload.
+     * @return array{success: bool, error?: string|null} Execution status results.
      */
     public function sendEmail(int $merchantId, array $message): array
     {
         $provider = $this->resolveProvider('mail', $merchantId);
         if ($provider === null) {
-            // Fallback to PHP mail()
             return $this->fallbackMail($message);
         }
 
@@ -101,7 +137,13 @@ final class CommunicationService
     }
 
     /**
-     * Render message template with variables.
+     * Renders a messaging template with contextual placeholder variables.
+     *
+     * Triggers the 'communication.template.render' filter to let plugins post-process templates.
+     *
+     * @param string $template Plain text or HTML template content.
+     * @param array<string, mixed> $vars Variables to replace.
+     * @return string Fully compiled message payload.
      */
     public function renderTemplate(string $template, array $vars): string
     {
@@ -113,16 +155,16 @@ final class CommunicationService
     }
 
     /**
-     * Get available communication channels.
-     * @return string[]
+     * Retrieves lists of registered and active communication slugs.
+     *
+     * @return string[] Unique communication channel slugs.
      */
     public function availableChannels(): array
     {
-        $channels = ['admin']; // Always available
+        $channels = ['admin'];
 
         $commPlugins = $this->plugins->withCapability(Capability::COMMUNICATION);
         foreach ($commPlugins as $slug => $plugin) {
-            $caps = $plugin->capabilities();
             $channels[] = $slug;
         }
 
@@ -130,19 +172,23 @@ final class CommunicationService
     }
 
     /**
-     * Resolve provider for type from communication plugins.
+     * Resolves the active driver instance registered for the communication capability type.
+     *
+     * Checks user settings preferences before defaulting to the first discovered plugin.
+     *
+     * @param string $type The media type provider ('sms' or 'mail').
+     * @param int $merchantId The merchant primary ID context.
+     * @return mixed Resolved plugin instance implementing matching interfaces, or null.
      */
     private function resolveProvider(string $type, int $merchantId): mixed
     {
         $preferredSlug = $this->settings->get('communication', "{$type}_provider", '');
         $commPlugins = $this->plugins->withCapability(Capability::COMMUNICATION);
 
-        // Try preferred first
         if ($preferredSlug !== '' && isset($commPlugins[$preferredSlug])) {
             return $commPlugins[$preferredSlug];
         }
 
-        // Fallback to first available
         foreach ($commPlugins as $plugin) {
             $iface = match ($type) {
                 'sms' => SmsProviderInterface::class,
@@ -157,6 +203,12 @@ final class CommunicationService
         return null;
     }
 
+    /**
+     * Internal fallback using php mail() when no SMTP/API plugins are registered.
+     *
+     * @param array{to?: string, subject?: string, body?: string, html?: string, from?: string} $message Email details.
+     * @return array{success: bool, error: string|null} Status vector.
+     */
     private function fallbackMail(array $message): array
     {
         $to = $message['to'] ?? '';

@@ -10,20 +10,40 @@ use OwnPay\Security\PiiMasker;
 use Ramsey\Uuid\Uuid;
 
 /**
- * Customer PII service — encrypted CRUD with PII masking.
+ * Service managing customer Personally Identifiable Information (PII).
  *
- * Per PCI-DSS: all PII encrypted at rest (AES-256-GCM).
- * Fires: customer.created, customer.updated, customer.deleted
+ * Handles encryption/decryption of sensitive fields at rest using AES-256-GCM
+ * to align with PCI-DSS compliance requirements. Dispatches customer lifecycle events.
  */
 final class CustomerPiiService
 {
+    /**
+     * @var CustomerRepository Repository for customer records.
+     */
     private CustomerRepository $customers;
+
+    /**
+     * @var FieldEncryptor Service handling AES-256-GCM field encryption.
+     */
     private FieldEncryptor $encryptor;
+
+    /**
+     * @var EventManager Event dispatcher system.
+     */
     private EventManager $events;
 
-    /** PII fields that must be encrypted */
+    /**
+     * @var string[] PII fields requiring database-level encryption.
+     */
     private const PII_FIELDS = ['email', 'phone', 'name', 'address'];
 
+    /**
+     * Constructs a new CustomerPiiService instance.
+     *
+     * @param CustomerRepository $customers The customer repository.
+     * @param FieldEncryptor $encryptor The cryptographic field encryptor.
+     * @param EventManager $events The event manager.
+     */
     public function __construct(
         CustomerRepository $customers,
         FieldEncryptor $encryptor,
@@ -35,17 +55,20 @@ final class CustomerPiiService
     }
 
     /**
-     * Create customer with encrypted PII.
+     * Creates a new customer record with encrypted PII.
+     *
+     * Generates standard UUID identifiers and deterministic hashes for lookups.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param array<string, mixed> $data Customer input attributes.
+     * @return array<string, mixed> The newly created customer data array.
      */
     public function create(int $merchantId, array $data): array
     {
         $encrypted = $this->encryptPii($data);
 
-        // UUID required — op_customers.uuid is NOT NULL
         $encrypted['uuid'] = Uuid::uuid4()->toString();
 
-        // Generate deterministic hashes for lookup without decryption
-        // email_hash is NOT NULL in schema — always provide value
         $encrypted['email_hash'] = !empty($data['email'])
             ? $this->encryptor->deterministicHash($data['email'])
             : '';
@@ -63,7 +86,13 @@ final class CustomerPiiService
     }
 
     /**
-     * Find customer by email (via deterministic hash).
+     * Locates a customer record matching the provided email address.
+     *
+     * Performs a deterministic hash lookup to preserve index speed and privacy.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param string $email The target customer email address.
+     * @return array<string, mixed>|null Customer record array if found; null otherwise.
      */
     public function findByEmail(int $merchantId, string $email): ?array
     {
@@ -77,7 +106,13 @@ final class CustomerPiiService
     }
 
     /**
-     * Find customer by phone (via deterministic hash).
+     * Locates a customer record matching the provided phone number.
+     *
+     * Performs a deterministic hash lookup to preserve index speed and privacy.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param string $phone The target customer phone number.
+     * @return array<string, mixed>|null Customer record array if found; null otherwise.
      */
     public function findByPhone(int $merchantId, string $phone): ?array
     {
@@ -91,11 +126,14 @@ final class CustomerPiiService
     }
 
     /**
-     * Find customer by contact — auto-detect email vs phone.
+     * Finds a customer by contact identifier, auto-detecting phone vs email.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param string $identifier An email address or phone number identifier.
+     * @return array<string, mixed>|null Customer record array if found; null otherwise.
      */
     public function findByContact(int $merchantId, string $identifier): ?array
     {
-        // If contains @, treat as email; otherwise treat as phone
         if (str_contains($identifier, '@')) {
             return $this->findByEmail($merchantId, $identifier);
         }
@@ -103,7 +141,11 @@ final class CustomerPiiService
     }
 
     /**
-     * Get customer with decrypted PII.
+     * Retrieves a single customer record, fully decrypting PII.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int $customerId Unique identifier of the customer.
+     * @return array<string, mixed>|null Customer record array if found; null otherwise.
      */
     public function get(int $merchantId, int $customerId): ?array
     {
@@ -115,7 +157,12 @@ final class CustomerPiiService
     }
 
     /**
-     * Update customer PII.
+     * Updates an existing customer record's PII.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int $customerId Unique identifier of the customer.
+     * @param array<string, mixed> $data Updated customer attributes.
+     * @return array<string, mixed> The updated customer record array.
      */
     public function update(int $merchantId, int $customerId, array $data): array
     {
@@ -135,7 +182,11 @@ final class CustomerPiiService
     }
 
     /**
-     * Delete customer (soft delete — zero PII fields).
+     * Performs a soft delete by clearing all PII fields and setting status.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int $customerId Unique identifier of the customer to delete.
+     * @return void
      */
     public function delete(int $merchantId, int $customerId): void
     {
@@ -152,7 +203,12 @@ final class CustomerPiiService
     }
 
     /**
-     * List customers (PII masked for list view).
+     * Lists customer records, returning masked PII structures.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int $page Pagination page index.
+     * @param int $perPage Pagination page size.
+     * @return array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} Pagination payload.
      */
     public function list(int $merchantId, int $page = 1, int $perPage = 50): array
     {
@@ -165,6 +221,12 @@ final class CustomerPiiService
         return $result;
     }
 
+    /**
+     * Encrypts plain PII fields within a data array.
+     *
+     * @param array<string, mixed> $data Plain customer attributes.
+     * @return array<string, mixed> Data array with PII encrypted and raw fields removed.
+     */
     private function encryptPii(array $data): array
     {
         foreach (self::PII_FIELDS as $field) {
@@ -176,6 +238,12 @@ final class CustomerPiiService
         return $data;
     }
 
+    /**
+     * Decrypts encrypted PII fields within a customer record.
+     *
+     * @param array<string, mixed> $customer Customer database record.
+     * @return array<string, mixed> Customer record with decrypted plain fields.
+     */
     private function decryptPii(array $customer): array
     {
         foreach (self::PII_FIELDS as $field) {
@@ -191,7 +259,10 @@ final class CustomerPiiService
     }
 
     /**
-     * Mask PII for event dispatch (plugins should not receive raw PII).
+     * Masks PII properties before dispatching lifecycle hook events.
+     *
+     * @param array<string, mixed> $customer Decrypted customer record.
+     * @return array<string, mixed> Masked customer record for hooks.
      */
     private function maskForEvent(array $customer): array
     {

@@ -12,19 +12,40 @@ use OwnPay\Service\Brand\BrandContext;
 use OwnPay\Support\DateHelper;
 
 /**
- * Roles & Permissions admin controller.
+ * Class RolesController
  *
- * Lists all roles for the active brand, shows permission matrix,
- * allows create/edit roles and assign permissions.
+ * Administrative controller managing roles and permissions (RBAC) scoped strictly to
+ * the active merchant brand context. Handles roles creation, editing, syncing permissions,
+ * and deleting custom roles.
+ *
+ * @package OwnPay\Controller\Admin
  */
 final class RolesController
 {
     use AdminPageTrait;
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
+
+    /**
+     * @var RoleRepository The roles and permissions repository.
+     */
     private RoleRepository $roles;
 
+    /**
+     * RolesController constructor.
+     *
+     * @param Container    $c       The dependency injection container.
+     * @param AdminSession $session The administrative session service.
+     * @param RoleRepository $roles The roles and permissions repository.
+     */
     public function __construct(Container $c, AdminSession $session, RoleRepository $roles)
     {
         $this->c       = $c;
@@ -33,7 +54,11 @@ final class RolesController
     }
 
     /**
-     * GET /admin/roles — list all roles + permission counts
+     * Displays all roles along with permission counts and permission configuration matrix.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The roles listing page response.
      */
     public function index(Request $req): Response
     {
@@ -63,7 +88,11 @@ final class RolesController
     }
 
     /**
-     * POST /admin/roles/store — create new role
+     * Creates a new brand-scoped role.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
      */
     public function store(Request $req): Response
     {
@@ -101,7 +130,11 @@ final class RolesController
     }
 
     /**
-     * POST /admin/roles/{id}/update — update permissions
+     * Updates an existing role and synchronizes its permissions, preventing privilege escalation.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
      */
     public function update(Request $req): Response
     {
@@ -152,7 +185,11 @@ final class RolesController
     }
 
     /**
-     * POST /admin/roles/{id}/delete
+     * Deletes a custom role.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
      */
     public function delete(Request $req): Response
     {
@@ -178,8 +215,9 @@ final class RolesController
     }
 
     /**
-     * Load all permissions grouped by group_name.
-     * @return array<string, array{id: int, slug: string, name: string}[]>
+     * Loads all system permissions, grouped by category/group name.
+     *
+     * @return array<string, array<int, array<string, mixed>>> Grouped permissions mapping.
      */
     private function loadAllPermissions(): array
     {

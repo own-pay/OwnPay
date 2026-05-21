@@ -8,48 +8,48 @@ use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 
 /**
- * Twig environment factory with plugin theme path injection.
+ * Class TwigFactory
  *
- * Build order:
- *   1. Core templates (templates/)
- *   2. Active theme templates (modules/themes/{active}/templates/) — override core
- *   3. Plugin view paths (modules/addons/{slug}/views/) — namespaced @slug
+ * Implements a factory layer to instantiate and bootstrap the Twig rendering environment.
+ * Sets up the layered filesystem loading order to support white-labeled theme overlays,
+ * where merchant-scoped or system-wide active themes can prepend templates to override core views
+ * while isolating plugin and gateway views under dedicated Twig namespaces.
  *
- * Theme templates override core by sharing the same path namespace.
- * Plugin views are isolated under @plugin_slug namespace.
+ * @package OwnPay\View
  */
 final class TwigFactory
 {
     /**
-     * Build a configured Twig\Environment.
+     * Build and configure the Twig environment instance.
+     *
+     * Registers directory loaders in order of priority (Theme templates > Core templates),
+     * configures caching parameters, binds utility extensions, and sets global application variables.
+     *
+     * @param \OwnPay\Container $container The PSR-11 dependency injection container.
+     * @return \Twig\Environment The fully configured Twig environment instance.
+     * @throws \Twig\Error\LoaderError If the filesystem path registration encounters structural issues.
      */
     public static function create(Container $container): Environment
     {
         $config = $container->get('config.app');
         $paths  = $config['paths'];
 
-        // —— Filesystem Loader ——————————————————————————————————
         $loader = new FilesystemLoader();
 
-        // 1. Core templates (lowest priority — overridden by themes)
         $coreTemplates = $paths['templates'];
         if (is_dir($coreTemplates)) {
             $loader->addPath($coreTemplates);
         }
 
-        // 2. Active theme templates (highest priority — overrides core)
         $activeTheme = self::resolveActiveTheme($container);
         if ($activeTheme !== null) {
             $themeDir = $paths['modules'] . '/themes/' . $activeTheme . '/templates';
             if (is_dir($themeDir)) {
-                // Prepend so theme templates take priority over core
                 $loader->prependPath($themeDir);
-                // Also register under @theme namespace for explicit access
                 $loader->addPath($themeDir, 'theme');
             }
         }
 
-        // 3. Register all theme directories under their own namespace
         $themesDir = $paths['modules'] . '/themes';
         if (is_dir($themesDir)) {
             $themeDirs = glob($themesDir . '/*/templates');
@@ -61,7 +61,6 @@ final class TwigFactory
             }
         }
 
-        // 4. Register plugin/addon view paths under @slug namespace
         $addonsDir = $paths['modules'] . '/addons';
         if (is_dir($addonsDir)) {
             $addonViewDirs = glob($addonsDir . '/*/views');
@@ -73,7 +72,6 @@ final class TwigFactory
             }
         }
 
-        // Gateway plugin views
         $gatewaysDir = $paths['modules'] . '/gateways';
         if (is_dir($gatewaysDir)) {
             $gatewayViewDirs = glob($gatewaysDir . '/*/views');
@@ -85,7 +83,6 @@ final class TwigFactory
             }
         }
 
-        // —— Environment ————————————————————————————————————————
         $twig = new Environment($loader, [
             'cache'            => $paths['cache'] . '/twig',
             'auto_reload'      => $config['debug'],
@@ -93,10 +90,8 @@ final class TwigFactory
             'autoescape'       => 'html',
         ]);
 
-        // Register core extensions
         $twig->addExtension(new TwigExtensions($container));
 
-        // Register global variables available in all templates
         $twig->addGlobal('app_name', $config['name'] ?? 'Own Pay');
         $twig->addGlobal('app_version', $config['version'] ?? '0.1.0');
         $twig->addGlobal('app_debug', $config['debug'] ?? false);
@@ -105,16 +100,20 @@ final class TwigFactory
     }
 
     /**
-     * Resolve the currently active theme slug.
+     * Resolve the active theme slug.
      *
-     * AUD-G9 fix: Reads from DB setting first, env fallback, then default.
-     * Previously only read env var, making admin theme switcher non-functional.
+     * Executes resolution hierarchy checks:
+     * 1. Database-backed settings repository lookup (e.g. customized merchant-scoped visual theme setting)
+     * 2. Environment variable fallback configuration (e.g. system-wide overrides)
+     * 3. Fallback directory verification on disk
+     *
+     * @param \OwnPay\Container $container The dependency injection container.
+     * @return string|null The resolved active theme slug name, or null if no valid directory is matched.
      */
     private static function resolveActiveTheme(Container $container): ?string
     {
         $theme = null;
 
-        // 1. Try DB setting (written by ThemeController::activate())
         try {
             if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
                 $settings = $container->get(\OwnPay\Repository\SettingsRepository::class);
@@ -124,22 +123,19 @@ final class TwigFactory
                 }
             }
         } catch (\Throwable) {
-            // DB not available (e.g. during install) — fall through
+            // Bypass database resolution if database connection is unavailable during early bootstrap phase
         }
 
-        // 2. Env var fallback
         if ($theme === null) {
             $theme = getenv('ACTIVE_THEME') ?: 'own-pay';
         }
 
-        // Verify theme directory exists
         $paths = $container->get('config.app')['paths'];
         $themeDir = $paths['modules'] . '/themes/' . $theme;
         if (is_dir($themeDir)) {
             return $theme;
         }
 
-        // Fall back to own-pay
         $defaultDir = $paths['modules'] . '/themes/own-pay';
         if (is_dir($defaultDir)) {
             return 'own-pay';
@@ -148,3 +144,4 @@ final class TwigFactory
         return null;
     }
 }
+

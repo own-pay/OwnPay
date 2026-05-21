@@ -9,21 +9,40 @@ use OwnPay\Core\UuidGenerator;
 use OwnPay\Support\DateHelper;
 
 /**
- * Repository for the double-entry ledger system:
- *   - op_ledger_accounts
- *   - op_ledger_transactions (journal headers)
- *   - op_ledger_entries (debit/credit lines)
+ * Repository for the enterprise double-entry ledger system.
+ * 
+ * Manages accounts (`op_ledger_accounts`), journal transactions/headers 
+ * (`op_ledger_transactions`), and debit/credit entry lines (`op_ledger_entries`).
+ * 
+ * Double-entry ledger operations post balanced debits and credits across accounts 
+ * scoped strictly by merchant ID and name to prevent cross-brand leakage and type 
+ * mismatches on liability accounts (e.g., MERCHANT_PAYABLE as a liability account 
+ * and others as assets).
+ * 
+ * @package OwnPay\Repository
  */
 final class LedgerRepository extends BaseRepository
 {
     use TenantScope;
 
+    /**
+     * @var string Database table name for ledger accounts.
+     */
     protected string $table = 'op_ledger_accounts';
 
     // ——— Accounts ————————————————————————————————————————
 
     /**
-     * Find or create a ledger account by name and type.
+     * Finds an existing ledger account or creates one if it does not exist.
+     * 
+     * Scopes accounts strictly by merchant_id and name to prevent cross-brand leakage
+     * and type mismatches on liability/asset accounts.
+     * 
+     * @param string $name The name of the ledger account (e.g., 'MERCHANT_PAYABLE').
+     * @param string $type The account type (e.g., 'asset', 'liability', 'expense', 'equity', 'revenue').
+     * @param string $currency The ISO currency code (defaults to 'BDT').
+     * @param int|null $merchantId Optional brand/merchant ID override (defaults to current tenantId).
+     * @return array<string, mixed> The resolved ledger account record.
      */
     public function findOrCreateAccount(
         string $name,
@@ -61,7 +80,10 @@ final class LedgerRepository extends BaseRepository
     }
 
     /**
-     * Get account balance.
+     * Retrieves the current balance of a given ledger account.
+     * 
+     * @param int $accountId The unique ledger account ID.
+     * @return string The decimal string balance, defaulting to '0.00' if not found.
      */
     public function getBalance(int $accountId): string
     {
@@ -70,7 +92,16 @@ final class LedgerRepository extends BaseRepository
     }
 
     /**
-     * Atomically adjust account balance.
+     * Atomically adjusts the balance of a ledger account.
+     * 
+     * Follows standard double-entry bookkeeping rules:
+     * - Asset / Expense: debit increases (+), credit decreases (-)
+     * - Liability / Equity / Revenue: credit increases (+), debit decreases (-)
+     * 
+     * @param int $accountId The unique ledger account ID.
+     * @param string $amount The positive decimal string amount to adjust.
+     * @param string $entryType The type of adjustment ('debit' or 'credit').
+     * @return void
      */
     public function adjustBalance(int $accountId, string $amount, string $entryType): void
     {
@@ -109,7 +140,15 @@ final class LedgerRepository extends BaseRepository
     // ——— Journal Transactions ————————————————————————————
 
     /**
-     * Create a ledger transaction (journal header).
+     * Creates a new ledger transaction (journal header).
+     * 
+     * Represents a single financial event referencing a business object 
+     * (e.g., transaction, payout, invoice) and containing multiple entry lines.
+     * 
+     * @param string $referenceType The type of reference (e.g., 'transaction').
+     * @param int $referenceId The database ID of the referenced object.
+     * @param string|null $description Optional descriptive text for the journal entry.
+     * @return int The primary key ID of the newly created journal transaction.
      */
     public function createTransaction(
         string $referenceType,
@@ -140,7 +179,15 @@ final class LedgerRepository extends BaseRepository
     // ——— Ledger Entries ——————————————————————————————————
 
     /**
-     * Create a ledger entry (debit or credit line).
+     * Creates a new individual ledger entry line (debit or credit).
+     * 
+     * Must be associated with a valid ledger transaction header.
+     * 
+     * @param int $ledgerTransactionId The parent ledger transaction ID.
+     * @param int $accountId The target ledger account ID.
+     * @param string $type The entry type, either 'debit' or 'credit'.
+     * @param string $amount The entry amount as a decimal string.
+     * @return int The primary key ID of the newly created ledger entry.
      */
     public function createEntry(
         int $ledgerTransactionId,
@@ -167,7 +214,10 @@ final class LedgerRepository extends BaseRepository
     }
 
     /**
-     * Get all entries for a journal transaction.
+     * Retrieves all ledger entries associated with a journal transaction.
+     * 
+     * @param int $ledgerTransactionId The parent ledger transaction ID.
+     * @return array<int, array<string, mixed>> List of matching ledger entry records.
      */
     public function getEntries(int $ledgerTransactionId): array
     {
@@ -180,7 +230,12 @@ final class LedgerRepository extends BaseRepository
     }
 
     /**
-     * Verify balanced invariant for a journal transaction.
+     * Verifies that the debits and credits of a journal transaction balance out.
+     * 
+     * Compares the sum of debit amounts to the sum of credit amounts using BCMath.
+     * 
+     * @param int $ledgerTransactionId The parent ledger transaction ID.
+     * @return bool True if total debits match total credits (invariant satisfied), false otherwise.
      */
     public function isBalanced(int $ledgerTransactionId): bool
     {
@@ -201,7 +256,12 @@ final class LedgerRepository extends BaseRepository
     }
 
     /**
-     * Paginated ledger entries for a merchant.
+     * Retrieves a paginated list of ledger transactions (with entry summaries) for a merchant.
+     * 
+     * @param int $merchantId The merchant ID.
+     * @param int $page The current page number (1-indexed).
+     * @param int $limit The number of records to return per page.
+     * @return array{items: array<int, array<string, mixed>>, total: int} A structure containing the paginated rows and total count.
      */
     public function entriesPaginated(int $merchantId, int $page = 1, int $limit = 50): array
     {
@@ -228,7 +288,11 @@ final class LedgerRepository extends BaseRepository
     }
 
     /**
-     * Calculate total balance for a merchant in a given currency.
+     * Calculates the total balance for a merchant's 'MERCHANT_PAYABLE' liability account in a given currency.
+     * 
+     * @param int $merchantId The merchant ID.
+     * @param string $currency The ISO currency code (defaults to BDT).
+     * @return string The decimal balance as a string.
      */
     public function merchantBalance(int $merchantId, string $currency = 'BDT'): string
     {
@@ -241,3 +305,4 @@ final class LedgerRepository extends BaseRepository
         return $row['balance'] ?? '0.00';
     }
 }
+

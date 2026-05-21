@@ -7,23 +7,35 @@ use OwnPay\Repository\ApiKeyRepository;
 use OwnPay\Security\SecurityHelpers;
 
 /**
- * API key service — generate, rotate, revoke merchant API keys.
+ * Service orchestrating API key lifecycles.
  *
- * Per OWASP: prefix-based lookup, sha256 hash storage, timing-safe compare.
+ * Implements prefix-based key verification, SHA-256 key hashing, and timing-safe 
+ * comparisons for merchant API authentication.
  */
 final class ApiKeyService
 {
+    /**
+     * @var ApiKeyRepository Repository managing API keys database records.
+     */
     private ApiKeyRepository $keys;
 
+    /**
+     * Constructs a new ApiKeyService instance.
+     *
+     * @param ApiKeyRepository $keys The API key repository.
+     */
     public function __construct(ApiKeyRepository $keys)
     {
         $this->keys = $keys;
     }
 
     /**
-     * Generate new API key for merchant.
+     * Generates a new API key for a specified merchant.
      *
-     * @return array{key: string, prefix: string} Full key returned only once
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param string $label Descriptive name/label for the API key.
+     * @param string|null $expiresAt Optional expiration timestamp (ISO-8601).
+     * @return array{key: string, prefix: string} The full generated key and its prefix.
      */
     public function generate(int $merchantId, string $label, ?string $expiresAt = null): array
     {
@@ -38,25 +50,32 @@ final class ApiKeyService
         ]);
 
         return [
-            'key'    => $keyData['key'], // Show only once
+            'key'    => $keyData['key'],
             'prefix' => $keyData['prefix'],
         ];
     }
 
     /**
-     * Rotate key — generate new, revoke old.
+     * Rotates an existing API key by revoking it and generating a replacement.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int $keyId Unique identifier of the API key to rotate.
+     * @param string $label Descriptive name/label for the new API key.
+     * @return array{key: string, prefix: string} The newly generated key structure.
      */
     public function rotate(int $merchantId, int $keyId, string $label): array
     {
-        // Revoke old
         $this->keys->forTenant($merchantId)->updateScoped($keyId, ['status' => 'revoked']);
 
-        // Generate new
         return $this->generate($merchantId, $label);
     }
 
     /**
-     * Revoke API key.
+     * Revokes a specified API key.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int $keyId Unique identifier of the API key to revoke.
+     * @return void
      */
     public function revoke(int $merchantId, int $keyId): void
     {
@@ -64,12 +83,15 @@ final class ApiKeyService
     }
 
     /**
-     * List active keys for merchant (hashes masked).
+     * Retrieves active API keys for a merchant, masking hash fields.
+     *
+     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @return array<int, array<string, mixed>> List of active API key records with hashes removed.
      */
     public function list(int $merchantId): array
     {
         $keys = $this->keys->forTenant($merchantId)->listActiveKeys();
-        // Mask hashes — only show prefix
+        
         return array_map(function (array $key) {
             unset($key['hash']);
             return $key;

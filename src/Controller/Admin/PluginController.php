@@ -14,34 +14,83 @@ use OwnPay\Repository\PluginRepository;
 use OwnPay\View\SettingsRenderer;
 
 /**
- * Plugin admin controller — list, install, activate, deactivate, uninstall, settings.
+ * Class PluginController
+ *
+ * Administrative portal controller managing plugins (addons, gateways, and themes),
+ * providing interfaces for discovery, upload/installation, activation/deactivation,
+ * uninstallation, and brand-scoped custom configurations.
+ *
+ * @package OwnPay\Controller\Admin
  */
 final class PluginController
 {
     use AdminPageTrait;
 
+    /**
+     * @var Container The dependency injection container.
+     */
     private Container $c;
+
+    /**
+     * @var AdminSession The administrative session service.
+     */
     private AdminSession $session;
+
+    /**
+     * @var PluginManager The core plugin manager.
+     */
     private PluginManager $manager;
+
+    /**
+     * @var PluginRepository The database repository for installed plugins.
+     */
     private PluginRepository $repo;
+
+    /**
+     * @var PluginRegistry The runtime registry holding active plugin instances.
+     */
     private PluginRegistry $registry;
+
+    /**
+     * @var EventManager The hooks and actions event manager.
+     */
     private EventManager $events;
 
-    public function __construct(Container $c, AdminSession $session,
+    /**
+     * PluginController constructor.
+     *
+     * @param Container        $c        The dependency injection container.
+     * @param AdminSession     $session  The administrative session service.
+     * @param PluginManager    $manager  The core plugin manager.
+     * @param PluginRepository $repo     The database repository for installed plugins.
+     * @param PluginRegistry   $registry The runtime registry holding active plugin instances.
+     * @param EventManager     $events   The hooks and actions event manager.
+     */
+    public function __construct(
+        Container $c,
+        AdminSession $session,
         PluginManager $manager,
         PluginRepository $repo,
         PluginRegistry $registry,
         EventManager $events
     ) {
-        $this->c = $c;
-        $this->session = $session;
-        $this->manager = $manager;
-        $this->repo = $repo;
+        $this->c        = $c;
+        $this->session  = $session;
+        $this->manager  = $manager;
+        $this->repo     = $repo;
         $this->registry = $registry;
-        $this->events = $events;
+        $this->events   = $events;
     }
 
-    /** @phpstan-ignore-next-line */
+    /**
+     * Renders a list of all plugins, combining database records with discovered filesystem plugins.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The plugin dashboard overview page.
+     *
+     * @phpstan-ignore-next-line
+     */
     public function index(Request $request): Response
     {
         $plugins = $this->repo->paginate(1, 200)['items'];
@@ -61,7 +110,7 @@ final class PluginController
         $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
         $discovered = $loader->discover();
         foreach ($discovered as $manifest) {
-            if (in_array($manifest->type, ['addon', 'gateway', 'plugin'])) {
+            if (in_array($manifest->type, ['addon', 'gateway', 'plugin'], true)) {
                 $found = false;
                 foreach ($plugins as $p) {
                     if ($p['slug'] === $manifest->slug) {
@@ -90,6 +139,13 @@ final class PluginController
         ]);
     }
 
+    /**
+     * Renders the ZIP installation upload form page.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The plugin upload form page.
+     */
     public function installForm(Request $request): Response
     {
         $maxUpload = min(
@@ -103,6 +159,13 @@ final class PluginController
         ]);
     }
 
+    /**
+     * Handles processing uploaded plugin ZIP files, installing them to the modules folder.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The redirect response back to index or error.
+     */
     public function upload(Request $request): Response
     {
         $file = $request->file('plugin_zip');
@@ -124,6 +187,13 @@ final class PluginController
         return Response::redirect('/admin/plugins');
     }
 
+    /**
+     * Activates an installed plugin and executes its migrations.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function activate(Request $request): Response
     {
         $slug = (string) $request->param('slug');
@@ -138,6 +208,13 @@ final class PluginController
         return Response::redirect($this->redirectTarget($request));
     }
 
+    /**
+     * Deactivates an active plugin without purging its data records.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function deactivate(Request $request): Response
     {
         $slug = (string) $request->param('slug');
@@ -152,6 +229,13 @@ final class PluginController
         return Response::redirect($this->redirectTarget($request));
     }
 
+    /**
+     * Deactivates and completely uninstalls a plugin, purging its files and database traces.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function uninstall(Request $request): Response
     {
         $slug = (string) $request->param('slug');
@@ -166,6 +250,13 @@ final class PluginController
         return Response::redirect($this->redirectTarget($request));
     }
 
+    /**
+     * Renders settings fields form provided by the plugin, supporting brand-level configuration scoping.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The plugin configuration page response.
+     */
     public function settings(Request $request): Response
     {
         $slug = (string) $request->param('slug');
@@ -239,6 +330,13 @@ final class PluginController
         ]);
     }
 
+    /**
+     * Saves configuration parameters for the plugin, scoped optionally by brand ID context.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
     public function saveSettings(Request $request): Response
     {
         $slug = (string) $request->param('slug');
@@ -269,6 +367,14 @@ final class PluginController
         return Response::redirect("/admin/plugins/{$slug}/settings");
     }
 
+    /**
+     * Safe internal helper redirecting users back to their previous page with error context.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @param string  $error   The flash error message to register in the session.
+     *
+     * @return Response The HTTP redirect response.
+     */
     private function redirectBack(Request $request, string $error): Response
     {
         $this->session->flashError($error);
@@ -282,7 +388,11 @@ final class PluginController
     }
 
     /**
-     * Smart redirect: return to the calling page (gateways, addons, themes, or plugins).
+     * Smart redirect helper determining the original category page (gateways, addons, etc.).
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return string Redirect landing page target string.
      */
     private function redirectTarget(Request $request): string
     {
@@ -295,6 +405,13 @@ final class PluginController
         return '/admin/plugins';
     }
 
+    /**
+     * Parses byte size representations (e.g. '8M') to integer bytes values.
+     *
+     * @param string $size Format size descriptor string.
+     *
+     * @return int Resolved bytes representation.
+     */
     private function parseSize(string $size): int
     {
         $unit = strtolower(substr($size, -1));
@@ -307,6 +424,13 @@ final class PluginController
         };
     }
 
+    /**
+     * Format size integer bytes values to readable representations (e.g. '8 MB').
+     *
+     * @param int $bytes Integer bytes count.
+     *
+     * @return string Formatted representation.
+     */
     private function formatSize(int $bytes): string
     {
         if ($bytes >= 1048576) {

@@ -6,23 +6,46 @@ namespace OwnPay\Repository;
 use OwnPay\Core\Database;
 
 /**
- * Base repository — shared CRUD + pagination for all repositories.
+ * Base Repository providing common CRUD operations and query orchestration.
  *
- * Subclasses define $table, $fillable, $primaryKey.
- * All queries parameterized. No string interpolation.
- *
- * Per sql-optimization-patterns skill:
- *  - Cursor-based pagination for large datasets
- *  - Batch operations where applicable
- *  - Column sanitization prevents SQL injection
+ * Implements parameterized queries, schema column sanitization, standard offset pagination,
+ * and high-performance cursor pagination.
  */
 abstract class BaseRepository
 {
+    /**
+     * The database adapter instance.
+     *
+     * @var Database
+     */
     protected Database $db;
+
+    /**
+     * The name of the database table.
+     *
+     * @var string
+     */
     protected string $table;
+
+    /**
+     * The primary key column name.
+     *
+     * @var string
+     */
     protected string $primaryKey = 'id';
+
+    /**
+     * List of columns allowed to be mass-assigned.
+     *
+     * @var array<int, string>
+     */
     protected array $fillable = [];
 
+    /**
+     * Initializes the repository with the database connector.
+     *
+     * @param Database $db Database adapter instance.
+     */
     public function __construct(Database $db)
     {
         $this->db = $db;
@@ -30,6 +53,12 @@ abstract class BaseRepository
 
     // ——— Read ——————————————————————————————————————————————————
 
+    /**
+     * Retrieves a single record by primary key value.
+     *
+     * @param int|string $id Primary key identifier.
+     * @return array<string, mixed>|null Database row array, or null if not found.
+     */
     public function find(int|string $id): ?array
     {
         return $this->db->fetchOne(
@@ -38,6 +67,12 @@ abstract class BaseRepository
         );
     }
 
+    /**
+     * Retrieves a single record by UUID.
+     *
+     * @param string $uuid The UUID string.
+     * @return array<string, mixed>|null Database row array, or null if not found.
+     */
     public function findByUuid(string $uuid): ?array
     {
         return $this->db->fetchOne(
@@ -46,6 +81,14 @@ abstract class BaseRepository
         );
     }
 
+    /**
+     * Retrieves a single record matching a specific column value.
+     *
+     * @param string $column Column name to search.
+     * @param mixed $value Value to filter by.
+     * @return array<string, mixed>|null Database row array, or null if not found.
+     * @throws \InvalidArgumentException If the column name is malformed.
+     */
     public function findBy(string $column, mixed $value): ?array
     {
         $safeCol = $this->sanitizeColumn($column);
@@ -55,6 +98,17 @@ abstract class BaseRepository
         );
     }
 
+    /**
+     * Retrieves a list of records matching a column value with ordering and limit.
+     *
+     * @param string $column Column name to filter.
+     * @param mixed $value Value to match.
+     * @param string $orderBy Column name to order by.
+     * @param string $direction Sort direction ('ASC' or 'DESC').
+     * @param int $limit Maximum records to return.
+     * @return list<array<string, mixed>> List of matching database rows.
+     * @throws \InvalidArgumentException If columns or sort parameters are malformed.
+     */
     public function where(string $column, mixed $value, string $orderBy = 'id', string $direction = 'DESC', int $limit = 100): array
     {
         $safeCol = $this->sanitizeColumn($column);
@@ -68,20 +122,28 @@ abstract class BaseRepository
     }
 
     /**
-     * Offset pagination.
-     * @return array{items: array, total: int, page: int, per_page: int, pages: int}
+     * Executes standard offset-based pagination.
+     *
+     * Validates where constraints to block potential SQL injection sequences.
+     *
+     * @param int $page Page number (1-indexed).
+     * @param int $perPage Maximum items per page.
+     * @param string $where Additional SQL WHERE conditions.
+     * @param array<string, mixed> $params Parameter binds for the WHERE query.
+     * @param string $orderBy SQL ORDER BY clause.
+     * @return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int, pages: int} Pagination envelope.
+     * @throws \InvalidArgumentException If the WHERE clause contains forbidden SQL structures or injection patterns.
      */
     public function paginate(int $page = 1, int $perPage = 20, string $where = '1=1', array $params = [], string $orderBy = 'id DESC'): array
     {
-        // BUG-015 FIX: Strengthened WHERE clause validation.
-        // Strip SQL comments to prevent bypass via /* */ or -- sequences
+        // Security checks: Strip SQL comments to prevent bypass via inline sequences.
         $cleanedWhere = preg_replace('/\/\*.*?\*\//s', ' ', $where) ?? $where;
         $cleanedWhere = preg_replace('/--.*$/m', ' ', $cleanedWhere) ?? $cleanedWhere;
-        // Collapse all whitespace and lowercase for consistent checking
+        
+        // Collapse all whitespace and lowercase for consistent safety verification.
         $lowerWhere = strtolower(preg_replace('/\s+/', ' ', trim($cleanedWhere)));
         
-        // BUG-14 FIX: Use word-boundary regular expression to reject SQL keywords
-        // to prevent space-less SQL injection structures (e.g. select(1) or union(select...)).
+        // Reject SQL command keywords to avoid space-less structures (e.g. select(1) or union(select...)).
         if (preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $cleanedWhere) || str_contains($lowerWhere, ';') || str_contains($lowerWhere, '--')) {
             throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
         }
@@ -111,8 +173,15 @@ abstract class BaseRepository
     }
 
     /**
-     * Cursor pagination — better for large tables (per sql-optimization skill).
-     * @return array{items: array, next_cursor: string|null}
+     * Executes high-performance cursor-based pagination.
+     *
+     * Safe from performance degradation on large tables.
+     *
+     * @param int $perPage Maximum items per page.
+     * @param string|null $afterId Cursor value to start listing after (primary key value).
+     * @param string $where Additional SQL WHERE conditions.
+     * @param array<string, mixed> $params Parameter binds for the WHERE query.
+     * @return array{items: list<array<string, mixed>>, next_cursor: string|null} Pagination envelope with cursor pointer.
      */
     public function cursorPaginate(int $perPage = 20, ?string $afterId = null, string $where = '1=1', array $params = []): array
     {
@@ -140,6 +209,13 @@ abstract class BaseRepository
 
     // ——— Write —————————————————————————————————————————————————
 
+    /**
+     * Inserts a new record into the database table, filtering out non-fillable columns.
+     *
+     * @param array<string, mixed> $data Raw field value pairs to insert.
+     * @return string Last inserted primary key ID.
+     * @throws \InvalidArgumentException If no fillable columns remain after filtering.
+     */
     public function create(array $data): string
     {
         $filtered = $this->filterFillable($data);
@@ -156,6 +232,13 @@ abstract class BaseRepository
         );
     }
 
+    /**
+     * Updates an existing database record, filtering out non-fillable columns.
+     *
+     * @param int|string $id Primary key identifier.
+     * @param array<string, mixed> $data Raw field value pairs to update.
+     * @return int Number of affected rows.
+     */
     public function update(int|string $id, array $data): int
     {
         $filtered = $this->filterFillable($data);
@@ -172,6 +255,12 @@ abstract class BaseRepository
         );
     }
 
+    /**
+     * Deletes a record by its primary key.
+     *
+     * @param int|string $id Primary key identifier.
+     * @return int Number of affected rows.
+     */
     public function delete(int|string $id): int
     {
         return $this->db->delete(
@@ -182,21 +271,45 @@ abstract class BaseRepository
 
     // ——— Helpers ———————————————————————————————————————————————
 
+    /**
+     * Returns the underlying database connection adapter.
+     *
+     * @return Database Database adapter.
+     */
     public function getDatabase(): Database
     {
         return $this->db;
     }
 
+    /**
+     * Checks if a record exists in the table matching the primary key value.
+     *
+     * @param int|string $id Primary key identifier.
+     * @return bool True if record exists, false otherwise.
+     */
     public function exists(int|string $id): bool
     {
         return $this->db->exists($this->table, "{$this->primaryKey} = :id", ['id' => $id]);
     }
 
+    /**
+     * Returns the total count of records matching conditions.
+     *
+     * @param string $where SQL WHERE clause constraints.
+     * @param array<string, mixed> $params Query parameter binds.
+     * @return int Total records count.
+     */
     public function count(string $where = '1=1', array $params = []): int
     {
         return $this->db->count($this->table, $where, $params);
     }
 
+    /**
+     * Intersects the data parameters with the configured list of fillable columns.
+     *
+     * @param array<string, mixed> $data Raw parameters.
+     * @return array<string, mixed> Filtered columns.
+     */
     protected function filterFillable(array $data): array
     {
         if (empty($this->fillable)) {
@@ -205,6 +318,13 @@ abstract class BaseRepository
         return array_intersect_key($data, array_flip($this->fillable));
     }
 
+    /**
+     * Enforces alphanumeric column validation to block SQL injection vectors on raw identifiers.
+     *
+     * @param string $column The target column name.
+     * @return string Sanitized column name.
+     * @throws \InvalidArgumentException If the column name contains non-alphanumeric characters.
+     */
     protected function sanitizeColumn(string $column): string
     {
         if (!preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/', $column)) {
@@ -213,6 +333,12 @@ abstract class BaseRepository
         return $column;
     }
 
+    /**
+     * Sanitizes sort parameters to construct safe ORDER BY clauses.
+     *
+     * @param string $orderBy Raw order string (e.g. "created_at DESC, id ASC").
+     * @return string Validated and structured SQL sort string.
+     */
     protected function sanitizeOrderBy(string $orderBy): string
     {
         $parts = explode(',', $orderBy);
@@ -230,11 +356,12 @@ abstract class BaseRepository
     }
 
     /**
-     * Insert a new record (alias for create).
-     * Used by WebhookInboundProcessor.
+     * Inserts a new record into the database table (alias of create).
      *
-     * @param array<string, mixed> $data
-     * @return string Last insert ID
+     * Used by internal components such as webhook inbound logs.
+     *
+     * @param array<string, mixed> $data Raw field value pairs to insert.
+     * @return string Last inserted primary key ID.
      */
     public function insert(array $data): string
     {

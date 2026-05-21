@@ -1,28 +1,64 @@
 <?php
+
 declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
 use Ramsey\Uuid\Uuid;
 
+/**
+ * Repository layer for brands/stores (`op_merchants` table).
+ *
+ * Manages system brands, configurations, timezones, default checkout currencies, 
+ * webhooks, and domains. Unscoped globally as merchants represent top-level brands.
+ *
+ * @package OwnPay\Repository
+ */
 final class MerchantRepository extends BaseRepository
 {
+    /**
+     * @var string Database table name.
+     */
     protected string $table = 'op_merchants';
+
+    /**
+     * @var list<string> List of fields that can be mass-assigned.
+     */
     protected array $fillable = [
         'uuid', 'name', 'slug', 'email', 'phone', 'logo_path',
         'timezone', 'default_currency', 'webhook_secret', 'settings', 'status',
     ];
 
+    /**
+     * Finds a merchant record by its URL slug.
+     *
+     * @param string $slug Unique URL identifier of the merchant.
+     * @return array<string, mixed>|null The merchant record, or null if not found.
+     */
     public function findBySlug(string $slug): ?array
     {
         return $this->findBy('slug', $slug);
     }
 
+    /**
+     * Finds a merchant record by its primary contact email address.
+     *
+     * @param string $email The contact email.
+     * @return array<string, mixed>|null The merchant record, or null if not found.
+     */
     public function findByEmail(string $email): ?array
     {
         return $this->findBy('email', $email);
     }
 
+    /**
+     * Creates a new merchant brand.
+     *
+     * Automatically generates a UUIDv4 and a secure random webhook secret.
+     *
+     * @param array<string, mixed> $data The raw merchant configuration fields.
+     * @return string The primary key ID of the newly created merchant.
+     */
     public function createMerchant(array $data): string
     {
         $data['uuid'] = Uuid::uuid4()->toString();
@@ -31,7 +67,9 @@ final class MerchantRepository extends BaseRepository
     }
 
     /**
-     * List all brands with primary domain (admin listing).
+     * Lists all merchant brands alongside their primary domains for the administrative views.
+     *
+     * @return list<array<string, mixed>> List of merchants with associated primary domains.
      */
     public function listWithDomains(): array
     {
@@ -45,7 +83,10 @@ final class MerchantRepository extends BaseRepository
     }
 
     /**
-     * Find merchant with primary domain info.
+     * Finds a merchant record with its primary domain and DNS verification status.
+     *
+     * @param int $id The merchant ID.
+     * @return array<string, mixed>|null The merchant record augmented with primary domain fields, or null if not found.
      */
     public function findWithDomain(int $id): ?array
     {
@@ -64,7 +105,11 @@ final class MerchantRepository extends BaseRepository
     }
 
     /**
-     * Update brand fields.
+     * Updates key branding and localization settings for a merchant.
+     *
+     * @param int $id The merchant ID.
+     * @param array<string, mixed> $data The updated parameters.
+     * @return void
      */
     public function updateBrand(int $id, array $data): void
     {
@@ -84,3 +129,4 @@ final class MerchantRepository extends BaseRepository
         );
     }
 }
+

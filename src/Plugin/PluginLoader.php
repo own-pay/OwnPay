@@ -7,10 +7,11 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * Plugin loader - discovers, validates, and loads active plugins.
+ * PluginLoader scans, discovers, validates, and boots active plugins.
  *
- * Scan order: modules/gateways/, modules/themes/, modules/addons/
- * Each plugin dir must contain manifest.json + entrypoint class.
+ * Scans directories specified in application configuration (e.g., modules/gateways,
+ * modules/themes, modules/addons). Ensures active plugins are properly validated,
+ * recursively scanned for security issues, sandboxed, and loaded.
  */
 final class PluginLoader
 {
@@ -18,9 +19,18 @@ final class PluginLoader
     private EventManager $events;
     private PluginRegistry $registry;
 
-    /** @var string[] Plugin base directories */
+    /**
+     * @var string[] Directories scanned for plugin modules.
+     */
     private array $scanDirs;
 
+    /**
+     * Initialize the PluginLoader service.
+     *
+     * @param \OwnPay\Container $container The application's DI container.
+     * @param \OwnPay\Event\EventManager $events Event manager for triggering action and filter hooks.
+     * @param \OwnPay\Plugin\PluginRegistry $registry Registry for tracking registered plugins.
+     */
     public function __construct(Container $container, EventManager $events, PluginRegistry $registry)
     {
         $this->container = $container;
@@ -36,8 +46,11 @@ final class PluginLoader
     }
 
     /**
-     * Discover all plugins from filesystem.
-     * @return PluginManifest[]
+     * Scan the filesystem to discover all plugins under modules paths.
+     *
+     * Parses the manifest.json file inside each plugin directory.
+     *
+     * @return \OwnPay\Plugin\PluginManifest[] Array of discovered plugin manifests keyed by slug.
      */
     public function discover(): array
     {
@@ -74,8 +87,11 @@ final class PluginLoader
     }
 
     /**
-     * Boot all active plugins (alias for loadActive).
-     * Called by Kernel during boot sequence.
+     * Boot all active plugins (wrapper for loadActive).
+     *
+     * Executed by the application Kernel during the boot sequence.
+     *
+     * @return void
      */
     public function boot(): void
     {
@@ -83,8 +99,11 @@ final class PluginLoader
     }
 
     /**
-     * Load and register all active plugins.
-     * Called during Kernel boot.
+     * Load, validate, sandbox, and register active plugins.
+     *
+     * Wires gateway plugins into the core GatewayBridge payment pipeline.
+     *
+     * @return void
      */
     public function loadActive(): void
     {
@@ -112,10 +131,9 @@ final class PluginLoader
             }
         }
 
-        // Auto-register gateway adapters with GatewayBridge.
-        // Gateway plugins implement GatewayAdapterInterface but their boot() methods
-        // are empty — they never call registerAdapter() themselves. This ensures every
-        // loaded gateway plugin is automatically wired into the payment pipeline.
+        // Auto-register gateway adapters with the central GatewayBridge.
+        // Gateway plugins implement GatewayAdapterInterface but typically leave
+        // their boot() methods blank. We automatically register them here.
         if ($this->container->has(\OwnPay\Gateway\GatewayBridge::class)) {
             $bridge = $this->container->get(\OwnPay\Gateway\GatewayBridge::class);
             foreach ($this->registry->getLoaded() as $slug => $instance) {
@@ -129,7 +147,14 @@ final class PluginLoader
     }
 
     /**
-     * Load single plugin: validate ─ require ─ instantiate ─ register.
+     * Validate, inspect, require, instantiate, and sandbox a single plugin.
+     *
+     * Performs a deep token scanner scan on all PHP files within the plugin to block
+     * unapproved execution of dangerous system-level PHP functions.
+     *
+     * @param array $pluginData Plugin registration database record data.
+     * @return void
+     * @throws \RuntimeException If the manifest, entrypoint, or PHP source security scanning fails.
      */
     private function loadPlugin(array $pluginData): void
     {
@@ -157,9 +182,8 @@ final class PluginLoader
             throw new \RuntimeException("Entrypoint not found: {$entrypointFile}");
         }
 
-        // AUD-A4 + AUD-G8 fix: Scan ALL PHP files in plugin directory for dangerous functions.
-        // Uses PluginSandbox::isDangerousFunction() as the canonical dangerous function list
-        // instead of duplicating regex patterns in two places.
+        // AUD-A4, AUD-G8: Scan all plugin PHP files recursively for security-restricted functions.
+        // Checks tokens using PluginSandbox::isDangerousFunction() as the canonical rule list.
         $phpFiles = $this->findPhpFiles($manifest->path);
         foreach ($phpFiles as $phpFile) {
             $content = (string) file_get_contents($phpFile);
@@ -169,7 +193,7 @@ final class PluginLoader
                 if (is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
                     $funcName = $tokens[$i][1];
                     if (PluginSandbox::isDangerousFunction($funcName)) {
-                        // Check if prefixed by T_OBJECT_OPERATOR, T_NULLSAFE_OBJECT_OPERATOR, T_DOUBLE_COLON, or T_FUNCTION
+                        // Skip if the function identifier is part of an object or class declaration context.
                         $prev = $i - 1;
                         while ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_WHITESPACE) {
                             $prev--;
@@ -191,7 +215,7 @@ final class PluginLoader
                             continue;
                         }
 
-                        // Look ahead for '(' to confirm it's a function call
+                        // Confirm it is a function execution check by verifying it is followed by an opening parenthesis.
                         $next = $i + 1;
                         while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
                             $next++;
@@ -209,7 +233,7 @@ final class PluginLoader
 
         require_once $entrypointFile;
 
-        // Resolve class name (PSR-4 or declared in manifest)
+        // Resolves the entry class name according to PSR-4 standards or manifest naming.
         $className = $this->resolveClassName($manifest);
         if (!class_exists($className)) {
             throw new \RuntimeException("Plugin class not found: {$className}");
@@ -219,8 +243,7 @@ final class PluginLoader
             throw new \RuntimeException("Plugin {$slug} must implement PluginInterface");
         }
 
-        // AUD-G8 fix: Create sandbox with declared capabilities from manifest.
-        // The sandbox is attached to the plugin registry entry for runtime enforcement.
+        // AUD-G8: Establish plugin sandbox instance based on capabilities declared in its manifest.
         $capabilities = $manifest->capabilities ?? [];
         $sandbox = new PluginSandbox($manifest->path, $capabilities);
 
@@ -231,6 +254,12 @@ final class PluginLoader
         $this->registry->registerLoaded($slug, $instance, $manifest, $sandbox);
     }
 
+    /**
+     * Resolve the absolute path of a plugin folder on the server filesystem.
+     *
+     * @param array $pluginData Plugin registry metadata.
+     * @return string Absolute filesystem path to the plugin.
+     */
     private function resolvePluginPath(array $pluginData): string
     {
         $paths = $this->container->get('config.app')['paths'];
@@ -245,6 +274,14 @@ final class PluginLoader
         return $paths['modules'] . '/' . $typeDir . '/' . $pluginData['slug'];
     }
 
+    /**
+     * Resolve the entrypoint class name associated with the plugin manifest.
+     *
+     * Checks the namespace declared in manifest.json first, falling back to a PSR-4 convention.
+     *
+     * @param \OwnPay\Plugin\PluginManifest $manifest The plugin's loaded manifest.
+     * @return string Fully qualified class name.
+     */
     private function resolveClassName(PluginManifest $manifest): string
     {
         // 1) Try manifest.json "namespace" field (most reliable)
@@ -265,10 +302,12 @@ final class PluginLoader
     }
 
     /**
-     * Recursively find all .php files in a directory.
-     * AUD-A4: Used for deep sandbox scanning.
+     * Recursively find all PHP source files in a directory.
      *
-     * @return string[]
+     * AUD-A4: Essential for executing the static security scanner over the entire plugin codebase.
+     *
+     * @param string $directory Absolute folder path to scan.
+     * @return string[] Array of absolute file paths to PHP files.
      */
     private function findPhpFiles(string $directory): array
     {
