@@ -9,7 +9,7 @@ namespace OwnPay\Security;
  * Per pci-compliance skill: encrypt PII at rest, unique IV per operation.
  * Used for: customer name, email, phone stored in op_customers.
  */
-final class FieldEncryptor
+class FieldEncryptor
 {
     private const CIPHER = 'aes-256-gcm';
     private const TAG_LENGTH = 16;

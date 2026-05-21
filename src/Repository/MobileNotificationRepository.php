@@ -56,8 +56,8 @@ final class MobileNotificationRepository extends BaseRepository
              FROM {$this->table}
              WHERE {$where}
              ORDER BY created_at DESC
-             LIMIT {$limit}",
-            $params
+             LIMIT :lim",
+            array_merge($params, ['lim' => $limit])
         );
     }
 
@@ -117,8 +117,8 @@ final class MobileNotificationRepository extends BaseRepository
             "SELECT id, type, title, body, payload as data, read_at, created_at
              FROM {$this->table}
              WHERE merchant_id = :mid AND device_uuid = :did
-             ORDER BY created_at DESC LIMIT {$limit}",
-            ['mid' => $merchantId, 'did' => $deviceUuid]
+             ORDER BY created_at DESC LIMIT :lim",
+            ['mid' => $merchantId, 'did' => $deviceUuid, 'lim' => $limit]
         );
     }
 

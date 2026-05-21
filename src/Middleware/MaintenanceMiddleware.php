@@ -29,12 +29,31 @@ final class MaintenanceMiddleware
         }
 
         // Skip for admin routes when authenticated (allows disabling maintenance from admin)
-        // BUG-8 FIX: Guard $_SESSION — maintenance runs in 'global' group
-        // BEFORE session middleware starts, so $_SESSION may not exist.
-        if (str_starts_with($request->path(), '/admin')
-            && session_status() === PHP_SESSION_ACTIVE
-            && !empty($_SESSION['auth_user_id'])) {
-            return $next($request);
+        // BUG-8 FIX: Start session if needed before checking auth since maintenance mode runs in global group
+        if (str_starts_with($request->path(), '/admin')) {
+            if (session_status() !== PHP_SESSION_ACTIVE) {
+                $config = $this->container->get('config.app');
+                $secure = $request->isSecure();
+
+                ini_set('session.use_strict_mode', '1');
+                ini_set('session.use_only_cookies', '1');
+                ini_set('session.cookie_httponly', '1');
+
+                session_set_cookie_params([
+                    'lifetime' => (int) ($config['session']['lifetime'] ?? 7200),
+                    'path'     => '/',
+                    'domain'   => '',
+                    'secure'   => $secure,
+                    'httponly'  => true,
+                    'samesite'  => 'Lax',
+                ]);
+
+                session_name('op_session');
+                session_start();
+            }
+            if (!empty($_SESSION['auth_user_id'])) {
+                return $next($request);
+            }
         }
 
         // Skip for /admin/system-update route even without session (escape hatch)

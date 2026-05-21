@@ -220,8 +220,8 @@ final class LedgerRepository extends BaseRepository
              WHERE lt.merchant_id = :mid
              GROUP BY lt.id
              ORDER BY lt.created_at DESC
-             LIMIT {$limit} OFFSET {$offset}",
-            ['mid' => $merchantId]
+             LIMIT :lim OFFSET :off",
+            ['mid' => $merchantId, 'lim' => $limit, 'off' => $offset]
         );
 
         return ['items' => $items, 'total' => $total];

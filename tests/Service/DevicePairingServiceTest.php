@@ -22,49 +22,66 @@ class DevicePairingServiceTest extends TestCase
         $this->jwt = new JwtService();
     }
 
-    // â”€â”€ Helpers to build stub repos â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+   
     /**
      * Build a DevicePairingService with controllable stub behaviour.
      */
     private function buildService(array $tokenStub = [], array $deviceStub = []): DevicePairingService
     {
-        $tokenRepo = new class($tokenStub) {
+        $stmtMock = $this->createMock(\PDOStatement::class);
+        $db = new class($tokenStub, $stmtMock) extends \OwnPay\Core\Database {
             private array $cfg;
-            public array $created = [];
+            private \PDOStatement $stmt;
+            public array $executed = [];
 
-            public function __construct(array $cfg)
+            public function __construct(array $cfg, \PDOStatement $stmt)
             {
                 $this->cfg = $cfg;
+                $this->stmt = $stmt;
             }
 
-            public function countRecentByAdmin(int $admin, int $window = 300): int
+            public function execute(string $sql, array $params = []): \PDOStatement
             {
-                return $this->cfg['recentCount'] ?? 0;
+                $this->executed[] = compact('sql', 'params');
+                return $this->stmt;
             }
 
-            public function create(string $hash, int $brand, int $admin, int $ttl = 300): int
+            public function fetchOne(string $sql, array $params = []): ?array
             {
-                $this->created[] = compact('hash', 'brand', 'admin');
-                return 1;
+                if (strpos($sql, 'op_device_pairing_tokens') !== false) {
+                    if (strpos($sql, 'COUNT(*)') !== false) {
+                        return ['cnt' => $this->cfg['recentCount'] ?? 0];
+                    }
+                    return $this->cfg['validateResult'] ?? null;
+                }
+                if (strpos($sql, 'op_merchant_users') !== false) {
+                    return ['id' => 1];
+                }
+                return null;
             }
 
-            public function validateAndConsume(string $hash): ?array
+            public function transaction(callable $callback): mixed
             {
-                return $this->cfg['validateResult'] ?? null;
+                return $callback();
             }
         };
 
-        $deviceRepo = new class($deviceStub) {
+        $deviceRepo = new class($db, $deviceStub) extends \OwnPay\Repository\PairedDeviceRepository {
             private array $cfg;
             public array $created = [];
             public array $revoked = [];
             public array $refreshUpdates = [];
             public array $touched = [];
 
-            public function __construct(array $cfg)
+            public function __construct(\OwnPay\Core\Database $db, array $cfg)
             {
+                parent::__construct($db);
                 $this->cfg = $cfg;
+            }
+
+            public function forTenant(int $merchantId): static
+            {
+                return $this;
             }
 
             public function findByFingerprintHash(string $hash, int $brand): ?array
@@ -72,16 +89,22 @@ class DevicePairingServiceTest extends TestCase
                 return $this->cfg['existingDevice'] ?? null;
             }
 
-            public function create(array $data): int
+            public function create(array $data): string
             {
                 $this->created[] = $data;
-                return 1;
+                return '1';
             }
 
-            public function revoke(string $uuid): bool
+            public function createScoped(array $data): string
             {
-                $this->revoked[] = $uuid;
-                return true;
+                $this->created[] = $data;
+                return '1';
+            }
+
+            public function revoke(int $id): int
+            {
+                $this->revoked[] = $id;
+                return 1;
             }
 
             public function findByRefreshTokenHash(string $hash): ?array
@@ -106,14 +129,19 @@ class DevicePairingServiceTest extends TestCase
             }
         };
 
-        $encryptor = new class {
+        $encryptor = new class extends \OwnPay\Security\FieldEncryptor {
+            public function __construct()
+            {
+                // Do not invoke parent construct
+            }
+
             public function encrypt(string $val): string
             {
                 return 'enc_v1:stub:' . substr($val, 0, 8);
             }
         };
 
-        return new DevicePairingService($tokenRepo, $deviceRepo, $this->jwt, $encryptor);
+        return new DevicePairingService($deviceRepo, $encryptor, $this->jwt);
     }
 
     // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
@@ -301,7 +329,7 @@ class DevicePairingServiceTest extends TestCase
         $fingerprint = 'validate_fp';
         $fpHash = hash('sha256', $fingerprint);
 
-        $encoded = $this->jwt->encode($deviceUuid, 5, $jwtSecret);
+        $encoded = $this->jwt->encode($deviceUuid, 5, null);
 
         $svc = $this->buildService([], [
             'findByUuidResult' => [
@@ -325,7 +353,7 @@ class DevicePairingServiceTest extends TestCase
     {
         $jwtSecret = JwtService::generateSecret();
         $deviceUuid = 'revoked-uuid';
-        $encoded = $this->jwt->encode($deviceUuid, 1, $jwtSecret);
+        $encoded = $this->jwt->encode($deviceUuid, 1, null);
 
         $svc = $this->buildService([], [
             'findByUuidResult' => [
@@ -355,7 +383,7 @@ class DevicePairingServiceTest extends TestCase
     {
         $jwtSecret = JwtService::generateSecret();
         $deviceUuid = 'fp-mismatch-uuid';
-        $encoded = $this->jwt->encode($deviceUuid, 1, $jwtSecret);
+        $encoded = $this->jwt->encode($deviceUuid, 1, null);
 
         $svc = $this->buildService([], [
             'findByUuidResult' => [
@@ -376,7 +404,7 @@ class DevicePairingServiceTest extends TestCase
     public function testValidateRequestFailsForUnknownDevice(): void
     {
         $jwtSecret = JwtService::generateSecret();
-        $encoded = $this->jwt->encode('nonexistent-uuid', 1, $jwtSecret);
+        $encoded = $this->jwt->encode('nonexistent-uuid', 1, null);
 
         $svc = $this->buildService([], ['findByUuidResult' => null]);
         $result = $svc->validateRequest($encoded['token'], 'fp');

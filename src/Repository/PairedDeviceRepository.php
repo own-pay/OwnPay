@@ -3,7 +3,7 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
-final class PairedDeviceRepository extends BaseRepository
+class PairedDeviceRepository extends BaseRepository
 {
     use TenantScope;
 

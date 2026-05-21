@@ -16,7 +16,7 @@ use PDOStatement;
  *
  * Injected via DI container — never instantiate directly.
  */
-final class Database
+class Database
 {
     private PDO $pdo;
 

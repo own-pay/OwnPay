@@ -115,8 +115,8 @@ final class MerchantUserRepository extends BaseRepository
              LEFT JOIN op_roles r ON r.id = u.role_id
              WHERE u.merchant_id = :mid
              ORDER BY u.created_at DESC
-             LIMIT {$limit} OFFSET {$offset}",
-            ['mid' => $merchantId]
+             LIMIT :lim OFFSET :off",
+            ['mid' => $merchantId, 'lim' => $limit, 'off' => $offset]
         );
         $total = $this->db->count($this->table, 'merchant_id = :mid', ['mid' => $merchantId]);
         return ['items' => $items, 'total' => $total];

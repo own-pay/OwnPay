@@ -33,14 +33,17 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         parent::setUp(); // triggers DB-available skip check
 
         $db = Database::getInstance();
+        if (static::$dbAvailable) {
+            $db->pdo()->exec("DELETE FROM op_device_pairing_tokens WHERE created_by = 12 OR merchant_id = 1 OR merchant_id = 12");
+        }
         $this->tokenRepo = (new DevicePairingTokenRepository($db))->forTenant(12);
         $this->deviceRepo = (new PairedDeviceRepository($db))->forTenant(12);
         $this->jwt = new JwtService();
         $this->pairingService = new DevicePairingService(
-            $this->tokenRepo,
             $this->deviceRepo,
+            new \OwnPay\Security\FieldEncryptor('test-key-32-chars-long-placeholder'),
             $this->jwt,
-            null // real FieldEncryptor — needs PII_ENCRYPTION_KEY env
+            null
         );
     }
 
@@ -58,7 +61,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         }
 
         // Clean up test tokens
-        $pdo->exec("DELETE FROM op_device_pairing_tokens WHERE brand_id = 12 OR created_by = 999999");
+        $pdo->exec("DELETE FROM op_device_pairing_tokens WHERE created_by = 12 OR merchant_id = 1 OR merchant_id = 12");
     }
 
     // ═══════════════════════════════════════════════════════════════
@@ -68,7 +71,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
     public function testFullPairingLifecycle(): void
     {
         // ── Step 1: Admin generates OTP ──────────────────────────
-        $otpResult = $this->pairingService->generatePairingOtp(1, 12);
+        $otpResult = $this->pairingService->generatePairingOtp(12, 12);
 
         $this->assertArrayHasKey('otp', $otpResult, 'OTP generation should return an OTP');
         $this->assertSame(300, $otpResult['expires_in']);
@@ -189,7 +192,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $fingerprint = 'repairing_test_fp:cert_sha';
 
         // First pairing
-        $otp1 = $this->pairingService->generatePairingOtp(1, 12);
+        $otp1 = $this->pairingService->generatePairingOtp(12, 12);
         $pair1 = $this->pairingService->pairDevice($otp1['otp'], 'Phone v1', $fingerprint, '1.0');
         $this->assertTrue($pair1['success']);
         $this->createdDeviceUuids[] = $pair1['device_id'];
@@ -197,7 +200,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $oldUuid = $pair1['device_id'];
 
         // Second pairing with same fingerprint
-        $otp2 = $this->pairingService->generatePairingOtp(1, 12);
+        $otp2 = $this->pairingService->generatePairingOtp(12, 12);
         $pair2 = $this->pairingService->pairDevice($otp2['otp'], 'Phone v2', $fingerprint, '2.0');
         $this->assertTrue($pair2['success']);
         $this->createdDeviceUuids[] = $pair2['device_id'];
@@ -218,12 +221,12 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
     {
         // Generate 5 OTPs (the limit)
         for ($i = 0; $i < 5; $i++) {
-            $result = $this->pairingService->generatePairingOtp(1, 12);
+            $result = $this->pairingService->generatePairingOtp(12, 12);
             $this->assertArrayHasKey('otp', $result, "OTP #{$i} should succeed");
         }
 
         // 6th should be rate limited
-        $result = $this->pairingService->generatePairingOtp(1, 12);
+        $result = $this->pairingService->generatePairingOtp(12, 12);
         $this->assertArrayHasKey('error', $result, 'Should be rate limited after 5 OTPs');
         $this->assertStringContainsString('Too many', $result['error']);
     }

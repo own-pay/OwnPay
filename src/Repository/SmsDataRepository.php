@@ -67,8 +67,8 @@ final class SmsDataRepository extends BaseRepository
              FROM {$this->table}
              WHERE {$where}
              ORDER BY received_at DESC
-             LIMIT {$limit} OFFSET {$offset}",
-            $params
+             LIMIT :lim OFFSET :off",
+            array_merge($params, ['lim' => $limit, 'off' => $offset])
         );
 
         return ['items' => $items, 'total' => $total];

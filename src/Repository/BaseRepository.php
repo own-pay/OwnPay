@@ -79,15 +79,16 @@ abstract class BaseRepository
         $cleanedWhere = preg_replace('/--.*$/m', ' ', $cleanedWhere) ?? $cleanedWhere;
         // Collapse all whitespace and lowercase for consistent checking
         $lowerWhere = strtolower(preg_replace('/\s+/', ' ', trim($cleanedWhere)));
-        $blocked = ['drop ', 'alter ', 'truncate ', 'union ', 'insert ', 'update ', 'delete ', 'create ', 'select ', 'into outfile', 'into dumpfile', 'load_file', '--', ';'];
-        foreach ($blocked as $kw) {
-            if (str_contains($lowerWhere, $kw)) {
-                throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
-            }
+        
+        // BUG-14 FIX: Use word-boundary regular expression to reject SQL keywords
+        // to prevent space-less SQL injection structures (e.g. select(1) or union(select...)).
+        if (preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $cleanedWhere) || str_contains($lowerWhere, ';') || str_contains($lowerWhere, '--')) {
+            throw new \InvalidArgumentException('Potentially unsafe WHERE clause rejected');
         }
 
         $safeOrder = $this->sanitizeOrderBy($orderBy);
-        $page = max(1, $page);
+        $page = max(1, (int) $page);
+        $perPage = (int) $perPage;
         $offset = ($page - 1) * $perPage;
 
         $total = (int) $this->db->fetchColumn(

@@ -3,21 +3,21 @@
 > Goal: Apply production-grade fixes for all 56 bugs identified during the 11-phase security audit.
 > Constraint: Preserve all existing comments and docstrings. Update AGENTS.md and ARCHITECTURE.md after all fixes.
 
-## Fix Batch 1: Boot & Router Core (Bugs 1–5) — `in_progress`
-- `[ ]` Bug 1: Kernel.php — Always throw RuntimeException for missing middleware (remove debug bypass)
-- `[ ]` Bug 2: BaseDto.php — Initialize nullable properties to null when missing from input
-- `[ ]` Bug 3: Request.php — Support IPv6 in isTrustedProxy() using filter_var FILTER_VALIDATE_IP
-- `[ ]` Bug 4: Response.php — Use array for Set-Cookie headers; send with replace=false
-- `[ ]` Bug 5: RouteHelper.php — Include port in URL reconstruction
+## Fix Batch 1: Boot & Router Core (Bugs 1–5) — `complete`
+- `[x]` Bug 1: Kernel.php — Always throw RuntimeException for missing middleware (remove debug bypass)
+- `[x]` Bug 2: BaseDto.php — Initialize nullable properties to null when missing from input
+- `[x]` Bug 3: Request.php — Support IPv6 in isTrustedProxy() using filter_var FILTER_VALIDATE_IP
+- `[x]` Bug 4: Response.php — Use array for Set-Cookie headers; send with replace=false
+- `[x]` Bug 5: RouteHelper.php — Include port in URL reconstruction
 
-## Fix Batch 2: Middleware Security Pipeline (Bugs 6–12)
-- `[ ]` Bug 6: DomainMiddleware.php — Parse host properly for IPv6 (strrpos for last colon)
-- `[ ]` Bug 7: IdempotencyMiddleware.php — Only cache 2xx responses
-- `[ ]` Bug 8: MaintenanceMiddleware.php — Start session if needed before checking auth
-- `[ ]` Bug 9: PermissionMiddleware.php — Add /admin and /admin/fragment/{page} to permission map
-- `[ ]` Bug 10: RateLimiterMiddleware.php — Use atomic increment (INCR or INSERT ON DUPLICATE KEY)
-- `[ ]` Bug 11: RequestSignatureMiddleware.php / middleware.php — Remove from webhook group or make gateway-aware
-- `[ ]` Bug 12: SecurityHeadersMiddleware.php — Pass nonce to request attributes; add unsafe-inline fallback for checkout
+## Fix Batch 2: Middleware Security Pipeline (Bugs 6–12) — `complete`
+- `[x]` Bug 6: DomainMiddleware.php — Parse host properly for IPv6 (strrpos for last colon)
+- `[x]` Bug 7: IdempotencyMiddleware.php — Only cache 2xx responses
+- `[x]` Bug 8: MaintenanceMiddleware.php — Start session if needed before checking auth
+- `[x]` Bug 9: PermissionMiddleware.php — Add /admin and /admin/fragment/{page} to permission map
+- `[x]` Bug 10: RateLimiterMiddleware.php — Use atomic increment (INCR or INSERT ON DUPLICATE KEY)
+- `[x]` Bug 11: RequestSignatureMiddleware.php / middleware.php — Remove from webhook group or make gateway-aware
+- `[x]` Bug 12: SecurityHeadersMiddleware.php — Pass nonce to request attributes; add unsafe-inline fallback for checkout
 
 ## Fix Batch 3: Repositories & Tenant Security (Bugs 13–21)
 - `[ ]` Bug 13: TenantScope.php — Strip merchant_id from update payload in updateScoped()

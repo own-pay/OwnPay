@@ -56,7 +56,6 @@ return [
     // ─── Webhook: signature verification ───────────────────────
     'webhook' => [
         \OwnPay\Middleware\IpAllowlistMiddleware::class,
-        \OwnPay\Middleware\RequestSignatureMiddleware::class,
     ],
 
     // ─── Checkout: minimal (session + csrf) ────────────────────

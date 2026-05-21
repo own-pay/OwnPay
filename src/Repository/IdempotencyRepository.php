@@ -49,6 +49,17 @@ final class IdempotencyRepository extends BaseRepository
     }
 
     /**
+     * Delete an idempotency key lock (called on request failure to allow retry).
+     */
+    public function deleteKey(string $key): int
+    {
+        return $this->db->delete(
+            "DELETE FROM `{$this->table}` WHERE `idempotency_key` = :key AND `merchant_id` = :mid",
+            ['key' => $key, 'mid' => $this->requireTenant()]
+        );
+    }
+
+    /**
      * Clean up expired keys (older than $hours).
      * NOTE: This is a global housekeeping operation — no tenant scoping applied.
      */

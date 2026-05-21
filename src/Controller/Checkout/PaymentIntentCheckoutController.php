@@ -461,6 +461,18 @@ final class PaymentIntentCheckoutController
                         ]);
                     }
                     return Response::redirect($result['redirect_url']);
+                } elseif ($result['success'] && !empty($result['form_html'])) {
+                    // Update Transaction Status to processing (Intent stays pending/initiated)
+                    $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'processing', $mid);
+                    $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
+
+                    if ($req->isAjax()) {
+                        return Response::json([
+                            'success'   => true,
+                            'form_html' => $result['form_html'],
+                        ]);
+                    }
+                    return Response::html($result['form_html']);
                 }
 
                 $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
@@ -582,16 +594,17 @@ final class PaymentIntentCheckoutController
         }
 
         $submittedHash = $req->input('checkout_hash', '');
-        if ($submittedHash) {
-            // BUG-010 FIX: No static fallback key
-            $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
-            if ($hmacKey === '') {
-                throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
-            }
-            $expectedHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
-            if (!hash_equals($expectedHash, $submittedHash)) {
-                return $this->renderStatus($token, 'expired');
-            }
+        if (empty($submittedHash)) {
+            return $this->renderStatus($token, 'expired');
+        }
+        // BUG-010 FIX: No static fallback key
+        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
+        $expectedHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
+        if (!hash_equals($expectedHash, $submittedHash)) {
+            return $this->renderStatus($token, 'expired');
         }
 
         $mid = (int) $intent['merchant_id'];

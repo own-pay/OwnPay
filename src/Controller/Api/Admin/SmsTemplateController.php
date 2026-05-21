@@ -19,7 +19,7 @@ final class SmsTemplateController
     public function index(Request $req): Response
     {
         $mid = (int) $req->getAttribute('merchant_id');
-        $templates = $this->tplRepo->listForAdmin($mid, 'event ASC');
+        $templates = $this->tplRepo->listForAdmin($mid, 'priority ASC, created_at DESC');
         return Response::json(['success' => true, 'data' => $templates]);
     }
 
@@ -29,12 +29,19 @@ final class SmsTemplateController
         $mid = (int) $req->getAttribute('merchant_id');
         $body = $req->json();
 
-        // BUG-50 FIX: updateTemplate expects (int $id, int $mid, array $data),
-        // not (int, int, string, bool). Was passing wrong arg count/types.
-        $this->tplRepo->updateTemplate($id, $mid, [
-            'body'    => $body['body'] ?? '',
-            'enabled' => (bool) ($body['enabled'] ?? true),
-        ]);
+        $data = [];
+        $allowed = ['gateway_slug', 'sender_pattern', 'amount_regex', 'trx_id_regex', 'sender_regex', 'priority', 'status'];
+        foreach ($allowed as $col) {
+            if (array_key_exists($col, $body)) {
+                if ($col === 'priority') {
+                    $data[$col] = (int) $body[$col];
+                } else {
+                    $data[$col] = $body[$col];
+                }
+            }
+        }
+
+        $this->tplRepo->updateTemplate($id, $mid, $data);
         return Response::json(['success' => true]);
     }
 }

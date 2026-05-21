@@ -120,7 +120,6 @@ final class PermissionMiddleware
     {
         $map = [
             // BUG-9 FIX: Dashboard routes were missing from permission map.
-            '/admin'                      => 'dashboard.view',
             '/admin/transactions'         => 'transactions.view',
             '/admin/invoices'             => 'invoices.view',
             '/admin/payment-links'        => 'payment_links.view',
@@ -148,6 +147,8 @@ final class PermissionMiddleware
             '/admin/ledger'               => 'system.reports',
             '/admin/currencies'           => 'settings.view',
             '/admin/my-account'           => 'admin.access',
+            '/admin/fragment'             => 'dashboard.view',
+            '/admin'                      => 'dashboard.view',
         ];
 
         // A6 FIX: Brand switching is read-only, not brand management

@@ -77,7 +77,8 @@ final class UpdateHistoryRepository extends BaseRepository
     public function listFinished(int $limit = 10, int $offset = 0): array
     {
         return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE status IN ('completed','failed','rolled_back') ORDER BY id DESC LIMIT {$limit} OFFSET {$offset}"
+            "SELECT * FROM {$this->table} WHERE status IN ('completed','failed','rolled_back') ORDER BY id DESC LIMIT :lim OFFSET :off",
+            ['lim' => $limit, 'off' => $offset]
         );
     }
 

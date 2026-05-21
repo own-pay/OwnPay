@@ -49,9 +49,9 @@ final class IdempotencyMiddleware
         }
 
         $svc = $this->container->get(IdempotencyService::class);
-        $scope = 'api:' . $request->path();
+        $requestHash = hash('sha256', $request->rawBody() ?? '');
 
-        $result = $svc->check($scope, $idempotencyKey, $merchantId);
+        $result = $svc->check($idempotencyKey, $merchantId, $requestHash);
 
         if ($result['is_duplicate']) {
             if (($result['status'] ?? '') === 'processing') {
@@ -59,6 +59,13 @@ final class IdempotencyMiddleware
                     'success' => false,
                     'error'   => 'Request with this Idempotency-Key is still processing.',
                 ], 409);
+            }
+
+            if (($result['status'] ?? '') === 'error') {
+                return Response::json([
+                    'success' => false,
+                    'error'   => $result['error'] ?? 'Idempotency key collision.',
+                ], 400);
             }
 
             // Return cached response
@@ -75,12 +82,16 @@ final class IdempotencyMiddleware
             // Only cache successful responses (2xx) — don't cache transient server errors
             if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
                 $body = json_decode($response->getBody(), true) ?: [];
-                $svc->storeResponse($scope, $idempotencyKey, $merchantId, $response->getStatusCode(), $body);
+                $svc->storeResponse($idempotencyKey, $merchantId, $response->getStatusCode(), $body);
+            } else {
+                // Delete lock on non-2xx response status to allow retry
+                $svc->deleteLock($idempotencyKey, $merchantId);
             }
 
             return $response;
         } catch (\Throwable $e) {
-            // Don't cache error responses — allow retry
+            // Delete lock on exception to allow retry
+            $svc->deleteLock($idempotencyKey, $merchantId);
             throw $e;
         }
     }
