@@ -54,20 +54,39 @@ final class DevicePairingService
     /**
      * Generate a 6-digit pairing OTP.
      */
-    public function generatePairingOtp(int $merchantId): array
+    public function generatePairingOtp(int $merchantId, ?int $adminId = null): array
     {
+        $db = $this->devices->getDatabase();
+        if ($adminId !== null) {
+            $since = date('Y-m-d H:i:s', time() - 300);
+            $count = $db->fetchOne(
+                "SELECT COUNT(*) as cnt FROM op_device_pairing_tokens WHERE created_by = :admin AND created_at > :since",
+                [
+                    'admin' => $adminId,
+                    'since' => $since
+                ]
+            );
+            if ($count && (int)$count['cnt'] >= 5) {
+                return ['error' => 'Too many pairing attempts. Please try again later.'];
+            }
+        }
+
         $otp = str_pad((string) random_int(0, 999999), 6, '0', STR_PAD_LEFT);
         $otpHash = hash('sha256', $otp);
         $expiresAt = (new \DateTimeImmutable('+5 minutes'))->format('Y-m-d H:i:s.u');
 
-        $db = $this->devices->getDatabase();
         $db->execute(
-            "DELETE FROM op_device_pairing_tokens WHERE merchant_id = :mid AND is_used = 0",
+            "UPDATE op_device_pairing_tokens SET is_used = 1 WHERE merchant_id = :mid AND is_used = 0",
             ['mid' => $merchantId]
         );
         $db->execute(
-            "INSERT INTO op_device_pairing_tokens (otp_hash, merchant_id, expires_at, is_used) VALUES (:hash, :mid, :exp, 0)",
-            ['hash' => $otpHash, 'mid' => $merchantId, 'exp' => $expiresAt]
+            "INSERT INTO op_device_pairing_tokens (otp_hash, merchant_id, expires_at, is_used, created_by) VALUES (:hash, :mid, :exp, 0, :admin)",
+            [
+                'hash' => $otpHash,
+                'mid' => $merchantId,
+                'exp' => $expiresAt,
+                'admin' => $adminId
+            ]
         );
 
         return ['otp' => $otp, 'expires_in' => 300];
@@ -83,13 +102,14 @@ final class DevicePairingService
     {
         $otpHash = hash('sha256', $otp);
         $db = $this->devices->getDatabase();
+        $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s.u');
 
         $result = null;
-        $db->transaction(function () use ($db, $otpHash, &$result) {
+        $db->transaction(function () use ($db, $otpHash, $now, &$result) {
             // BUG-004 FIX: FOR UPDATE locks the row to prevent concurrent consumption
             $row = $db->fetchOne(
-                "SELECT * FROM op_device_pairing_tokens WHERE otp_hash = :hash AND is_used = 0 AND expires_at > NOW() FOR UPDATE",
-                ['hash' => $otpHash]
+                "SELECT * FROM op_device_pairing_tokens WHERE otp_hash = :hash AND is_used = 0 AND expires_at > :now FOR UPDATE",
+                ['hash' => $otpHash, 'now' => $now]
             );
 
             if (!$row) {

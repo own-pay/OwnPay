@@ -86,6 +86,14 @@ final class DeviceController
     {
         $deviceId = (string) $req->getAttribute('device_id');
         $mid      = (int) $req->getAttribute('merchant_id');
+
+        if (ctype_digit($deviceId)) {
+            $device = $this->deviceRepo->forTenant($mid)->find((int) $deviceId);
+            if ($device !== null) {
+                $deviceId = (string) $device['device_id'];
+            }
+        }
+
         $this->devices->revoke((string) $deviceId, $mid);
         return Response::json(['success' => true]);
     }

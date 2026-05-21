@@ -396,6 +396,19 @@ final class CheckoutController
                     }
                     // Non-AJAX fallback: 302 redirect
                     return Response::redirect($result['redirect_url']);
+                } elseif ($result['success'] && !empty($result['form_html'])) {
+                    // External gateway returned a form HTML instead of redirect URL — transition state
+                    $this->txnRepo->setGatewayAndStatus(
+                        (int) $txn['id'], $gateway, 'processing', (int) $txn['merchant_id']
+                    );
+
+                    if ($req->isAjax()) {
+                        return Response::json([
+                            'success'   => true,
+                            'form_html' => $result['form_html'],
+                        ]);
+                    }
+                    return Response::html($result['form_html']);
                 }
 
                 // Gateway returned success=false or no redirect URL
@@ -453,12 +466,13 @@ final class CheckoutController
 
         // H-03 FIX: Verify HMAC hash — prevent anyone with trx_id from cancelling
         $submittedHash = $req->input('checkout_hash', '');
-        if ($submittedHash) {
-            $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: 'fallback-key');
-            $expectedHash = hash_hmac('sha256', $txn['amount'] . '|' . $txn['currency'] . '|' . $token, $hmacKey);
-            if (!hash_equals($expectedHash, $submittedHash)) {
-                return $this->renderStatus($token, 'expired');
-            }
+        if (empty($submittedHash)) {
+            return $this->renderStatus($token, 'expired');
+        }
+        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: 'fallback-key');
+        $expectedHash = hash_hmac('sha256', $txn['amount'] . '|' . $txn['currency'] . '|' . $token, $hmacKey);
+        if (!hash_equals($expectedHash, $submittedHash)) {
+            return $this->renderStatus($token, 'expired');
         }
 
         $this->txnRepo->cancelByTrxId($token);

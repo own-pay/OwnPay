@@ -30,13 +30,12 @@ class CsrfMiddlewareTest extends TestCase
         unset($_ENV['APP_HMAC_SECRET']);
     }
 
-    // â”€â”€ Standard CSRF (validateCsrf) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
+   
     public function testCsrfValidatesMatchingTokens(): void
     {
         $token = 'abc123session';
-        $_SESSION['csrf_token'] = $token;
-        $_POST['csrf_token']    = $token;
+        $_SESSION['_csrf_token'] = $token;
+        $_POST['_csrf_token']    = $token;
 
         $result = (new CsrfMiddleware())->validate('');
 
@@ -47,8 +46,8 @@ class CsrfMiddlewareTest extends TestCase
 
     public function testCsrfRejectsMismatchedTokens(): void
     {
-        $_SESSION['csrf_token'] = 'expected-token';
-        $_POST['csrf_token']    = 'attacker-token';
+        $_SESSION['_csrf_token'] = 'expected-token';
+        $_POST['_csrf_token']    = 'attacker-token';
 
         $result = (new CsrfMiddleware())->validate('');
 
@@ -62,8 +61,8 @@ class CsrfMiddlewareTest extends TestCase
 
     public function testCsrfRejectsMissingPostToken(): void
     {
-        $_SESSION['csrf_token'] = 'abc';
-        // No $_POST['csrf_token']
+        $_SESSION['_csrf_token'] = 'abc';
+        // No $_POST['_csrf_token']
 
         $result = (new CsrfMiddleware())->validate('');
 
@@ -73,8 +72,8 @@ class CsrfMiddlewareTest extends TestCase
 
     public function testCsrfRejectsMissingSessionToken(): void
     {
-        $_POST['csrf_token'] = 'abc';
-        // No $_SESSION['csrf_token']
+        $_POST['_csrf_token'] = 'abc';
+        // No $_SESSION['_csrf_token']
 
         $result = (new CsrfMiddleware())->validate('');
 
@@ -84,15 +83,15 @@ class CsrfMiddlewareTest extends TestCase
 
     public function testCsrfRotatesSessionTokenOnFailure(): void
     {
-        $_SESSION['csrf_token'] = 'old-token';
-        $_POST['csrf_token']    = 'wrong';
+        $_SESSION['_csrf_token'] = 'old-token';
+        $_POST['_csrf_token']    = 'wrong';
 
         (new CsrfMiddleware())->validate('');
 
-        $this->assertNotSame('old-token', $_SESSION['csrf_token']);
-        $this->assertNotEmpty($_SESSION['csrf_token']);
+        $this->assertNotSame('old-token', $_SESSION['_csrf_token']);
+        $this->assertNotEmpty($_SESSION['_csrf_token']);
         // bin2hex(random_bytes(32)) returns 64 hex chars
-        $this->assertSame(64, strlen($_SESSION['csrf_token']));
+        $this->assertSame(64, strlen($_SESSION['_csrf_token']));
     }
 
     // â”€â”€ HMAC mode (validateHmac) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

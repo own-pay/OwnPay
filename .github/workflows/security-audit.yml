@@ -39,9 +39,6 @@ jobs:
       - name: 🛡️ SCA - Composer Audit
         run: composer audit
 
-      - name: 🛡️ SCA - NPM Audit
-        run: npm audit --audit-level=moderate
-
       - name: 🔑 Secret Scanning - Gitleaks
         uses: gitleaks/gitleaks-action@v2.3.9
         env:

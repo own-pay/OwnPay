@@ -87,6 +87,7 @@ final class RouteHelper
         $baseUrl =
             ($parsedUrl['scheme'] ?? '') . ($parsedUrl['scheme'] ? '://' : '') .
             ($parsedUrl['host'] ?? '') .
+            (!empty($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '') .
             ($parsedUrl['path'] ?? '');
 
         return $baseUrl . '?' . $queryString;

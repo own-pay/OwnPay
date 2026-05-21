@@ -124,8 +124,8 @@ final class TransactionRepository extends BaseRepository
         }
 
         return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE {$where} ORDER BY created_at DESC LIMIT {$limit} OFFSET {$offset}",
-            $params
+            "SELECT * FROM {$this->table} WHERE {$where} ORDER BY created_at DESC LIMIT :lim OFFSET :off",
+            array_merge($params, ['lim' => $limit, 'off' => $offset])
         );
     }
 
@@ -423,8 +423,8 @@ final class TransactionRepository extends BaseRepository
     {
         return $this->db->fetchAll(
             "SELECT trx_id, amount, currency, status, gateway_slug as gateway, created_at
-             FROM {$this->table} WHERE merchant_id = :mid ORDER BY created_at DESC LIMIT {$limit}",
-            ['mid' => $merchantId]
+             FROM {$this->table} WHERE merchant_id = :mid ORDER BY created_at DESC LIMIT :lim",
+            ['mid' => $merchantId, 'lim' => $limit]
         );
     }
 

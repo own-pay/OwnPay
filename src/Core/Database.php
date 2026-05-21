@@ -16,11 +16,11 @@ use PDOStatement;
  *
  * Injected via DI container — never instantiate directly.
  */
-final class Database
+class Database
 {
     private PDO $pdo;
 
-    /** @var static|null */
+    /** @var self|null */
     private static ?self $instance = null;
 
     /**

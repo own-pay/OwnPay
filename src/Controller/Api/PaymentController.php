@@ -19,22 +19,16 @@ use OwnPay\Service\System\InputSanitizer;
 final class PaymentController
 {
     private Container $c;
-    private GatewayApiService $gatewayApi;
     private TransactionRepository $transactions;
-    private EventManager $events;
     private \OwnPay\Service\Payment\PaymentService $paymentService;
 
     public function __construct(
         Container $c,
-        GatewayApiService $gatewayApi,
         TransactionRepository $transactions,
-        EventManager $events,
         \OwnPay\Service\Payment\PaymentService $paymentService
     ) {
         $this->c = $c;
-        $this->gatewayApi = $gatewayApi;
         $this->transactions = $transactions;
-        $this->events = $events;
         $this->paymentService = $paymentService;
     }
 
@@ -208,23 +202,4 @@ final class PaymentController
         return Response::json(['success' => true, 'payment' => $response]);
     }
 
-    /**
-     * Resolve brand's default gateway slug.
-     */
-    private function resolveDefaultGateway(int $merchantId): ?string
-    {
-        try {
-            $db = $this->c->get(\OwnPay\Core\Database::class);
-            $config = $db->fetchOne(
-                "SELECT g.slug FROM op_gateway_configs gc
-                 JOIN op_gateways g ON g.id = gc.gateway_id
-                 WHERE gc.merchant_id = :mid AND gc.status = 'active'
-                 ORDER BY gc.created_at ASC LIMIT 1",
-                ['mid' => $merchantId]
-            );
-            return $config['slug'] ?? null;
-        } catch (\Throwable) {
-            return null;
-        }
-    }
 }

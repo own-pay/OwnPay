@@ -172,4 +172,12 @@ final class SmsTemplateRepository extends BaseRepository
             ['mid' => $merchantId]
         );
     }
+
+    /**
+     * Compatibility alias for listActiveForTenant using tenantId.
+     */
+    public function listActive(): array
+    {
+        return $this->listActiveForTenant($this->tenantId ?? 0);
+    }
 }

@@ -38,10 +38,20 @@ final class DomainController
             $d['merchant_name'] = $m['name'] ?? '—';
         }
 
+        $host = $req->header('Host') ?: '127.0.0.1';
+        if (str_contains($host, ']')) {
+            if (preg_match('/^\[(.*?)\]/', $host, $matches)) {
+                $host = $matches[1];
+            }
+        } else {
+            $parts = explode(':', $host);
+            $host = $parts[0];
+        }
+
         return $this->renderAdminPage('admin/domains/index.twig', [
             'domains'     => $list,
             'active_page' => 'domains',
-            'server_ip'   => gethostbyname($req->header('Host') ?: '127.0.0.1'),
+            'server_ip'   => gethostbyname($host),
         ]);
     }
 

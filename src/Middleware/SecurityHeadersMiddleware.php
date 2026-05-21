@@ -51,18 +51,38 @@ final class SecurityHeadersMiddleware
         // CSP — strict policy, report-only in debug mode
         $debug = $this->container->get('config.app')['debug'] ?? false;
         $cspHeader = $debug ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
-        $csp = implode('; ', [
-            "default-src 'self'",
-            "script-src 'self' 'nonce-{$nonce}'",
-            "style-src 'self' 'nonce-{$nonce}' https://fonts.googleapis.com",
-            "font-src 'self' https://fonts.gstatic.com",
-            "img-src 'self' data: https:",
-            "connect-src 'self'",
-            "frame-ancestors 'none'",
-            "base-uri 'self'",
-            "form-action 'self'",
-            "report-uri /csp-report",
-        ]);
+        
+        $path = $request->path();
+        $isCheckout = str_starts_with($path, '/checkout') || str_starts_with($path, '/invoice') || str_starts_with($path, '/pay');
+
+        if ($isCheckout) {
+            $csp = implode('; ', [
+                "default-src 'self' https:",
+                "script-src 'self' 'nonce-{$nonce}' 'unsafe-inline' 'unsafe-eval' https://*.stripe.com https://*.sslcommerz.com https://*.bkash.com https://*.paypal.com https://*.paypalobjects.com",
+                "style-src 'self' 'nonce-{$nonce}' 'unsafe-inline' https://fonts.googleapis.com https://*.stripe.com https://*.sslcommerz.com https://*.bkash.com https://*.paypal.com",
+                "font-src 'self' data: https://fonts.gstatic.com https:",
+                "img-src 'self' data: https:",
+                "connect-src 'self' https:",
+                "frame-src 'self' https://*.stripe.com https://*.paypal.com https://*.bkash.com https://*.sslcommerz.com",
+                "frame-ancestors 'self' https:",
+                "base-uri 'self'",
+                "form-action 'self' https:",
+                "report-uri /csp-report",
+            ]);
+        } else {
+            $csp = implode('; ', [
+                "default-src 'self'",
+                "script-src 'self' 'nonce-{$nonce}'",
+                "style-src 'self' 'nonce-{$nonce}' https://fonts.googleapis.com",
+                "font-src 'self' https://fonts.gstatic.com",
+                "img-src 'self' data: https:",
+                "connect-src 'self'",
+                "frame-ancestors 'none'",
+                "base-uri 'self'",
+                "form-action 'self'",
+                "report-uri /csp-report",
+            ]);
+        }
         $response->withHeader($cspHeader, $csp);
 
         return $response;

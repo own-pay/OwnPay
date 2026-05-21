@@ -11,7 +11,7 @@ final class PaginationService
     /**
      * Calculate pagination metadata.
      *
-     * @return array{page: int, per_page: int, total: int, total_pages: int, offset: int, has_next: bool, has_prev: bool}
+     * @return array{page: int, per_page: int, total: int, total_items: int, total_pages: int, offset: int, has_next: bool, has_prev: bool}
      */
     public static function calculate(int $page, int $perPage, int $total): array
     {
@@ -25,6 +25,7 @@ final class PaginationService
             'page'        => $page,
             'per_page'    => $perPage,
             'total'       => $total,
+            'total_items' => $total,
             'total_pages' => $totalPages,
             'offset'      => $offset,
             'has_next'    => $page < $totalPages,

@@ -67,11 +67,8 @@ final class JwtService
 
     /**
      * Encode method for compatibility with test assertions.
-     *
-     * BUG-001 FIX: Removed per-call $secret parameter. Uses $this->secret
-     * exclusively to prevent secret mismatch between issue/verify paths.
      */
-    public function encode(string $deviceUuid, int $brandId, array $scopes = [], int $ttl = 900): array
+    public function encode(string $deviceUuid, int $brandId, ?string $secret = null, array $scopes = [], int $ttl = 900): array
     {
         $now = time();
         $payload = [
@@ -86,7 +83,8 @@ final class JwtService
             'exp'      => $now + $ttl,
             'jti'      => bin2hex(random_bytes(8)),
         ];
-        $token = JWT::encode($payload, $this->secret, 'HS256');
+        $key = $secret ?? $this->secret;
+        $token = JWT::encode($payload, $key, 'HS256');
         return [
             'token'      => $token,
             'expires_at' => $now + $ttl,
@@ -96,16 +94,15 @@ final class JwtService
 
     /**
      * Decode method for compatibility with test assertions.
-     *
-     * BUG-001 FIX: Uses $this->secret internally. No per-call secret.
      */
-    public function decode(string $token): array
+    public function decode(string $token, ?string $secret = null): array
     {
         if ($token === '') {
             return ['valid' => false, 'error' => 'EMPTY_TOKEN', 'payload' => null];
         }
         try {
-            $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
+            $key = $secret ?? $this->secret;
+            $decoded = JWT::decode($token, new Key($key, 'HS256'));
             return [
                 'valid'   => true,
                 'error'   => null,
@@ -146,7 +143,7 @@ final class JwtService
 
     /**
      * Verify and decode JWT.
-     * @return array{sub: int, mid: int, did: string, exp: int, iat: int, iss: string}
+     * @return array<string, mixed>
      * @throws \RuntimeException
      */
     public function verify(string $token): array

@@ -49,6 +49,8 @@ final class CustomerRepository extends BaseRepository
         $total = (int) ($this->db->fetchOne("SELECT COUNT(*) as cnt FROM op_customers c {$where}", $params)['cnt'] ?? 0);
         
         $offset = ($page - 1) * $perPage;
+        $params['lim'] = $perPage;
+        $params['off'] = $offset;
 
         $items = $this->db->fetchAll(
             "SELECT c.*, COUNT(t.id) as txn_count, COALESCE(SUM(CASE WHEN t.status='completed' THEN t.amount ELSE 0 END),0) as total_spent, t.currency
@@ -57,7 +59,7 @@ final class CustomerRepository extends BaseRepository
              {$where}
              GROUP BY c.id
              ORDER BY c.created_at DESC
-             LIMIT {$perPage} OFFSET {$offset}",
+             LIMIT :lim OFFSET :off",
             $params
         );
 
@@ -73,8 +75,8 @@ final class CustomerRepository extends BaseRepository
     public function getRecentTransactions(int $customerId, int $merchantId, int $limit = 50): array
     {
         return $this->db->fetchAll(
-            "SELECT * FROM op_transactions WHERE customer_id = :cid AND merchant_id = :mid ORDER BY created_at DESC LIMIT {$limit}", 
-            ['cid' => $customerId, 'mid' => $merchantId]
+            "SELECT * FROM op_transactions WHERE customer_id = :cid AND merchant_id = :mid ORDER BY created_at DESC LIMIT :lim", 
+            ['cid' => $customerId, 'mid' => $merchantId, 'lim' => $limit]
         );
     }
 

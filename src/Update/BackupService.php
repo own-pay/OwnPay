@@ -160,7 +160,7 @@ final class BackupService
         }
 
         $db = $this->db;
-        $statements = array_filter(array_map('trim', explode(";\n", $sql)), fn($s) => $s !== '' && !str_starts_with($s, '--'));
+        $statements = $this->splitSqlStatements($sql);
 
         foreach ($statements as $stmt) {
             try {
@@ -169,6 +169,57 @@ final class BackupService
                 $this->logger?->warning('SQL restore failed: ' . $e->getMessage());
             }
         }
+    }
+
+    /**
+     * Split SQL into individual statements, respecting quoted strings.
+     * Semicolons inside single-quoted or double-quoted strings are not treated as delimiters.
+     *
+     * @return string[]
+     */
+    private function splitSqlStatements(string $sql): array
+    {
+        $statements = [];
+        $current = '';
+        $inSingleQuote = false;
+        $inDoubleQuote = false;
+        $length = strlen($sql);
+
+        for ($i = 0; $i < $length; $i++) {
+            $char = $sql[$i];
+            $prev = $i > 0 ? $sql[$i - 1] : '';
+
+            // Handle escaped quotes
+            if ($prev === '\\') {
+                $current .= $char;
+                continue;
+            }
+
+            if ($char === "'" && !$inDoubleQuote) {
+                $inSingleQuote = !$inSingleQuote;
+            } elseif ($char === '"' && !$inSingleQuote) {
+                $inDoubleQuote = !$inDoubleQuote;
+            }
+
+            if ($char === ';' && !$inSingleQuote && !$inDoubleQuote) {
+                $stmt = trim($current);
+                if ($stmt !== '' && !str_starts_with($stmt, '--')) {
+                    $statements[] = $stmt;
+                }
+                $current = '';
+                continue;
+            }
+
+            $current .= $char;
+        }
+
+        // Handle last statement (no trailing semicolon)
+        $stmt = trim($current);
+        if ($stmt !== '' && !str_starts_with($stmt, '--')) {
+            $statements[] = $stmt;
+        }
+
+        return $statements;
     }
 
     private function backupCode(string $outputPath): void

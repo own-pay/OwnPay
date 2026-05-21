@@ -58,8 +58,8 @@ final class CommLogRepository extends BaseRepository
     public function listSmsQueue(int $merchantId, int $limit = 50): array
     {
         return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE channel = 'sms' AND merchant_id = :mid ORDER BY created_at DESC LIMIT {$limit}",
-            ['mid' => $merchantId]
+            "SELECT * FROM {$this->table} WHERE channel = 'sms' AND merchant_id = :mid ORDER BY created_at DESC LIMIT :lim",
+            ['mid' => $merchantId, 'lim' => $limit]
         );
     }
 
@@ -86,8 +86,8 @@ final class CommLogRepository extends BaseRepository
         return $this->db->fetchAll(
             "SELECT id, recipient as `to`, body FROM {$this->table}
              WHERE channel = 'sms' AND status = 'queued' AND merchant_id = :mid
-             ORDER BY created_at ASC LIMIT {$limit}",
-            ['mid' => $merchantId]
+             ORDER BY created_at ASC LIMIT :lim",
+            ['mid' => $merchantId, 'lim' => $limit]
         );
     }
 

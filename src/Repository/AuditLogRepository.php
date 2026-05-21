@@ -46,6 +46,8 @@ final class AuditLogRepository extends BaseRepository
     {
         $where = $merchantId !== null ? 'WHERE l.merchant_id = :mid' : '';
         $params = $merchantId !== null ? ['mid' => $merchantId] : [];
+        $params['lim'] = $limit;
+        $params['off'] = $offset;
 
         return $this->db->fetchAll(
             "SELECT l.*, u.name as user_name
@@ -53,7 +55,7 @@ final class AuditLogRepository extends BaseRepository
              LEFT JOIN op_merchant_users u ON u.id = l.user_id
              {$where}
              ORDER BY l.created_at DESC
-             LIMIT {$limit} OFFSET {$offset}",
+             LIMIT :lim OFFSET :off",
             $params
         );
     }

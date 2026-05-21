@@ -47,7 +47,8 @@ final class IdempotencyBridge
             return null;
         }
 
-        return $this->service->check($scope, $key, (int) $merchantId);
+        $requestHash = hash('sha256', $request->rawBody() ?? '');
+        return $this->service->check($key, (int) $merchantId, $requestHash);
     }
 
     /**
@@ -59,7 +60,7 @@ final class IdempotencyBridge
         $merchantId = $request->getAttribute('merchant_id');
 
         if ($key !== '' && $merchantId !== null) {
-            $this->service->storeResponse($scope, $key, (int) $merchantId, $statusCode, $response);
+            $this->service->storeResponse($key, (int) $merchantId, $statusCode, $response);
         }
     }
 }

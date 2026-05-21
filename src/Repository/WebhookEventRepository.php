@@ -57,8 +57,8 @@ final class WebhookEventRepository extends BaseRepository
             INNER JOIN op_webhooks w ON we.webhook_id = w.id
             WHERE w.merchant_id = :mid
             ORDER BY we.created_at DESC
-            LIMIT {$limit} OFFSET {$offset}
-        ", ['mid' => $merchantId]);
+            LIMIT :lim OFFSET :off
+        ", ['mid' => $merchantId, 'lim' => $limit, 'off' => $offset]);
     }
 
     /**
@@ -84,7 +84,7 @@ final class WebhookEventRepository extends BaseRepository
             SELECT * FROM {$this->table}
             WHERE status = 'failed' AND next_retry_at IS NOT NULL AND next_retry_at <= NOW(6)
             ORDER BY next_retry_at ASC
-            LIMIT {$limit}
-        ");
+            LIMIT :lim
+        ", ['lim' => $limit]);
     }
 }
