@@ -202,24 +202,6 @@ final class LedgerService
     }
 
     /**
-     * Record settlement payout (debit merchant).
-     */
-    public function recordSettlement(int $merchantId, string $amount, string $currency, ?string $reference = null): void
-    {
-        $this->postJournal(
-            $merchantId,
-            'settlement',
-            $amount,
-            $currency,
-            'MERCHANT_PAYABLE',
-            'BANK_OUT',
-            'settlement',
-            $reference ?? 'unknown',
-            "Settlement payout"
-        );
-    }
-
-    /**
      * Get current balance for merchant in currency.
      */
     public function calculateBalance(int $merchantId, string $currency): string

@@ -7,6 +7,7 @@ namespace Tests\Integration;
 use OwnPay\Core\Database;
 use OwnPay\Service\Payment\FeeService;
 use OwnPay\Repository\SettingsRepository;
+use OwnPay\Repository\FeeRuleRepository;
 use OwnPay\Event\EventManager;
 use Tests\Integration\IntegrationTestCase;
 
@@ -27,7 +28,8 @@ class FeeServiceTest extends IntegrationTestCase
 
         $events = new EventManager();
         $settings = new SettingsRepository($this->db);
-        $this->feeService = new FeeService($events, $settings, $this->db);
+        $feeRuleRepo = new FeeRuleRepository($this->db);
+        $this->feeService = new FeeService($events, $settings, $feeRuleRepo);
     }
 
     protected function tearDown(): void

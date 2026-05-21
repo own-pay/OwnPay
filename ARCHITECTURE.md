@@ -146,6 +146,22 @@ Checkout Pay Flow:
 * Custom JS block: `{% if brand.custom_js %}<script>{{ brand.custom_js|raw }}</script>{% endif %}`
 * Theme plugin hooks: `{{ hook('checkout.head') }}` and `{{ hook('checkout.footer') }}`
 
+### 4.7. Fee Rules Specificity Resolution
+To calculate transactional commissions dynamically under the single-owner/multi-brand structure, OwnPay utilizes a tenant-scoped fee rules engine (`op_fee_rules`, `FeeRuleRepository`).
+* **Isolation Scope**: All rules are fully scoped within the active brand using the `TenantScope` trait in `FeeRuleRepository`.
+* **Resolution Priority**: Fee calculations automatically select active rules matching the transaction parameters, resolved in descending order of specificity:
+  1. Specific Gateway (e.g. `bkash-api`) + Specific Currency (e.g. `BDT`)
+  2. Specific Gateway + Any Currency
+  3. Any Gateway + Specific Currency
+  4. Any Gateway + Any Currency
+* **Schema Integrity**: The `op_fee_rules` table includes a foreign key constraint referencing `op_merchants(id)` ON DELETE CASCADE.
+
+### 4.8. Unified Configuration & Settings Management
+To eliminate legacy SQLite fallbacks and architectural redundancies, environment options and key-value pairings are unified under `op_system_settings`.
+* **Deprecation of `op_env`**: The legacy SQLite `op_env` fallback and all associated schema definitions have been completely eradicated.
+* **Persistent Configuration**: Operations within `EnvironmentService` (e.g. `get()`, `set()`, `delete()`) route exclusively through the unified `op_system_settings` database table under the `runtime` group using `SettingsRepository`.
+* **Dynamic Settings Bootstrapping**: Static methods within `EnvironmentService` automatically resolve the `SettingsRepository` singleton dynamically if the framework container has not been booted (crucial for PHPUnit initialization).
+
 ---
 
 ## 5. Security & Request Lifecycle Guardrails
@@ -190,6 +206,11 @@ ALTER TABLE `op_transactions`
 ### 6.3. Exchange Rates for Currency Conversion
 `op_exchange_rates` stores manual exchange rates with `base_currency CHAR(3)`, `target_currency CHAR(3)`, `rate DECIMAL(18,8)`, `source VARCHAR(50) DEFAULT 'manual'`. UNIQUE constraint on `(base_currency, target_currency)`. Used by `CurrencyService::convert()` at checkout time for automatic gateway currency conversion.
 
+### 6.4. Purged Modules & Schemas (Settlement Payouts)
+The Settlement payout system has been completely decommissioned and its associated database tables have been dropped:
+* **Dropped Tables**: `op_settlements` and `op_settlement_items` have been purged from `schema.sql`.
+* **Code Elimination**: `SettlementService`, `SettlementRepository` and administrative route bindings have been removed entirely. Reconciliation computations are decoupled from settlement records.
+
 ---
 
 ## 7. Developer Rules & Defensive Coding
@@ -204,6 +225,8 @@ ALTER TABLE `op_transactions`
 8. **Gateway supportedCurrencies()**: All gateway adapters MUST implement `supportedCurrencies(): array`. Use `GatewayDefaults` trait for the empty (any currency) default. BDT-only gateways (bKash, Nagad) must explicitly return `['BDT']`.
 9. **Currency Conversion Metadata Integrity**: Do NOT overwrite `original_amount`, `original_currency`, `exchange_rate`, `converted_amount`, `converted_currency` keys in `op_transactions.metadata` — these are the audit trail for automatic currency conversion.
 10. **BrandThemeService for loadBrand()**: Checkout controllers must resolve brand data via `BrandThemeService::getBrandTheme()` (with `$this->c->has()` fallback). Direct `$this->merchants->find()` bypasses brand-scoped theme settings and breaks per-brand custom CSS/JS under custom domains.
+11. **Eradication of Settlements**: Do not attempt to query or bind `op_settlements` or `op_settlement_items`. They do not exist. Decouple all ledger reconciliations by assuming standard payouts are handled offline or out-of-band.
+12. **Settings Registry Integration**: NEVER query or write to a table named `op_env`. Use the `EnvironmentService` (e.g. `EnvironmentService::get()`) or resolve `SettingsRepository` from the container, which persists configuration under `op_system_settings` (group: `runtime`).
 
 ---
 

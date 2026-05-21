@@ -60,14 +60,8 @@ final class ReconciliationService
         }
         $refundTotal = bcadd('0.00', $refundNetTotal, 2);
 
-        // Expected balance = transactions - refunds - settlements
-        $settlementRow = $this->db->fetchOne(
-            "SELECT COALESCE(SUM(amount), 0) as total
-             FROM op_settlements
-             WHERE merchant_id = :mid AND currency = :cur AND status = 'completed'",
-            ['mid' => $merchantId, 'cur' => $currency]
-        );
-        $settlementTotal = $settlementRow['total'] ?? '0.00';
+        // Expected balance = transactions - refunds
+        $settlementTotal = '0.00';
 
         $expectedBalance = bcsub(bcsub($txnTotal, $refundTotal, 2), $settlementTotal, 2);
 

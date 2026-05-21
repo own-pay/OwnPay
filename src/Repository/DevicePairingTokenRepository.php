@@ -18,20 +18,19 @@ final class DevicePairingTokenRepository extends BaseRepository
 
     protected string $table = 'op_device_pairing_tokens';
     protected array $fillable = [
-        'merchant_id', 'otp_hash', 'brand_id', 'created_by',
+        'merchant_id', 'otp_hash', 'created_by',
         'expires_at', 'is_used', 'used_at',
     ];
 
     /**
      * Create a new pairing token.
      */
-    public function createToken(string $otpHash, int $brandId, int $createdBy, int $ttlSeconds = 300): string
+    public function createToken(string $otpHash, int $createdBy, int $ttlSeconds = 300): string
     {
         $expiresAt = DateHelper::future($ttlSeconds);
 
         return $this->createScoped([
             'otp_hash'   => $otpHash,
-            'brand_id'   => $brandId,
             'created_by' => $createdBy,
             'expires_at' => $expiresAt,
         ]);

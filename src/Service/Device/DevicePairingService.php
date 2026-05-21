@@ -206,7 +206,6 @@ final class DevicePairingService
             'device_id'          => $deviceUuid,
             'device_uuid'        => $deviceUuid,
             'merchant_id'        => $merchantId,
-            'brand_id'           => $merchantId,
             'device_name'        => $deviceName,
             'platform'           => $platform,
             'fingerprint_hash'   => $fpHash,
@@ -286,7 +285,7 @@ final class DevicePairingService
             return ['success' => false, 'error' => 'FINGERPRINT_MISMATCH'];
         }
 
-        $brandId = (int) ($device['brand_id'] ?? $device['merchant_id'] ?? 1);
+        $brandId = (int) ($device['merchant_id'] ?? 1);
         // BUG-003 FIX: Use extracted userId, fallback to resolving from device
         if ($userId === 0) {
             $userId = 1; // Last resort fallback
@@ -375,7 +374,7 @@ final class DevicePairingService
             'valid'  => true,
             'device' => [
                 'device_uuid' => $device['device_uuid'] ?? $device['device_id'],
-                'brand_id'    => (int) ($device['brand_id'] ?? $device['merchant_id']),
+                'brand_id'    => (int) ($device['merchant_id']),
             ],
             'error'  => null,
         ];

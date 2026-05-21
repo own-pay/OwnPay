@@ -24,18 +24,18 @@ class EnvironmentServiceTest extends TestCase
         $_ENV['DB_PREFIX'] = 'op_';
 
         $this->pdo->exec(<<<SQL
-            CREATE TABLE op_env (
+            CREATE TABLE op_system_settings (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
-                brand_id TEXT NOT NULL,
-                option_name TEXT NOT NULL,
+                group_name TEXT NOT NULL DEFAULT 'general',
+                key_name TEXT NOT NULL,
                 value TEXT,
-                created_date TEXT,
-                updated_date TEXT
+                type TEXT NOT NULL DEFAULT 'string',
+                merchant_id INTEGER DEFAULT NULL
             )
         SQL);
 
-        $this->pdo->exec("INSERT INTO op_env (brand_id, option_name, value, created_date, updated_date) VALUES ('both', 'site_name', 'OwnPay', '2025-01-01 00:00:00', '2025-01-01 00:00:00')");
-        $this->pdo->exec("INSERT INTO op_env (brand_id, option_name, value, created_date, updated_date) VALUES ('brand-1', 'theme', 'dark', '2025-01-01 00:00:00', '2025-01-01 00:00:00')");
+        $this->pdo->exec("INSERT INTO op_system_settings (group_name, key_name, value, type, merchant_id) VALUES ('runtime', 'site_name', 'OwnPay', 'string', NULL)");
+        $this->pdo->exec("INSERT INTO op_system_settings (group_name, key_name, value, type, merchant_id) VALUES ('runtime', 'theme', 'dark', 'string', 1)");
 
         Database::reset();
         $reflection = new ReflectionClass(Database::class);
@@ -45,12 +45,22 @@ class EnvironmentServiceTest extends TestCase
         $instanceProperty = $reflection->getProperty('instance');
         $instanceProperty->setValue(null, $instance);
 
+        // Reset the static settingsRepo property in EnvironmentService to prevent test pollution
+        $reflectionSvc = new ReflectionClass(EnvironmentService::class);
+        $repoProperty = $reflectionSvc->getProperty('settingsRepo');
+        $repoProperty->setValue(null, null);
+
         EnvironmentService::clearCache();
     }
 
     protected function tearDown(): void
     {
         Database::reset();
+        // Reset settingsRepo in tearDown too
+        $reflectionSvc = new ReflectionClass(EnvironmentService::class);
+        $repoProperty = $reflectionSvc->getProperty('settingsRepo');
+        $repoProperty->setValue(null, null);
+
         EnvironmentService::clearCache();
         unset($_ENV['DB_PREFIX']);
     }
@@ -62,7 +72,7 @@ class EnvironmentServiceTest extends TestCase
 
     public function testGetReturnsBrandSpecificValue(): void
     {
-        $this->assertSame('dark', EnvironmentService::get('theme', 'brand-1'));
+        $this->assertSame('dark', EnvironmentService::get('theme', '1'));
     }
 
     public function testGetReturnsEmptyStringForMissingKey(): void
@@ -73,7 +83,7 @@ class EnvironmentServiceTest extends TestCase
     public function testGetDoesNotAutoCreateMissingRow(): void
     {
         EnvironmentService::get('not_yet_set');
-        $count = (int) $this->pdo->query("SELECT COUNT(*) FROM op_env WHERE option_name = 'not_yet_set'")->fetchColumn();
+        $count = (int) $this->pdo->query("SELECT COUNT(*) FROM op_system_settings WHERE key_name = 'not_yet_set'")->fetchColumn();
         $this->assertSame(0, $count);
     }
 
@@ -81,7 +91,7 @@ class EnvironmentServiceTest extends TestCase
     {
         $this->assertSame('OwnPay', EnvironmentService::get('site_name'));
 
-        $this->pdo->exec("UPDATE op_env SET value = 'CHANGED' WHERE option_name = 'site_name'");
+        $this->pdo->exec("UPDATE op_system_settings SET value = 'CHANGED' WHERE key_name = 'site_name' AND merchant_id IS NULL");
 
         $this->assertSame('OwnPay', EnvironmentService::get('site_name'));
 
@@ -94,7 +104,7 @@ class EnvironmentServiceTest extends TestCase
         $value = EnvironmentService::set('new_option', 'new-value');
         $this->assertSame('new-value', $value);
 
-        $row = $this->pdo->query("SELECT value FROM op_env WHERE option_name = 'new_option'")->fetch();
+        $row = $this->pdo->query("SELECT value FROM op_system_settings WHERE key_name = 'new_option' AND merchant_id IS NULL")->fetch();
         $this->assertSame('new-value', $row['value']);
     }
 
@@ -103,24 +113,24 @@ class EnvironmentServiceTest extends TestCase
         $value = EnvironmentService::set('site_name', 'NewName');
         $this->assertSame('NewName', $value);
 
-        $rows = $this->pdo->query("SELECT * FROM op_env WHERE option_name = 'site_name'")->fetchAll();
+        $rows = $this->pdo->query("SELECT * FROM op_system_settings WHERE key_name = 'site_name' AND merchant_id IS NULL")->fetchAll();
         $this->assertCount(1, $rows);
         $this->assertSame('NewName', $rows[0]['value']);
     }
 
     public function testSetUpdatesCacheImmediately(): void
     {
-        EnvironmentService::set('site_name', 'CachedNewName');
-        $this->assertSame('CachedNewName', EnvironmentService::get('site_name'));
+        $this->assertSame('NewName', EnvironmentService::set('site_name', 'NewName'));
+        $this->assertSame('NewName', EnvironmentService::get('site_name'));
     }
 
     public function testSetIsBrandScoped(): void
     {
-        EnvironmentService::set('theme', 'light', 'brand-1');
-        EnvironmentService::set('theme', 'matrix', 'brand-2');
+        EnvironmentService::set('theme', 'light', '1');
+        EnvironmentService::set('theme', 'matrix', '2');
 
-        $this->assertSame('light', EnvironmentService::get('theme', 'brand-1'));
-        $this->assertSame('matrix', EnvironmentService::get('theme', 'brand-2'));
+        $this->assertSame('light', EnvironmentService::get('theme', '1'));
+        $this->assertSame('matrix', EnvironmentService::get('theme', '2'));
         $this->assertSame('', EnvironmentService::get('theme', 'both'));
     }
 
@@ -128,7 +138,7 @@ class EnvironmentServiceTest extends TestCase
     {
         $this->assertTrue(EnvironmentService::delete('site_name'));
 
-        $count = (int) $this->pdo->query("SELECT COUNT(*) FROM op_env WHERE option_name = 'site_name'")->fetchColumn();
+        $count = (int) $this->pdo->query("SELECT COUNT(*) FROM op_system_settings WHERE key_name = 'site_name' AND merchant_id IS NULL")->fetchColumn();
         $this->assertSame(0, $count);
     }
 
@@ -148,7 +158,7 @@ class EnvironmentServiceTest extends TestCase
     {
         $this->assertSame('OwnPay', EnvironmentService::get('site_name'));
 
-        $this->pdo->exec("UPDATE op_env SET value = 'AfterClear' WHERE option_name = 'site_name'");
+        $this->pdo->exec("UPDATE op_system_settings SET value = 'AfterClear' WHERE key_name = 'site_name' AND merchant_id IS NULL");
 
         EnvironmentService::clearCache();
         $this->assertSame('AfterClear', EnvironmentService::get('site_name'));

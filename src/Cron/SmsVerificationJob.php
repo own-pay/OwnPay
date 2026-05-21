@@ -9,6 +9,7 @@ use OwnPay\Repository\SmsParsedRepository;
 use OwnPay\Repository\TransactionRepository;
 use OwnPay\Service\Payment\TransactionService;
 use OwnPay\Service\Payment\LedgerService;
+use OwnPay\Service\System\Logger;
 
 /**
  * SMS verification job — matches parsed SMS to pending transactions.
@@ -23,6 +24,7 @@ final class SmsVerificationJob
     private LedgerService $ledgerService;
     private EventManager $events;
     private Database $db;
+    private Logger $logger;
 
     public function __construct(
         SmsParsedRepository $smsParsed,
@@ -30,7 +32,8 @@ final class SmsVerificationJob
         TransactionService $transactionService,
         LedgerService $ledgerService,
         EventManager $events,
-        Database $db
+        Database $db,
+        Logger $logger
     ) {
         $this->smsParsed = $smsParsed;
         $this->transactions = $transactions;
@@ -38,6 +41,7 @@ final class SmsVerificationJob
         $this->ledgerService = $ledgerService;
         $this->events = $events;
         $this->db = $db;
+        $this->logger = $logger;
     }
 
     /**
@@ -83,21 +87,30 @@ final class SmsVerificationJob
                 }
 
                 if ($transaction !== null && $transaction['status'] === 'pending') {
-                    $this->smsParsed->forTenant($merchantId)
-                        ->linkToTransaction((int) $sms['id'], (int) $transaction['id']);
+                    try {
+                        $this->db->transaction(function () use ($sms, $transaction, $merchantId) {
+                            $this->smsParsed->forTenant($merchantId)
+                                ->linkToTransaction((int) $sms['id'], (int) $transaction['id']);
 
-                    // AUD-008: Complete transaction state + post ledger entries
-                    $this->transactionService->complete((int) $transaction['id'], $merchantId);
-                    $this->ledgerService->recordPaymentReceived(
-                        $merchantId,
-                        (int) $transaction['id'],
-                        $transaction['amount'],
-                        $transaction['fee'] ?? '0.00',
-                        $transaction['currency']
-                    );
+                            // AUD-008: Complete transaction state + post ledger entries
+                            $this->transactionService->complete((int) $transaction['id'], $merchantId);
+                            $this->ledgerService->recordPaymentReceived(
+                                $merchantId,
+                                (int) $transaction['id'],
+                                $transaction['amount'],
+                                $transaction['fee'] ?? '0.00',
+                                $transaction['currency']
+                            );
+                        });
 
-                    $this->events->doAction('mobile.sms.matched', $sms, $transaction);
-                    $matched++;
+                        $this->events->doAction('mobile.sms.matched', $sms, $transaction);
+                        $matched++;
+                    } catch (\Throwable $e) {
+                        $failed++;
+                        $this->logger->error(
+                            "Failed to process matched SMS: sms_id={$sms['id']} transaction_id={$transaction['id']} error={$e->getMessage()}"
+                        );
+                    }
                 } else {
                     $failed++;
                 }

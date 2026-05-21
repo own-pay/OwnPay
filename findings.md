@@ -41,20 +41,27 @@
 | Lock down `/2fa` route with `RateLimiterMiddleware` | Essential security safeguard against automated brute force timing attacks. |
 | Add validation to `switchBrand` | Enforces tenant isolation for brand staff members. |
 | Correct table references in `WebhookRetryJob` | Prevents fatal errors during cron execution and restores webhook retry capability. |
+| Dynamic Rate Limiting in `RateLimiterMiddleware` | Directs route-specific rate limits (login, API, global) based on request path. |
+| Context-based exception logging | Safe exceptions logging inside structured context JSON to block log injection. |
+| Database Transaction boundaries in `SmsVerificationJob` | Encapsulates state complete + ledger posting in a database transaction block. |
 
 ## Bug Registry
 | ID | Severity | Category | File | Description | Status |
 |----|----------|----------|------|-------------|--------|
-| AUD-001 | Critical | Auth | `config/routes/web.php` | GET/POST `/2fa` bypasses rate-limiting. | Open |
-| AUD-002 | Critical | Tenant | `src/Controller/Admin/BrandController.php` | Staff brand switching logic bypass. | Open |
-| AUD-003 | Critical | Payments | `src/Service/Payment/GatewayApiService.php` | Inbound webhook callback rejects `'processing'` transactions. | Open |
-| AUD-004 | Critical | Cron | `src/Cron/WebhookRetryJob.php` | Webhook retry job references non-existent tables/columns. | Open |
-| AUD-005 | High | Security | `src/Controller/Webhook/UnifiedWebhookController.php` | Plugin webhook bypasses signature verification. | Open |
-| AUD-006 | High | Enums | `src/Enum/TransactionStatus.php` | Missing `'callback_processing'` enum state. | Open |
-| AUD-007 | Medium | Cron | `src/Cron/DnsVerificationJob.php` | Field mismatch (`verified_at` vs `dns_verified_at`) silently discards timestamp. | Open |
-| AUD-008 | Medium | Cron | `src/Cron/SmsVerificationJob.php` | Matching SMS does not complete transaction state. | Open |
-| AUD-009 | Low | Security | `src/Security/Authenticator.php` | Invalid format of dummy hash leaks user existence via timing. | Open |
+| AUD-001 | Critical | Auth | `config/routes/web.php` | GET/POST `/2fa` bypasses rate-limiting. | Closed |
+| AUD-002 | Critical | Tenant | `src/Controller/Admin/BrandController.php` | Staff brand switching logic bypass. | Closed |
+| AUD-003 | Critical | Payments | `src/Service/Payment/GatewayApiService.php` | Inbound webhook callback rejects `'processing'` transactions. | Closed |
+| AUD-004 | Critical | Cron | `src/Cron/WebhookRetryJob.php` | Webhook retry job references non-existent tables/columns. | Closed |
+| AUD-005 | High | Security | `src/Controller/Webhook/UnifiedWebhookController.php` | Plugin webhook bypasses signature verification. | Closed |
+| AUD-006 | High | Enums | `src/Enum/TransactionStatus.php` | Missing `'callback_processing'` enum state. | Closed |
+| AUD-007 | Medium | Cron | `src/Cron/DnsVerificationJob.php` | Field mismatch (`verified_at` vs `dns_verified_at`) silently discards timestamp. | Closed |
+| AUD-008 | Medium | Cron | `src/Cron/SmsVerificationJob.php` | Matching SMS does not complete transaction state. | Closed |
+| AUD-009 | Low | Security | `src/Security/Authenticator.php` | Invalid format of dummy hash leaks user existence via timing. | Closed |
+| AUD-010 | Critical | Rate Limit | `src/Middleware/RateLimiterMiddleware.php` | Reads non-existent `api_per_minute` configuration, bypassing stricter login rate limits. | Open |
+| AUD-011 | High | Security | `src/Controller/Webhook/UnifiedWebhookController.php` | Exception message concatenation in warning log enables log injection / forging. | Open |
+| AUD-012 | High | Financial | `src/Cron/SmsVerificationJob.php` | Marks transaction completed before ledger write, risking un-journaled financial state. | Open |
 
 ---
 *Update this file after every 2 view/browser/search operations*
 *This prevents visual information from being lost*
+

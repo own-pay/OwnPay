@@ -36,7 +36,6 @@ class LedgerServiceTest extends IntegrationTestCase
         $this->db->execute("DELETE FROM op_ledger_transactions");
         $this->db->execute("DELETE FROM op_ledger_accounts");
         $this->db->execute("DELETE FROM op_refunds");
-        $this->db->execute("DELETE FROM op_settlements");
         $this->db->execute("DELETE FROM op_transactions");
 
         $this->events = new EventManager();
@@ -69,7 +68,6 @@ class LedgerServiceTest extends IntegrationTestCase
             $this->db->execute("DELETE FROM op_ledger_transactions");
             $this->db->execute("DELETE FROM op_ledger_accounts");
             $this->db->execute("DELETE FROM op_refunds");
-            $this->db->execute("DELETE FROM op_settlements");
             $this->db->execute("DELETE FROM op_transactions");
         }
         parent::tearDown();
@@ -171,23 +169,16 @@ class LedgerServiceTest extends IntegrationTestCase
         );
         $this->ledgerService->recordRefund(1, 1005, '40.00', 'BDT');
 
-        // 3. Settlement processed: 20.00
-        $this->db->execute(
-            "INSERT INTO op_settlements (id, merchant_id, uuid, amount, currency, status, method)
-             VALUES (3001, 1, 'set-uuid-1', 20.00, 'BDT', 'completed', 'bank')"
-        );
-        $this->ledgerService->recordSettlement(1, '20.00', 'BDT', '3001');
-
-        // expected_balance = net transactions (95.00) - proportional net refunds (38.00) - settlements (20.00) = 37.00
-        // ledger_balance = MERCHANT_PAYABLE = credit 95.00 - debit 38.00 - debit 20.00 = 37.00
+        // expected_balance = net transactions (95.00) - proportional net refunds (38.00) = 57.00
+        // ledger_balance = MERCHANT_PAYABLE = credit 95.00 - debit 38.00 = 57.00
         $res = $this->reconciliationService->reconcile(1, 'BDT');
 
         $this->assertTrue($res['balanced']);
         $this->assertSame('95.00', bcadd($res['transaction_total'], '0', 2));
         $this->assertSame('38.00', bcadd($res['refund_total'], '0', 2));
-        $this->assertSame('20.00', bcadd($res['settlement_total'], '0', 2));
-        $this->assertSame('37.00', bcadd($res['expected_balance'], '0', 2));
-        $this->assertSame('37.00', bcadd($res['ledger_balance'], '0', 2));
+        $this->assertSame('0.00', bcadd($res['settlement_total'], '0', 2));
+        $this->assertSame('57.00', bcadd($res['expected_balance'], '0', 2));
+        $this->assertSame('57.00', bcadd($res['ledger_balance'], '0', 2));
         $this->assertSame('0.00', bcadd($res['difference'], '0', 2));
     }
 }
