@@ -148,13 +148,13 @@ final class SettingsController
                 if ($elapsed < 60) {
                     $elapsedStr = 'Just now';
                 } elseif ($elapsed < 3600) {
-                    $mins = floor($elapsed / 60);
+                    $mins = (int) floor($elapsed / 60);
                     $elapsedStr = $mins . ($mins === 1 ? ' min ago' : ' mins ago');
                 } elseif ($elapsed < 86400) {
-                    $hours = floor($elapsed / 3600);
+                    $hours = (int) floor($elapsed / 3600);
                     $elapsedStr = $hours . ($hours === 1 ? ' hour ago' : ' hours ago');
                 } else {
-                    $days = floor($elapsed / 86400);
+                    $days = (int) floor($elapsed / 86400);
                     $elapsedStr = $days . ($days === 1 ? ' day ago' : ' days ago');
                 }
             }
@@ -339,7 +339,7 @@ final class SettingsController
 
         // Sync maintenance lock file
         $lockFile = dirname(__DIR__, 3) . '/storage/.maintenance';
-        if (!empty($filtered['maintenance_mode']) && $filtered['maintenance_mode'] !== '0') {
+        if (!empty($filtered['maintenance_mode'])) {
             file_put_contents($lockFile, json_encode([
                 'reason'      => 'System maintenance in progress. Please try again shortly.',
                 'retry_after' => 600,

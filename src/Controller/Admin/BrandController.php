@@ -178,7 +178,7 @@ final class BrandController
         }
 
         // Decode JSON settings to array for easy UI access
-        if ($brand && !empty($brand['settings'])) {
+        if (!empty($brand['settings'])) {
             $brand['theme'] = json_decode($brand['settings'], true) ?: [];
         } else {
             $brand['theme'] = [];

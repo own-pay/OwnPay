@@ -403,6 +403,13 @@ final class InstallerController
      */
     private function checkRequirements(): array
     {
+        $envPath = $this->rootDir . '/.env';
+        $envWritable = is_writable($this->rootDir) || (file_exists($envPath) && is_writable($envPath));
+        $storageDir = $this->rootDir . '/storage';
+        $storageWritable = is_dir($storageDir) && is_writable($storageDir);
+        $publicDir = $this->rootDir . '/public';
+        $publicWritable = is_dir($publicDir) && is_writable($publicDir);
+
         return [
             ['name' => 'PHP Version',      'required' => '≥ 8.2', 'current' => PHP_VERSION,                                      'ok' => version_compare(PHP_VERSION, '8.2.0', '>=')],
             ['name' => 'PDO MySQL',        'required' => 'Enabled', 'current' => extension_loaded('pdo_mysql') ? 'Yes' : 'No',   'ok' => extension_loaded('pdo_mysql')],
@@ -413,7 +420,9 @@ final class InstallerController
             ['name' => 'BCMath',           'required' => 'Enabled', 'current' => extension_loaded('bcmath')    ? 'Yes' : 'No',   'ok' => extension_loaded('bcmath')],
             ['name' => 'Fileinfo',         'required' => 'Enabled', 'current' => extension_loaded('fileinfo')  ? 'Yes' : 'No',   'ok' => extension_loaded('fileinfo')],
             ['name' => 'GD Library',       'required' => 'Enabled', 'current' => extension_loaded('gd')        ? 'Yes' : 'No',   'ok' => extension_loaded('gd')],
-            ['name' => 'Writable: .env',   'required' => 'Yes',    'current' => is_writable($this->rootDir)    ? 'Yes' : 'No',   'ok' => is_writable($this->rootDir)],
+            ['name' => 'Writable: .env',   'required' => 'Yes',    'current' => $envWritable ? 'Yes' : 'No',                     'ok' => $envWritable],
+            ['name' => 'Writable: storage/','required' => 'Yes',    'current' => $storageWritable ? 'Yes' : 'No',                 'ok' => $storageWritable],
+            ['name' => 'Writable: public/', 'required' => 'Yes',    'current' => $publicWritable ? 'Yes' : 'No',                  'ok' => $publicWritable],
             ['name' => 'Composer vendor/', 'required' => 'Exists', 'current' => is_dir($this->rootDir . '/vendor') ? 'Yes' : 'No', 'ok' => is_dir($this->rootDir . '/vendor')],
         ];
     }

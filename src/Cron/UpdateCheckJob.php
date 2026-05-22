@@ -53,7 +53,7 @@ final class UpdateCheckJob
         $inNightWindow = ($hour >= 2 && $hour <= 5);
 
         if ($autoUpdate && $inNightWindow && !empty($check['url'])) {
-            $result = $this->updateService->execute($check['version'], $check['url']);
+            $result = $this->updateService->execute($check['version']);
             return [
                 'action'  => 'updated',
                 'version' => $check['version'],
