@@ -387,6 +387,31 @@
     // ---------- EXPRESS CHECKOUT ----------
     window.doQP = function (provider) {
         if (typeof window.opPost !== 'function') return;
-        window.opPost(basePath + '/express', { provider: provider });
+        showLoading();
+        var csrf = document.getElementById('op-csrf');
+        var hashEl = document.getElementById('op-checkout-hash');
+        
+        var payload = {
+            provider: provider,
+            checkout_hash: hashEl ? hashEl.value : '',
+            _csrf_token: csrf ? csrf.value : ''
+        };
+        
+        window.opPost(basePath + '/express', payload)
+            .then(function (res) {
+                if (res.ok && res.data && res.data.success && res.data.redirect_url) {
+                    window.location.href = res.data.redirect_url;
+                    return;
+                }
+                hideLoading();
+                var errorMsg = (res.data && res.data.error)
+                    ? res.data.error
+                    : 'Express checkout failed. Please try another method.';
+                alert(errorMsg);
+            })
+            .catch(function () {
+                hideLoading();
+                alert('Express checkout is temporarily unavailable. Please try another method.');
+            });
     };
 })();

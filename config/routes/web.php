@@ -67,6 +67,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // ─── Checkout (public, minimal middleware) ─────────────────
     $router->get('/checkout/{token}', 'Checkout\\CheckoutController@show', 'checkout');
     $router->post('/checkout/{token}/pay', 'Checkout\\CheckoutController@pay', 'checkout');
+    $router->post('/checkout/{token}/express', 'Checkout\\CheckoutController@expressPay', 'checkout');
     $router->post('/checkout/{token}/cancel', 'Checkout\\CheckoutController@cancel', 'checkout');
     $router->get('/checkout/{token}/status', 'Checkout\\CheckoutController@status', 'checkout');
     $router->post('/checkout/{token}/manual-verify', 'Checkout\\CheckoutController@manualVerify', 'checkout');
@@ -74,6 +75,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // Universal Payment Intent checkout routes
     $router->get('/checkout/intent/{token}', 'Checkout\\PaymentIntentCheckoutController@show', 'checkout');
     $router->post('/checkout/intent/{token}/pay', 'Checkout\\PaymentIntentCheckoutController@pay', 'checkout');
+    $router->post('/checkout/intent/{token}/express', 'Checkout\\PaymentIntentCheckoutController@expressPay', 'checkout');
     $router->get('/checkout/intent/{token}/status', 'Checkout\\PaymentIntentCheckoutController@status', 'checkout');
     $router->post('/checkout/intent/{token}/cancel', 'Checkout\\PaymentIntentCheckoutController@cancel', 'checkout');
     $router->post('/checkout/intent/{token}/manual-verify', 'Checkout\\PaymentIntentCheckoutController@manualVerify', 'checkout');

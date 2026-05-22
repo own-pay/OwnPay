@@ -175,7 +175,7 @@ final class PaymentIntentCheckoutController
             ];
         }
 
-        $gateways = ['mfs' => [], 'bank' => [], 'global' => []];
+        $gateways = ['mfs' => [], 'bank' => [], 'global' => [], 'express' => []];
 
         // In-line closure helper to evaluate gateway requirements and execute cross-currency conversion.
         $checkAndConvert = function(array $gw, string $slug) use ($intent): array {
@@ -868,5 +868,125 @@ final class PaymentIntentCheckoutController
             'color'         => $s['theme_primary'] ?? '#0D9488',
             'support_email' => $s['support_email'] ?? '',
         ];
+    }
+
+    /**
+     * Handles express checkout (Apple Pay / Google Pay) for payment intents via AJAX post.
+     *
+     * @param \OwnPay\Http\Request $req The incoming HTTP request.
+     * @return \OwnPay\Http\Response The JSON redirect outcome response.
+     */
+    public function expressPay(Request $req): Response
+    {
+        $token = (string) $req->param('token');
+        $intent = $this->paymentService->findByToken($token);
+
+        if (!$intent) {
+            return Response::json(['success' => false, 'error' => 'Transaction expired or not found.'], 404);
+        }
+
+        if ($intent['status'] !== 'pending') {
+            return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+        }
+
+        // Verify checkout integrity via HMAC signature validation.
+        $submittedHash = $req->input('checkout_hash', '');
+        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
+        $expectedHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
+        if (!hash_equals($expectedHash, $submittedHash)) {
+            return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
+        }
+
+        $provider = (string) $req->input('provider', '');
+        $gatewaySlug = '';
+        if (in_array($provider, ['apple-pay', 'Apple Pay'], true)) {
+            $gatewaySlug = 'apple-pay';
+        } elseif (in_array($provider, ['google-pay', 'Google Pay'], true)) {
+            $gatewaySlug = 'google-pay';
+        } else {
+            return Response::json(['success' => false, 'error' => 'Invalid express provider.'], 400);
+        }
+
+        $mid = (int) $intent['merchant_id'];
+
+        // Assert configured and active
+        $activeGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
+        $isActive = false;
+        foreach ($activeGateways as $gw) {
+            if (($gw['slug'] ?? '') === $gatewaySlug) {
+                $isActive = true;
+                break;
+            }
+        }
+        if (!$isActive) {
+            return Response::json(['success' => false, 'error' => 'Selected gateway is not active.'], 422);
+        }
+
+        // Initialize and write a database transaction record mapped to this intent.
+        $txnData = [
+            'merchant_id'       => $mid,
+            'payment_intent_id' => $intent['id'],
+            'customer_id'       => $intent['customer_id'],
+            'gateway_slug'      => $gatewaySlug,
+            'amount'            => $intent['amount'],
+            'currency'          => $intent['currency'],
+            'method'            => 'api',
+            'status'            => 'pending',
+            'reference'         => $intent['description'] ?? null,
+            'metadata'          => !empty($intent['metadata']) ? $intent['metadata'] : '{}',
+        ];
+
+        try {
+            $txn = $this->transactionService->create($mid, $txnData);
+        } catch (\Throwable $e) {
+            $this->c->get(\OwnPay\Service\System\Logger::class)->error('Express Transaction creation failed: ' . $e->getMessage());
+            return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
+        }
+
+        if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
+            try {
+                $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
+                
+                $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+                $callbackUrl = $urlService->buildCallbackUrl($mid, $token, $req);
+
+                $result = $svc->initiatePayment($mid, $gatewaySlug, [
+                    'amount'       => $txn['amount'],
+                    'currency'     => $txn['currency'],
+                    'trx_id'       => $txn['trx_id'],
+                    'redirect_url' => $callbackUrl,
+                    'cancel_url'   => $callbackUrl,
+                    'existing_txn' => true,
+                ]);
+
+                if ($result['success'] && !empty($result['redirect_url'])) {
+                    $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gatewaySlug, 'processing', $mid);
+                    $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
+
+                    return Response::json([
+                        'success'      => true,
+                        'redirect_url' => $result['redirect_url'],
+                    ]);
+                }
+
+                $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
+                $this->c->get(\OwnPay\Service\System\Logger::class)->warning(
+                    "Express Gateway {$gatewaySlug} failed for intent {$intent['id']}: {$errorMsg}"
+                );
+
+                return Response::json(['success' => false, 'error' => $errorMsg], 422);
+
+            } catch (\Throwable $e) {
+                $this->c->get(\OwnPay\Service\System\Logger::class)->error(
+                    "Express Gateway {$gatewaySlug} initiation failed: " . $e->getMessage()
+                );
+                return Response::json(['success' => false, 'error' => 'Gateway connection error. Please try again.'], 422);
+            }
+        }
+
+        return Response::json(['success' => false, 'error' => 'Payment service is not configured.'], 500);
     }
 }

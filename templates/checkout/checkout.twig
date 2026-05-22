@@ -30,7 +30,7 @@
                 {% include 'checkout/partials/_mobile-summary.twig' %}
 
                 {# Express checkout #}
-                {% if config.expressCheckout|default(false) %}
+                {% if gateways.express|default([]) is not empty %}
                     {% include 'checkout/partials/_express-checkout.twig' %}
                 {% endif %}
 
