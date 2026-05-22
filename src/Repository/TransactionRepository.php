@@ -149,6 +149,14 @@ final class TransactionRepository extends BaseRepository
             $where .= " AND (trx_id LIKE :q OR customer_id LIKE :q OR reference LIKE :q)";
             $params['q'] = '%' . $filters['q'] . '%';
         }
+        if (!empty($filters['date_from'])) {
+            $where .= " AND created_at >= :date_from";
+            $params['date_from'] = $filters['date_from'] . ' 00:00:00';
+        }
+        if (!empty($filters['date_to'])) {
+            $where .= " AND created_at <= :date_to";
+            $params['date_to'] = $filters['date_to'] . ' 23:59:59';
+        }
 
         return $this->db->count($this->table, $where, $params);
     }
@@ -163,24 +171,35 @@ final class TransactionRepository extends BaseRepository
      */
     public function listFiltered(array $filters, int $limit, int $offset): array
     {
-        $where = "merchant_id = :mid";
+        $where = "t.merchant_id = :mid";
         $params = ['mid' => $this->requireTenant()];
 
         if (!empty($filters['status'])) {
-            $where .= " AND status = :status";
+            $where .= " AND t.status = :status";
             $params['status'] = $filters['status'];
         }
         if (!empty($filters['gateway'])) {
-            $where .= " AND gateway_slug = :gw";
+            $where .= " AND t.gateway_slug = :gw";
             $params['gw'] = $filters['gateway'];
         }
         if (!empty($filters['q'])) {
-            $where .= " AND (trx_id LIKE :q OR customer_id LIKE :q OR reference LIKE :q)";
+            $where .= " AND (t.trx_id LIKE :q OR t.customer_id LIKE :q OR t.reference LIKE :q)";
             $params['q'] = '%' . $filters['q'] . '%';
+        }
+        if (!empty($filters['date_from'])) {
+            $where .= " AND t.created_at >= :date_from";
+            $params['date_from'] = $filters['date_from'] . ' 00:00:00';
+        }
+        if (!empty($filters['date_to'])) {
+            $where .= " AND t.created_at <= :date_to";
+            $params['date_to'] = $filters['date_to'] . ' 23:59:59';
         }
 
         return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE {$where} ORDER BY created_at DESC LIMIT :lim OFFSET :off",
+            "SELECT t.*, c.name_enc as customer_name 
+             FROM {$this->table} t 
+             LEFT JOIN op_customers c ON c.id = t.customer_id 
+             WHERE {$where} ORDER BY t.created_at DESC LIMIT :lim OFFSET :off",
             array_merge($params, ['lim' => $limit, 'off' => $offset])
         );
     }
