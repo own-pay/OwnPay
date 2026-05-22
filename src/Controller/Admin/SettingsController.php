@@ -82,6 +82,7 @@ final class SettingsController
         $branding    = $this->settingsRepo->getGroup('branding');
         $landing     = $this->settingsRepo->getGroup('landing');
         $checkout    = $this->settingsRepo->getGroup('checkout');
+        $theme       = $this->settingsRepo->getGroup('theme');
 
         /** @phpstan-ignore booleanAnd.rightAlwaysTrue */
         if (isset($settings['faqs']) && is_string($settings['faqs'])) {
@@ -172,6 +173,7 @@ final class SettingsController
             'branding'          => $branding,
             'landing'           => $landing,
             'checkout_settings' => $checkout,
+            'theme'             => $theme,
             'currencies'        => $allCurrencies,
             'all_currencies'    => $allCurrencies,
             'timezones'         => $timezones,
@@ -212,6 +214,10 @@ final class SettingsController
 
             case 'checkout':
                 $this->saveCheckout($data);
+                break;
+
+            case 'theme':
+                $this->saveTheme($data);
                 break;
 
             default:
@@ -310,18 +316,30 @@ final class SettingsController
             $data['faqs'] = json_encode(array_values($data['faqs']));
         }
 
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $data[$key] = json_encode($value);
+        $whitelist = [
+            'app_name', 'base_url', 'timezone', 'support_email', 'footer_text',
+            'maintenance_mode', 'default_currency', 'exchange_rate_mode',
+            'payment_expiry_minutes', 'invoice_due_days', 'auto_approve_payments',
+            'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username', 'smtp_password',
+            'mail_from_email', 'mail_from_name', 'webhook_url', 'api_rate_limit',
+            'session_timeout', 'max_login_attempts', 'ip_allowlist', 'force_https',
+            'require_2fa', 'admin_notification_email', 'email_on_payment', 'email_on_refund',
+            'faqs', 'sms_positive_keywords', 'sms_negative_keywords',
+            'sms_filter_rules_check_interval_hours'
+        ];
+
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = is_array($data[$key]) ? json_encode($data[$key]) : (string) $data[$key];
             }
         }
 
-        $this->settingsRepo->bulkSet('general', $data);
+        $this->settingsRepo->bulkSet('general', $filtered);
 
         // Sync maintenance lock file
         $lockFile = dirname(__DIR__, 3) . '/storage/.maintenance';
-        /** @phpstan-ignore notIdentical.alwaysTrue */
-        if (!empty($data['maintenance_mode']) && $data['maintenance_mode'] !== '0') {
+        if (!empty($filtered['maintenance_mode']) && $filtered['maintenance_mode'] !== '0') {
             file_put_contents($lockFile, json_encode([
                 'reason'      => 'System maintenance in progress. Please try again shortly.',
                 'retry_after' => 600,
@@ -342,9 +360,20 @@ final class SettingsController
      */
     private function saveBranding(array $data, Request $req): void
     {
-        // Exclude file fields — handled by upload()
-        unset($data['site_logo'], $data['site_favicon']);
-        $this->settingsRepo->bulkSet('branding', $data);
+        $whitelist = [
+            'admin_panel_title',
+            'site_seo_title',
+            'site_meta_description',
+            'site_keywords',
+            'brand_tagline',
+        ];
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = (string) $data[$key];
+            }
+        }
+        $this->settingsRepo->bulkSet('branding', $filtered);
     }
 
     /**
@@ -365,12 +394,26 @@ final class SettingsController
         if (isset($data['features'])) {
             $data['features'] = json_encode(array_values($data['features']));
         }
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $data[$key] = json_encode($value);
+
+        $whitelist = [
+            'landing_enabled',
+            'landing_title',
+            'landing_subtitle',
+            'landing_cta_text',
+            'landing_cta_url',
+            'landing_show_features',
+            'landing_show_faq',
+            'admin_login_slug',
+            'features',
+        ];
+
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = is_array($data[$key]) ? json_encode($data[$key]) : (string) $data[$key];
             }
         }
-        $this->settingsRepo->bulkSet('landing', $data);
+        $this->settingsRepo->bulkSet('landing', $filtered);
     }
 
     /**
@@ -391,8 +434,6 @@ final class SettingsController
 
         // Handle currency updates if present
         $currencies = $data['currencies'] ?? null;
-        unset($data['currencies']);
-
         if ($currencies !== null && is_array($currencies)) {
             $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
             foreach ($currencies as $code => $cData) {
@@ -402,7 +443,22 @@ final class SettingsController
             }
         }
 
-        $this->settingsRepo->bulkSet('general', $data);
+        $whitelist = [
+            'default_currency',
+            'exchange_rate_mode',
+            'payment_expiry_minutes',
+            'invoice_due_days',
+            'auto_approve_payments',
+        ];
+
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = (string) $data[$key];
+            }
+        }
+
+        $this->settingsRepo->bulkSet('general', $filtered);
     }
 
     /**
@@ -414,13 +470,6 @@ final class SettingsController
      */
     private function saveCheckout(array $data): void
     {
-        // Checkout tab has fields for TWO groups:
-        // 1. 'checkout' group: timer_enabled, timer_seconds, show_faq
-        // 2. 'general' group: checkout_title, checkout_success_msg, etc.
-        $checkoutGroupKeys = ['timer_enabled', 'timer_seconds', 'show_faq'];
-        $checkoutData = [];
-        $generalData = [];
-
         // Normalize checkboxes
         foreach (['timer_enabled', 'show_faq'] as $cb) {
             if (!isset($data[$cb])) {
@@ -428,21 +477,45 @@ final class SettingsController
             }
         }
 
-        // Split data into correct groups
-        foreach ($data as $key => $value) {
-            if (in_array($key, $checkoutGroupKeys, true)) {
-                $checkoutData[$key] = $value;
-            } else {
-                $generalData[$key] = $value;
+        $whitelist = [
+            'checkout_success_msg',
+            'checkout_pending_msg',
+            'checkout_failed_msg',
+            'timer_enabled',
+            'timer_seconds',
+            'show_faq',
+        ];
+
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = (string) $data[$key];
             }
         }
 
-        if (!empty($checkoutData)) {
-            $this->settingsRepo->bulkSet('checkout', $checkoutData);
+        $this->settingsRepo->bulkSet('checkout', $filtered);
+    }
+
+    /**
+     * Persists settings parameters under the theme group.
+     *
+     * @param array<string, mixed> $data Theme customization parameters.
+     *
+     * @return void
+     */
+    private function saveTheme(array $data): void
+    {
+        $whitelist = [
+            'primary_color',
+            'accent_color',
+        ];
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = (string) $data[$key];
+            }
         }
-        if (!empty($generalData)) {
-            $this->settingsRepo->bulkSet('general', $generalData);
-        }
+        $this->settingsRepo->bulkSet('theme', $filtered);
     }
 
     /**

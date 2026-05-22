@@ -2080,6 +2080,7 @@ return array(
     'Tests\\Unit\\SecurityTest' => $baseDir . '/tests/Unit/SecurityTest.php',
     'Tests\\Unit\\ServiceTest' => $baseDir . '/tests/Unit/ServiceTest.php',
     'Tests\\Unit\\UnifiedWebhookControllerTest' => $baseDir . '/tests/Unit/UnifiedWebhookControllerTest.php',
+    'Tests\\Unit\\UpdateServiceTest' => $baseDir . '/tests/Unit/UpdateServiceTest.php',
     'Tests\\Unit\\WebhookDispatcherTest' => $baseDir . '/tests/Unit/WebhookDispatcherTest.php',
     'Tests\\Unit\\WebhookPayloadTest' => $baseDir . '/tests/Unit/WebhookPayloadTest.php',
     'TheSeer\\Tokenizer\\Exception' => $vendorDir . '/theseer/tokenizer/src/Exception.php',

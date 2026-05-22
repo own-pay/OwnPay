@@ -240,9 +240,14 @@ EOT;
             }
 
             // Strict domain verification
+            $allowedHosts = [
+                'update.ownpay.org',
+                'github.com',
+                'objects.githubusercontent.com'
+            ];
             $host = parse_url($downloadUrl, PHP_URL_HOST);
-            if ($host !== 'update.ownpay.org') {
-                throw new \RuntimeException("Security Exception: Download URL '{$downloadUrl}' does not match the official update domain 'update.ownpay.org'.");
+            if (!in_array($host, $allowedHosts, true)) {
+                throw new \RuntimeException("Security Exception: Download URL host '{$host}' is not in the allowed whitelisted domains.");
             }
 
             $this->events->doAction('update.before', $version);

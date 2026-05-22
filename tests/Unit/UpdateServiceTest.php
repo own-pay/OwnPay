@@ -130,6 +130,53 @@ class UpdateServiceTest extends TestCase
         $this->assertFalse($updater->extractPackageCalled);
     }
 
+    public function testAllowedDomainsVerification(): void
+    {
+        // 1. github.com should be allowed (it passes domain check and fails at signature check)
+        $zip1 = tempnam(sys_get_temp_dir(), 'op_test_allowed_domain_') . '.zip';
+        copy($this->tempZipPath, $zip1);
+
+        $updater = $this->createUpdateService();
+        $updater->mockPackagePath = $zip1;
+        $updater->mockManifest = [
+            'releases' => [
+                [
+                    'version' => '0.2.1',
+                    'download_url' => 'https://github.com/own-pay/OwnPay/releases/download/v0.2.1/ownpay-0.2.1.zip',
+                    'checksum_sha256' => hash_file('sha256', $zip1),
+                    'signature' => base64_encode('invalid-signature-bytes')
+                ]
+            ]
+        ];
+
+        $result = $updater->execute('0.2.1');
+        $this->assertFalse($result['success']);
+        $this->assertStringNotContainsString('Security Exception', $result['error']);
+        $this->assertStringContainsString('signature verification failed', $result['error']);
+
+        // 2. objects.githubusercontent.com should be allowed
+        $zip2 = tempnam(sys_get_temp_dir(), 'op_test_allowed_domain_') . '.zip';
+        copy($this->tempZipPath, $zip2);
+
+        $updater = $this->createUpdateService();
+        $updater->mockPackagePath = $zip2;
+        $updater->mockManifest = [
+            'releases' => [
+                [
+                    'version' => '0.2.1',
+                    'download_url' => 'https://objects.githubusercontent.com/releases/ownpay-0.2.1.zip',
+                    'checksum_sha256' => hash_file('sha256', $zip2),
+                    'signature' => base64_encode('invalid-signature-bytes')
+                ]
+            ]
+        ];
+
+        $result = $updater->execute('0.2.1');
+        $this->assertFalse($result['success']);
+        $this->assertStringNotContainsString('Security Exception', $result['error']);
+        $this->assertStringContainsString('signature verification failed', $result['error']);
+    }
+
     public function testMissingSignature(): void
     {
         $updater = $this->createUpdateService();

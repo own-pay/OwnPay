@@ -862,9 +862,9 @@ final class PaymentIntentCheckoutController
             'status_label'          => $statusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status)),
             'brand'                 => $brand,
             'lang'                  => [
-                'success_msg' => $this->settings->get('general', 'checkout_success_msg', ''),
-                'pending_msg' => $this->settings->get('general', 'checkout_pending_msg', ''),
-                'failed_msg'  => $this->settings->get('general', 'checkout_failed_msg', ''),
+                'success_msg' => $this->settings->get('checkout', 'checkout_success_msg', '') ?: $this->settings->get('general', 'checkout_success_msg', ''),
+                'pending_msg' => $this->settings->get('checkout', 'checkout_pending_msg', '') ?: $this->settings->get('general', 'checkout_pending_msg', ''),
+                'failed_msg'  => $this->settings->get('checkout', 'checkout_failed_msg', '') ?: $this->settings->get('general', 'checkout_failed_msg', ''),
             ],
             'merchant_redirect_url' => $targetUrl,
             'intent_token'          => $ref,
@@ -889,10 +889,11 @@ final class PaymentIntentCheckoutController
         // Fallback: resolve basic branding elements using core configuration parameters.
         $merchant = $this->merchants->find($mid);
         $s = $this->settings->getGroup('general');
+        $theme = $this->settings->getGroup('theme');
         return [
             'name'          => $merchant['name'] ?? $s['app_name'] ?? 'Own Pay',
             'logo'          => $merchant['logo'] ?? '',
-            'color'         => $s['theme_primary'] ?? '#0D9488',
+            'color'         => $theme['primary_color'] ?? $s['theme_primary'] ?? '#0D9488',
             'support_email' => $s['support_email'] ?? '',
         ];
     }

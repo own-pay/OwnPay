@@ -2217,6 +2217,7 @@ class ComposerStaticInitd90a235e2a0a8a88551e10d05438bb15
         'Tests\\Unit\\SecurityTest' => __DIR__ . '/../..' . '/tests/Unit/SecurityTest.php',
         'Tests\\Unit\\ServiceTest' => __DIR__ . '/../..' . '/tests/Unit/ServiceTest.php',
         'Tests\\Unit\\UnifiedWebhookControllerTest' => __DIR__ . '/../..' . '/tests/Unit/UnifiedWebhookControllerTest.php',
+        'Tests\\Unit\\UpdateServiceTest' => __DIR__ . '/../..' . '/tests/Unit/UpdateServiceTest.php',
         'Tests\\Unit\\WebhookDispatcherTest' => __DIR__ . '/../..' . '/tests/Unit/WebhookDispatcherTest.php',
         'Tests\\Unit\\WebhookPayloadTest' => __DIR__ . '/../..' . '/tests/Unit/WebhookPayloadTest.php',
         'TheSeer\\Tokenizer\\Exception' => __DIR__ . '/..' . '/theseer/tokenizer/src/Exception.php',

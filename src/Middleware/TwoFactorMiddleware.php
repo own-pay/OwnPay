@@ -216,7 +216,7 @@ final class TwoFactorMiddleware
     {
         try {
             $settings = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
-            return $settings->get('security', 'admin_login_slug', 'login');
+            return $settings->get('landing', 'admin_login_slug', 'login');
         } catch (\Throwable) {
             return 'login';
         }

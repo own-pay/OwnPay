@@ -6,6 +6,7 @@
 <div class="op-tabs" id="settings-tabs">
     <button class="op-tab {{ default_tab == 'general' ? 'active' : '' }}" data-tab="general">General</button>
     <button class="op-tab {{ default_tab == 'branding' ? 'active' : '' }}" data-tab="branding">Branding</button>
+    <button class="op-tab {{ default_tab == 'theme' ? 'active' : '' }}" data-tab="theme">Theme</button>
     <button class="op-tab {{ default_tab == 'landing' ? 'active' : '' }}" data-tab="landing">Landing Page</button>
     <button class="op-tab {{ default_tab == 'payment' ? 'active' : '' }}" data-tab="payment">Payment</button>
     <button class="op-tab {{ default_tab == 'email' ? 'active' : '' }}" data-tab="email">Email / SMTP</button>
@@ -91,19 +92,15 @@
                             </div>
                         </div>
                         {% endif %}
-                        <form method="POST" action="/admin/settings/upload" enctype="multipart/form-data" id="logo-upload-form">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                            <div class="op-upload-zone" id="logo-drop-zone" onclick="document.getElementById('logo-file-input').click()">
-                                <input type="file" name="site_logo" accept="image/*" id="logo-file-input" onchange="document.getElementById('logo-upload-form').submit()">
-                                <div class="op-upload-icon">
-                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                                </div>
-                                <div class="op-upload-text">
-                                    <strong>Click to upload</strong> or drag and drop<br>
-                                    PNG, SVG, JPEG, WebP
-                                </div>
+                        <div class="op-upload-zone" id="logo-drop-zone" onclick="document.getElementById('logo-file-input').click()">
+                            <div class="op-upload-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
                             </div>
-                        </form>
+                            <div class="op-upload-text">
+                                <strong>Click to upload</strong> or drag and drop<br>
+                                PNG, SVG, JPEG, WebP
+                            </div>
+                        </div>
                     </div>
 
                     {# ── Favicon ───────────────── #}
@@ -119,19 +116,15 @@
                             </div>
                         </div>
                         {% endif %}
-                        <form method="POST" action="/admin/settings/upload" enctype="multipart/form-data" id="favicon-upload-form">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                            <div class="op-upload-zone" id="favicon-drop-zone" onclick="document.getElementById('favicon-file-input').click()">
-                                <input type="file" name="site_favicon" accept="image/*,.ico" id="favicon-file-input" onchange="document.getElementById('favicon-upload-form').submit()">
-                                <div class="op-upload-icon">
-                                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
-                                </div>
-                                <div class="op-upload-text">
-                                    <strong>Click to upload</strong> or drag and drop<br>
-                                    ICO, PNG, SVG
-                                </div>
+                        <div class="op-upload-zone" id="favicon-drop-zone" onclick="document.getElementById('favicon-file-input').click()">
+                            <div class="op-upload-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
                             </div>
-                        </form>
+                            <div class="op-upload-text">
+                                <strong>Click to upload</strong> or drag and drop<br>
+                                ICO, PNG, SVG
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -434,28 +427,16 @@
             <div class="op-card-header"><h3>Checkout Page Settings</h3></div>
             <div class="op-card-body">
                 <div class="op-form-group">
-                    <label>Checkout Page Title</label>
-                    <input type="text" name="checkout_title" value="{{ settings.checkout_title ?? 'Complete Payment' }}" class="op-input">
-                </div>
-                <div class="op-form-group">
                     <label>Success Message</label>
-                    <textarea name="checkout_success_msg" rows="2" class="op-input">{{ settings.checkout_success_msg ?? 'Payment completed successfully! Thank you for your payment.' }}</textarea>
+                    <textarea name="checkout_success_msg" rows="2" class="op-input">{{ checkout_settings.checkout_success_msg ?? 'Payment completed successfully! Thank you for your payment.' }}</textarea>
                 </div>
                 <div class="op-form-group">
                     <label>Pending Message</label>
-                    <textarea name="checkout_pending_msg" rows="2" class="op-input">{{ settings.checkout_pending_msg ?? 'Your payment is being verified. You will receive a confirmation shortly.' }}</textarea>
+                    <textarea name="checkout_pending_msg" rows="2" class="op-input">{{ checkout_settings.checkout_pending_msg ?? 'Your payment is being verified. You will receive a confirmation shortly.' }}</textarea>
                 </div>
                 <div class="op-form-group">
                     <label>Failed/Expired Message</label>
-                    <textarea name="checkout_failed_msg" rows="2" class="op-input">{{ settings.checkout_failed_msg ?? 'This payment session has expired or was cancelled.' }}</textarea>
-                </div>
-                <div class="op-form-group">
-                    <label>Terms & Conditions URL</label>
-                    <input type="url" name="terms_url" value="{{ settings.terms_url ?? '' }}" class="op-input" placeholder="https://example.com/terms">
-                </div>
-                <div class="op-form-group">
-                    <label>Privacy Policy URL</label>
-                    <input type="url" name="privacy_url" value="{{ settings.privacy_url ?? '' }}" class="op-input" placeholder="https://example.com/privacy">
+                    <textarea name="checkout_failed_msg" rows="2" class="op-input">{{ checkout_settings.checkout_failed_msg ?? 'This payment session has expired or was cancelled.' }}</textarea>
                 </div>
             </div>
         </div>
@@ -527,25 +508,18 @@
     </div>
 
     {# ── Theme Tab ──────────────────────────────────────────── #}
-    <div class="op-tab-panel" id="tab-theme">
+    <div class="op-tab-panel {{ default_tab == 'theme' ? 'active' : '' }}" id="tab-theme">
         <div class="op-card">
             <div class="op-card-header"><h3>Theme Customization</h3></div>
             <div class="op-card-body">
                 <div class="op-form-row">
-                    <div class="op-form-group op-col-4">
+                    <div class="op-form-group op-col-6">
                         <label>Primary Color</label>
-                        <input type="color" name="theme_primary" value="{{ settings.theme_primary ?? '#6C5CE7' }}" class="op-input-color">
+                        <input type="color" name="primary_color" value="{{ theme.primary_color ?? '#6C5CE7' }}" class="op-input-color">
                     </div>
-                    <div class="op-form-group op-col-4">
+                    <div class="op-form-group op-col-6">
                         <label>Accent Color</label>
-                        <input type="color" name="theme_accent" value="{{ settings.theme_accent ?? '#00CEC9' }}" class="op-input-color">
-                    </div>
-                    <div class="op-form-group op-col-4">
-                        <label>Admin Theme</label>
-                        <select name="theme_mode" class="op-input">
-                            <option value="dark" {{ (settings.theme_mode ?? 'dark') == 'dark' ? 'selected' : '' }}>Dark</option>
-                            <option value="light" {{ (settings.theme_mode ?? '') == 'light' ? 'selected' : '' }}>Light</option>
-                        </select>
+                        <input type="color" name="accent_color" value="{{ theme.accent_color ?? '#00CEC9' }}" class="op-input-color">
                     </div>
                 </div>
             </div>
@@ -782,6 +756,15 @@
 </form>
 {% endfor %}
 
+<form id="logo-upload-form" method="POST" action="/admin/settings/upload" enctype="multipart/form-data" style="display:none;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="file" name="site_logo" accept="image/*" id="logo-file-input" onchange="document.getElementById('logo-upload-form').submit()">
+</form>
+
+<form id="favicon-upload-form" method="POST" action="/admin/settings/upload" enctype="multipart/form-data" style="display:none;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="file" name="site_favicon" accept="image/*,.ico" id="favicon-file-input" onchange="document.getElementById('favicon-upload-form').submit()">
+</form>
 
 {% endblock %}
 {% block scripts %}
