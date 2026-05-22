@@ -19,6 +19,16 @@ use OwnPay\Service\System\Logger;
 final class EventManager
 {
     /**
+     * @var \OwnPay\Container|null The dependency injection container.
+     */
+    private ?\OwnPay\Container $container = null;
+
+    /**
+     * @var bool Re-entrancy guard to avoid recursive loops when resolving brand plugin status.
+     */
+    private bool $resolvingOwnerActive = false;
+
+    /**
      * Registered actions mapped by event hook name.
      *
      * @var array<string, array<int, array{callable: callable, priority: int, owner: string}>>
@@ -99,6 +109,38 @@ final class EventManager
     }
 
     /**
+     * Set the dependency injection container.
+     *
+     * @param \OwnPay\Container $container The container.
+     * @return void
+     */
+    public function setContainer(\OwnPay\Container $container): void
+    {
+        $this->container = $container;
+    }
+
+    /**
+     * Push an owner to the stack.
+     *
+     * @param string $owner Slug identifier of the owner.
+     * @return void
+     */
+    public function pushOwner(string $owner): void
+    {
+        $this->ownerStack[] = $owner;
+    }
+
+    /**
+     * Pop an owner from the stack.
+     *
+     * @return void
+     */
+    public function popOwner(): void
+    {
+        array_pop($this->ownerStack);
+    }
+
+    /**
      * Resolve the current execution context owner.
      *
      * @return string Returns 'core' or the active plugin slug identifier.
@@ -120,6 +162,42 @@ final class EventManager
     }
 
     /**
+     * Checks if the owner (plugin) is active for the current brand context.
+     *
+     * @param string $owner Slug identifier of the plugin owner or 'core'.
+     * @return bool True if active, false otherwise.
+     */
+    private function isOwnerActive(string $owner): bool
+    {
+        if ($owner === 'core') {
+            return true;
+        }
+
+        if ($this->container === null) {
+            return true;
+        }
+
+        if ($this->resolvingOwnerActive) {
+            return true;
+        }
+
+        $this->resolvingOwnerActive = true;
+        try {
+            /** @var \OwnPay\Service\Brand\BrandContext $brandContext */
+            $brandContext = $this->container->get(\OwnPay\Service\Brand\BrandContext::class);
+            /** @var \OwnPay\Plugin\PluginRegistry $pluginRegistry */
+            $pluginRegistry = $this->container->get(\OwnPay\Plugin\PluginRegistry::class);
+
+            $brandId = $brandContext->getActiveBrandId();
+            return $pluginRegistry->isPluginActive($owner, $brandId);
+        } catch (\Throwable) {
+            return true;
+        } finally {
+            $this->resolvingOwnerActive = false;
+        }
+    }
+
+    /**
      * Register an action callback.
      *
      * Actions are fire-and-forget triggers that execute callbacks sequentially when matching events fire.
@@ -136,6 +214,9 @@ final class EventManager
         int $priority = 10,
         string $owner = 'core'
     ): void {
+        if ($owner === 'core') {
+            $owner = $this->getActiveOwner();
+        }
         $this->actions[$hook][] = [
             'callable' => $callback,
             'priority' => $priority,
@@ -163,6 +244,9 @@ final class EventManager
         }
 
         foreach ($this->actions[$hook] as $listener) {
+            if (!$this->isOwnerActive($listener['owner'])) {
+                continue;
+            }
             $this->ownerStack[] = $listener['owner'];
             try {
                 ($listener['callable'])(...$args);
@@ -191,6 +275,9 @@ final class EventManager
         int $priority = 10,
         string $owner = 'core'
     ): void {
+        if ($owner === 'core') {
+            $owner = $this->getActiveOwner();
+        }
         $this->filters[$hook][] = [
             'callable' => $callback,
             'priority' => $priority,
@@ -219,6 +306,9 @@ final class EventManager
         }
 
         foreach ($this->filters[$hook] as $listener) {
+            if (!$this->isOwnerActive($listener['owner'])) {
+                continue;
+            }
             $this->ownerStack[] = $listener['owner'];
             try {
                 $value = ($listener['callable'])($value, ...$args);

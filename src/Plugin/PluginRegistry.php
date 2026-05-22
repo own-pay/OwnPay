@@ -45,6 +45,21 @@ final class PluginRegistry
     private array $sandboxes = [];
 
     /**
+     * Cache of plugin statuses for the current brand context.
+     * Maps `brandId => [slug => isActive]`
+     *
+     * @var array<int, array<string, bool>>
+     */
+    private array $brandActiveCache = [];
+
+    /**
+     * Re-entrancy guard to prevent recursive database queries.
+     *
+     * @var bool
+     */
+    private bool $resolvingBrandPlugins = false;
+
+    /**
      * PluginRegistry constructor.
      *
      * @param \OwnPay\Repository\PluginRepository $repo Repository for querying plugin database state.
@@ -61,8 +76,70 @@ final class PluginRegistry
      */
     public function getActive(): array
     {
-        return $this->repo->listActive();
+        return $this->repo->listActiveAndBrandActive();
     }
+
+    /**
+     * Checks if a plugin is active for a specific brand context.
+     * Caches the results in memory to avoid query duplication during the request.
+     *
+     * @param string   $slug    Unique plugin slug.
+     * @param int|null $brandId The brand ID context.
+     * @return bool True if active, false otherwise.
+     */
+    public function isPluginActive(string $slug, ?int $brandId): bool
+    {
+        if ($brandId === null || $brandId <= 0) {
+            $plugin = $this->repo->findBySlug($slug);
+            return $plugin !== null && $plugin['status'] === 'active';
+        }
+
+        if (isset($this->brandActiveCache[$brandId][$slug])) {
+            return $this->brandActiveCache[$brandId][$slug];
+        }
+
+        if ($this->resolvingBrandPlugins) {
+            $plugin = $this->repo->findBySlug($slug);
+            return $plugin !== null && $plugin['status'] === 'active';
+        }
+
+        $this->resolvingBrandPlugins = true;
+        try {
+            $statuses = $this->repo->getBrandPluginStatuses($brandId);
+
+            // For plugins not overridden in the pivot table, look up their global status.
+            $globalPlugins = $this->repo->listActive();
+            foreach ($globalPlugins as $gp) {
+                $gpslug = $gp['slug'];
+                if (!isset($statuses[$gpslug])) {
+                    $statuses[$gpslug] = 'active';
+                }
+            }
+
+            $cache = [];
+            foreach ($statuses as $s => $statusVal) {
+                $cache[$s] = ($statusVal === 'active');
+            }
+
+            $this->brandActiveCache[$brandId] = $cache;
+        } finally {
+            $this->resolvingBrandPlugins = false;
+        }
+
+        return $this->brandActiveCache[$brandId][$slug] ?? false;
+    }
+
+    /**
+     * Clears the active brand plugins cache.
+     *
+     * @param int $brandId The brand ID context.
+     * @return void
+     */
+    public function clearBrandActiveCache(int $brandId): void
+    {
+        unset($this->brandActiveCache[$brandId]);
+    }
+
 
     /**
      * Registers a successfully instantiated plugin runtime object and its metadata.

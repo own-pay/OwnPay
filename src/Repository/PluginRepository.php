@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace OwnPay\Repository;
 
+use OwnPay\Plugin\Exception\PluginInUseException;
+
 /**
  * Repository layer for system plugins (`op_plugins` table).
  *
@@ -87,6 +89,145 @@ final class PluginRepository extends BaseRepository
             "UPDATE {$this->table} SET status = 'inactive' WHERE slug = :s",
             ['s' => $slug]
         );
+    }
+
+    /**
+     * Sets the status of a plugin for a specific brand context.
+     *
+     * @param string $slug    Unique plugin slug.
+     * @param int    $brandId The brand ID.
+     * @param string $status  The target status ('active' or 'inactive').
+     * @return void
+     */
+    public function setBrandPluginStatus(string $slug, int $brandId, string $status): void
+    {
+        $this->db->execute(
+            "INSERT INTO op_brand_plugins (merchant_id, plugin_slug, status) 
+             VALUES (:merchant_id, :slug, :status)
+             ON DUPLICATE KEY UPDATE status = :status_update",
+            [
+                'merchant_id'   => $brandId,
+                'slug'          => $slug,
+                'status'        => $status,
+                'status_update' => $status,
+            ]
+        );
+    }
+
+    /**
+     * Checks if a plugin is active for a specific brand.
+     * Falls back to global plugin status if no brand-specific mapping exists.
+     *
+     * @param string $slug    Unique plugin slug.
+     * @param int    $brandId The brand ID.
+     * @return bool True if active, false otherwise.
+     */
+    public function isPluginActiveForBrand(string $slug, int $brandId): bool
+    {
+        $row = $this->db->fetchOne(
+            "SELECT status FROM op_brand_plugins WHERE merchant_id = :merchant_id AND plugin_slug = :slug",
+            ['merchant_id' => $brandId, 'slug' => $slug]
+        );
+
+        if ($row !== null) {
+            return $row['status'] === 'active';
+        }
+
+        $globalPlugin = $this->findBySlug($slug);
+        return $globalPlugin !== null && $globalPlugin['status'] === 'active';
+    }
+
+    /**
+     * Gets all plugin status overrides for a brand.
+     *
+     * @param int $brandId The brand ID context.
+     * @return array<string, string> Map of plugin slug to status string.
+     */
+    public function getBrandPluginStatuses(int $brandId): array
+    {
+        $rows = $this->db->fetchAll(
+            "SELECT plugin_slug, status FROM op_brand_plugins WHERE merchant_id = :merchant_id",
+            ['merchant_id' => $brandId]
+        );
+
+        $result = [];
+        foreach ($rows as $row) {
+            $result[$row['plugin_slug']] = $row['status'];
+        }
+
+        return $result;
+    }
+
+    /**
+     * Lists all plugins that are active globally OR active on at least one brand.
+     *
+     * @return list<array<string, mixed>>
+     */
+    public function listActiveAndBrandActive(): array
+    {
+        $globalActive = $this->listActive();
+
+        $brandActiveRows = $this->db->fetchAll(
+            "SELECT DISTINCT plugin_slug FROM op_brand_plugins WHERE status = 'active'"
+        );
+
+        $slugs = array_map(static fn($row) => $row['plugin_slug'], $brandActiveRows);
+
+        $allActive = $globalActive;
+        $activeSlugs = array_column($globalActive, 'slug');
+
+        foreach ($slugs as $slug) {
+            if (!in_array($slug, $activeSlugs, true)) {
+                $plugin = $this->findBySlug($slug);
+                if ($plugin !== null) {
+                    $allActive[] = $plugin;
+                }
+            }
+        }
+
+        return $allActive;
+    }
+
+
+    /**
+     * Counts how many brands have this plugin set to active.
+     *
+     * @param string $slug Unique plugin slug.
+     * @return int Count of active brand instances.
+     */
+    public function countActiveBrandInstances(string $slug): int
+    {
+        return (int) $this->db->fetchColumn(
+            "SELECT COUNT(*) FROM op_brand_plugins WHERE plugin_slug = :slug AND status = 'active'",
+            ['slug' => $slug]
+        );
+    }
+
+    /**
+     * Deletes a plugin record after checking cross-tenant usage.
+     * If active on any brand, halts execution, rolls back transaction, and throws.
+     *
+     * @param int|string $id Primary key of the plugin.
+     * @return int Number of affected rows.
+     * @throws PluginInUseException
+     */
+    public function delete(int|string $id): int
+    {
+        $plugin = $this->find($id);
+        if ($plugin !== null) {
+            $slug = $plugin['slug'];
+            $activeCount = $this->countActiveBrandInstances($slug);
+            if ($activeCount > 0) {
+                if ($this->db->inTransaction()) {
+                    $this->db->rollBack();
+                }
+                throw new PluginInUseException(
+                    "Plugin '{$slug}' cannot be uninstalled because it is currently active on one or more brands."
+                );
+            }
+        }
+
+        return parent::delete($id);
     }
 }
 

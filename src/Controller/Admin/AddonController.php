@@ -73,6 +73,13 @@ final class AddonController
      */
     public function index(Request $request): Response
     {
+        $brandId = null;
+        if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
+            $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+            $brandCtx->resolveFromRequest($request);
+            $brandId = $brandCtx->getActiveBrandId();
+        }
+
         $addons = $this->repo->listByType('addon');
 
         // Enrich database plugin models with manifest parameters
@@ -83,6 +90,11 @@ final class AddonController
             }
             $addon['description'] = $addon['description'] ?? $m['description'] ?? '';
             $addon['author']      = $addon['author']      ?? $m['author']      ?? 'Unknown';
+
+            // Local active/inactive status override if brand context is active
+            if ($brandId !== null && $brandId > 0 && !in_array($addon['status'], ['uninstalled', 'trashed'], true)) {
+                $addon['status'] = $this->repo->isPluginActiveForBrand($addon['slug'], $brandId) ? 'active' : 'inactive';
+            }
         }
         unset($addon);
 

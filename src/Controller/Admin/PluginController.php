@@ -93,6 +93,13 @@ final class PluginController
      */
     public function index(Request $request): Response
     {
+        $brandId = null;
+        if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
+            $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+            $brandCtx->resolveFromRequest($request);
+            $brandId = $brandCtx->getActiveBrandId();
+        }
+
         $plugins = $this->repo->paginate(1, 200)['items'];
 
         // Enrich DB rows with manifest name (DB may have slug as name)
@@ -102,6 +109,11 @@ final class PluginController
                 $p['name'] = $m['name'];
             }
             $p['description'] = $p['description'] ?? ($m['description'] ?? '');
+
+            // Local active/inactive status override if brand context is active
+            if ($brandId !== null && $brandId > 0 && !in_array($p['status'], ['uninstalled', 'trashed'], true)) {
+                $p['status'] = $this->repo->isPluginActiveForBrand($p['slug'], $brandId) ? 'active' : 'inactive';
+            }
         }
         unset($p);
 
@@ -197,12 +209,21 @@ final class PluginController
     public function activate(Request $request): Response
     {
         $slug = (string) $request->param('slug');
-        $result = $this->manager->activate($slug);
+        $brandId = null;
+        if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
+            $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+            $brandCtx->resolveFromRequest($request);
+            $brandId = $brandCtx->getActiveBrandId();
+        }
+        $result = $this->manager->activate($slug, $brandId);
 
         if (!$result['success']) {
             $this->session->flashError($result['error'] ?? 'Activation failed');
         } else {
-            $this->session->flashSuccess("Plugin '{$slug}' activated! ({$result['migrations_run']} migrations run)");
+            $msg = ($brandId !== null && $brandId > 0)
+                ? "Plugin '{$slug}' activated for this brand!"
+                : "Plugin '{$slug}' activated! (" . ($result['migrations_run'] ?? 0) . " migrations run)";
+            $this->session->flashSuccess($msg);
         }
 
         return Response::redirect($this->redirectTarget($request));
@@ -218,12 +239,21 @@ final class PluginController
     public function deactivate(Request $request): Response
     {
         $slug = (string) $request->param('slug');
-        $result = $this->manager->deactivate($slug);
+        $brandId = null;
+        if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
+            $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+            $brandCtx->resolveFromRequest($request);
+            $brandId = $brandCtx->getActiveBrandId();
+        }
+        $result = $this->manager->deactivate($slug, $brandId);
 
         if (!$result['success']) {
             $this->session->flashError($result['error'] ?? 'Deactivation failed');
         } else {
-            $this->session->flashSuccess("Plugin '{$slug}' deactivated.");
+            $msg = ($brandId !== null && $brandId > 0)
+                ? "Plugin '{$slug}' deactivated for this brand."
+                : "Plugin '{$slug}' deactivated.";
+            $this->session->flashSuccess($msg);
         }
 
         return Response::redirect($this->redirectTarget($request));
@@ -239,12 +269,16 @@ final class PluginController
     public function uninstall(Request $request): Response
     {
         $slug = (string) $request->param('slug');
-        $result = $this->manager->uninstall($slug);
+        try {
+            $result = $this->manager->uninstall($slug);
 
-        if (!$result['success']) {
-            $this->session->flashError($result['error'] ?? 'Uninstall failed');
-        } else {
-            $this->session->flashSuccess("Plugin '{$slug}' uninstalled.");
+            if (!$result['success']) {
+                $this->session->flashError($result['error'] ?? 'Uninstall failed');
+            } else {
+                $this->session->flashSuccess("Plugin '{$slug}' uninstalled.");
+            }
+        } catch (\OwnPay\Plugin\Exception\PluginInUseException $e) {
+            $this->session->flashError($e->getMessage());
         }
 
         return Response::redirect($this->redirectTarget($request));

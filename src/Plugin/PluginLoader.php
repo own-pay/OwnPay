@@ -259,7 +259,12 @@ final class PluginLoader
 
         /** @var PluginInterface $instance */
         $instance = new $className();
-        $instance->register($this->events, $this->container);
+        $this->events->pushOwner($slug);
+        try {
+            $instance->register($this->events, $this->container);
+        } finally {
+            $this->events->popOwner();
+        }
 
         $this->registry->registerLoaded($slug, $instance, $manifest, $sandbox);
     }

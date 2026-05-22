@@ -131,13 +131,15 @@ final class GatewayController
             $installed = $installedPlugins[$manifest->slug] ?? null;
             $configured = $configuredGateways[$manifest->slug] ?? null;
 
+            $isBrandActive = $pluginRepo->isPluginActiveForBrand($manifest->slug, $merchantId);
+
             // Determine display status
             if ($installed === null) {
                 $status = 'uninstalled';
-            } elseif ($installed['status'] === 'active') {
+            } elseif ($isBrandActive) {
                 $status = $configured ? 'active' : 'installed'; // active+configured vs just activated
             } else {
-                $status = $installed['status']; // inactive, etc.
+                $status = in_array($installed['status'], ['trashed', 'error'], true) ? $installed['status'] : 'inactive';
             }
 
             $apiGateways[] = [
