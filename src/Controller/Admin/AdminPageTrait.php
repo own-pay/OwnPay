@@ -55,6 +55,23 @@ trait AdminPageTrait
             $data['site_title']     = $sr->get('branding', 'admin_panel_title', $data['app_name']);
         }
 
+        // Apply brand-scoped visual customization if we are contextually in an active brand
+        if (!empty($data['active_brand_id']) && $data['active_brand_id'] > 0) {
+            if ($this->c->has(\OwnPay\Service\Brand\BrandThemeService::class)) {
+                $themeSvc = $this->c->get(\OwnPay\Service\Brand\BrandThemeService::class);
+                $brandTheme = $themeSvc->getBrandTheme((int)$data['active_brand_id']);
+                if (!empty($brandTheme['logo'])) {
+                    $data['settings_logo'] = $brandTheme['logo'];
+                }
+                if (!empty($brandTheme['favicon'])) {
+                    $data['site_favicon'] = $brandTheme['favicon'];
+                }
+                if (!empty($brandTheme['name'])) {
+                    $data['site_title'] = $brandTheme['name'];
+                }
+            }
+        }
+
         // AUD-G10: Plugin template override system
         // Plugins can modify template name (e.g. replace admin/dashboard.twig with custom version)
         // and inject/modify template data (add widgets, custom variables, etc.)

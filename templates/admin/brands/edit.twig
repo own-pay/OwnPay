@@ -5,7 +5,7 @@
     <h1>{{ brand is not null and brand.id is defined and brand.id ? 'Edit: ' ~ brand.name : 'Create Brand' }}</h1>
     <a href="/admin/brands" class="op-btn op-btn-outline">← Back</a>
 </div>
-<form method="POST" action="/admin/brands/{{ brand is not null and brand.id is defined and brand.id ? brand.id ~ '/update' : 'store' }}" class="op-form">
+<form method="POST" action="/admin/brands/{{ brand is not null and brand.id is defined and brand.id ? brand.id ~ '/update' : 'store' }}" class="op-form" enctype="multipart/form-data">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <div class="op-card op-mb-4">
         <div class="op-card-header"><h3>Business Info</h3></div>
@@ -67,6 +67,95 @@
                 <small>Optional. You can configure DNS after saving.</small>
             </div>
             {% endif %}
+        </div>
+    </div>
+
+    {# ── Brand-wise Customization & Theming Section ────────────────────── #}
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Visual Customization & Branding</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                {# ── Brand Logo upload ── #}
+                <div class="op-form-group op-col-6">
+                    <label>Brand Logo</label>
+                    <p class="op-text-muted op-text-sm op-mb-2">Recommended: 200×60px PNG, SVG or WebP</p>
+                    {% if brand is not null and brand.logo_path is defined and brand.logo_path %}
+                        <div class="op-mb-2" style="background: var(--bg-card, #f8fafc); padding: 10px; border-radius: 6px; display: inline-block; border: 1px solid var(--border-color, #e2e8f0);">
+                            <img src="{{ brand.logo_path }}" alt="Current Brand Logo" style="max-height: 48px; display: block;">
+                        </div>
+                    {% endif %}
+                    <input type="file" name="brand_logo" accept="image/*" class="op-input" style="padding: 6px;">
+                </div>
+
+                {# ── Brand Favicon upload ── #}
+                <div class="op-form-group op-col-6">
+                    <label>Brand Favicon</label>
+                    <p class="op-text-muted op-text-sm op-mb-2">Recommended: 32×32px ICO, PNG or SVG</p>
+                    {% if brand is not null and brand.theme.favicon is defined and brand.theme.favicon %}
+                        <div class="op-mb-2" style="background: var(--bg-card, #f8fafc); padding: 10px; border-radius: 6px; display: inline-block; border: 1px solid var(--border-color, #e2e8f0);">
+                            <img src="{{ brand.theme.favicon }}" alt="Current Brand Favicon" style="max-height: 32px; width: 32px; display: block;">
+                        </div>
+                    {% endif %}
+                    <input type="file" name="brand_favicon" accept="image/*" class="op-input" style="padding: 6px;">
+                </div>
+            </div>
+
+            <div class="op-form-row op-mt-3">
+                {# ── Colors pickers ── #}
+                <div class="op-form-group op-col-6">
+                    <label>Primary Theme Color</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="color" name="primary_color" value="{{ brand.theme.primary_color ?? '#0D9488' }}" class="op-input" style="width: 60px; height: 38px; padding: 2px; cursor: pointer; border: 1px solid var(--border-color, #e2e8f0);">
+                        <span class="op-text-muted op-text-sm">Sets primary button & accent accents</span>
+                    </div>
+                </div>
+
+                <div class="op-form-group op-col-6">
+                    <label>Accent Theme Color</label>
+                    <div style="display: flex; gap: 10px; align-items: center;">
+                        <input type="color" name="accent_color" value="{{ brand.theme.accent_color ?? '#0F766E' }}" class="op-input" style="width: 60px; height: 38px; padding: 2px; cursor: pointer; border: 1px solid var(--border-color, #e2e8f0);">
+                        <span class="op-text-muted op-text-sm">Hover states and highlights</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="op-form-row op-mt-3">
+                {# ── Support Email and Footer Text ── #}
+                <div class="op-form-group op-col-6">
+                    <label>Support Contact Email</label>
+                    <input type="email" name="support_email" value="{{ brand.theme.support_email ?? '' }}" class="op-input" placeholder="support@mybrand.com">
+                    <small class="op-text-muted">Customer queries from checkout will route here.</small>
+                </div>
+
+                <div class="op-form-group op-col-6">
+                    <label>Custom Checkout Footer Text</label>
+                    <input type="text" name="footer_text" value="{{ brand.theme.footer_text ?? '' }}" class="op-input" placeholder="Secured by {{ brand.name ?? 'Brand' }} · 256-bit encryption">
+                    <small class="op-text-muted">Displays at the bottom of the checkout room.</small>
+                </div>
+            </div>
+
+            <div class="op-form-group op-mt-3">
+                {# ── Powered By Toggle ── #}
+                <label class="op-toggle-label">
+                    <input type="checkbox" name="show_powered_by" value="1" {{ (brand.theme.show_powered_by ?? 1) ? 'checked' : '' }}>
+                    <span class="op-toggle-switch"></span>
+                    <span>Show "Powered by OwnPay" inside checkout view footer</span>
+                </label>
+            </div>
+
+            <div class="op-form-row op-mt-4">
+                {# ── Custom CSS ── #}
+                <div class="op-form-group op-col-6">
+                    <label>Custom CSS Overrides</label>
+                    <textarea name="custom_css" class="op-input" rows="6" placeholder="/* Append custom CSS rules for checkout theme */" style="font-family: monospace; font-size: 13px;">{{ brand.theme.custom_css ?? '' }}</textarea>
+                </div>
+
+                {# ── Custom JS ── #}
+                <div class="op-form-group op-col-6">
+                    <label>Custom JavaScript</label>
+                    <textarea name="custom_js" class="op-input" rows="6" placeholder="// Custom analytics or interface script hooks" style="font-family: monospace; font-size: 13px;">{{ brand.theme.custom_js ?? '' }}</textarea>
+                </div>
+            </div>
         </div>
     </div>
 

@@ -396,9 +396,19 @@ public function supportedCurrencies(): array { return ['BDT']; }
 
 ### Brand Theme Engine (`src/Service/Brand/BrandThemeService.php`)
 
-Per-brand visual customization for checkout pages under custom domains.
+Per-brand visual customization for checkout pages and admin panels.
 
 **Resolution priority (per field):** Brand-scoped `op_system_settings` > `op_merchants.settings` JSON > global `op_system_settings`
+
+**Dynamic Admin Sidebar Logo Integration:**
+- In `AdminPageTrait::renderAdminPage()`, the admin sidebar/layout logo (`settings_logo`) and favicon (`site_favicon`) are automatically overridden by the active brand's custom values resolved from `BrandThemeService::getBrandTheme()` when contextually scoped under a specific brand.
+
+**Brand-wise UI Customizer:**
+- Built-in premium branding customization interface in `/admin/brands` allowing administrators to:
+  - Securely upload custom **Brand Logos** & **Favicons** (stored under `/public/assets/uploads/brands/`).
+  - Configure **Primary & Accent theme colors** via custom color pickers.
+  - Setup support emails, footer text descriptions, custom CSS style overrides, and custom JavaScript script hook injections.
+  - Controls are aggregated and stored as JSON under the `op_merchants.settings` column.
 
 **Data returned by `getBrandTheme(int $merchantId)`:**
 - `name`, `logo`, `favicon`, `color`, `accent_color`, `support_email`

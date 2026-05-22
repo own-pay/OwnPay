@@ -115,16 +115,19 @@ final class MerchantRepository extends BaseRepository
     {
         $this->db->execute(
             "UPDATE {$this->table} SET name = :name, email = :email, phone = :phone,
-             timezone = :tz, default_currency = :cur, status = :status
+             timezone = :tz, default_currency = :cur, status = :status,
+             logo_path = :logo_path, settings = :settings
              WHERE id = :id",
             [
-                'name'   => $data['name'],
-                'email'  => $data['email'],
-                'phone'  => $data['phone'] ?? '',
-                'tz'     => $data['timezone'] ?? 'Asia/Dhaka',
-                'cur'    => $data['default_currency'] ?? 'BDT',
-                'status' => $data['status'] ?? 'active',
-                'id'     => $id,
+                'name'      => $data['name'],
+                'email'     => $data['email'],
+                'phone'     => $data['phone'] ?? '',
+                'tz'        => $data['timezone'] ?? 'Asia/Dhaka',
+                'cur'       => $data['default_currency'] ?? 'BDT',
+                'status'    => $data['status'] ?? 'active',
+                'logo_path' => $data['logo_path'] ?? null,
+                'settings'  => $data['settings'] ?? null,
+                'id'        => $id,
             ]
         );
     }

@@ -140,11 +140,18 @@ Checkout Pay Flow:
 
 **Returns:** `name`, `logo`, `favicon`, `color`, `accent_color`, `support_email`, `custom_css`, `custom_js`, `footer_text`, `show_powered_by`.
 
+**Admin Sidebar Logo & Favicon Integration:**
+* In `AdminPageTrait::renderAdminPage()`, the layouts automatically override `settings_logo`, `site_favicon`, and `site_title` using the active brand's custom values contextually resolved from `BrandThemeService::getBrandTheme()` when contextually scoped.
+* Public-facing authentication gates (Login, Reset Password, 2FA Verification) and the public Landing/Marketing page also dynamically render these customized logos and favicons instead of fallback static assets.
+
+**Brand-wise visual customization:**
+* Multi-brand owners customize assets on a per-brand edit form in `/admin/brands`, validating and uploading brand logos and favicons directly under `/public/assets/uploads/brands/`. Other choices (colors, custom css/js, footer details) are stored as JSON under the `op_merchants.settings` column.
+
 **Template integration** (`templates/checkout/checkout.twig`):
 * CSS variables: `--teal`, `--teal-deep`, `--teal-glow` set from `brand.color` / `brand.accent_color`
 * Custom CSS block: `{% if brand.custom_css %}<style>{{ brand.custom_css|raw }}</style>{% endif %}`
 * Custom JS block: `{% if brand.custom_js %}<script>{{ brand.custom_js|raw }}</script>{% endif %}`
-* Theme plugin hooks: `{{ hook('checkout.head') }}` and `{{ hook('checkout.footer') }}`
+* Visual triggers: CSS/JS injected raw, theme hook triggers fire on head and footer: `{{ hook('checkout.head') }}` and `{{ hook('checkout.footer') }}`
 
 ### 4.7. Fee Rules Specificity Resolution
 To calculate transactional commissions dynamically under the single-owner/multi-brand structure, OwnPay utilizes a tenant-scoped fee rules engine (`op_fee_rules`, `FeeRuleRepository`).

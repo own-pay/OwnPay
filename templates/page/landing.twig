@@ -3,85 +3,132 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ app_name ?? 'Own Pay' }} | Next-Gen Payment Infrastructure</title>
-    <meta name="description" content="{{ landing_description ?? 'Self-hosted payment gateway platform with multi-brand support and SMS verification.' }}">
+    <title>{{ app_name ?? 'Own Pay' }} | Enterprise Payment Infrastructure</title>
+    <meta name="description" content="{{ landing_description ?? 'Self-hosted payment gateway platform with multi-brand support and enterprise-grade security.' }}">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/landing.css">
+    {% if site_favicon is defined and site_favicon %}
+    <link rel="icon" href="{{ site_favicon }}" type="image/x-icon">
+    {% endif %}
     {{ hook('landing.head')|raw }}
 </head>
 <body class="op-landing">
-    <!-- Ambient Background Elements -->
-    <div class="op-ambient-bg">
-        <div class="op-blob op-blob-1"></div>
-        <div class="op-blob op-blob-2"></div>
-    </div>
-
     {{ hook('admin.landing.render')|raw }}
 
     <header class="op-landing-header">
         <nav class="op-landing-nav">
             <a href="/" class="op-logo">
-                <span class="op-logo-icon">OP</span>
+                {% if site_logo is defined and site_logo %}
+                    <img src="{{ site_logo }}" alt="{{ app_name ?? 'Own Pay' }}" style="max-height: 32px; width: auto; display: inline-block; vertical-align: middle;">
+                {% else %}
+                    <span class="op-logo-icon">OP</span>
+                {% endif %}
                 <span>{{ app_name ?? 'Own Pay' }}</span>
             </a>
-            <a href="https://github.com/own-pay/ownpay" class="op-btn op-btn-outline" target="_blank" rel="external">GitHub</a>
+            <a href="https://github.com/own-pay/OwnPay" class="op-btn op-btn-outline" target="_blank" rel="external">GitHub</a>
         </nav>
     </header>
 
     <section class="op-hero">
-        <div class="op-hero-badge">v0.1.0 Multi-Brand Edition</div>
-        <h1>{{ landing_title ?? 'The Payment Gateway You Actually Own' }}</h1>
-        <p>{{ landing_subtitle ?? 'A fully self-hosted infrastructure. Process payments your way, eliminate third-party lock-in, and manage multiple brands from a single dashboard.' }}</p>
+        <div class="op-hero-badge">Open Source Payment Orchestrator</div>
+        <h1>{{ landing_title ?? 'The Payment Infrastructure You Actually Own.' }}</h1>
+        <p>{{ landing_subtitle ?? 'A fully self-hosted, multi-brand orchestrator. Process payments your way, eliminate third-party vendor lock-in, and scale with absolute sovereignty.' }}</p>
         
         <div class="op-hero-actions">
-            <a href="https://ownpay.org" class="op-btn op-btn-primary op-btn-lg" target="_blank" rel="external">Implemented Own Pay</a>
-            {% if faq_enabled %}
-                <a href="#faq" class="op-btn op-btn-outline op-btn-lg">View FAQs</a>
-            {% endif %}
+            <a href="https://github.com/own-pay/OwnPay" class="op-btn op-btn-primary op-btn-lg" target="_blank" rel="external">
+                View on GitHub
+            </a>
+            <a href="https://docs.ownpay.org" class="op-btn op-btn-outline op-btn-lg" target="_blank" rel="external">
+                Read the Docs
+            </a>
         </div>
 
-        <!-- Faux UI Preview to make it feel 'software-ey' -->
-        <div class="op-hero-preview" aria-hidden="true">
-            <div style="background: rgba(13,10,31,0.6); height: 300px; border-radius: 8px; display: flex; flex-direction: column; padding: 20px;">
-                <div style="display:flex; gap: 10px; margin-bottom: 20px;">
-                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #ff5f56;"></div>
-                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #ffbd2e;"></div>
-                    <div style="width: 12px; height: 12px; border-radius: 50%; background: #27c93f;"></div>
-                </div>
-                <div style="display: flex; gap: 20px; height: 100%;">
-                    <div style="width: 200px; background: rgba(255,255,255,0.03); border-radius: 8px; padding: 15px;">
-                        <div style="width: 100%; height: 10px; background: rgba(255,255,255,0.1); border-radius: 5px; margin-bottom: 15px;"></div>
-                        <div style="width: 80%; height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; margin-bottom: 10px;"></div>
-                        <div style="width: 90%; height: 10px; background: rgba(255,255,255,0.05); border-radius: 5px; margin-bottom: 10px;"></div>
+        <!-- Realistic Split View -->
+        <div class="op-hero-split" aria-hidden="true">
+            <div class="op-code-window">
+                <div class="op-code-header">
+                    <div class="op-mac-dots">
+                        <span class="op-mac-dot op-dot-r"></span>
+                        <span class="op-mac-dot op-dot-y"></span>
+                        <span class="op-mac-dot op-dot-g"></span>
                     </div>
-                    <div style="flex: 1; display: flex; flex-direction: column; gap: 15px;">
-                        <div style="display: flex; gap: 15px;">
-                            <div style="flex: 1; height: 80px; background: rgba(0, 240, 255, 0.05); border: 1px solid rgba(0, 240, 255, 0.2); border-radius: 8px;"></div>
-                            <div style="flex: 1; height: 80px; background: rgba(112, 0, 255, 0.05); border: 1px solid rgba(112, 0, 255, 0.2); border-radius: 8px;"></div>
-                            <div style="flex: 1; height: 80px; background: rgba(255, 0, 127, 0.05); border: 1px solid rgba(255, 0, 127, 0.2); border-radius: 8px;"></div>
+                    <span class="op-code-title">POST /api/v1/payment-intents</span>
+                </div>
+                <div class="op-code-body">
+<pre><code><span class="op-token-keyword">curl</span> -X POST https://api.yourdomain.com/v1/intents \
+  -H <span class="op-token-string">"Authorization: Bearer sk_live_..."</span> \
+  -H <span class="op-token-string">"Content-Type: application/json"</span> \
+  -d <span class="op-token-string">'{
+    "amount": "150.00",
+    "currency": "USD",
+    "gateway": "stripe"
+}'</span></code></pre>
+                </div>
+            </div>
+
+            <div class="op-checkout-ui">
+                <div class="op-checkout-card">
+                    <div class="op-checkout-header">
+                        <div class="op-checkout-brand">
+                            <div class="op-checkout-brand-logo">AC</div>
+                            <span style="font-weight:600; color:var(--text-secondary);">Acme Corp</span>
                         </div>
-                        <div style="flex: 1; background: rgba(255,255,255,0.03); border-radius: 8px;"></div>
+                        <div class="op-checkout-amount">$150.00</div>
+                    </div>
+                    <div class="op-checkout-body">
+                        <div class="op-form-group">
+                            <label class="op-form-label">Email</label>
+                            <input type="email" class="op-form-input" value="user@example.com" readonly tabindex="-1">
+                        </div>
+                        <div class="op-form-group">
+                            <label class="op-form-label">Card Information</label>
+                            <input type="text" class="op-form-input" value="•••• •••• •••• 4242" readonly tabindex="-1">
+                        </div>
+                        <div class="op-form-row">
+                            <div class="op-form-group">
+                                <input type="text" class="op-form-input" value="12/26" readonly tabindex="-1">
+                            </div>
+                            <div class="op-form-group">
+                                <input type="text" class="op-form-input" value="123" readonly tabindex="-1">
+                            </div>
+                        </div>
+                        <button class="op-checkout-submit">Pay $150.00</button>
                     </div>
                 </div>
             </div>
         </div>
     </section>
 
+    <!-- Gateway Banner -->
+    <section class="op-gateway-banner">
+        <p>Orchestrating payments across the best platforms</p>
+        <div class="op-gateway-logos">
+            <span>Stripe</span>
+            <span>PayPal</span>
+            <span>SSLCommerz</span>
+            <span>bKash</span>
+            <span>Nagad</span>
+        </div>
+    </section>
+
     {% if features|length > 0 %}
     <section class="op-features">
-        <h2 class="op-section-title">Everything You Need to <span>Scale</span></h2>
+        <div class="op-section-header">
+            <h2 class="op-section-title">Developer-first Infrastructure</h2>
+            <p class="op-section-subtitle">Everything you need to run a high-performance, sovereign payment gateway.</p>
+        </div>
         <div class="op-feature-grid">
             {% for idx, feat in features %}
             <div class="op-feature-card">
                 <div class="op-feature-icon">
                     {% if idx == 0 %}
-                        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3"/></svg>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3"/></svg>
                     {% elseif idx == 1 %}
-                        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
                     {% elseif idx == 2 %}
-                        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     {% else %}
-                        <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
                     {% endif %}
                 </div>
                 <h3>{{ feat.title }}</h3>
@@ -94,7 +141,9 @@
 
     {% if faqs|length > 0 %}
     <section class="op-faq" id="faq">
-        <h2 class="op-section-title">Frequently Asked <span>Questions</span></h2>
+        <div class="op-section-header">
+            <h2 class="op-section-title">Frequently Asked Questions</h2>
+        </div>
         <div class="op-faq-list">
             {% for faq in faqs %}
             <details class="op-faq-item" name="faq-accordion">
@@ -108,25 +157,16 @@
 
     <footer class="op-landing-footer">
         <div class="op-footer-content">
-            <div class="op-logo op-footer-logo">
-                <span class="op-logo-icon" style="width:32px;height:32px;font-size:14px;border-radius:8px;">OP</span>
+            <div class="op-logo">
+                {% if site_logo is defined and site_logo %}
+                    <img src="{{ site_logo }}" alt="{{ app_name ?? 'Own Pay' }}" style="max-height: 24px; width: auto; display: inline-block; vertical-align: middle;">
+                {% else %}
+                    <span class="op-logo-icon" style="width:24px;height:24px;font-size:10px;border-radius:6px;">OP</span>
+                {% endif %}
                 <span>{{ app_name ?? 'Own Pay' }}</span>
             </div>
-            <p class="op-footer-text">&copy; {{ "now"|date("Y") }} {{ app_name ?? 'Own Pay' }}. Self-hosted & Free.</p>
+            <p class="op-footer-text">&copy; {{ "now"|date("Y") }} {{ app_name ?? 'Own Pay' }}. Self-hosted & Sovereign.</p>
         </div>
     </footer>
-
-    <script nonce="{{ csp_nonce }}">
-        // Smooth hover effect for feature cards
-        document.querySelectorAll('.op-feature-card').forEach(card => {
-            card.addEventListener('mousemove', e => {
-                const rect = card.getBoundingClientRect();
-                const x = e.clientX - rect.left;
-                const y = e.clientY - rect.top;
-                card.style.setProperty('--mouse-x', `${x}px`);
-                card.style.setProperty('--mouse-y', `${y}px`);
-            });
-        });
-    </script>
 </body>
 </html>
