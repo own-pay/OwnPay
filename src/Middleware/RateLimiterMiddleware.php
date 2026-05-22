@@ -44,8 +44,37 @@ final class RateLimiterMiddleware
     {
         try {
             $config = $this->container->get('config.app');
-            $limit = (int) ($config['rate_limit']['api_per_minute'] ?? 60);
-            $window = 60; // 1 minute
+            $path = '/' . trim($request->path(), '/');
+
+            // Dynamically load the admin login slug to ensure rate limits apply perfectly
+            $loginSlug = 'login';
+            $cacheFile = ($config['paths']['root'] ?? dirname(__DIR__, 2)) . '/storage/cache/login_slug.cache';
+            if (file_exists($cacheFile)) {
+                $cached = file_get_contents($cacheFile);
+                if ($cached !== false && preg_match('/^[a-z0-9\-]+$/', $cached)) {
+                    $loginSlug = $cached;
+                }
+            }
+
+            $isLoginRoute = (
+                $path === '/' . $loginSlug || 
+                $path === '/2fa' || 
+                $path === '/forgot-password' || 
+                str_contains($path, '/login') || 
+                str_contains($path, '/2fa') || 
+                str_contains($path, '/forgot-password')
+            );
+
+            if ($isLoginRoute) {
+                $limitConfig = $config['rate_limit']['login'] ?? ['max' => 5, 'window' => 300];
+            } elseif (str_starts_with($path, '/api/')) {
+                $limitConfig = $config['rate_limit']['api'] ?? ['max' => 60, 'window' => 60];
+            } else {
+                $limitConfig = $config['rate_limit']['global'] ?? ['max' => 120, 'window' => 60];
+            }
+
+            $limit = (int) ($limitConfig['max'] ?? 60);
+            $window = (int) ($limitConfig['window'] ?? 60);
 
             $key = $this->buildKey($request);
             $now = time();

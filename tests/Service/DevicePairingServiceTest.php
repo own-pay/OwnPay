@@ -184,7 +184,7 @@ class DevicePairingServiceTest extends TestCase
     {
         $otp = '123456';
         $svc = $this->buildService([
-            'validateResult' => ['id' => 1, 'brand_id' => 42, 'otp_hash' => hash('sha256', $otp)],
+            'validateResult' => ['id' => 1, 'merchant_id' => 42, 'otp_hash' => hash('sha256', $otp)],
         ]);
 
         $result = $svc->pairDevice($otp, 'Pixel 7', 'android123:sha256cert');
@@ -204,7 +204,7 @@ class DevicePairingServiceTest extends TestCase
     {
         $otp = '654321';
         $svc = $this->buildService([
-            'validateResult' => ['id' => 1, 'brand_id' => 7, 'otp_hash' => hash('sha256', $otp)],
+            'validateResult' => ['id' => 1, 'merchant_id' => 7, 'otp_hash' => hash('sha256', $otp)],
         ]);
 
         $result = $svc->pairDevice($otp, 'Galaxy S24', 'fp_string', '2.1.0', 'android');
@@ -250,7 +250,7 @@ class DevicePairingServiceTest extends TestCase
     {
         $otp = '999999';
         $svc = $this->buildService([
-            'validateResult' => ['id' => 1, 'brand_id' => 5, 'otp_hash' => hash('sha256', $otp)],
+            'validateResult' => ['id' => 1, 'merchant_id' => 5, 'otp_hash' => hash('sha256', $otp)],
             'existingDevice' => ['device_uuid' => 'old-uuid-123'],
         ]);
 
@@ -274,7 +274,7 @@ class DevicePairingServiceTest extends TestCase
         $svc = $this->buildService([], [
             'refreshDevice' => [
                 'device_uuid'      => 'dev-uuid-abc',
-                'brand_id'         => 10,
+                'merchant_id'      => 10,
                 'jwt_secret'       => $jwtSecret,
                 'fingerprint_hash' => $fpHash,
             ],
@@ -306,7 +306,7 @@ class DevicePairingServiceTest extends TestCase
         $svc = $this->buildService([], [
             'refreshDevice' => [
                 'device_uuid'      => 'dev-1',
-                'brand_id'         => 1,
+                'merchant_id'      => 1,
                 'jwt_secret'       => $jwtSecret,
                 'fingerprint_hash' => hash('sha256', 'correct_fp'),
             ],
@@ -334,7 +334,7 @@ class DevicePairingServiceTest extends TestCase
         $svc = $this->buildService([], [
             'findByUuidResult' => [
                 'device_uuid'      => $deviceUuid,
-                'brand_id'         => 5,
+                'merchant_id'      => 5,
                 'jwt_secret'       => $jwtSecret,
                 'fingerprint_hash' => $fpHash,
                 'revoked_at'       => null,
@@ -358,7 +358,7 @@ class DevicePairingServiceTest extends TestCase
         $svc = $this->buildService([], [
             'findByUuidResult' => [
                 'device_uuid' => $deviceUuid,
-                'brand_id'    => 1,
+                'merchant_id' => 1,
                 'jwt_secret'  => $jwtSecret,
                 'revoked_at'  => '2026-01-01 00:00:00',
             ],
@@ -388,7 +388,7 @@ class DevicePairingServiceTest extends TestCase
         $svc = $this->buildService([], [
             'findByUuidResult' => [
                 'device_uuid'      => $deviceUuid,
-                'brand_id'         => 1,
+                'merchant_id'      => 1,
                 'jwt_secret'       => $jwtSecret,
                 'fingerprint_hash' => hash('sha256', 'correct_fp'),
                 'revoked_at'       => null,

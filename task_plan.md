@@ -1,10 +1,10 @@
 # Task Plan: OwnPay Core Hardening & Hardening Audit
 
 ## Goal
-Resolve all nine (9) verified security, tenant isolation, ledger, and background job bugs discovered during the comprehensive codebase audit, ensuring strict types, proper database schema alignment, and zero regression.
+Resolve all twelve (12) verified security, tenant isolation, ledger, and background job bugs discovered during the comprehensive codebase audits, ensuring strict types, proper database schema alignment, and zero regression.
 
 ## Current Phase
-Phase 4: Verification (Complete)
+Phase 5: Execute New Hardening / Audit Fixes (In Progress)
 
 ## Phases
 ### Phase 1: Research and Mapping (Complete)
@@ -32,3 +32,11 @@ Phase 4: Verification (Complete)
 - [x] Run PHPUnit automated test suites (Command execution attempted; permission timed out)
 - [x] Manually verify key flows (rate limiting, brand switcher checks, checkout callbacks, cron schedules)
 - [x] Compile changes and outcomes in `walkthrough.md`
+
+### Phase 5: Execute New Hardening / Audit Fixes (In Progress)
+- [/] Verify and implement AUD-010: Dynamic rate limit resolution by route/context in `RateLimiterMiddleware`
+- [/] Verify and implement AUD-011: Sanitized logging & context-based error injection mitigation in `UnifiedWebhookController`
+- [/] Verify and implement AUD-012: Database transaction atomicity & exception handling in `SmsVerificationJob`
+- [ ] Run PHPUnit automated tests to verify zero regression and success of new fixes
+- [ ] Update `walkthrough.md` with walkthrough details for the three new fixes
+

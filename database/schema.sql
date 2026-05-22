@@ -283,7 +283,7 @@ CREATE TABLE `op_transactions` (
   `reference` VARCHAR(200) DEFAULT NULL,
   `gateway_trx_id` VARCHAR(200) DEFAULT NULL,
   `method` ENUM('api','manual','sms','link','invoice') NOT NULL DEFAULT 'manual',
-  `status` ENUM('pending','created','processing','completed','failed','cancelled','refunded','disputed','awaiting_verification','pending_review') NOT NULL DEFAULT 'pending',
+  `status` ENUM('pending','created','processing','callback_processing','completed','failed','cancelled','expired','refunded','disputed','awaiting_verification','pending_review') NOT NULL DEFAULT 'pending',
   `metadata` JSON DEFAULT NULL,
   `invoice_id` BIGINT UNSIGNED GENERATED ALWAYS AS (CAST(JSON_UNQUOTE(JSON_EXTRACT(`metadata`, '$.invoice_id')) AS UNSIGNED)) STORED,
   `payment_link_id` BIGINT UNSIGNED GENERATED ALWAYS AS (CAST(JSON_UNQUOTE(JSON_EXTRACT(`metadata`, '$.payment_link_id')) AS UNSIGNED)) STORED,
@@ -525,36 +525,6 @@ CREATE TABLE `op_ledger_entries` (
   CONSTRAINT `fk_le_account` FOREIGN KEY (`account_id`) REFERENCES `op_ledger_accounts` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 7. Settlement ─────────────────────────────────────────
-
-CREATE TABLE `op_settlements` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `merchant_id` BIGINT UNSIGNED NOT NULL,
-  `uuid` CHAR(36) NOT NULL,
-  `amount` DECIMAL(15,2) NOT NULL,
-  `currency` CHAR(3) NOT NULL DEFAULT 'BDT',
-  `method` VARCHAR(60) DEFAULT NULL,
-  `reference` VARCHAR(200) DEFAULT NULL,
-  `status` ENUM('pending','processing','completed','failed') NOT NULL DEFAULT 'pending',
-  `settled_at` DATETIME(6) DEFAULT NULL,
-  `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
-  PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_uuid` (`uuid`),
-  KEY `idx_merchant` (`merchant_id`),
-  CONSTRAINT `fk_stl_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
-CREATE TABLE `op_settlement_items` (
-  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `settlement_id` BIGINT UNSIGNED NOT NULL,
-  `transaction_id` BIGINT UNSIGNED NOT NULL,
-  `amount` DECIMAL(15,2) NOT NULL,
-  PRIMARY KEY (`id`),
-  KEY `idx_settlement` (`settlement_id`),
-  CONSTRAINT `fk_si_settlement` FOREIGN KEY (`settlement_id`) REFERENCES `op_settlements` (`id`) ON DELETE CASCADE,
-  CONSTRAINT `fk_si_txn` FOREIGN KEY (`transaction_id`) REFERENCES `op_transactions` (`id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-
 CREATE TABLE `op_disputes` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id` BIGINT UNSIGNED NOT NULL,
@@ -588,7 +558,8 @@ CREATE TABLE `op_fee_rules` (
   `status` ENUM('active','inactive') NOT NULL DEFAULT 'active',
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  KEY `idx_merchant_gw` (`merchant_id`, `gateway_slug`)
+  KEY `idx_merchant_gw` (`merchant_id`, `gateway_slug`),
+  CONSTRAINT `fk_fr_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── 9. Audit ──────────────────────────────────────────────
@@ -628,7 +599,6 @@ CREATE TABLE `op_login_attempts` (
 CREATE TABLE `op_device_pairing_tokens` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id` BIGINT UNSIGNED NOT NULL,
-  `brand_id` BIGINT UNSIGNED DEFAULT NULL,
   `created_by` BIGINT UNSIGNED DEFAULT NULL,
   `otp_hash` VARCHAR(255) NOT NULL,
   `expires_at` DATETIME(6) NOT NULL,

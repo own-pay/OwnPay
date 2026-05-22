@@ -3,9 +3,9 @@ declare(strict_types=1);
 
 namespace OwnPay\Service\Payment;
 
-use OwnPay\Core\Database;
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\SettingsRepository;
+use OwnPay\Repository\FeeRuleRepository;
 
 /**
  * Manages the calculation of transaction processing fees.
@@ -24,11 +24,7 @@ final class FeeService
      * @var SettingsRepository The repository for managing site settings.
      */
     private SettingsRepository $settings;
-
-    /**
-     * @var Database The database abstraction layer instance.
-     */
-    private Database $db;
+    private FeeRuleRepository $feeRuleRepo;
 
     /**
      * FeeService constructor.
@@ -40,11 +36,11 @@ final class FeeService
     public function __construct(
         EventManager $events,
         SettingsRepository $settings,
-        Database $db
+        FeeRuleRepository $feeRuleRepo
     ) {
         $this->events = $events;
         $this->settings = $settings;
-        $this->db = $db;
+        $this->feeRuleRepo = $feeRuleRepo;
     }
 
     /**
@@ -113,31 +109,7 @@ final class FeeService
      */
     private function resolveActiveRule(int $merchantId, string $gatewaySlug, string $currency): ?array
     {
-        return $this->db->fetchOne(
-            "SELECT * FROM op_fee_rules
-              WHERE status = 'active'
-                AND currency = :currency
-                AND (merchant_id = :merchant_id OR merchant_id IS NULL)
-                AND (gateway_slug = :gateway_slug OR gateway_slug IS NULL)
-              ORDER BY
-                CASE
-                  WHEN merchant_id = :merchant_id_ob1 AND gateway_slug = :gateway_slug_ob1 THEN 1
-                  WHEN merchant_id = :merchant_id_ob2 AND gateway_slug IS NULL THEN 2
-                  WHEN merchant_id IS NULL AND gateway_slug = :gateway_slug_ob2 THEN 3
-                  ELSE 4
-                END ASC,
-                id DESC
-              LIMIT 1",
-            [
-                'merchant_id'         => $merchantId,
-                'gateway_slug'        => $gatewaySlug,
-                'currency'            => $currency,
-                'merchant_id_ob1'     => $merchantId,
-                'merchant_id_ob2'     => $merchantId,
-                'gateway_slug_ob1'    => $gatewaySlug,
-                'gateway_slug_ob2'    => $gatewaySlug,
-            ]
-        );
+        return $this->feeRuleRepo->resolveActiveRule($merchantId, $gatewaySlug, $currency);
     }
 
     /**

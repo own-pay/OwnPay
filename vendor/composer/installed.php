@@ -3,7 +3,7 @@
         'name' => 'own-pay/ownpay',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => 'e4cc7cd3b277abc1912c4a497615beb0abcd2548',
+        'reference' => '35ac5b170ab8c75392d20693d130ba3b82a54856',
         'type' => 'project',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -76,7 +76,7 @@
         'own-pay/ownpay' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => 'e4cc7cd3b277abc1912c4a497615beb0abcd2548',
+            'reference' => '35ac5b170ab8c75392d20693d130ba3b82a54856',
             'type' => 'project',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

@@ -270,9 +270,9 @@ return static function (\OwnPay\Container $c): void {
     $c->singleton(\OwnPay\Repository\CustomerRepository::class, $repoFactory(\OwnPay\Repository\CustomerRepository::class));
     $c->singleton(\OwnPay\Repository\InvoiceRepository::class, $repoFactory(\OwnPay\Repository\InvoiceRepository::class));
     $c->singleton(\OwnPay\Repository\RefundRepository::class, $repoFactory(\OwnPay\Repository\RefundRepository::class));
+    $c->singleton(\OwnPay\Repository\FeeRuleRepository::class, $repoFactory(\OwnPay\Repository\FeeRuleRepository::class));
     $c->singleton(\OwnPay\Repository\LedgerRepository::class, $repoFactory(\OwnPay\Repository\LedgerRepository::class));
     $c->singleton(\OwnPay\Repository\DisputeRepository::class, $repoFactory(\OwnPay\Repository\DisputeRepository::class));
-    $c->singleton(\OwnPay\Repository\SettlementRepository::class, $repoFactory(\OwnPay\Repository\SettlementRepository::class));
     $c->singleton(\OwnPay\Repository\WebhookRepository::class, $repoFactory(\OwnPay\Repository\WebhookRepository::class));
     $c->singleton(\OwnPay\Repository\WebhookEventRepository::class, $repoFactory(\OwnPay\Repository\WebhookEventRepository::class));
     $c->singleton(\OwnPay\Repository\IdempotencyRepository::class, $repoFactory(\OwnPay\Repository\IdempotencyRepository::class));

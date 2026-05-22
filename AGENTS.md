@@ -410,6 +410,24 @@ Per-brand visual customization for checkout pages under custom domains.
 - Brand custom JS: `{% if brand.custom_js %}<script>{{ brand.custom_js|raw }}</script>{% endif %}`
 - Theme hooks: `{{ hook('checkout.head') }}` and `{{ hook('checkout.footer') }}`
 
+### Fee Rules Specificity Resolution (`src/Service/Payment/FeeService.php`)
+
+To calculate transactional commissions dynamically under the single-owner/multi-brand structure, OwnPay utilizes a tenant-scoped fee rules engine (`op_fee_rules`, `FeeRuleRepository`).
+- **Isolation Scope**: All rules are fully scoped within the active brand using the `TenantScope` trait in `FeeRuleRepository`.
+- **Resolution Priority**: Fee calculations automatically select active rules matching the transaction parameters, resolved in descending order of specificity:
+  1. Specific Gateway (e.g. `bkash-api`) + Specific Currency (e.g. `BDT`)
+  2. Specific Gateway + Any Currency
+  3. Any Gateway + Specific Currency
+  4. Any Gateway + Any Currency
+- **Schema Integrity**: The `op_fee_rules` table includes a foreign key constraint referencing `op_merchants(id)` ON DELETE CASCADE.
+
+### Unified Configuration & Settings Management (`src/Service/System/EnvironmentService.php`)
+
+To eliminate legacy SQLite fallbacks and architectural redundancies, environment options and key-value pairings are unified under `op_system_settings`.
+- **Deprecation of `op_env`**: The legacy SQLite `op_env` fallback and all associated schema definitions have been completely eradicated.
+- **Persistent Configuration**: Operations within `EnvironmentService` (e.g. `get()`, `set()`, `delete()`) route exclusively through the unified `op_system_settings` database table under the `runtime` group using `SettingsRepository`.
+- **Dynamic Settings Bootstrapping**: Static methods within `EnvironmentService` automatically resolve the `SettingsRepository` singleton dynamically if the framework container has not been booted (crucial for PHPUnit initialization).
+
 ---
 
 ## Environment & Configuration
@@ -617,6 +635,8 @@ GET  /api/mobile/v1/devices/status       → Mobile\DeviceController@status
 38. **InputSanitizer::array() method allowlist (BUG-022 Fix)** — The `$method` parameter only accepts: `string`, `html`, `email`, `url`, `phone`, `slug`, `attr`, `trim`. Arbitrary method names are rejected to prevent dynamic dispatch exploitation.
 39. **Router param regex restricted (BUG-023 Fix)** — Route parameter capture regex no longer allows `@` or `+` characters. Only `[a-zA-Z0-9_\-\.]` is permitted.
 40. **Gateway CSP domains — NEVER hardcode (CSP-PLUGIN Fix)** — `SecurityHeadersMiddleware` builds checkout CSP dynamically from gateway `manifest.json` `"csp"` fields + `checkout.csp.sources` filter hook. Third-party gateway plugins declare their CSP domains in their own manifest. NEVER add gateway-specific domains directly to the middleware source code.
+41. **Eradication of Settlements** — The Settlement module payout system has been completely decommissioned and all `op_settlements`/`op_settlement_items` tables have been dropped. Do not attempt to query, fetch, or write to these tables.
+42. **Settings Registry Integration** — The legacy `op_env` SQLite fallback is fully eradicated. All runtime configs must route through `EnvironmentService::get()`, which reads from the unified `op_system_settings` table (group: `'runtime'`) using `SettingsRepository`. Static methods within `EnvironmentService` resolve their repository dynamically if the core PSR-11 container has not yet booted.
 
 ---
 

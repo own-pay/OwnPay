@@ -90,7 +90,7 @@ final class UnifiedWebhookController
                     return Response::json(['error' => 'Webhook signature verification failed'], 403);
                 }
             } catch (\Throwable $e) {
-                $this->logAttempt($gateway, 'signature_verification_error: ' . $e->getMessage(), $req);
+                $this->logAttempt($gateway, 'signature_verification_error', $req, ['error' => $e->getMessage()]);
                 return Response::json(['error' => 'Webhook signature verification error'], 403);
             }
         }
@@ -204,11 +204,14 @@ final class UnifiedWebhookController
      * @param Request $req     The incoming HTTP request.
      * @return void
      */
-    private function logAttempt(string $gateway, string $reason, Request $req): void
+    private function logAttempt(string $gateway, string $reason, Request $req, array $context = []): void
     {
         if ($this->c->has(\OwnPay\Service\System\Logger::class)) {
+            // Strip control characters/newlines from reason to prevent log forging
+            $sanitizedReason = preg_replace('/[\r\n\t]+/', ' ', $reason);
             $this->c->get(\OwnPay\Service\System\Logger::class)->warning(
-                "Webhook rejected: gateway={$gateway} reason={$reason} ip={$req->ip()}"
+                "Webhook rejected: gateway={$gateway} reason={$sanitizedReason} ip={$req->ip()}",
+                $context
             );
         }
     }

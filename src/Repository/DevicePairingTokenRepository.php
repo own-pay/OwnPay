@@ -19,7 +19,7 @@ final class DevicePairingTokenRepository extends BaseRepository
 
     protected string $table = 'op_device_pairing_tokens';
     protected array $fillable = [
-        'merchant_id', 'otp_hash', 'brand_id', 'created_by',
+        'merchant_id', 'otp_hash', 'created_by',
         'expires_at', 'is_used', 'used_at',
     ];
 
@@ -32,13 +32,12 @@ final class DevicePairingTokenRepository extends BaseRepository
      * @param int $ttlSeconds Token lifetime duration in seconds (default is 300).
      * @return string Last inserted primary key ID of the token record.
      */
-    public function createToken(string $otpHash, int $brandId, int $createdBy, int $ttlSeconds = 300): string
+    public function createToken(string $otpHash, int $createdBy, int $ttlSeconds = 300): string
     {
         $expiresAt = DateHelper::future($ttlSeconds);
 
         return $this->createScoped([
             'otp_hash'   => $otpHash,
-            'brand_id'   => $brandId,
             'created_by' => $createdBy,
             'expires_at' => $expiresAt,
         ]);

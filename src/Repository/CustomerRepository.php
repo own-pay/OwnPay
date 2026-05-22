@@ -86,7 +86,7 @@ final class CustomerRepository extends BaseRepository
              FROM op_customers c
              LEFT JOIN op_transactions t ON t.customer_id = c.id
              {$where}
-             GROUP BY c.id
+             GROUP BY c.id, t.currency
              ORDER BY c.created_at DESC
              LIMIT :lim OFFSET :off",
             $params
