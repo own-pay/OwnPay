@@ -153,6 +153,29 @@ class LedgerServiceTest extends IntegrationTestCase
         $this->assertSame('190.00', bcadd($bal2, '0', 2));
     }
 
+    public function testDoublePostingPrevention(): void
+    {
+        $this->db->execute(
+            "INSERT INTO op_transactions (id, merchant_id, uuid, trx_id, gateway_slug, amount, fee, net_amount, currency, status, payment_intent_id)
+             VALUES (1006, 1, 'tx-uuid-6', 'TRX1006', 'stripe', 100.00, 5.00, 95.00, 'BDT', 'completed', 1006)"
+        );
+
+        // Record first time
+        $this->ledgerService->recordPaymentReceived(1, 1006, '100.00', '5.00', 'BDT');
+
+        // Record second time (should be a no-op due to timing-safe concurrent locking & duplicate checking)
+        $this->ledgerService->recordPaymentReceived(1, 1006, '100.00', '5.00', 'BDT');
+
+        // Balances should be exactly matching one posting, NOT two!
+        $cashAcc = $this->ledgerRepo->findOrCreateAccount('CASH', 'asset', 'BDT', 1);
+        $payableAcc = $this->ledgerRepo->findOrCreateAccount('MERCHANT_PAYABLE', 'liability', 'BDT', 1);
+        $feeAcc = $this->ledgerRepo->findOrCreateAccount('PLATFORM_FEE_REVENUE', 'revenue', 'BDT', 1);
+
+        $this->assertSame('100.00', bcadd($cashAcc['balance'], '0', 2));
+        $this->assertSame('95.00', bcadd($payableAcc['balance'], '0', 2));
+        $this->assertSame('5.00', bcadd($feeAcc['balance'], '0', 2));
+    }
+
     public function testReconciliationService(): void
     {
         // 1. Transaction completed: gross 100.00, fee 5.00, net 95.00

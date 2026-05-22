@@ -156,8 +156,14 @@ final class DeviceController
     {
         $mid  = (int) $req->getAttribute('merchant_id');
         $body = $req->json();
+
+        $deviceIds = $body['device_ids'] ?? [];
+        if (!is_array($deviceIds)) {
+            return Response::json(['success' => false, 'error' => 'device_ids must be an array'], 422);
+        }
+
         $ids  = array_filter(
-            array_map(fn($id) => InputSanitizer::string((string) $id), $body['device_ids'] ?? []),
+            array_map(fn($id) => InputSanitizer::string((string) $id), $deviceIds),
             fn($id) => $id !== ''
         );
         if (empty($ids)) {

@@ -373,8 +373,23 @@ final class BrandController
         $settings['accent_color']    = InputSanitizer::string($data['accent_color'] ?? $existingSettings['accent_color'] ?? '#0F766E');
         $settings['support_email']   = InputSanitizer::email($data['support_email'] ?? $existingSettings['support_email'] ?? '');
         $settings['footer_text']     = InputSanitizer::string($data['footer_text'] ?? $existingSettings['footer_text'] ?? '');
-        $settings['custom_css']      = $data['custom_css'] ?? $existingSettings['custom_css'] ?? '';
-        $settings['custom_js']       = $data['custom_js'] ?? $existingSettings['custom_js'] ?? '';
+        // Authorization check: only superadmins can modify custom_css and custom_js
+        $isSuperadmin = !empty($_SESSION['is_superadmin']);
+        if ($isSuperadmin) {
+            $customCss = $data['custom_css'] ?? $existingSettings['custom_css'] ?? '';
+            $customJs = $data['custom_js'] ?? $existingSettings['custom_js'] ?? '';
+
+            // Clean custom_css of dangerous vectors: expressions, behavior, javascript:, script tags
+            $customCss = preg_replace('/expression\s*\(|behavior\s*:|javascript\s*:/i', '', $customCss);
+            $customCss = preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', $customCss);
+
+            $settings['custom_css'] = $customCss;
+            $settings['custom_js']  = $customJs;
+        } else {
+            // Non-superadmins revert to existing styles/scripts
+            $settings['custom_css'] = $existingSettings['custom_css'] ?? '';
+            $settings['custom_js']  = $existingSettings['custom_js'] ?? '';
+        }
         $settings['show_powered_by'] = isset($data['show_powered_by']) && $data['show_powered_by'] === '1' ? 1 : 0;
 
         return [

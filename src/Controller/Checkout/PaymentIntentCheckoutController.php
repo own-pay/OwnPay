@@ -444,15 +444,42 @@ final class PaymentIntentCheckoutController
             'metadata'          => !empty($intent['metadata']) ? $intent['metadata'] : '{}',
         ];
 
-        try {
-            $txn = $this->transactionService->create($mid, $txnData);
-        } catch (\Throwable $e) {
-            // Log failure context for administration auditing; response contains sanitized user message.
-            $this->c->get(\OwnPay\Service\System\Logger::class)->error('Transaction creation failed: ' . $e->getMessage());
-            if ($req->isAjax()) {
-                return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
+        $txn = null;
+        $existingTxn = $this->txnRepo->forTenant($mid)->findByIntentId((int)$intent['id']);
+        if ($existingTxn !== null) {
+            $statusObj = \OwnPay\Enum\TransactionStatus::tryFrom($existingTxn['status']);
+            if ($statusObj !== null && !$statusObj->isTerminal()) {
+                try {
+                    $this->txnRepo->forTenant($mid)->updateScoped((int)$existingTxn['id'], [
+                        'gateway_slug' => $gateway,
+                        'amount'       => $amount,
+                        'currency'     => $currency,
+                        'method'       => $gatewayMode === 'api' ? 'api' : 'manual',
+                        'reference'    => $intent['description'] ?? null,
+                        'metadata'     => !empty($intent['metadata']) ? $intent['metadata'] : '{}',
+                    ]);
+                    $txn = $this->txnRepo->forTenant($mid)->findScoped((int)$existingTxn['id']);
+                } catch (\Throwable $e) {
+                    $this->c->get(\OwnPay\Service\System\Logger::class)->error('Transaction update failed: ' . $e->getMessage());
+                    if ($req->isAjax()) {
+                        return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
+                    }
+                    return $this->renderStatus($token, 'failed');
+                }
             }
-            return $this->renderStatus($token, 'failed');
+        }
+
+        if ($txn === null) {
+            try {
+                $txn = $this->transactionService->create($mid, $txnData);
+            } catch (\Throwable $e) {
+                // Log failure context for administration auditing; response contains sanitized user message.
+                $this->c->get(\OwnPay\Service\System\Logger::class)->error('Transaction creation failed: ' . $e->getMessage());
+                if ($req->isAjax()) {
+                    return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
+                }
+                return $this->renderStatus($token, 'failed');
+            }
         }
 
         if ($gatewayMode === 'manual') {

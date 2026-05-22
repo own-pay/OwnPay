@@ -95,7 +95,26 @@ final class LedgerService
         $scopedLedger = $this->ledger->forTenant($merchantId);
         $db = $scopedLedger->getDatabase();
         $db->transaction(function () use ($scopedLedger, $merchantId, $eventType, $resolvedEntries, $currency, $referenceType, $referenceId, $description, $totalDebit) {
-            
+            // Check for pre-existing transaction to prevent double ledger posting
+            $exists = $scopedLedger->getDatabase()->fetchOne(
+                "SELECT `id` FROM `op_ledger_transactions` 
+                 WHERE `merchant_id` = :mid 
+                   AND `reference_type` = :rt 
+                   AND `reference_id` = :ri 
+                   AND `description` = :desc 
+                 FOR UPDATE",
+                [
+                    'mid' => $merchantId,
+                    'rt' => $referenceType,
+                    'ri' => (int) $referenceId,
+                    'desc' => $description ?? $eventType
+                ]
+            );
+
+            if ($exists !== null) {
+                return;
+            }
+
             // 2. Create Journal Header (uses tenantId from scoped clone)
             $txnId = $scopedLedger->createTransaction(
                 $referenceType,

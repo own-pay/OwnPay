@@ -100,6 +100,20 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
+     * Finds the last transaction record pointing to a specific payment intent, scoped by active tenant.
+     *
+     * @param int $paymentIntentId Unique payment intent ID.
+     * @return array<string, mixed>|null The transaction record fields, or null if not found.
+     */
+    public function findByIntentId(int $paymentIntentId): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE payment_intent_id = :pi AND merchant_id = :mid ORDER BY id DESC LIMIT 1",
+            ['pi' => $paymentIntentId, 'mid' => $this->requireTenant()]
+        );
+    }
+
+    /**
      * Computes dashboard statistics (volume, fees, counts) for a date range.
      *
      * Uses the composite index `idx_merchant_created` for optimal query execution.
