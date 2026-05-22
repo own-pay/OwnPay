@@ -67,6 +67,74 @@ final class CronJobRunner
     }
 
     /**
+     * Retrieves all registered cron jobs.
+     *
+     * @return array<string, array{job: object, schedule: string}>
+     */
+    public function getJobs(): array
+    {
+        return $this->jobs;
+    }
+
+    /**
+     * Retrieves the Unix timestamp of the job's last recorded successful run.
+     *
+     * @param string $name Unique job name identifier.
+     * @return int|null Last execution timestamp, or null if it has never run.
+     */
+    public function getLastRunTime(string $name): ?int
+    {
+        return $this->getLastRun($name);
+    }
+
+    /**
+     * Manually dispatches and executes a single registered job by name.
+     *
+     * @param string $name The name of the job to run.
+     * @return array{status: string, duration: float, result?: mixed, error?: string} Result matrix of the job execution status.
+     * @throws \InvalidArgumentException If the job name is not registered.
+     */
+    public function runJob(string $name): array
+    {
+        if (!isset($this->jobs[$name])) {
+            throw new \InvalidArgumentException("Cron job not registered: {$name}");
+        }
+
+        $config = $this->jobs[$name];
+        $start = microtime(true);
+
+        try {
+            $result = $config['job']->run();
+            $duration = round(microtime(true) - $start, 4);
+
+            $this->logger->info("Cron job manually completed: {$name}", [
+                'duration' => $duration,
+                'result'   => is_array($result) ? $result : null,
+            ]);
+
+            $this->recordLastRun($name);
+
+            return [
+                'status'   => 'completed',
+                'duration' => $duration,
+                'result'   => $result,
+            ];
+        } catch (\Throwable $e) {
+            $duration = round(microtime(true) - $start, 4);
+            $this->logger->error("Cron job manually failed: {$name}", [
+                'error'    => $e->getMessage(),
+                'duration' => $duration,
+            ]);
+
+            return [
+                'status'   => 'failed',
+                'duration' => $duration,
+                'error'    => $e->getMessage(),
+            ];
+        }
+    }
+
+    /**
      * Dispatches and executes all scheduled jobs that are currently due.
      *
      * Iterates through the registered registry, verifies schedule eligibility, executes the task,

@@ -111,6 +111,62 @@ final class SettingsController
         $mid = $brand->getActiveBrandId();
         $apiKeys = $this->c->get(\OwnPay\Service\Customer\ApiKeyService::class)->list($mid);
 
+        // Retrieve or auto-generate Cron Secret
+        $cronSecret = $settings['cron_secret'] ?? '';
+        if (empty($cronSecret)) {
+            $cronSecret = bin2hex(random_bytes(16));
+            $this->settingsRepo->set('general', 'cron_secret', $cronSecret);
+            $settings['cron_secret'] = $cronSecret;
+        }
+
+        // Build Cron trigger URL white-labeled using DomainUrlService
+        $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+        $baseUrl = $urlService->resolveBaseUrl($mid, $req);
+        $cronUrl = rtrim($baseUrl, '/') . '/cron/' . $cronSecret;
+
+        // Fetch all registered Cron Jobs and their execution logs
+        $runner = $this->c->get(\OwnPay\Cron\CronJobRunner::class);
+        $rawJobs = $runner->getJobs();
+        $cronJobs = [];
+        $descriptions = [
+            'QueueWorker'         => 'Processes pending background jobs and tasks in the system queue.',
+            'SmsVerification'     => 'Matches pending SMS transaction notifications received from mobile devices.',
+            'WebhookRetry'        => 'Retries failed webhook delivery attempts to external merchant URLs.',
+            'BalanceVerification' => 'Audits double-entry ledger bookkeeping to detect account balance mismatches.',
+            'CurrencyUpdate'      => 'Updates fiat exchange rates and synchronizes standard platform currencies.',
+            'DnsVerification'     => 'Verifies DNS records and SSL status for custom merchant domains.',
+            'UpdateCheck'         => 'Checks for new core platform releases and software system updates.',
+            'SystemUpdate'        => 'Downloads and applies approved software updates dynamically.',
+        ];
+
+        foreach ($rawJobs as $name => $config) {
+            $lastRun = $runner->getLastRunTime($name);
+            $elapsedStr = 'Never';
+            if ($lastRun !== null) {
+                $elapsed = time() - $lastRun;
+                if ($elapsed < 60) {
+                    $elapsedStr = 'Just now';
+                } elseif ($elapsed < 3600) {
+                    $mins = floor($elapsed / 60);
+                    $elapsedStr = $mins . ($mins === 1 ? ' min ago' : ' mins ago');
+                } elseif ($elapsed < 86400) {
+                    $hours = floor($elapsed / 3600);
+                    $elapsedStr = $hours . ($hours === 1 ? ' hour ago' : ' hours ago');
+                } else {
+                    $days = floor($elapsed / 86400);
+                    $elapsedStr = $days . ($days === 1 ? ' day ago' : ' days ago');
+                }
+            }
+
+            $cronJobs[] = [
+                'name'               => $name,
+                'schedule'           => $config['schedule'],
+                'last_run'           => $elapsedStr,
+                'last_run_timestamp' => $lastRun,
+                'description'        => $descriptions[$name] ?? 'System scheduled background process.',
+            ];
+        }
+
         return $this->renderAdminPage('admin/settings/index.twig', [
             'settings'          => $settings,
             'branding'          => $branding,
@@ -122,6 +178,9 @@ final class SettingsController
             'api_keys'          => $apiKeys,
             'active_page'       => 'settings',
             'default_tab'       => $activeTab,
+            'cron_secret'       => $cronSecret,
+            'cron_url'          => $cronUrl,
+            'cron_jobs'         => $cronJobs,
         ]);
     }
 
@@ -384,5 +443,56 @@ final class SettingsController
         if (!empty($generalData)) {
             $this->settingsRepo->bulkSet('general', $generalData);
         }
+    }
+
+    /**
+     * Regenerates the Cron Secret and redirects back.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The redirect response.
+     */
+    public function regenerateCronSecret(Request $req): Response
+    {
+        $newSecret = bin2hex(random_bytes(16));
+        $this->settingsRepo->set('general', 'cron_secret', $newSecret);
+
+        $this->audit->log('cron.secret_regenerated', 'settings');
+        $this->session->flashSuccess('Cron secret regenerated successfully');
+
+        return Response::redirect('/admin/settings/cron');
+    }
+
+    /**
+     * Manually triggers execution of a specific cron job by name.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The redirect response.
+     */
+    public function runCronJob(Request $req): Response
+    {
+        $jobName = $req->param('jobName');
+        if (empty($jobName)) {
+            $this->session->flashError('No job name specified');
+            return Response::redirect('/admin/settings/cron');
+        }
+
+        try {
+            $runner = $this->c->get(\OwnPay\Cron\CronJobRunner::class);
+            $result = $runner->runJob($jobName);
+
+            if ($result['status'] === 'completed') {
+                $duration = $result['duration'];
+                $this->audit->log('cron.manual_run', 'settings', null, null, ['job' => $jobName, 'status' => 'completed', 'duration' => $duration]);
+                $this->session->flashSuccess("Cron job '{$jobName}' executed successfully in {$duration}s");
+            } else {
+                $error = $result['error'] ?? 'Unknown error';
+                $this->audit->log('cron.manual_run_failed', 'settings', null, null, ['job' => $jobName, 'error' => $error]);
+                $this->session->flashError("Cron job '{$jobName}' failed: {$error}");
+            }
+        } catch (\Throwable $e) {
+            $this->session->flashError("Failed to trigger job '{$jobName}': " . $e->getMessage());
+        }
+
+        return Response::redirect('/admin/settings/cron');
     }
 }

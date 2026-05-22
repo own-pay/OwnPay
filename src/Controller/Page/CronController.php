@@ -34,18 +34,20 @@ final class CronController
     /**
      * Triggers the background cron execution pipeline.
      *
-     * GET /cron?secret=xxxx
+     * GET /cron/{secret}
      *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP response confirming how many jobs ran.
      */
     public function run(Request $req): Response
     {
-        // 1. Validate secret against env/config
+        // 1. Validate secret against env/config/db
         $secret = $req->param('secret');
-        $expected = getenv('CRON_SECRET') ?: $this->c->get('config.app')['cron_secret'] ?? '';
+        $settingsRepo = $this->c->has(\OwnPay\Repository\SettingsRepository::class) ? $this->c->get(\OwnPay\Repository\SettingsRepository::class) : null;
+        $dbSecret = $settingsRepo ? $settingsRepo->get('general', 'cron_secret') : null;
+        $expected = getenv('CRON_SECRET') ?: $dbSecret ?: $this->c->get('config.app')['cron_secret'] ?? '';
 
-        if ($secret !== $expected) {
+        if ($secret !== $expected || empty($secret)) {
             return Response::json(['error' => 'Invalid secret'], 401);
         }
 

@@ -172,6 +172,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/settings/{tab}', 'Admin\\SettingsController@tab', 'admin');
     $router->post('/admin/settings/save', 'Admin\\SettingsController@save', 'admin');
     $router->post('/admin/settings/upload', 'Admin\\SettingsController@upload', 'admin');
+    $router->post('/admin/settings/cron/regenerate', 'Admin\\SettingsController@regenerateCronSecret', 'admin');
+    $router->post('/admin/settings/cron/run/{jobName}', 'Admin\\SettingsController@runCronJob', 'admin');
 
     // Currencies
     $router->get('/admin/currencies', 'Admin\\CurrencyController@index', 'admin');
