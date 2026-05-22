@@ -143,7 +143,7 @@ final class TransactionRepository extends BaseRepository
     /**
      * Counts the total transactions matching specific filters under the active tenant.
      *
-     * @param array{status?: string, gateway?: string, q?: string} $filters Filtering criteria.
+     * @param array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string} $filters Filtering criteria.
      * @return int Matching records count.
      */
     public function countFiltered(array $filters): int
@@ -178,7 +178,7 @@ final class TransactionRepository extends BaseRepository
     /**
      * Lists transactions matching specific filters with sorting and pagination, scoped by active tenant.
      *
-     * @param array{status?: string, gateway?: string, q?: string} $filters Filtering criteria.
+     * @param array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string} $filters Filtering criteria.
      * @param int $limit Maximum records to return.
      * @param int $offset Records offset.
      * @return list<array<string, mixed>> List of matching transaction rows.

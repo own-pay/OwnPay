@@ -278,7 +278,7 @@ EOT;
 
             // Cryptographic RSA signature check
             $signature = base64_decode($signatureBase64);
-            if ($signature === false || $signature === '') {
+            if (empty($signature)) {
                 @unlink($packagePath);
                 throw new \RuntimeException("Invalid base64 signature format.");
             }

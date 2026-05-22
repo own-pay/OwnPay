@@ -1,13 +1,13 @@
 server {
     listen 80;
     # server_name yourdomain.com; # Replace with your domain (e.g. ownpay.org)
-    # root /var/www/ownpay; # Replace with your absolute path
+    # root /var/www/ownpay/public; # Replace with your absolute path to the public/ directory
 
     index index.php index.html;
 
     # Universal Front Controller
     location / {
-        try_files $uri $uri/ /index.php?page=$uri&$args;
+        try_files $uri $uri/ /index.php?$query_string;
     }
 
     # Hide sensitive files
@@ -15,16 +15,8 @@ server {
         deny all;
     }
 
-    # Hide op-config.php, op-temp-config.php and internal directories
-    location ~ ^/(op-config\.php|op-temp-config\.php) {
-        deny all;
-    }
+    # Hide internal files and directories (defense in depth)
     location ~ ^/(app|src|tests|errors|vendor|migrations|storage)/ {
-        deny all;
-    }
-
-    # Explicit installer block (defense in depth)
-    location ~ ^/app/install/ {
         deny all;
     }
 
@@ -39,8 +31,8 @@ server {
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
         
-        # Prevent execution of other PHP scripts natively unless via index
-        if ($request_uri !~ "^/(index\.php)") {
+        # Prevent execution of other PHP scripts natively unless via index.php
+        if ($fastcgi_script_name !~ "^/index\.php$") {
             return 403;
         }
     }
