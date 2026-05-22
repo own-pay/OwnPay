@@ -17,7 +17,7 @@ use OwnPay\Support\DateHelper;
  * @category Update
  * @package  OwnPay\Update
  */
-final class BackupService
+class BackupService
 {
     /**
      * Directory path where backup files are saved.

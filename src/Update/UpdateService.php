@@ -23,8 +23,23 @@ use OwnPay\Service\System\Logger;
  * @category Update
  * @package  OwnPay\Update
  */
-final class UpdateService
+class UpdateService
 {
+    /**
+     * Hardcoded RSA Public Key PEM used to verify cryptographically signed updates.
+     */
+    private const UPDATE_PUBLIC_KEY = <<<EOT
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzBVsd2Yd/xqMD00Dts/e
+OuSIjjYab3fRqEtRaPf9cAl0iFRR+o7RGloz6dh6M2trswiKx2s2mN4+JPL604Z/
+K86OxhovINo8KT4kQ3Tisq9uQ7J7x5YieoLfj4YpWwSv643Vw4QYMDagsMntXgbo
+ZnfuQ3Dk7EgeZ4/8psHN/SGb8E7/JyQRwQhNFpOOO++25kR/4fKm9kHiOH8URoYi
+gbp/HC6oTH5ObtTMwaXFk7ZHMyh6iHmYv4cLZtJR+/Xpkb1d5gz7IcsTklJPXSja
+a8U63KZm/fnwYBsV4JdX2qTPfZLSGhL7vEHA5U1y617RGdT3WaShURvv2o4eiyBb
+FQIDAQAB
+-----END PUBLIC KEY-----
+EOT;
+
     /**
      * Backup and recovery service instance.
      *
@@ -173,18 +188,17 @@ final class UpdateService
     /**
      * Executes the sequential application update workflow.
      *
-     * Validates that no concurrent updates are in progress, creates system backup checkpoints,
+     * Validates that no concurrent updates are in progress, fetches the remote manifest
+     * to resolve package parameters, creates system backup checkpoints,
      * locks incoming checkout traffic, downloads and validates packages using checksum matching,
-     * extracts package assets, executes incremental SQL migration scripts, purges
-     * caches, executes health check diagnostics, and releases maintenance locks.
+     * verifies asymmetric cryptographic signatures, extracts package assets,
+     * executes database migrations, purges caches, and releases maintenance locks.
      * Triggers a comprehensive rollback to restore the system state on failure.
      *
-     * @param string      $version          Target version to upgrade the platform to.
-     * @param string      $downloadUrl      Secure URL to download the update ZIP from.
-     * @param string|null $expectedChecksum Optional SHA-256 hash to verify package integrity.
+     * @param string $version Target version to upgrade the platform to.
      * @return array{success: bool, error?: string, rollback?: bool} Completion result state.
      */
-    public function execute(string $version, string $downloadUrl, ?string $expectedChecksum = null): array
+    public function execute(string $version): array
     {
         if ($this->history->isUpdateInProgress()) {
             return ['success' => false, 'error' => 'Update already in progress'];
@@ -194,56 +208,111 @@ final class UpdateService
         $backupPath = null;
 
         try {
-            $this->events->doAction('update.before', $version);
-
-            $this->log("Update to v{$version} — Step 1: Creating backup");
-            $this->history->updateStep((int) $updateId, 'backup_created');
-            $backupPath = $this->backup->createFullBackup();
-
-            $this->history->updateStep((int) $updateId, 'backup_created');
-
-            $this->log("Step 2: Entering maintenance mode");
-            $this->maintenance->enter("Updating to v{$version}");
-
-            $this->log("Step 3: Downloading update package");
-            $this->history->updateStep((int) $updateId, 'downloaded');
-            $packagePath = $this->downloadPackage($downloadUrl);
-
-            $this->log("Step 4: Verifying package integrity");
-            if ($expectedChecksum !== null && $expectedChecksum !== '') {
-                $actualChecksum = hash_file('sha256', $packagePath);
-                if (!hash_equals($expectedChecksum, $actualChecksum)) {
-                    @unlink($packagePath);
-                    throw new \RuntimeException(
-                        "Package integrity check failed. Expected: " . substr($expectedChecksum, 0, 16) .
-                        "... Got: " . substr($actualChecksum, 0, 16) . "..."
-                    );
+            $this->log("Update to v{$version} — Step 1: Resolving update metadata");
+            $manifest = $this->fetchManifest();
+            
+            $releaseEntry = null;
+            if (isset($manifest['releases']) && is_array($manifest['releases'])) {
+                foreach ($manifest['releases'] as $release) {
+                    if (isset($release['version']) && $release['version'] === $version) {
+                        $releaseEntry = $release;
+                        break;
+                    }
                 }
-                $this->log("Checksum verified: SHA-256 OK");
-            } else {
-                $this->log("WARNING: No checksum provided — skipping integrity check");
             }
 
-            $this->log("Step 5: Extracting update package");
-            $this->history->updateStep((int) $updateId, 'applied');
-            $this->extractPackage($packagePath);
+            if ($releaseEntry === null) {
+                throw new \RuntimeException("Target version v{$version} not found in official update server manifest.");
+            }
 
-            $this->log("Step 6: Running database migrations");
+            $downloadUrl = $releaseEntry['download_url'] ?? '';
+            $expectedChecksum = $releaseEntry['checksum_sha256'] ?? '';
+            $signatureBase64 = $releaseEntry['signature'] ?? '';
+
+            if (empty($downloadUrl)) {
+                throw new \RuntimeException("Download URL for v{$version} is empty.");
+            }
+            if (empty($expectedChecksum)) {
+                throw new \RuntimeException("Checksum for v{$version} is empty.");
+            }
+            if (empty($signatureBase64)) {
+                throw new \RuntimeException("Cryptographic signature for v{$version} is missing. Unsigned updates are blocked.");
+            }
+
+            // Strict domain verification
+            $host = parse_url($downloadUrl, PHP_URL_HOST);
+            if ($host !== 'update.ownpay.org') {
+                throw new \RuntimeException("Security Exception: Download URL '{$downloadUrl}' does not match the official update domain 'update.ownpay.org'.");
+            }
+
+            $this->events->doAction('update.before', $version);
+
+            $this->log("Step 2: Creating backup");
+            $backupPath = $this->backup->createFullBackup();
+            $this->history->updateStep((int) $updateId, 'backup_created');
+
+            $this->log("Step 3: Entering maintenance mode");
+            $this->maintenance->enter("Updating to v{$version}");
+
+            $this->log("Step 4: Downloading update package");
+            $packagePath = $this->downloadPackage($downloadUrl);
+            $this->history->updateStep((int) $updateId, 'downloaded');
+
+            $this->log("Step 5: Verifying package integrity & cryptographic signature");
+            
+            // Checksum check
+            $actualChecksum = hash_file('sha256', $packagePath);
+            if (!hash_equals($expectedChecksum, $actualChecksum)) {
+                @unlink($packagePath);
+                throw new \RuntimeException(
+                    "Package integrity check failed. Expected: " . substr($expectedChecksum, 0, 16) .
+                    "... Got: " . substr($actualChecksum, 0, 16) . "..."
+                );
+            }
+            $this->log("Checksum verified: SHA-256 OK");
+
+            // Cryptographic RSA signature check
+            $signature = base64_decode($signatureBase64);
+            if ($signature === false || $signature === '') {
+                @unlink($packagePath);
+                throw new \RuntimeException("Invalid base64 signature format.");
+            }
+
+            $zipData = file_get_contents($packagePath);
+            $pubKeyResource = openssl_pkey_get_public(self::UPDATE_PUBLIC_KEY);
+            if ($pubKeyResource === false) {
+                @unlink($packagePath);
+                throw new \RuntimeException("Failed to load embedded public key for verification.");
+            }
+
+            $verifyResult = openssl_verify($zipData, $signature, $pubKeyResource, OPENSSL_ALGO_SHA256);
+            if ($verifyResult !== 1) {
+                @unlink($packagePath);
+                $err = ($verifyResult === 0) ? "Signature mismatch" : "OpenSSL verification error (" . openssl_error_string() . ")";
+                throw new \RuntimeException("Cryptographic signature verification failed: {$err}.");
+            }
+            $this->log("Cryptographic signature verified: RSA OK");
+
+            $this->log("Step 6: Extracting update package");
+            $this->extractPackage($packagePath);
+            $this->history->updateStep((int) $updateId, 'applied');
+
+            $this->log("Step 7: Running database migrations");
             $migrationCount = $this->runMigrations();
             $this->log("Migrations completed: {$migrationCount} executed");
 
-            $this->log("Step 7: Clearing cache");
+            $this->log("Step 8: Clearing cache");
             $this->clearCache();
 
-            $this->log("Step 8: Running health checks");
-            $this->history->updateStep((int) $updateId, 'verified');
+            $this->log("Step 9: Running health checks");
             $healthResult = $this->health->check();
+            $this->history->updateStep((int) $updateId, 'verified');
 
             if (!$healthResult['healthy']) {
                 throw new \RuntimeException('Health check failed: ' . ($healthResult['error'] ?? 'unknown'));
             }
 
-            $this->log("Step 9: Exiting maintenance mode");
+            $this->log("Step 10: Exiting maintenance mode");
             $this->maintenance->exit();
             $this->history->completeUpdate((int) $updateId);
 
@@ -280,13 +349,48 @@ final class UpdateService
     }
 
     /**
+     * Queries the remote manifest directly on the server side.
+     *
+     * @return array Loaded manifest array payload.
+     * @throws \RuntimeException If the connection fails or JSON is corrupted.
+     */
+    protected function fetchManifest(): array
+    {
+        $updateUrl = getenv('UPDATE_CHECK_URL') ?: 'https://update.ownpay.org/manifest.json';
+        $ch = curl_init($updateUrl);
+        curl_setopt_array($ch, [
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_TIMEOUT        => 15,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_HTTPHEADER     => ['Accept: application/json'],
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_FOLLOWLOCATION => true,
+            CURLOPT_MAXREDIRS      => 3,
+        ]);
+        $response = curl_exec($ch);
+        $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+        curl_close($ch);
+
+        if ($response === false || $httpCode !== 200) {
+            throw new \RuntimeException("Could not connect to update server to fetch manifest (HTTP {$httpCode}).");
+        }
+
+        $data = json_decode($response, true);
+        if (!is_array($data)) {
+            throw new \RuntimeException("Update server returned an invalid manifest format.");
+        }
+
+        return $data;
+    }
+
+    /**
      * Downloads the release package to a temporary file path.
      *
      * @param string $url Secure update download URL.
      * @return string Path to the temporary zip package.
      * @throws \RuntimeException If the file cannot be created or cURL execution fails.
      */
-    private function downloadPackage(string $url): string
+    protected function downloadPackage(string $url): string
     {
         $tmpFile = sys_get_temp_dir() . '/op_update_' . bin2hex(random_bytes(8)) . '.zip';
 
@@ -334,7 +438,7 @@ final class UpdateService
      * @return void
      * @throws \RuntimeException If the file is invalid, contains unsafe paths, or extraction fails.
      */
-    private function extractPackage(string $zipPath): void
+    protected function extractPackage(string $zipPath): void
     {
         $zip = new \ZipArchive();
         $openResult = $zip->open($zipPath);
@@ -365,7 +469,7 @@ final class UpdateService
      *
      * @return int Number of migrations executed
      */
-    private function runMigrations(): int
+    protected function runMigrations(): int
     {
         $migrationsDir = dirname(__DIR__, 2) . '/database/migrations';
         if (!is_dir($migrationsDir)) {
@@ -440,7 +544,7 @@ final class UpdateService
      *
      * @return void
      */
-    private function clearCache(): void
+    protected function clearCache(): void
     {
         $cacheDir = dirname(__DIR__, 2) . '/storage/cache';
         if (is_dir($cacheDir)) {

@@ -13,7 +13,7 @@ namespace OwnPay\Update;
  * @category Update
  * @package  OwnPay\Update
  */
-final class HealthChecker
+class HealthChecker
 {
     /**
      * Database connection wrapper instance.

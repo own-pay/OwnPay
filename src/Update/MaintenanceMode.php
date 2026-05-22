@@ -15,7 +15,7 @@ use OwnPay\Support\DateHelper;
  * @category Update
  * @package  OwnPay\Update
  */
-final class MaintenanceMode
+class MaintenanceMode
 {
     /**
      * Absolute path to the maintenance lock file.
