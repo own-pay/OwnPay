@@ -414,6 +414,12 @@ final class SettingsController
             }
         }
         $this->settingsRepo->bulkSet('landing', $filtered);
+
+        // Invalidate login slug cache to apply changes immediately
+        $cacheFile = dirname(__DIR__, 3) . '/storage/cache/login_slug.cache';
+        if (file_exists($cacheFile)) {
+            @unlink($cacheFile);
+        }
     }
 
     /**

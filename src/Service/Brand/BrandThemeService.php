@@ -89,14 +89,20 @@ final class BrandThemeService
         // 3. Load global fallback system configurations
         $globalSettings = $this->settings->getGroup('general');
         $themeSettings = $this->settings->getGroup('theme');
+        $brandingSettings = $this->settings->getGroup('branding');
+
+        $fallbackLogo = $brandingSettings['site_logo'] ?? '';
+        $fallbackFavicon = $brandingSettings['site_favicon'] ?? '';
 
         // Unpack merchant-specific JSON metadata settings overrides
         $merchantJsonSettings = json_decode($merchant['settings'] ?? '{}', true) ?: [];
 
+        $merchantLogo = !empty($merchant['logo_path']) ? $merchant['logo_path'] : $fallbackLogo;
+
         return [
             'name'           => $merchant['name'] ?? $globalSettings['app_name'] ?? 'Own Pay',
-            'logo'           => $this->resolveVal($brandSettings, $merchantJsonSettings, 'logo', $merchant['logo_path'] ?? ''),
-            'favicon'        => $this->resolveVal($brandSettings, $merchantJsonSettings, 'favicon', ''),
+            'logo'           => $this->resolveVal($brandSettings, $merchantJsonSettings, 'logo', $merchantLogo),
+            'favicon'        => $this->resolveVal($brandSettings, $merchantJsonSettings, 'favicon', $fallbackFavicon),
             'color'          => $this->resolveVal($brandSettings, $merchantJsonSettings, 'primary_color', $themeSettings['primary_color'] ?? '#0D9488'),
             'accent_color'   => $this->resolveVal($brandSettings, $merchantJsonSettings, 'accent_color', $themeSettings['accent_color'] ?? '#0F766E'),
             'support_email'  => $this->resolveVal($brandSettings, $merchantJsonSettings, 'support_email', $globalSettings['support_email'] ?? ''),

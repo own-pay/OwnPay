@@ -17,13 +17,15 @@
     <div class="op-auth-container">
         <div class="op-auth-card">
             <div class="op-auth-header">
-                <div class="op-logo">
-                    {% if settings_logo is defined and settings_logo %}
-                        <img src="{{ settings_logo }}" alt="{{ app_name ?? 'Own Pay' }}" style="max-height: 48px; width: auto;">
-                    {% else %}
+                {% if settings_logo is defined and settings_logo %}
+                    <div class="op-logo-img-container">
+                        <img src="{{ settings_logo }}" alt="{{ app_name ?? 'Own Pay' }}" class="op-auth-logo-img">
+                    </div>
+                {% else %}
+                    <div class="op-logo">
                         <span class="op-logo-icon">OP</span>
-                    {% endif %}
-                </div>
+                    </div>
+                {% endif %}
                 <h1>Sign In</h1>
                 <p>{{ app_name ?? 'Own Pay' }} Admin Panel</p>
             </div>
