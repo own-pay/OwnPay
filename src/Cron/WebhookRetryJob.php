@@ -95,7 +95,7 @@ final class WebhookRetryJob
                 );
             } else {
                 // Schedule next retry with backoff
-                $nextBackoff = self::BACKOFF_SECONDS[$attempts] ?? end(self::BACKOFF_SECONDS);
+                $nextBackoff = self::BACKOFF_SECONDS[$attempts] ?? self::BACKOFF_SECONDS[count(self::BACKOFF_SECONDS) - 1];
                 $this->db->update(
                     "UPDATE op_webhook_events 
                      SET attempts = :att, 

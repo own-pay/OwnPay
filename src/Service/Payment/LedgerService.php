@@ -48,26 +48,7 @@ final class LedgerService
         }
     }
 
-    /**
-     * Internal method to post a balanced journal entry.
-     */
-    private function postJournal(
-        int $merchantId,
-        string $eventType,
-        string $amount,
-        string $currency,
-        string $debitAccountCode,
-        string $creditAccountCode,
-        string $referenceType,
-        string $referenceId,
-        ?string $description = null
-    ): void {
-        $entries = [
-            ['account' => $debitAccountCode, 'type' => 'debit', 'amount' => $amount],
-            ['account' => $creditAccountCode, 'type' => 'credit', 'amount' => $amount]
-        ];
-        $this->postEntries($merchantId, $eventType, $currency, $entries, $referenceType, $referenceId, $description);
-    }
+
 
     /**
      * Post a balanced multi-entry journal transaction.

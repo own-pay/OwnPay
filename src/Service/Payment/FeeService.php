@@ -31,7 +31,7 @@ final class FeeService
      *
      * @param EventManager $events System event dispatcher.
      * @param SettingsRepository $settings Settings storage interface.
-     * @param Database $db Direct database query runner.
+     * @param FeeRuleRepository $feeRuleRepo Custom fee rule repository.
      */
     public function __construct(
         EventManager $events,

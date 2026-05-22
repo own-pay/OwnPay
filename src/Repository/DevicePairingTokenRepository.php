@@ -27,7 +27,6 @@ final class DevicePairingTokenRepository extends BaseRepository
      * Creates a new pairing token under the active tenant context.
      *
      * @param string $otpHash SHA-256 hash of the generated one-time password token.
-     * @param int $brandId Associated brand/store identifier context.
      * @param int $createdBy User ID of the administrator generating the pairing token.
      * @param int $ttlSeconds Token lifetime duration in seconds (default is 300).
      * @return string Last inserted primary key ID of the token record.
