@@ -503,4 +503,22 @@ return static function (\OwnPay\Container $c): void {
             $c->get(\OwnPay\Repository\SettingsRepository::class)
         );
     });
+
+    $c->singleton(\OwnPay\Cron\CronJobRunner::class, static function (\OwnPay\Container $c): \OwnPay\Cron\CronJobRunner {
+        $runner = new \OwnPay\Cron\CronJobRunner(
+            $c->get(\OwnPay\Event\EventManager::class),
+            $c->has(\OwnPay\Service\System\Logger::class) ? $c->get(\OwnPay\Service\System\Logger::class) : null
+        );
+
+        $runner->register('QueueWorker', $c->get(\OwnPay\Cron\QueueWorkerJob::class), 'every_minute');
+        $runner->register('SmsVerification', $c->get(\OwnPay\Cron\SmsVerificationJob::class), 'every_minute');
+        $runner->register('WebhookRetry', $c->get(\OwnPay\Cron\WebhookRetryJob::class), 'every_5min');
+        $runner->register('BalanceVerification', $c->get(\OwnPay\Cron\BalanceVerificationJob::class), 'every_5min');
+        $runner->register('CurrencyUpdate', $c->get(\OwnPay\Cron\CurrencyUpdateJob::class), 'hourly');
+        $runner->register('DnsVerification', $c->get(\OwnPay\Cron\DnsVerificationJob::class), 'hourly');
+        $runner->register('UpdateCheck', $c->get(\OwnPay\Cron\UpdateCheckJob::class), 'daily');
+        $runner->register('SystemUpdate', $c->get(\OwnPay\Cron\SystemUpdateJob::class), 'daily');
+
+        return $runner;
+    });
 };

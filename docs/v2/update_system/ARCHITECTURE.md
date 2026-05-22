@@ -35,13 +35,14 @@ Both `UpdateService::check()` and `SystemUpdateJob::run()` now use the same `man
 1. Concurrent check  → Prevent duplicate updates via UpdateHistoryRepository
 2. Backup            → storage/backups/backup_YYYYMMDD_HHMMSS/ (DB + code ZIP)
 3. Maintenance ON    → storage/.maintenance (lock file)
-4. Download          → curl to temp file (300s timeout, redirect-safe)
-5. Verify (SHA-256)  → hash_equals() against manifest checksum
-6. Extract           → ZipArchive with path traversal safety check
-7. Migrate           → database/migrations/*.sql, tracked in op_migrations
-8. Clear cache       → storage/cache/* + Twig cache
-9. Health check      → DB, Kernel.php, extensions, .env, writable dirs
-10. Maintenance OFF  → Remove lock file
+4. Domain Validation → Verifies download URL host is strictly 'update.ownpay.org'
+5. Download          → curl to temp file (300s timeout, redirect-safe)
+6. Verify (Security) → SHA-256 checksum check (hash_equals) + asymmetric RSA signature verification (openssl_verify) using embedded public key
+7. Extract           → ZipArchive with path traversal safety check
+8. Migrate           → database/migrations/*.sql, tracked in op_migrations
+9. Clear cache       → storage/cache/* + Twig cache
+10. Health check     → DB, Kernel.php, extensions, .env, writable dirs
+11. Maintenance OFF  → Remove lock file
 ```
 
 ### Rollback (on failure at any step)

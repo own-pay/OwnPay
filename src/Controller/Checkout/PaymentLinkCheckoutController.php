@@ -126,7 +126,7 @@ final class PaymentLinkCheckoutController
             unset($_SESSION[$sessionKey]);
         }
 
-        $trxId = 'TXN-' . strtoupper(bin2hex(random_bytes(8)));
+        $trxId = $this->txnRepo->generateTrxId();
         $uuid  = \Ramsey\Uuid\Uuid::uuid4()->toString();
 
         $this->txnRepo->create([
@@ -218,7 +218,7 @@ final class PaymentLinkCheckoutController
             unset($_SESSION[$sessionKey]);
         }
 
-        $trxId = 'TXN-' . strtoupper(bin2hex(random_bytes(8)));
+        $trxId = $this->txnRepo->generateTrxId();
         $uuid  = \Ramsey\Uuid\Uuid::uuid4()->toString();
 
         $this->txnRepo->create([

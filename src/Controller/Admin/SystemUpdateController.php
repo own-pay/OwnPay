@@ -139,13 +139,11 @@ final class SystemUpdateController
     public function install(Request $req): Response
     {
         $version  = $req->post('version', '');
-        $url      = $req->post('url', '');
-        $checksum = $req->post('checksum', '');
-        if ($version === '' || $url === '') {
-            $this->session->flashError('Missing version or download URL.');
+        if ($version === '') {
+            $this->session->flashError('Missing version.');
             return Response::redirect('/admin/system-update');
         }
-        $result = $this->updater->execute($version, $url, $checksum ?: null);
+        $result = $this->updater->execute($version);
         if ($result['success']) {
             $this->session->flashSuccess("Updated to v{$version}!");
         } else {

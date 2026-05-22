@@ -138,7 +138,7 @@ When a payment intent is paid, OwnPay fires an outbound webhook notification to 
 ```json
 {
   "event": "payment.completed",
-  "transaction_id": "TXN-10948294",
+  "transaction_id": "OP-10948294",
   "amount": "1250.00",
   "currency": "BDT",
   "gateway": "bkash",

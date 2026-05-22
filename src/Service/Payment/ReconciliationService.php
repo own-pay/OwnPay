@@ -21,7 +21,7 @@ final class ReconciliationService
      * Run reconciliation for merchant.
      * Compares sum of completed transactions vs ledger balance.
      *
-     * @return array{balanced: bool, transaction_total: string, ledger_balance: string, difference: string}
+     * @return array{balanced: bool, transaction_total: string, refund_total: string, settlement_total: string, expected_balance: string, ledger_balance: string, difference: string}
      */
     public function reconcile(int $merchantId, string $currency): array
     {

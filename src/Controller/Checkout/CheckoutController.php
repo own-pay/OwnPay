@@ -154,7 +154,7 @@ final class CheckoutController
 
         // Distribute gateways into checkout categorizations.
         // Normalize properties mapping logo path keys to logo for template consistency.
-        $gateways = ['mfs' => [], 'bank' => [], 'global' => []];
+        $gateways = ['mfs' => [], 'bank' => [], 'global' => [], 'express' => []];
         foreach ($manualGateways as $gw) {
             $cat = $gw['category'] ?? 'mfs';
             if (!isset($gateways[$cat])) $cat = 'mfs';
@@ -642,5 +642,128 @@ final class CheckoutController
         $this->events->doAction('checkout.manual_verify.submitted', $txn, $verifyData);
 
         return $this->renderStatus($token, 'pending_review');
+    }
+
+    /**
+     * Handles express checkout (Apple Pay / Google Pay) via AJAX post.
+     *
+     * @param \OwnPay\Http\Request $req The incoming HTTP request.
+     * @return \OwnPay\Http\Response The JSON redirect outcome response.
+     */
+    public function expressPay(Request $req): Response
+    {
+        $token = (string) $req->param('token');
+        $txn = $this->txnRepo->findActiveForCheckout($token);
+
+        if (!$txn) {
+            return Response::json(['success' => false, 'error' => 'Transaction expired or not found.'], 404);
+        }
+
+        if ($txn['status'] !== 'pending') {
+            return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+        }
+
+        // Re-verify payment link availability: enforce status limits during final capture step.
+        $meta = json_decode($txn['metadata'] ?? '{}', true);
+        $linkId = $meta['payment_link_id'] ?? null;
+        if ($linkId !== null) {
+            $linkRepo = $this->c->get(\OwnPay\Repository\PaymentLinkRepository::class);
+            $link = $linkRepo->forTenant((int) $txn['merchant_id'])->findScoped((int) $linkId);
+            if (!$link || $link['status'] !== 'active'
+                || (!empty($link['expires_at']) && DateHelper::isPast($link['expires_at']))) {
+                $this->txnRepo->cancelByTrxId($txn['trx_id']);
+                return Response::json(['success' => false, 'error' => 'Payment link has expired.'], 410);
+            }
+        }
+
+        // Enforce security handshake verification checking submitted HMAC against local signature.
+        $submittedHash = $req->input('checkout_hash', '');
+        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        if ($hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
+        }
+        $expectedHash = hash_hmac('sha256', $txn['amount'] . '|' . $txn['currency'] . '|' . $token, $hmacKey);
+        if (!hash_equals($expectedHash, $submittedHash)) {
+            return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
+        }
+
+        $provider = (string) $req->input('provider', '');
+        $gatewaySlug = '';
+        if (in_array($provider, ['apple-pay', 'Apple Pay'], true)) {
+            $gatewaySlug = 'apple-pay';
+        } elseif (in_array($provider, ['google-pay', 'Google Pay'], true)) {
+            $gatewaySlug = 'google-pay';
+        } else {
+            return Response::json(['success' => false, 'error' => 'Invalid express provider.'], 400);
+        }
+
+        $mid = (int) $txn['merchant_id'];
+
+        // Assert configured and active
+        $activeGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
+        $isActive = false;
+        foreach ($activeGateways as $gw) {
+            if (($gw['slug'] ?? '') === $gatewaySlug) {
+                $isActive = true;
+                break;
+            }
+        }
+        if (!$isActive) {
+            return Response::json(['success' => false, 'error' => 'Selected gateway is not active.'], 422);
+        }
+
+        if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
+            try {
+                $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
+                
+                $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+                $callbackUrl = $urlService->buildLegacyCallbackUrl($mid, $token, $req);
+
+                $result = $svc->initiatePayment($mid, $gatewaySlug, [
+                    'amount'       => $txn['amount'],
+                    'currency'     => $txn['currency'],
+                    'trx_id'       => $txn['trx_id'],
+                    'redirect_url' => $callbackUrl,
+                    'cancel_url'   => $callbackUrl,
+                    'existing_txn' => true,
+                ]);
+
+                if ($result['success'] && !empty($result['redirect_url'])) {
+                    $this->txnRepo->setGatewayAndStatus(
+                        (int) $txn['id'], $gatewaySlug, 'processing', $mid
+                    );
+
+                    return Response::json([
+                        'success'      => true,
+                        'redirect_url' => $result['redirect_url'],
+                    ]);
+                }
+
+                $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
+                $this->c->get(\OwnPay\Service\System\Logger::class)->warning(
+                    "Express Gateway {$gatewaySlug} failed for trx {$txn['trx_id']}: {$errorMsg}"
+                );
+
+                return Response::json([
+                    'success' => false,
+                    'error'   => $errorMsg,
+                ], 422);
+
+            } catch (\Throwable $e) {
+                $this->c->get(\OwnPay\Service\System\Logger::class)->error(
+                    "Express Gateway {$gatewaySlug} initiation failed: " . $e->getMessage()
+                );
+
+                return Response::json([
+                    'success' => false,
+                    'error'   => 'Payment gateway error: ' . $e->getMessage(),
+                ], 422);
+            }
+        }
+
+        return Response::json([
+            'success' => false,
+            'error'   => 'Payment service is not configured.',
+        ], 500);
     }
 }

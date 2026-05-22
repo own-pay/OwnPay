@@ -251,6 +251,48 @@ final class PluginController
     }
 
     /**
+     * Moves an inactive plugin to the trash folder.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
+    public function trash(Request $request): Response
+    {
+        $slug = (string) $request->param('slug');
+        $result = $this->manager->trash($slug);
+
+        if (!$result['success']) {
+            $this->session->flashError($result['error'] ?? 'Failed to move plugin to trash');
+        } else {
+            $this->session->flashSuccess("Plugin '{$slug}' moved to trash.");
+        }
+
+        return Response::redirect($this->redirectTarget($request));
+    }
+
+    /**
+     * Restores a trashed plugin back to the modules directory.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The HTTP redirect response.
+     */
+    public function restore(Request $request): Response
+    {
+        $slug = (string) $request->param('slug');
+        $result = $this->manager->restore($slug);
+
+        if (!$result['success']) {
+            $this->session->flashError($result['error'] ?? 'Failed to restore plugin');
+        } else {
+            $this->session->flashSuccess("Plugin '{$slug}' restored successfully.");
+        }
+
+        return Response::redirect($this->redirectTarget($request));
+    }
+
+    /**
      * Renders settings fields form provided by the plugin, supporting brand-level configuration scoping.
      *
      * @param Request $request The incoming HTTP request.

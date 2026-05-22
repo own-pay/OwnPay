@@ -139,7 +139,7 @@ final class Plugin implements PluginInterface
             str_starts_with($text, '/status')  => $this->cmdStatus($text),
             str_starts_with($text, '/today')   => $this->cmdToday(),
             str_starts_with($text, '/recent')  => $this->cmdRecent(),
-            str_starts_with($text, '/start')   => "🤖 Own Pay Bot\n\nCommands:\n/status TXN-ID — Check transaction\n/today — Today's stats\n/recent — Last 5 transactions",
+            str_starts_with($text, '/start')   => "🤖 Own Pay Bot\n\nCommands:\n/status OP-ID — Check transaction\n/today — Today's stats\n/recent — Last 5 transactions",
             default => null,
         };
 
@@ -154,7 +154,7 @@ final class Plugin implements PluginInterface
     {
         $parts = explode(' ', $text, 2);
         $ref = trim($parts[1] ?? '');
-        if ($ref === '') return '⚠️ Usage: /status TXN-ID';
+        if ($ref === '') return '⚠️ Usage: /status OP-ID';
         if (!$this->container) return '⚠️ Not initialized';
 
         $db = $this->container->get(\OwnPay\Core\Database::class);

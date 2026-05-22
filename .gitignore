@@ -54,3 +54,10 @@ findings.md
 progress.md
 task_plan.md
 
+scratch/
+
+#Php cli nd update
+cli/
+update/
+storage/cron/98a234fa4953567787cf87e47c1f5e21.lock
+update_private_key.pem

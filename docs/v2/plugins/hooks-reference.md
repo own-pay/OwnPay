@@ -116,7 +116,7 @@ Outbound webhooks fire automatically on ALL `payment.transaction.*` status chang
 ```json
 {
     "event": "payment.completed",
-    "transaction_id": "TXN-...",
+    "transaction_id": "OP-...",
     "amount": "500.00",
     "currency": "BDT",
     "gateway": "bkash",

@@ -10,7 +10,7 @@ namespace OwnPay\Repository;
  * This repository is globally scoped (not merchant-scoped) and tracks the lifecycle
  * of system updates, recording version transitions, statuses, backups, and failures.
  */
-final class UpdateHistoryRepository extends BaseRepository
+class UpdateHistoryRepository extends BaseRepository
 {
     /**
      * The database table name associated with this repository.

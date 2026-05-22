@@ -129,6 +129,17 @@ final class BrandController
             'status'           => $data['status'] ?? 'active',
         ]);
 
+        // Process file uploads & customizations now that we have the merchant ID
+        $brandingData = $this->handleBrandUploadsAndSettings($req, $merchantId, $data);
+        $this->merchants->updateBrand($merchantId, array_merge([
+            'name'             => $name,
+            'email'            => $data['email'] ?? '',
+            'phone'            => $data['phone'] ?? '',
+            'timezone'         => $data['timezone'] ?? 'Asia/Dhaka',
+            'default_currency' => $data['default_currency'] ?? 'BDT',
+            'status'           => $data['status'] ?? 'active',
+        ], $brandingData));
+
         $domain = trim($req->post('custom_domain', ''));
         if ($domain !== '') {
             try {
@@ -166,6 +177,13 @@ final class BrandController
             return Response::redirect('/admin/brands');
         }
 
+        // Decode JSON settings to array for easy UI access
+        if ($brand && !empty($brand['settings'])) {
+            $brand['theme'] = json_decode($brand['settings'], true) ?: [];
+        } else {
+            $brand['theme'] = [];
+        }
+
         return $this->renderAdminPage('admin/brands/edit.twig', [
             'brand'       => $brand,
             'active_page' => 'brands',
@@ -192,7 +210,17 @@ final class BrandController
             return Response::redirect("/admin/brands/{$id}");
         }
 
-        $this->merchants->updateBrand($id, $data);
+        // Fetch current brand to retain existing settings / paths
+        $existing = $this->merchants->find($id);
+        $existingSettings = [];
+        if ($existing && !empty($existing['settings'])) {
+            $existingSettings = json_decode($existing['settings'], true) ?: [];
+        }
+
+        // Process file uploads & customizations
+        $brandingData = $this->handleBrandUploadsAndSettings($req, $id, $data, $existing['logo_path'] ?? null, $existingSettings);
+
+        $this->merchants->updateBrand($id, array_merge($data, $brandingData));
 
         $domain = trim($req->post('custom_domain', ''));
         if ($domain !== '') {
@@ -287,5 +315,86 @@ final class BrandController
         $this->audit->log('brand.deleted', 'merchant', $id, ['name' => $brand['name']]);
         $this->session->flashSuccess("Brand '{$brand['name']}' deleted");
         return Response::redirect('/admin/brands');
+    }
+
+    /**
+     * Handles file uploads for brand logo and favicon, and aggregates all brand customizations
+     * into logo_path and JSON settings fields.
+     */
+    private function handleBrandUploadsAndSettings(Request $req, int $merchantId, array $data, ?string $existingLogoPath = null, array $existingSettings = []): array
+    {
+        $uploadDir = dirname(__DIR__, 3) . '/public/assets/uploads/brands/';
+        if (!is_dir($uploadDir)) {
+            mkdir($uploadDir, 0755, true);
+        }
+
+        $logoPath = $existingLogoPath;
+        $faviconPath = $existingSettings['favicon'] ?? null;
+
+        // Process Brand Logo File
+        $logoFile = $req->file('brand_logo');
+        if ($logoFile !== null && ($logoFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp'];
+            $mime = mime_content_type($logoFile['tmp_name']);
+            if (in_array($mime, $allowed, true)) {
+                $ext = pathinfo($logoFile['name'], PATHINFO_EXTENSION);
+                $filename = 'brand_logo_' . $merchantId . '_' . time() . '.' . strtolower($ext);
+                $dest = $uploadDir . $filename;
+                if (move_uploaded_file($logoFile['tmp_name'], $dest)) {
+                    $logoPath = '/assets/uploads/brands/' . $filename;
+                }
+            } else {
+                $this->session->flashError('Invalid file type for brand logo');
+            }
+        }
+
+        // Process Brand Favicon File
+        $faviconFile = $req->file('brand_favicon');
+        if ($faviconFile !== null && ($faviconFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+            $allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon'];
+            $mime = mime_content_type($faviconFile['tmp_name']);
+            if (in_array($mime, $allowed, true)) {
+                $ext = pathinfo($faviconFile['name'], PATHINFO_EXTENSION);
+                $filename = 'brand_favicon_' . $merchantId . '_' . time() . '.' . strtolower($ext);
+                $dest = $uploadDir . $filename;
+                if (move_uploaded_file($faviconFile['tmp_name'], $dest)) {
+                    $faviconPath = '/assets/uploads/brands/' . $filename;
+                }
+            } else {
+                $this->session->flashError('Invalid file type for brand favicon');
+            }
+        }
+
+        // Compile settings JSON
+        $settings = $existingSettings;
+        $settings['logo']            = $logoPath;
+        $settings['favicon']         = $faviconPath;
+        $settings['primary_color']   = InputSanitizer::string($data['primary_color'] ?? $existingSettings['primary_color'] ?? '#0D9488');
+        $settings['accent_color']    = InputSanitizer::string($data['accent_color'] ?? $existingSettings['accent_color'] ?? '#0F766E');
+        $settings['support_email']   = InputSanitizer::email($data['support_email'] ?? $existingSettings['support_email'] ?? '');
+        $settings['footer_text']     = InputSanitizer::string($data['footer_text'] ?? $existingSettings['footer_text'] ?? '');
+        // Authorization check: only superadmins can modify custom_css and custom_js
+        $isSuperadmin = !empty($_SESSION['is_superadmin']);
+        if ($isSuperadmin) {
+            $customCss = $data['custom_css'] ?? $existingSettings['custom_css'] ?? '';
+            $customJs = $data['custom_js'] ?? $existingSettings['custom_js'] ?? '';
+
+            // Clean custom_css of dangerous vectors: expressions, behavior, javascript:, script tags
+            $customCss = preg_replace('/expression\s*\(|behavior\s*:|javascript\s*:/i', '', $customCss);
+            $customCss = preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', $customCss);
+
+            $settings['custom_css'] = $customCss;
+            $settings['custom_js']  = $customJs;
+        } else {
+            // Non-superadmins revert to existing styles/scripts
+            $settings['custom_css'] = $existingSettings['custom_css'] ?? '';
+            $settings['custom_js']  = $existingSettings['custom_js'] ?? '';
+        }
+        $settings['show_powered_by'] = isset($data['show_powered_by']) && $data['show_powered_by'] === '1' ? 1 : 0;
+
+        return [
+            'logo_path' => $logoPath,
+            'settings'  => json_encode($settings, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+        ];
     }
 }

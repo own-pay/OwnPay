@@ -13,7 +13,7 @@ class WebhookDispatcherTest extends TestCase
 {
     public function testHmacSigning(): void
     {
-        $payload = '{"event":"payment.completed","transaction_id":"TXN-001"}';
+        $payload = '{"event":"payment.completed","transaction_id":"OP-001"}';
         $secret = 'merchant_webhook_secret_abc123';
         $signature = hash_hmac('sha256', $payload, $secret);
 
@@ -37,7 +37,7 @@ class WebhookDispatcherTest extends TestCase
     {
         $payload = [
             'event'          => 'payment.completed',
-            'transaction_id' => 'TXN-001',
+            'transaction_id' => 'OP-001',
             'amount'         => '500.00',
             'currency'       => 'BDT',
             'gateway'        => 'bkash',

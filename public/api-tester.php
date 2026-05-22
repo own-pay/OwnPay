@@ -130,13 +130,13 @@ declare(strict_types=1);
             { id: 'health', category: 'System', method: 'GET', path: '/api/v1/health', desc: 'System health + mobile status + gateway/customer counts (requires auth)', hasBody: false },
             
             { id: 'payment-init', category: 'Payments', method: 'POST', path: '/api/v1/payments/initiate', desc: 'Initiate a new payment (gateway is optional)', hasBody: true, defaultBody: '{\n  "amount": 100.50,\n  "currency": "USD",\n  "reference": "ORD-12345",\n  "customer_email": "test@example.com",\n  "callback_url": "https://example.com/callback"\n}' },
-            { id: 'payment-show', category: 'Payments', method: 'GET', path: '/api/v1/payments/{trx_id}', desc: 'Get payment by transaction ID (TXN-XXXX)', hasBody: false },
+            { id: 'payment-show', category: 'Payments', method: 'GET', path: '/api/v1/payments/{trx_id}', desc: 'Get payment by transaction ID (OP-XXXX)', hasBody: false },
             
             { id: 'tx-list', category: 'Transactions', method: 'GET', path: '/api/v1/transactions', desc: 'List transactions (supports ?page=1&per_page=25)', hasBody: false },
-            { id: 'tx-show', category: 'Transactions', method: 'GET', path: '/api/v1/transactions/{trx_id}', desc: 'Get transaction by ID (TXN-XXXX)', hasBody: false },
+            { id: 'tx-show', category: 'Transactions', method: 'GET', path: '/api/v1/transactions/{trx_id}', desc: 'Get transaction by ID (OP-XXXX)', hasBody: false },
             
             { id: 'refund-create', category: 'Refunds', method: 'POST', path: '/api/v1/refunds', desc: 'Create a refund for a transaction', hasBody: true, defaultBody: '{\n  "transaction_id": 1,\n  "amount": 50.00,\n  "reason": "customer requested"\n}' },
-            { id: 'refund-show', category: 'Refunds', method: 'GET', path: '/api/v1/refunds/{trx_id}', desc: 'Get refund by transaction ID (TXN-XXXX)', hasBody: false },
+            { id: 'refund-show', category: 'Refunds', method: 'GET', path: '/api/v1/refunds/{trx_id}', desc: 'Get refund by transaction ID (OP-XXXX)', hasBody: false },
             
             { id: 'customer-list', category: 'Customers', method: 'GET', path: '/api/v1/customers', desc: 'List customers', hasBody: false },
             { id: 'customer-show', category: 'Customers', method: 'GET', path: '/api/v1/customers/{identifier}', desc: 'Find customer by email or phone', hasBody: false },

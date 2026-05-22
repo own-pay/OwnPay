@@ -15,16 +15,17 @@
 
 {# ── Tabs ────────────────────────────────────────────────── #}
 <div class="op-tabs op-mb-4">
-    <button class="op-tab active" data-tab="all">All <span class="op-tab-count">{{ plugins|length }}</span></button>
+    <button class="op-tab active" data-tab="all">All <span class="op-tab-count">{{ plugins|filter(p => p.status != 'trashed')|length }}</span></button>
     <button class="op-tab" data-tab="active">Active <span class="op-tab-count">{{ plugins|filter(p => p.status == 'active')|length }}</span></button>
-    <button class="op-tab" data-tab="inactive">Available <span class="op-tab-count">{{ plugins|filter(p => p.status != 'active')|length }}</span></button>
+    <button class="op-tab" data-tab="inactive">Available <span class="op-tab-count">{{ plugins|filter(p => p.status != 'active' and p.status != 'trashed')|length }}</span></button>
+    <button class="op-tab" data-tab="trash">Trash <span class="op-tab-count">{{ plugins|filter(p => p.status == 'trashed')|length }}</span></button>
 </div>
 
 {# ── Plugin Cards Grid ───────────────────────────────────── #}
 {% if plugins|length > 0 %}
 <div class="op-plugin-grid" id="plugins-grid">
     {% for plugin in plugins %}
-    <div class="op-plugin-card plugin-row {{ plugin.status == 'active' ? 'op-plugin-active' : '' }}" data-status="{{ plugin.status }}">
+    <div class="op-plugin-card plugin-row {{ plugin.status == 'active' ? 'op-plugin-active' : '' }}" data-status="{{ plugin.status }}" {% if plugin.status == 'trashed' %}style="display: none;"{% endif %}>
         {# ── Card Header ── #}
         <div class="op-plugin-card-header">
             <div class="op-plugin-card-icon op-plugin-type-{{ plugin.type }}">
@@ -65,6 +66,9 @@
                 {% elseif plugin.status == 'error' %}
                 <span class="op-plugin-status-indicator op-status-error"></span>
                 <span class="op-text-sm" style="color:var(--op-danger)">Error</span>
+                {% elseif plugin.status == 'trashed' %}
+                <span class="op-plugin-status-indicator" style="background-color: var(--op-warning);"></span>
+                <span class="op-text-sm op-text-muted">Trashed</span>
                 {% else %}
                 <span class="op-plugin-status-indicator op-status-uninstalled"></span>
                 <span class="op-text-sm op-text-muted">Not Installed</span>
@@ -86,10 +90,21 @@
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                     <button type="submit" class="op-btn op-btn-xs op-btn-success">{{ plugin.status == 'error' ? 'Retry' : 'Activate' }}</button>
                 </form>
-                <form method="POST" action="/admin/plugins/{{ plugin.slug }}/uninstall" class="op-inline-form" onsubmit="return confirm('Permanently remove {{ plugin.name }}?')">
+                <form method="POST" action="/admin/plugins/{{ plugin.slug }}/trash" class="op-inline-form" onsubmit="return confirm('Move {{ plugin.name }} to trash?')">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                    <button type="submit" class="op-btn op-btn-xs op-btn-ghost-danger" title="Uninstall">
+                    <button type="submit" class="op-btn op-btn-xs op-btn-ghost-danger" title="Trash">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                    </button>
+                </form>
+                {% elseif plugin.status == 'trashed' %}
+                <form method="POST" action="/admin/plugins/{{ plugin.slug }}/restore" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-xs op-btn-success">Restore</button>
+                </form>
+                <form method="POST" action="/admin/plugins/{{ plugin.slug }}/uninstall" class="op-inline-form" onsubmit="return confirm('Permanently delete {{ plugin.name }}? This cannot be undone!')">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-xs op-btn-ghost-danger" title="Delete Permanently">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                     </button>
                 </form>
                 {% elseif plugin.status == 'uninstalled' %}

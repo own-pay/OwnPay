@@ -67,6 +67,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // ─── Checkout (public, minimal middleware) ─────────────────
     $router->get('/checkout/{token}', 'Checkout\\CheckoutController@show', 'checkout');
     $router->post('/checkout/{token}/pay', 'Checkout\\CheckoutController@pay', 'checkout');
+    $router->post('/checkout/{token}/express', 'Checkout\\CheckoutController@expressPay', 'checkout');
     $router->post('/checkout/{token}/cancel', 'Checkout\\CheckoutController@cancel', 'checkout');
     $router->get('/checkout/{token}/status', 'Checkout\\CheckoutController@status', 'checkout');
     $router->post('/checkout/{token}/manual-verify', 'Checkout\\CheckoutController@manualVerify', 'checkout');
@@ -74,6 +75,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // Universal Payment Intent checkout routes
     $router->get('/checkout/intent/{token}', 'Checkout\\PaymentIntentCheckoutController@show', 'checkout');
     $router->post('/checkout/intent/{token}/pay', 'Checkout\\PaymentIntentCheckoutController@pay', 'checkout');
+    $router->post('/checkout/intent/{token}/express', 'Checkout\\PaymentIntentCheckoutController@expressPay', 'checkout');
     $router->get('/checkout/intent/{token}/status', 'Checkout\\PaymentIntentCheckoutController@status', 'checkout');
     $router->post('/checkout/intent/{token}/cancel', 'Checkout\\PaymentIntentCheckoutController@cancel', 'checkout');
     $router->post('/checkout/intent/{token}/manual-verify', 'Checkout\\PaymentIntentCheckoutController@manualVerify', 'checkout');
@@ -90,6 +92,14 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // Admin content fragments (loaded via AJAX into SPA shell)
     $router->get('/admin/fragment/{page}', 'Admin\\DashboardController@fragment', 'admin');
+
+    // Onboarding Setup Wizard
+    $router->post('/admin/setup-wizard/save-settings', 'Admin\\DashboardController@saveOnboardingSettings', 'admin');
+    $router->post('/admin/setup-wizard/create-brand', 'Admin\\DashboardController@createOnboardingBrand', 'admin');
+    $router->post('/admin/setup-wizard/setup-mail', 'Admin\\DashboardController@setupOnboardingMail', 'admin');
+    $router->post('/admin/setup-wizard/setup-gateway', 'Admin\\DashboardController@setupOnboardingGateway', 'admin');
+    $router->post('/admin/setup-wizard/complete', 'Admin\\DashboardController@completeOnboarding', 'admin');
+    $router->post('/admin/setup-wizard/dismiss', 'Admin\\DashboardController@dismissOnboarding', 'admin');
 
     // Transactions
     $router->get('/admin/transactions', 'Admin\\TransactionController@index', 'admin');
@@ -162,6 +172,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/settings/{tab}', 'Admin\\SettingsController@tab', 'admin');
     $router->post('/admin/settings/save', 'Admin\\SettingsController@save', 'admin');
     $router->post('/admin/settings/upload', 'Admin\\SettingsController@upload', 'admin');
+    $router->post('/admin/settings/cron/regenerate', 'Admin\\SettingsController@regenerateCronSecret', 'admin');
+    $router->post('/admin/settings/cron/run/{jobName}', 'Admin\\SettingsController@runCronJob', 'admin');
 
     // Currencies
     $router->get('/admin/currencies', 'Admin\\CurrencyController@index', 'admin');
@@ -170,6 +182,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // Devices
     $router->get('/admin/devices', 'Admin\\DeviceController@index', 'admin');
     $router->post('/admin/devices/generate-otp', 'Admin\\DeviceController@generateOtp', 'admin');
+    $router->get('/admin/devices/check-status', 'Admin\\DeviceController@checkStatus', 'admin');
     $router->post('/admin/devices/{id}/revoke', 'Admin\\DeviceController@revoke', 'admin');
     $router->post('/admin/devices/bulk-revoke', 'Admin\\DeviceController@bulkRevoke', 'admin');
 
@@ -223,6 +236,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/plugins/{slug}/activate', 'Admin\\PluginController@activate', 'admin');
     $router->post('/admin/plugins/{slug}/deactivate', 'Admin\\PluginController@deactivate', 'admin');
     $router->post('/admin/plugins/{slug}/uninstall', 'Admin\\PluginController@uninstall', 'admin');
+    $router->post('/admin/plugins/{slug}/trash', 'Admin\\PluginController@trash', 'admin');
+    $router->post('/admin/plugins/{slug}/restore', 'Admin\\PluginController@restore', 'admin');
     $router->get('/admin/plugins/{slug}/settings', 'Admin\\PluginController@settings', 'admin');
     $router->post('/admin/plugins/{slug}/settings', 'Admin\\PluginController@saveSettings', 'admin');
 

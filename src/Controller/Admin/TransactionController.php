@@ -112,6 +112,21 @@ final class TransactionController
         $total = $repo->countFiltered($filters);
         $pagination = PaginationService::calculate($page, 25, $total);
         $transactions = $repo->listFiltered($filters, $pagination['per_page'], $pagination['offset']);
+
+        $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
+        $transactions = array_map(function (array $txn) use ($enc) {
+            if (!empty($txn['customer_name'])) {
+                try {
+                    $txn['customer_name'] = $enc->decrypt($txn['customer_name']);
+                } catch (\Throwable $e) {
+                    $txn['customer_name'] = '[encrypted]';
+                }
+            } else {
+                $txn['customer_name'] = '—';
+            }
+            return $txn;
+        }, $transactions);
+
         $gateways = $this->txns->getDistinctGateways($mid);
 
         return $this->renderAdminPage('admin/transactions/index.twig', [
@@ -141,6 +156,24 @@ final class TransactionController
         if ($txn === null) {
             $this->session->flashError('Transaction not found');
             return Response::redirect('/admin/transactions');
+        }
+
+        // Fetch and decrypt customer details if customer_id is present
+        if (!empty($txn['customer_id'])) {
+            $customerRepo = $this->c->get(\OwnPay\Repository\CustomerRepository::class);
+            $customer = $customerRepo->forTenant($mid)->findScoped((int) $txn['customer_id']);
+            if ($customer) {
+                $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
+                try {
+                    $txn['customer_name']  = !empty($customer['name_enc']) ? $enc->decrypt($customer['name_enc']) : ($customer['name'] ?? '—');
+                    $txn['customer_email'] = !empty($customer['email_enc']) ? $enc->decrypt($customer['email_enc']) : ($customer['email'] ?? '—');
+                    $txn['customer_phone'] = !empty($customer['phone_enc']) ? $enc->decrypt($customer['phone_enc']) : ($customer['phone'] ?? '—');
+                } catch (\Throwable $e) {
+                    $txn['customer_name']  = '[encrypted]';
+                    $txn['customer_email'] = '[encrypted]';
+                    $txn['customer_phone'] = '—';
+                }
+            }
         }
 
         $smsData  = $this->smsRepo->listForTransaction($id);

@@ -704,7 +704,7 @@ CREATE TABLE `op_plugins` (
   `entrypoint` VARCHAR(255) NOT NULL,
   `capabilities` JSON DEFAULT NULL,
   `manifest` JSON DEFAULT NULL,
-  `status` ENUM('active','inactive','error') NOT NULL DEFAULT 'inactive',
+  `status` ENUM('active','inactive','error','trashed') NOT NULL DEFAULT 'inactive',
   `installed_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),

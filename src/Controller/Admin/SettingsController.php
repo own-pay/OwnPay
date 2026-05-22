@@ -82,6 +82,7 @@ final class SettingsController
         $branding    = $this->settingsRepo->getGroup('branding');
         $landing     = $this->settingsRepo->getGroup('landing');
         $checkout    = $this->settingsRepo->getGroup('checkout');
+        $theme       = $this->settingsRepo->getGroup('theme');
 
         /** @phpstan-ignore booleanAnd.rightAlwaysTrue */
         if (isset($settings['faqs']) && is_string($settings['faqs'])) {
@@ -111,17 +112,77 @@ final class SettingsController
         $mid = $brand->getActiveBrandId();
         $apiKeys = $this->c->get(\OwnPay\Service\Customer\ApiKeyService::class)->list($mid);
 
+        // Retrieve or auto-generate Cron Secret
+        $cronSecret = $settings['cron_secret'] ?? '';
+        if (empty($cronSecret)) {
+            $cronSecret = bin2hex(random_bytes(16));
+            $this->settingsRepo->set('general', 'cron_secret', $cronSecret);
+            $settings['cron_secret'] = $cronSecret;
+        }
+
+        // Build Cron trigger URL white-labeled using DomainUrlService
+        $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+        $baseUrl = $urlService->resolveBaseUrl($mid, $req);
+        $cronUrl = rtrim($baseUrl, '/') . '/cron/' . $cronSecret;
+
+        // Fetch all registered Cron Jobs and their execution logs
+        $runner = $this->c->get(\OwnPay\Cron\CronJobRunner::class);
+        $rawJobs = $runner->getJobs();
+        $cronJobs = [];
+        $descriptions = [
+            'QueueWorker'         => 'Processes pending background jobs and tasks in the system queue.',
+            'SmsVerification'     => 'Matches pending SMS transaction notifications received from mobile devices.',
+            'WebhookRetry'        => 'Retries failed webhook delivery attempts to external merchant URLs.',
+            'BalanceVerification' => 'Audits double-entry ledger bookkeeping to detect account balance mismatches.',
+            'CurrencyUpdate'      => 'Updates fiat exchange rates and synchronizes standard platform currencies.',
+            'DnsVerification'     => 'Verifies DNS records and SSL status for custom merchant domains.',
+            'UpdateCheck'         => 'Checks for new core platform releases and software system updates.',
+            'SystemUpdate'        => 'Downloads and applies approved software updates dynamically.',
+        ];
+
+        foreach ($rawJobs as $name => $config) {
+            $lastRun = $runner->getLastRunTime($name);
+            $elapsedStr = 'Never';
+            if ($lastRun !== null) {
+                $elapsed = time() - $lastRun;
+                if ($elapsed < 60) {
+                    $elapsedStr = 'Just now';
+                } elseif ($elapsed < 3600) {
+                    $mins = floor($elapsed / 60);
+                    $elapsedStr = $mins . ($mins === 1 ? ' min ago' : ' mins ago');
+                } elseif ($elapsed < 86400) {
+                    $hours = floor($elapsed / 3600);
+                    $elapsedStr = $hours . ($hours === 1 ? ' hour ago' : ' hours ago');
+                } else {
+                    $days = floor($elapsed / 86400);
+                    $elapsedStr = $days . ($days === 1 ? ' day ago' : ' days ago');
+                }
+            }
+
+            $cronJobs[] = [
+                'name'               => $name,
+                'schedule'           => $config['schedule'],
+                'last_run'           => $elapsedStr,
+                'last_run_timestamp' => $lastRun,
+                'description'        => $descriptions[$name] ?? 'System scheduled background process.',
+            ];
+        }
+
         return $this->renderAdminPage('admin/settings/index.twig', [
             'settings'          => $settings,
             'branding'          => $branding,
             'landing'           => $landing,
             'checkout_settings' => $checkout,
+            'theme'             => $theme,
             'currencies'        => $allCurrencies,
             'all_currencies'    => $allCurrencies,
             'timezones'         => $timezones,
             'api_keys'          => $apiKeys,
             'active_page'       => 'settings',
             'default_tab'       => $activeTab,
+            'cron_secret'       => $cronSecret,
+            'cron_url'          => $cronUrl,
+            'cron_jobs'         => $cronJobs,
         ]);
     }
 
@@ -153,6 +214,10 @@ final class SettingsController
 
             case 'checkout':
                 $this->saveCheckout($data);
+                break;
+
+            case 'theme':
+                $this->saveTheme($data);
                 break;
 
             default:
@@ -251,18 +316,30 @@ final class SettingsController
             $data['faqs'] = json_encode(array_values($data['faqs']));
         }
 
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $data[$key] = json_encode($value);
+        $whitelist = [
+            'app_name', 'base_url', 'timezone', 'support_email', 'footer_text',
+            'maintenance_mode', 'default_currency', 'exchange_rate_mode',
+            'payment_expiry_minutes', 'invoice_due_days', 'auto_approve_payments',
+            'smtp_host', 'smtp_port', 'smtp_encryption', 'smtp_username', 'smtp_password',
+            'mail_from_email', 'mail_from_name', 'webhook_url', 'api_rate_limit',
+            'session_timeout', 'max_login_attempts', 'ip_allowlist', 'force_https',
+            'require_2fa', 'admin_notification_email', 'email_on_payment', 'email_on_refund',
+            'faqs', 'sms_positive_keywords', 'sms_negative_keywords',
+            'sms_filter_rules_check_interval_hours'
+        ];
+
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = is_array($data[$key]) ? json_encode($data[$key]) : (string) $data[$key];
             }
         }
 
-        $this->settingsRepo->bulkSet('general', $data);
+        $this->settingsRepo->bulkSet('general', $filtered);
 
         // Sync maintenance lock file
         $lockFile = dirname(__DIR__, 3) . '/storage/.maintenance';
-        /** @phpstan-ignore notIdentical.alwaysTrue */
-        if (!empty($data['maintenance_mode']) && $data['maintenance_mode'] !== '0') {
+        if (!empty($filtered['maintenance_mode']) && $filtered['maintenance_mode'] !== '0') {
             file_put_contents($lockFile, json_encode([
                 'reason'      => 'System maintenance in progress. Please try again shortly.',
                 'retry_after' => 600,
@@ -283,9 +360,20 @@ final class SettingsController
      */
     private function saveBranding(array $data, Request $req): void
     {
-        // Exclude file fields — handled by upload()
-        unset($data['site_logo'], $data['site_favicon']);
-        $this->settingsRepo->bulkSet('branding', $data);
+        $whitelist = [
+            'admin_panel_title',
+            'site_seo_title',
+            'site_meta_description',
+            'site_keywords',
+            'brand_tagline',
+        ];
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = (string) $data[$key];
+            }
+        }
+        $this->settingsRepo->bulkSet('branding', $filtered);
     }
 
     /**
@@ -306,12 +394,26 @@ final class SettingsController
         if (isset($data['features'])) {
             $data['features'] = json_encode(array_values($data['features']));
         }
-        foreach ($data as $key => $value) {
-            if (is_array($value)) {
-                $data[$key] = json_encode($value);
+
+        $whitelist = [
+            'landing_enabled',
+            'landing_title',
+            'landing_subtitle',
+            'landing_cta_text',
+            'landing_cta_url',
+            'landing_show_features',
+            'landing_show_faq',
+            'admin_login_slug',
+            'features',
+        ];
+
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = is_array($data[$key]) ? json_encode($data[$key]) : (string) $data[$key];
             }
         }
-        $this->settingsRepo->bulkSet('landing', $data);
+        $this->settingsRepo->bulkSet('landing', $filtered);
     }
 
     /**
@@ -332,8 +434,6 @@ final class SettingsController
 
         // Handle currency updates if present
         $currencies = $data['currencies'] ?? null;
-        unset($data['currencies']);
-
         if ($currencies !== null && is_array($currencies)) {
             $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
             foreach ($currencies as $code => $cData) {
@@ -343,7 +443,22 @@ final class SettingsController
             }
         }
 
-        $this->settingsRepo->bulkSet('general', $data);
+        $whitelist = [
+            'default_currency',
+            'exchange_rate_mode',
+            'payment_expiry_minutes',
+            'invoice_due_days',
+            'auto_approve_payments',
+        ];
+
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = (string) $data[$key];
+            }
+        }
+
+        $this->settingsRepo->bulkSet('general', $filtered);
     }
 
     /**
@@ -355,13 +470,6 @@ final class SettingsController
      */
     private function saveCheckout(array $data): void
     {
-        // Checkout tab has fields for TWO groups:
-        // 1. 'checkout' group: timer_enabled, timer_seconds, show_faq
-        // 2. 'general' group: checkout_title, checkout_success_msg, etc.
-        $checkoutGroupKeys = ['timer_enabled', 'timer_seconds', 'show_faq'];
-        $checkoutData = [];
-        $generalData = [];
-
         // Normalize checkboxes
         foreach (['timer_enabled', 'show_faq'] as $cb) {
             if (!isset($data[$cb])) {
@@ -369,20 +477,95 @@ final class SettingsController
             }
         }
 
-        // Split data into correct groups
-        foreach ($data as $key => $value) {
-            if (in_array($key, $checkoutGroupKeys, true)) {
-                $checkoutData[$key] = $value;
-            } else {
-                $generalData[$key] = $value;
+        $whitelist = [
+            'checkout_success_msg',
+            'checkout_pending_msg',
+            'checkout_failed_msg',
+            'timer_enabled',
+            'timer_seconds',
+            'show_faq',
+        ];
+
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = (string) $data[$key];
             }
         }
 
-        if (!empty($checkoutData)) {
-            $this->settingsRepo->bulkSet('checkout', $checkoutData);
+        $this->settingsRepo->bulkSet('checkout', $filtered);
+    }
+
+    /**
+     * Persists settings parameters under the theme group.
+     *
+     * @param array<string, mixed> $data Theme customization parameters.
+     *
+     * @return void
+     */
+    private function saveTheme(array $data): void
+    {
+        $whitelist = [
+            'primary_color',
+            'accent_color',
+        ];
+        $filtered = [];
+        foreach ($whitelist as $key) {
+            if (isset($data[$key])) {
+                $filtered[$key] = (string) $data[$key];
+            }
         }
-        if (!empty($generalData)) {
-            $this->settingsRepo->bulkSet('general', $generalData);
+        $this->settingsRepo->bulkSet('theme', $filtered);
+    }
+
+    /**
+     * Regenerates the Cron Secret and redirects back.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The redirect response.
+     */
+    public function regenerateCronSecret(Request $req): Response
+    {
+        $newSecret = bin2hex(random_bytes(16));
+        $this->settingsRepo->set('general', 'cron_secret', $newSecret);
+
+        $this->audit->log('cron.secret_regenerated', 'settings');
+        $this->session->flashSuccess('Cron secret regenerated successfully');
+
+        return Response::redirect('/admin/settings/cron');
+    }
+
+    /**
+     * Manually triggers execution of a specific cron job by name.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The redirect response.
+     */
+    public function runCronJob(Request $req): Response
+    {
+        $jobName = $req->param('jobName');
+        if (empty($jobName)) {
+            $this->session->flashError('No job name specified');
+            return Response::redirect('/admin/settings/cron');
         }
+
+        try {
+            $runner = $this->c->get(\OwnPay\Cron\CronJobRunner::class);
+            $result = $runner->runJob($jobName);
+
+            if ($result['status'] === 'completed') {
+                $duration = $result['duration'];
+                $this->audit->log('cron.manual_run', 'settings', null, null, ['job' => $jobName, 'status' => 'completed', 'duration' => $duration]);
+                $this->session->flashSuccess("Cron job '{$jobName}' executed successfully in {$duration}s");
+            } else {
+                $error = $result['error'] ?? 'Unknown error';
+                $this->audit->log('cron.manual_run_failed', 'settings', null, null, ['job' => $jobName, 'error' => $error]);
+                $this->session->flashError("Cron job '{$jobName}' failed: {$error}");
+            }
+        } catch (\Throwable $e) {
+            $this->session->flashError("Failed to trigger job '{$jobName}': " . $e->getMessage());
+        }
+
+        return Response::redirect('/admin/settings/cron');
     }
 }

@@ -29,8 +29,6 @@
             <form method="POST" action="/admin/system-update/apply">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="version" value="{{ latest_version }}">
-                <input type="hidden" name="url" value="{{ update_info.url ?? '' }}">
-                <input type="hidden" name="checksum" value="{{ update_info.checksum ?? '' }}">
                 <button type="submit" class="op-btn op-btn-success op-btn-lg op-btn-block" onclick="return confirm('This will backup your system, apply the update, and run migrations. Continue?')">
                     Update to v{{ latest_version }}
                 </button>

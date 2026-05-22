@@ -237,7 +237,7 @@ paths:
           description: The transaction number
           schema:
             type: string
-          example: "TXN-10482938"
+          example: "OP-10482938"
       responses:
         '200':
           description: Transaction detail model.
@@ -1038,7 +1038,7 @@ components:
           example: 102
         transaction_no:
           type: string
-          example: "TXN-10482938"
+          example: "OP-10482938"
         merchant_id:
           type: integer
           example: 1
@@ -1108,7 +1108,7 @@ components:
         transaction_id:
           type: string
           description: "Transaction number or payment intent UUID to refund"
-          example: "TXN-10482938"
+          example: "OP-10482938"
         amount:
           type: number
           format: float
@@ -1318,7 +1318,7 @@ components:
           example: "https://myshop.com/webhook"
         payload:
           type: string
-          example: "{\"event\":\"payment.completed\",\"transaction_id\":\"TXN-10482938\",\"amount\":\"500.00\",\"currency\":\"BDT\",\"gateway\":\"bkash\",\"status\":\"completed\",\"timestamp\":\"2026-05-21T02:45:00+06:00\"}"
+          example: "{\"event\":\"payment.completed\",\"transaction_id\":\"OP-10482938\",\"amount\":\"500.00\",\"currency\":\"BDT\",\"gateway\":\"bkash\",\"status\":\"completed\",\"timestamp\":\"2026-05-21T02:45:00+06:00\"}"
         status_code:
           type: integer
           example: 200
