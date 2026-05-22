@@ -16,6 +16,7 @@ phpstan_results.json
 
 # Dependencies
 node_modules/
+vendor/
 
 # OS files
 .DS_Store
