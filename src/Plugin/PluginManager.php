@@ -321,7 +321,162 @@ final class PluginManager
             'theme'   => 'themes',
             default   => 'addons',
         };
+        if (($plugin['status'] ?? '') === 'trashed') {
+            return $paths['storage'] . '/trash/plugins/' . $typeDir . '/' . $plugin['slug'];
+        }
         return $paths['modules'] . '/' . $typeDir . '/' . $plugin['slug'];
+    }
+
+    /**
+     * Moves a plugin to the trash storage folder and updates its status to 'trashed'.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return array{success: bool, error?: string} Trashing outcome.
+     */
+    public function trash(string $slug): array
+    {
+        $plugin = $this->repo->findBySlug($slug);
+        if ($plugin === null) {
+            return ['success' => false, 'error' => 'Plugin not found'];
+        }
+
+        if (($plugin['status'] ?? '') === 'trashed') {
+            return ['success' => true];
+        }
+
+        // Deactivate plugin first if it is active to safely remove hooks and references
+        if ($plugin['status'] === 'active') {
+            $this->deactivate($slug);
+            // Refresh plugin record
+            $plugin = $this->repo->findBySlug($slug);
+        }
+
+        $paths = $this->container->get('config.app')['paths'];
+        $typeDir = match ($plugin['type']) {
+            'gateway' => 'gateways',
+            'theme'   => 'themes',
+            default   => 'addons',
+        };
+
+        $srcDir = $paths['modules'] . '/' . $typeDir . '/' . $plugin['slug'];
+        $destDir = $paths['storage'] . '/trash/plugins/' . $typeDir . '/' . $plugin['slug'];
+
+        if (!is_dir($srcDir)) {
+            return ['success' => false, 'error' => 'Plugin files not found in modules path'];
+        }
+
+        // Move the files to the trash folder
+        $parentDir = dirname($destDir);
+        if (!is_dir($parentDir)) {
+            @mkdir($parentDir, 0755, true);
+        }
+
+        // Use rename or copy fallback
+        if (!@rename($srcDir, $destDir)) {
+            $this->copyDir($srcDir, $destDir);
+            $this->removeDir($srcDir);
+        }
+
+        // Update database status to trashed
+        $this->repo->update((int) $plugin['id'], ['status' => 'trashed']);
+
+        $this->events->doAction('plugin.trashed', $slug);
+
+        return ['success' => true];
+    }
+
+    /**
+     * Restores a trashed plugin back to the live modules tree.
+     *
+     * @param string $slug Unique plugin identifier.
+     * @return array{success: bool, error?: string} Restoration outcome.
+     */
+    public function restore(string $slug): array
+    {
+        $plugin = $this->repo->findBySlug($slug);
+        if ($plugin === null) {
+            return ['success' => false, 'error' => 'Plugin not found'];
+        }
+
+        if (($plugin['status'] ?? '') !== 'trashed') {
+            return ['success' => false, 'error' => 'Plugin is not in the trash'];
+        }
+
+        $paths = $this->container->get('config.app')['paths'];
+        $typeDir = match ($plugin['type']) {
+            'gateway' => 'gateways',
+            'theme'   => 'themes',
+            default   => 'addons',
+        };
+
+        $srcDir = $paths['storage'] . '/trash/plugins/' . $typeDir . '/' . $plugin['slug'];
+        $destDir = $paths['modules'] . '/' . $typeDir . '/' . $plugin['slug'];
+
+        if (!is_dir($srcDir)) {
+            return ['success' => false, 'error' => 'Plugin files not found in trash path'];
+        }
+
+        // Restore files to the active modules folder
+        $parentDir = dirname($destDir);
+        if (!is_dir($parentDir)) {
+            @mkdir($parentDir, 0755, true);
+        }
+
+        if (is_dir($destDir)) {
+            return ['success' => false, 'error' => 'Plugin directory already exists in live modules. Please delete it first.'];
+        }
+
+        // Use rename or copy fallback
+        if (!@rename($srcDir, $destDir)) {
+            $this->copyDir($srcDir, $destDir);
+            $this->removeDir($srcDir);
+        }
+
+        // Update database status to inactive
+        $this->repo->update((int) $plugin['id'], ['status' => 'inactive']);
+
+        $this->events->doAction('plugin.restored', $slug);
+
+        return ['success' => true];
+    }
+
+    /**
+     * Recursively removes a directory and its nested contents.
+     *
+     * @param string $dir Absolute directory path.
+     * @return bool True if successfully deleted.
+     */
+    private function removeDir(string $dir): bool
+    {
+        if (!is_dir($dir)) return false;
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::CHILD_FIRST
+        );
+        foreach ($items as $item) {
+            $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+        }
+        return @rmdir($dir);
+    }
+
+    /**
+     * Recursively copies a directory to a target location.
+     *
+     * @param string $src Source directory path.
+     * @param string $dst Destination directory path.
+     * @return void
+     */
+    private function copyDir(string $src, string $dst): void
+    {
+        @mkdir($dst, 0755, true);
+        $items = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($src, \FilesystemIterator::SKIP_DOTS),
+            \RecursiveIteratorIterator::SELF_FIRST
+        );
+        foreach ($items as $item) {
+            $target = $dst . '/' . $items->getSubPathname();
+            $item->isDir() ? @mkdir($target, 0755) : @copy($item->getPathname(), $target);
+        }
     }
 
     /**

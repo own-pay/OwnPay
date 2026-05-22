@@ -95,6 +95,16 @@ final class PluginLoader
      */
     public function boot(): void
     {
+        try {
+            $db = $this->container->get(\OwnPay\Core\Database::class);
+            $col = $db->fetchOne("SHOW COLUMNS FROM op_plugins LIKE 'status'");
+            if ($col && !str_contains($col['Type'], 'trashed')) {
+                $db->execute("ALTER TABLE op_plugins MODIFY COLUMN status ENUM('active','inactive','error','trashed') NOT NULL DEFAULT 'inactive'");
+            }
+        } catch (\Throwable $e) {
+            // Ignore if DB is not ready or setup yet (e.g. installer phase)
+        }
+
         $this->loadActive();
     }
 

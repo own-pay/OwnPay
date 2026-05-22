@@ -113,10 +113,29 @@ final class DeviceController
 
         try {
             $result = $svc->generatePairingOtp($mid);
+
+            // Generate QR Code SVG base64 URI
+            $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+            $serverUrl = $urlService->resolveBaseUrl($mid, $req);
+
+            $qrPayload = json_encode([
+                'server_url' => $serverUrl,
+                'otp'        => $result['otp']
+            ]);
+
+            $options = new \chillerlan\QRCode\QROptions([
+                'version'    => 5,
+                'outputType' => \chillerlan\QRCode\QRCode::OUTPUT_MARKUP_SVG,
+                'eccLevel'   => \chillerlan\QRCode\QRCode::ECC_L,
+            ]);
+            $qrcode = new \chillerlan\QRCode\QRCode($options);
+            $qrSvg = $qrcode->render($qrPayload);
+
             return Response::json([
                 'success'    => true,
                 'otp'        => $result['otp'],
                 'expires_in' => $result['expires_in'] ?? 300,
+                'qr_svg'     => $qrSvg,
                 'csrf_token' => \OwnPay\Security\SecurityHelpers::csrfToken(),
             ]);
         } catch (\Throwable $e) {
@@ -178,5 +197,32 @@ final class DeviceController
             $this->session->flashError('No devices selected.');
         }
         return Response::redirect('/admin/devices');
+    }
+
+    /**
+     * Checks if any active device is paired for the current brand.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The JSON status check response.
+     */
+    public function checkStatus(Request $req): Response
+    {
+        $svc = $this->getService();
+        if ($svc === null) {
+            return Response::json(['success' => false, 'error' => 'Device service not configured']);
+        }
+
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+
+        $devices = $svc->listDevices($mid);
+        $activeCount = count(array_filter($devices, fn($d) => ($d['status'] ?? '') === 'active'));
+
+        return Response::json([
+            'success' => true,
+            'paired'  => $activeCount > 0
+        ]);
     }
 }

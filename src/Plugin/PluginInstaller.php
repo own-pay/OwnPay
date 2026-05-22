@@ -92,7 +92,15 @@ final class PluginInstaller
     {
         $typeDir = $this->resolveTypeDir($type);
         $dir = $this->modulesDir . '/' . $typeDir . '/' . SecurityHelpers::sanitizeSlug($slug);
-        return is_dir($dir) ? $this->removeDir($dir) : false;
+        $deleted = is_dir($dir) ? $this->removeDir($dir) : false;
+
+        $trashDir = dirname($this->modulesDir) . '/storage/trash/plugins/' . $typeDir . '/' . SecurityHelpers::sanitizeSlug($slug);
+        if (is_dir($trashDir)) {
+            $this->removeDir($trashDir);
+            $deleted = true;
+        }
+
+        return $deleted;
     }
 
     /**

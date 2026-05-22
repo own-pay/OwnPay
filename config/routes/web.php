@@ -93,6 +93,14 @@ return static function (\OwnPay\Http\Router $router): void {
     // Admin content fragments (loaded via AJAX into SPA shell)
     $router->get('/admin/fragment/{page}', 'Admin\\DashboardController@fragment', 'admin');
 
+    // Onboarding Setup Wizard
+    $router->post('/admin/setup-wizard/save-settings', 'Admin\\DashboardController@saveOnboardingSettings', 'admin');
+    $router->post('/admin/setup-wizard/create-brand', 'Admin\\DashboardController@createOnboardingBrand', 'admin');
+    $router->post('/admin/setup-wizard/setup-mail', 'Admin\\DashboardController@setupOnboardingMail', 'admin');
+    $router->post('/admin/setup-wizard/setup-gateway', 'Admin\\DashboardController@setupOnboardingGateway', 'admin');
+    $router->post('/admin/setup-wizard/complete', 'Admin\\DashboardController@completeOnboarding', 'admin');
+    $router->post('/admin/setup-wizard/dismiss', 'Admin\\DashboardController@dismissOnboarding', 'admin');
+
     // Transactions
     $router->get('/admin/transactions', 'Admin\\TransactionController@index', 'admin');
     $router->get('/admin/transactions/{id}', 'Admin\\TransactionController@show', 'admin');
@@ -172,6 +180,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // Devices
     $router->get('/admin/devices', 'Admin\\DeviceController@index', 'admin');
     $router->post('/admin/devices/generate-otp', 'Admin\\DeviceController@generateOtp', 'admin');
+    $router->get('/admin/devices/check-status', 'Admin\\DeviceController@checkStatus', 'admin');
     $router->post('/admin/devices/{id}/revoke', 'Admin\\DeviceController@revoke', 'admin');
     $router->post('/admin/devices/bulk-revoke', 'Admin\\DeviceController@bulkRevoke', 'admin');
 
@@ -225,6 +234,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/plugins/{slug}/activate', 'Admin\\PluginController@activate', 'admin');
     $router->post('/admin/plugins/{slug}/deactivate', 'Admin\\PluginController@deactivate', 'admin');
     $router->post('/admin/plugins/{slug}/uninstall', 'Admin\\PluginController@uninstall', 'admin');
+    $router->post('/admin/plugins/{slug}/trash', 'Admin\\PluginController@trash', 'admin');
+    $router->post('/admin/plugins/{slug}/restore', 'Admin\\PluginController@restore', 'admin');
     $router->get('/admin/plugins/{slug}/settings', 'Admin\\PluginController@settings', 'admin');
     $router->post('/admin/plugins/{slug}/settings', 'Admin\\PluginController@saveSettings', 'admin');
 

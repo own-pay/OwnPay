@@ -15,6 +15,10 @@
     </div>
 </div>
 
+{% if onboarding_completed == 0 %}
+    {% include 'admin/dashboard/_setup_wizard.twig' %}
+{% endif %}
+
 {{ hook('admin.dashboard.before')|raw }}
 
 {# Stats Cards #}
