@@ -29,8 +29,8 @@ class ServiceTest extends TestCase
 
     public function testTransactionIdFormat(): void
     {
-        $trxId = 'TXN-' . strtoupper(bin2hex(random_bytes(8)));
-        $this->assertMatchesRegularExpression('/^TXN-[A-F0-9]{16}$/', $trxId);
+        $trxId = 'OP-' . strtoupper(bin2hex(random_bytes(5)));
+        $this->assertMatchesRegularExpression('/^OP-[A-F0-9]{10}$/', $trxId);
     }
 
     // L8: SMS Parser

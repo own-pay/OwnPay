@@ -145,6 +145,21 @@ final class DashboardController
 
         $recent = $this->txnRepo->getRecentDashboardTransactions($isGlobal, $brandId);
 
+        // Decrypt customer names for rendering
+        $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
+        $recent = array_map(function (array $txn) use ($enc) {
+            if (!empty($txn['customer_name'])) {
+                try {
+                    $txn['customer_name'] = $enc->decrypt($txn['customer_name']);
+                } catch (\Throwable $e) {
+                    $txn['customer_name'] = '[encrypted]';
+                }
+            } else {
+                $txn['customer_name'] = '—';
+            }
+            return $txn;
+        }, $recent);
+
         $brandBreakdown = [];
         if ($isGlobal) {
             $brandBreakdown = $this->txnRepo->getGlobalBrandBreakdown();

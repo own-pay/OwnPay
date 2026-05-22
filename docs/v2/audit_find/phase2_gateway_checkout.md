@@ -32,7 +32,7 @@ Phase 2 audit reveals multiple critical defects in the payment callback and webh
      ```php
      $transaction = $this->transactions->findByTrxId($merchantId, $trxId);
      ```
-     This lookup will fail to find any matching transaction in the database (since our database expects the internal `trx_id` starting with `OP-` or `TXN-`).
+     This lookup will fail to find any matching transaction in the database (since our database expects the internal `trx_id` starting with `OP-`).
 - **Impact**: All SSLCommerz transactions will remain in `pending` status indefinitely, and the customer callback return flow will fail.
 
 ---
