@@ -650,7 +650,7 @@
         fetch('manifest.json')
             .then(response => {
                 if (!response.ok) {
-                    throw new Error('Network response was not ok');
+                    throw new Error();
                 }
                 return response.json();
             })
@@ -658,9 +658,8 @@
                 manifestData = data;
                 renderPage();
             })
-            .catch(error => {
-                console.error('Error fetching update manifest:', error);
-                showErrorState();
+            .catch(() => {
+                showNoUpdateFound();
             });
 
         function switchChannel(channel) {
@@ -709,6 +708,45 @@
             });
         }
 
+        async function checkZipExists(url) {
+            if (!url) return false;
+            try {
+                let localUrl = url;
+                const releasesIdx = url.indexOf('/releases/');
+                if (releasesIdx !== -1) {
+                    localUrl = url.substring(releasesIdx + 1);
+                }
+
+                const response = await fetch(localUrl, { method: 'HEAD' });
+                if (response.status === 404) {
+                    return false;
+                }
+                return response.ok;
+            } catch (error) {
+                const isRelative = !url.startsWith('http://') && !url.startsWith('https://');
+                const isSameDomain = url.includes(window.location.host);
+                if (isRelative || isSameDomain) {
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        function showNoUpdateFound() {
+            const emptyHtml = `
+                <div class="empty-state">
+                    <p>No update found.</p>
+                </div>
+            `;
+            document.getElementById('stable-latest-container').innerHTML = emptyHtml;
+            document.getElementById('beta-latest-container').innerHTML = emptyHtml;
+            document.getElementById('stable-history-list').innerHTML = '';
+            document.getElementById('beta-history-list').innerHTML = '';
+            document.getElementById('stats-stable').textContent = 'N/A';
+            document.getElementById('stats-beta').textContent = 'N/A';
+            document.getElementById('stats-updated').textContent = 'N/A';
+        }
+
         function toggleHistoryItem(element) {
             const item = element.closest('.history-item');
             item.classList.toggle('open');
@@ -742,14 +780,14 @@
             renderChannel('beta', betaReleases);
         }
 
-        function renderChannel(channel, releases) {
+        async function renderChannel(channel, releases) {
             const latestContainer = document.getElementById(`${channel}-latest-container`);
             const historyList = document.getElementById(`${channel}-history-list`);
 
             if (releases.length === 0) {
                 latestContainer.innerHTML = `
                     <div class="empty-state">
-                        <p>No releases published in the ${channel} channel yet.</p>
+                        <p>No update found.</p>
                     </div>
                 `;
                 historyList.innerHTML = '';
@@ -759,6 +797,20 @@
             // Latest is first index
             const latest = releases[0];
             const history = releases.slice(1);
+
+            // Verify if zip file exists
+            const zipExists = await checkZipExists(latest.download_url);
+            if (!zipExists) {
+                latestContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>No update found.</p>
+                    </div>
+                `;
+                historyList.innerHTML = '';
+                const statsId = channel === 'stable' ? 'stats-stable' : 'stats-beta';
+                document.getElementById(statsId).textContent = 'N/A';
+                return;
+            }
 
             // Render Latest Card
             latestContainer.innerHTML = `
@@ -898,16 +950,7 @@
             `).join('');
         }
 
-        function showErrorState() {
-            const errHtml = `
-                <div class="empty-state" style="border-color: var(--danger);">
-                    <p style="color: var(--danger); font-weight: 600; margin-bottom: 8px;">Manifest Error</p>
-                    <p>Unable to fetch the update manifest. Make sure manifest.json exists in this folder.</p>
-                </div>
-            `;
-            document.getElementById('stable-latest-container').innerHTML = errHtml;
-            document.getElementById('beta-latest-container').innerHTML = errHtml;
-        }
+        // Error state handled gracefully by showNoUpdateFound()
     </script>
 </body>
 </html>
