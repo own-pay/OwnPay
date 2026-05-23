@@ -107,6 +107,13 @@ final class CheckoutController
             return $this->renderStatus($ref, 'expired');
         }
 
+        // Verify active brand status
+        $mid = (int) $txn['merchant_id'];
+        $merchant = $this->merchants->find($mid);
+        if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
+            return $this->renderStatus($ref, 'expired');
+        }
+
         // Enforce session timeout: cancel processing if the transaction timeline has expired.
         if (!empty($txn['expires_at']) && DateHelper::isPast($txn['expires_at'])) {
             return $this->renderStatus($ref, 'expired');
@@ -382,6 +389,16 @@ final class CheckoutController
         if (!$txn) {
             if ($req->isAjax()) {
                 return Response::json(['success' => false, 'error' => 'Transaction expired or not found.'], 404);
+            }
+            return $this->renderStatus($token, 'expired');
+        }
+
+        // Verify active brand status
+        $mid = (int) $txn['merchant_id'];
+        $merchant = $this->merchants->find($mid);
+        if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Merchant account is suspended.'], 403);
             }
             return $this->renderStatus($token, 'expired');
         }

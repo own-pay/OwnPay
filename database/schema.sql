@@ -397,7 +397,8 @@ CREATE TABLE `op_invoices` (
   UNIQUE KEY `uk_uuid` (`uuid`),
   UNIQUE KEY `uk_token` (`token`),
   UNIQUE KEY `uk_merchant_number` (`merchant_id`, `invoice_number`),
-  CONSTRAINT `fk_inv_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
+  CONSTRAINT `fk_inv_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE,
+  CONSTRAINT `fk_inv_customer` FOREIGN KEY (`customer_id`) REFERENCES `op_customers` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `op_invoice_items` (

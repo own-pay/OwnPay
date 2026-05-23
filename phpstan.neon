@@ -4,6 +4,7 @@ parameters:
         - src
     excludePaths:
         - vendor
+        - node_modules (?)
     ignoreErrors:
         - '#Constant OWNPAY_INIT not found.#'
     reportUnmatchedIgnoredErrors: false

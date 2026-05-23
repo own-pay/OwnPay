@@ -4,7 +4,7 @@
 Resolve all hardcoded references and redirects to `/login` with dynamic login slug resolution so that setting a custom login prefix (e.g., `/root`) does not result in 404 errors during login form rendering, credentials validation failures, or session redirects.
 
 ## Current Phase
-Phase 2: Planning & Structure
+Phase 5: Delivery
 
 ## Phases
 
@@ -20,19 +20,19 @@ Phase 2: Planning & Structure
 - **Status:** complete
 
 ### Phase 3: Implementation
-- [ ] Add `resolveLoginSlug()` helper to `AuthController` and pass `login_url` in both rendering routes
-- [ ] Add `resolveLoginSlug()` helper to `DashboardController`
-- [ ] Replace all hardcoded redirects to `/login` with the resolved login slug in `AuthController` and `DashboardController`
-- **Status:** pending
+- [x] Add `resolveLoginSlug()` helper to `AuthController` and pass `login_url` in both rendering routes
+- [x] Add `resolveLoginSlug()` helper to `DashboardController`
+- [x] Replace all hardcoded redirects to `/login` with the resolved login slug in `AuthController` and `DashboardController`
+- **Status:** complete
 
 ### Phase 4: Testing & Verification
-- [ ] Run test suite to verify no regressions
-- [ ] Manually verify logic against the resolved login slug
-- **Status:** pending
+- [x] Run test suite to verify no regressions
+- [x] Manually verify logic against the resolved login slug
+- **Status:** complete
 
 ### Phase 5: Delivery
-- [ ] Document final walkthrough
-- **Status:** pending
+- [x] Document final walkthrough
+- **Status:** complete
 
 ## Decisions Made
 | Decision | Rationale |
@@ -42,3 +42,5 @@ Phase 2: Planning & Structure
 ## Errors Encountered
 | Error | Resolution |
 |-------|------------|
+| PHPUnit ClassIsFinalException: AuthController cannot be doubled | Use PHP Reflection's `newInstanceWithoutConstructor()` to instantiate the final classes instead of mocking them. |
+| PHPUnit ClassIsFinalException: SettingsRepository cannot be doubled | Use PHP Reflection's `newInstanceWithoutConstructor()` to instantiate `SettingsRepository` via Reflection as well. |

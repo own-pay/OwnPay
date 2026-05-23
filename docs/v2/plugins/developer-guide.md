@@ -245,3 +245,52 @@ Gateways must tell the checkout system which currencies they accept.
 
 ## 8. Complete Reference
 * List of hooks, filters, and lifecycle triggers: [Hooks Reference](docs/v2/plugins/hooks-reference.md).
+
+---
+
+## 9. Scaffolding Modules with the OwnPay CLI
+
+To speed up extension development and ensure strict adherence to secure coding invariants (strict typing, PSR-4 structure, PCI-DSS compliance, timing-safe webhook validations), OwnPay provides an interactive developer CLI tool located at `cli/create-module.php`.
+
+### Running the Generator
+
+Execute the command from your project root:
+
+```bash
+php cli/create-module.php
+```
+
+### Advanced Features & What It Scaffolds
+
+The interactive wizard automates the entire scaffolding process cleanly:
+
+1. **Auto Slug Derivation**: The slug is automatically derived from the Module Name to prevent structural deviations.
+2. **Custom Logo Placement Guide**: To maintain pure white-labeling, the CLI generates a custom logo guide inside the terminal, outlining how to place your branding logo (`SVG`, `PNG`, or `JPG` format) inside your extension's `assets/` folder and map it via `"icon": "assets/icon.png"` in your manifest.
+3. **Comprehensive manifest.json**: Pre-generates all possible manifest parameters (CSP attributes, capabilities lists, permission requirements, hook subscriptions, settings groups, and asset arrays) to serve as a complete reference dictionary.
+4. **Gateway Plugins**: Complete `GatewayAdapterInterface` implementation with secure `initiate()`, `verify()` (backchannel API validated), `verifyWebhook()` (timing-safe HMAC checked), and encrypted credentials configuration field schema.
+5. **Addon Plugins**: Basic `PluginInterface` with Capability enums, sample settings, webhook actions, and transaction subscribers.
+6. **Themes (PHP or Twig Templates)**:
+   - **Twig Templates**: Generates standard twig files (`checkout.twig`, `checkout-status.twig`, `payment-link-amount.twig`).
+   - **PHP Templates (Default)**: Generates lightweight twig bridge wrappers along with pure, standard modern PHP files (`checkout.php`, `checkout-status.php`, `payment-link-amount.php`). Registers a custom namespaced `render_php()` function dynamically inside the theme entrypoint, enabling secure and native PHP template rendering within core checkout controllers.
+
+### Generated Layout
+
+For a new theme `modern-dark` using PHP templates:
+```text
+modules/themes/modern-dark/
+├── manifest.json                                # Enriched manifest featuring all available tags
+├── Theme.php                                    # Entrypoint class featuring the dynamic PHP renderer
+├── assets/
+│   ├── css/checkout.css                         # Pre-styled checkout theme styling rules
+│   └── js/
+│       ├── checkout.js                          # Theme DOM action logic
+│       └── op-fetch.js                          # Secure backchannel fetch client
+└── templates/
+    └── checkout/
+        ├── checkout.twig                        # Twig bridge wrapper
+        ├── checkout-status.twig                 # Twig status bridge wrapper
+        ├── payment-link-amount.twig             # Twig link amount bridge wrapper
+        ├── checkout.php                         # Pure PHP checkout layout view template
+        ├── checkout-status.php                  # Pure PHP checkout status display
+        └── payment-link-amount.php              # Pure PHP direct payment form
+```

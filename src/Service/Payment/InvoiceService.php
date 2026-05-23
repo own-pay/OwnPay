@@ -126,20 +126,22 @@ final class InvoiceService
 
         // Calculate totals from line items
         $items = $data['items'] ?? [];
-        $subtotal = 0;
+        $subtotal = '0.00';
         foreach ($items as &$item) {
-            $qty   = max(1, (int) ($item['quantity'] ?? 1));
-            $price = (float) ($item['unit_price'] ?? $item['amount'] ?? 0);
-            $item['quantity']   = $qty;
+            $qty   = (string) max(1, (int) ($item['quantity'] ?? 1));
+            $price = number_format((float) ($item['unit_price'] ?? $item['amount'] ?? 0), 2, '.', '');
+            $item['quantity']   = (int) $qty;
             $item['unit_price'] = $price;
-            $item['total']      = $qty * $price;
-            $subtotal += $item['total'];
+            $itemTotal = bcmul($qty, $price, 2);
+            $item['total']      = $itemTotal;
+            $subtotal = bcadd($subtotal, $itemTotal, 2);
         }
         unset($item);
 
-        $tax      = (float) ($data['tax'] ?? 0);
-        $discount = (float) ($data['discount'] ?? 0);
-        $total    = $subtotal + $tax - $discount;
+        $tax      = number_format((float) ($data['tax'] ?? 0), 2, '.', '');
+        $discount = number_format((float) ($data['discount'] ?? 0), 2, '.', '');
+        $total    = bcadd($subtotal, $tax, 2);
+        $total    = bcsub($total, $discount, 2);
 
         $id = $this->db->insert(
             "INSERT INTO op_invoices (merchant_id, uuid, token, invoice_number, customer_id, subtotal, tax, discount, total, currency, notes, due_date, status, created_at, updated_at)
@@ -200,20 +202,22 @@ final class InvoiceService
 
         // Calculate totals from line items
         $items = $data['items'] ?? [];
-        $subtotal = 0;
+        $subtotal = '0.00';
         foreach ($items as &$item) {
-            $qty   = max(1, (int) ($item['quantity'] ?? 1));
-            $price = (float) ($item['unit_price'] ?? $item['amount'] ?? 0);
-            $item['quantity']   = $qty;
+            $qty   = (string) max(1, (int) ($item['quantity'] ?? 1));
+            $price = number_format((float) ($item['unit_price'] ?? $item['amount'] ?? 0), 2, '.', '');
+            $item['quantity']   = (int) $qty;
             $item['unit_price'] = $price;
-            $item['total']      = $qty * $price;
-            $subtotal += $item['total'];
+            $itemTotal = bcmul($qty, $price, 2);
+            $item['total']      = $itemTotal;
+            $subtotal = bcadd($subtotal, $itemTotal, 2);
         }
         unset($item);
 
-        $tax      = (float) ($data['tax'] ?? 0);
-        $discount = (float) ($data['discount'] ?? 0);
-        $total    = $subtotal + $tax - $discount;
+        $tax      = number_format((float) ($data['tax'] ?? 0), 2, '.', '');
+        $discount = number_format((float) ($data['discount'] ?? 0), 2, '.', '');
+        $total    = bcadd($subtotal, $tax, 2);
+        $total    = bcsub($total, $discount, 2);
 
         $status = $data['status'] ?? 'draft';
         $allowedStatuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];

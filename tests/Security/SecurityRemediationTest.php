@@ -294,6 +294,35 @@ final class SecurityRemediationTest extends TestCase
             $methodTwo->setAccessible(true);
             $resolvedTwo = $methodTwo->invoke($twoFactorMiddleware);
             $this->assertSame($testSlug, $resolvedTwo);
+
+            // Test AuthController
+            $refAuth = new \ReflectionClass(\OwnPay\Controller\Admin\AuthController::class);
+            $authController = $refAuth->newInstanceWithoutConstructor();
+            $propC = $refAuth->getProperty('c');
+            $propC->setAccessible(true);
+            $propC->setValue($authController, $container);
+            $propSettings = $refAuth->getProperty('settings');
+            $propSettings->setAccessible(true);
+            $refSettings = new \ReflectionClass(\OwnPay\Repository\SettingsRepository::class);
+            $settingsRepo = $refSettings->newInstanceWithoutConstructor();
+            $propSettings->setValue($authController, $settingsRepo);
+
+            $methodAuth = $refAuth->getMethod('resolveLoginSlug');
+            $methodAuth->setAccessible(true);
+            $resolvedAuth = $methodAuth->invoke($authController);
+            $this->assertSame($testSlug, $resolvedAuth);
+
+            // Test DashboardController
+            $refDash = new \ReflectionClass(\OwnPay\Controller\Admin\DashboardController::class);
+            $dashController = $refDash->newInstanceWithoutConstructor();
+            $propDashC = $refDash->getProperty('c');
+            $propDashC->setAccessible(true);
+            $propDashC->setValue($dashController, $container);
+
+            $methodDash = $refDash->getMethod('resolveLoginSlug');
+            $methodDash->setAccessible(true);
+            $resolvedDash = $methodDash->invoke($dashController);
+            $this->assertSame($testSlug, $resolvedDash);
         } finally {
             if (file_exists($cacheFile)) {
                 unlink($cacheFile);

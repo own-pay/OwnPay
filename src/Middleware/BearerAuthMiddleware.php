@@ -93,6 +93,16 @@ final class BearerAuthMiddleware
         $request->setAttribute('api_key', $apiKey);
         $request->setAttribute('merchant_id', (int) $apiKey['merchant_id']);
 
+        // Check active merchant status
+        $merchantRepo = $this->container->get(\OwnPay\Repository\MerchantRepository::class);
+        $merchant = $merchantRepo->find((int) $apiKey['merchant_id']);
+        if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
+            return Response::json([
+                'success' => false,
+                'message' => 'Merchant account is suspended or inactive',
+            ], 403);
+        }
+
         // Touch last_used (fire-and-forget)
         $repo->touchLastUsed((int) $apiKey['id']);
 

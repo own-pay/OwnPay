@@ -102,6 +102,13 @@ final class DomainMiddleware
             return Response::html('', 404);
         }
 
+        // Enforce active merchant status check
+        $merchantRepo = $this->container->get(\OwnPay\Repository\MerchantRepository::class);
+        $merchant = $merchantRepo->find((int) $domainRecord['merchant_id']);
+        if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
+            return Response::html('<h1>404 Not Found</h1>', 404);
+        }
+
         // Set request attributes to propagate resolved brand parameters down the application pipeline.
         $request->setAttribute('domain', $domainRecord);
         $request->setAttribute('merchant_id', (int) $domainRecord['merchant_id']);
