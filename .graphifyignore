@@ -11,6 +11,14 @@ Thumbs.db
 
 # Storage (logs, cache, sessions, user uploads)
 storage/
+update/
+scratch/
+mobile_app/
+cli/
+.planning/
+.github/
+.antigravitycli/
+.agents/
 
 # Temporary / Build
 graphify-out/
@@ -18,3 +26,4 @@ graphify-out/
 *.sqlite
 .phpunit.cache/
 tests/
+scratch_test.php
