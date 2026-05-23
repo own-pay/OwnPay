@@ -93,7 +93,7 @@ final class GooglePayGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('Google Pay is in live mode but only supports simulated payments.');
         }
 
-        $redirectUrl = $params['redirect_url'] ?? '';
+        $redirectUrl = $params['redirect_url'];
         $separator = str_contains($redirectUrl, '?') ? '&' : '?';
         
         $mockPaymentId = 'GPAY_MOCK_' . bin2hex(random_bytes(8));
@@ -113,8 +113,7 @@ final class GooglePayGateway implements PluginInterface, GatewayAdapterInterface
         if ($mode === 'live') {
             return [
                 'success'        => false,
-                'gateway_trx_id' => null,
-                'amount'         => null,
+                'gateway_trx_id' => '',
                 'status'         => 'failed',
             ];
         }
@@ -122,18 +121,20 @@ final class GooglePayGateway implements PluginInterface, GatewayAdapterInterface
         $paymentId = $callbackData['paymentID'] ?? $callbackData['session_id'] ?? '';
         
         if (str_starts_with((string)$paymentId, 'GPAY_MOCK_')) {
-            return [
+            $res = [
                 'success'        => true,
                 'gateway_trx_id' => 'GPAY_TRX_' . bin2hex(random_bytes(12)),
-                'amount'         => $callbackData['amount'] ?? null,
                 'status'         => 'success',
             ];
+            if (isset($callbackData['amount'])) {
+                $res['amount'] = (string)$callbackData['amount'];
+            }
+            return $res;
         }
 
         return [
             'success'        => false,
-            'gateway_trx_id' => null,
-            'amount'         => null,
+            'gateway_trx_id' => '',
             'status'         => 'failed',
         ];
     }

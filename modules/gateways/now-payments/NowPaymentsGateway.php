@@ -76,10 +76,10 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
         $url = $baseUrl . 'invoice';
 
         $apiKey = $credentials['now_payment_api_key'] ?? '';
-        $trxId = $params['trx_id'] ?? '';
+        $trxId = $params['trx_id'];
 
-        $redirectUrl = $params['redirect_url'] ?? '';
-        $cancelUrl = $params['cancel_url'] ?? '';
+        $redirectUrl = $params['redirect_url'];
+        $cancelUrl = $params['cancel_url'];
 
         // Construct webhook/IPN URL dynamically from the redirect URL
         $parsed = parse_url($redirectUrl);
@@ -90,7 +90,7 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
 
         $postData = [
             'price_amount'      => (float) $params['amount'],
-            'price_currency'    => strtolower($params['currency'] ?? 'usd'),
+            'price_currency'    => strtolower($params['currency']),
             'pay_currency'      => null, // Customer selects coin on NOWPayments hosted checkout
             'order_id'          => $trxId,
             'order_description' => 'Payment for Order #' . $trxId,
@@ -105,7 +105,7 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'x-api-key: ' . $apiKey,
                 'Content-Type: application/json'
@@ -144,21 +144,23 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
         // If paymentStatus is present, it's an IPN/webhook callback
         if ($paymentStatus !== '') {
             $isPaid = in_array(strtolower($paymentStatus), ['finished', 'sending', 'confirmed'], true);
-            return [
+            $res = [
                 'success'        => $isPaid,
                 'gateway_trx_id' => (string) $paymentId,
-                'amount'         => $priceAmount !== null ? (string) $priceAmount : null,
                 'status'         => $isPaid ? 'completed' : 'failed',
                 'order_id'       => $orderId,
             ];
+            if ($priceAmount !== null) {
+                $res['amount'] = (string) $priceAmount;
+            }
+            return $res;
         }
 
         // Return pending status if no webhook payload is present (e.g. initial redirect)
         $trxId = $callbackData['trx_id'] ?? $callbackData['paymentID'] ?? '';
         return [
             'success'        => false,
-            'gateway_trx_id' => null,
-            'amount'         => null,
+            'gateway_trx_id' => '',
             'status'         => 'pending',
             'trx_id'         => $trxId,
         ];

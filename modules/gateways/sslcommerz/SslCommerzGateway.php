@@ -115,14 +115,14 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
     /**
      * Defines configuration fields required to set up the gateway in the admin interface.
      *
-     * @return array<int, array{name: string, label: string, type: string, required: bool, options?: array<int, string>}> Configuration schema arrays.
+     * @return array<int, array{name: string, label: string, type: string, required: bool, options?: array<string, string>}> Configuration schema arrays.
      */
     public function fields(): array
     {
         return [
             ['name' => 'store_id', 'label' => 'Store ID', 'type' => 'text', 'required' => true],
             ['name' => 'store_passwd', 'label' => 'Store Password', 'type' => 'password', 'required' => true],
-            ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox', 'live'], 'required' => true],
+            ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['sandbox' => 'sandbox', 'live' => 'live'], 'required' => true],
         ];
     }
 
@@ -144,9 +144,9 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
             'total_amount' => $params['amount'],
             'currency'     => $params['currency'],
             'tran_id'      => $params['trx_id'],
-            'success_url'  => $params['redirect_url'] ?? '',
-            'fail_url'     => $params['cancel_url'] ?? '',
-            'cancel_url'   => $params['cancel_url'] ?? '',
+            'success_url'  => $params['redirect_url'],
+            'fail_url'     => $params['cancel_url'],
+            'cancel_url'   => $params['cancel_url'],
             'cus_name'     => 'Customer',
             'cus_email'    => 'customer@example.com',
             'cus_phone'    => '01700000000',

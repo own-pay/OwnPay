@@ -141,7 +141,7 @@ abstract class BaseRepository
         $cleanedWhere = preg_replace('/--.*$/m', ' ', $cleanedWhere) ?? $cleanedWhere;
         
         // Collapse all whitespace and lowercase for consistent safety verification.
-        $lowerWhere = strtolower(preg_replace('/\s+/', ' ', trim($cleanedWhere)));
+        $lowerWhere = strtolower((string) preg_replace('/\s+/', ' ', trim($cleanedWhere)));
         
         // Reject SQL command keywords to avoid space-less structures (e.g. select(1) or union(select...)).
         if (preg_match('/\b(drop|alter|truncate|union|insert|update|delete|create|select|load_file|into\s+outfile|into\s+dumpfile)\b/i', $cleanedWhere) || str_contains($lowerWhere, ';') || str_contains($lowerWhere, '--')) {

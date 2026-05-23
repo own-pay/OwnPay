@@ -67,29 +67,37 @@ final class Authenticator
      */
     public function attempt(string $email, string $password, string $ip, string $userAgent): array
     {
+        $attempts = $this->attempts;
+        $users = $this->users;
+        $events = $this->events;
+
+        if ($attempts === null || $events === null || $users === null) {
+            throw new \RuntimeException('Authenticator dependencies not fully initialized.');
+        }
+
         // Verify active lockout window to prevent brute-force attacks.
         $maxAttempts = (int) (getenv('MAX_LOGIN_ATTEMPTS') ?: 5);
         $window = (int) (getenv('LOCKOUT_DURATION') ?: 300);
-        $recentFails = $this->attempts->recentFailedCount($email, $ip, $window);
+        $recentFails = $attempts->recentFailedCount($email, $ip, $window);
 
         if ($recentFails >= $maxAttempts) {
-            $this->events->doAction('auth.login.failed', $email, $ip);
+            $events->doAction('auth.login.failed', $email, $ip);
             return ['success' => false, 'error' => 'Account temporarily locked. Try again later.'];
         }
 
-        $user = $this->users->findActiveByLogin($email);
+        $user = $users->findActiveByLogin($email);
 
         if ($user === null) {
             // Log failed attempt (constant time — don't reveal whether account exists)
             password_verify($password, '$argon2id$v=19$m=65536,t=4,p=1$c29tZXNhbHRzb21lc2FsdA$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
             $this->logAttempt($email, $ip, $userAgent, false);
-            $this->events->doAction('auth.login.failed', $email, $ip);
+            $events->doAction('auth.login.failed', $email, $ip);
             return ['success' => false, 'error' => 'Invalid credentials'];
         }
 
         if (!password_verify($password, $user['password_hash'])) {
             $this->logAttempt($email, $ip, $userAgent, false);
-            $this->events->doAction('auth.login.failed', $email, $ip);
+            $events->doAction('auth.login.failed', $email, $ip);
             return ['success' => false, 'error' => 'Invalid credentials'];
         }
 
@@ -107,9 +115,9 @@ final class Authenticator
 
         // Record successful login auditing and initialize session.
         $this->logAttempt($email, $ip, $userAgent, true);
-        $this->users->updateLastLogin((int) $user['id'], $ip);
+        $users->updateLastLogin((int) $user['id'], $ip);
         $this->startSession($user);
-        $this->events->doAction('auth.login.success', $user, $ip);
+        $events->doAction('auth.login.success', $user, $ip);
 
         return ['success' => true, 'user' => $user];
     }

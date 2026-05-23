@@ -207,8 +207,7 @@ return static function (\OwnPay\Container $c): void {
 
     $c->singleton(\OwnPay\Plugin\PluginInstaller::class, static function (\OwnPay\Container $c): \OwnPay\Plugin\PluginInstaller {
         return new \OwnPay\Plugin\PluginInstaller(
-            $c->get('config.app')['paths']['modules'],
-            $c->get(\OwnPay\Plugin\PluginRegistry::class)
+            $c->get('config.app')['paths']['modules']
         );
     });
 

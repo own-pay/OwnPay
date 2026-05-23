@@ -69,7 +69,7 @@ final class CashmaalGateway implements PluginInterface, GatewayAdapterInterface
 
         return [
             'redirect_url' => $checkoutUrl . $separator . 'redirect_to=cashmaal',
-            'session_id'   => $params['trx_id'] ?? '',
+            'session_id'   => $params['trx_id'],
         ];
     }
 

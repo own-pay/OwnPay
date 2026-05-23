@@ -88,11 +88,11 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
             'goods' => [
                 'goodsType'        => '01', // virtual
                 'goodsCategory'    => 'D000',
-                'referenceGoodsId' => $params['trx_id'] ?? '',
-                'goodsName'        => 'Payment ' . ($params['trx_id'] ?? ''),
+                'referenceGoodsId' => $params['trx_id'],
+                'goodsName'        => 'Payment ' . $params['trx_id'],
             ],
-            'returnUrl' => $params['redirect_url'] . $separator . 'status=success&session_id=' . urlencode($merchantTradeNo) . '&trx_id=' . urlencode($params['trx_id'] ?? ''),
-            'cancelUrl' => $params['cancel_url'] ?? '',
+            'returnUrl' => $params['redirect_url'] . $separator . 'status=success&session_id=' . urlencode($merchantTradeNo) . '&trx_id=' . urlencode($params['trx_id']),
+            'cancelUrl' => $params['cancel_url'],
         ];
 
         $payload = json_encode($orderData);
@@ -129,7 +129,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
 
         $data = json_decode($response, true);
         if (($data['status'] ?? '') !== 'SUCCESS' || empty($data['data']['checkoutUrl'])) {
-            throw new \RuntimeException('Binance Pay order creation failed: ' . ($response ?: 'Empty response'));
+            throw new \RuntimeException('Binance Pay order creation failed: ' . $response);
         }
 
         return [

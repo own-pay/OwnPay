@@ -488,7 +488,7 @@ final class InstallerController
 
         foreach (explode("\n", str_replace("\r\n", "\n", $sql)) as $line) {
             if (!$inString) {
-                $stripped = preg_replace('/\s*--.*$/', '', $line);
+                $stripped = (string) preg_replace('/\s*--.*$/', '', $line);
                 if (trim($stripped) === '') {
                     continue;
                 }

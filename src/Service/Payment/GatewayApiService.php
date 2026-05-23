@@ -227,19 +227,19 @@ final class GatewayApiService
         }
 
         // 1. Strip all event handler attributes (on*)
-        $html = preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']/i', '', $html);
+        $html = (string) preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']/i', '', $html);
         // Also handle unquoted: onclick=alert(1)
-        $html = preg_replace('/\s+on\w+\s*=\s*[^\s>]+/i', '', $html);
+        $html = (string) preg_replace('/\s+on\w+\s*=\s*[^\s>]+/i', '', $html);
 
         // 2. Strip javascript: URIs in href/action/src/formaction attributes
-        $html = preg_replace(
+        $html = (string) preg_replace(
             '/(href|action|src|formaction)\s*=\s*["\']?\s*javascript\s*:/i',
             '$1="about:blank" data-sanitized="',
             $html
         );
 
         // 3. Strip <script src="..."> (external script loading) but keep inline <script>
-        $html = preg_replace('/<script\s+[^>]*src\s*=\s*[^>]*>.*?<\/script>/is', '', $html);
+        $html = (string) preg_replace('/<script\s+[^>]*src\s*=\s*[^>]*>.*?<\/script>/is', '', $html);
 
         return $html;
     }

@@ -95,13 +95,13 @@ final class Plugin implements PluginInterface
 
     public function onCompleted(array $txn): void
     {
-        if (empty($this->settings['alert_on_success']) || $this->settings['alert_on_success'] === '0') return;
+        if (empty($this->settings['alert_on_success'])) return;
         $this->sendMessage($this->formatAlert('✅ Payment Received', $txn));
     }
 
     public function onFailed(array $txn): void
     {
-        if (empty($this->settings['alert_on_failure']) || $this->settings['alert_on_failure'] === '0') return;
+        if (empty($this->settings['alert_on_failure'])) return;
         $this->sendMessage($this->formatAlert('❌ Payment Failed', $txn));
     }
 
@@ -126,7 +126,7 @@ final class Plugin implements PluginInterface
      */
     public function handleWebhook(Request $req): Response
     {
-        $body = $req->jsonBody();
+        $body = $req->json();
         $message = $body['message'] ?? [];
         $text = trim($message['text'] ?? '');
         $chatId = (string) ($message['chat']['id'] ?? '');

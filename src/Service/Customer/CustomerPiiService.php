@@ -79,6 +79,9 @@ final class CustomerPiiService
         $repo = $this->customers->forTenant($merchantId);
         $id = $repo->createScoped($encrypted);
         $customer = $repo->findScoped((int) $id);
+        if ($customer === null) {
+            throw new \RuntimeException('Failed to retrieve newly created customer.');
+        }
 
         $this->events->doAction('customer.created', $this->maskForEvent($customer));
 
@@ -175,6 +178,9 @@ final class CustomerPiiService
         $repo = $this->customers->forTenant($merchantId);
         $repo->updateScoped($customerId, $encrypted);
         $customer = $repo->findScoped($customerId);
+        if ($customer === null) {
+            throw new \RuntimeException('Failed to retrieve updated customer.');
+        }
 
         $this->events->doAction('customer.updated', $this->maskForEvent($customer));
 

@@ -154,12 +154,12 @@ final class Plugin implements PluginInterface
      */
     public function send(array $payload): array
     {
-        if (empty($this->settings['enabled']) || $this->settings['enabled'] === '0') {
+        if (empty($this->settings['enabled'])) {
             return ['success' => false, 'error' => 'Email sending disabled'];
         }
 
-        $to = $payload['to'] ?? '';
-        $subject = $payload['subject'] ?? '';
+        $to = $payload['to'];
+        $subject = $payload['subject'];
         if ($to === '' || $subject === '') return ['success' => false, 'error' => 'Missing to/subject'];
 
         $body = $payload['body'] ?? '';

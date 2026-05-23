@@ -117,8 +117,8 @@ final class InputSanitizer
     public static function slug(string $input): string
     {
         $slug = strtolower(trim($input));
-        $slug = preg_replace('/[^a-z0-9\-_]/', '-', $slug);
-        return preg_replace('/-+/', '-', trim($slug, '-'));
+        $slug = (string) preg_replace('/[^a-z0-9\-_]/', '-', $slug);
+        return (string) preg_replace('/-+/', '-', trim($slug, '-'));
     }
 
     /**

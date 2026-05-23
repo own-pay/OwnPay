@@ -73,8 +73,8 @@ final class ConfigController
         }
 
         // Positive / negative keywords from system settings (admin-configurable)
-        $positiveRaw = $this->settings->get('sms', 'positive_keywords', '');
-        $negativeRaw = $this->settings->get('sms', 'negative_keywords', '');
+        $positiveRaw = (string) $this->settings->get('sms', 'positive_keywords', '');
+        $negativeRaw = (string) $this->settings->get('sms', 'negative_keywords', '');
 
         $positiveKeywords = $this->parseKeywords($positiveRaw, [
             'received', 'credited', 'TrxID', 'TxnID', 'deposited', 'Tk', 'BDT',

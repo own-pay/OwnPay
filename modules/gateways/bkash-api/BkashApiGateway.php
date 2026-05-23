@@ -159,16 +159,16 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
                 'Authorization: ' . $token,
-                'X-APP-Key: ' . ($credentials['app_key'] ?? ''),
+                'X-APP-Key: ' . $credentials['app_key'],
             ],
             CURLOPT_POSTFIELDS => json_encode([
                 'mode'                => '0011',
-                'payerReference'      => $params['trx_id'] ?? '',
-                'callbackURL'         => $params['redirect_url'] ?? '',
+                'payerReference'      => $params['trx_id'],
+                'callbackURL'         => $params['redirect_url'],
                 'amount'              => $params['amount'],
                 'currency'            => 'BDT',
                 'intent'              => 'sale',
-                'merchantInvoiceNumber' => $params['trx_id'] ?? '',
+                'merchantInvoiceNumber' => $params['trx_id'],
             ]),
         ]);
 
@@ -222,7 +222,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
                 'Authorization: ' . $token,
-                'X-APP-Key: ' . ($credentials['app_key'] ?? ''),
+                'X-APP-Key: ' . $credentials['app_key'],
             ],
             CURLOPT_POSTFIELDS => json_encode(['paymentID' => $paymentId]),
         ]);
@@ -233,9 +233,11 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
 
         if ($response === false) {
             return [
-                'success' => false,
-                'status'  => 'failed',
-                'error'   => 'bKash API connection error: ' . ($err ?: 'Unknown'),
+                'success'        => false,
+                'gateway_trx_id' => '',
+                'amount'         => null,
+                'status'         => 'failed',
+                'error'          => 'bKash API connection error: ' . ($err ?: 'Unknown'),
             ];
         }
 

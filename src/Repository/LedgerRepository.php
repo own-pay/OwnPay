@@ -76,7 +76,12 @@ final class LedgerRepository extends BaseRepository
             'balance' => '0.00',
         ]);
 
-        return $this->find($id);
+        $account = $this->find($id);
+        if ($account === null) {
+            throw new \RuntimeException("Failed to retrieve newly created ledger account.");
+        }
+
+        return $account;
     }
 
     /**

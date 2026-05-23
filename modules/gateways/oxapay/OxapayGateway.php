@@ -60,9 +60,9 @@ final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
     {
         $url = 'https://api.oxapay.com/merchants/request';
         $apiKey = $credentials['merchant_api_key'] ?? '';
-        $trxId = $params['trx_id'] ?? '';
+        $trxId = $params['trx_id'];
 
-        $redirectUrl = $params['redirect_url'] ?? '';
+        $redirectUrl = $params['redirect_url'];
 
         // Construct webhook/IPN URL dynamically from the redirect URL
         $parsed = parse_url($redirectUrl);
@@ -74,7 +74,7 @@ final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
         $postData = [
             'merchant'    => $apiKey,
             'amount'      => number_format((float) $params['amount'], 2, '.', ''),
-            'currency'    => strtoupper($params['currency'] ?? 'USD'),
+            'currency'    => strtoupper($params['currency']),
             'orderId'     => $trxId,
             'returnUrl'   => $redirectUrl,
             'callbackUrl' => $webhookUrl,
@@ -87,7 +87,7 @@ final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json'
             ],
@@ -124,21 +124,23 @@ final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
         // If status is present, it's a webhook / IPN callback
         if ($status !== '') {
             $isPaid = strtolower($status) === 'paid';
-            return [
+            $res = [
                 'success'        => $isPaid,
                 'gateway_trx_id' => (string) $trackId,
-                'amount'         => $amount !== null ? (string) $amount : null,
                 'status'         => $isPaid ? 'completed' : 'failed',
                 'order_id'       => $orderId,
             ];
+            if ($amount !== null) {
+                $res['amount'] = (string) $amount;
+            }
+            return $res;
         }
 
         // Return pending status if no webhook payload is present (e.g. initial redirect)
         $trxId = $callbackData['trx_id'] ?? $callbackData['paymentID'] ?? '';
         return [
             'success'        => false,
-            'gateway_trx_id' => null,
-            'amount'         => null,
+            'gateway_trx_id' => '',
             'status'         => 'pending',
             'trx_id'         => $trxId,
         ];

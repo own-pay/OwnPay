@@ -140,22 +140,33 @@ final class PaymentController
         $webhookVal  = !empty($body['callback_url']) ? filter_var($body['callback_url'], FILTER_VALIDATE_URL) : null;
 
         $intentData = [
-            'amount'       => InputSanitizer::decimal($body['amount']),
-            'currency'     => $currencyCode ?? strtoupper(InputSanitizer::string($body['currency'])),
-            'customer_id'  => $customerId,
-            'description'  => !empty($body['reference']) ? InputSanitizer::string($body['reference']) : null,
-            'redirect_url' => is_string($redirectVal) ? $redirectVal : null,
-            'cancel_url'   => is_string($cancelVal) ? $cancelVal : null,
-            'webhook_url'  => is_string($webhookVal) ? $webhookVal : null,
-            'metadata'     => [
-                'reference'      => $body['reference'] ?? null,
-                'customer_email' => $customerEmail,
-                'customer_name'  => $customerName,
-                'customer_phone' => $customerPhone,
-                'gateway'        => $body['gateway'] ?? null,
-                'custom_metadata'=> $body['metadata'] ?? [],
+            'amount'   => InputSanitizer::decimal($body['amount']),
+            'currency' => $currencyCode ?? strtoupper(InputSanitizer::string($body['currency'])),
+            'metadata' => [
+                'reference'       => $body['reference'] ?? null,
+                'customer_email'  => $customerEmail,
+                'customer_name'   => $customerName,
+                'customer_phone'  => $customerPhone,
+                'gateway'         => $body['gateway'] ?? null,
+                'custom_metadata' => $body['metadata'] ?? [],
             ],
         ];
+
+        if ($customerId !== null) {
+            $intentData['customer_id'] = $customerId;
+        }
+        if (!empty($body['reference'])) {
+            $intentData['description'] = InputSanitizer::string($body['reference']);
+        }
+        if (is_string($redirectVal)) {
+            $intentData['redirect_url'] = $redirectVal;
+        }
+        if (is_string($cancelVal)) {
+            $intentData['cancel_url'] = $cancelVal;
+        }
+        if (is_string($webhookVal)) {
+            $intentData['webhook_url'] = $webhookVal;
+        }
 
         try {
             $intent = $this->paymentService->createIntent($mid, $intentData);

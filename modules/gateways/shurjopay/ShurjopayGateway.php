@@ -92,10 +92,10 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
         $token = $tokenData['token'];
         $storeId = $tokenData['store_id'] ?? '';
 
-        $trxId = $params['trx_id'] ?? '';
+        $trxId = $params['trx_id'];
         $amount = number_format((float) $params['amount'], 2, '.', '');
-        $redirectUrl = $params['redirect_url'] ?? '';
-        $cancelUrl = $params['cancel_url'] ?? '';
+        $redirectUrl = $params['redirect_url'];
+        $cancelUrl = $params['cancel_url'];
 
         $separator = (strpos($redirectUrl, '?') !== false) ? '&' : '?';
         $shurjopayReturnUrl = $redirectUrl . $separator . 'status=success';
@@ -110,14 +110,14 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             'amount'                => $amount,
             'order_id'              => $trxId,
             'currency'              => 'BDT',
-            'customer_name'         => $params['customer_name'] ?? 'Customer',
+            'customer_name'         => $params['metadata']['customer_name'] ?? 'Customer',
             'customer_address'      => 'Bangladesh',
-            'customer_phone'        => $params['customer_phone'] ?? '01700000000',
+            'customer_phone'        => $params['metadata']['customer_phone'] ?? '01700000000',
             'customer_city'         => 'Dhaka',
             'client_ip'             => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
             'discount_amount'       => '0',
             'disc_percent'          => '0',
-            'customer_email'        => $params['customer_email'] ?? 'customer@example.com',
+            'customer_email'        => $params['metadata']['customer_email'] ?? 'customer@example.com',
             'customer_state'        => 'Dhaka',
             'customer_postcode'     => '1000',
             'customer_country'      => 'BD',
@@ -125,7 +125,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             'shipping_city'         => '',
             'shipping_country'      => '',
             'received_person_name'  => '',
-            'shipping_phone_number' => $params['customer_phone'] ?? '01700000000'
+            'shipping_phone_number' => $params['metadata']['customer_phone'] ?? '01700000000'
         ];
 
         $ch = curl_init($baseUrl . '/api/secret-pay');
@@ -134,7 +134,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 20,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'Authorization: Bearer ' . $token
             ],
@@ -182,8 +182,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
         if (empty($orderId)) {
             return [
                 'success'        => false,
-                'gateway_trx_id' => null,
-                'amount'         => null,
+                'gateway_trx_id' => '',
                 'status'         => 'pending',
                 'order_id'       => null,
             ];
@@ -192,8 +191,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
         if ($status !== 'success') {
             return [
                 'success'        => false,
-                'gateway_trx_id' => null,
-                'amount'         => null,
+                'gateway_trx_id' => '',
                 'status'         => 'failed',
                 'order_id'       => $orderId,
             ];
@@ -209,8 +207,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
         if (!$tokenData || empty($tokenData['token'])) {
             return [
                 'success'        => false,
-                'gateway_trx_id' => null,
-                'amount'         => null,
+                'gateway_trx_id' => '',
                 'status'         => 'failed',
                 'order_id'       => $orderId,
             ];
@@ -224,7 +221,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'Authorization: Bearer ' . $token,
                 'Content-Type: application/json'
@@ -239,8 +236,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
         if ($httpCode !== 200 || !$response) {
             return [
                 'success'        => false,
-                'gateway_trx_id' => null,
-                'amount'         => null,
+                'gateway_trx_id' => '',
                 'status'         => 'failed',
                 'order_id'       => $orderId,
             ];
@@ -253,19 +249,21 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             $gatewayTrxId = $data['bank_trx_id'] ?? $orderId;
             $amount = $data['amount'] ?? null;
 
-            return [
+            $res = [
                 'success'        => true,
                 'gateway_trx_id' => (string) $gatewayTrxId,
-                'amount'         => $amount !== null ? (string) $amount : null,
                 'status'         => 'completed',
                 'order_id'       => $orderId,
             ];
+            if ($amount !== null) {
+                $res['amount'] = (string) $amount;
+            }
+            return $res;
         }
 
         return [
             'success'        => false,
-            'gateway_trx_id' => null,
-            'amount'         => null,
+            'gateway_trx_id' => '',
             'status'         => 'failed',
             'order_id'       => $orderId,
         ];
@@ -284,7 +282,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json'
             ],

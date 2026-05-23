@@ -142,7 +142,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
 
         $merchantId = $credentials['nagad_merchant_id'] ?? '';
-        $trxId = $params['trx_id'] ?? '';
+        $trxId = $params['trx_id'];
         
         // Nagad invoice length must be <= 20 chars
         $invoice = substr($trxId, 0, 20);
@@ -174,7 +174,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
                 'X-KM-Api-Version: v-0.2.0',
@@ -240,7 +240,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
                 'X-KM-Api-Version: v-0.2.0',
@@ -284,7 +284,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         $trxId = $callbackData['trx_id'] ?? $callbackData['paymentID'] ?? '';
 
         if (strtolower($status) !== 'success' || $paymentRefId === '') {
-            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            return ['success' => false, 'gateway_trx_id' => '', 'amount' => null, 'status' => 'failed'];
         }
 
         $mode = $credentials['nagad_mode'] ?? 'sandbox';
@@ -297,7 +297,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         ]);
 
@@ -306,12 +306,12 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         curl_close($ch);
 
         if ($httpCode !== 200 || !$response) {
-            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'api_error'];
+            return ['success' => false, 'gateway_trx_id' => '', 'amount' => null, 'status' => 'api_error'];
         }
 
         $data = json_decode($response, true);
         if (!is_array($data)) {
-            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
+            return ['success' => false, 'gateway_trx_id' => '', 'amount' => null, 'status' => 'invalid_response'];
         }
 
         $paid = isset($data['status']) && strtolower($data['status']) === 'success';

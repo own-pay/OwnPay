@@ -179,7 +179,7 @@ final class CheckoutController
 
         // Load white-label brand themes and general checkout settings.
         $brand = $this->loadBrand($mid);
-        $faqs = json_decode($this->settings->get('general', 'faqs', '[]'), true);
+        $faqs = json_decode((string) $this->settings->get('general', 'faqs', '[]'), true);
 
         // Extract associated invoice identifier from transaction metadata payload to retrieve invoice line items.
         $items = [];

@@ -83,10 +83,10 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
         $baseUrl = $mode === 'live' ? 'https://api-m.paypal.com' : 'https://api-m.sandbox.paypal.com';
         $url = $baseUrl . '/v2/checkout/orders';
 
-        $redirectUrl = $params['redirect_url'] ?? '';
-        $cancelUrl = $params['cancel_url'] ?? '';
+        $redirectUrl = $params['redirect_url'];
+        $cancelUrl = $params['cancel_url'];
         $amount = number_format((float) $params['amount'], 2, '.', '');
-        $currency = strtoupper($params['currency'] ?? 'USD');
+        $currency = strtoupper($params['currency']);
 
         $orderData = [
             'intent' => 'CAPTURE',
@@ -110,7 +110,7 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . $accessToken
@@ -157,8 +157,7 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
         if (empty($token)) {
             return [
                 'success'        => false,
-                'gateway_trx_id' => null,
-                'amount'         => null,
+                'gateway_trx_id' => '',
                 'status'         => 'pending',
                 'order_id'       => null,
             ];
@@ -172,8 +171,7 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
         if (!$accessToken) {
             return [
                 'success'        => false,
-                'gateway_trx_id' => null,
-                'amount'         => null,
+                'gateway_trx_id' => '',
                 'status'         => 'failed',
                 'order_id'       => $token,
             ];
@@ -189,7 +187,7 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 20,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . $accessToken
@@ -212,7 +210,7 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => 15,
                 CURLOPT_SSL_VERIFYPEER => false,
-                CURLOPT_SSL_VERIFYHOST => false,
+                CURLOPT_SSL_VERIFYHOST => 0,
                 CURLOPT_HTTPHEADER     => [
                     'Content-Type: application/json',
                     'Authorization: Bearer ' . $accessToken
@@ -234,19 +232,21 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
             $gatewayTrxId = $capture['id'] ?? $token;
             $amount = $capture['amount']['value'] ?? null;
 
-            return [
+            $res = [
                 'success'        => true,
                 'gateway_trx_id' => (string) $gatewayTrxId,
-                'amount'         => $amount !== null ? (string) $amount : null,
                 'status'         => 'completed',
                 'order_id'       => $token,
             ];
+            if ($amount !== null) {
+                $res['amount'] = (string) $amount;
+            }
+            return $res;
         }
 
         return [
             'success'        => false,
-            'gateway_trx_id' => null,
-            'amount'         => null,
+            'gateway_trx_id' => '',
             'status'         => 'failed',
             'order_id'       => $token,
         ];
@@ -270,7 +270,7 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_USERPWD        => $clientId . ':' . $secret,
             CURLOPT_POSTFIELDS     => 'grant_type=client_credentials',
             CURLOPT_HTTPHEADER     => [

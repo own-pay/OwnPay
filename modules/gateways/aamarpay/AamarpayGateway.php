@@ -62,21 +62,21 @@ final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
         $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
 
         $separator = (strpos($params['redirect_url'], '?') !== false) ? '&' : '?';
-        $trxId = $params['trx_id'] ?? '';
+        $trxId = $params['trx_id'];
 
-        // Extract or default customer details
-        $email = $params['customer_email'] ?? 'customer@example.com';
-        $phone = $params['customer_phone'] ?? '01700000000';
-        $name  = $params['customer_name'] ?? 'Customer';
+        // Extract or default customer details from metadata
+        $email = $params['metadata']['customer_email'] ?? 'customer@example.com';
+        $phone = $params['metadata']['customer_phone'] ?? '01700000000';
+        $name  = $params['metadata']['customer_name'] ?? 'Customer';
 
         $payload = [
             'store_id'      => $storeId,
             'tran_id'       => $trxId,
             'success_url'   => $params['redirect_url'] . $separator . 'session=' . urlencode($trxId),
-            'fail_url'      => $params['cancel_url'] ?? '',
-            'cancel_url'    => $params['cancel_url'] ?? '',
+            'fail_url'      => $params['cancel_url'],
+            'cancel_url'    => $params['cancel_url'],
             'amount'        => $params['amount'],
-            'currency'      => $params['currency'] ?? 'BDT',
+            'currency'      => $params['currency'],
             'signature_key' => $signatureKey,
             'desc'          => 'Payment ' . $trxId,
             'cus_name'      => $name,
@@ -111,7 +111,7 @@ final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
 
         $data = json_decode($response, true);
         if (empty($data['payment_url'])) {
-            throw new \RuntimeException('Aamarpay initiation failed: ' . ($response ?: 'Empty response'));
+            throw new \RuntimeException('Aamarpay initiation failed: ' . $response);
         }
 
         return [

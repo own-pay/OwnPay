@@ -95,7 +95,7 @@ final class RouteHelper
             return false;
         }
 
-        $host = preg_replace('/^www\./i', '', $host);
+        $host = (string) preg_replace('/^www\./i', '', $host);
 
         if (!preg_match('/^(?!-)(?:[a-z0-9-]{1,63}\.)+[a-z]{2,}$/i', $host)) {
             return false;

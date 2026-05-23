@@ -132,15 +132,14 @@ final class DevicePairingService
         $db = $this->devices->getDatabase();
         $now = (new \DateTimeImmutable())->format('Y-m-d H:i:s.u');
 
-        $result = null;
-        $db->transaction(function () use ($db, $otpHash, $now, &$result) {
+        $matchedRow = null;
+        $db->transaction(function () use ($db, $otpHash, $now, &$matchedRow) {
             $row = $db->fetchOne(
                 "SELECT * FROM op_device_pairing_tokens WHERE otp_hash = :hash AND is_used = 0 AND expires_at > :now FOR UPDATE",
                 ['hash' => $otpHash, 'now' => $now]
             );
 
             if (!$row) {
-                $result = ['valid' => false, 'error' => 'Invalid or expired OTP'];
                 return;
             }
 
@@ -149,10 +148,14 @@ final class DevicePairingService
                 ['id' => $row['id']]
             );
 
-            $result = ['valid' => true, 'merchant_id' => (int) $row['merchant_id']];
+            $matchedRow = $row;
         });
 
-        return $result;
+        if ($matchedRow === null) {
+            return ['valid' => false, 'error' => 'Invalid or expired OTP'];
+        }
+
+        return ['valid' => true, 'merchant_id' => (int) $matchedRow['merchant_id']];
     }
 
     /**

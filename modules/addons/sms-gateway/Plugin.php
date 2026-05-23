@@ -140,8 +140,8 @@ final class Plugin implements PluginInterface
      */
     public function send(array $payload): array
     {
-        $to = $payload['to'] ?? '';
-        $body = $payload['body'] ?? '';
+        $to = $payload['to'];
+        $body = $payload['body'];
         if ($to === '' || $body === '') {
             return ['success' => false, 'error' => 'Missing to/body'];
         }
