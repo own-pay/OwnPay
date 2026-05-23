@@ -267,6 +267,12 @@ if [ "$SLUG_MODE" -eq 1 ]; then
     echo "PLAN_ID=$PLAN_ID"
     create_files_in "$PLAN_DIR"
     printf "%s\n" "$PLAN_ID" > "${PLAN_ROOT}/.active_plan"
+    
+    # Automatically generate initial attestation
+    if [ -f "$SCRIPT_DIR/attest-plan.sh" ]; then
+        sh "$SCRIPT_DIR/attest-plan.sh" >/dev/null 2>&1
+    fi
+
     echo ""
     echo "Active plan recorded: ${PLAN_ROOT}/.active_plan"
     echo "Pin this terminal to the plan for parallel sessions:"
@@ -275,6 +281,12 @@ else
     PROJECT_NAME="${PROJECT_NAME:-project}"
     echo "Initializing planning files for: $PROJECT_NAME (template: $TEMPLATE)"
     create_files_in "$(pwd)"
+    
+    # Automatically generate initial attestation
+    if [ -f "$SCRIPT_DIR/attest-plan.sh" ]; then
+        sh "$SCRIPT_DIR/attest-plan.sh" >/dev/null 2>&1
+    fi
+
     echo ""
     echo "Planning files initialized!"
     echo "Files: task_plan.md, findings.md, progress.md"

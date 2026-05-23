@@ -244,6 +244,12 @@ if ($SlugMode) {
     $activeFile = Join-Path $planRoot ".active_plan"
     $planId | Out-File -FilePath $activeFile -Encoding UTF8 -NoNewline
     
+    # Automatically generate initial attestation
+    $attestScript = Join-Path $ScriptDir "attest-plan.ps1"
+    if (Test-Path $attestScript) {
+        powershell -ExecutionPolicy Bypass -File $attestScript | Out-Null
+    }
+
     Write-Host ""
     Write-Host "Active plan recorded: $activeFile"
     Write-Host "Pin this terminal to the plan for parallel sessions:"
@@ -251,6 +257,13 @@ if ($SlugMode) {
 } else {
     Write-Host "Initializing planning files for: project (template: $Template)"
     New-PlanningFiles -TargetDir (Get-Location).Path -Template $Template -TemplateDir $TemplateDir -Date $DATE
+    
+    # Automatically generate initial attestation
+    $attestScript = Join-Path $ScriptDir "attest-plan.ps1"
+    if (Test-Path $attestScript) {
+        powershell -ExecutionPolicy Bypass -File $attestScript | Out-Null
+    }
+
     Write-Host ""
     Write-Host "Planning files initialized!"
     Write-Host "Files: task_plan.md, findings.md, progress.md"

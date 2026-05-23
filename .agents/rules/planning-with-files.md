@@ -22,4 +22,5 @@ Before starting any task that requires codebase implementation, modification, or
 * **The 2-Action Rule:** After every 2 read/glob/search actions, write down all essential findings to `findings.md`.
 * **Read-Before-Decide:** Before executing a key decision, re-read `task_plan.md` to refresh constraints in the current attention window.
 * **Continuous Updates:** Update the phase status (`not_started` $\rightarrow$ `in_progress` $\rightarrow$ `complete`) and log any encountered errors in `task_plan.md` and `progress.md` at the end of each work cycle.
+* **Plan Attestation Sync:** Whenever you modify `task_plan.md`, you MUST immediately execute `powershell -ExecutionPolicy Bypass -File .agents\skills\planning-with-files\scripts\attest-plan.ps1` (or `pwsh -File ...` if using PowerShell 7) to automatically re-lock the new hash in `.attestation` to ensure execution hooks do not block subsequent actions.
 * **3-Strike Error Protocol:** If an implementation or test fails 3 consecutive times, pause and escalate findings to the user with a detailed summary.
