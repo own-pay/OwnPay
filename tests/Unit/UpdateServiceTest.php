@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use OwnPay\Update\UpdateService;
 use OwnPay\Update\BackupService;
 use OwnPay\Update\HealthChecker;
@@ -56,6 +57,7 @@ class TestableUpdateService extends UpdateService
     }
 }
 
+#[AllowMockObjectsWithoutExpectations]
 class UpdateServiceTest extends TestCase
 {
     private string $tempZipPath;

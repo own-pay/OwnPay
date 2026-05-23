@@ -109,10 +109,10 @@ final class MobileNotificationService
         ];
 
         if ($this->repo !== null) {
-            if (method_exists($this->repo, 'create')) {
-                return (int) $this->repo->create($deviceUuid, $mappedType, $title, $body, $payload);
-            } elseif (method_exists($this->repo, 'queue')) {
+            if (method_exists($this->repo, 'queue')) {
                 return (int) $this->repo->queue($deviceUuid, $mappedType, $title, $body, $payload);
+            } elseif (method_exists($this->repo, 'create')) {
+                return (int) $this->repo->create($deviceUuid, $mappedType, $title, $body, $payload);
             }
         }
 
