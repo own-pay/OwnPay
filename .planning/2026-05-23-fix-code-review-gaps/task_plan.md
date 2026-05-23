@@ -4,7 +4,7 @@
 Implement merchant status containment checks in `PaymentIntentCheckoutController` and optimize database binding formats in `InvoiceService`.
 
 ## Current Phase
-Phase 1: Discovery
+Phase 5: Delivery
 
 ## Phases
 
@@ -14,27 +14,27 @@ Phase 1: Discovery
 - **Status:** complete
 
 ### Phase 2: Design & Plan Approval
-- [ ] Define code review gaps resolution plan
-- [ ] Create implementation plan artifact
-- **Status:** in_progress
+- [x] Define code review gaps resolution plan
+- [x] Create implementation plan artifact
+- **Status:** complete
 
 ### Phase 3: Implementation
-- [ ] Add merchant status checks in `PaymentIntentCheckoutController::show`
-- [ ] Add merchant status checks in `PaymentIntentCheckoutController::pay`
-- [ ] Add merchant status checks in `PaymentIntentCheckoutController::expressPay`
-- [ ] Refactor float casts in `InvoiceService::create` and `InvoiceService::update` to pass BCMath output strings directly to database operations
-- **Status:** pending
+- [x] Add merchant status checks in `PaymentIntentCheckoutController::show`
+- [x] Add merchant status checks in `PaymentIntentCheckoutController::pay`
+- [x] Add merchant status checks in `PaymentIntentCheckoutController::expressPay`
+- [x] Refactor float casts in `InvoiceService::create` and `InvoiceService::update` to pass BCMath output strings directly to database operations
+- **Status:** complete
 
 ### Phase 4: Testing & Verification
-- [ ] Execute scratch tests verifying suspended merchant block on payment intents
-- [ ] Run PHPUnit test suite to ensure all tests pass
-- [ ] Run PHPStan static analysis to verify 0 errors
-- **Status:** pending
+- [x] Execute scratch tests verifying suspended merchant block on payment intents
+- [x] Run PHPUnit test suite to ensure all tests pass
+- [x] Run PHPStan static analysis to verify 0 errors
+- **Status:** complete
 
 ### Phase 5: Delivery
-- [ ] Update walkthrough document and task checklist
-- [ ] Commit all code changes to git
-- **Status:** pending
+- [x] Update walkthrough document and task checklist
+- [x] Commit all code changes to git
+- **Status:** complete
 
 ## Decisions Made
 | Decision | Rationale |
