@@ -202,6 +202,7 @@ final class UnifiedWebhookController
      * @param string  $gateway The gateway identifier.
      * @param string  $reason  The rejection reason.
      * @param Request $req     The incoming HTTP request.
+     * @param array<string, mixed> $context  Additional logging context.
      * @return void
      */
     private function logAttempt(string $gateway, string $reason, Request $req, array $context = []): void

@@ -145,7 +145,7 @@ class Database
      * Fetches all matching rows for a query.
      *
      * @param string $sql    The SQL query.
-     * @param array  $params The parameters to bind.
+     * @param array<string|int, mixed>  $params The parameters to bind.
      * @return array<int, array<string, mixed>> The array of query results.
      */
     public function fetchAll(string $sql, array $params = []): array
@@ -158,7 +158,7 @@ class Database
      * Fetches a single row.
      *
      * @param string $sql    The SQL query.
-     * @param array  $params The parameters to bind.
+     * @param array<string|int, mixed>  $params The parameters to bind.
      * @return array<string, mixed>|null The result row or null if not found.
      */
     public function fetchOne(string $sql, array $params = []): ?array
@@ -172,7 +172,7 @@ class Database
      * Fetches a single column value.
      *
      * @param string $sql    The SQL query.
-     * @param array  $params The parameters to bind.
+     * @param array<string|int, mixed>  $params The parameters to bind.
      * @param int    $column The 0-indexed column offset to fetch.
      * @return mixed The column value or null if not found.
      */
@@ -187,7 +187,7 @@ class Database
      * Prepares and executes an SQL statement with parameter binding.
      *
      * @param string $sql    The SQL query.
-     * @param array  $params The parameters to bind.
+     * @param array<string|int, mixed>  $params The parameters to bind.
      * @throws \RuntimeException If the query is blocked by sandbox policy.
      * @return PDOStatement The executed PDO statement.
      */
@@ -267,7 +267,7 @@ class Database
      * Executes an INSERT query and returns the last insert ID.
      *
      * @param string $sql    The SQL INSERT statement.
-     * @param array  $params The parameters to bind.
+     * @param array<string|int, mixed>  $params The parameters to bind.
      * @return string The auto-incremented last insert ID.
      */
     public function insert(string $sql, array $params = []): string
@@ -280,7 +280,7 @@ class Database
      * Executes an UPDATE query and returns the number of affected rows.
      *
      * @param string $sql    The SQL UPDATE statement.
-     * @param array  $params The parameters to bind.
+     * @param array<string|int, mixed>  $params The parameters to bind.
      * @return int The count of affected rows.
      */
     public function update(string $sql, array $params = []): int
@@ -292,7 +292,7 @@ class Database
      * Executes a DELETE query and returns the number of deleted rows.
      *
      * @param string $sql    The SQL DELETE statement.
-     * @param array  $params The parameters to bind.
+     * @param array<string|int, mixed>  $params The parameters to bind.
      * @return int The count of deleted rows.
      */
     public function delete(string $sql, array $params = []): int
@@ -366,7 +366,7 @@ class Database
      *
      * @param string $table  The table name.
      * @param string $where  The SQL WHERE clause.
-     * @param array  $params The parameters to bind.
+     * @param array<string|int, mixed>  $params The parameters to bind.
      * @throws \InvalidArgumentException If table name contains forbidden characters.
      * @return bool True if row exists, false otherwise.
      */
@@ -385,7 +385,7 @@ class Database
      *
      * @param string $table  The table name.
      * @param string $where  The SQL WHERE clause.
-     * @param array  $params The parameters to bind.
+     * @param array<string|int, mixed>  $params The parameters to bind.
      * @throws \InvalidArgumentException If table name contains forbidden characters.
      * @return int The row count.
      */

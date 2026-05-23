@@ -95,7 +95,7 @@ final class FormattingHelper
      * Resolves the target language code for a module from available translations.
      *
      * @param string      $brandLanguage      The merchant brand's preferred language.
-     * @param array       $supportedLanguages The key-value array of supported languages.
+     * @param array<string, mixed> $supportedLanguages The key-value array of supported languages.
      * @param string|null $uiLanguage         The user interface override language.
      * @return string The resolved language code.
      */
@@ -115,9 +115,9 @@ final class FormattingHelper
     /**
      * Builds a flattened translations array using the target language fallback.
      *
-     * @param array       $langText The multidimensional language translations array.
+     * @param array<string, array<string, string>> $langText The multidimensional language translations array.
      * @param string|null $language The target language code.
-     * @return array The resolved flat key-value translations list.
+     * @return array<string, string> The resolved flat key-value translations list.
      */
     public static function buildLangArray(array $langText, ?string $language = 'en'): array
     {

@@ -802,7 +802,7 @@ final class PaymentIntentCheckoutController
      *
      * @param string $ref Unique transaction reference token.
      * @param string $status Target transaction status tag.
-     * @param array|null $intent The active intent details, if found.
+     * @param array<string, mixed>|null $intent The active intent details, if found.
      * @return Response HTML template response.
      */
     private function renderStatus(string $ref, string $status, ?array $intent = null): Response
@@ -892,7 +892,7 @@ final class PaymentIntentCheckoutController
      * Resolve branding parameters for a given merchant ID.
      *
      * @param int $mid Brand/Merchant ID.
-     * @return array Brand details styling array.
+     * @return array<string, mixed> Brand details styling array.
      */
     private function loadBrand(int $mid): array
     {

@@ -110,8 +110,8 @@ final class TransactionController
     /**
      * Map transaction data to a safe output schema matching database definitions.
      *
-     * @param array $t The database transaction record array.
-     * @return array The filtered, safe presentation array representation.
+     * @param array<string, mixed> $t The database transaction record array.
+     * @return array<string, mixed> The filtered, safe presentation array representation.
      */
     private function safeFields(array $t): array
     {
