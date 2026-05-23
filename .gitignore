@@ -49,11 +49,6 @@ scratch_test.php
 # Mobile app
 /mobile_app/
 
-# Documentation and planning
-findings.md
-progress.md
-task_plan.md
-
 /scratch/
 
 #Php cli nd update
@@ -61,3 +56,4 @@ task_plan.md
 storage/cron/98a234fa4953567787cf87e47c1f5e21.lock
 update_private_key.pem
 public/assets/uploads/site_logo_1779482544.jpg
+.planning/.active_plan

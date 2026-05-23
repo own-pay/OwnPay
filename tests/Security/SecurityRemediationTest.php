@@ -238,6 +238,14 @@ final class SecurityRemediationTest extends TestCase
                 '<?php array_map("system", ["id"]);',
                 'contains dangerous function call: array_map()'
             ],
+            'callback wrapper array_uintersect' => [
+                '<?php array_uintersect([1], [2], "system");',
+                'contains dangerous function call: array_uintersect()'
+            ],
+            'callback wrapper preg_replace_callback' => [
+                '<?php preg_replace_callback("/a/", "system", "a");',
+                'contains dangerous function call: preg_replace_callback()'
+            ],
             'ReflectionClass usage' => [
                 '<?php $ref = new \ReflectionClass("OwnPay\Container");',
                 'contains restricted reference: \ReflectionClass'
@@ -549,4 +557,51 @@ final class SecurityRemediationTest extends TestCase
         $this->assertFalse($data['success']);
         $this->assertSame('Invalid webhook URL', $data['error']);
     }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // 10. HttpClient Cross-Origin Redirect Header Stripping
+    // ─────────────────────────────────────────────────────────────────────────
+
+    public function testHttpClientStripsSensitiveHeadersOnCrossOriginRedirect(): void
+    {
+        $client = new \OwnPay\Service\System\HttpClient(5);
+
+        try {
+            $headers = [
+                'Authorization' => 'Bearer secret-token',
+                'X-Api-Key' => 'key-value',
+                'X-Safe-Header' => 'should-remain'
+            ];
+            
+            $res = $client->get(
+                'https://httpbin.org/redirect-to?url=https://postman-echo.com/headers&status_code=302',
+                $headers
+            );
+
+            $this->assertSame(200, $res['status']);
+            $body = json_decode($res['body'], true);
+            $echoHeaders = $body['headers'] ?? [];
+            
+            // Normalize keys to lowercase for robust assertion
+            $normalized = [];
+            foreach ($echoHeaders as $k => $v) {
+                $normalized[strtolower($k)] = $v;
+            }
+
+            // Authorization and X-Api-Key must be stripped on cross-origin redirects
+            $this->assertArrayNotHasKey('authorization', $normalized);
+            $this->assertArrayNotHasKey('x-api-key', $normalized);
+            
+            // X-Safe-Header should still be present
+            $this->assertArrayHasKey('x-safe-header', $normalized);
+            $this->assertSame('should-remain', $normalized['x-safe-header']);
+
+        } catch (\RuntimeException $e) {
+            if (str_contains($e->getMessage(), 'HTTP request failed')) {
+                $this->markTestSkipped('Network unavailable — cannot reach external endpoints');
+            }
+            throw $e;
+        }
+    }
 }
+
