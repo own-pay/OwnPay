@@ -153,7 +153,12 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, $intent['status'], $intent);
         }
 
+        // Verify active brand status
         $mid = (int) $intent['merchant_id'];
+        $merchant = $this->merchants->find($mid);
+        if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
+            return $this->renderStatus($token, 'expired');
+        }
 
         // Resolve active payment gateway configurations and manual gateway endpoints.
         $manualGateways = $this->manualGw->forTenant($mid)->listActive();
@@ -391,6 +396,16 @@ final class PaymentIntentCheckoutController
                 return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
             }
             return $this->renderStatus($token, $intent['status'], $intent);
+        }
+
+        // Verify active brand status
+        $mid = (int) $intent['merchant_id'];
+        $merchant = $this->merchants->find($mid);
+        if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Merchant account is suspended.'], 403);
+            }
+            return $this->renderStatus($token, 'expired');
         }
 
         // Verify checkout integrity via HMAC signature validation.
@@ -915,6 +930,13 @@ final class PaymentIntentCheckoutController
 
         if ($intent['status'] !== 'pending') {
             return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+        }
+
+        // Verify active brand status
+        $mid = (int) $intent['merchant_id'];
+        $merchant = $this->merchants->find($mid);
+        if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
+            return Response::json(['success' => false, 'error' => 'Merchant account is suspended.'], 403);
         }
 
         // Verify checkout integrity via HMAC signature validation.

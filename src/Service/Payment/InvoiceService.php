@@ -131,9 +131,9 @@ final class InvoiceService
             $qty   = (string) max(1, (int) ($item['quantity'] ?? 1));
             $price = number_format((float) ($item['unit_price'] ?? $item['amount'] ?? 0), 2, '.', '');
             $item['quantity']   = (int) $qty;
-            $item['unit_price'] = (float) $price;
+            $item['unit_price'] = $price;
             $itemTotal = bcmul($qty, $price, 2);
-            $item['total']      = (float) $itemTotal;
+            $item['total']      = $itemTotal;
             $subtotal = bcadd($subtotal, $itemTotal, 2);
         }
         unset($item);
@@ -207,9 +207,9 @@ final class InvoiceService
             $qty   = (string) max(1, (int) ($item['quantity'] ?? 1));
             $price = number_format((float) ($item['unit_price'] ?? $item['amount'] ?? 0), 2, '.', '');
             $item['quantity']   = (int) $qty;
-            $item['unit_price'] = (float) $price;
+            $item['unit_price'] = $price;
             $itemTotal = bcmul($qty, $price, 2);
-            $item['total']      = (float) $itemTotal;
+            $item['total']      = $itemTotal;
             $subtotal = bcadd($subtotal, $itemTotal, 2);
         }
         unset($item);
