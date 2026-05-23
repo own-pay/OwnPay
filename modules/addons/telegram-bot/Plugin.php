@@ -16,6 +16,7 @@ use OwnPay\Http\Response;
  */
 final class Plugin implements PluginInterface
 {
+    /** @var array<string, string> */
     private array $settings = [];
     private ?Container $container = null;
 
@@ -93,18 +94,21 @@ final class Plugin implements PluginInterface
         ];
     }
 
+    /** @param array<string, mixed> $txn */
     public function onCompleted(array $txn): void
     {
         if (empty($this->settings['alert_on_success'])) return;
         $this->sendMessage($this->formatAlert('✅ Payment Received', $txn));
     }
 
+    /** @param array<string, mixed> $txn */
     public function onFailed(array $txn): void
     {
         if (empty($this->settings['alert_on_failure'])) return;
         $this->sendMessage($this->formatAlert('❌ Payment Failed', $txn));
     }
 
+    /** @param array<string, mixed> $txn */
     private function formatAlert(string $title, array $txn): string
     {
         $amount = $txn['amount'] ?? '0.00';

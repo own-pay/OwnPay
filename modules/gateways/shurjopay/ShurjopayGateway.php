@@ -274,6 +274,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
         return false;
     }
 
+    /** @return array<string, mixed>|null */
     private function getToken(string $username, string $password, string $baseUrl): ?array
     {
         $ch = curl_init($baseUrl . '/api/get_token');

@@ -213,6 +213,7 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /** @param array<string, string> $credentials */
     private function getToken(string $baseUrl, array $credentials): string
     {
         $username = $credentials['username'] ?? '';

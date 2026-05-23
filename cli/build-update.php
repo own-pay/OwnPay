@@ -80,6 +80,9 @@ function confirm(string $message, bool $default = true): bool
     return $input === 'y' || $input === 'yes';
 }
 
+/**
+ * @param array<int, string> $options
+ */
 function selectOption(string $message, array $options, int $default = 1): int
 {
     echo CLI_BOLD . $message . CLI_RESET . "\n";
@@ -421,6 +424,11 @@ $globalExclusions = [
     'Thumbs.db',
 ];
 
+/**
+ * @param array<int, string> $rootExclusions
+ * @param array<int, string> $fileExclusions
+ * @param array<int, string> $globalExclusions
+ */
 function scanAndZip(string $dir, ZipArchive $zip, string $projectRoot, array $rootExclusions, array $fileExclusions, array $globalExclusions, string $newVersion): void
 {
     $files = new RecursiveIteratorIterator(

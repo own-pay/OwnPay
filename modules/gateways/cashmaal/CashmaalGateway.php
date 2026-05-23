@@ -118,6 +118,7 @@ final class CashmaalGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /** @param array<string, mixed> $txn */
     public function handleCheckoutBefore(array $txn): void
     {
         if (isset($_GET['redirect_to']) && $_GET['redirect_to'] === 'cashmaal' && $this->container !== null) {

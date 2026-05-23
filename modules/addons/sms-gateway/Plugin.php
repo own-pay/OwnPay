@@ -15,6 +15,7 @@ use OwnPay\Event\EventManager;
  */
 final class Plugin implements PluginInterface
 {
+    /** @var array<string, string> */
     private array $settings = [];
 
     public static function metadata(): array
@@ -138,6 +139,10 @@ final class Plugin implements PluginInterface
     /**
      * @param array{to: string, body: string, merchant_id?: int} $payload
      */
+    /**
+     * @param array{to: string, body: string, merchant_id?: int} $payload
+     * @return array<string, mixed>
+     */
     public function send(array $payload): array
     {
         $to = $payload['to'];
@@ -159,6 +164,7 @@ final class Plugin implements PluginInterface
         }
     }
 
+    /** @return array<string, mixed> */
     private function sendTwilio(string $to, string $body): array
     {
         $sid = $this->settings['twilio_sid'] ?? '';
@@ -181,6 +187,7 @@ final class Plugin implements PluginInterface
         return ['success' => $httpCode >= 200 && $httpCode < 300, 'sid' => $data['sid'] ?? null];
     }
 
+    /** @return array<string, mixed> */
     private function sendVonage(string $to, string $body): array
     {
         $key = $this->settings['vonage_key'] ?? '';
@@ -203,6 +210,7 @@ final class Plugin implements PluginInterface
         return ['success' => ($msg['status'] ?? '1') === '0'];
     }
 
+    /** @return array<string, mixed> */
     private function sendCustom(string $to, string $body): array
     {
         $url = $this->settings['custom_api_url'] ?? '';
