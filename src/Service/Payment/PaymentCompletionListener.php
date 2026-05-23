@@ -49,32 +49,45 @@ final class PaymentCompletionListener
      */
     public function onTransactionCompleted(array $transaction): void
     {
-        $meta = json_decode($transaction['metadata'] ?? '{}', true);
-        $merchantId = (int) ($transaction['merchant_id'] ?? 0);
+        $metadataVal = $transaction['metadata'] ?? '{}';
+        $meta = json_decode(is_string($metadataVal) ? $metadataVal : '{}', true);
+        if (!is_array($meta)) {
+            $meta = [];
+        }
+        $midVal = $transaction['merchant_id'] ?? 0;
+        $merchantId = is_scalar($midVal) ? (int) $midVal : 0;
 
         if ($merchantId <= 0) {
             return;
         }
 
         // CHK-003: Mark invoice as paid
-        $invoiceId = $meta['invoice_id'] ?? null;
+        $invoiceIdVal = $meta['invoice_id'] ?? null;
+        $invoiceId = is_scalar($invoiceIdVal) ? (int) $invoiceIdVal : null;
         if ($invoiceId !== null) {
-            $this->invoiceRepo->forTenant($merchantId)->updateScoped((int) $invoiceId, [
+            $this->invoiceRepo->forTenant($merchantId)->updateScoped($invoiceId, [
                 'status'  => 'paid',
                 'paid_at' => DateHelper::nowMicro(),
             ]);
         }
 
         // CHK-006: Increment payment link use_count + auto-deactivate if max reached
-        $linkId = $meta['payment_link_id'] ?? null;
+        $linkIdVal = $meta['payment_link_id'] ?? null;
+        $linkId = is_scalar($linkIdVal) ? (int) $linkIdVal : null;
         if ($linkId !== null) {
             $this->linkRepo->forTenant($merchantId);
-            $this->linkRepo->incrementUseCount((int) $linkId);
+            $this->linkRepo->incrementUseCount($linkId);
 
             // Check max_uses
-            $link = $this->linkRepo->findScoped((int) $linkId);
-            if ($link && $link['max_uses'] > 0 && ($link['use_count'] ?? 0) >= $link['max_uses']) {
-                $this->linkRepo->updateScoped((int) $linkId, ['status' => 'inactive']);
+            $link = $this->linkRepo->findScoped($linkId);
+            if ($link) {
+                $maxUsesVal = $link['max_uses'] ?? 0;
+                $useCountVal = $link['use_count'] ?? 0;
+                $maxUses = is_scalar($maxUsesVal) ? (int) $maxUsesVal : 0;
+                $useCount = is_scalar($useCountVal) ? (int) $useCountVal : 0;
+                if ($maxUses > 0 && $useCount >= $maxUses) {
+                    $this->linkRepo->updateScoped($linkId, ['status' => 'inactive']);
+                }
             }
         }
     }

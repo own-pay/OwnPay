@@ -57,25 +57,39 @@ final class RefundController
      */
     public function create(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
         $body = $req->json();
+        if (!is_array($body)) {
+            $body = [];
+        }
 
-        if (empty($body['transaction_id'])) {
+        $trxIdVal = $body['transaction_id'] ?? null;
+        if ($trxIdVal === null || (!is_int($trxIdVal) && !is_string($trxIdVal) && !is_float($trxIdVal)) || $trxIdVal === '') {
             return Response::json(['success' => false, 'error' => 'transaction_id required'], 422);
         }
 
+        $amountVal = $body['amount'] ?? null;
+        $reasonVal = $body['reason'] ?? null;
+
+        $amountStr = (is_string($amountVal) || is_numeric($amountVal)) ? (string) $amountVal : '';
+        $reasonStr = is_string($reasonVal) ? $reasonVal : '';
+
         try {
             $result = $this->refunds->create($mid, [
-                'transaction_id' => (int) $body['transaction_id'],
-                'amount'         => isset($body['amount']) ? InputSanitizer::decimal($body['amount']) : null,
-                'reason'         => InputSanitizer::string($body['reason'] ?? ''),
+                'transaction_id' => (int) $trxIdVal,
+                'amount'         => ($amountStr !== '') ? InputSanitizer::decimal($amountStr) : null,
+                'reason'         => InputSanitizer::string($reasonStr),
             ]);
             $this->events->doAction('refund.created', $result);
             return Response::json(['success' => true, 'refund' => $result], 201);
         } catch (\InvalidArgumentException $e) {
             return Response::json(['success' => false, 'error' => $e->getMessage()], 400);
         } catch (\Throwable $e) {
-            $this->c->get(\OwnPay\Service\System\Logger::class)->error('Refund failed', ['error' => $e->getMessage()]);
+            $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+            if ($logger instanceof \OwnPay\Service\System\Logger) {
+                $logger->error('Refund failed', ['error' => $e->getMessage()]);
+            }
             return Response::json(['success' => false, 'error' => 'Refund processing failed'], 500);
         }
     }
@@ -90,8 +104,10 @@ final class RefundController
      */
     public function show(Request $req): Response
     {
-        $trxId = trim($req->param('trx_id'));
-        $mid = (int) $req->getAttribute('merchant_id');
+        $trxIdVal = $req->param('trx_id');
+        $trxId = trim($trxIdVal);
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
 
         if ($trxId === '') {
             return Response::json(['success' => false, 'error' => 'Transaction ID required'], 422);
@@ -99,27 +115,30 @@ final class RefundController
 
         // Query transaction record context to resolve matching refund attributes.
         $db = $this->c->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            return Response::json(['success' => false, 'error' => 'Database service unavailable'], 500);
+        }
         $refund = $db->fetchOne(
             "SELECT r.* FROM op_refunds r
-             JOIN op_transactions t ON t.id = r.transaction_id
-             WHERE t.trx_id = :trx_id AND r.merchant_id = :mid
-             ORDER BY r.created_at DESC LIMIT 1",
+              JOIN op_transactions t ON t.id = r.transaction_id
+              WHERE t.trx_id = :trx_id AND r.merchant_id = :mid
+              ORDER BY r.created_at DESC LIMIT 1",
             ['trx_id' => $trxId, 'mid' => $mid]
         );
 
-        if (!$refund) {
+        if (!is_array($refund)) {
             return Response::json(['success' => false, 'error' => 'Refund not found'], 404);
         }
 
         return Response::json(['success' => true, 'refund' => [
-            'id'             => $refund['id'],
-            'uuid'           => $refund['uuid'],
-            'transaction_id' => $refund['transaction_id'],
-            'amount'         => $refund['amount'],
+            'id'             => $refund['id'] ?? null,
+            'uuid'           => $refund['uuid'] ?? null,
+            'transaction_id' => $refund['transaction_id'] ?? null,
+            'amount'         => $refund['amount'] ?? null,
             'reason'         => $refund['reason'] ?? null,
-            'status'         => $refund['status'],
+            'status'         => $refund['status'] ?? null,
             'processed_at'   => $refund['processed_at'] ?? null,
-            'created_at'     => $refund['created_at'],
+            'created_at'     => $refund['created_at'] ?? null,
         ]]);
     }
 }

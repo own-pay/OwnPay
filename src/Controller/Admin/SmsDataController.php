@@ -24,11 +24,6 @@ final class SmsDataController
     private Container $c;
 
     /**
-     * The admin session manager.
-     */
-    private AdminSession $session;
-
-    /**
      * The SMS data repository instance.
      */
     private SmsDataRepository $smsRepo;
@@ -37,13 +32,11 @@ final class SmsDataController
      * SmsDataController constructor.
      *
      * @param Container $c The dependency injection container.
-     * @param AdminSession $session The admin session manager.
      * @param SmsDataRepository $smsRepo The SMS data repository instance.
      */
-    public function __construct(Container $c, AdminSession $session, SmsDataRepository $smsRepo)
+    public function __construct(Container $c, SmsDataRepository $smsRepo)
     {
         $this->c       = $c;
-        $this->session = $session;
         $this->smsRepo = $smsRepo;
     }
 
@@ -57,11 +50,19 @@ final class SmsDataController
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
-        $page   = max(1, (int) $req->query('page', '1'));
-        $status = $req->query('status', '') ?: null;
+        $pageVal = $req->query('page', '1');
+        $page = max(1, is_scalar($pageVal) && is_numeric($pageVal) ? (int) $pageVal : 1);
+        $statusVal = $req->query('status', '');
+        $status = is_string($statusVal) && $statusVal !== '' ? $statusVal : null;
 
         $repo   = $this->smsRepo->forTenant($mid);
         $perPage = 20;

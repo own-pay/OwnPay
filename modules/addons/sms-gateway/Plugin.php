@@ -44,7 +44,9 @@ final class Plugin implements PluginInterface
     {
         if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
             $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
-            $this->settings = $repo->getGroup('plugin.sms-gateway');
+            if ($repo instanceof \OwnPay\Repository\SettingsRepository) {
+                $this->settings = $repo->getGroup('plugin.sms-gateway');
+            }
         }
     }
 
@@ -54,7 +56,9 @@ final class Plugin implements PluginInterface
     {
         if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
             $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
-            $repo->deleteGroup('plugin.sms-gateway');
+            if ($repo instanceof \OwnPay\Repository\SettingsRepository) {
+                $repo->deleteGroup('plugin.sms-gateway');
+            }
         }
     }
 
@@ -184,7 +188,11 @@ final class Plugin implements PluginInterface
         curl_close($ch);
 
         $data = json_decode((string) $response, true);
-        return ['success' => $httpCode >= 200 && $httpCode < 300, 'sid' => $data['sid'] ?? null];
+        $sidVal = null;
+        if (is_array($data)) {
+            $sidVal = $data['sid'] ?? null;
+        }
+        return ['success' => $httpCode >= 200 && $httpCode < 300, 'sid' => is_string($sidVal) ? $sidVal : null];
     }
 
     /** @return array<string, mixed> */
@@ -206,8 +214,15 @@ final class Plugin implements PluginInterface
         curl_close($ch);
 
         $data = json_decode((string) $response, true);
-        $msg = $data['messages'][0] ?? [];
-        return ['success' => ($msg['status'] ?? '1') === '0'];
+        $msg = [];
+        if (is_array($data) && isset($data['messages']) && is_array($data['messages'])) {
+            $msg = $data['messages'][0] ?? [];
+            if (!is_array($msg)) {
+                $msg = [];
+            }
+        }
+        $statusVal = (isset($msg['status']) && is_scalar($msg['status'])) ? (string) $msg['status'] : '1';
+        return ['success' => $statusVal === '0'];
     }
 
     /** @return array<string, mixed> */

@@ -54,7 +54,8 @@ final class JwtAuthMiddleware
         }
 
         // Use $_ENV fallback chain (phpdotenv may not populate getenv)
-        $secret = $_ENV['JWT_SECRET'] ?? $_SERVER['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: '';
+        $secretVal = $_ENV['JWT_SECRET'] ?? $_SERVER['JWT_SECRET'] ?? getenv('JWT_SECRET') ?: '';
+        $secret = is_string($secretVal) ? $secretVal : '';
         if ($secret === '') {
             return Response::json([
                 'success' => false,
@@ -66,12 +67,16 @@ final class JwtAuthMiddleware
             $payload = JWT::decode($token, new Key($secret, 'HS256'));
 
             // Validate required claims
-            if (!isset($payload->sub, $payload->mid, $payload->did)) {
+            if (!isset($payload->sub, $payload->mid, $payload->did) ||
+                !is_scalar($payload->mid) || !is_scalar($payload->did)) {
                 return Response::json([
                     'success' => false,
                     'message' => 'Invalid JWT claims',
                 ], 401);
             }
+
+            $mid = (int) $payload->mid;
+            $did = (string) $payload->did;
 
             // iss and aud are now REQUIRED — reject tokens without them.
             // Previously these were only checked IF present, allowing bypass via
@@ -94,7 +99,10 @@ final class JwtAuthMiddleware
 
             // Check device not revoked before granting access
             $deviceRepo = $this->container->get(\OwnPay\Repository\PairedDeviceRepository::class);
-            $device = $deviceRepo->forTenant((int) $payload->mid)->findByDeviceId((string) $payload->did);
+            if (!$deviceRepo instanceof \OwnPay\Repository\PairedDeviceRepository) {
+                throw new \RuntimeException("PairedDeviceRepository not found in container");
+            }
+            $device = $deviceRepo->forTenant($mid)->findByDeviceId($did);
             if ($device === null || ($device['status'] ?? '') === 'revoked') {
                 return Response::json([
                     'success' => false,
@@ -104,8 +112,8 @@ final class JwtAuthMiddleware
 
             // Inject into request
             $request->setAttribute('jwt_payload', (array) $payload);
-            $request->setAttribute('merchant_id', (int) $payload->mid);
-            $request->setAttribute('device_id', (string) $payload->did);
+            $request->setAttribute('merchant_id', $mid);
+            $request->setAttribute('device_id', $did);
 
             return $next($request);
 

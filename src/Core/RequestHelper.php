@@ -27,8 +27,8 @@ final class RequestHelper
         }
 
         foreach ($_SERVER as $key => $value) {
-            if (stripos($key, 'HTTP_X_API_KEY') !== false) {
-                return trim($value);
+            if (is_string($key) && stripos($key, 'HTTP_X_API_KEY') !== false) {
+                return is_scalar($value) ? trim((string) $value) : '';
             }
         }
 
@@ -43,8 +43,10 @@ final class RequestHelper
      */
     public static function getUserDeviceInfo(?\OwnPay\Http\Request $request = null): array
     {
-        $userAgent = $request?->header('User-Agent') ?? $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
-        $ipAddress = $request?->ip() ?? $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+        $uaVal = $request?->header('User-Agent') ?? $_SERVER['HTTP_USER_AGENT'] ?? 'Unknown';
+        $userAgent = is_scalar($uaVal) ? (string) $uaVal : 'Unknown';
+        $ipVal = $request?->ip() ?? $_SERVER['REMOTE_ADDR'] ?? 'Unknown';
+        $ipAddress = is_scalar($ipVal) ? (string) $ipVal : 'Unknown';
 
         $deviceType = match (true) {
             (bool) preg_match('/mobile/i', $userAgent) => 'Mobile',

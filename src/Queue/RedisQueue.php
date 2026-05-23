@@ -108,12 +108,15 @@ final class RedisQueue implements QueueInterface
             return null;
         }
 
-        $job['attempts'] = ($job['attempts'] ?? 0) + 1;
+        $attempts = $job['attempts'] ?? 0;
+        $job['attempts'] = (is_numeric($attempts) ? (int) $attempts : 0) + 1;
+
+        $jobId = is_string($job['id'] ?? null) ? $job['id'] : '';
 
         $this->redis->hSet(
             $this->prefix . 'processing',
-            $job['id'],
-            json_encode($job, JSON_UNESCAPED_UNICODE)
+            $jobId,
+            (string) json_encode($job, JSON_UNESCAPED_UNICODE)
         );
 
         return $job;
@@ -181,10 +184,19 @@ final class RedisQueue implements QueueInterface
             if (is_array($job) && ($job['id'] ?? '') === $jobId) {
                 $this->redis->lRem($failedKey, (string) $raw, 1);
 
+                $queueName = is_string($job['queue'] ?? null) ? $job['queue'] : 'default';
+                $handlerClass = is_string($job['handler'] ?? null) ? $job['handler'] : '';
+                $payloadData = [];
+                if (isset($job['payload']) && is_array($job['payload'])) {
+                    foreach ($job['payload'] as $k => $v) {
+                        $payloadData[(string) $k] = $v;
+                    }
+                }
+
                 $this->push(
-                    $job['queue'] ?? 'default',
-                    $job['handler'] ?? '',
-                    $job['payload'] ?? [],
+                    $queueName,
+                    $handlerClass,
+                    $payloadData,
                     $delay
                 );
                 return;

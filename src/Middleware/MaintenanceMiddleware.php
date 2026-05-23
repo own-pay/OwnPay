@@ -70,7 +70,10 @@ final class MaintenanceMiddleware
         }
 
         $data = @json_decode((string) file_get_contents($lockFile), true);
-        $retryAfter = $data['retry_after'] ?? 600;
+        $retryAfter = 600;
+        if (is_array($data) && isset($data['retry_after']) && is_scalar($data['retry_after'])) {
+            $retryAfter = (int) $data['retry_after'];
+        }
 
         return Response::maintenance()
             ->withHeader('Retry-After', (string) $retryAfter);

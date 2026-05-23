@@ -33,13 +33,21 @@ final class DnsVerificationJob
         $failed = 0;
 
         foreach ($pending as $domain) {
+            if (!isset($domain['domain']) || !is_string($domain['domain']) ||
+                !isset($domain['verification_token']) || !is_string($domain['verification_token']) ||
+                !isset($domain['id']) || !is_scalar($domain['id']) ||
+                !isset($domain['created_at']) || !is_string($domain['created_at'])) {
+                continue;
+            }
+
+            $domainId = (int) $domain['id'];
             $result = $this->verifier->verifyTxt(
                 $domain['domain'],
                 $domain['verification_token']
             );
 
             if ($result) {
-                $this->domains->update((int) $domain['id'], [
+                $this->domains->update($domainId, [
                     'dns_verified'    => 1,
                     'status'          => 'active',
                     'dns_verified_at' => DateHelper::now(),
@@ -48,10 +56,13 @@ final class DnsVerificationJob
             } else {
                 $failed++;
                 // Auto-remove after 7 days unverified
-                $createdAt = (new \DateTimeImmutable($domain['created_at']))->getTimestamp();
-                /** @phpstan-ignore-next-line */
-                if ($createdAt !== false && (time() - $createdAt) > 604800) {
-                    $this->domains->delete((int) $domain['id']);
+                try {
+                    $createdAt = (new \DateTimeImmutable($domain['created_at']))->getTimestamp();
+                    if ((time() - $createdAt) > 604800) {
+                        $this->domains->delete($domainId);
+                    }
+                } catch (\Exception $e) {
+                    // Ignore malformed dates
                 }
             }
         }

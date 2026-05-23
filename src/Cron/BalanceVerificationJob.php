@@ -67,6 +67,9 @@ final class BalanceVerificationJob
         $mismatches = 0;
 
         foreach ($merchants as $merchant) {
+            if (!isset($merchant['id']) || !is_scalar($merchant['id'])) {
+                continue;
+            }
             $mid = (int) $merchant['id'];
 
             // Retrieve the set of distinct currencies that have active transacted records for this brand context.
@@ -76,7 +79,11 @@ final class BalanceVerificationJob
             );
 
             foreach ($currencies as $cur) {
-                $result = $this->reconciliation->reconcile($mid, $cur['currency']);
+                if (!isset($cur['currency']) || !is_string($cur['currency'])) {
+                    continue;
+                }
+                $currency = $cur['currency'];
+                $result = $this->reconciliation->reconcile($mid, $currency);
 
                 if (!$result['balanced']) {
                     $mismatches++;
@@ -84,14 +91,14 @@ final class BalanceVerificationJob
                         $mid,
                         'balance_mismatch',
                         'Balance Mismatch Detected',
-                        "Currency: {$cur['currency']}, Difference: {$result['difference']}",
+                        "Currency: {$currency}, Difference: {$result['difference']}",
                         'warning'
                     );
                 }
 
                 $results[] = [
                     'merchant_id' => $mid,
-                    'currency'    => $cur['currency'],
+                    'currency'    => $currency,
                     'balanced'    => $result['balanced'],
                     'difference'  => $result['difference'],
                 ];

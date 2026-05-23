@@ -63,15 +63,29 @@ final class CurrencyController
      */
     public function update(Request $req): Response
     {
-        $data = $req->post();
-        if (!empty($data['code']) && !empty($data['name'])) {
+        $codeVal = $req->post('code');
+        $nameVal = $req->post('name');
+        $symbolVal = $req->post('symbol', '');
+        $statusVal = $req->post('status', 'active');
+        $decVal = $req->post('decimal_places', '2');
+
+        $code = is_string($codeVal) ? trim($codeVal) : '';
+        $name = is_string($nameVal) ? trim($nameVal) : '';
+        $symbol = is_string($symbolVal) ? trim($symbolVal) : '';
+        $status = is_string($statusVal) ? trim($statusVal) : 'active';
+        $dec = is_int($decVal) || is_string($decVal) ? (int)$decVal : 2;
+
+        if ($code !== '' && $name !== '') {
             $svc = $this->c->get(CurrencyService::class);
+            if (!$svc instanceof CurrencyService) {
+                throw new \RuntimeException('CurrencyService unavailable');
+            }
             $svc->upsert(
-                strtoupper($data['code']),
-                $data['name'],
-                $data['symbol'] ?? '',
-                $data['status'] ?? 'active',
-                max(0, min(8, (int) ($data['decimal_places'] ?? 2)))
+                strtoupper($code),
+                $name,
+                $symbol,
+                $status,
+                max(0, min(8, $dec))
             );
         }
 

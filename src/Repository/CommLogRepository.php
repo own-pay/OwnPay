@@ -113,10 +113,13 @@ final class CommLogRepository extends BaseRepository
              FROM {$this->table} WHERE channel='sms' AND merchant_id = :mid",
             ['mid' => $merchantId]
         );
+        $queuedVal = $row['queued'] ?? 0;
+        $sentVal = $row['sent'] ?? 0;
+        $failedVal = $row['failed'] ?? 0;
         return [
-            'queued' => (int) ($row['queued'] ?? 0),
-            'sent'   => (int) ($row['sent'] ?? 0),
-            'failed' => (int) ($row['failed'] ?? 0),
+            'queued' => is_scalar($queuedVal) ? (int) $queuedVal : 0,
+            'sent'   => is_scalar($sentVal) ? (int) $sentVal : 0,
+            'failed' => is_scalar($failedVal) ? (int) $failedVal : 0,
         ];
     }
 

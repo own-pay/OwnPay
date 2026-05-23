@@ -64,7 +64,8 @@ final class SmsDataRepository extends BaseRepository
                 'mid'         => $this->requireTenant(),
             ]
         );
-        return ((int) ($row['cnt'] ?? 0)) > 0;
+        $cntVal = $row['cnt'] ?? 0;
+        return ((int) (is_scalar($cntVal) ? $cntVal : 0)) > 0;
     }
 
     /**

@@ -20,7 +20,7 @@ final class AdminSession
     public function userId(): ?int
     {
         $id = $_SESSION['auth_user_id'] ?? null;
-        return $id !== null ? (int) $id : null;
+        return is_scalar($id) ? (int) $id : null;
     }
 
     /**
@@ -30,7 +30,8 @@ final class AdminSession
      */
     public function userName(): string
     {
-        return (string) ($_SESSION['auth_name'] ?? 'Admin');
+        $name = $_SESSION['auth_name'] ?? 'Admin';
+        return is_scalar($name) ? (string) $name : 'Admin';
     }
 
     /**
@@ -40,7 +41,8 @@ final class AdminSession
      */
     public function userEmail(): string
     {
-        return (string) ($_SESSION['auth_email'] ?? '');
+        $email = $_SESSION['auth_email'] ?? '';
+        return is_scalar($email) ? (string) $email : '';
     }
 
     /**
@@ -61,7 +63,7 @@ final class AdminSession
     public function merchantId(): ?int
     {
         $id = $_SESSION['auth_merchant_id'] ?? null;
-        return $id !== null ? (int) $id : null;
+        return is_scalar($id) ? (int) $id : null;
     }
 
     /**
@@ -74,7 +76,7 @@ final class AdminSession
     public function activeBrandId(): ?int
     {
         $id = $_SESSION['active_brand_id'] ?? $_SESSION['auth_merchant_id'] ?? null;
-        return $id !== null ? (int) $id : null;
+        return is_scalar($id) ? (int) $id : null;
     }
 
     /**
@@ -118,9 +120,11 @@ final class AdminSession
      */
     public function consumeFlash(): array
     {
+        $successVal = $_SESSION['flash_success'] ?? null;
+        $errorVal = $_SESSION['flash_error'] ?? null;
         $flash = [
-            'success' => $_SESSION['flash_success'] ?? null,
-            'error'   => $_SESSION['flash_error'] ?? null,
+            'success' => is_scalar($successVal) ? (string) $successVal : null,
+            'error'   => is_scalar($errorVal) ? (string) $errorVal : null,
         ];
         unset($_SESSION['flash_success'], $_SESSION['flash_error']);
         return $flash;

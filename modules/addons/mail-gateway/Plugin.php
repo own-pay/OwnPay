@@ -45,7 +45,9 @@ final class Plugin implements PluginInterface
         // Load saved settings
         if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
             $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
-            $this->settings = $repo->getGroup('plugin.mail-gateway');
+            if ($repo instanceof \OwnPay\Repository\SettingsRepository) {
+                $this->settings = $repo->getGroup('plugin.mail-gateway');
+            }
         }
     }
 
@@ -59,7 +61,9 @@ final class Plugin implements PluginInterface
         // Clear saved settings
         if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
             $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
-            $repo->deleteGroup('plugin.mail-gateway');
+            if ($repo instanceof \OwnPay\Repository\SettingsRepository) {
+                $repo->deleteGroup('plugin.mail-gateway');
+            }
         }
     }
 

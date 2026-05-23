@@ -95,7 +95,8 @@ final class Authenticator
             return ['success' => false, 'error' => 'Invalid credentials'];
         }
 
-        if (!password_verify($password, $user['password_hash'])) {
+        $passwordHash = is_string($user['password_hash'] ?? null) ? $user['password_hash'] : '';
+        if (!password_verify($password, $passwordHash)) {
             $this->logAttempt($email, $ip, $userAgent, false);
             $events->doAction('auth.login.failed', $email, $ip);
             return ['success' => false, 'error' => 'Invalid credentials'];
@@ -115,7 +116,8 @@ final class Authenticator
 
         // Record successful login auditing and initialize session.
         $this->logAttempt($email, $ip, $userAgent, true);
-        $users->updateLastLogin((int) $user['id'], $ip);
+        $userId = is_numeric($user['id'] ?? null) ? (int) $user['id'] : 0;
+        $users->updateLastLogin($userId, $ip);
         $this->startSession($user);
         $events->doAction('auth.login.success', $user, $ip);
 

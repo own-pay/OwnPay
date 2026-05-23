@@ -152,7 +152,11 @@ final class PluginRepository extends BaseRepository
 
         $result = [];
         foreach ($rows as $row) {
-            $result[$row['plugin_slug']] = $row['status'];
+            $slugVal = $row['plugin_slug'] ?? '';
+            $statusVal = $row['status'] ?? '';
+            if (is_string($slugVal) && is_string($statusVal)) {
+                $result[$slugVal] = $statusVal;
+            }
         }
 
         return $result;
@@ -171,7 +175,13 @@ final class PluginRepository extends BaseRepository
             "SELECT DISTINCT plugin_slug FROM op_brand_plugins WHERE status = 'active'"
         );
 
-        $slugs = array_map(static fn($row) => $row['plugin_slug'], $brandActiveRows);
+        $slugs = [];
+        foreach ($brandActiveRows as $row) {
+            $sVal = $row['plugin_slug'] ?? null;
+            if (is_string($sVal)) {
+                $slugs[] = $sVal;
+            }
+        }
 
         $allActive = $globalActive;
         $activeSlugs = array_column($globalActive, 'slug');
@@ -197,10 +207,11 @@ final class PluginRepository extends BaseRepository
      */
     public function countActiveBrandInstances(string $slug): int
     {
-        return (int) $this->db->fetchColumn(
+        $countVal = $this->db->fetchColumn(
             "SELECT COUNT(*) FROM op_brand_plugins WHERE plugin_slug = :slug AND status = 'active'",
             ['slug' => $slug]
         );
+        return is_scalar($countVal) ? (int) $countVal : 0;
     }
 
     /**
@@ -215,7 +226,8 @@ final class PluginRepository extends BaseRepository
     {
         $plugin = $this->find($id);
         if ($plugin !== null) {
-            $slug = $plugin['slug'];
+            $slugVal = $plugin['slug'] ?? '';
+            $slug = is_scalar($slugVal) ? (string) $slugVal : '';
             $activeCount = $this->countActiveBrandInstances($slug);
             if ($activeCount > 0) {
                 if ($this->db->inTransaction()) {

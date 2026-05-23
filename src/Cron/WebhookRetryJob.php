@@ -76,22 +76,36 @@ final class WebhookRetryJob
         $succeeded = 0;
 
         foreach ($failedDeliveries as $delivery) {
-            $attempts = (int) ($delivery['attempts'] ?? 0);
+            if (!isset($delivery['id']) || !is_scalar($delivery['id']) ||
+                !isset($delivery['url']) || !is_scalar($delivery['url']) ||
+                !isset($delivery['secret']) || !is_scalar($delivery['secret']) ||
+                !isset($delivery['merchant_id']) || !is_scalar($delivery['merchant_id']) ||
+                !isset($delivery['payload']) || !is_string($delivery['payload']) ||
+                !isset($delivery['event_type']) || !is_string($delivery['event_type'])) {
+                continue;
+            }
+
+            $deliveryId = (int) $delivery['id'];
+            $attemptsVal = $delivery['attempts'] ?? null;
+            $attempts = is_scalar($attemptsVal) ? (int) $attemptsVal : 0;
 
             $webhook = [
-                'url'         => $delivery['url'],
-                'secret'      => $delivery['secret'],
-                'merchant_id' => $delivery['merchant_id'],
+                'url'         => (string) $delivery['url'],
+                'secret'      => (string) $delivery['secret'],
+                'merchant_id' => (int) $delivery['merchant_id'],
             ];
 
-            $eventData = json_decode($delivery['payload'] ?? '{}', true) ?: [];
-            $success = $this->webhookService->deliver($webhook, $delivery['event_type'] ?? '', $eventData);
+            $eventData = json_decode($delivery['payload'], true);
+            if (!is_array($eventData)) {
+                $eventData = [];
+            }
+            $success = $this->webhookService->deliver($webhook, $delivery['event_type'], $eventData);
 
             if ($success) {
                 $succeeded++;
                 $this->db->update(
                     "UPDATE op_webhook_events SET status = 'delivered', last_attempt_at = NOW(6), attempts = attempts + 1 WHERE id = :id",
-                    ['id' => $delivery['id']]
+                    ['id' => $deliveryId]
                 );
             } else {
                 // Schedule next retry with backoff
@@ -102,7 +116,7 @@ final class WebhookRetryJob
                          last_attempt_at = NOW(6), 
                          next_retry_at = DATE_ADD(NOW(6), INTERVAL :secs SECOND) 
                      WHERE id = :id",
-                    ['att' => $attempts + 1, 'secs' => $nextBackoff, 'id' => $delivery['id']]
+                    ['att' => $attempts + 1, 'secs' => $nextBackoff, 'id' => $deliveryId]
                 );
             }
 

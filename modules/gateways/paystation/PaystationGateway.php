@@ -132,8 +132,8 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
         }
 
         $result = json_decode((string) $response, true);
-        if (empty($result['payment_url'])) {
-            $errMsg = $result['message'] ?? 'Missing payment URL';
+        if (!is_array($result) || empty($result['payment_url']) || !is_string($result['payment_url'])) {
+            $errMsg = (is_array($result) && isset($result['message']) && is_scalar($result['message'])) ? (string) $result['message'] : 'Missing payment URL';
             throw new \RuntimeException('PayStation Initiation Error: ' . $errMsg);
         }
 
@@ -145,15 +145,18 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
 
     public function verify(array $callbackData, array $credentials): array
     {
-        $status = $callbackData['status'] ?? '';
-        $invoiceNumber = $callbackData['invoice_number'] ?? '';
+        $statusRaw = $callbackData['status'] ?? '';
+        $status = is_scalar($statusRaw) ? (string) $statusRaw : '';
+        
+        $invoiceNumberRaw = $callbackData['invoice_number'] ?? '';
+        $invoiceNumber = is_scalar($invoiceNumberRaw) ? (string) $invoiceNumberRaw : '';
 
         if (empty($invoiceNumber)) {
             return [
                 'success'        => false,
                 'gateway_trx_id' => '',
                 'status'         => 'pending',
-                'order_id'       => null,
+                'trx_id'         => '',
             ];
         }
 
@@ -162,7 +165,7 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
                 'success'        => false,
                 'gateway_trx_id' => '',
                 'status'         => 'failed',
-                'order_id'       => $invoiceNumber,
+                'trx_id'         => $invoiceNumber,
             ];
         }
 
@@ -170,7 +173,8 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
         $baseUrl = $mode === 'live' ? 'https://api.paystation.com.bd' : 'https://sandbox.paystation.com.bd';
         $url = $baseUrl . '/transaction-status';
 
-        $merchantId = $credentials['merchant_id'] ?? '';
+        $merchantIdRaw = $credentials['merchant_id'] ?? '';
+        $merchantId = is_scalar($merchantIdRaw) ? (string) $merchantIdRaw : '';
         
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -196,29 +200,32 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
                 'success'        => false,
                 'gateway_trx_id' => '',
                 'status'         => 'failed',
-                'order_id'       => $invoiceNumber,
+                'trx_id'         => $invoiceNumber,
             ];
         }
 
         $result = json_decode((string) $response, true);
-        if (($result['status_code'] ?? '') === '200' && ($result['status'] ?? '') === 'success') {
-            $trxStatus = $result['data']['trx_status'] ?? '';
-            $isPaid = in_array(strtolower($trxStatus), ['successful', 'success'], true);
+        if (is_array($result) && ($result['status_code'] ?? '') === '200' && ($result['status'] ?? '') === 'success') {
+            $data = $result['data'] ?? [];
+            if (is_array($data)) {
+                $trxStatus = isset($data['trx_status']) && is_scalar($data['trx_status']) ? (string) $data['trx_status'] : '';
+                $isPaid = in_array(strtolower($trxStatus), ['successful', 'success'], true);
 
-            if ($isPaid) {
-                $gatewayTrxId = $result['data']['trx_id'] ?? $invoiceNumber;
-                $amount = $result['data']['payment_amount'] ?? null;
+                if ($isPaid) {
+                    $gatewayTrxId = isset($data['trx_id']) && is_scalar($data['trx_id']) ? (string) $data['trx_id'] : $invoiceNumber;
+                    $amount = $data['payment_amount'] ?? null;
 
-                $res = [
-                    'success'        => true,
-                    'gateway_trx_id' => (string) $gatewayTrxId,
-                    'status'         => 'completed',
-                    'order_id'       => $invoiceNumber,
-                ];
-                if ($amount !== null) {
-                    $res['amount'] = (string) $amount;
+                    $res = [
+                        'success'        => true,
+                        'gateway_trx_id' => $gatewayTrxId,
+                        'status'         => 'completed',
+                        'trx_id'         => $invoiceNumber,
+                    ];
+                    if ($amount !== null && is_scalar($amount)) {
+                        $res['amount'] = (string) $amount;
+                    }
+                    return $res;
                 }
-                return $res;
             }
         }
 
@@ -226,7 +233,7 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
             'success'        => false,
             'gateway_trx_id' => '',
             'status'         => 'failed',
-            'order_id'       => $invoiceNumber,
+            'trx_id'         => $invoiceNumber,
         ];
     }
 

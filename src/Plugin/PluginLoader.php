@@ -37,11 +37,16 @@ final class PluginLoader
         $this->events = $events;
         $this->registry = $registry;
 
-        $paths = $container->get('config.app')['paths'];
+        $configApp = $container->get('config.app');
+        if (!is_array($configApp) || !isset($configApp['paths']) || !is_array($configApp['paths'])) {
+            throw new \RuntimeException("config.app paths configuration missing or invalid");
+        }
+        $paths = $configApp['paths'];
+        $modulesPath = is_string($paths['modules'] ?? null) ? $paths['modules'] : '';
         $this->scanDirs = [
-            $paths['modules'] . '/gateways',
-            $paths['modules'] . '/themes',
-            $paths['modules'] . '/addons',
+            $modulesPath . '/gateways',
+            $modulesPath . '/themes',
+            $modulesPath . '/addons',
         ];
     }
 
@@ -97,9 +102,11 @@ final class PluginLoader
     {
         try {
             $db = $this->container->get(\OwnPay\Core\Database::class);
-            $col = $db->fetchOne("SHOW COLUMNS FROM op_plugins LIKE 'status'");
-            if ($col && !str_contains($col['Type'], 'trashed')) {
-                $db->execute("ALTER TABLE op_plugins MODIFY COLUMN status ENUM('active','inactive','error','trashed') NOT NULL DEFAULT 'inactive'");
+            if ($db instanceof \OwnPay\Core\Database) {
+                $col = $db->fetchOne("SHOW COLUMNS FROM op_plugins LIKE 'status'");
+                if (is_array($col) && isset($col['Type']) && is_string($col['Type']) && !str_contains($col['Type'], 'trashed')) {
+                    $db->execute("ALTER TABLE op_plugins MODIFY COLUMN status ENUM('active','inactive','error','trashed') NOT NULL DEFAULT 'inactive'");
+                }
             }
         } catch (\Throwable $e) {
             // Ignore if DB is not ready or setup yet (e.g. installer phase)
@@ -122,12 +129,13 @@ final class PluginLoader
         $activePlugins = $this->registry->getActive();
 
         foreach ($activePlugins as $pluginData) {
+            $slug = is_string($pluginData['slug'] ?? null) ? $pluginData['slug'] : '';
             try {
                 $this->loadPlugin($pluginData);
             } catch (\Throwable $e) {
                 // Mark plugin as errored, don't crash app
-                $this->registry->markError($pluginData['slug'], $e->getMessage());
-                $this->events->doAction('plugin.load_error', $pluginData['slug'], $e);
+                $this->registry->markError($slug, $e->getMessage());
+                $this->events->doAction('plugin.load_error', $slug, $e);
             }
         }
 
@@ -146,9 +154,11 @@ final class PluginLoader
         // their boot() methods blank. We automatically register them here.
         if ($this->container->has(\OwnPay\Gateway\GatewayBridge::class)) {
             $bridge = $this->container->get(\OwnPay\Gateway\GatewayBridge::class);
-            foreach ($this->registry->getLoaded() as $slug => $instance) {
-                if ($instance instanceof \OwnPay\Gateway\GatewayAdapterInterface) {
-                    $bridge->registerAdapter($instance);
+            if ($bridge instanceof \OwnPay\Gateway\GatewayBridge) {
+                foreach ($this->registry->getLoaded() as $slug => $instance) {
+                    if ($instance instanceof \OwnPay\Gateway\GatewayAdapterInterface) {
+                        $bridge->registerAdapter($instance);
+                    }
                 }
             }
         }
@@ -168,7 +178,7 @@ final class PluginLoader
      */
     private function loadPlugin(array $pluginData): void
     {
-        $slug = $pluginData['slug'];
+        $slug = is_string($pluginData['slug'] ?? null) ? $pluginData['slug'] : '';
         $manifest = PluginManifest::fromDirectory($this->resolvePluginPath($pluginData));
 
         if ($manifest === null) {
@@ -181,9 +191,14 @@ final class PluginLoader
         }
 
         // Version compatibility check
-        $coreVersion = $this->container->get('config.app')['version'] ?? '0.1.0';
+        $configApp = $this->container->get('config.app');
+        $coreVersion = '0.1.0';
+        if (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) {
+            $coreVersion = $configApp['version'];
+        }
         if (!$manifest->isCompatible($coreVersion)) {
-            throw new \RuntimeException("Plugin {$slug} requires core {$manifest->requires['core']} (current: {$coreVersion})");
+            $requiredCore = is_string($manifest->requires['core'] ?? null) ? $manifest->requires['core'] : '';
+            throw new \RuntimeException("Plugin {$slug} requires core {$requiredCore} (current: {$coreVersion})");
         }
 
         // Load entrypoint
@@ -342,7 +357,11 @@ final class PluginLoader
      */
     private function resolvePluginPath(array $pluginData): string
     {
-        $paths = $this->container->get('config.app')['paths'];
+        $configApp = $this->container->get('config.app');
+        $modulesPath = '';
+        if (is_array($configApp) && isset($configApp['paths']) && is_array($configApp['paths'])) {
+            $modulesPath = is_string($configApp['paths']['modules'] ?? null) ? $configApp['paths']['modules'] : '';
+        }
         $type = $pluginData['type'] ?? 'addon';
 
         $typeDir = match ($type) {
@@ -351,7 +370,8 @@ final class PluginLoader
             default   => 'addons',
         };
 
-        return $paths['modules'] . '/' . $typeDir . '/' . $pluginData['slug'];
+        $slug = is_string($pluginData['slug'] ?? null) ? $pluginData['slug'] : '';
+        return $modulesPath . '/' . $typeDir . '/' . $slug;
     }
 
     /**
@@ -368,7 +388,7 @@ final class PluginLoader
         $manifestPath = $manifest->path . '/manifest.json';
         if (file_exists($manifestPath)) {
             $raw = json_decode((string) file_get_contents($manifestPath), true);
-            if (!empty($raw['namespace'])) {
+            if (is_array($raw) && !empty($raw['namespace']) && is_string($raw['namespace'])) {
                 // Entry class name from entrypoint filename (e.g., Plugin.php → Plugin)
                 $className = pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
                 return rtrim($raw['namespace'], '\\') . '\\' . $className;
@@ -398,7 +418,7 @@ final class PluginLoader
         );
 
         foreach ($iterator as $file) {
-            if ($file->isFile() && $file->getExtension() === 'php') {
+            if ($file instanceof \SplFileInfo && $file->isFile() && $file->getExtension() === 'php') {
                 $files[] = $file->getPathname();
             }
         }

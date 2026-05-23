@@ -247,10 +247,13 @@ final class TransactionRepository extends BaseRepository
             $params
         );
 
+        $revVal = $row['total_revenue'] ?? '0.00';
+        $ccVal = $row['completed_count'] ?? 0;
+        $pcVal = $row['pending_count'] ?? 0;
         return [
-            'total_revenue'   => (string) ($row['total_revenue'] ?? '0.00'),
-            'completed_count' => (int) ($row['completed_count'] ?? 0),
-            'pending_count'   => (int) ($row['pending_count'] ?? 0),
+            'total_revenue'   => is_scalar($revVal) ? (string) $revVal : '0.00',
+            'completed_count' => is_scalar($ccVal) ? (int) $ccVal : 0,
+            'pending_count'   => is_scalar($pcVal) ? (int) $pcVal : 0,
         ];
     }
 
@@ -420,8 +423,11 @@ final class TransactionRepository extends BaseRepository
         }
 
         $existing = [];
-        if ($txn !== null && !empty($txn['metadata'])) {
-            $existing = json_decode($txn['metadata'], true) ?: [];
+        if ($txn !== null && isset($txn['metadata']) && is_string($txn['metadata']) && $txn['metadata'] !== '') {
+            $decoded = json_decode($txn['metadata'], true);
+            if (is_array($decoded)) {
+                $existing = $decoded;
+            }
         }
 
         $merged = array_merge($existing, $metadata);
@@ -467,8 +473,11 @@ final class TransactionRepository extends BaseRepository
         }
 
         $existing = [];
-        if ($txn !== null && !empty($txn['metadata'])) {
-            $existing = json_decode($txn['metadata'], true) ?: [];
+        if ($txn !== null && isset($txn['metadata']) && is_string($txn['metadata']) && $txn['metadata'] !== '') {
+            $decoded = json_decode($txn['metadata'], true);
+            if (is_array($decoded)) {
+                $existing = $decoded;
+            }
         }
 
         $merged = array_merge($existing, $metadata);
@@ -597,10 +606,13 @@ final class TransactionRepository extends BaseRepository
              FROM {$this->table} WHERE merchant_id = :mid AND DATE(created_at) = CURDATE()",
             ['mid' => $merchantId]
         );
+        $revVal = $row['revenue'] ?? '0.00';
+        $totVal = $row['total'] ?? 0;
+        $pendVal = $row['pending'] ?? 0;
         return [
-            'revenue' => (string) ($row['revenue'] ?? '0.00'),
-            'total'   => (int) ($row['total'] ?? 0),
-            'pending' => (int) ($row['pending'] ?? 0),
+            'revenue' => is_scalar($revVal) ? (string) $revVal : '0.00',
+            'total'   => is_scalar($totVal) ? (int) $totVal : 0,
+            'pending' => is_scalar($pendVal) ? (int) $pendVal : 0,
         ];
     }
 

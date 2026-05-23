@@ -318,7 +318,7 @@ final class EventManager
                     $sqlToCheck = $newValue['sql'] ?? '';
                     if ($this->container !== null) {
                         $registry = $this->container->get(\OwnPay\Plugin\PluginRegistry::class);
-                        if ($registry !== null) {
+                        if ($registry instanceof \OwnPay\Plugin\PluginRegistry) {
                             $sandbox = $registry->getSandbox($listener['owner']);
                             if ($sandbox !== null && !$sandbox->validateSql($sqlToCheck)) {
                                 throw new \RuntimeException(

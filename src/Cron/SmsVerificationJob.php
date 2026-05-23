@@ -90,14 +90,21 @@ final class SmsVerificationJob
         $total = 0;
 
         foreach ($merchants as $row) {
+            if (!isset($row['merchant_id']) || !is_scalar($row['merchant_id'])) {
+                continue;
+            }
             $mid = (int) $row['merchant_id'];
             $unmatched = $this->smsParsed->forTenant($mid)->getUnmatched(100);
             $total += count($unmatched);
 
             foreach ($unmatched as $sms) {
+                if (!isset($sms['merchant_id']) || !is_scalar($sms['merchant_id'])) {
+                    $failed++;
+                    continue;
+                }
                 $merchantId = (int) $sms['merchant_id'];
-                $trxId = $sms['trx_id'] ?? null;       // Extract the raw gateway transaction identifier from the SMS record.
-                $amount = $sms['amount'] ?? null;       // Extract the raw transacted amount from the SMS record.
+                $trxId = isset($sms['trx_id']) && is_scalar($sms['trx_id']) ? (string) $sms['trx_id'] : null;
+                $amount = isset($sms['amount']) && is_scalar($sms['amount']) ? (string) $sms['amount'] : null;
 
                 if ($trxId === null && $amount === null) {
                     $failed++;
@@ -112,25 +119,38 @@ final class SmsVerificationJob
 
                 // Fallback: Resolve transaction record matching by exact transacted amount and gateway provider.
                 if ($transaction === null && $amount !== null) {
-                    $gatewaySlug = $sms['gateway_slug'] ?? null;
+                    $gatewaySlug = isset($sms['gateway_slug']) && is_scalar($sms['gateway_slug']) ? (string) $sms['gateway_slug'] : null;
                     // Lookup pending transaction matching merchant context parameters without specific tenant repository scoping.
-                    $transaction = $this->transactions->findPendingMatch($merchantId, (string) $amount, (string) ($gatewaySlug ?? ''));
+                    $transaction = $this->transactions->findPendingMatch($merchantId, $amount, $gatewaySlug ?? '');
                 }
 
-                if ($transaction !== null && $transaction['status'] === 'pending') {
+                if ($transaction !== null && isset($transaction['status']) && $transaction['status'] === 'pending') {
+                    if (!isset($sms['id']) || !is_scalar($sms['id']) ||
+                        !isset($transaction['id']) || !is_scalar($transaction['id']) ||
+                        !isset($transaction['amount']) || !is_scalar($transaction['amount']) ||
+                        !isset($transaction['currency']) || !is_scalar($transaction['currency'])) {
+                        $failed++;
+                        continue;
+                    }
+                    $smsId = (int) $sms['id'];
+                    $transactionId = (int) $transaction['id'];
+                    $txAmount = (string) $transaction['amount'];
+                    $txFee = isset($transaction['fee']) && is_scalar($transaction['fee']) ? (string) $transaction['fee'] : '0.00';
+                    $txCurrency = (string) $transaction['currency'];
+
                     try {
-                        $this->db->transaction(function () use ($sms, $transaction, $merchantId) {
+                        $this->db->transaction(function () use ($smsId, $transactionId, $merchantId, $txAmount, $txFee, $txCurrency) {
                             $this->smsParsed->forTenant($merchantId)
-                                ->linkToTransaction((int) $sms['id'], (int) $transaction['id']);
+                                ->linkToTransaction($smsId, $transactionId);
 
                             // AUD-008: Complete transaction state + post ledger entries
-                            $this->transactionService->complete((int) $transaction['id'], $merchantId);
+                            $this->transactionService->complete($transactionId, $merchantId);
                             $this->ledgerService->recordPaymentReceived(
                                 $merchantId,
-                                (int) $transaction['id'],
-                                $transaction['amount'],
-                                $transaction['fee'] ?? '0.00',
-                                $transaction['currency']
+                                $transactionId,
+                                $txAmount,
+                                $txFee,
+                                $txCurrency
                             );
                         });
 
@@ -139,7 +159,7 @@ final class SmsVerificationJob
                     } catch (\Throwable $e) {
                         $failed++;
                         $this->logger->error(
-                            "Failed to process matched SMS: sms_id={$sms['id']} transaction_id={$transaction['id']} error={$e->getMessage()}"
+                            "Failed to process matched SMS: sms_id={$smsId} transaction_id={$transactionId} error={$e->getMessage()}"
                         );
                     }
                 } else {

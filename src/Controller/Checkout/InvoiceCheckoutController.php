@@ -75,58 +75,86 @@ final class InvoiceCheckoutController
 
         // Initialize Twig template engine environment prior to processing render loops.
         $twig = $this->c->get(\Twig\Environment::class);
+        if (!$twig instanceof \Twig\Environment) {
+            throw new \RuntimeException("Twig Environment not found");
+        }
 
         // If no active invoice record exists, return an expired/unavailable response page.
         if (!$invoice) {
             return $this->renderExpired($twig);
         }
 
-        if (!in_array($invoice['status'], $allowedStatuses, true)) {
+        $status = is_string($invoice['status'] ?? null) ? $invoice['status'] : '';
+
+        if (!in_array($status, $allowedStatuses, true)) {
             // Direct non-payable invoices to the expired status view with appropriate context labeling.
             $statusLabels = [
                 'draft' => 'Invoice Not Ready',
                 'paid'  => 'Invoice Already Paid',
                 'void'  => 'Invoice Voided',
             ];
-            $label = $statusLabels[$invoice['status']] ?? 'Invoice Unavailable';
+            $label = $statusLabels[$status] ?? 'Invoice Unavailable';
             return $this->renderExpired($twig, $label);
         }
 
         // Assess invoice deadline: automatically transition 'sent' invoices to 'overdue' if the due date has elapsed.
         if (!empty($invoice['due_date'])) {
-            $dueDate = strtotime($invoice['due_date']);
+            $dueDateRaw = $invoice['due_date'];
+            $dueDateStr = is_string($dueDateRaw) ? $dueDateRaw : '';
+            $dueDate = strtotime($dueDateStr);
             if ($dueDate !== false && $dueDate < strtotime('today')) {
                 // Update database status of the invoice context if currently marked as sent.
-                if ($invoice['status'] === 'sent') {
-                    $this->invoiceRepo->forTenant((int) $invoice['merchant_id'])
-                        ->updateScoped((int) $invoice['id'], ['status' => 'overdue']);
+                if ($status === 'sent') {
+                    $merchantIdVal = $invoice['merchant_id'] ?? 0;
+                    $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
+                    $invoiceIdVal = $invoice['id'] ?? 0;
+                    $invoiceId = (is_int($invoiceIdVal) || is_string($invoiceIdVal)) ? (int) $invoiceIdVal : 0;
+
+                    $this->invoiceRepo->forTenant($merchantId)
+                        ->updateScoped($invoiceId, ['status' => 'overdue']);
                     $invoice['status'] = 'overdue';
                 }
             }
         }
 
         // Retrieve any existing pending transaction session linked to this invoice to prevent double-billing.
-        $existingTxn = $this->invoiceRepo->findPendingTransaction((int) $invoice['id']);
-        if ($existingTxn) {
+        $invoiceIdVal = $invoice['id'] ?? 0;
+        $invoiceId = (is_int($invoiceIdVal) || is_string($invoiceIdVal)) ? (int) $invoiceIdVal : 0;
+        $existingTxn = $this->invoiceRepo->findPendingTransaction($invoiceId);
+        if (is_array($existingTxn) && isset($existingTxn['trx_id']) && is_string($existingTxn['trx_id'])) {
             return Response::redirect("/checkout/{$existingTxn['trx_id']}");
         }
 
         // Create new transaction with ALL required NOT NULL fields
         $trxId = $this->txnRepo->generateTrxId();
-        $total = (string) ($invoice['total'] ?? '0');
+        $totalVal = $invoice['total'] ?? '0';
+        $total = is_string($totalVal) || is_int($totalVal) || is_float($totalVal) ? (string) $totalVal : '0';
+
+        $merchantIdVal = $invoice['merchant_id'] ?? 0;
+        $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
+
+        $customerIdVal = $invoice['customer_id'] ?? null;
+        $customerId = ($customerIdVal !== null && (is_int($customerIdVal) || is_string($customerIdVal))) ? (int) $customerIdVal : null;
+
+        $currencyVal = $invoice['currency'] ?? 'BDT';
+        $currency = is_string($currencyVal) ? $currencyVal : 'BDT';
+
+        $invoiceNumVal = $invoice['invoice_number'] ?? '';
+        $invoiceNum = is_string($invoiceNumVal) ? $invoiceNumVal : '';
+
         $this->txnRepo->create([
             'uuid'         => Uuid::uuid4()->toString(),
             'trx_id'       => $trxId,
-            'merchant_id'  => $invoice['merchant_id'],
+            'merchant_id'  => $merchantId,
             'payment_intent_id' => null,
-            'customer_id'  => $invoice['customer_id'] ?? null,
+            'customer_id'  => $customerId,
             'gateway_slug' => 'invoice',
             'amount'       => $total,
             'net_amount'   => $total,
-            'currency'     => $invoice['currency'],
+            'currency'     => $currency,
             'method'       => 'invoice',
             'status'       => 'pending',
-            'metadata'     => json_encode(['invoice_id' => $invoice['id'], 'invoice_number' => $invoice['invoice_number']]),
+            'metadata'     => json_encode(['invoice_id' => $invoiceId, 'invoice_number' => $invoiceNum]),
         ]);
 
         return Response::redirect("/checkout/{$trxId}");
@@ -141,7 +169,8 @@ final class InvoiceCheckoutController
      */
     private function renderExpired(\Twig\Environment $twig, string $label = 'Invoice Expired'): Response
     {
-        $tpl = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
+        $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
+        $tpl = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
         return Response::html($twig->render($tpl, [
             'status'       => 'expired',
             'status_label' => $label,

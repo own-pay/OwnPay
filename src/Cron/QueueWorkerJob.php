@@ -87,24 +87,33 @@ final class QueueWorkerJob
         $failed = 0;
 
         foreach ($jobs as $job) {
+            if (!isset($job['id']) || !is_scalar($job['id']) ||
+                !isset($job['type']) || !is_string($job['type']) ||
+                !isset($job['payload']) || !is_string($job['payload'])) {
+                continue;
+            }
+            $jobId = (int) $job['id'];
+            $type = $job['type'];
+            $payloadRaw = $job['payload'];
+
             // Acquire exclusive database lock on the job record atomically to avoid race conditions.
             // Check updated row count; if zero, another worker process has already claimed this execution sequence.
             $affected = $this->db->update(
                 "UPDATE op_job_queue SET status = 'processing', started_at = NOW() WHERE id = :id AND status = 'pending'",
-                ['id' => $job['id']]
+                ['id' => $jobId]
             );
             if ($affected === 0) {
                 continue; // Another worker already claimed this job
             }
 
-            $type = $job['type'] ?? '';
-            $payload = json_decode($job['payload'] ?? '{}', true) ?: [];
+            $payload = json_decode($payloadRaw, true);
+            $payload = is_array($payload) ? $payload : [];
 
             if (!isset($this->handlers[$type])) {
                 $this->logger->warning("No handler for job type: {$type}");
                 $this->db->update(
                     "UPDATE op_job_queue SET status = 'failed', error = 'No handler registered' WHERE id = :id",
-                    ['id' => $job['id']]
+                    ['id' => $jobId]
                 );
                 $failed++;
                 continue;
@@ -115,12 +124,13 @@ final class QueueWorkerJob
 
                 $this->db->update(
                     "UPDATE op_job_queue SET status = 'completed', completed_at = NOW() WHERE id = :id",
-                    ['id' => $job['id']]
+                    ['id' => $jobId]
                 );
                 $processed++;
 
             } catch (\Throwable $e) {
-                $attempts = (int) ($job['attempts'] ?? 0) + 1;
+                $attemptsVal = $job['attempts'] ?? null;
+                $attempts = (is_scalar($attemptsVal) ? (int) $attemptsVal : 0) + 1;
                 $status = $attempts >= self::MAX_ATTEMPTS ? 'failed' : 'pending';
 
                 // Compute exponential backoff time interval to delay retrying this failed queue execution.
@@ -134,7 +144,7 @@ final class QueueWorkerJob
                         'att'    => $attempts,
                         'err'    => substr($e->getMessage(), 0, 500),
                         'back'   => $backoffSeconds,
-                        'id'     => $job['id'],
+                        'id'     => $jobId,
                     ]
                 );
 

@@ -84,8 +84,9 @@ final class LedgerService
             $acctType = $this->getAccountType($code);
             $account = $this->ledger->findOrCreateAccount($code, $acctType, $currency, $merchantId);
 
+            $acctIdVal = $account['id'] ?? 0;
             $resolvedEntries[] = [
-                'account_id' => (int) $account['id'],
+                'account_id' => is_scalar($acctIdVal) ? (int) $acctIdVal : 0,
                 'type' => $type,
                 'amount' => $amount
             ];
@@ -184,8 +185,10 @@ final class LedgerService
             throw new \RuntimeException("Transaction not found: {$transactionId}");
         }
 
-        $origGross = (string) $txn['amount'];
-        $origFee = (string) ($txn['fee'] ?? '0.00');
+        $amountVal = $txn['amount'] ?? '0.00';
+        $feeVal = $txn['fee'] ?? '0.00';
+        $origGross = is_scalar($amountVal) ? (string) $amountVal : '0.00';
+        $origFee = is_scalar($feeVal) ? (string) $feeVal : '0.00';
 
         /** @var numeric-string $origGross */
         /** @var numeric-string $origFee */

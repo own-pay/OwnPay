@@ -162,10 +162,18 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            throw new \RuntimeException('Stripe API error: Invalid response format');
+        }
+
+        $redirectUrl = $data['url'] ?? null;
+        $redirectUrlStr = is_scalar($redirectUrl) ? (string) $redirectUrl : null;
+        $sessionId = $data['id'] ?? null;
+        $sessionIdStr = is_scalar($sessionId) ? (string) $sessionId : null;
 
         return [
-            'redirect_url' => $data['url'] ?? null,
-            'session_id'   => $data['id'] ?? null,
+            'redirect_url' => $redirectUrlStr,
+            'session_id'   => $sessionIdStr,
         ];
     }
 
@@ -181,20 +189,26 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
         // Resolve session ID from multiple payload formats:
         // - Redirect return: top-level session_id query param
         // - Stripe webhook: nested at data.object.id for checkout.session.* events
-        $sessionId = $callbackData['session_id'] ?? '';
+        $rawSessionId = $callbackData['session_id'] ?? '';
+        $sessionId = is_scalar($rawSessionId) ? (string) $rawSessionId : '';
 
-        if ($sessionId === '' && isset($callbackData['data']['object']['id'])) {
+        $dataObject = $callbackData['data'] ?? null;
+        $object = is_array($dataObject) ? ($dataObject['object'] ?? null) : null;
+        $objectId = is_array($object) ? ($object['id'] ?? null) : null;
+
+        if ($sessionId === '' && is_scalar($objectId)) {
             $eventType = $callbackData['type'] ?? '';
-            if (str_starts_with($eventType, 'checkout.session.')) {
-                $sessionId = $callbackData['data']['object']['id'];
+            $eventTypeStr = is_scalar($eventType) ? (string) $eventType : '';
+            if (str_starts_with($eventTypeStr, 'checkout.session.')) {
+                $sessionId = (string) $objectId;
             }
         }
 
         // SECURITY FIX: NEVER trust webhook payload fields for payment decisions.
         // Even if we have the data.object, we MUST verify with Stripe API.
         // Extract session ID from webhook object if not found yet.
-        if ($sessionId === '' && isset($callbackData['data']['object']['id'])) {
-            $sessionId = $callbackData['data']['object']['id'];
+        if ($sessionId === '' && is_scalar($objectId)) {
+            $sessionId = (string) $objectId;
         }
 
         if ($sessionId === '') {
@@ -227,12 +241,22 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
 
         $paid = ($data['payment_status'] ?? '') === 'paid';
 
+        $paymentIntent = $data['payment_intent'] ?? '';
+        $paymentIntentStr = is_scalar($paymentIntent) ? (string) $paymentIntent : '';
+
+        $amountTotal = $data['amount_total'] ?? null;
+        $amountTotalStr = is_scalar($amountTotal) ? (string) $amountTotal : null;
+
+        $metadata = $data['metadata'] ?? null;
+        $trxIdVal = is_array($metadata) ? ($metadata['trx_id'] ?? '') : '';
+        $trxIdStr = is_scalar($trxIdVal) ? (string) $trxIdVal : '';
+
         return [
             'success'        => $paid,
-            'gateway_trx_id' => $data['payment_intent'] ?? '',
-            'amount'         => isset($data['amount_total']) ? bcdiv((string) $data['amount_total'], '100', 2) : null,
+            'gateway_trx_id' => $paymentIntentStr,
+            'amount'         => $amountTotalStr !== null ? bcdiv($amountTotalStr, '100', 2) : null,
             'status'         => $paid ? 'completed' : 'failed',
-            'trx_id'         => $data['metadata']['trx_id'] ?? '',
+            'trx_id'         => $trxIdStr,
         ];
     }
 
@@ -316,11 +340,28 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
         $response = curl_exec($ch);
         curl_close($ch);
         $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            return [
+                'success'   => false,
+                'refund_id' => null,
+                'error'     => 'Invalid response format',
+            ];
+        }
+
+        $status = $data['status'] ?? '';
+        $statusStr = is_scalar($status) ? (string) $status : '';
+
+        $id = $data['id'] ?? null;
+        $idStr = is_scalar($id) ? (string) $id : null;
+
+        $errorObj = $data['error'] ?? null;
+        $errorMessage = is_array($errorObj) ? ($errorObj['message'] ?? null) : null;
+        $errorMessageStr = is_scalar($errorMessage) ? (string) $errorMessage : null;
 
         return [
-            'success'   => ($data['status'] ?? '') === 'succeeded',
-            'refund_id' => $data['id'] ?? null,
-            'error'     => $data['error']['message'] ?? null,
+            'success'   => $statusStr === 'succeeded',
+            'refund_id' => $idStr,
+            'error'     => $errorMessageStr,
         ];
     }
 

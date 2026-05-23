@@ -70,16 +70,27 @@ final class PdfService
         if (isset($invoiceData['items']) && is_array($invoiceData['items'])) {
             $itemsHtml = '';
             foreach ($invoiceData['items'] as $item) {
-                $itemsHtml .= '<tr>';
-                $itemsHtml .= '<td>' . htmlspecialchars($item['description'] ?? '') . '</td>';
-                $itemsHtml .= '<td>' . htmlspecialchars((string) ($item['quantity'] ?? '1')) . '</td>';
-                $itemsHtml .= '<td>' . htmlspecialchars((string) ($item['amount'] ?? '0.00')) . '</td>';
-                $itemsHtml .= '</tr>';
+                if (is_array($item)) {
+                    $descVal = $item['description'] ?? '';
+                    $qtyVal = $item['quantity'] ?? '1';
+                    $amtVal = $item['amount'] ?? '0.00';
+                    $desc = is_scalar($descVal) ? (string) $descVal : '';
+                    $qty = is_scalar($qtyVal) ? (string) $qtyVal : '1';
+                    $amt = is_scalar($amtVal) ? (string) $amtVal : '0.00';
+
+                    $itemsHtml .= '<tr>';
+                    $itemsHtml .= '<td>' . htmlspecialchars($desc) . '</td>';
+                    $itemsHtml .= '<td>' . htmlspecialchars($qty) . '</td>';
+                    $itemsHtml .= '<td>' . htmlspecialchars($amt) . '</td>';
+                    $itemsHtml .= '</tr>';
+                }
             }
             $html = str_replace('{{items_rows}}', $itemsHtml, $html);
         }
 
-        $filename = 'invoice_' . ($invoiceData['invoice_number'] ?? (new \DateTimeImmutable())->format('YmdHis'));
+        $invNumVal = $invoiceData['invoice_number'] ?? null;
+        $invNum = is_scalar($invNumVal) ? (string)$invNumVal : (new \DateTimeImmutable())->format('YmdHis');
+        $filename = 'invoice_' . $invNum;
         return $this->generateFromHtml($html, $filename);
     }
 

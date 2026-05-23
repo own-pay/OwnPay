@@ -54,12 +54,13 @@ final class GatewayRendererService
         $apiGateways = $this->apiConfigs->forTenant($merchantId)->listActiveWithGateway();
         $apiForFrontend = [];
         foreach ($apiGateways as $gw) {
+            $supportedCurrencies = $gw['supported_currencies'] ?? '[]';
             $apiForFrontend[] = [
                 'slug'         => $gw['slug'],
                 'name'         => $gw['name'],
                 'logo'         => $gw['logo'] ?? null,
                 'type'         => 'api',
-                'currencies'   => json_decode($gw['supported_currencies'] ?? '[]', true),
+                'currencies'   => json_decode(is_string($supportedCurrencies) ? $supportedCurrencies : '[]', true),
                 'min_amount'   => $gw['min_amount'] ?? null,
                 'max_amount'   => $gw['max_amount'] ?? null,
             ];
@@ -69,6 +70,7 @@ final class GatewayRendererService
         $manualGateways = $this->manualGateways->forTenant($merchantId)->listActive();
         $manualForFrontend = [];
         foreach ($manualGateways as $mg) {
+            $inputFields = $mg['input_fields'] ?? '[]';
             $manualForFrontend[] = [
                 'slug'           => $mg['slug'],
                 'name'           => $mg['name'],
@@ -76,7 +78,7 @@ final class GatewayRendererService
                 'qr_code_path'   => $mg['qr_code_path'] ?? null,
                 'type'           => 'manual',
                 'instructions'   => $mg['instructions'] ?? '',
-                'input_fields'   => json_decode($mg['input_fields'] ?? '[]', true),
+                'input_fields'   => json_decode(is_string($inputFields) ? $inputFields : '[]', true),
                 'sms_verification' => (bool) ($mg['sms_verification'] ?? false),
                 'min_amount'     => $mg['min_amount'] ?? null,
                 'max_amount'     => $mg['max_amount'] ?? null,

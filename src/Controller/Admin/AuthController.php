@@ -120,8 +120,10 @@ final class AuthController
      */
     public function login(Request $req): Response
     {
-        $email    = $req->post('email', '');
-        $password = $req->post('password', '');
+        $emailVal = $req->post('email', '');
+        $email = is_string($emailVal) ? $emailVal : '';
+        $passwordVal = $req->post('password', '');
+        $password = is_string($passwordVal) ? $passwordVal : '';
 
         $this->events->doAction('auth.login.attempt', ['email' => $email, 'ip' => $req->ip()]);
 
@@ -129,14 +131,16 @@ final class AuthController
         if (!$result['success']) {
             $this->audit->log('login.failed', 'user', null, null, ['email' => $email]);
             $loginSlug = $this->resolveLoginSlug();
+            $errorMsg = $result['error'] ?? 'Invalid credentials';
             return $this->renderAdminPage('page/login.twig', [
                 'login_url' => '/' . $loginSlug,
-                'error'     => $result['error'] ?? 'Invalid credentials',
+                'error'     => $errorMsg,
                 'old_email' => $email,
             ]);
         }
 
-        if (!isset($result['user'])) {
+        $resUser = $result['user'] ?? null;
+        if (!is_array($resUser)) {
             $loginSlug = $this->resolveLoginSlug();
             return $this->renderAdminPage('page/login.twig', [
                 'login_url' => '/' . $loginSlug,
@@ -145,13 +149,16 @@ final class AuthController
             ]);
         }
 
+        $userIdVal = $resUser['id'] ?? 0;
+        $userId = is_int($userIdVal) || is_string($userIdVal) ? (int)$userIdVal : 0;
+
         // Check 2FA
         if (!empty($result['requires_2fa'])) {
-            $this->session->set('2fa_user_id', $result['user']['id']);
+            $this->session->set('2fa_user_id', $userId);
             return Response::redirect('/2fa');
         }
 
-        $this->audit->log('login.success', 'user', (int) $result['user']['id']);
+        $this->audit->log('login.success', 'user', $userId);
         return Response::redirect('/admin');
     }
 
@@ -180,26 +187,31 @@ final class AuthController
      */
     public function twoFactorVerify(Request $req): Response
     {
-        $userId = $this->session->get('2fa_user_id');
-        if ($userId === null) {
+        $userIdVal = $this->session->get('2fa_user_id');
+        if ($userIdVal === null) {
             $loginSlug = $this->resolveLoginSlug();
             return Response::redirect('/' . $loginSlug);
         }
+        $userId = is_int($userIdVal) || is_string($userIdVal) ? (int)$userIdVal : 0;
 
         $codeRaw = $req->post('code', '');
         $code = (string) preg_replace('/\D/', '', is_string($codeRaw) ? $codeRaw : '');
-        $user = $this->userRepo->findActiveByEmail(
-            $this->userRepo->findById((int) $userId)['email'] ?? ''
-        );
+        
+        $userEmailVal = $this->userRepo->findById($userId)['email'] ?? '';
+        $userEmail = is_string($userEmailVal) ? $userEmailVal : '';
+        $user = $this->userRepo->findActiveByEmail($userEmail);
 
-        if (!$user || empty($user['totp_secret_enc'])) {
+        if (!is_array($user) || empty($user['totp_secret_enc'])) {
             return $this->renderAdminPage('page/2fa.twig', ['error' => '2FA is not properly configured on this account.']);
         }
+
+        $userIdFromDbVal = $user['id'] ?? 0;
+        $userIdFromDb = is_int($userIdFromDbVal) || is_string($userIdFromDbVal) ? (int)$userIdFromDbVal : 0;
 
         // BUG-40 FIX: Decrypt the TOTP secret before verification.
         // totp_secret_enc is AES-256-GCM encrypted — passing it raw to verifyTotp()
         // computes HMAC on ciphertext, causing all codes to fail.
-        $decryptedSecret = $this->userRepo->getTotpSecret((int) $user['id']);
+        $decryptedSecret = $this->userRepo->getTotpSecret($userIdFromDb);
         if ($decryptedSecret === null) {
             return $this->renderAdminPage('page/2fa.twig', ['error' => '2FA secret could not be decrypted.']);
         }
@@ -210,8 +222,12 @@ final class AuthController
 
         // Full session bootstrap via Authenticator
         $authenticator = $this->c->get(\OwnPay\Security\Authenticator::class);
-        $authenticator->startSession($user);
-        $this->userRepo->updateLastLogin((int) $user['id'], $req->ip());
+        if ($authenticator instanceof \OwnPay\Security\Authenticator) {
+            $authenticator->startSession($user);
+        } else {
+            return $this->renderAdminPage('page/2fa.twig', ['error' => 'Authenticator service unavailable']);
+        }
+        $this->userRepo->updateLastLogin($userIdFromDb, $req->ip());
 
         // 2FA-specific session flags
         $_SESSION['two_fa_enabled'] = true;
@@ -219,7 +235,7 @@ final class AuthController
         unset($_SESSION['2fa_user_id']);
 
         $this->events->doAction('auth.login.success', $user);
-        $this->audit->log('login.2fa_verified', 'user', (int) $user['id']);
+        $this->audit->log('login.2fa_verified', 'user', $userIdFromDb);
 
         return Response::redirect('/admin');
     }
@@ -236,8 +252,9 @@ final class AuthController
         // AUD-03 FIX: OwnPay is single-owner system.
         // Password resets are done by superadmin, not self-service email.
         $supportEmail = $this->settings->get('general', 'support_email', '');
+        $supportEmailStr = is_string($supportEmail) ? $supportEmail : '';
         return $this->renderAdminPage('page/forgot.twig', [
-            'support_email' => $supportEmail,
+            'support_email' => $supportEmailStr,
         ]);
     }
 
@@ -250,7 +267,8 @@ final class AuthController
      */
     public function forgotSubmit(Request $req): Response
     {
-        $email = trim($req->post('email', ''));
+        $emailVal = $req->post('email', '');
+        $email = trim(is_string($emailVal) ? $emailVal : '');
 
         if ($email === '') {
             return $this->renderAdminPage('page/forgot.twig', [
@@ -277,7 +295,9 @@ final class AuthController
      */
     public function logout(Request $req): Response
     {
-        $this->audit->log('logout', 'user', $_SESSION['auth_user_id'] ?? null);
+        $sessionAuthUserId = $_SESSION['auth_user_id'] ?? null;
+        $sessionAuthUserIdInt = (is_int($sessionAuthUserId) || is_string($sessionAuthUserId)) ? (int)$sessionAuthUserId : null;
+        $this->audit->log('logout', 'user', $sessionAuthUserIdInt);
         $this->events->doAction('auth.logout', $this->session->currentUser());
         $this->auth->logout();
 
@@ -285,7 +305,7 @@ final class AuthController
         $loginSlug = 'login';
         try {
             $slug = $this->settings->get('landing', 'admin_login_slug', 'login');
-            if (!empty($slug) && preg_match('/^[a-z0-9\-]+$/', $slug)) {
+            if (is_string($slug) && $slug !== '' && preg_match('/^[a-z0-9\-]+$/', $slug)) {
                 $loginSlug = $slug;
             }
         } catch (\Throwable) {}
@@ -298,22 +318,23 @@ final class AuthController
      * @return string
      */
     private function resolveLoginSlug(): string
-    {
-        $cacheFile = dirname(__DIR__, 3) . '/storage/cache/login_slug.cache';
-        if (file_exists($cacheFile)) {
-            $slug = @file_get_contents($cacheFile);
-            if ($slug !== false && $slug !== '') {
-                $slug = trim($slug);
-                if (preg_match('/^[a-z0-9\-]+$/', $slug)) {
-                    return $slug;
-                }
-            }
-        }
-
-        try {
-            return (string) $this->settings->get('landing', 'admin_login_slug', 'login');
-        } catch (\Throwable) {
-            return 'login';
-        }
-    }
+     {
+         $cacheFile = dirname(__DIR__, 3) . '/storage/cache/login_slug.cache';
+         if (file_exists($cacheFile)) {
+             $slug = @file_get_contents($cacheFile);
+             if ($slug !== false && $slug !== '') {
+                 $slug = trim($slug);
+                 if (preg_match('/^[a-z0-9\-]+$/', $slug)) {
+                     return $slug;
+                 }
+             }
+         }
+ 
+         try {
+             $slugSetting = $this->settings->get('landing', 'admin_login_slug', 'login');
+             return is_string($slugSetting) ? $slugSetting : 'login';
+         } catch (\Throwable) {
+             return 'login';
+         }
+     }
 }

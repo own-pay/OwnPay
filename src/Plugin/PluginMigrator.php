@@ -107,6 +107,9 @@ final class PluginMigrator
 
         $rolledBack = [];
         foreach ($migrations as $row) {
+            if (!isset($row['migration']) || !is_string($row['migration'])) {
+                continue;
+            }
             $downFile = $migrationsDir . '/' . str_replace('.sql', '.down.sql', $row['migration']);
             if (file_exists($downFile)) {
                 $sql = file_get_contents($downFile);
@@ -141,7 +144,13 @@ final class PluginMigrator
             "SELECT migration FROM op_plugin_migrations WHERE plugin_slug = :slug",
             ['slug' => $slug]
         );
-        return array_column($rows, 'migration');
+        $executed = [];
+        foreach ($rows as $row) {
+            if (isset($row['migration']) && is_string($row['migration'])) {
+                $executed[] = $row['migration'];
+            }
+        }
+        return $executed;
     }
 
     /**
@@ -193,6 +202,7 @@ final class PluginMigrator
             "SELECT MAX(batch) as batch FROM op_plugin_migrations WHERE plugin_slug = :slug",
             ['slug' => $slug]
         );
-        return (int) ($row['batch'] ?? 0);
+        $batch = is_array($row) && isset($row['batch']) ? $row['batch'] : null;
+        return is_numeric($batch) ? (int) $batch : 0;
     }
 }

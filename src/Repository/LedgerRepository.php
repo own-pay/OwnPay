@@ -93,7 +93,8 @@ final class LedgerRepository extends BaseRepository
     public function getBalance(int $accountId): string
     {
         $row = $this->find($accountId);
-        return $row['balance'] ?? '0.00';
+        $balance = $row['balance'] ?? '0.00';
+        return is_scalar($balance) ? (string) $balance : '0.00';
     }
 
     /**
@@ -115,7 +116,8 @@ final class LedgerRepository extends BaseRepository
             return;
         }
 
-        $type = strtolower($account['type']);
+        $typeVal = $account['type'] ?? '';
+        $type = strtolower(is_scalar($typeVal) ? (string) $typeVal : '');
         $entryType = strtolower($entryType);
 
         // Double-entry rules
@@ -257,7 +259,19 @@ final class LedgerRepository extends BaseRepository
             return false;
         }
 
-        return bccomp($row['total_debit'] ?? '0', $row['total_credit'] ?? '0', 4) === 0;
+        $totalDebitVal = $row['total_debit'] ?? '0';
+        $totalCreditVal = $row['total_credit'] ?? '0';
+        $totalDebit = is_scalar($totalDebitVal) ? (string) $totalDebitVal : '0';
+        $totalCredit = is_scalar($totalCreditVal) ? (string) $totalCreditVal : '0';
+
+        if (!is_numeric($totalDebit)) {
+            $totalDebit = '0';
+        }
+        if (!is_numeric($totalCredit)) {
+            $totalCredit = '0';
+        }
+
+        return bccomp($totalDebit, $totalCredit, 4) === 0;
     }
 
     /**
@@ -272,10 +286,11 @@ final class LedgerRepository extends BaseRepository
     {
         $offset = ($page - 1) * $limit;
 
-        $total = (int) $this->db->fetchColumn(
+        $totalVal = $this->db->fetchColumn(
             "SELECT COUNT(*) FROM op_ledger_transactions WHERE merchant_id = :mid",
             ['mid' => $merchantId]
         );
+        $total = is_scalar($totalVal) ? (int) $totalVal : 0;
 
         $items = $this->db->fetchAll(
             "SELECT lt.id, lt.uuid, lt.description, lt.reference_type, lt.reference_id, lt.created_at,
@@ -307,7 +322,8 @@ final class LedgerRepository extends BaseRepository
              LIMIT 1",
             ['mid' => $merchantId, 'cur' => $currency]
         );
-        return $row['balance'] ?? '0.00';
+        $balance = $row['balance'] ?? '0.00';
+        return is_scalar($balance) ? (string) $balance : '0.00';
     }
 }
 

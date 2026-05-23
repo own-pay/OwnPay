@@ -106,34 +106,39 @@ final class SystemUpdateJob
             $updateChannel = 'stable';
         }
 
-        $channelData = $manifest['channels'][$updateChannel] ?? null;
+        $channels = $manifest['channels'] ?? null;
+        if (!is_array($channels)) {
+            return ['error' => 'manifest missing channels'];
+        }
+        $channelData = $channels[$updateChannel] ?? null;
 
         $updateAvailable = false;
         $latestName = null;
         $latestCode = null;
 
-        if ($channelData) {
+        if (is_array($channelData)) {
             $latestName = $channelData['latest_version_name'] ?? null;
             $latestCode = $channelData['latest_version_code'] ?? null;
 
-            if ($latestCode !== null && version_compare((string) $latestCode, $this->currentVersion, '>')) {
+            if ($latestCode !== null && is_scalar($latestCode) && version_compare((string) $latestCode, $this->currentVersion, '>')) {
                 $updateAvailable = true;
             }
         }
 
-        if ($updateAvailable) {
+        if ($updateAvailable && is_scalar($latestName)) {
+            $latestNameStr = (string) $latestName;
             $this->events->doAction('system.update.available', [
                 'current_version' => $this->currentVersion,
-                'latest_version'  => $latestName,
+                'latest_version'  => $latestNameStr,
                 'channel'         => $updateChannel,
             ]);
 
-            $this->settings->set('runtime', 'last_update_version', (string) $latestName);
+            $this->settings->set('runtime', 'last_update_version', $latestNameStr);
 
             return [
                 'update_available' => true,
                 'channel' => $updateChannel,
-                'latest_version' => $latestName,
+                'latest_version' => $latestNameStr,
             ];
         }
 

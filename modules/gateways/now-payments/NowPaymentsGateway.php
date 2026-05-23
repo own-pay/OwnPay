@@ -75,7 +75,8 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
         $baseUrl = $mode === 'live' ? 'https://api.nowpayments.io/v1/' : 'https://api-sandbox.nowpayments.io/v1/';
         $url = $baseUrl . 'invoice';
 
-        $apiKey = $credentials['now_payment_api_key'] ?? '';
+        $apiKeyRaw = $credentials['now_payment_api_key'] ?? '';
+        $apiKey = is_scalar($apiKeyRaw) ? (string) $apiKeyRaw : '';
         $trxId = $params['trx_id'];
 
         $redirectUrl = $params['redirect_url'];
@@ -117,77 +118,99 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if (($httpCode !== 201 && $httpCode !== 200) || !$response) {
-            $errData = json_decode((string) $response, true);
-            $errMsg = $errData['message'] ?? 'HTTP ' . $httpCode;
+        $responseStr = is_string($response) ? $response : '';
+        if (($httpCode !== 201 && $httpCode !== 200) || $responseStr === '') {
+            $errData = json_decode($responseStr, true);
+            $errMsg = is_array($errData) && isset($errData['message']) && is_scalar($errData['message']) ? (string) $errData['message'] : 'HTTP ' . $httpCode;
             throw new \RuntimeException('NOWPayments API Error: ' . $errMsg);
         }
 
-        $result = json_decode((string) $response, true);
-        if (empty($result['invoice_url'])) {
+        $result = json_decode($responseStr, true);
+        if (!is_array($result)) {
+            throw new \RuntimeException('NOWPayments response has invalid JSON');
+        }
+
+        $invoiceUrlVal = $result['invoice_url'] ?? '';
+        $invoiceUrl = is_scalar($invoiceUrlVal) ? (string) $invoiceUrlVal : '';
+
+        if ($invoiceUrl === '') {
             throw new \RuntimeException('NOWPayments response has missing invoice URL');
         }
 
+        $idVal = $result['id'] ?? '';
+        $idStr = is_scalar($idVal) ? (string) $idVal : '';
+
         return [
-            'redirect_url' => $result['invoice_url'],
-            'session_id'   => (string) ($result['id'] ?? ''),
+            'redirect_url' => $invoiceUrl,
+            'session_id'   => $idStr,
         ];
     }
 
     public function verify(array $callbackData, array $credentials): array
     {
         $paymentStatus = $callbackData['payment_status'] ?? '';
+        $paymentStatusStr = is_scalar($paymentStatus) ? (string) $paymentStatus : '';
+
         $paymentId = $callbackData['payment_id'] ?? '';
+        $paymentIdStr = is_scalar($paymentId) ? (string) $paymentId : '';
+
         $orderId = $callbackData['order_id'] ?? '';
+        $orderIdStr = is_scalar($orderId) ? (string) $orderId : '';
+
         $priceAmount = $callbackData['price_amount'] ?? null;
 
         // If paymentStatus is present, it's an IPN/webhook callback
-        if ($paymentStatus !== '') {
-            $isPaid = in_array(strtolower($paymentStatus), ['finished', 'sending', 'confirmed'], true);
+        if ($paymentStatusStr !== '') {
+            $isPaid = in_array(strtolower($paymentStatusStr), ['finished', 'sending', 'confirmed'], true);
             $res = [
                 'success'        => $isPaid,
-                'gateway_trx_id' => (string) $paymentId,
+                'gateway_trx_id' => $paymentIdStr,
                 'status'         => $isPaid ? 'completed' : 'failed',
-                'order_id'       => $orderId,
+                'trx_id'         => $orderIdStr,
             ];
             if ($priceAmount !== null) {
-                $res['amount'] = (string) $priceAmount;
+                $res['amount'] = is_scalar($priceAmount) ? (string) $priceAmount : '';
             }
             return $res;
         }
 
         // Return pending status if no webhook payload is present (e.g. initial redirect)
         $trxId = $callbackData['trx_id'] ?? $callbackData['paymentID'] ?? '';
+        $trxIdStr = is_scalar($trxId) ? (string) $trxId : '';
         return [
             'success'        => false,
             'gateway_trx_id' => '',
             'status'         => 'pending',
-            'trx_id'         => $trxId,
+            'trx_id'         => $trxIdStr,
         ];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $receivedSignature = $headers['x-nowpayments-sig'] ?? '';
-        if (empty($receivedSignature)) {
+        $receivedSignatureStr = $headers['x-nowpayments-sig'] ?? '';
+        if ($receivedSignatureStr === '') {
             return false;
         }
 
         $requestData = json_decode($rawBody, true);
-        if ($requestData === null) {
+        if (!is_array($requestData)) {
             return false;
         }
 
         ksort($requestData);
         $sortedRequestJson = json_encode($requestData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
-
-        $ipnSecret = $credentials['now_payment_ipn_secret'] ?? '';
-        if (empty($ipnSecret)) {
+        if ($sortedRequestJson === false) {
             return false;
         }
 
-        $expectedSignature = hash_hmac('sha512', (string) $sortedRequestJson, trim($ipnSecret));
+        $ipnSecret = $credentials['now_payment_ipn_secret'] ?? '';
+        $ipnSecretStr = is_scalar($ipnSecret) ? (string) $ipnSecret : '';
+        if ($ipnSecretStr === '') {
+            return false;
+        }
 
-        return hash_equals($receivedSignature, $expectedSignature);
+        $expectedSignature = hash_hmac('sha512', $sortedRequestJson, trim($ipnSecretStr));
+
+        return hash_equals($receivedSignatureStr, $expectedSignature);
     }
 }

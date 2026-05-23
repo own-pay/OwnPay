@@ -32,11 +32,11 @@ final class CurrencyService
      */
     public function __construct(private readonly \OwnPay\Core\Database $db)
     {
-        // AUD-C7 fix: load base currency from system settings instead of hardcoding USD
         $row = $this->db->fetchOne(
             "SELECT `value` FROM op_system_settings WHERE `group_name` = 'general' AND `key_name` = 'base_currency' LIMIT 1"
         );
-        $this->baseCurrency = ($row['value'] ?? '') !== '' ? $row['value'] : 'USD';
+        $val = $row['value'] ?? '';
+        $this->baseCurrency = is_string($val) && $val !== '' ? $val : 'USD';
         $this->loadCurrencies();
     }
 
@@ -164,17 +164,27 @@ final class CurrencyService
         $rates = $this->db->fetchAll("SELECT base_currency, target_currency, rate FROM op_exchange_rates");
 
         foreach ($rows as $row) {
-            $this->currencies[$row['code']] = [
-                'rate' => '0', // AUD-C7 fix: default to '0' — missing rate triggers explicit error in convert()
-                'symbol' => $row['symbol'],
-                'decimals' => (int) $row['decimal_places'],
-            ];
+            $code = $row['code'] ?? '';
+            $symbol = $row['symbol'] ?? '';
+            $decimalPlaces = $row['decimal_places'] ?? 2;
+            if (is_string($code) && $code !== '' && is_string($symbol)) {
+                $this->currencies[$code] = [
+                    'rate' => '0',
+                    'symbol' => $symbol,
+                    'decimals' => is_scalar($decimalPlaces) ? (int) $decimalPlaces : 2,
+                ];
+            }
         }
 
         // Apply exchange rates
         foreach ($rates as $rate) {
-            if ($rate['base_currency'] === $this->baseCurrency && isset($this->currencies[$rate['target_currency']])) {
-                $this->currencies[$rate['target_currency']]['rate'] = $rate['rate'];
+            $base = $rate['base_currency'] ?? '';
+            $target = $rate['target_currency'] ?? '';
+            $rateVal = $rate['rate'] ?? '0';
+            if (is_string($base) && is_string($target) && is_scalar($rateVal)) {
+                if ($base === $this->baseCurrency && isset($this->currencies[$target])) {
+                    $this->currencies[$target]['rate'] = (string) $rateVal;
+                }
             }
         }
 

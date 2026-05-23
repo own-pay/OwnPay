@@ -43,6 +43,9 @@ final class LoginController
     public function show(Request $req): Response
     {
         $auth = $this->c->get(\OwnPay\Controller\Admin\AuthController::class);
+        if (!$auth instanceof \OwnPay\Controller\Admin\AuthController) {
+            throw new \RuntimeException('AuthController service not found.');
+        }
         return $auth->loginForm($req);
     }
 
@@ -57,6 +60,9 @@ final class LoginController
     public function submit(Request $req): Response
     {
         $auth = $this->c->get(\OwnPay\Controller\Admin\AuthController::class);
+        if (!$auth instanceof \OwnPay\Controller\Admin\AuthController) {
+            throw new \RuntimeException('AuthController service not found.');
+        }
         return $auth->login($req);
     }
 }

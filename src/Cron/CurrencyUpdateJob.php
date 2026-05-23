@@ -57,10 +57,19 @@ final class CurrencyUpdateJob
             }
 
             $data = json_decode($response['body'], true);
-            $rates = $data['rates'] ?? [];
+            if (!is_array($data)) {
+                return ['success' => false, 'error' => 'Invalid API response structure'];
+            }
+            $rates = $data['rates'] ?? null;
+            if (!is_array($rates)) {
+                return ['success' => false, 'error' => 'Exchange rates not found in API response'];
+            }
             $updated = 0;
 
             foreach ($rates as $currency => $rate) {
+                if (!is_string($currency) || !is_scalar($rate)) {
+                    continue;
+                }
                 $exists = $this->db->fetchOne(
                     "SELECT id FROM op_exchange_rates WHERE base_currency = 'USD' AND target_currency = :cur",
                     ['cur' => $currency]

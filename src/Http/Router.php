@@ -173,7 +173,17 @@ final class Router
             return;
         }
 
-        $configDir = $this->container->get('config.app')['paths']['config'] ?? dirname(__DIR__, 2) . '/config';
+        $configApp = $this->container->get('config.app');
+        $configDir = null;
+        if (is_array($configApp)) {
+            $paths = $configApp['paths'] ?? null;
+            if (is_array($paths) && isset($paths['config']) && is_string($paths['config'])) {
+                $configDir = $paths['config'];
+            }
+        }
+        if ($configDir === null) {
+            $configDir = dirname(__DIR__, 2) . '/config';
+        }
 
         // Load administration and public web routes.
         $webRoutes = $configDir . '/routes/web.php';
@@ -281,6 +291,9 @@ final class Router
         }
 
         $controller = $this->container->get($fqcn);
+        if (!is_object($controller)) {
+            throw new RuntimeException("Resolved controller is not an object.");
+        }
 
         if (!method_exists($controller, $methodName)) {
             throw new RuntimeException("Method [{$methodName}] not found on controller [{$fqcn}].");
@@ -295,7 +308,11 @@ final class Router
 
         // Auto-wrap array payloads returned by controllers into JSON response objects.
         if (is_array($result)) {
-            return Response::json($result);
+            $resultChecked = [];
+            foreach ($result as $k => $v) {
+                $resultChecked[(string)$k] = $v;
+            }
+            return Response::json($resultChecked);
         }
 
         // Auto-wrap plain string values into HTML response objects.

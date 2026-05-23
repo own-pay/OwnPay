@@ -87,7 +87,14 @@ final class SmsTemplateRepository extends BaseRepository
                AND sender_pattern != ''",
             ['mid' => $brandId]
         );
-        return array_column($rows, 'sender_pattern');
+        $result = [];
+        foreach ($rows as $row) {
+            $pattern = $row['sender_pattern'] ?? '';
+            if (is_string($pattern) && $pattern !== '') {
+                $result[] = $pattern;
+            }
+        }
+        return $result;
     }
 
     // ─── Admin methods ───────────────────────────────────────────
@@ -139,7 +146,7 @@ final class SmsTemplateRepository extends BaseRepository
             'amount_regex'   => $data['amount_regex'] ?? '',
             'trx_id_regex'   => $data['trx_id_regex'] ?? '',
             'sender_regex'   => $data['sender_regex'] ?? '',
-            'priority'       => (int) ($data['priority'] ?? 10),
+            'priority'       => (int) (isset($data['priority']) && is_scalar($data['priority']) ? $data['priority'] : 10),
             'status'         => $data['status'] ?? 'active',
         ]);
     }
@@ -200,7 +207,8 @@ final class SmsTemplateRepository extends BaseRepository
             "SELECT COUNT(*) as cnt FROM {$this->table} WHERE merchant_id = :mid",
             ['mid' => $merchantId]
         );
-        return (int) ($row['cnt'] ?? 0);
+        $cntVal = $row['cnt'] ?? 0;
+        return is_scalar($cntVal) ? (int) $cntVal : 0;
     }
 
     /**

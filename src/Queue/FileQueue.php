@@ -130,7 +130,8 @@ final class FileQueue implements QueueInterface
             }
 
             // Increment execution count metadata.
-            $job['attempts'] = ($job['attempts'] ?? 0) + 1;
+            $attempts = $job['attempts'] ?? 0;
+            $job['attempts'] = (is_numeric($attempts) ? (int) $attempts : 0) + 1;
             $job['_file'] = $processingFile;
 
             return $job;
@@ -215,10 +216,19 @@ final class FileQueue implements QueueInterface
                 continue;
             }
 
+            $queueName = is_string($job['queue'] ?? null) ? $job['queue'] : 'default';
+            $handlerClass = is_string($job['handler'] ?? null) ? $job['handler'] : '';
+            $payloadData = [];
+            if (isset($job['payload']) && is_array($job['payload'])) {
+                foreach ($job['payload'] as $k => $v) {
+                    $payloadData[(string) $k] = $v;
+                }
+            }
+
             $this->push(
-                $job['queue'] ?? 'default',
-                $job['handler'] ?? '',
-                $job['payload'] ?? [],
+                $queueName,
+                $handlerClass,
+                $payloadData,
                 $delay
             );
 

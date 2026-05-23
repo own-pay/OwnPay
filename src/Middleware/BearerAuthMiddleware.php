@@ -75,7 +75,7 @@ final class BearerAuthMiddleware
         }
 
         // Timing-safe comparison (per OWASP)
-        if (!hash_equals($apiKey['key_hash'], $keyHash)) {
+        if (!isset($apiKey['key_hash']) || !is_string($apiKey['key_hash']) || !hash_equals($apiKey['key_hash'], $keyHash)) {
             return Response::json(['success' => false, 'message' => 'Invalid API key'], 401);
         }
 
@@ -85,17 +85,34 @@ final class BearerAuthMiddleware
         }
 
         // Check expiry
-        if ($apiKey['expires_at'] !== null && DateHelper::isPast($apiKey['expires_at'])) {
-            return Response::json(['success' => false, 'message' => 'API key expired'], 401);
+        $expiresAt = $apiKey['expires_at'] ?? null;
+        if ($expiresAt !== null) {
+            if (!is_string($expiresAt)) {
+                return Response::json(['success' => false, 'message' => 'Invalid API key expiration'], 401);
+            }
+            if (DateHelper::isPast($expiresAt)) {
+                return Response::json(['success' => false, 'message' => 'API key expired'], 401);
+            }
         }
+
+        if (!isset($apiKey['merchant_id']) || !is_scalar($apiKey['merchant_id']) ||
+            !isset($apiKey['id']) || !is_scalar($apiKey['id'])) {
+            return Response::json(['success' => false, 'message' => 'Invalid API key metadata'], 401);
+        }
+
+        $merchantId = (int) $apiKey['merchant_id'];
+        $apiKeyId = (int) $apiKey['id'];
 
         // Inject merchant context into request
         $request->setAttribute('api_key', $apiKey);
-        $request->setAttribute('merchant_id', (int) $apiKey['merchant_id']);
+        $request->setAttribute('merchant_id', $merchantId);
 
         // Check active merchant status
         $merchantRepo = $this->container->get(\OwnPay\Repository\MerchantRepository::class);
-        $merchant = $merchantRepo->find((int) $apiKey['merchant_id']);
+        if (!$merchantRepo instanceof \OwnPay\Repository\MerchantRepository) {
+            throw new \RuntimeException("MerchantRepository not found in container");
+        }
+        $merchant = $merchantRepo->find($merchantId);
         if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
             return Response::json([
                 'success' => false,
@@ -104,7 +121,7 @@ final class BearerAuthMiddleware
         }
 
         // Touch last_used (fire-and-forget)
-        $repo->touchLastUsed((int) $apiKey['id']);
+        $repo->touchLastUsed($apiKeyId);
 
         return $next($request);
     }

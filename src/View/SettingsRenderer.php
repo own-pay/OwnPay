@@ -64,8 +64,10 @@ final class SettingsRenderer
              */
             if (is_array($rawDefault)) {
                 $defaultStr = json_encode($rawDefault, JSON_UNESCAPED_UNICODE) ?: '';
-            } else {
+            } elseif (is_scalar($rawDefault)) {
                 $defaultStr = (string) $rawDefault;
+            } else {
+                $defaultStr = '';
             }
             $value = $currentValues[$name] ?? $defaultStr;
 

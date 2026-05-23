@@ -44,11 +44,16 @@ final class RateLimiterMiddleware
     {
         try {
             $config = $this->container->get('config.app');
+            if (!is_array($config)) {
+                $config = [];
+            }
             $path = '/' . trim($request->path(), '/');
 
             // Dynamically load the admin login slug to ensure rate limits apply perfectly
             $loginSlug = 'login';
-            $cacheFile = ($config['paths']['root'] ?? dirname(__DIR__, 2)) . '/storage/cache/login_slug.cache';
+            $paths = $config['paths'] ?? null;
+            $root = is_array($paths) && isset($paths['root']) && is_string($paths['root']) ? $paths['root'] : dirname(__DIR__, 2);
+            $cacheFile = $root . '/storage/cache/login_slug.cache';
             if (file_exists($cacheFile)) {
                 $cached = file_get_contents($cacheFile);
                 if ($cached !== false && preg_match('/^[a-z0-9\-]+$/', $cached)) {
@@ -65,16 +70,25 @@ final class RateLimiterMiddleware
                 str_contains($path, '/forgot-password')
             );
 
-            if ($isLoginRoute) {
-                $limitConfig = $config['rate_limit']['login'] ?? ['max' => 5, 'window' => 300];
-            } elseif (str_starts_with($path, '/api/')) {
-                $limitConfig = $config['rate_limit']['api'] ?? ['max' => 60, 'window' => 60];
-            } else {
-                $limitConfig = $config['rate_limit']['global'] ?? ['max' => 120, 'window' => 60];
+            $rateLimitConfig = $config['rate_limit'] ?? null;
+            $limitConfig = null;
+            if (is_array($rateLimitConfig)) {
+                if ($isLoginRoute) {
+                    $limitConfig = $rateLimitConfig['login'] ?? null;
+                } elseif (str_starts_with($path, '/api/')) {
+                    $limitConfig = $rateLimitConfig['api'] ?? null;
+                } else {
+                    $limitConfig = $rateLimitConfig['global'] ?? null;
+                }
+            }
+            if (!is_array($limitConfig)) {
+                $limitConfig = $isLoginRoute ? ['max' => 5, 'window' => 300] : (str_starts_with($path, '/api/') ? ['max' => 60, 'window' => 60] : ['max' => 120, 'window' => 60]);
             }
 
-            $limit = (int) ($limitConfig['max'] ?? 60);
-            $window = (int) ($limitConfig['window'] ?? 60);
+            $limitVal = $limitConfig['max'] ?? 60;
+            $limit = is_scalar($limitVal) ? (int) $limitVal : 60;
+            $windowVal = $limitConfig['window'] ?? 60;
+            $window = is_scalar($windowVal) ? (int) $windowVal : 60;
 
             $key = $this->buildKey($request);
             $now = time();
@@ -135,13 +149,14 @@ final class RateLimiterMiddleware
         // Try Redis first
         if ($this->container->has(\OwnPay\Cache\RedisCache::class)) {
             try {
-                /** @var \OwnPay\Cache\RedisCache $cache */
                 $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
-                // Use raw Redis GET, not cache->get().
-                // INCR stores plain integers; cache->get() unserializes and
-                // unserialize("5") returns false → always reads 0.
-                $val = $cache->redis()->get('op:' . $key);
-                return $val !== false ? (int) $val : 0;
+                if ($cache instanceof \OwnPay\Cache\RedisCache) {
+                    // Use raw Redis GET, not cache->get().
+                    // INCR stores plain integers; cache->get() unserializes and
+                    // unserialize("5") returns false → always reads 0.
+                    $val = $cache->redis()->get('op:' . $key);
+                    return is_scalar($val) ? (int) $val : 0;
+                }
             } catch (\Throwable $e) {
                 $this->logWarning('Redis getHits failed: ' . $e->getMessage());
             }
@@ -149,11 +164,14 @@ final class RateLimiterMiddleware
 
         // DB fallback
         $db = $this->container->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            return 0;
+        }
         $row = $db->fetchOne(
             "SELECT hits FROM op_rate_limits WHERE key_name = :k AND expires_at > :now LIMIT 1",
             ['k' => $key, 'now' => $now]
         );
-        return $row ? (int) $row['hits'] : 0;
+        return (is_array($row) && isset($row['hits']) && is_scalar($row['hits'])) ? (int) $row['hits'] : 0;
     }
 
     /**
@@ -172,23 +190,24 @@ final class RateLimiterMiddleware
         // Try Redis (atomic via native INCR — no TOCTOU)
         if ($this->container->has(\OwnPay\Cache\RedisCache::class)) {
             try {
-                /** @var \OwnPay\Cache\RedisCache $cache */
                 $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
-                $redis = $cache->redis();
-                $prefixedKey = 'op:' . $key;
+                if ($cache instanceof \OwnPay\Cache\RedisCache) {
+                    $redis = $cache->redis();
+                    $prefixedKey = 'op:' . $key;
 
-                // Use native Redis INCR — single atomic operation.
-                // Previous code did get() then set(current+1), losing counts
-                // under concurrent requests (two requests read same value,
-                // both write value+1, effectively counting 1 hit instead of 2).
-                $hits = $redis->incr($prefixedKey);
+                    // Use native Redis INCR — single atomic operation.
+                    // Previous code did get() then set(current+1), losing counts
+                    // under concurrent requests (two requests read same value,
+                    // both write value+1, effectively counting 1 hit instead of 2).
+                    $hits = $redis->incr($prefixedKey);
 
-                // Set TTL only on first increment (when key was just created)
-                if ($hits === 1) {
-                    $redis->expire($prefixedKey, $window);
+                    // Set TTL only on first increment (when key was just created)
+                    if (is_scalar($hits) && (int)$hits === 1) {
+                        $redis->expire($prefixedKey, $window);
+                    }
+
+                    return;
                 }
-
-                return;
             } catch (\Throwable $e) {
                 $this->logWarning('Redis increment failed: ' . $e->getMessage());
             }
@@ -196,6 +215,9 @@ final class RateLimiterMiddleware
 
         // Atomic upsert — no TOCTOU race
         $db = $this->container->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            return;
+        }
         $expires = $now + $window;
 
         $db->execute(
@@ -228,7 +250,10 @@ final class RateLimiterMiddleware
     {
         try {
             if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
-                $this->container->get(\OwnPay\Service\System\Logger::class)->warning($message);
+                $logger = $this->container->get(\OwnPay\Service\System\Logger::class);
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $logger->warning($message);
+                }
             }
         } catch (\Throwable) {}
     }

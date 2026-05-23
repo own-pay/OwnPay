@@ -67,13 +67,20 @@ final class BalanceVerificationController
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
         $currencies = $this->txnRepo->getDistinctCurrencies($mid);
         $results = [];
         foreach ($currencies as $cur) {
-            $results[] = array_merge(['currency' => $cur['currency']], $this->recon->reconcile($mid, $cur['currency']));
+            $currencyCode = isset($cur['currency']) && is_string($cur['currency']) ? $cur['currency'] : 'BDT';
+            $results[] = array_merge(['currency' => $currencyCode], $this->recon->reconcile($mid, $currencyCode));
         }
 
         $gateways = $this->txnRepo->getDistinctGateways($mid);
@@ -95,9 +102,16 @@ final class BalanceVerificationController
     public function run(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
-        $currency = $req->post('currency', 'BDT');
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
+        $currencyVal = $req->post('currency', 'BDT');
+        $currency = is_string($currencyVal) ? $currencyVal : 'BDT';
 
         try {
             $result = $this->recon->reconcile($mid, $currency);

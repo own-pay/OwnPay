@@ -108,9 +108,13 @@ final class BrandController
      */
     public function store(Request $req): Response
     {
-        $data = $req->post();
-        $name  = InputSanitizer::string($data['name'] ?? '');
-        $email = InputSanitizer::email($data['email'] ?? '');
+        $postData = $req->post();
+        $data = is_array($postData) ? $postData : [];
+        
+        $nameVal = $data['name'] ?? '';
+        $name = InputSanitizer::string(is_string($nameVal) ? $nameVal : '');
+        $emailVal = $data['email'] ?? '';
+        $email = InputSanitizer::email(is_string($emailVal) ? $emailVal : '');
 
         if ($name === '' || $email === '') {
             $this->session->flashError('Name and email are required');
@@ -118,32 +122,46 @@ final class BrandController
         }
 
         $slug = preg_replace('/[^a-z0-9\-]/', '', strtolower(str_replace(' ', '-', $name)));
+        $slug = is_string($slug) ? $slug : '';
+
+        $emailField = $data['email'] ?? '';
+        $phoneField = $data['phone'] ?? '';
+        $timezoneField = $data['timezone'] ?? 'Asia/Dhaka';
+        $currencyField = $data['default_currency'] ?? 'BDT';
+        $statusField = $data['status'] ?? 'active';
 
         $merchantId = (int) $this->merchants->createMerchant([
             'name'             => $name,
             'slug'             => $slug,
-            'email'            => $data['email'] ?? '',
-            'phone'            => $data['phone'] ?? '',
-            'timezone'         => $data['timezone'] ?? 'Asia/Dhaka',
-            'default_currency' => $data['default_currency'] ?? 'BDT',
-            'status'           => $data['status'] ?? 'active',
+            'email'            => is_string($emailField) ? $emailField : '',
+            'phone'            => is_string($phoneField) ? $phoneField : '',
+            'timezone'         => is_string($timezoneField) ? $timezoneField : 'Asia/Dhaka',
+            'default_currency' => is_string($currencyField) ? $currencyField : 'BDT',
+            'status'           => is_string($statusField) ? $statusField : 'active',
         ]);
 
         // Process file uploads & customizations now that we have the merchant ID
         $brandingData = $this->handleBrandUploadsAndSettings($req, $merchantId, $data);
-        $this->merchants->updateBrand($merchantId, array_merge([
+        
+        /** @var array<string, mixed> $updateData */
+        $updateData = array_merge([
             'name'             => $name,
-            'email'            => $data['email'] ?? '',
-            'phone'            => $data['phone'] ?? '',
-            'timezone'         => $data['timezone'] ?? 'Asia/Dhaka',
-            'default_currency' => $data['default_currency'] ?? 'BDT',
-            'status'           => $data['status'] ?? 'active',
-        ], $brandingData));
+            'email'            => is_string($emailField) ? $emailField : '',
+            'phone'            => is_string($phoneField) ? $phoneField : '',
+            'timezone'         => is_string($timezoneField) ? $timezoneField : 'Asia/Dhaka',
+            'default_currency' => is_string($currencyField) ? $currencyField : 'BDT',
+            'status'           => is_string($statusField) ? $statusField : 'active',
+        ], $brandingData);
+        $this->merchants->updateBrand($merchantId, $updateData);
 
-        $domain = trim($req->post('custom_domain', ''));
+        $customDomainVal = $req->post('custom_domain', '');
+        $domain = trim(is_string($customDomainVal) ? $customDomainVal : '');
         if ($domain !== '') {
             try {
-                $this->c->get(\OwnPay\Service\Domain\DomainService::class)->map($merchantId, $domain);
+                $domainService = $this->c->get(\OwnPay\Service\Domain\DomainService::class);
+                if ($domainService instanceof \OwnPay\Service\Domain\DomainService) {
+                    $domainService->map($merchantId, $domain);
+                }
             } catch (\Throwable $e) {
                 $this->session->flashError('Brand created but domain error: ' . $e->getMessage());
                 return Response::redirect('/admin/brands');
@@ -153,8 +171,12 @@ final class BrandController
         $this->audit->log('brand.created', 'merchant', $merchantId, null, ['name' => $name]);
 
         // Auto-create default payment link for new brand
-        $currency = $data['default_currency'] ?? 'BDT';
-        $this->c->get(\OwnPay\Service\Payment\PaymentLinkService::class)->ensureDefault($merchantId, $name, $slug, $currency);
+        $currencyVal = $data['default_currency'] ?? 'BDT';
+        $currency = is_string($currencyVal) ? $currencyVal : 'BDT';
+        $paymentLinkService = $this->c->get(\OwnPay\Service\Payment\PaymentLinkService::class);
+        if ($paymentLinkService instanceof \OwnPay\Service\Payment\PaymentLinkService) {
+            $paymentLinkService->ensureDefault($merchantId, $name, $slug, $currency);
+        }
 
         $this->session->flashSuccess('Brand created successfully');
         return Response::redirect('/admin/brands');
@@ -178,8 +200,9 @@ final class BrandController
         }
 
         // Decode JSON settings to array for easy UI access
-        if (!empty($brand['settings'])) {
-            $brand['theme'] = json_decode($brand['settings'], true) ?: [];
+        $settingsVal = $brand['settings'] ?? '';
+        if (is_string($settingsVal) && $settingsVal !== '') {
+            $brand['theme'] = json_decode($settingsVal, true) ?: [];
         } else {
             $brand['theme'] = [];
         }
@@ -201,9 +224,13 @@ final class BrandController
     public function update(Request $req): Response
     {
         $id   = (int) $req->param('id');
-        $data = $req->post();
-        $name  = InputSanitizer::string($data['name'] ?? '');
-        $email = $data['email'] ?? '';
+        $postData = $req->post();
+        $data = is_array($postData) ? $postData : [];
+        
+        $nameVal = $data['name'] ?? '';
+        $name = InputSanitizer::string(is_string($nameVal) ? $nameVal : '');
+        $emailVal = $data['email'] ?? '';
+        $email = is_string($emailVal) ? $emailVal : '';
 
         if ($name === '' || $email === '') {
             $this->session->flashError('Name and email are required');
@@ -213,19 +240,27 @@ final class BrandController
         // Fetch current brand to retain existing settings / paths
         $existing = $this->merchants->find($id);
         $existingSettings = [];
-        if ($existing && !empty($existing['settings'])) {
-            $existingSettings = json_decode($existing['settings'], true) ?: [];
+        if ($existing && isset($existing['settings']) && is_string($existing['settings']) && $existing['settings'] !== '') {
+            $decoded = json_decode($existing['settings'], true);
+            $existingSettings = is_array($decoded) ? $decoded : [];
         }
 
         // Process file uploads & customizations
-        $brandingData = $this->handleBrandUploadsAndSettings($req, $id, $data, $existing['logo_path'] ?? null, $existingSettings);
+        $existingLogoPath = ($existing && isset($existing['logo_path']) && is_string($existing['logo_path'])) ? $existing['logo_path'] : null;
+        $brandingData = $this->handleBrandUploadsAndSettings($req, $id, $data, $existingLogoPath, $existingSettings);
 
-        $this->merchants->updateBrand($id, array_merge($data, $brandingData));
+        /** @var array<string, mixed> $updateData */
+        $updateData = array_merge($data, $brandingData);
+        $this->merchants->updateBrand($id, $updateData);
 
-        $domain = trim($req->post('custom_domain', ''));
+        $customDomainVal = $req->post('custom_domain', '');
+        $domain = trim(is_string($customDomainVal) ? $customDomainVal : '');
         if ($domain !== '') {
             try {
-                $this->c->get(\OwnPay\Service\Domain\DomainService::class)->map($id, $domain);
+                $domainService = $this->c->get(\OwnPay\Service\Domain\DomainService::class);
+                if ($domainService instanceof \OwnPay\Service\Domain\DomainService) {
+                    $domainService->map($id, $domain);
+                }
             } catch (\Throwable $e) {
                 $this->session->flashError('Brand updated but domain error: ' . $e->getMessage());
                 return Response::redirect('/admin/brands');
@@ -248,7 +283,8 @@ final class BrandController
     {
         $id = $req->post('brand_id');
         $isSuperAdmin = !empty($_SESSION['is_superadmin']);
-        $homeMerchantId = (int) ($_SESSION['auth_merchant_id'] ?? 0);
+        $authMerchantId = $_SESSION['auth_merchant_id'] ?? 0;
+        $homeMerchantId = is_scalar($authMerchantId) && is_numeric($authMerchantId) ? (int) $authMerchantId : 0;
 
         if ($id === 'global') {
             if (!$isSuperAdmin) {
@@ -257,7 +293,7 @@ final class BrandController
             }
             $this->brand->setGlobalView(true);
             $this->brand->setActiveBrandId(0);
-        } elseif (is_numeric($id)) {
+        } elseif (is_scalar($id) && is_numeric($id)) {
             $brandId = (int) $id;
             if (!$isSuperAdmin && $brandId !== $homeMerchantId) {
                 $this->session->flashError('Permission denied to switch to this brand');
@@ -334,10 +370,14 @@ final class BrandController
 
         // Hard delete brand + cascade handled by DB FK constraints
         $db = $this->c->get(\OwnPay\Core\Database::class);
-        $db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $id]);
+        if ($db instanceof \OwnPay\Core\Database) {
+            $db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $id]);
+        }
 
-        $this->audit->log('brand.deleted', 'merchant', $id, ['name' => $brand['name']]);
-        $this->session->flashSuccess("Brand '{$brand['name']}' deleted");
+        $brandNameVal = $brand['name'] ?? '';
+        $brandName = is_string($brandNameVal) ? $brandNameVal : '';
+        $this->audit->log('brand.deleted', 'merchant', $id, ['name' => $brandName]);
+        $this->session->flashSuccess("Brand '{$brandName}' deleted");
         return Response::redirect('/admin/brands');
     }
 
@@ -395,21 +435,32 @@ final class BrandController
         $settings = $existingSettings;
         $settings['logo']            = $logoPath;
         $settings['favicon']         = $faviconPath;
-        $settings['primary_color']   = InputSanitizer::string($data['primary_color'] ?? $existingSettings['primary_color'] ?? '#0D9488');
-        $settings['accent_color']    = InputSanitizer::string($data['accent_color'] ?? $existingSettings['accent_color'] ?? '#0F766E');
-        $settings['support_email']   = InputSanitizer::email($data['support_email'] ?? $existingSettings['support_email'] ?? '');
-        $settings['footer_text']     = InputSanitizer::string($data['footer_text'] ?? $existingSettings['footer_text'] ?? '');
+        
+        $primaryColorVal = $data['primary_color'] ?? ($existingSettings['primary_color'] ?? '#0D9488');
+        $settings['primary_color']   = InputSanitizer::string(is_string($primaryColorVal) ? $primaryColorVal : '#0D9488');
+        
+        $accentColorVal = $data['accent_color'] ?? ($existingSettings['accent_color'] ?? '#0F766E');
+        $settings['accent_color']    = InputSanitizer::string(is_string($accentColorVal) ? $accentColorVal : '#0F766E');
+        
+        $supportEmailVal = $data['support_email'] ?? ($existingSettings['support_email'] ?? '');
+        $settings['support_email']   = InputSanitizer::email(is_string($supportEmailVal) ? $supportEmailVal : '');
+        
+        $footerTextVal = $data['footer_text'] ?? ($existingSettings['footer_text'] ?? '');
+        $settings['footer_text']     = InputSanitizer::string(is_string($footerTextVal) ? $footerTextVal : '');
+        
         // Authorization check: only superadmins can modify custom_css and custom_js
         $isSuperadmin = !empty($_SESSION['is_superadmin']);
         if ($isSuperadmin) {
-            $customCss = $data['custom_css'] ?? $existingSettings['custom_css'] ?? '';
-            $customJs = $data['custom_js'] ?? $existingSettings['custom_js'] ?? '';
+            $customCssVal = $data['custom_css'] ?? ($existingSettings['custom_css'] ?? '');
+            $customCss = is_string($customCssVal) ? $customCssVal : '';
+            $customJsVal = $data['custom_js'] ?? ($existingSettings['custom_js'] ?? '');
+            $customJs = is_string($customJsVal) ? $customJsVal : '';
 
             // Clean custom_css of dangerous vectors: expressions, behavior, javascript:, script tags
             $customCss = preg_replace('/expression\s*\(|behavior\s*:|javascript\s*:/i', '', $customCss);
-            $customCss = preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', $customCss);
+            $customCss = preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', is_string($customCss) ? $customCss : '');
 
-            $settings['custom_css'] = $customCss;
+            $settings['custom_css'] = is_string($customCss) ? $customCss : '';
             $settings['custom_js']  = $customJs;
         } else {
             // Non-superadmins revert to existing styles/scripts

@@ -74,9 +74,10 @@ final class UnifiedWebhookController
         }
 
         // Resolve merchant ID - injected by DomainResolverMiddleware or fallback
-        $merchantId = $req->getAttribute('merchant_id') ?? $this->resolveMerchantFromPayload($req);
+        $merchantIdVal = $req->getAttribute('merchant_id') ?? $this->resolveMerchantFromPayload($req);
+        $merchantId = is_numeric($merchantIdVal) ? (int) $merchantIdVal : 0;
 
-        if ((int) $merchantId <= 0) {
+        if ($merchantId <= 0) {
             $this->logAttempt($gateway, 'no_merchant_resolved', $req);
             return Response::json(['error' => 'Could not resolve merchant'], 400);
         }
@@ -84,14 +85,16 @@ final class UnifiedWebhookController
         // AUD-G6: Delegate webhook signature verification to gateway adapter before plugin or core dispatch
         if ($this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
             $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
-            try {
-                if (!$bridge->verifyWebhookSignature($gateway, (int) $merchantId, $rawBody, $req->allHeaders())) {
-                    $this->logAttempt($gateway, 'signature_verification_failed', $req);
-                    return Response::json(['error' => 'Webhook signature verification failed'], 403);
+            if ($bridge instanceof \OwnPay\Gateway\GatewayBridge) {
+                try {
+                    if (!$bridge->verifyWebhookSignature($gateway, $merchantId, $rawBody, $req->allHeaders())) {
+                        $this->logAttempt($gateway, 'signature_verification_failed', $req);
+                        return Response::json(['error' => 'Webhook signature verification failed'], 403);
+                    }
+                } catch (\Throwable $e) {
+                    $this->logAttempt($gateway, 'signature_verification_error', $req, ['error' => $e->getMessage()]);
+                    return Response::json(['error' => 'Webhook signature verification error'], 403);
                 }
-            } catch (\Throwable $e) {
-                $this->logAttempt($gateway, 'signature_verification_error', $req, ['error' => $e->getMessage()]);
-                return Response::json(['error' => 'Webhook signature verification error'], 403);
             }
         }
 
@@ -101,7 +104,7 @@ final class UnifiedWebhookController
         if ($this->events->hasHook($hookName)) {
             $payload = new WebhookPayload(
                 gateway: $gateway,
-                merchantId: (int) $merchantId,
+                merchantId: $merchantId,
                 rawBody: $rawBody,
                 headers: $req->allHeaders(),
                 ip: $req->ip(),
@@ -131,23 +134,27 @@ final class UnifiedWebhookController
 
             try {
                 $svc = $this->c->get(GatewayApiService::class);
-                $result = $svc->handleCallback((int) $merchantId, $gateway, $callbackData);
+                if ($svc instanceof GatewayApiService) {
+                    $result = $svc->handleCallback($merchantId, $gateway, $callbackData);
 
-                $payloadHash = hash('sha256', $rawBody);
-                $this->logDelivery($gateway, $merchantId, $payloadHash);
+                    $payloadHash = hash('sha256', $rawBody);
+                    $this->logDelivery($gateway, $merchantId, $payloadHash);
 
-                if ($result['success'] ?? false) {
-                    return Response::json(['received' => true, 'status' => 'completed']);
+                    if ($result['success'] === true) {
+                        return Response::json(['received' => true, 'status' => 'completed']);
+                    }
+
+                    $reason = isset($result['error']) ? $result['error'] : 'verification_failed';
+                    return Response::json([
+                        'received' => true,
+                        'status'   => 'unprocessed',
+                        'reason'   => $reason,
+                    ]);
                 }
-
-                return Response::json([
-                    'received' => true,
-                    'status'   => 'unprocessed',
-                    'reason'   => $result['error'] ?? 'verification_failed',
-                ]);
             } catch (\Throwable $e) {
-                if ($this->c->has(\OwnPay\Service\System\Logger::class)) {
-                    $this->c->get(\OwnPay\Service\System\Logger::class)->error(
+                $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $logger->error(
                         "Webhook core handler failed: gateway={$gateway} error={$e->getMessage()}"
                     );
                 }
@@ -182,13 +189,15 @@ final class UnifiedWebhookController
             if (!empty($data[$field])) {
                 $ref = $data[$field];
                 $db = $this->c->get(\OwnPay\Core\Database::class);
-                // Correct column name is 'trx_id', not 'transaction_id'
-                $txn = $db->fetchOne(
-                    "SELECT merchant_id FROM op_transactions WHERE trx_id = :ref OR gateway_trx_id = :ref2 LIMIT 1",
-                    ['ref' => $ref, 'ref2' => $ref]
-                );
-                if ($txn && !empty($txn['merchant_id'])) {
-                    return (int) $txn['merchant_id'];
+                if ($db instanceof \OwnPay\Core\Database) {
+                    // Correct column name is 'trx_id', not 'transaction_id'
+                    $txn = $db->fetchOne(
+                        "SELECT merchant_id FROM op_transactions WHERE trx_id = :ref OR gateway_trx_id = :ref2 LIMIT 1",
+                        ['ref' => $ref, 'ref2' => $ref]
+                    );
+                    if (is_array($txn) && isset($txn['merchant_id']) && is_numeric($txn['merchant_id'])) {
+                        return (int) $txn['merchant_id'];
+                    }
                 }
             }
         }
@@ -207,11 +216,13 @@ final class UnifiedWebhookController
      */
     private function logAttempt(string $gateway, string $reason, Request $req, array $context = []): void
     {
-        if ($this->c->has(\OwnPay\Service\System\Logger::class)) {
+        $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+        if ($logger instanceof \OwnPay\Service\System\Logger) {
             // Strip control characters/newlines from reason to prevent log forging
             $sanitizedReason = preg_replace('/[\r\n\t]+/', ' ', $reason);
-            $this->c->get(\OwnPay\Service\System\Logger::class)->warning(
-                "Webhook rejected: gateway={$gateway} reason={$sanitizedReason} ip={$req->ip()}",
+            $sanitizedReasonStr = is_string($sanitizedReason) ? $sanitizedReason : $reason;
+            $logger->warning(
+                "Webhook rejected: gateway={$gateway} reason={$sanitizedReasonStr} ip={$req->ip()}",
                 $context
             );
         }
@@ -228,8 +239,8 @@ final class UnifiedWebhookController
      */
     private function logDelivery(string $gateway, int $merchantId, string $payloadHash): void
     {
-        if ($this->c->has(\OwnPay\Core\Database::class)) {
-            $db = $this->c->get(\OwnPay\Core\Database::class);
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        if ($db instanceof \OwnPay\Core\Database) {
             $db->insert(
                 "INSERT INTO op_webhook_deliveries (merchant_id, gateway, direction, status, payload_hash, created_at) VALUES (:mid, :gw, 'inbound', 'received', :hash, NOW(6))",
                 ['mid' => $merchantId ?: null, 'gw' => $gateway, 'hash' => $payloadHash]

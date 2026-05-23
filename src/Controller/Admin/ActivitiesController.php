@@ -18,17 +18,13 @@ final class ActivitiesController
 {
     use AdminPageTrait;
 
-    /**
-     * Dependency injection container.
-     *
-     * @var Container
-     */
     private Container $c;
 
     /**
      * Session wrapper service for authenticated administrative operations.
      *
      * @var AdminSession
+     * @phpstan-ignore property.onlyWritten
      */
     private AdminSession $session;
 
@@ -64,17 +60,21 @@ final class ActivitiesController
      */
     public function index(Request $req): Response
     {
-        $isSuperadmin = $_SESSION['is_superadmin'] ?? false;
+        $isSuperadmin = $this->session->isSuperadmin();
 
         // Superadmins inspect all records globally; standard staff scope to active brand ID
         $mid = null;
         if (!$isSuperadmin) {
             $brand = $this->c->get(BrandContext::class);
+            if (!$brand instanceof BrandContext) {
+                throw new \RuntimeException('BrandContext service unavailable');
+            }
             $brand->resolveFromRequest($req);
             $mid = $brand->getActiveBrandId();
         }
 
-        $page    = max(1, (int) $req->query('page', '1'));
+        $pageVal = $req->query('page', '1');
+        $page = max(1, is_int($pageVal) || is_string($pageVal) ? (int)$pageVal : 1);
         $perPage = 25;
         $offset  = ($page - 1) * $perPage;
 

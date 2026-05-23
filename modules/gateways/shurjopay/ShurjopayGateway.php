@@ -80,17 +80,19 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
         $mode = $credentials['store_mode'] ?? 'sandbox';
         $baseUrl = $mode === 'live' ? 'https://engine.shurjopayment.com' : 'https://sandbox.shurjopayment.com';
 
-        $username = $credentials['username'] ?? '';
-        $password = $credentials['password'] ?? '';
-        $prefix = $credentials['prefix'] ?? '';
+        $username = is_scalar($credentials['username'] ?? null) ? (string) $credentials['username'] : '';
+        $password = is_scalar($credentials['password'] ?? null) ? (string) $credentials['password'] : '';
+        $prefix = is_scalar($credentials['prefix'] ?? null) ? (string) $credentials['prefix'] : '';
 
         $tokenData = $this->getToken($username, $password, $baseUrl);
-        if (!$tokenData || empty($tokenData['token'])) {
+        $tokenRaw = $tokenData['token'] ?? '';
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : '';
+        if ($token === '') {
             throw new \RuntimeException('shurjoPay Authentication failed: Unable to retrieve token.');
         }
 
-        $token = $tokenData['token'];
-        $storeId = $tokenData['store_id'] ?? '';
+        $storeIdRaw = $tokenData['store_id'] ?? '';
+        $storeId = is_scalar($storeIdRaw) ? (string) $storeIdRaw : '';
 
         $trxId = $params['trx_id'];
         $amount = number_format((float) $params['amount'], 2, '.', '');
@@ -150,8 +152,8 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $result = json_decode((string) $response, true);
-        if (empty($result['checkout_url'])) {
-            $errMsg = $result['message'] ?? 'Missing checkout URL';
+        if (!is_array($result) || empty($result['checkout_url']) || !is_string($result['checkout_url'])) {
+            $errMsg = (is_array($result) && isset($result['message']) && is_scalar($result['message'])) ? (string) $result['message'] : 'Missing checkout URL';
             throw new \RuntimeException('shurjoPay Initiation Error: ' . $errMsg);
         }
 
@@ -163,23 +165,25 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
-        $statusRaw = $callbackData['status'] ?? '';
-        $orderId = null;
+        $statusRaw = isset($callbackData['status']) && is_scalar($callbackData['status']) ? (string) $callbackData['status'] : '';
+        $orderIdRaw = null;
         $status = $statusRaw;
 
         // Shurjopay appends "?order_id=..." or similar to the returned query parameter
         if (strpos($statusRaw, '?order_id=') !== false) {
-            list($status, $orderId) = explode('?order_id=', $statusRaw, 2);
+            list($status, $orderIdRaw) = explode('?order_id=', $statusRaw, 2);
         } elseif (isset($callbackData['order_id'])) {
-            $orderId = $callbackData['order_id'];
+            $orderIdRaw = $callbackData['order_id'];
         }
 
-        if (empty($orderId)) {
+        if (empty($orderIdRaw)) {
             // Also check standard raw GET parameter from Shurjopay redirection
-            $orderId = $_GET['order_id'] ?? null;
+            $orderIdRaw = $_GET['order_id'] ?? null;
         }
 
-        if (empty($orderId)) {
+        $orderId = is_scalar($orderIdRaw) ? (string) $orderIdRaw : '';
+
+        if ($orderId === '') {
             return [
                 'success'        => false,
                 'gateway_trx_id' => '',
@@ -200,11 +204,13 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
         $mode = $credentials['store_mode'] ?? 'sandbox';
         $baseUrl = $mode === 'live' ? 'https://engine.shurjopayment.com' : 'https://sandbox.shurjopayment.com';
 
-        $username = $credentials['username'] ?? '';
-        $password = $credentials['password'] ?? '';
+        $username = is_scalar($credentials['username'] ?? null) ? (string) $credentials['username'] : '';
+        $password = is_scalar($credentials['password'] ?? null) ? (string) $credentials['password'] : '';
 
         $tokenData = $this->getToken($username, $password, $baseUrl);
-        if (!$tokenData || empty($tokenData['token'])) {
+        $tokenRaw = $tokenData['token'] ?? '';
+        $token = is_scalar($tokenRaw) ? (string) $tokenRaw : '';
+        if ($token === '') {
             return [
                 'success'        => false,
                 'gateway_trx_id' => '',
@@ -212,8 +218,6 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
                 'order_id'       => $orderId,
             ];
         }
-
-        $token = $tokenData['token'];
 
         $ch = curl_init($baseUrl . '/api/verification');
         curl_setopt_array($ch, [
@@ -243,10 +247,13 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $resultList = json_decode((string) $response, true);
-        $data = $resultList[0] ?? null;
+        $data = null;
+        if (is_array($resultList)) {
+            $data = $resultList[0] ?? null;
+        }
 
-        if ($data && isset($data['bank_status']) && strtolower($data['bank_status']) === 'success') {
-            $gatewayTrxId = $data['bank_trx_id'] ?? $orderId;
+        if (is_array($data) && isset($data['bank_status']) && is_scalar($data['bank_status']) && strtolower((string)$data['bank_status']) === 'success') {
+            $gatewayTrxId = isset($data['bank_trx_id']) && is_scalar($data['bank_trx_id']) ? (string) $data['bank_trx_id'] : $orderId;
             $amount = $data['amount'] ?? null;
 
             $res = [
@@ -255,7 +262,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
                 'status'         => 'completed',
                 'order_id'       => $orderId,
             ];
-            if ($amount !== null) {
+            if ($amount !== null && is_scalar($amount)) {
                 $res['amount'] = (string) $amount;
             }
             return $res;
@@ -301,6 +308,14 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             return null;
         }
 
-        return json_decode((string) $response, true);
+        $decoded = json_decode((string) $response, true);
+        if (!is_array($decoded)) {
+            return null;
+        }
+        $tokenData = [];
+        foreach ($decoded as $key => $value) {
+            $tokenData[(string) $key] = $value;
+        }
+        return $tokenData;
     }
 }

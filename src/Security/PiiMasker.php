@@ -114,7 +114,11 @@ final class PiiMasker
             foreach ($value as $k => $v) {
                 $lk = strtolower((string)$k);
                 if (is_array($v)) {
-                    $result[$k] = self::mask($v, $showFirst, $showLast);
+                    $stringKeyed = [];
+                    foreach ($v as $subK => $subV) {
+                        $stringKeyed[(string) $subK] = $subV;
+                    }
+                    $result[$k] = self::mask($stringKeyed, $showFirst, $showLast);
                 } elseif (is_string($v)) {
                     if ($lk === 'email') {
                         $result[$k] = self::email($v);

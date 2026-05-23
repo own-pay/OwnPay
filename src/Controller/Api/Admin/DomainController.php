@@ -48,9 +48,12 @@ final class DomainController
      */
     public function verify(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $body = $req->json();
-        $domainId = (int) ($body['domain_id'] ?? 0);
+        $bodyArr = is_array($body) ? $body : [];
+        $domainIdVal = $bodyArr['domain_id'] ?? 0;
+        $domainId = (is_int($domainIdVal) || is_string($domainIdVal)) ? (int) $domainIdVal : 0;
         if ($domainId <= 0) {
             return Response::json(['success' => false, 'error' => 'domain_id required'], 422);
         }

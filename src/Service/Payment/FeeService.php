@@ -98,14 +98,14 @@ final class FeeService
         }
 
         // Plugin filter
-        $fee = $this->events->applyFilter('payment.fee.calculate', $fee, [
+        $res = $this->events->applyFilter('payment.fee.calculate', $fee, [
             'amount'      => $amount,
             'currency'    => $currency,
             'gateway'     => $gatewaySlug,
             'merchant_id' => $merchantId,
         ]);
 
-        return $fee;
+        return is_scalar($res) ? (string) $res : $fee;
     }
 
     /**
@@ -136,7 +136,8 @@ final class FeeService
     private function calculateRuleFee(string $amount, array $rule): string
     {
         $type = $rule['type'];
-        $value = (string) $rule['value'];
+        $val = $rule['value'] ?? '0.00';
+        $value = is_scalar($val) ? (string) $val : '0.00';
 
         /** @var numeric-string $amount */
         /** @var numeric-string $value */
@@ -156,9 +157,14 @@ final class FeeService
                 $fee = '0.00';
             } else {
                 // Sort tiers by limit ascending
-                usort($tiers, static function (array $a, array $b) {
-                    $limA = (string) ($a['limit'] ?? '');
-                    $limB = (string) ($b['limit'] ?? '');
+                usort($tiers, static function (mixed $a, mixed $b) {
+                    if (!is_array($a) || !is_array($b)) {
+                        return 0;
+                    }
+                    $limAVal = $a['limit'] ?? '';
+                    $limA = is_scalar($limAVal) ? (string) $limAVal : '';
+                    $limBVal = $b['limit'] ?? '';
+                    $limB = is_scalar($limBVal) ? (string) $limBVal : '';
                     if ($limA === '' && $limB === '') {
                         return 0;
                     }
@@ -176,17 +182,22 @@ final class FeeService
                 // Find matching tier
                 $matchedTier = null;
                 foreach ($tiers as $tier) {
-                    $limit = (string) ($tier['limit'] ?? '');
-                    $limitVal = is_numeric($limit) ? $limit : '';
-                    if ($limitVal === '' || bccomp($amount, $limitVal, 4) <= 0) {
-                        $matchedTier = $tier;
-                        break;
+                    if (is_array($tier)) {
+                        $limVal = $tier['limit'] ?? '';
+                        $limit = is_scalar($limVal) ? (string) $limVal : '';
+                        $limitVal = is_numeric($limit) ? $limit : '';
+                        if ($limitVal === '' || bccomp($amount, $limitVal, 4) <= 0) {
+                            $matchedTier = $tier;
+                            break;
+                        }
                     }
                 }
 
-                if ($matchedTier !== null) {
-                    $tierType = $matchedTier['type'] ?? 'percentage';
-                    $tierValue = (string) ($matchedTier['value'] ?? '0.00');
+                if (is_array($matchedTier)) {
+                    $tierTypeVal = $matchedTier['type'] ?? 'percentage';
+                    $tierType = is_scalar($tierTypeVal) ? (string) $tierTypeVal : 'percentage';
+                    $tierVal = $matchedTier['value'] ?? '0.00';
+                    $tierValue = is_scalar($tierVal) ? (string) $tierVal : '0.00';
 
                     /** @var numeric-string $tierValue */
                     if ($tierType === 'flat') {
@@ -204,8 +215,10 @@ final class FeeService
         }
 
         // Apply min/max caps from rule
-        $minFeeVal = $rule['min_fee'] !== null ? (string) $rule['min_fee'] : null;
-        $maxFeeVal = $rule['max_fee'] !== null ? (string) $rule['max_fee'] : null;
+        $minVal = $rule['min_fee'] ?? null;
+        $minFeeVal = is_scalar($minVal) ? (string) $minVal : null;
+        $maxVal = $rule['max_fee'] ?? null;
+        $maxFeeVal = is_scalar($maxVal) ? (string) $maxVal : null;
         
         /** @var numeric-string $fee */
         if ($minFeeVal !== null) {

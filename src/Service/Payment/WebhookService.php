@@ -80,10 +80,11 @@ final class WebhookService
      */
     public function deliver(array $webhook, string $eventType, array $payload): bool
     {
-        $url = $webhook['url'];
+        $urlVal = $webhook['url'] ?? '';
+        $url = is_scalar($urlVal) ? (string) $urlVal : '';
 
         // SSRF check
-        if (!$this->isUrlSafe($url)) {
+        if ($url === '' || !$this->isUrlSafe($url)) {
             $this->events->doAction('webhook.delivery.failed', $webhook, 'SSRF blocked');
             return false;
         }
@@ -98,11 +99,15 @@ final class WebhookService
         }
         $body = $encoded;
 
-        $secret = (string) ($webhook['secret'] ?? '');
+        $secretVal = $webhook['secret'] ?? '';
+        $secret = is_scalar($secretVal) ? (string) $secretVal : '';
         $signature = hash_hmac('sha256', $body, $secret);
 
+        $midVal = $webhook['merchant_id'] ?? null;
+        $merchantId = is_scalar($midVal) ? (int)$midVal : null;
+
         $logId = $this->commLog->log(
-            $webhook['merchant_id'] ?? null,
+            $merchantId,
             'webhook',
             $url,
             $eventType,

@@ -50,21 +50,32 @@ final class ManualGatewayService
             return null;
         }
 
+        $inputFieldsVal = $gateway['input_fields'] ?? '[]';
+        $colorsVal = $gateway['colors'] ?? '{}';
+
         $formData = [
             'name'         => $gateway['name'],
             'slug'         => $gateway['slug'],
             'logo_path'    => $gateway['logo_path'],
             'qr_code_path' => $gateway['qr_code_path'],
             'instructions' => $gateway['instructions'],
-            'input_fields' => json_decode($gateway['input_fields'] ?? '[]', true),
-            'colors'       => json_decode($gateway['colors'] ?? '{}', true),
+            'input_fields' => json_decode(is_string($inputFieldsVal) ? $inputFieldsVal : '[]', true),
+            'colors'       => json_decode(is_string($colorsVal) ? $colorsVal : '{}', true),
             'min_amount'   => $gateway['min_amount'],
             'max_amount'   => $gateway['max_amount'],
             'sms_verification' => (bool) $gateway['sms_verification'],
         ];
 
         // Plugin filter for custom form rendering
-        return $this->events->applyFilter('gateway.manual.render', $formData, $gateway);
+        $res = $this->events->applyFilter('gateway.manual.render', $formData, $gateway);
+        if (is_array($res)) {
+            $mapped = [];
+            foreach ($res as $k => $v) {
+                $mapped[(string)$k] = $v;
+            }
+            return $mapped;
+        }
+        return null;
     }
 
     /**
@@ -85,15 +96,25 @@ final class ManualGatewayService
             return ['valid' => false, 'error' => 'Gateway not found'];
         }
 
-        $inputFields = json_decode($gateway['input_fields'] ?? '[]', true);
+        $inputFieldsVal = $gateway['input_fields'] ?? '[]';
+        $inputFields = json_decode(is_string($inputFieldsVal) ? $inputFieldsVal : '[]', true);
         $errors = [];
+
+        if (!is_array($inputFields)) {
+            $inputFields = [];
+        }
 
         // Validate required fields
         foreach ($inputFields as $field) {
-            $name = $field['name'] ?? '';
-            $required = $field['required'] ?? false;
-            if ($required && empty($submittedData[$name] ?? '')) {
-                $errors[] = "Field '{$field['label']}' is required";
+            if (is_array($field)) {
+                $nameVal = $field['name'] ?? '';
+                $name = is_scalar($nameVal) ? (string) $nameVal : '';
+                $required = (bool) ($field['required'] ?? false);
+                if ($name !== '' && $required && empty($submittedData[$name] ?? '')) {
+                    $labelVal = $field['label'] ?? '';
+                    $label = is_scalar($labelVal) ? (string) $labelVal : '';
+                    $errors[] = "Field '{$label}' is required";
+                }
             }
         }
 
@@ -102,9 +123,30 @@ final class ManualGatewayService
         }
 
         // Plugin filter for custom verification
-        $result = $this->events->applyFilter('gateway.manual.verify', ['valid' => true], $gateway, $submittedData);
+        $res = $this->events->applyFilter('gateway.manual.verify', ['valid' => true], $gateway, $submittedData);
+        if (is_array($res)) {
+            $valid = (bool) ($res['valid'] ?? false);
+            $error = is_scalar($res['error'] ?? null) ? (string) $res['error'] : null;
+            $rawErrors = $res['errors'] ?? null;
+            $errorsList = [];
+            if (is_array($rawErrors)) {
+                foreach ($rawErrors as $err) {
+                    if (is_scalar($err)) {
+                        $errorsList[] = (string) $err;
+                    }
+                }
+            }
+            $returnVal = ['valid' => $valid];
+            if ($error !== null) {
+                $returnVal['error'] = $error;
+            }
+            if (!empty($errorsList)) {
+                $returnVal['errors'] = $errorsList;
+            }
+            return $returnVal;
+        }
 
-        return $result;
+        return ['valid' => false, 'error' => 'Invalid verification result'];
     }
 
     /**

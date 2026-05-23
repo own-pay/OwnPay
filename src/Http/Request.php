@@ -103,8 +103,10 @@ final class Request
         $this->cookies = $cookies;
         $this->rawBody = $rawBody;
 
-        $this->method = strtoupper($server['REQUEST_METHOD'] ?? 'GET');
-        $this->uri    = $server['REQUEST_URI'] ?? '/';
+        $reqMethod = $server['REQUEST_METHOD'] ?? 'GET';
+        $this->method = strtoupper(is_string($reqMethod) ? $reqMethod : 'GET');
+        $reqUri = $server['REQUEST_URI'] ?? '/';
+        $this->uri    = is_string($reqUri) ? $reqUri : '/';
         $this->path   = parse_url($this->uri, PHP_URL_PATH) ?: '/';
         $this->headers = $this->parseHeaders($server);
     }
@@ -116,12 +118,37 @@ final class Request
      */
     public static function capture(): self
     {
+        $query = [];
+        foreach ($_GET as $k => $v) {
+            $query[(string)$k] = $v;
+        }
+        $post = [];
+        foreach ($_POST as $k => $v) {
+            $post[(string)$k] = $v;
+        }
+        $server = [];
+        foreach ($_SERVER as $k => $v) {
+            $server[(string)$k] = $v;
+        }
+        $files = [];
+        foreach ($_FILES as $k => $v) {
+            if (is_array($v)) {
+                $files[(string)$k] = $v;
+            }
+        }
+        $cookies = [];
+        foreach ($_COOKIE as $k => $v) {
+            if (is_scalar($v)) {
+                $cookies[(string)$k] = (string)$v;
+            }
+        }
+
         return new self(
-            $_GET,
-            $_POST,
-            $_SERVER,
-            $_FILES,
-            $_COOKIE,
+            $query,
+            $post,
+            $server,
+            $files,
+            $cookies,
             file_get_contents('php://input') ?: null
         );
     }
@@ -273,7 +300,14 @@ final class Request
      */
     public function all(): array
     {
-        return array_merge($this->query, $this->json() ?: [], $this->post);
+        $json = $this->json();
+        $jsonArray = is_array($json) ? $json : [];
+        $merged = array_merge($this->query, $jsonArray, $this->post);
+        $result = [];
+        foreach ($merged as $k => $v) {
+            $result[(string)$k] = $v;
+        }
+        return $result;
     }
 
     /**
@@ -284,8 +318,10 @@ final class Request
      */
     public function has(string $key): bool
     {
+        $json = $this->json();
+        $jsonArray = is_array($json) ? $json : [];
         return array_key_exists($key, $this->post)
-            || array_key_exists($key, $this->json() ?: [])
+            || array_key_exists($key, $jsonArray)
             || array_key_exists($key, $this->query);
     }
 
@@ -370,7 +406,8 @@ final class Request
      */
     public function server(string $key, string $default = ''): string
     {
-        return $this->server[$key] ?? $default;
+        $value = $this->server[$key] ?? $default;
+        return is_scalar($value) ? (string) $value : $default;
     }
 
     /**
@@ -383,11 +420,11 @@ final class Request
      */
     public function ip(): string
     {
-        $remoteAddr = $this->server['REMOTE_ADDR'] ?? '0.0.0.0';
+        $remoteAddr = $this->server('REMOTE_ADDR', '0.0.0.0');
 
         if ($this->isTrustedProxy($remoteAddr)) {
             // X-Forwarded-For: client, proxy1, proxy2 — leftmost is original client.
-            $xff = $this->server['HTTP_X_FORWARDED_FOR'] ?? '';
+            $xff = $this->server('HTTP_X_FORWARDED_FOR');
             if ($xff !== '') {
                 $ips = array_map('trim', explode(',', $xff));
                 $clientIp = $ips[0];
@@ -398,7 +435,7 @@ final class Request
             }
 
             // Fallback: X-Real-IP (single IP, set by Nginx).
-            $realIp = $this->server['HTTP_X_REAL_IP'] ?? '';
+            $realIp = $this->server('HTTP_X_REAL_IP');
             if ($realIp !== '' && filter_var($realIp, FILTER_VALIDATE_IP)) {
                 return $realIp;
             }
@@ -414,7 +451,7 @@ final class Request
      */
     public function userAgent(): string
     {
-        return $this->server['HTTP_USER_AGENT'] ?? '';
+        return $this->server('HTTP_USER_AGENT');
     }
 
     /**
@@ -424,7 +461,15 @@ final class Request
      */
     public function host(): string
     {
-        return $this->server['HTTP_HOST'] ?? $this->server['SERVER_NAME'] ?? 'localhost';
+        $host = $this->server('HTTP_HOST');
+        if ($host !== '') {
+            return $host;
+        }
+        $serverName = $this->server('SERVER_NAME');
+        if ($serverName !== '') {
+            return $serverName;
+        }
+        return 'localhost';
     }
 
     /**
@@ -434,15 +479,15 @@ final class Request
      */
     public function scheme(): string
     {
-        $https = $this->server['HTTPS'] ?? '';
+        $https = $this->server('HTTPS');
         if ($https !== '' && $https !== 'off') {
             return 'https';
         }
 
         // Check X-Forwarded-Proto from trusted proxy.
-        $remoteAddr = $this->server['REMOTE_ADDR'] ?? '0.0.0.0';
+        $remoteAddr = $this->server('REMOTE_ADDR', '0.0.0.0');
         if ($this->isTrustedProxy($remoteAddr)) {
-            $proto = $this->server['HTTP_X_FORWARDED_PROTO'] ?? '';
+            $proto = $this->server('HTTP_X_FORWARDED_PROTO');
             if (strtolower($proto) === 'https') {
                 return 'https';
             }
@@ -597,15 +642,15 @@ final class Request
     {
         $headers = [];
         foreach ($server as $key => $value) {
-            if (str_starts_with($key, 'HTTP_')) {
+            if (str_starts_with($key, 'HTTP_') && is_scalar($value)) {
                 $name = strtolower(str_replace('_', '-', substr($key, 5)));
                 $headers[$name] = (string) $value;
             }
         }
-        if (isset($server['CONTENT_TYPE'])) {
+        if (isset($server['CONTENT_TYPE']) && is_scalar($server['CONTENT_TYPE'])) {
             $headers['content-type'] = (string) $server['CONTENT_TYPE'];
         }
-        if (isset($server['CONTENT_LENGTH'])) {
+        if (isset($server['CONTENT_LENGTH']) && is_scalar($server['CONTENT_LENGTH'])) {
             $headers['content-length'] = (string) $server['CONTENT_LENGTH'];
         }
 
@@ -613,12 +658,13 @@ final class Request
         // REDIRECT_HTTP_AUTHORIZATION (from .htaccess E= flag) is always clean.
         // apache_request_headers() returns the original untouched header.
         // ALWAYS prefer these over HTTP_AUTHORIZATION which may be doubled.
-        if (!empty($server['REDIRECT_HTTP_AUTHORIZATION'])) {
-            $headers['authorization'] = (string) $server['REDIRECT_HTTP_AUTHORIZATION'];
+        $redirAuth = $server['REDIRECT_HTTP_AUTHORIZATION'] ?? null;
+        if ($redirAuth !== null && is_scalar($redirAuth)) {
+            $headers['authorization'] = (string) $redirAuth;
         } elseif (function_exists('apache_request_headers')) {
             $apacheHeaders = (array) apache_request_headers();
             foreach ($apacheHeaders as $k => $v) {
-                if (strtolower((string)$k) === 'authorization') {
+                if (strtolower((string)$k) === 'authorization' && is_scalar($v)) {
                     $headers['authorization'] = (string) $v;
                     break;
                 }

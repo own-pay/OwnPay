@@ -89,22 +89,37 @@ final class LandingController
                 $features = $dbFeatures;
             }
         }
-        $features = $this->events->applyFilter('landing.features', $features);
-
+        $filteredFeatures = $this->events->applyFilter('landing.features', $features);
+        $features = is_array($filteredFeatures) ? $filteredFeatures : $features;
+ 
         $showFaq      = ($landing['landing_show_faq']      ?? '1') === '1' && count($faqs) > 0;
         $showFeatures = ($landing['landing_show_features'] ?? '1') === '1' && count($features) > 0;
-
+ 
         $twig = $this->c->get(\Twig\Environment::class);
+        if (!$twig instanceof \Twig\Environment) {
+            throw new \RuntimeException('Twig Environment not found.');
+        }
+
+        $appName = isset($general['app_name']) ? $general['app_name'] : 'Own Pay';
+        $landingTitle = isset($landing['landing_title']) ? $landing['landing_title'] : null;
+        $landingSubtitle = isset($landing['landing_subtitle']) ? $landing['landing_subtitle'] : null;
+        $landingDescription = isset($branding['site_meta_description']) ? $branding['site_meta_description'] : null;
+        $landingCtaText = isset($landing['landing_cta_text']) ? $landing['landing_cta_text'] : 'Get Started';
+        $landingCtaUrl = isset($landing['landing_cta_url']) ? $landing['landing_cta_url'] : 'https://ownpay.org';
+        $siteFavicon = isset($branding['site_favicon']) ? $branding['site_favicon'] : '';
+        $siteLogo = isset($branding['site_logo']) ? $branding['site_logo'] : '';
+        $siteSeoTitle = isset($branding['site_seo_title']) ? $branding['site_seo_title'] : null;
+
         return Response::html($twig->render('page/landing.twig', [
-            'app_name'            => $general['app_name']              ?? 'Own Pay',
-            'landing_title'       => $landing['landing_title']         ?? null,
-            'landing_subtitle'    => $landing['landing_subtitle']      ?? null,
-            'landing_description' => $branding['site_meta_description'] ?? null,
-            'landing_cta_text'    => $landing['landing_cta_text']      ?? 'Get Started',
-            'landing_cta_url'     => $landing['landing_cta_url']       ?? 'https://ownpay.org',
-            'site_favicon'        => $branding['site_favicon']         ?? '',
-            'site_logo'           => $branding['site_logo']            ?? '',
-            'site_seo_title'      => $branding['site_seo_title']       ?? null,
+            'app_name'            => $appName,
+            'landing_title'       => $landingTitle,
+            'landing_subtitle'    => $landingSubtitle,
+            'landing_description' => $landingDescription,
+            'landing_cta_text'    => $landingCtaText,
+            'landing_cta_url'     => $landingCtaUrl,
+            'site_favicon'        => $siteFavicon,
+            'site_logo'           => $siteLogo,
+            'site_seo_title'      => $siteSeoTitle,
             'features'            => $showFeatures ? $features : [],
             'faqs'                => $showFaq      ? $faqs    : [],
             'faq_enabled'         => $showFaq,

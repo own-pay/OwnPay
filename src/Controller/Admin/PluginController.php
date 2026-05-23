@@ -96,15 +96,19 @@ final class PluginController
         $brandId = null;
         if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-            $brandCtx->resolveFromRequest($request);
-            $brandId = $brandCtx->getActiveBrandId();
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandCtx->resolveFromRequest($request);
+                $brandId = $brandCtx->getActiveBrandId();
+            }
         }
 
         $plugins = $this->repo->paginate(1, 200)['items'];
 
         // Enrich DB rows with manifest name (DB may have slug as name)
         foreach ($plugins as &$p) {
-            $m = json_decode($p['manifest'] ?? '{}', true);
+            $manifestVal = $p['manifest'] ?? '{}';
+            $m = json_decode(is_string($manifestVal) ? $manifestVal : '{}', true);
+            $m = is_array($m) ? $m : [];
             if (!empty($m['name'])) {
                 $p['name'] = $m['name'];
             }
@@ -112,7 +116,10 @@ final class PluginController
 
             // Local active/inactive status override if brand context is active
             if ($brandId !== null && $brandId > 0 && !in_array($p['status'], ['uninstalled', 'trashed'], true)) {
-                $p['status'] = $this->repo->isPluginActiveForBrand($p['slug'], $brandId) ? 'active' : 'inactive';
+                $slugVal = $p['slug'] ?? '';
+                if (is_string($slugVal)) {
+                    $p['status'] = $this->repo->isPluginActiveForBrand($slugVal, $brandId) ? 'active' : 'inactive';
+                }
             }
         }
         unset($p);
@@ -185,11 +192,16 @@ final class PluginController
             return $this->redirectBack($request, 'No file uploaded or upload failed');
         }
 
-        if (!str_ends_with(strtolower($file['name']), '.zip')) {
+        $fileName = $file['name'] ?? '';
+        if (!is_string($fileName) || !str_ends_with(strtolower($fileName), '.zip')) {
             return $this->redirectBack($request, 'Only .zip files are allowed');
         }
 
-        $result = $this->manager->install($file['tmp_name']);
+        $tmpName = $file['tmp_name'] ?? '';
+        if (!is_string($tmpName) || $tmpName === '') {
+            return $this->redirectBack($request, 'Upload failed');
+        }
+        $result = $this->manager->install($tmpName);
 
         if (!$result['success']) {
             return $this->redirectBack($request, $result['error'] ?? 'Installation failed');
@@ -213,8 +225,10 @@ final class PluginController
         $brandId = null;
         if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-            $brandCtx->resolveFromRequest($request);
-            $brandId = $brandCtx->getActiveBrandId();
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandCtx->resolveFromRequest($request);
+                $brandId = $brandCtx->getActiveBrandId();
+            }
         }
         $result = $this->manager->activate($slug, $brandId);
 
@@ -243,8 +257,10 @@ final class PluginController
         $brandId = null;
         if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-            $brandCtx->resolveFromRequest($request);
-            $brandId = $brandCtx->getActiveBrandId();
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandCtx->resolveFromRequest($request);
+                $brandId = $brandCtx->getActiveBrandId();
+            }
         }
         $result = $this->manager->deactivate($slug, $brandId);
 
@@ -342,7 +358,9 @@ final class PluginController
             return Response::redirect('/admin/plugins');
         }
 
-        $manifestJson = json_decode($plugin['manifest'] ?? '{}', true);
+        $manifestVal = $plugin['manifest'] ?? '{}';
+        $manifestJson = json_decode(is_string($manifestVal) ? $manifestVal : '{}', true);
+        $manifestJson = is_array($manifestJson) ? $manifestJson : [];
         $plugin['author'] = $manifestJson['author'] ?? 'Unknown';
         $plugin['description'] = $manifestJson['description'] ?? '';
 
@@ -352,21 +370,25 @@ final class PluginController
         // → instantiate from filesystem so we can call fields()
         if ($instance === null) {
             $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
-            $manifests = $loader->discover();
-            $manifest = $manifests[$slug] ?? null;
-            if ($manifest !== null) {
-                $entrypointFile = $manifest->path . '/' . $manifest->entrypoint;
-                if (file_exists($entrypointFile)) {
-                    require_once $entrypointFile;
-                    $rawManifest = json_decode((string) file_get_contents($manifest->path . '/manifest.json'), true);
-                    if (!empty($rawManifest['namespace'])) {
-                        $className = rtrim($rawManifest['namespace'], '\\') . '\\' . pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
-                    } else {
-                        $pascal = str_replace('-', '', ucwords($manifest->slug, '-'));
-                        $className = "OwnPay\\Plugins\\{$pascal}\\" . pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
-                    }
-                    if (class_exists($className) && is_subclass_of($className, \OwnPay\Plugin\PluginInterface::class)) {
-                        $instance = new $className();
+            if ($loader instanceof \OwnPay\Plugin\PluginLoader) {
+                $manifests = $loader->discover();
+                $manifest = $manifests[$slug] ?? null;
+                if ($manifest !== null) {
+                    $entrypointFile = $manifest->path . '/' . $manifest->entrypoint;
+                    if (file_exists($entrypointFile)) {
+                        require_once $entrypointFile;
+                        $rawManifestJson = file_get_contents($manifest->path . '/manifest.json');
+                        $rawManifest = json_decode(is_string($rawManifestJson) ? $rawManifestJson : '{}', true);
+                        $rawManifest = is_array($rawManifest) ? $rawManifest : [];
+                        if (!empty($rawManifest['namespace']) && is_string($rawManifest['namespace'])) {
+                            $className = rtrim($rawManifest['namespace'], '\\') . '\\' . pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
+                        } else {
+                            $pascal = str_replace('-', '', ucwords($manifest->slug, '-'));
+                            $className = "OwnPay\\Plugins\\{$pascal}\\" . pathinfo($manifest->entrypoint, PATHINFO_FILENAME);
+                        }
+                        if (class_exists($className) && is_subclass_of($className, \OwnPay\Plugin\PluginInterface::class)) {
+                            $instance = new $className();
+                        }
                     }
                 }
             }
@@ -380,17 +402,20 @@ final class PluginController
             $brandId = null;
             if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
                 $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-                $brandId = $brandCtx->getActiveBrandId();
+                if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                    $brandId = $brandCtx->getActiveBrandId();
+                }
             }
 
-            if ($brandId !== null && $brandId > 0) {
-                $currentValues = $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId);
-            } else {
-                $currentValues = $settingsRepo->getGroup("plugin.{$slug}");
+            if ($settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
+                if ($brandId !== null && $brandId > 0) {
+                    $currentValues = $settingsRepo->getGroupScoped("plugin.{$slug}", $brandId);
+                } else {
+                    $currentValues = $settingsRepo->getGroup("plugin.{$slug}");
+                }
+                $action = "/admin/plugins/{$slug}/settings";
+                $settingsHtml = SettingsRenderer::render($instance, $currentValues, $action);
             }
-
-            $action = "/admin/plugins/{$slug}/settings";
-            $settingsHtml = SettingsRenderer::render($instance, $currentValues, $action);
         }
 
         $activePage = match ($plugin['type'] ?? 'plugin') {
@@ -429,7 +454,9 @@ final class PluginController
         $brandId = null;
         if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-            $brandId = $brandCtx->getActiveBrandId();
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandId = $brandCtx->getActiveBrandId();
+            }
         }
 
         if ($brandId !== null && $brandId > 0) {

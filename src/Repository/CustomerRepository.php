@@ -75,7 +75,9 @@ final class CustomerRepository extends BaseRepository
             $params['q'] = $emailHash;
         }
 
-        $total = (int) ($this->db->fetchOne("SELECT COUNT(*) as cnt FROM op_customers c {$where}", $params)['cnt'] ?? 0);
+        $row = $this->db->fetchOne("SELECT COUNT(*) as cnt FROM op_customers c {$where}", $params);
+        $cntVal = is_array($row) ? ($row['cnt'] ?? 0) : 0;
+        $total = is_scalar($cntVal) ? (int) $cntVal : 0;
         
         $offset = ($page - 1) * $perPage;
         $params['lim'] = $perPage;

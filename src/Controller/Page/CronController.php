@@ -44,15 +44,27 @@ final class CronController
         // 1. Validate secret against env/config/db
         $secret = $req->param('secret');
         $settingsRepo = $this->c->has(\OwnPay\Repository\SettingsRepository::class) ? $this->c->get(\OwnPay\Repository\SettingsRepository::class) : null;
-        $dbSecret = $settingsRepo ? $settingsRepo->get('general', 'cron_secret') : null;
-        $expected = getenv('CRON_SECRET') ?: $dbSecret ?: $this->c->get('config.app')['cron_secret'] ?? '';
-
+        if (!$settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
+            $settingsRepo = null;
+        }
+        $dbSecret = ($settingsRepo !== null) ? $settingsRepo->get('general', 'cron_secret') : null;
+        
+        $configApp = $this->c->get('config.app');
+        $configCronSecret = (is_array($configApp) && isset($configApp['cron_secret']) && is_string($configApp['cron_secret'])) ? $configApp['cron_secret'] : '';
+        
+        $envSecret = getenv('CRON_SECRET');
+        $dbSecretStr = is_string($dbSecret) ? $dbSecret : '';
+        $expected = (is_string($envSecret) && $envSecret !== '') ? $envSecret : ($dbSecretStr !== '' ? $dbSecretStr : $configCronSecret);
+ 
         if ($secret !== $expected || empty($secret)) {
             return Response::json(['error' => 'Invalid secret'], 401);
         }
-
+ 
         // 2. Run cron jobs
         $runner = $this->c->get(\OwnPay\Cron\CronJobRunner::class);
+        if (!$runner instanceof \OwnPay\Cron\CronJobRunner) {
+            throw new \RuntimeException('CronJobRunner service not found.');
+        }
         $results = $runner->run();
         $count = count($results);
 

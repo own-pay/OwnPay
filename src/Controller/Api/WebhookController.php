@@ -47,17 +47,19 @@ final class WebhookController
      */
     public function test(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
         $result = $this->webhooks->sendTest($mid);
+        $success = isset($result['success']) && $result['success'] === true;
         $response = [
-            'success'          => $result['success'],
+            'success'          => $success,
             'status_code'      => $result['status_code'] ?? null,
             'response_time_ms' => $result['response_time_ms'] ?? null,
         ];
-        if (!$result['success'] && !empty($result['error'])) {
+        if (!$success && !empty($result['error'])) {
             $response['error'] = $result['error'];
         }
-        return Response::json($response, $result['success'] ? 200 : 400);
+        return Response::json($response, $success ? 200 : 400);
     }
 
     /**
@@ -68,7 +70,8 @@ final class WebhookController
      */
     public function deliveries(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
         $deliveries = $this->webhooks->listDeliveries($mid, 50);
         return Response::json(['success' => true, 'data' => $deliveries]);
     }

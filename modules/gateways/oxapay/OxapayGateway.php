@@ -103,63 +103,82 @@ final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $result = json_decode((string) $response, true);
-        if (empty($result['payLink'])) {
-            $msg = $result['message'] ?? 'Unknown error';
-            throw new \RuntimeException('OxaPay initiation failed: ' . $msg);
+        if (!is_array($result)) {
+            throw new \RuntimeException('OxaPay initiation failed: Invalid JSON response');
         }
 
+        $payLink = $result['payLink'] ?? '';
+        $payLinkStr = is_scalar($payLink) ? (string) $payLink : '';
+
+        if ($payLinkStr === '') {
+            $msg = $result['message'] ?? 'Unknown error';
+            $msgStr = is_scalar($msg) ? (string) $msg : 'Unknown error';
+            throw new \RuntimeException('OxaPay initiation failed: ' . $msgStr);
+        }
+
+        $trackIdVal = $result['trackId'] ?? '';
+        $trackIdStr = is_scalar($trackIdVal) ? (string) $trackIdVal : '';
+
         return [
-            'redirect_url' => $result['payLink'],
-            'session_id'   => (string) ($result['trackId'] ?? ''),
+            'redirect_url' => $payLinkStr,
+            'session_id'   => $trackIdStr,
         ];
     }
 
     public function verify(array $callbackData, array $credentials): array
     {
         $status = $callbackData['status'] ?? '';
+        $statusStr = is_scalar($status) ? (string) $status : '';
+
         $trackId = $callbackData['trackId'] ?? '';
+        $trackIdStr = is_scalar($trackId) ? (string) $trackId : '';
+
         $orderId = $callbackData['orderId'] ?? '';
+        $orderIdStr = is_scalar($orderId) ? (string) $orderId : '';
+
         $amount = $callbackData['amount'] ?? null;
 
         // If status is present, it's a webhook / IPN callback
-        if ($status !== '') {
-            $isPaid = strtolower($status) === 'paid';
+        if ($statusStr !== '') {
+            $isPaid = strtolower($statusStr) === 'paid';
             $res = [
                 'success'        => $isPaid,
-                'gateway_trx_id' => (string) $trackId,
+                'gateway_trx_id' => $trackIdStr,
                 'status'         => $isPaid ? 'completed' : 'failed',
-                'order_id'       => $orderId,
+                'trx_id'         => $orderIdStr,
             ];
             if ($amount !== null) {
-                $res['amount'] = (string) $amount;
+                $res['amount'] = is_scalar($amount) ? (string) $amount : '';
             }
             return $res;
         }
 
         // Return pending status if no webhook payload is present (e.g. initial redirect)
         $trxId = $callbackData['trx_id'] ?? $callbackData['paymentID'] ?? '';
+        $trxIdStr = is_scalar($trxId) ? (string) $trxId : '';
         return [
             'success'        => false,
             'gateway_trx_id' => '',
             'status'         => 'pending',
-            'trx_id'         => $trxId,
+            'trx_id'         => $trxIdStr,
         ];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $receivedSignature = $headers['hmac'] ?? '';
-        if (empty($receivedSignature)) {
+        $receivedSignatureStr = $headers['hmac'] ?? '';
+        if ($receivedSignatureStr === '') {
             return false;
         }
 
         $apiKey = $credentials['merchant_api_key'] ?? '';
-        if (empty($apiKey)) {
+        $apiKeyStr = is_scalar($apiKey) ? (string) $apiKey : '';
+        if ($apiKeyStr === '') {
             return false;
         }
 
-        $expectedSignature = hash_hmac('sha512', $rawBody, $apiKey);
+        $expectedSignature = hash_hmac('sha512', $rawBody, $apiKeyStr);
 
-        return hash_equals($receivedSignature, $expectedSignature);
+        return hash_equals($receivedSignatureStr, $expectedSignature);
     }
 }

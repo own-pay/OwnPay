@@ -81,8 +81,10 @@ final class DomainService
 
         $this->events->doAction('domain.mapped', $domain, $merchantId);
 
-        $httpHost = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
-        $hostOnly = parse_url("https://{$httpHost}", PHP_URL_HOST) ?: $httpHost;
+        $httpHostVal = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
+        $httpHost = is_string($httpHostVal) ? $httpHostVal : '127.0.0.1';
+        $parsedHost = parse_url("https://{$httpHost}", PHP_URL_HOST);
+        $hostOnly = is_string($parsedHost) ? $parsedHost : $httpHost;
         $serverIp = gethostbyname($hostOnly);
 
         return [
@@ -110,22 +112,30 @@ final class DomainService
             return ['success' => false, 'error' => 'Domain not found'];
         }
 
+        $domainName = $domain['domain'] ?? '';
+        $token = $domain['verification_token'] ?? '';
+        if (!is_string($domainName) || !is_string($token) || $domainName === '' || $token === '') {
+            return ['success' => false, 'error' => 'Invalid domain mapping configuration'];
+        }
+
         $txtVerified = $this->dnsVerifier->verifyTxt(
-            $domain['domain'],
-            $domain['verification_token']
+            $domainName,
+            $token
         );
 
         if (!$txtVerified) {
             return [
                 'success' => false,
-                'error'   => 'TXT record not found. Add _ownpay-verification.' . $domain['domain'] . ' with your verification token.',
+                'error'   => 'TXT record not found. Add _ownpay-verification.' . $domainName . ' with your verification token.',
             ];
         }
 
-        $httpHost = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
-        $hostOnly = parse_url("https://{$httpHost}", PHP_URL_HOST) ?: $httpHost;
+        $httpHostVal = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
+        $httpHost = is_string($httpHostVal) ? $httpHostVal : '127.0.0.1';
+        $parsedHost = parse_url("https://{$httpHost}", PHP_URL_HOST);
+        $hostOnly = is_string($parsedHost) ? $parsedHost : $httpHost;
         $serverIp = gethostbyname($hostOnly);
-        $aRecordOk = $this->dnsVerifier->verifyARecord($domain['domain'], $serverIp);
+        $aRecordOk = $this->dnsVerifier->verifyARecord($domainName, $serverIp);
 
         $this->domains->forTenant($merchantId)->updateScoped($domainId, [
             'dns_verified'    => 1,
@@ -133,7 +143,7 @@ final class DomainService
             'dns_verified_at' => DateHelper::nowMicro(),
         ]);
 
-        $this->events->doAction('domain.verified', $domain['domain'], $merchantId);
+        $this->events->doAction('domain.verified', $domainName, $merchantId);
 
         if (!$aRecordOk) {
             return [
@@ -156,8 +166,9 @@ final class DomainService
     {
         $domain = $this->domains->forTenant($merchantId)->findScoped($domainId);
         if ($domain !== null) {
+            $domainName = $domain['domain'] ?? '';
             $this->domains->forTenant($merchantId)->deleteScoped($domainId);
-            $this->events->doAction('domain.removed', $domain['domain'], $merchantId);
+            $this->events->doAction('domain.removed', is_string($domainName) ? $domainName : '', $merchantId);
         }
     }
 
@@ -173,7 +184,7 @@ final class DomainService
     public function merchantUrl(int $merchantId, string $path = '/'): string
     {
         $activeDomain = $this->domains->forTenant($merchantId)->findActiveDomain();
-        if ($activeDomain !== null) {
+        if ($activeDomain !== null && isset($activeDomain['domain']) && is_string($activeDomain['domain'])) {
             $scheme = (getenv('APP_HTTPS') === 'true') ? 'https' : 'http';
             return $scheme . '://' . $activeDomain['domain'] . '/' . ltrim($path, '/');
         }

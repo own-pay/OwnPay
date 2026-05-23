@@ -110,7 +110,7 @@ final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $data = json_decode((string) $response, true);
-        if (empty($data['payment_url'])) {
+        if (!is_array($data) || empty($data['payment_url']) || !is_string($data['payment_url'])) {
             throw new \RuntimeException('Aamarpay initiation failed: ' . $response);
         }
 
@@ -122,10 +122,11 @@ final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
-        $trxId = $callbackData['session'] ?? $callbackData['pay_status'] ?? ''; // or parameter check
-        if ($trxId === '' && isset($callbackData['opt_a'])) {
-            $trxId = $callbackData['opt_a'];
+        $rawTrxId = $callbackData['session'] ?? $callbackData['pay_status'] ?? '';
+        if ($rawTrxId === '' && isset($callbackData['opt_a'])) {
+            $rawTrxId = $callbackData['opt_a'];
         }
+        $trxId = is_scalar($rawTrxId) ? (string) $rawTrxId : '';
 
         if ($trxId === '') {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
@@ -163,14 +164,20 @@ final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
         }
 
-        $paid = isset($data['pay_status']) && $data['pay_status'] === 'Successful' && isset($data['status_code']) && (string)$data['status_code'] === '2';
+        $payStatus = isset($data['pay_status']) && is_scalar($data['pay_status']) ? (string) $data['pay_status'] : '';
+        $statusCode = isset($data['status_code']) && is_scalar($data['status_code']) ? (string) $data['status_code'] : '';
+        $paid = $payStatus === 'Successful' && $statusCode === '2';
+
+        $bankTrxId = isset($data['bank_trxid']) && is_scalar($data['bank_trxid']) ? (string) $data['bank_trxid'] : '';
+        $amountVal = isset($data['amount']) && is_scalar($data['amount']) ? (string) $data['amount'] : '';
+        $pgTxnId = isset($data['pg_txnid']) && is_scalar($data['pg_txnid']) ? (string) $data['pg_txnid'] : (string) $trxId;
 
         return [
             'success'        => $paid,
-            'gateway_trx_id' => $data['bank_trxid'] ?? '',
-            'amount'         => $data['amount'] ?? null,
+            'gateway_trx_id' => $bankTrxId,
+            'amount'         => $amountVal,
             'status'         => $paid ? 'completed' : 'failed',
-            'trx_id'         => $data['pg_txnid'] ?? $trxId,
+            'trx_id'         => $pgTxnId,
         ];
     }
 }

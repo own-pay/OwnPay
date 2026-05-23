@@ -151,6 +151,9 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
         $token = $this->getToken($baseUrl, $credentials);
 
+        $appKeyRaw = $credentials['app_key'];
+        $appKey = is_scalar($appKeyRaw) ? (string) $appKeyRaw : '';
+
         $ch = curl_init($baseUrl . '/tokenized/checkout/create');
         curl_setopt_array($ch, [
             CURLOPT_POST           => true,
@@ -159,7 +162,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
                 'Authorization: ' . $token,
-                'X-APP-Key: ' . $credentials['app_key'],
+                'X-APP-Key: ' . $appKey,
             ],
             CURLOPT_POSTFIELDS => (string) json_encode([
                 'mode'                => '0011',
@@ -181,17 +184,24 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            throw new \RuntimeException('bKash error: Invalid API response payload.');
+        }
 
-        if (empty($data['bkashURL'])) {
-            $statusCode = $data['statusCode'] ?? '';
-            $statusMsg = $data['statusMessage'] ?? 'Unknown';
-            $errorDetail = $statusCode ? "[{$statusCode}] {$statusMsg}" : $statusMsg;
+        $bkashURL = isset($data['bkashURL']) && is_scalar($data['bkashURL']) ? (string) $data['bkashURL'] : '';
+
+        if ($bkashURL === '') {
+            $statusCode = isset($data['statusCode']) && is_scalar($data['statusCode']) ? (string) $data['statusCode'] : '';
+            $statusMsg = isset($data['statusMessage']) && is_scalar($data['statusMessage']) ? (string) $data['statusMessage'] : 'Unknown';
+            $errorDetail = $statusCode !== '' ? "[{$statusCode}] {$statusMsg}" : $statusMsg;
             throw new \RuntimeException('bKash error: ' . $errorDetail);
         }
 
+        $paymentID = isset($data['paymentID']) && is_scalar($data['paymentID']) ? (string) $data['paymentID'] : null;
+
         return [
-            'redirect_url' => $data['bkashURL'],
-            'session_id'   => $data['paymentID'] ?? null,
+            'redirect_url' => $bkashURL,
+            'session_id'   => $paymentID,
         ];
     }
 
@@ -212,7 +222,11 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         }
         $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
         $token = $this->getToken($baseUrl, $credentials);
-        $paymentId = $callbackData['paymentID'] ?? '';
+        $paymentIdRaw = $callbackData['paymentID'] ?? '';
+        $paymentId = is_scalar($paymentIdRaw) ? (string) $paymentIdRaw : '';
+
+        $appKeyRaw = $credentials['app_key'] ?? '';
+        $appKey = is_scalar($appKeyRaw) ? (string) $appKeyRaw : '';
 
         $ch = curl_init($baseUrl . '/tokenized/checkout/execute');
         curl_setopt_array($ch, [
@@ -222,7 +236,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
                 'Authorization: ' . $token,
-                'X-APP-Key: ' . $credentials['app_key'],
+                'X-APP-Key: ' . $appKey,
             ],
             CURLOPT_POSTFIELDS => (string) json_encode(['paymentID' => $paymentId]),
         ]);
@@ -242,13 +256,27 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $data = json_decode((string) $response, true);
+        if (!is_array($data)) {
+            return [
+                'success'        => false,
+                'gateway_trx_id' => '',
+                'amount'         => null,
+                'status'         => 'failed',
+                'error'          => 'bKash API verification failed: Invalid response',
+            ];
+        }
 
-        $success = ($data['statusCode'] ?? '') === '0000' && ($data['transactionStatus'] ?? '') === 'Completed';
+        $statusCode = isset($data['statusCode']) && is_scalar($data['statusCode']) ? (string) $data['statusCode'] : '';
+        $trxStatus = isset($data['transactionStatus']) && is_scalar($data['transactionStatus']) ? (string) $data['transactionStatus'] : '';
+        $success = $statusCode === '0000' && $trxStatus === 'Completed';
+
+        $trxID = isset($data['trxID']) && is_scalar($data['trxID']) ? (string) $data['trxID'] : '';
+        $amountVal = isset($data['amount']) && is_scalar($data['amount']) ? (string) $data['amount'] : null;
 
         return [
             'success'        => $success,
-            'gateway_trx_id' => $data['trxID'] ?? '',
-            'amount'         => $data['amount'] ?? null,
+            'gateway_trx_id' => $trxID,
+            'amount'         => $amountVal,
             'status'         => $success ? 'completed' : 'failed',
         ];
     }
@@ -270,7 +298,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
     /**
      * Returns an array containing the currencies supported by this gateway.
      *
-     * bKash exclusively operates in BDT.
+     * bKash operates in BDT.
      *
      * @return string[] Array of supported currency codes.
      */
@@ -299,17 +327,25 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
      */
     private function getToken(string $baseUrl, array $credentials): string
     {
+        $appKeyRaw = $credentials['app_key'] ?? '';
+        $appKey = is_scalar($appKeyRaw) ? (string) $appKeyRaw : '';
+
         // Return cached token if available AND not expired
-        $cacheKey = $baseUrl . ':' . ($credentials['app_key'] ?? '');
+        $cacheKey = $baseUrl . ':' . $appKey;
         if (isset(self::$tokenCache[$cacheKey])) {
             $cached = self::$tokenCache[$cacheKey];
-            // FIX: Check TTL — reject expired tokens
             if ($cached['expires_at'] > time()) {
                 return $cached['token'];
             }
-            // Token expired — remove from cache
             unset(self::$tokenCache[$cacheKey]);
         }
+
+        $userRaw = $credentials['username'] ?? '';
+        $user = is_scalar($userRaw) ? (string) $userRaw : '';
+        $passRaw = $credentials['password'] ?? '';
+        $pass = is_scalar($passRaw) ? (string) $passRaw : '';
+        $appSecretRaw = $credentials['app_secret'] ?? '';
+        $appSecret = is_scalar($appSecretRaw) ? (string) $appSecretRaw : '';
 
         $ch = curl_init($baseUrl . '/tokenized/checkout/token/grant');
         curl_setopt_array($ch, [
@@ -318,12 +354,12 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_TIMEOUT        => 10,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
-                'username: ' . ($credentials['username'] ?? ''),
-                'password: ' . ($credentials['password'] ?? ''),
+                'username: ' . $user,
+                'password: ' . $pass,
             ],
             CURLOPT_POSTFIELDS => (string) json_encode([
-                'app_key'    => $credentials['app_key'] ?? '',
-                'app_secret' => $credentials['app_secret'] ?? '',
+                'app_key'    => $appKey,
+                'app_secret' => $appSecret,
             ]),
         ]);
 
@@ -336,10 +372,12 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $data = json_decode((string) $response, true);
+        $token = '';
+        if (is_array($data) && isset($data['id_token']) && is_scalar($data['id_token'])) {
+            $token = (string) $data['id_token'];
+        }
 
-        $token = $data['id_token'] ?? '';
         if ($token !== '') {
-            // Cache with 55-minute TTL (bKash tokens valid ~60min)
             self::$tokenCache[$cacheKey] = [
                 'token'      => $token,
                 'expires_at' => time() + 3300, // 55 minutes

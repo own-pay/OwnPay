@@ -39,7 +39,8 @@ final class SmsTemplateController
      */
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $templates = $this->tplRepo->listForAdmin($mid, 'priority ASC, created_at DESC');
         return Response::json(['success' => true, 'data' => $templates]);
     }
@@ -53,17 +54,20 @@ final class SmsTemplateController
     public function update(Request $req): Response
     {
         $id  = (int) $req->param('id');
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $body = $req->json();
+        $bodyArr = is_array($body) ? $body : [];
 
         $data = [];
         $allowed = ['gateway_slug', 'sender_pattern', 'amount_regex', 'trx_id_regex', 'sender_regex', 'priority', 'status'];
         foreach ($allowed as $col) {
-            if (array_key_exists($col, $body)) {
+            if (array_key_exists($col, $bodyArr)) {
                 if ($col === 'priority') {
-                    $data[$col] = (int) $body[$col];
+                    $priorityVal = $bodyArr[$col];
+                    $data[$col] = (is_int($priorityVal) || is_string($priorityVal)) ? (int) $priorityVal : 0;
                 } else {
-                    $data[$col] = $body[$col];
+                    $data[$col] = $bodyArr[$col];
                 }
             }
         }

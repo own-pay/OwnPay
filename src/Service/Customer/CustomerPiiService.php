@@ -69,11 +69,13 @@ final class CustomerPiiService
 
         $encrypted['uuid'] = Uuid::uuid4()->toString();
 
-        $encrypted['email_hash'] = !empty($data['email'])
-            ? $this->encryptor->deterministicHash($data['email'])
+        $emailVal = $data['email'] ?? '';
+        $encrypted['email_hash'] = is_string($emailVal) && $emailVal !== ''
+            ? $this->encryptor->deterministicHash($emailVal)
             : '';
-        if (!empty($data['phone'])) {
-            $encrypted['phone_hash'] = $this->encryptor->deterministicHash($data['phone']);
+        $phoneVal = $data['phone'] ?? '';
+        if (is_string($phoneVal) && $phoneVal !== '') {
+            $encrypted['phone_hash'] = $this->encryptor->deterministicHash($phoneVal);
         }
 
         $repo = $this->customers->forTenant($merchantId);
@@ -171,8 +173,9 @@ final class CustomerPiiService
     {
         $encrypted = $this->encryptPii($data);
 
-        if (!empty($data['email'])) {
-            $encrypted['email_hash'] = $this->encryptor->deterministicHash($data['email']);
+        $emailVal = $data['email'] ?? '';
+        if (is_string($emailVal) && $emailVal !== '') {
+            $encrypted['email_hash'] = $this->encryptor->deterministicHash($emailVal);
         }
 
         $repo = $this->customers->forTenant($merchantId);
@@ -219,10 +222,23 @@ final class CustomerPiiService
     public function list(int $merchantId, int $page = 1, int $perPage = 50): array
     {
         $result = $this->customers->forTenant($merchantId)->paginateScoped($page, $perPage);
-        foreach ($result['items'] as &$customer) {
-            $customer = $this->decryptPii($customer);
-            $customer['email_masked'] = PiiMasker::maskEmail($customer['email'] ?? '');
-            $customer['phone_masked'] = PiiMasker::maskPhone($customer['phone'] ?? '');
+        $items = $result['items'] ?? [];
+        if (is_array($items)) {
+            foreach ($items as &$customer) {
+                if (is_array($customer)) {
+                    $customerMap = [];
+                    foreach ($customer as $k => $v) {
+                        $customerMap[(string)$k] = $v;
+                    }
+                    $decrypted = $this->decryptPii($customerMap);
+                    $emailVal = $decrypted['email'] ?? '';
+                    $phoneVal = $decrypted['phone'] ?? '';
+                    $decrypted['email_masked'] = PiiMasker::maskEmail(is_string($emailVal) ? $emailVal : '');
+                    $decrypted['phone_masked'] = PiiMasker::maskPhone(is_string($phoneVal) ? $phoneVal : '');
+                    $customer = $decrypted;
+                }
+            }
+            $result['items'] = $items;
         }
         /** @var array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} $result */
         return $result;
@@ -237,8 +253,9 @@ final class CustomerPiiService
     private function encryptPii(array $data): array
     {
         foreach (self::PII_FIELDS as $field) {
-            if (isset($data[$field]) && $data[$field] !== '') {
-                $data["{$field}_enc"] = $this->encryptor->encrypt($data[$field]);
+            $val = $data[$field] ?? null;
+            if (is_string($val) && $val !== '') {
+                $data["{$field}_enc"] = $this->encryptor->encrypt($val);
                 unset($data[$field]);
             }
         }
@@ -254,9 +271,10 @@ final class CustomerPiiService
     private function decryptPii(array $customer): array
     {
         foreach (self::PII_FIELDS as $field) {
-            if (!empty($customer["{$field}_enc"])) {
+            $encVal = $customer["{$field}_enc"] ?? null;
+            if (is_string($encVal) && $encVal !== '') {
                 try {
-                    $customer[$field] = $this->encryptor->decrypt($customer["{$field}_enc"]);
+                    $customer[$field] = $this->encryptor->decrypt($encVal);
                 } catch (\Throwable) {
                     $customer[$field] = '[decryption failed]';
                 }
@@ -273,8 +291,10 @@ final class CustomerPiiService
      */
     private function maskForEvent(array $customer): array
     {
-        $customer['email'] = PiiMasker::maskEmail($customer['email'] ?? $customer['email_enc'] ?? '');
-        $customer['phone'] = PiiMasker::maskPhone($customer['phone'] ?? $customer['phone_enc'] ?? '');
+        $emailVal = $customer['email'] ?? $customer['email_enc'] ?? '';
+        $phoneVal = $customer['phone'] ?? $customer['phone_enc'] ?? '';
+        $customer['email'] = PiiMasker::maskEmail(is_string($emailVal) ? $emailVal : '');
+        $customer['phone'] = PiiMasker::maskPhone(is_string($phoneVal) ? $phoneVal : '');
         unset($customer['email_enc'], $customer['phone_enc'], $customer['name_enc']);
         return $customer;
     }

@@ -334,16 +334,19 @@ printStep("Checking Database Migrations");
 
 // Helper to load manifest
 $localManifestPath = $updateDir . '/manifest.json';
-$existingManifest = [];
+$existingManifestData = null;
 if (file_exists($localManifestPath)) {
-    $existingManifest = json_decode((string) file_get_contents($localManifestPath), true) ?: [];
+    $existingManifestData = json_decode((string) file_get_contents($localManifestPath), true);
 }
+$existingManifest = is_array($existingManifestData) ? $existingManifestData : [];
+/** @var array{releases?: array<int, array{migrations?: array<int, string>}>} $existingManifest */
 
 // Extract registered migrations
+/** @var array<int, string> $registeredMigrations */
 $registeredMigrations = [];
-if (isset($existingManifest['releases']) && is_array($existingManifest['releases'])) {
+if (isset($existingManifest['releases'])) {
     foreach ($existingManifest['releases'] as $rel) {
-        if (isset($rel['migrations']) && is_array($rel['migrations'])) {
+        if (isset($rel['migrations'])) {
             $registeredMigrations = array_merge($registeredMigrations, $rel['migrations']);
         }
     }
@@ -441,6 +444,7 @@ function scanAndZip(string $dir, ZipArchive $zip, string $projectRoot, array $ro
     );
 
     $count = 0;
+    /** @var \SplFileInfo $fileinfo */
     foreach ($files as $fileinfo) {
         $absolutePath = $fileinfo->getPathname();
         $relativePath = substr($absolutePath, strlen($projectRoot) + 1);
@@ -561,10 +565,12 @@ file_put_contents($releaseVersionDir . '/changelog.md', $changelogContent);
 printStep("Updating manifest.json");
 
 // Load existing manifest (ensure self-healing if empty/corrupted)
-$manifest = [];
+$manifestData = null;
 if (file_exists($localManifestPath)) {
-    $manifest = json_decode((string) file_get_contents($localManifestPath), true) ?: [];
+    $manifestData = json_decode((string) file_get_contents($localManifestPath), true);
 }
+$manifest = is_array($manifestData) ? $manifestData : [];
+/** @var array{releases?: array<int, array<string, mixed>>, channels?: array{stable?: array<string, mixed>, beta?: array<string, mixed>}, announcements?: array<int, mixed>, public_key_url?: string|null, version?: string, download_url?: string, changelog?: string, schema_version?: int, generated_at?: string} $manifest */
 
 if (!isset($manifest['schema_version'])) {
     $manifest['schema_version'] = 1;
@@ -620,8 +626,8 @@ $stableReleases = array_filter($manifest['releases'], fn($r) => $r['channel'] ==
 $betaReleases = array_filter($manifest['releases'], fn($r) => $r['channel'] === 'beta');
 
 // Sort descending by version code
-$sortByVersion = function ($a, $b) {
-    return version_compare($b['version'], $a['version']);
+$sortByVersion = function (array $a, array $b): int {
+    return version_compare((string) $b['version'], (string) $a['version']);
 };
 
 if (!empty($stableReleases)) {

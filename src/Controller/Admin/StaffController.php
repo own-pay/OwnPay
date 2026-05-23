@@ -106,14 +106,17 @@ final class StaffController
             ]);
         }
 
-        $data = $req->post();
-        $roleId = !empty($data['role_id']) ? (int) $data['role_id'] : null;
+        $postData = $req->post();
+        $data = is_array($postData) ? $postData : [];
+        $roleIdVal = $data['role_id'] ?? null;
+        $roleId = is_scalar($roleIdVal) && is_numeric($roleIdVal) ? (int) $roleIdVal : null;
 
         // BUG-45 FIX: Validate role_id belongs to this brand.
         if ($roleId !== null) {
             $validRole = false;
             foreach ($roles as $r) {
-                if ((int) $r['id'] === $roleId) {
+                $rId = $r['id'] ?? null;
+                if (is_scalar($rId) && is_numeric($rId) && (int) $rId === $roleId) {
                     $validRole = true;
                     break;
                 }
@@ -127,17 +130,21 @@ final class StaffController
         // If no role selected, use default Staff role
         if ($roleId === null) {
             foreach ($roles as $r) {
-                if ($r['slug'] === 'staff') {
-                    $roleId = (int) $r['id'];
+                $rId = $r['id'] ?? null;
+                if (($r['slug'] ?? null) === 'staff' && is_scalar($rId) && is_numeric($rId)) {
+                    $roleId = (int) $rId;
                     break;
                 }
             }
         }
 
         // AUD-06 FIX: Validate required fields + password minimum length
-        $name     = InputSanitizer::string($data['name'] ?? '');
-        $email    = trim($data['email'] ?? '');
-        $password = $data['password'] ?? '';
+        $nameVal = $data['name'] ?? '';
+        $name = InputSanitizer::string(is_string($nameVal) ? $nameVal : '');
+        $emailVal = $data['email'] ?? '';
+        $email = trim(is_string($emailVal) ? $emailVal : '');
+        $passwordVal = $data['password'] ?? '';
+        $password = is_string($passwordVal) ? $passwordVal : '';
 
         if ($name === '' || $email === '') {
             $this->session->flashError('Name and email are required.');
@@ -182,7 +189,9 @@ final class StaffController
             return Response::redirect('/admin/staff');
         }
 
-        $roles = $this->getRolesForMerchant($user['merchant_id'] ?? $mid);
+        $userMid = $user['merchant_id'] ?? $mid;
+        $merchantId = is_scalar($userMid) && is_numeric($userMid) ? (int) $userMid : 0;
+        $roles = $this->getRolesForMerchant($merchantId);
 
         if ($req->method() === 'GET') {
             return $this->renderAdminPage('admin/staff/edit.twig', [
@@ -193,17 +202,27 @@ final class StaffController
             ]);
         }
 
-        $data   = $req->post();
-        $update = ['name' => InputSanitizer::string($data['name'] ?? ''), 'email' => $data['email'] ?? ''];
-        if (!empty($data['password'])) {
-            $update['password_hash'] = password_hash($data['password'], PASSWORD_ARGON2ID);
+        $postData = $req->post();
+        $data = is_array($postData) ? $postData : [];
+        $nameVal = $data['name'] ?? '';
+        $emailVal = $data['email'] ?? '';
+        $update = [
+            'name' => InputSanitizer::string(is_string($nameVal) ? $nameVal : ''),
+            'email' => is_string($emailVal) ? $emailVal : ''
+        ];
+        
+        $passwordVal = $data['password'] ?? '';
+        if (is_string($passwordVal) && $passwordVal !== '') {
+            $update['password_hash'] = password_hash($passwordVal, PASSWORD_ARGON2ID);
         }
-        if (!empty($data['role_id'])) {
-            // BUG-45 FIX: Validate role_id belongs to this user's brand.
-            $newRoleId = (int) $data['role_id'];
+        
+        $roleIdVal = $data['role_id'] ?? null;
+        if ($roleIdVal !== null && is_scalar($roleIdVal) && is_numeric($roleIdVal)) {
+            $newRoleId = (int) $roleIdVal;
             $validRole = false;
             foreach ($roles as $r) {
-                if ((int) $r['id'] === $newRoleId) {
+                $rId = $r['id'] ?? null;
+                if (is_scalar($rId) && is_numeric($rId) && (int) $rId === $newRoleId) {
                     $validRole = true;
                     break;
                 }
@@ -275,10 +294,13 @@ final class StaffController
     private function getRolesForMerchant(int $merchantId): array
     {
         $db = $this->c->get(\OwnPay\Core\Database::class);
-        return $db->fetchAll(
-            "SELECT id, name, slug FROM op_roles WHERE merchant_id = :mid ORDER BY id",
-            ['mid' => $merchantId]
-        );
+        if ($db instanceof \OwnPay\Core\Database) {
+            return $db->fetchAll(
+                "SELECT id, name, slug FROM op_roles WHERE merchant_id = :mid ORDER BY id",
+                ['mid' => $merchantId]
+            );
+        }
+        return [];
     }
 
     /**

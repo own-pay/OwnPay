@@ -34,7 +34,7 @@ final class RedisCache implements CacheInterface
     {
         $raw = $this->redis->get($this->prefix . $key);
 
-        if ($raw === false) {
+        if (!is_string($raw)) {
             return null;
         }
 

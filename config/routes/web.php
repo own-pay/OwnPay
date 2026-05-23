@@ -34,7 +34,7 @@ return static function (\OwnPay\Http\Router $router): void {
     } else {
         try {
             $settingsRepo = $router->getContainer()->get(\OwnPay\Repository\SettingsRepository::class);
-            if ($settingsRepo !== null) {
+            if ($settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
                 $slug = $settingsRepo->get('landing', 'admin_login_slug', 'login');
                 if (!empty($slug) && preg_match('/^[a-z0-9\-]+$/', $slug)) {
                     $loginSlug = $slug;

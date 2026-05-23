@@ -104,13 +104,26 @@ final class SettingsController
         }
 
         $currencyService = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+        if (!$currencyService instanceof \OwnPay\Service\Payment\CurrencyService) {
+            throw new \RuntimeException('CurrencyService not found.');
+        }
         $allCurrencies   = $currencyService->listAll();
         $timezones       = \DateTimeZone::listIdentifiers();
 
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
-        $apiKeys = $this->c->get(\OwnPay\Service\Customer\ApiKeyService::class)->list($mid);
+        if ($mid === null) {
+            throw new \RuntimeException('Brand ID not resolved.');
+        }
+        $apiKeyService = $this->c->get(\OwnPay\Service\Customer\ApiKeyService::class);
+        if (!$apiKeyService instanceof \OwnPay\Service\Customer\ApiKeyService) {
+            throw new \RuntimeException('ApiKeyService not found.');
+        }
+        $apiKeys = $apiKeyService->list($mid);
 
         // Retrieve or auto-generate Cron Secret
         $cronSecret = is_string($settings['cron_secret'] ?? null) ? $settings['cron_secret'] : '';
@@ -122,12 +135,18 @@ final class SettingsController
 
         // Build Cron trigger URL white-labeled using DomainUrlService
         $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+        if (!$urlService instanceof \OwnPay\Service\Domain\DomainUrlService) {
+            throw new \RuntimeException('DomainUrlService not found.');
+        }
         $baseUrl = $urlService->resolveBaseUrl($mid, $req);
-        $baseUrlStr = is_array($baseUrl) ? ($baseUrl[0] ?? '') : (string) $baseUrl;
+        $baseUrlStr = (string) $baseUrl;
         $cronUrl = rtrim($baseUrlStr, '/') . '/cron/' . $cronSecret;
 
         // Fetch all registered Cron Jobs and their execution logs
         $runner = $this->c->get(\OwnPay\Cron\CronJobRunner::class);
+        if (!$runner instanceof \OwnPay\Cron\CronJobRunner) {
+            throw new \RuntimeException('CronJobRunner not found.');
+        }
         $rawJobs = $runner->getJobs();
         $cronJobs = [];
         $descriptions = [
@@ -196,8 +215,10 @@ final class SettingsController
      */
     public function save(Request $req): Response
     {
-        $tab  = $req->post('_tab', 'general');
-        $data = $req->post();
+        $tabVal  = $req->post('_tab', 'general');
+        $tab = is_string($tabVal) ? $tabVal : 'general';
+        $postData = $req->post();
+        $data = is_array($postData) ? $postData : [];
         unset($data['_csrf_token'], $data['_tab']);
 
         switch ($tab) {
@@ -308,7 +329,7 @@ final class SettingsController
             }
         }
 
-        if (isset($data['faqs'])) {
+        if (isset($data['faqs']) && is_array($data['faqs'])) {
             $data['faqs'] = json_encode(array_values($data['faqs']));
         }
 
@@ -327,7 +348,7 @@ final class SettingsController
         $filtered = [];
         foreach ($whitelist as $key) {
             if (isset($data[$key])) {
-                $filtered[$key] = is_array($data[$key]) ? json_encode($data[$key]) : (string) $data[$key];
+                $filtered[$key] = is_array($data[$key]) ? (json_encode($data[$key]) ?: '') : (is_scalar($data[$key]) ? (string) $data[$key] : '');
             }
         }
 
@@ -366,7 +387,7 @@ final class SettingsController
         $filtered = [];
         foreach ($whitelist as $key) {
             if (isset($data[$key])) {
-                $filtered[$key] = (string) $data[$key];
+                $filtered[$key] = is_scalar($data[$key]) ? (string) $data[$key] : '';
             }
         }
         $this->settingsRepo->bulkSet('branding', $filtered);
@@ -387,7 +408,7 @@ final class SettingsController
                 $data[$cb] = '0';
             }
         }
-        if (isset($data['features'])) {
+        if (isset($data['features']) && is_array($data['features'])) {
             $data['features'] = json_encode(array_values($data['features']));
         }
 
@@ -406,7 +427,7 @@ final class SettingsController
         $filtered = [];
         foreach ($whitelist as $key) {
             if (isset($data[$key])) {
-                $filtered[$key] = is_array($data[$key]) ? json_encode($data[$key]) : (string) $data[$key];
+                $filtered[$key] = is_array($data[$key]) ? (json_encode($data[$key]) ?: '') : (is_scalar($data[$key]) ? (string) $data[$key] : '');
             }
         }
         $this->settingsRepo->bulkSet('landing', $filtered);
@@ -438,9 +459,11 @@ final class SettingsController
         $currencies = $data['currencies'] ?? null;
         if ($currencies !== null && is_array($currencies)) {
             $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
-            foreach ($currencies as $code => $cData) {
-                if (isset($cData['rate'])) {
-                    $currencySvc->updateExchangeRate($code, (string) $cData['rate']);
+            if ($currencySvc instanceof \OwnPay\Service\Payment\CurrencyService) {
+                foreach ($currencies as $code => $cData) {
+                    if (is_array($cData) && isset($cData['rate']) && is_scalar($cData['rate'])) {
+                        $currencySvc->updateExchangeRate((string) $code, (string) $cData['rate']);
+                    }
                 }
             }
         }
@@ -456,7 +479,7 @@ final class SettingsController
         $filtered = [];
         foreach ($whitelist as $key) {
             if (isset($data[$key])) {
-                $filtered[$key] = (string) $data[$key];
+                $filtered[$key] = is_scalar($data[$key]) ? (string) $data[$key] : '';
             }
         }
 
@@ -491,7 +514,7 @@ final class SettingsController
         $filtered = [];
         foreach ($whitelist as $key) {
             if (isset($data[$key])) {
-                $filtered[$key] = (string) $data[$key];
+                $filtered[$key] = is_scalar($data[$key]) ? (string) $data[$key] : '';
             }
         }
 
@@ -514,7 +537,7 @@ final class SettingsController
         $filtered = [];
         foreach ($whitelist as $key) {
             if (isset($data[$key])) {
-                $filtered[$key] = (string) $data[$key];
+                $filtered[$key] = is_scalar($data[$key]) ? (string) $data[$key] : '';
             }
         }
         $this->settingsRepo->bulkSet('theme', $filtered);
@@ -553,16 +576,18 @@ final class SettingsController
 
         try {
             $runner = $this->c->get(\OwnPay\Cron\CronJobRunner::class);
-            $result = $runner->runJob($jobName);
+            if ($runner instanceof \OwnPay\Cron\CronJobRunner) {
+                $result = $runner->runJob($jobName);
 
-            if ($result['status'] === 'completed') {
-                $duration = $result['duration'];
-                $this->audit->log('cron.manual_run', 'settings', null, null, ['job' => $jobName, 'status' => 'completed', 'duration' => $duration]);
-                $this->session->flashSuccess("Cron job '{$jobName}' executed successfully in {$duration}s");
-            } else {
-                $error = $result['error'] ?? 'Unknown error';
-                $this->audit->log('cron.manual_run_failed', 'settings', null, null, ['job' => $jobName, 'error' => $error]);
-                $this->session->flashError("Cron job '{$jobName}' failed: {$error}");
+                if ($result['status'] === 'completed') {
+                    $duration = $result['duration'];
+                    $this->audit->log('cron.manual_run', 'settings', null, null, ['job' => $jobName, 'status' => 'completed', 'duration' => $duration]);
+                    $this->session->flashSuccess("Cron job '{$jobName}' executed successfully in {$duration}s");
+                } else {
+                    $error = $result['error'] ?? 'Unknown error';
+                    $this->audit->log('cron.manual_run_failed', 'settings', null, null, ['job' => $jobName, 'error' => $error]);
+                    $this->session->flashError("Cron job '{$jobName}' failed: {$error}");
+                }
             }
         } catch (\Throwable $e) {
             $this->session->flashError("Failed to trigger job '{$jobName}': " . $e->getMessage());

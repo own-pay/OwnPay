@@ -98,9 +98,15 @@ final class PaymentService
         }
 
         // Check expiry
-        if ($intent['status'] === 'pending' && DateHelper::isPast($intent['expires_at'])) {
-            $this->intents->forTenant((int) $intent['merchant_id'])
-                ->updateScoped((int) $intent['id'], ['status' => 'expired']);
+        $expiresAtVal = $intent['expires_at'] ?? '';
+        $expiresAt = is_scalar($expiresAtVal) ? (string) $expiresAtVal : '';
+        if ($intent['status'] === 'pending' && DateHelper::isPast($expiresAt)) {
+            $midVal = $intent['merchant_id'] ?? 0;
+            $idVal = $intent['id'] ?? 0;
+            $mid = is_scalar($midVal) ? (int) $midVal : 0;
+            $id = is_scalar($idVal) ? (int) $idVal : 0;
+            $this->intents->forTenant($mid)
+                ->updateScoped($id, ['status' => 'expired']);
             $intent['status'] = 'expired';
             $this->events->doAction('payment.intent.expired', $intent);
         }

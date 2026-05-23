@@ -59,7 +59,8 @@ final class RefundRepository extends BaseRepository
              WHERE transaction_id = :txid AND merchant_id = :mid AND status IN ('pending', 'completed')",
             ['txid' => $transactionId, 'mid' => $merchantId]
         );
-        return $row['total'] ?? '0.00';
+        $total = $row['total'] ?? '0.00';
+        return is_scalar($total) ? (string) $total : '0.00';
     }
 }
 

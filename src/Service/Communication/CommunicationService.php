@@ -149,9 +149,11 @@ final class CommunicationService
     {
         $rendered = $template;
         foreach ($vars as $key => $value) {
-            $rendered = str_replace('{{' . $key . '}}', (string) $value, $rendered);
+            $valStr = is_scalar($value) ? (string) $value : '';
+            $rendered = str_replace('{{' . $key . '}}', $valStr, $rendered);
         }
-        return $this->events->applyFilter('communication.template.render', $rendered, $vars);
+        $res = $this->events->applyFilter('communication.template.render', $rendered, $vars);
+        return is_scalar($res) ? (string) $res : $rendered;
     }
 
     /**
@@ -168,7 +170,17 @@ final class CommunicationService
             $channels[] = $slug;
         }
 
-        return $this->events->applyFilter('communication.channels', $channels);
+        $res = $this->events->applyFilter('communication.channels', $channels);
+        if (is_array($res)) {
+            $out = [];
+            foreach ($res as $item) {
+                if (is_string($item)) {
+                    $out[] = $item;
+                }
+            }
+            return $out;
+        }
+        return $channels;
     }
 
     /**

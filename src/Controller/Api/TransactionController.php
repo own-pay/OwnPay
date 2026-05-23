@@ -50,20 +50,36 @@ final class TransactionController
      */
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
-        $page = max(1, (int) $req->query('page', '1'));
-        $perPage = min(100, max(1, (int) $req->query('per_page', '25')));
-        $filters = [
-            'status'  => $req->query('status', ''),
-            'gateway' => $req->query('gateway', ''),
-            'from'    => $req->query('from', ''),
-            'to'      => $req->query('to', ''),
-        ];
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
+        $pageVal = $req->query('page', '1');
+        $page = max(1, is_int($pageVal) || is_string($pageVal) ? (int)$pageVal : 1);
+        $perPageVal = $req->query('per_page', '25');
+        $perPage = min(100, max(1, is_int($perPageVal) || is_string($perPageVal) ? (int)$perPageVal : 25));
+
+        $statusVal = $req->query('status', '');
+        $gatewayVal = $req->query('gateway', '');
+        $fromVal = $req->query('from', '');
+        $toVal = $req->query('to', '');
+
+        /** @var array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string} $filters */
+        $filters = [];
+        if (is_string($statusVal) && $statusVal !== '') {
+            $filters['status'] = $statusVal;
+        }
+        if (is_string($gatewayVal) && $gatewayVal !== '') {
+            $filters['gateway'] = $gatewayVal;
+        }
+        if (is_string($fromVal) && $fromVal !== '') {
+            $filters['date_from'] = $fromVal;
+        }
+        if (is_string($toVal) && $toVal !== '') {
+            $filters['date_to'] = $toVal;
+        }
 
         $repo = $this->txns->forTenant($mid);
         $total = $repo->countFiltered($filters);
         $pagination = PaginationService::calculate($page, $perPage, $total);
-        /** @phpstan-ignore-next-line */
         $transactions = $repo->listFiltered($filters, $pagination['per_page'], $pagination['offset']);
 
         // Whitelist fields to filter sensitive internal transaction data.
@@ -91,8 +107,10 @@ final class TransactionController
      */
     public function show(Request $req): Response
     {
-        $trxId = trim($req->param('trx_id'));
-        $mid = (int) $req->getAttribute('merchant_id');
+        $trxIdVal = $req->param('trx_id');
+        $trxId = trim($trxIdVal);
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
 
         if ($trxId === '') {
             return Response::json(['success' => false, 'error' => 'Transaction ID required'], 422);

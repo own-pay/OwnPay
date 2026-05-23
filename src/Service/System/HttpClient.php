@@ -62,8 +62,17 @@ final class HttpClient
     public function __call(string $name, array $arguments)
     {
         if ($name === 'get') {
-            $url = $arguments[0];
-            $headers = $arguments[1] ?? [];
+            $urlVal = $arguments[0] ?? '';
+            $url = is_scalar($urlVal) ? (string) $urlVal : '';
+            $rawHeaders = $arguments[1] ?? [];
+            $headers = [];
+            if (is_array($rawHeaders)) {
+                foreach ($rawHeaders as $k => $v) {
+                    if (is_scalar($v)) {
+                        $headers[(string)$k] = (string)$v;
+                    }
+                }
+            }
             return $this->request('GET', $url, null, $headers);
         }
         throw new \BadMethodCallException("Method {$name} does not exist");
@@ -82,8 +91,10 @@ final class HttpClient
     public static function __callStatic(string $name, array $arguments)
     {
         if ($name === 'get') {
-            $url = $arguments[0];
-            $timeout = $arguments[1] ?? 30;
+            $urlVal = $arguments[0] ?? '';
+            $url = is_scalar($urlVal) ? (string) $urlVal : '';
+            $timeoutVal = $arguments[1] ?? 30;
+            $timeout = is_scalar($timeoutVal) ? (int) $timeoutVal : 30;
             try {
                 $client = new self($timeout);
                 $res = $client->request('GET', $url, null, []);
@@ -221,7 +232,14 @@ final class HttpClient
 
             // Apply payload content body for outbound mutations
             if ($data !== null && in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
-                curl_setopt($ch, CURLOPT_POSTFIELDS, is_string($data) ? $data : http_build_query($data));
+                if (is_string($data)) {
+                    $postFields = $data;
+                } elseif (is_array($data) || is_object($data)) {
+                    $postFields = http_build_query($data);
+                } else {
+                    $postFields = is_scalar($data) ? (string) $data : '';
+                }
+                curl_setopt($ch, CURLOPT_POSTFIELDS, $postFields);
             }
 
             $body = curl_exec($ch);

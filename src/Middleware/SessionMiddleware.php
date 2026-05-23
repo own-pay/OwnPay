@@ -48,6 +48,12 @@ final class SessionMiddleware
         }
 
         $config = $container->get('config.app');
+        $sessionLifetime = 7200;
+        if (is_array($config) && isset($config['session']) && is_array($config['session'])) {
+            if (isset($config['session']['lifetime']) && (is_int($config['session']['lifetime']) || is_string($config['session']['lifetime']) || is_numeric($config['session']['lifetime']))) {
+                $sessionLifetime = (int) $config['session']['lifetime'];
+            }
+        }
         $secure = $request->isSecure();
 
         ini_set('session.use_strict_mode', '1');
@@ -55,7 +61,7 @@ final class SessionMiddleware
         ini_set('session.cookie_httponly', '1');
 
         session_set_cookie_params([
-            'lifetime' => (int) ($config['session']['lifetime'] ?? 7200),
+            'lifetime' => $sessionLifetime,
             'path'     => '/',
             'domain'   => '',
             'secure'   => $secure,
@@ -66,11 +72,10 @@ final class SessionMiddleware
         session_name('op_session');
         session_start();
 
-        $sessionLifetime = (int) ($config['session']['lifetime'] ?? 7200);
-
         // Explicit idle timeout — prevents indefinite sessions when PHP gc_maxlifetime differs.
-        if (isset($_SESSION['_last_activity'])) {
-            if (time() - $_SESSION['_last_activity'] > $sessionLifetime) {
+        if (isset($_SESSION['_last_activity']) && (is_int($_SESSION['_last_activity']) || is_numeric($_SESSION['_last_activity']))) {
+            $lastActivity = (int) $_SESSION['_last_activity'];
+            if (time() - $lastActivity > $sessionLifetime) {
                 // Session expired — destroy and redirect to login
                 $_SESSION = [];
                 session_destroy();
@@ -81,11 +86,14 @@ final class SessionMiddleware
         $_SESSION['_last_activity'] = time();
 
         // Regenerate stale session ID (every 15 minutes)
-        if (!isset($_SESSION['_last_regen'])) {
+        if (!isset($_SESSION['_last_regen']) || (!is_int($_SESSION['_last_regen']) && !is_numeric($_SESSION['_last_regen']))) {
             $_SESSION['_last_regen'] = time();
-        } elseif (time() - $_SESSION['_last_regen'] > 900) {
-            session_regenerate_id(true);
-            $_SESSION['_last_regen'] = time();
+        } else {
+            $lastRegen = (int) $_SESSION['_last_regen'];
+            if (time() - $lastRegen > 900) {
+                session_regenerate_id(true);
+                $_SESSION['_last_regen'] = time();
+            }
         }
     }
 

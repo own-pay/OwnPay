@@ -66,7 +66,8 @@ final class GatewayConfigRepository extends BaseRepository
              WHERE g.slug = :slug AND gc.merchant_id = :mid AND gc.status = 'active' LIMIT 1",
             ['slug' => $slug, 'mid' => $this->requireTenant()]
         );
-        return $row['credentials_enc'] ?? null;
+        $enc = is_array($row) ? ($row['credentials_enc'] ?? null) : null;
+        return is_scalar($enc) ? (string) $enc : null;
     }
 
     /**

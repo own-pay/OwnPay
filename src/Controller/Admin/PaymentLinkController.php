@@ -71,9 +71,7 @@ final class PaymentLinkController
      */
     public function index(Request $req): Response
     {
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = $this->resolveMerchant($req);
         $list = $this->links->listForMerchant($mid);
 
         return $this->renderAdminPage('admin/payment-links/index.twig', [
@@ -91,9 +89,7 @@ final class PaymentLinkController
      */
     public function create(Request $req): Response
     {
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = $this->resolveMerchant($req);
 
         if ($req->method() === 'GET') {
             return $this->renderAdminPage('admin/payment-links/edit.twig', [
@@ -103,7 +99,10 @@ final class PaymentLinkController
             ]);
         }
 
-        $link = $this->links->create($mid, $req->post());
+        $postData = $req->post();
+        /** @var array{title?: string, slug?: string, description?: string|null, amount?: float|int|string|null, currency?: string, is_amount_fixed?: bool|int, min_amount?: float|int|string|null, max_amount?: float|int|string|null} $data */
+        $data = is_array($postData) ? $postData : [];
+        $link = $this->links->create($mid, $data);
         $this->events->doAction('payment_link.created', $link);
         $this->session->flashSuccess('Payment link created');
         return Response::redirect('/admin/payment-links');
@@ -118,9 +117,7 @@ final class PaymentLinkController
      */
     public function edit(Request $req): Response
     {
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = $this->resolveMerchant($req);
         $id = (int) $req->param('id');
         $link = $this->links->find($mid, $id);
 
@@ -137,7 +134,10 @@ final class PaymentLinkController
             ]);
         }
 
-        $updated = $this->links->update($mid, $id, $req->post());
+        $postData = $req->post();
+        /** @var array{title?: string, description?: string|null, amount?: float|int|string|null, currency?: string, status?: string} $data */
+        $data = is_array($postData) ? $postData : [];
+        $updated = $this->links->update($mid, $id, $data);
         $this->events->doAction('payment_link.updated', $updated);
         $this->session->flashSuccess('Updated');
         return Response::redirect('/admin/payment-links');
@@ -180,12 +180,37 @@ final class PaymentLinkController
     }
 
     /**
+     * Resolves the active merchant context ID from the request.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return int The resolved merchant ID.
+     */
+    private function resolveMerchant(Request $req): int
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('Brand ID not resolved.');
+        }
+        return $mid;
+    }
+
+    /**
      * Retrieves all system currencies.
      *
      * @return array<int, array<string, mixed>> Available currencies list.
      */
     private function getCurrencies(): array
     {
-        return $this->c->get(\OwnPay\Service\Payment\CurrencyService::class)->listAll();
+        $currencyService = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+        if ($currencyService instanceof \OwnPay\Service\Payment\CurrencyService) {
+            return $currencyService->listAll();
+        }
+        return [];
     }
 }

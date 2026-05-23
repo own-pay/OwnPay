@@ -77,8 +77,10 @@ final class ThemeController
         $brandId = null;
         if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-            $brandCtx->resolveFromRequest($request);
-            $brandId = $brandCtx->getActiveBrandId();
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandCtx->resolveFromRequest($request);
+                $brandId = $brandCtx->getActiveBrandId();
+            }
         }
 
         $themes      = $this->repo->listByType('theme');
@@ -86,7 +88,9 @@ final class ThemeController
 
         // Enrich DB rows with manifest name (DB may store slug as name)
         foreach ($themes as &$t) {
-            $m = json_decode($t['manifest'] ?? '{}', true) ?: [];
+            $manifestStr = is_string($t['manifest'] ?? null) ? $t['manifest'] : '{}';
+            $m = json_decode($manifestStr, true) ?: [];
+            $m = is_array($m) ? $m : [];
             if (!empty($m['name'])) {
                 $t['name'] = $m['name'];
             }
@@ -95,7 +99,8 @@ final class ThemeController
 
             // Local active/inactive status override if brand context is active
             if ($brandId !== null && $brandId > 0 && !in_array($t['status'], ['uninstalled', 'trashed'], true)) {
-                $t['status'] = $this->repo->isPluginActiveForBrand($t['slug'], $brandId) ? 'active' : 'inactive';
+                $slug = is_string($t['slug'] ?? null) ? $t['slug'] : '';
+                $t['status'] = $this->repo->isPluginActiveForBrand($slug, $brandId) ? 'active' : 'inactive';
             }
         }
         unset($t);
@@ -115,8 +120,9 @@ final class ThemeController
 
         // Enrich DB-stored themes with filesystem manifest name
         foreach ($themes as &$t) {
-            if (isset($manifestLookup[$t['slug']])) {
-                $fsManifest = $manifestLookup[$t['slug']];
+            $tSlug = is_string($t['slug'] ?? null) ? $t['slug'] : '';
+            if (isset($manifestLookup[$tSlug])) {
+                $fsManifest = $manifestLookup[$tSlug];
                 $t['name']        = $fsManifest->name;
                 $t['description'] = $t['description'] ?: ($fsManifest->description ?? '');
                 $t['author']      = $t['author']      ?: ($fsManifest->author      ?? 'Unknown');
@@ -218,7 +224,8 @@ final class ThemeController
         }
 
         $this->settings->set('appearance', 'active_theme', $slug);
-        $this->session->flashSuccess("Theme '{$plugin['name']}' activated!");
+        $pluginName = is_string($plugin['name'] ?? null) ? $plugin['name'] : 'Unknown';
+        $this->session->flashSuccess("Theme '{$pluginName}' activated!");
         return Response::redirect('/admin/themes');
     }
 
@@ -236,12 +243,14 @@ final class ThemeController
             return Response::redirect('/admin/themes');
         }
 
-        if (!str_ends_with(strtolower($file['name']), '.zip')) {
+        $fileName = is_string($file['name'] ?? null) ? $file['name'] : '';
+        if (!str_ends_with(strtolower($fileName), '.zip')) {
             $this->session->flashError('Only .zip files are allowed');
             return Response::redirect('/admin/themes');
         }
 
-        $result = $this->manager->install($file['tmp_name']);
+        $tmpName = is_string($file['tmp_name'] ?? null) ? $file['tmp_name'] : '';
+        $result = $this->manager->install($tmpName);
 
         if (!$result['success']) {
             $this->session->flashError($result['error'] ?? 'Installation failed');

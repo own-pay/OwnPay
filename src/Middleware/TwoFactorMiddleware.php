@@ -52,8 +52,11 @@ final class TwoFactorMiddleware
         $user = $request->getAttribute('auth_user');
         if ($user === null) {
             $db = $this->container->get(\OwnPay\Core\Database::class);
-            $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
-            if (!$user) {
+            $userVal = null;
+            if ($db instanceof \OwnPay\Core\Database) {
+                $userVal = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
+            }
+            if (!is_array($userVal)) {
                 // User deleted/deactivated but session persists — destroy entire session.
                 $_SESSION = [];
                 if (session_status() === PHP_SESSION_ACTIVE) {
@@ -66,7 +69,12 @@ final class TwoFactorMiddleware
                 $loginSlug = $this->resolveLoginSlug();
                 return Response::redirect("/{$loginSlug}");
             }
+            $user = $userVal;
             $request->setAttribute('auth_user', $user);
+        }
+
+        if (!is_array($user)) {
+            $user = [];
         }
 
         // Skip if 2FA not enabled for user
@@ -118,7 +126,8 @@ final class TwoFactorMiddleware
 
         $timeSlice = intdiv(time(), 30);
         // Get last used window to prevent replay
-        $lastUsedWindow = (int) ($_SESSION['totp_last_used_window'] ?? 0);
+        $lastUsedVal = $_SESSION['totp_last_used_window'] ?? 0;
+        $lastUsedWindow = (is_int($lastUsedVal) || is_string($lastUsedVal) || is_numeric($lastUsedVal)) ? (int) $lastUsedVal : 0;
 
         for ($i = -$window; $i <= $window; $i++) {
             $checkSlice = $timeSlice + $i;
@@ -227,7 +236,13 @@ final class TwoFactorMiddleware
 
         try {
             $settings = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
-            return $settings->get('landing', 'admin_login_slug', 'login');
+            if ($settings instanceof \OwnPay\Repository\SettingsRepository) {
+                $slug = $settings->get('landing', 'admin_login_slug', 'login');
+                if (is_string($slug)) {
+                    return $slug;
+                }
+            }
+            return 'login';
         } catch (\Throwable) {
             return 'login';
         }

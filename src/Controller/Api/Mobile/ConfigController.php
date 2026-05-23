@@ -60,13 +60,15 @@ final class ConfigController
      */
     public function filterRules(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
-
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+ 
         // Collect unique active sender patterns for this brand (the whitelist)
         $templates      = $this->smsTemplates->forTenant($mid)->listActive();
         $allowedSenders = [];
         foreach ($templates as $tpl) {
-            $sender = trim($tpl['sender_pattern'] ?? '');
+            $senderVal = $tpl['sender_pattern'] ?? '';
+            $sender = trim(is_string($senderVal) ? $senderVal : '');
             if ($sender !== '' && !in_array($sender, $allowedSenders, true)) {
                 $allowedSenders[] = $sender;
             }

@@ -77,14 +77,17 @@ final class MfsService
             'received_at'  => DateHelper::now(),
         ]);
 
-        $trxId = $parsed['parsed_trx_id'] ?? $parsed['trx_id'] ?? null;
+        $trxIdVal = $parsed['parsed_trx_id'] ?? $parsed['trx_id'] ?? null;
+        $trxId = is_scalar($trxIdVal) ? (string) $trxIdVal : '';
 
         // Try auto-match to pending transaction
-        if (!empty($trxId)) {
+        if ($trxId !== '') {
             $transaction = $this->transactions->findByTrxId($merchantId, $trxId);
             if ($transaction !== null && $transaction['status'] === 'pending') {
-                $this->smsParsed->forTenant($merchantId)->linkToTransaction((int) $smsId, (int) $transaction['id']);
-                return ['matched' => true, 'transaction_id' => $transaction['id'], 'sms_id' => $smsId];
+                $txIdVal = $transaction['id'] ?? 0;
+                $txId = is_scalar($txIdVal) ? (int) $txIdVal : 0;
+                $this->smsParsed->forTenant($merchantId)->linkToTransaction((int) $smsId, $txId);
+                return ['matched' => true, 'transaction_id' => $txId, 'sms_id' => $smsId];
             }
         }
 

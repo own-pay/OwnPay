@@ -149,12 +149,20 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
-        if ($intent['status'] !== 'pending') {
-            return $this->renderStatus($token, $intent['status'], $intent);
+        $intentStatusVal = $intent['status'] ?? '';
+        $intentStatus = is_string($intentStatusVal) ? $intentStatusVal : '';
+        if ($intentStatus !== 'pending') {
+            return $this->renderStatus($token, $intentStatus, $intent);
         }
 
+        $intentAmountVal = $intent['amount'] ?? '0';
+        $intentAmount = (is_string($intentAmountVal) || is_int($intentAmountVal) || is_float($intentAmountVal)) ? (string) $intentAmountVal : '0';
+        $intentCurrencyVal = $intent['currency'] ?? 'BDT';
+        $intentCurrency = is_string($intentCurrencyVal) ? $intentCurrencyVal : 'BDT';
+
         // Verify active brand status
-        $mid = (int) $intent['merchant_id'];
+        $midVal = $intent['merchant_id'] ?? 0;
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $merchant = $this->merchants->find($mid);
         if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
             return $this->renderStatus($token, 'expired');
@@ -165,10 +173,13 @@ final class PaymentIntentCheckoutController
         $apiGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
 
         // Retrieve the localized symbol representing the invoice's original currency.
-        $intent['currency_symbol'] = $this->currencyService->getSymbol($intent['currency']);
+        $intent['currency_symbol'] = $this->currencyService->getSymbol($intentCurrency);
 
         // Discover active plugins to extract metadata and theme assets for MFS/gateways.
         $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
+        if (!$loader instanceof \OwnPay\Plugin\PluginLoader) {
+            throw new \RuntimeException('PluginLoader not found');
+        }
         $manifests = $loader->discover();
         $categoryMap = [];
         $manifestMeta = [];
@@ -183,7 +194,7 @@ final class PaymentIntentCheckoutController
         $gateways = ['mfs' => [], 'bank' => [], 'global' => [], 'express' => []];
 
         // In-line closure helper to evaluate gateway requirements and execute cross-currency conversion.
-        $checkAndConvert = function(array $gw, string $slug) use ($intent): array {
+        $checkAndConvert = function(array $gw, string $slug) use ($intentAmount, $intentCurrency): array {
             $supportedCurrencies = ['BDT'];
             if ($slug === 'bkash-api' || $slug === 'nagad' || $slug === 'rocket' || $slug === 'sslcommerz') {
                 $supportedCurrencies = ['BDT'];
@@ -191,11 +202,11 @@ final class PaymentIntentCheckoutController
                 return $gw;
             }
 
-            if ($intent['currency'] !== 'BDT') {
+            if ($intentCurrency !== 'BDT') {
                 try {
                     $converted = $this->currencyService->convert(
-                        (string) $intent['amount'],
-                        $intent['currency'],
+                        $intentAmount,
+                        $intentCurrency,
                         'BDT'
                     );
                     $gw['converted_amount'] = $converted;
@@ -209,14 +220,22 @@ final class PaymentIntentCheckoutController
         };
 
         foreach ($manualGateways as $gw) {
-            $cat = $gw['category'] ?? 'mfs';
-            if (!isset($gateways[$cat])) $cat = 'mfs';
+            $catVal = $gw['category'] ?? 'mfs';
+            $cat = is_string($catVal) ? $catVal : 'mfs';
+            if (!isset($gateways[$cat])) {
+                $cat = 'mfs';
+            }
             $gw['logo'] = $gw['logo_path'] ?? '';
-            $gw['color'] = json_decode($gw['colors'] ?? '{}', true)['primary'] ?? '#0D9488';
+            $gwColorsRaw = $gw['colors'] ?? '{}';
+            $gwColorsStr = is_string($gwColorsRaw) ? $gwColorsRaw : '{}';
+            $colorsDecoded = json_decode($gwColorsStr, true);
+            $gw['color'] = (is_array($colorsDecoded) && isset($colorsDecoded['primary']) && is_string($colorsDecoded['primary'])) ? $colorsDecoded['primary'] : '#0D9488';
             $gw = array_merge($gw, ['mode' => 'manual']);
             
             // Perform cross-currency translation for manual Mobile Financial Services (MFS) processing BDT.
-            $gwSlugLower = strtolower($gw['slug'] ?? $gw['name'] ?? '');
+            $gwSlugVal = $gw['slug'] ?? $gw['name'] ?? '';
+            $gwSlug = is_string($gwSlugVal) ? $gwSlugVal : '';
+            $gwSlugLower = strtolower($gwSlug);
             if (str_contains($gwSlugLower, 'bkash') || str_contains($gwSlugLower, 'nagad') || str_contains($gwSlugLower, 'rocket') || str_contains($gwSlugLower, 'upay')) {
                 $gw = $checkAndConvert($gw, 'bkash-api');
             }
@@ -225,11 +244,14 @@ final class PaymentIntentCheckoutController
         }
 
         foreach ($apiGateways as $gw) {
-            $slug = $gw['slug'] ?? '';
+            $slugVal = $gw['slug'] ?? '';
+            $slug = is_string($slugVal) ? $slugVal : '';
             $cat = $categoryMap[$slug] ?? 'global';
-            if (!isset($gateways[$cat])) $cat = 'global';
+            if (!isset($gateways[$cat])) {
+                $cat = 'global';
+            }
             $gw['logo'] = $gw['logo_path'] ?? '';
-            $gw['color'] = $manifestMeta[$slug]['color'] ?? '#0D9488';
+            $gw['color'] = isset($manifestMeta[$slug]) ? $manifestMeta[$slug]['color'] : '#0D9488';
             $gw = array_merge($gw, ['mode' => 'api']);
             
             // Evaluate and perform cross-currency translation for regional API gateways.
@@ -239,22 +261,34 @@ final class PaymentIntentCheckoutController
         }
 
         $brand = $this->loadBrand($mid);
-        $faqs = json_decode((string) $this->settings->get('general', 'faqs', '[]'), true);
+        $faqsVal = $this->settings->get('general', 'faqs', '[]');
+        $faqsStr = is_string($faqsVal) ? $faqsVal : '[]';
+        $faqs = json_decode($faqsStr, true);
+        $faqs = is_array($faqs) ? $faqs : [];
 
         // Generate HMAC signature securing amount, currency, and token details against checkout tampering.
         // Security check: ensure HMAC_KEY or APP_KEY is properly configured; fallback or throw if missing.
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $hmacKeyVal = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $hmacKey = is_string($hmacKeyVal) ? $hmacKeyVal : '';
         if ($hmacKey === '') {
             throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
         }
-        $checkoutHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
+        $checkoutHash = hash_hmac('sha256', $intentAmount . '|' . $intentCurrency . '|' . $token, $hmacKey);
 
         // Compile details mapping for manual gateway instructions shown in the checkout modal.
         $manualDetails = [];
         foreach ($manualGateways as $gw) {
-            $slug = $gw['slug'] ?? $gw['name'] ?? '';
-            $inputFields = json_decode($gw['input_fields'] ?? '[]', true) ?: [];
-            $instructionsObj = json_decode($gw['instructions'] ?? '[]', true) ?: [];
+            $slugVal = $gw['slug'] ?? $gw['name'] ?? '';
+            $slug = is_string($slugVal) ? $slugVal : '';
+            
+            $inputFieldsRaw = $gw['input_fields'] ?? '[]';
+            $inputFieldsStr = is_string($inputFieldsRaw) ? $inputFieldsRaw : '[]';
+            $inputFields = json_decode($inputFieldsStr, true) ?: [];
+            $inputFields = is_array($inputFields) ? $inputFields : [];
+            
+            $instructionsRaw = $gw['instructions'] ?? '[]';
+            $instructionsStr = is_string($instructionsRaw) ? $instructionsRaw : '[]';
+            $instructionsObj = json_decode($instructionsStr, true) ?: [];
             if (is_array($instructionsObj) && isset($instructionsObj['steps'])) {
                 $instructions = $instructionsObj['steps'];
             } elseif (is_array($instructionsObj)) {
@@ -265,30 +299,39 @@ final class PaymentIntentCheckoutController
 
             $paymentNumber = '';
             foreach ($inputFields as $field) {
-                if (($field['type'] ?? '') === 'payment_number' || ($field['name'] ?? '') === 'payment_number') {
-                    $paymentNumber = $field['value'] ?? $field['default'] ?? '';
-                    break;
+                if (is_array($field)) {
+                    if (($field['type'] ?? '') === 'payment_number' || ($field['name'] ?? '') === 'payment_number') {
+                        $paymentNumberVal = $field['value'] ?? $field['default'] ?? '';
+                        $paymentNumber = is_string($paymentNumberVal) ? $paymentNumberVal : '';
+                        break;
+                    }
                 }
             }
 
             // Calculate the equivalent BDT amount for manual payment prompt visualization.
-            $gwSlugLower = strtolower($gw['slug'] ?? $gw['name'] ?? '');
+            $gwSlugVal = $gw['slug'] ?? $gw['name'] ?? '';
+            $gwSlug = is_string($gwSlugVal) ? $gwSlugVal : '';
+            $gwSlugLower = strtolower($gwSlug);
             $convAmount = null;
             $convCurrency = null;
             if (str_contains($gwSlugLower, 'bkash') || str_contains($gwSlugLower, 'nagad') || str_contains($gwSlugLower, 'rocket') || str_contains($gwSlugLower, 'upay')) {
-                if ($intent['currency'] !== 'BDT') {
+                if ($intentCurrency !== 'BDT') {
                     try {
-                        $convAmount = $this->currencyService->convert((string) $intent['amount'], $intent['currency'], 'BDT');
+                        $convAmount = $this->currencyService->convert($intentAmount, $intentCurrency, 'BDT');
                         $convCurrency = 'BDT';
                     } catch (\Throwable $e) {}
                 }
             }
 
+            $gwColorsRaw = $gw['colors'] ?? '{}';
+            $gwColorsStr = is_string($gwColorsRaw) ? $gwColorsRaw : '{}';
+            $gwColors = json_decode($gwColorsStr, true);
+
             $manualDetails[$slug] = [
-                'name'               => $gw['name'] ?? '',
+                'name'               => is_string($gw['name'] ?? null) ? $gw['name'] : '',
                 'input_fields'       => $inputFields,
                 'instructions'       => $instructions,
-                'colors'             => json_decode($gw['colors'] ?? '{}', true) ?: [],
+                'colors'             => is_array($gwColors) ? $gwColors : [],
                 'payment_number'     => $paymentNumber,
                 'converted_amount'   => $convAmount,
                 'converted_currency' => $convCurrency,
@@ -296,11 +339,15 @@ final class PaymentIntentCheckoutController
         }
 
         // Calculate remaining session time bounds for checkout expiration timer.
-        $timerEnabled = $this->settings->get('checkout', 'timer_enabled', '1');
-        $timerSeconds = (int) $this->settings->get('checkout', 'timer_seconds', '600');
+        $timerEnabledVal = $this->settings->get('checkout', 'timer_enabled', '1');
+        $timerEnabled = is_string($timerEnabledVal) ? $timerEnabledVal : '1';
+        $timerSecondsVal = $this->settings->get('checkout', 'timer_seconds', '600');
+        $timerSeconds = (is_string($timerSecondsVal) && is_numeric($timerSecondsVal)) ? (int) $timerSecondsVal : 600;
         $remaining = $timerSeconds;
-        if (!empty($intent['created_at'])) {
-            $createdAt = strtotime($intent['created_at']);
+        $createdAtVal = $intent['created_at'] ?? '';
+        $createdAtStr = is_string($createdAtVal) ? $createdAtVal : '';
+        if ($createdAtStr !== '') {
+            $createdAt = strtotime($createdAtStr);
             if ($createdAt !== false) {
                 $elapsed = time() - $createdAt;
                 $remaining = max(0, $timerSeconds - $elapsed);
@@ -318,12 +365,17 @@ final class PaymentIntentCheckoutController
             }
         }
 
+        $intentTokenVal = $intent['token'] ?? '';
+        $intentToken = is_string($intentTokenVal) ? $intentTokenVal : '';
+
+        $intentSymbol = $intent['currency_symbol'];
+
         $jsConfig = [
-            'txnRef'                => $intent['token'],
-            'checkoutBasePath'      => '/checkout/intent/' . $intent['token'],
-            'originalAmount'        => $intent['amount'],
-            'originalCurrency'      => $intent['currency'],
-            'originalCurrencySymbol'=> $intent['currency_symbol'],
+            'txnRef'                => $intentToken,
+            'checkoutBasePath'      => '/checkout/intent/' . $token,
+            'originalAmount'        => $intentAmount,
+            'originalCurrency'      => $intentCurrency,
+            'originalCurrencySymbol'=> $intentSymbol,
             'timeoutEnabled'        => $timerEnabled === '1',
             'timeoutSeconds'        => $timerSeconds,
             'timeoutRemaining'      => $remaining,
@@ -332,21 +384,27 @@ final class PaymentIntentCheckoutController
 
         // Extract and decode payment invoice line items from intent metadata.
         $items = [];
-        $metaObj = json_decode($intent['metadata'] ?? '{}', true) ?: [];
-        if (isset($metaObj['items'])) {
+        $metaRaw = $intent['metadata'] ?? '{}';
+        $metaStr = is_string($metaRaw) ? $metaRaw : '{}';
+        $metaObj = json_decode($metaStr, true);
+        $metaObj = is_array($metaObj) ? $metaObj : [];
+        if (isset($metaObj['items']) && is_array($metaObj['items'])) {
             $items = $metaObj['items'];
         }
 
+        $intentDescVal = $intent['description'] ?? null;
+        $intentDesc = is_string($intentDescVal) ? $intentDescVal : null;
+
         // Construct mock transaction entity schema structure for compatibility with legacy Twig templates.
         $txnMock = [
-            'trx_id'            => $intent['token'],
-            'amount'            => $intent['amount'],
-            'currency'          => $intent['currency'],
-            'currency_symbol'   => $intent['currency_symbol'],
-            'customer_name'     => $metaObj['customer_name'] ?? null,
-            'customer_email'    => $metaObj['customer_email'] ?? null,
-            'customer_phone'    => $metaObj['customer_phone'] ?? null,
-            'reference'         => $intent['description'] ?? $metaObj['reference'] ?? null,
+            'trx_id'            => $intentToken,
+            'amount'            => $intentAmount,
+            'currency'          => $intentCurrency,
+            'currency_symbol'   => $intentSymbol,
+            'customer_name'     => isset($metaObj['customer_name']) && is_string($metaObj['customer_name']) ? $metaObj['customer_name'] : null,
+            'customer_email'    => isset($metaObj['customer_email']) && is_string($metaObj['customer_email']) ? $metaObj['customer_email'] : null,
+            'customer_phone'    => isset($metaObj['customer_phone']) && is_string($metaObj['customer_phone']) ? $metaObj['customer_phone'] : null,
+            'reference'         => $intentDesc ?? (isset($metaObj['reference']) && is_string($metaObj['reference']) ? $metaObj['reference'] : null),
             'merchant_id'       => $mid,
         ];
 
@@ -364,9 +422,13 @@ final class PaymentIntentCheckoutController
             'is_intent'       => true,
         ];
 
-        $data = $this->events->applyFilter('checkout.intent.render', $data);
+        $dataFilter = $this->events->applyFilter('checkout.intent.render', $data);
+        $data = is_array($dataFilter) ? $dataFilter : $data;
 
         $twig = $this->c->get(\Twig\Environment::class);
+        if (!$twig instanceof \Twig\Environment) {
+            throw new \RuntimeException('Twig Environment not found');
+        }
         return Response::html($twig->render('checkout/checkout.twig', $data));
     }
 
@@ -391,15 +453,25 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
-        if ($intent['status'] !== 'pending') {
+        $intentStatusVal = $intent['status'] ?? '';
+        $intentStatus = is_string($intentStatusVal) ? $intentStatusVal : '';
+        if ($intentStatus !== 'pending') {
             if ($req->isAjax()) {
                 return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
             }
-            return $this->renderStatus($token, $intent['status'], $intent);
+            return $this->renderStatus($token, $intentStatus, $intent);
         }
 
+        $intentAmountVal = $intent['amount'] ?? '0';
+        $intentAmount = (is_string($intentAmountVal) || is_int($intentAmountVal) || is_float($intentAmountVal)) ? (string) $intentAmountVal : '0';
+        $intentCurrencyVal = $intent['currency'] ?? 'BDT';
+        $intentCurrency = is_string($intentCurrencyVal) ? $intentCurrencyVal : 'BDT';
+        $intentIdVal = $intent['id'] ?? 0;
+        $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
+
         // Verify active brand status
-        $mid = (int) $intent['merchant_id'];
+        $midVal = $intent['merchant_id'] ?? 0;
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $merchant = $this->merchants->find($mid);
         if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
             if ($req->isAjax()) {
@@ -409,13 +481,15 @@ final class PaymentIntentCheckoutController
         }
 
         // Verify checkout integrity via HMAC signature validation.
-        $submittedHash = $req->input('checkout_hash', '');
+        $submittedHashVal = $req->input('checkout_hash', '');
+        $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
         // Security check: ensure HMAC key is present and validate parameters against tampering.
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $hmacKeyVal = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $hmacKey = is_string($hmacKeyVal) ? $hmacKeyVal : '';
         if ($hmacKey === '') {
             throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
         }
-        $expectedHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
+        $expectedHash = hash_hmac('sha256', $intentAmount . '|' . $intentCurrency . '|' . $token, $hmacKey);
         if (!hash_equals($expectedHash, $submittedHash)) {
             if ($req->isAjax()) {
                 return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
@@ -423,18 +497,19 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
-        $gateway = $req->input('gateway', '');
-        $gatewayMode = $req->input('gateway_mode', 'manual');
-        $mid = (int) $intent['merchant_id'];
+        $gatewayVal = $req->input('gateway', '');
+        $gateway = is_string($gatewayVal) ? $gatewayVal : '';
+        $gatewayModeVal = $req->input('gateway_mode', 'manual');
+        $gatewayMode = is_string($gatewayModeVal) ? $gatewayModeVal : 'manual';
 
-        $amount = $intent['amount'];
-        $currency = $intent['currency'];
+        $amount = $intentAmount;
+        $currency = $intentCurrency;
 
         // Resolve and apply currency translation rules if the gateway dictates localized currency.
         if ($gateway === 'bkash-api' || $gateway === 'nagad' || $gateway === 'rocket' || $gateway === 'sslcommerz' || str_contains(strtolower($gateway), 'bkash') || str_contains(strtolower($gateway), 'nagad')) {
             if ($currency !== 'BDT') {
                 try {
-                    $amount = $this->currencyService->convert((string) $intent['amount'], $currency, 'BDT');
+                    $amount = $this->currencyService->convert($intentAmount, $currency, 'BDT');
                     $currency = 'BDT';
                 } catch (\Throwable $e) {
                     if ($req->isAjax()) {
@@ -448,7 +523,7 @@ final class PaymentIntentCheckoutController
         // Initialize and write a database transaction record mapped to this intent.
         $txnData = [
             'merchant_id'       => $mid,
-            'payment_intent_id' => $intent['id'],
+            'payment_intent_id' => $intentId,
             'customer_id'       => $intent['customer_id'],
             'gateway_slug'      => $gateway,
             'amount'            => $amount,
@@ -460,12 +535,17 @@ final class PaymentIntentCheckoutController
         ];
 
         $txn = null;
-        $existingTxn = $this->txnRepo->forTenant($mid)->findByIntentId((int)$intent['id']);
+        $existingTxn = $this->txnRepo->forTenant($mid)->findByIntentId($intentId);
         if ($existingTxn !== null) {
-            $statusObj = \OwnPay\Enum\TransactionStatus::tryFrom($existingTxn['status']);
+            $existingTxnIdVal = $existingTxn['id'] ?? 0;
+            $existingTxnId = (is_int($existingTxnIdVal) || is_string($existingTxnIdVal)) ? (int) $existingTxnIdVal : 0;
+            
+            $existingTxnStatusVal = $existingTxn['status'] ?? '';
+            $existingTxnStatus = (is_int($existingTxnStatusVal) || is_string($existingTxnStatusVal)) ? $existingTxnStatusVal : '';
+            $statusObj = \OwnPay\Enum\TransactionStatus::tryFrom($existingTxnStatus);
             if ($statusObj !== null && !$statusObj->isTerminal()) {
                 try {
-                    $this->txnRepo->forTenant($mid)->updateScoped((int)$existingTxn['id'], [
+                    $this->txnRepo->forTenant($mid)->updateScoped($existingTxnId, [
                         'gateway_slug' => $gateway,
                         'amount'       => $amount,
                         'currency'     => $currency,
@@ -473,9 +553,12 @@ final class PaymentIntentCheckoutController
                         'reference'    => $intent['description'] ?? null,
                         'metadata'     => !empty($intent['metadata']) ? $intent['metadata'] : '{}',
                     ]);
-                    $txn = $this->txnRepo->forTenant($mid)->findScoped((int)$existingTxn['id']);
+                    $txn = $this->txnRepo->forTenant($mid)->findScoped($existingTxnId);
                 } catch (\Throwable $e) {
-                    $this->c->get(\OwnPay\Service\System\Logger::class)->error('Transaction update failed: ' . $e->getMessage());
+                    $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+                    if ($logger instanceof \OwnPay\Service\System\Logger) {
+                        $logger->error('Transaction update failed: ' . $e->getMessage());
+                    }
                     if ($req->isAjax()) {
                         return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
                     }
@@ -489,7 +572,10 @@ final class PaymentIntentCheckoutController
                 $txn = $this->transactionService->create($mid, $txnData);
             } catch (\Throwable $e) {
                 // Log failure context for administration auditing; response contains sanitized user message.
-                $this->c->get(\OwnPay\Service\System\Logger::class)->error('Transaction creation failed: ' . $e->getMessage());
+                $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $logger->error('Transaction creation failed: ' . $e->getMessage());
+                }
                 if ($req->isAjax()) {
                     return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
                 }
@@ -497,18 +583,24 @@ final class PaymentIntentCheckoutController
             }
         }
 
+        $txnIdVal = $txn['id'] ?? 0;
+        $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
+
         if ($gatewayMode === 'manual') {
-            $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'awaiting_verification', $mid);
+            $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'awaiting_verification', $mid);
             $details = $req->post('payment_details', []);
-            if (!empty($details)) {
-                $metaObj = json_decode($intent['metadata'] ?? '{}', true) ?: [];
+            if (!empty($details) && is_array($details)) {
+                $metaRaw = $intent['metadata'] ?? '{}';
+                $metaStr = is_string($metaRaw) ? $metaRaw : '{}';
+                $metaObj = json_decode($metaStr, true);
+                $metaObj = is_array($metaObj) ? $metaObj : [];
                 $metaObj['payment_details'] = $details;
                 $metaObj['submitted_at'] = DateHelper::now();
-                $this->txnRepo->updateMetadata((int) $txn['id'], $metaObj, $mid);
+                $this->txnRepo->updateMetadata($txnId, $metaObj, $mid);
             }
 
             // Update intent to processing.
-            $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
+            $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'processing']);
 
             if ($req->isAjax()) {
                 return Response::json([
@@ -523,85 +615,105 @@ final class PaymentIntentCheckoutController
         if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
             try {
                 $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
-                
-                // Resolve the white-labeled payment callback URL bound to the merchant domain context.
-                $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
-                $callbackUrl = $urlService->buildCallbackUrl($mid, $token, $req);
+                if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
+                    // Resolve the white-labeled payment callback URL bound to the merchant domain context.
+                    $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+                    if ($urlService instanceof \OwnPay\Service\Domain\DomainUrlService) {
+                        $callbackUrl = $urlService->buildCallbackUrl($mid, $token, $req);
+                    } else {
+                        $callbackUrl = '';
+                    }
 
-                // Enforce dynamic cross-currency conversion if gateway requirements differ from request currency.
-                $payAmount = $txn['amount'];
-                $payCurrency = $txn['currency'];
-                if ($this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
-                    $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
-                    $supported = $bridge->getSupportedCurrencies($gateway);
-                    if (!empty($supported) && !in_array($payCurrency, $supported, true)) {
-                        // Apply currency conversion using exchange rate service and update metadata audits.
-                        $targetCurrency = $supported[0];
-                        if ($this->c->has(\OwnPay\Service\Payment\CurrencyService::class)) {
-                            $currSvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
-                            $converted = $currSvc->convert($payAmount, $payCurrency, $targetCurrency);
-                            if ($converted !== '0') {
-                                // Record pre-conversion amount and exchange rate variables for financial audit trails.
-                                $existingMeta = json_decode($txn['metadata'] ?? '{}', true) ?: [];
-                                $existingMeta['original_amount'] = $payAmount;
-                                $existingMeta['original_currency'] = $payCurrency;
-                                $existingMeta['exchange_rate'] = $currSvc->getRate($targetCurrency);
-                                $existingMeta['converted_amount'] = $converted;
-                                $existingMeta['converted_currency'] = $targetCurrency;
-                                $this->db->execute(
-                                    "UPDATE op_transactions SET metadata = :meta WHERE id = :id AND merchant_id = :mid",
-                                    ['meta' => json_encode($existingMeta), 'id' => $txn['id'], 'mid' => $mid]
-                                );
-                                $payAmount = $converted;
-                                $payCurrency = $targetCurrency;
+                    // Enforce dynamic cross-currency conversion if gateway requirements differ from request currency.
+                    $payAmountVal = $txn['amount'] ?? '0';
+                    $payAmount = (is_string($payAmountVal) || is_int($payAmountVal) || is_float($payAmountVal)) ? (string) $payAmountVal : '0';
+                    $payCurrencyVal = $txn['currency'] ?? 'BDT';
+                    $payCurrency = is_string($payCurrencyVal) ? $payCurrencyVal : 'BDT';
+                    $txnTrxIdVal = $txn['trx_id'] ?? '';
+                    $txnTrxId = is_string($txnTrxIdVal) ? $txnTrxIdVal : '';
+                    
+                    if ($this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
+                        $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
+                        if ($bridge instanceof \OwnPay\Gateway\GatewayBridge) {
+                            $supported = $bridge->getSupportedCurrencies($gateway);
+                            if (!empty($supported) && !in_array($payCurrency, $supported, true)) {
+                                // Apply currency conversion using exchange rate service and update metadata audits.
+                                $targetCurrency = $supported[0];
+                                if ($this->c->has(\OwnPay\Service\Payment\CurrencyService::class)) {
+                                    $currSvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+                                    if ($currSvc instanceof \OwnPay\Service\Payment\CurrencyService) {
+                                        $converted = $currSvc->convert($payAmount, $payCurrency, $targetCurrency);
+                                        if ($converted !== '0') {
+                                            // Record pre-conversion amount and exchange rate variables for financial audit trails.
+                                            $txnMetaRaw = $txn['metadata'] ?? '{}';
+                                            $txnMetaStr = is_string($txnMetaRaw) ? $txnMetaRaw : '{}';
+                                            $existingMeta = json_decode($txnMetaStr, true);
+                                            $existingMeta = is_array($existingMeta) ? $existingMeta : [];
+                                            $existingMeta['original_amount'] = $payAmount;
+                                            $existingMeta['original_currency'] = $payCurrency;
+                                            $existingMeta['exchange_rate'] = $currSvc->getRate($targetCurrency);
+                                            $existingMeta['converted_amount'] = $converted;
+                                            $existingMeta['converted_currency'] = $targetCurrency;
+                                            $this->db->execute(
+                                                "UPDATE op_transactions SET metadata = :meta WHERE id = :id AND merchant_id = :mid",
+                                                ['meta' => json_encode($existingMeta), 'id' => $txnId, 'mid' => $mid]
+                                            );
+                                            $payAmount = $converted;
+                                            $payCurrency = $targetCurrency;
+                                        }
+                                    }
+                                }
                             }
                         }
                     }
-                }
 
-                $result = $svc->initiatePayment($mid, $gateway, [
-                    'amount'       => $payAmount,
-                    'currency'     => $payCurrency,
-                    'trx_id'       => $txn['trx_id'],
-                    'redirect_url' => $callbackUrl,
-                    'cancel_url'   => $callbackUrl,
-                    'existing_txn' => true,
-                ]);
+                    $result = $svc->initiatePayment($mid, $gateway, [
+                        'amount'       => $payAmount,
+                        'currency'     => $payCurrency,
+                        'trx_id'       => $txnTrxId,
+                        'redirect_url' => $callbackUrl,
+                        'cancel_url'   => $callbackUrl,
+                        'existing_txn' => true,
+                    ]);
 
-                if ($result['success'] && !empty($result['redirect_url'])) {
-                    // Track external gateway initiation stage by updating transaction state to processing.
-                    $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'processing', $mid);
-                    $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
+                    if ($result['success'] && !empty($result['redirect_url'])) {
+                        // Track external gateway initiation stage by updating transaction state to processing.
+                        $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'processing', $mid);
+                        $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'processing']);
 
-                    if ($req->isAjax()) {
-                        return Response::json([
-                            'success'      => true,
-                            'redirect_url' => $result['redirect_url'],
-                        ]);
+                        if ($req->isAjax()) {
+                            return Response::json([
+                                'success'      => true,
+                                'redirect_url' => $result['redirect_url'],
+                            ]);
+                        }
+                        return Response::redirect($result['redirect_url']);
+                    } elseif ($result['success'] && !empty($result['form_html'])) {
+                        // Track external gateway initiation stage by updating transaction state to processing.
+                        $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'processing', $mid);
+                        $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'processing']);
+
+                        if ($req->isAjax()) {
+                            return Response::json([
+                                'success'   => true,
+                                'form_html' => $result['form_html'],
+                            ]);
+                        }
+                        return Response::html($result['form_html']);
                     }
-                    return Response::redirect($result['redirect_url']);
-                } elseif ($result['success'] && !empty($result['form_html'])) {
-                    // Track external gateway initiation stage by updating transaction state to processing.
-                    $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'processing', $mid);
-                    $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
 
+                    $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
                     if ($req->isAjax()) {
-                        return Response::json([
-                            'success'   => true,
-                            'form_html' => $result['form_html'],
-                        ]);
+                        return Response::json(['success' => false, 'error' => $errorMsg], 422);
                     }
-                    return Response::html($result['form_html']);
-                }
-
-                $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
-                if ($req->isAjax()) {
-                    return Response::json(['success' => false, 'error' => $errorMsg], 422);
                 }
             } catch (\Throwable $e) {
-                $this->c->get(\OwnPay\Service\System\Logger::class)->error(
-                    "Gateway {$gateway} initiation failed: " . $e->getMessage()
-                );
+                $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $logger->error(
+                        "Gateway {$gateway} initiation failed: " . $e->getMessage()
+                    );
+                }
                 // Return standardized exception feedback for presentation to client.
                 if ($req->isAjax()) {
                     return Response::json(['success' => false, 'error' => 'Gateway connection error. Please try again.'], 422);
@@ -633,63 +745,82 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
-        $mid = (int) $intent['merchant_id'];
+        $midVal = $intent['merchant_id'] ?? 0;
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+        $intentIdVal = $intent['id'] ?? 0;
+        $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
+        $intentStatusVal = $intent['status'] ?? '';
+        $intentStatus = is_string($intentStatusVal) ? $intentStatusVal : '';
 
         // Handle callback parameters and execute transaction settlement checks.
         // Map query inputs from regional integration interfaces.
-        $callbackPaymentId = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
-        $callbackStatus = $req->query('status') ?? '';
+        $callbackPaymentIdVal = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
+        $callbackPaymentId = is_string($callbackPaymentIdVal) ? $callbackPaymentIdVal : '';
+        $callbackStatusVal = $req->query('status') ?? '';
+        $callbackStatus = is_string($callbackStatusVal) ? $callbackStatusVal : '';
 
-        if ($callbackPaymentId !== '' && $intent['status'] === 'processing') {
+        if ($callbackPaymentId !== '' && $intentStatus === 'processing') {
             // Retrieve corresponding active transaction context record.
             $txn = $this->db->fetchOne(
                 "SELECT * FROM op_transactions WHERE payment_intent_id = :pi AND merchant_id = :mid AND status = 'processing' ORDER BY id DESC LIMIT 1",
-                ['pi' => $intent['id'], 'mid' => $mid]
+                ['pi' => $intentId, 'mid' => $mid]
             );
 
             if ($txn && $this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
+                $txnIdVal = $txn['id'] ?? 0;
+                $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
+                
                 // Acquire database-level transaction status lock to prevent concurrent double-capture callback processing.
                 $claimed = $this->db->update(
                     "UPDATE op_transactions SET status = 'callback_processing' WHERE id = :id AND merchant_id = :mid AND status = 'processing'",
-                    ['id' => $txn['id'], 'mid' => $mid]
+                    ['id' => $txnId, 'mid' => $mid]
                 );
                 if ($claimed === 0) {
                     // Already being processed or completed — skip duplicate callback
-                    return $this->renderStatus($token, $intent['status'], $intent);
+                    return $this->renderStatus($token, $intentStatus, $intent);
                 }
 
                 try {
                     $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
-                    $callbackData = array_merge($req->query() ?? [], [
-                        'paymentID' => $callbackPaymentId,
-                        'trx_id'    => $txn['trx_id'],
-                    ]);
-                    $gateway = $txn['gateway_slug'] ?? '';
+                    if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
+                        $reqQuery = $req->query();
+                        $callbackData = array_merge(is_array($reqQuery) ? $reqQuery : [], [
+                            'paymentID' => $callbackPaymentId,
+                            'trx_id'    => is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '',
+                        ]);
+                        $gatewayVal = $txn['gateway_slug'] ?? '';
+                        $gateway = is_string($gatewayVal) ? $gatewayVal : '';
 
-                    if ($gateway !== '') {
-                        $result = $svc->handleCallback($mid, $gateway, $callbackData);
+                        if ($gateway !== '') {
+                            $result = $svc->handleCallback($mid, $gateway, $callbackData);
 
-                        if ($result['success'] ?? false) {
-                            $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'completed']);
-                            $intent['status'] = 'completed';
-                        } else {
-                            // Handle explicit rejection status by updating database records to failed.
-                            if (in_array($callbackStatus, ['cancel', 'failure', 'failed'], true)) {
-                                $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'failed', $mid);
-                                $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'failed']);
-                                $intent['status'] = 'failed';
+                            if ($result['success']) {
+                                $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'completed']);
+                                $intent['status'] = 'completed';
+                                $intentStatus = 'completed';
                             } else {
-                                // Revert status to processing state to support retrying checkout verification.
-                                $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gateway, 'processing', $mid);
+                                // Handle explicit rejection status by updating database records to failed.
+                                if (in_array($callbackStatus, ['cancel', 'failure', 'failed'], true)) {
+                                    $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'failed', $mid);
+                                    $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'failed']);
+                                    $intent['status'] = 'failed';
+                                    $intentStatus = 'failed';
+                                } else {
+                                    // Revert status to processing state to support retrying checkout verification.
+                                    $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'processing', $mid);
+                                }
                             }
                         }
                     }
                 } catch (\Throwable $e) {
+                    $gatewayVal = $txn['gateway_slug'] ?? '';
+                    $gateway = is_string($gatewayVal) ? $gatewayVal : '';
                     // Revert status on capture failure to permit subsequent verification attempts.
-                    $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $txn['gateway_slug'] ?? '', 'processing', $mid);
+                    $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'processing', $mid);
                     // Log settlement capture exceptions without disrupting presentation page rendering.
-                    if ($this->c->has(\OwnPay\Service\System\Logger::class)) {
-                        $this->c->get(\OwnPay\Service\System\Logger::class)->error(
+                    $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+                    if ($logger instanceof \OwnPay\Service\System\Logger) {
+                        $logger->error(
                             "Gateway callback execution failed for intent {$token}: " . $e->getMessage()
                         );
                     }
@@ -697,7 +828,7 @@ final class PaymentIntentCheckoutController
             }
         }
 
-        return $this->renderStatus($token, $intent['status'], $intent);
+        return $this->renderStatus($token, $intentStatus, $intent);
     }
 
     /**
@@ -718,31 +849,42 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, 'cancelled');
         }
 
-        $submittedHash = $req->input('checkout_hash', '');
+        $submittedHashVal = $req->input('checkout_hash', '');
+        $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
         if (empty($submittedHash)) {
             return $this->renderStatus($token, 'expired');
         }
         // Validate signature integrity protecting status state against manipulation.
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $hmacKeyVal = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $hmacKey = is_string($hmacKeyVal) ? $hmacKeyVal : '';
         if ($hmacKey === '') {
             throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
         }
-        $expectedHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
+        $intentAmountVal = $intent['amount'] ?? '0';
+        $intentAmount = (is_string($intentAmountVal) || is_int($intentAmountVal) || is_float($intentAmountVal)) ? (string) $intentAmountVal : '0';
+        $intentCurrencyVal = $intent['currency'] ?? 'BDT';
+        $intentCurrency = is_string($intentCurrencyVal) ? $intentCurrencyVal : 'BDT';
+        $intentIdVal = $intent['id'] ?? 0;
+        $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
+
+        $expectedHash = hash_hmac('sha256', $intentAmount . '|' . $intentCurrency . '|' . $token, $hmacKey);
         if (!hash_equals($expectedHash, $submittedHash)) {
             return $this->renderStatus($token, 'expired');
         }
 
-        $mid = (int) $intent['merchant_id'];
-        $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'cancelled']);
+        $midVal = $intent['merchant_id'] ?? 0;
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+        $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'cancelled']);
 
         // Terminate active child transactions mapped to the cancelled checkout intent.
         $this->db->execute(
             "UPDATE op_transactions SET status = 'cancelled' WHERE payment_intent_id = :pi AND merchant_id = :mid AND status = 'pending'",
-            ['pi' => $intent['id'], 'mid' => $mid]
+            ['pi' => $intentId, 'mid' => $mid]
         );
 
-        $cancelUrl = $intent['cancel_url'] ?: $intent['redirect_url'];
-        if ($cancelUrl) {
+        $cancelUrlVal = $intent['cancel_url'] ?: $intent['redirect_url'];
+        $cancelUrl = is_string($cancelUrlVal) ? $cancelUrlVal : '';
+        if ($cancelUrl !== '') {
             $separator = str_contains($cancelUrl, '?') ? '&' : '?';
             $redirectTarget = $cancelUrl . $separator . 'token=' . urlencode($token) . '&status=cancelled';
             return Response::redirect($redirectTarget);
@@ -768,15 +910,22 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
-        $mid = (int) $intent['merchant_id'];
+        $midVal = $intent['merchant_id'] ?? 0;
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+        $intentIdVal = $intent['id'] ?? 0;
+        $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
+        
         $txn = $this->db->fetchOne(
             "SELECT * FROM op_transactions WHERE payment_intent_id = :pi AND merchant_id = :mid AND status = 'awaiting_verification' ORDER BY id DESC LIMIT 1",
-            ['pi' => $intent['id'], 'mid' => $mid]
+            ['pi' => $intentId, 'mid' => $mid]
         );
 
         if (!$txn) {
             return $this->renderStatus($token, 'expired');
         }
+
+        $txnIdVal = $txn['id'] ?? 0;
+        $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
 
         $verifyData = [
             'sender_number'  => $req->input('sender_number', ''),
@@ -784,13 +933,16 @@ final class PaymentIntentCheckoutController
             'submitted_at'   => DateHelper::now(),
         ];
 
-        $existingMeta = json_decode($txn['metadata'] ?? '{}', true) ?: [];
+        $txnMetaRaw = $txn['metadata'] ?? '{}';
+        $txnMetaStr = is_string($txnMetaRaw) ? $txnMetaRaw : '{}';
+        $existingMeta = json_decode($txnMetaStr, true);
+        $existingMeta = is_array($existingMeta) ? $existingMeta : [];
         $existingMeta['verification'] = $verifyData;
 
-        $this->txnRepo->setStatusWithMeta((int) $txn['id'], 'pending_review', $existingMeta, $mid);
+        $this->txnRepo->setStatusWithMeta($txnId, 'pending_review', $existingMeta, $mid);
 
         // Elevate checkout intent status to reflect review processing.
-        $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
+        $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'processing']);
 
         $this->events->doAction('checkout.manual_verify.submitted', $txn, $verifyData);
 
@@ -808,13 +960,18 @@ final class PaymentIntentCheckoutController
     private function renderStatus(string $ref, string $status, ?array $intent = null): Response
     {
         $twig = $this->c->get(\Twig\Environment::class);
+        if (!$twig instanceof \Twig\Environment) {
+            throw new \RuntimeException('Twig Environment not found');
+        }
         $mid = 0;
         if ($intent) {
-            $mid = (int) $intent['merchant_id'];
+            $midVal = $intent['merchant_id'] ?? 0;
+            $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         } else {
             $row = $this->intents->findByToken($ref);
             if ($row) {
-                $mid = (int) $row['merchant_id'];
+                $midVal = $row['merchant_id'] ?? 0;
+                $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
                 $intent = $row;
             }
         }
@@ -831,32 +988,43 @@ final class PaymentIntentCheckoutController
 
         $txn = null;
         if ($intent) {
+            $intentIdVal = $intent['id'] ?? 0;
+            $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
             // Query transaction scoped strictly to merchant ID to guarantee tenant isolation.
             $txn = $this->db->fetchOne(
                 "SELECT * FROM op_transactions WHERE payment_intent_id = :pi AND merchant_id = :mid ORDER BY id DESC LIMIT 1",
-                ['pi' => $intent['id'], 'mid' => $mid]
+                ['pi' => $intentId, 'mid' => $mid]
             );
 
             // Reconcile and synchronize parent intent status with final transaction outcomes.
             if ($txn) {
-                if ($txn['status'] === 'completed' && $intent['status'] !== 'completed') {
-                    $this->paymentService->markPaid((int) $intent['id'], $mid);
+                if (($txn['status'] ?? '') === 'completed' && ($intent['status'] ?? '') !== 'completed') {
+                    $this->paymentService->markPaid($intentId, $mid);
                     $status = 'completed';
-                } elseif ($txn['status'] === 'failed' && $intent['status'] !== 'failed') {
-                    $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'failed']);
+                } elseif (($txn['status'] ?? '') === 'failed' && ($intent['status'] ?? '') !== 'failed') {
+                    $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'failed']);
                     $status = 'failed';
                 }
             }
         }
 
         if ($txn) {
-            $txn['currency_symbol'] = $this->currencyService->getSymbol($txn['currency']);
+            $txnCurrencyVal = $txn['currency'] ?? 'BDT';
+            $txnCurrency = is_string($txnCurrencyVal) ? $txnCurrencyVal : 'BDT';
+            $txn['currency_symbol'] = $this->currencyService->getSymbol($txnCurrency);
         } elseif ($intent) {
+            $intentTokenVal = $intent['token'] ?? '';
+            $intentToken = is_string($intentTokenVal) ? $intentTokenVal : '';
+            $intentAmountVal = $intent['amount'] ?? '0';
+            $intentAmount = (is_string($intentAmountVal) || is_int($intentAmountVal) || is_float($intentAmountVal)) ? (string) $intentAmountVal : '0';
+            $intentCurrencyVal = $intent['currency'] ?? 'BDT';
+            $intentCurrency = is_string($intentCurrencyVal) ? $intentCurrencyVal : 'BDT';
+            
             $txn = [
-                'trx_id' => $intent['token'],
-                'amount' => $intent['amount'],
-                'currency' => $intent['currency'],
-                'currency_symbol' => $this->currencyService->getSymbol($intent['currency']),
+                'trx_id' => $intentToken,
+                'amount' => $intentAmount,
+                'currency' => $intentCurrency,
+                'currency_symbol' => $this->currencyService->getSymbol($intentCurrency),
             ];
         } else {
             $txn = ['trx_id' => $ref];
@@ -864,22 +1032,25 @@ final class PaymentIntentCheckoutController
 
         $targetUrl = '';
         if ($intent) {
-            $targetUrl = $intent['redirect_url'];
+            $redirectUrlVal = $intent['redirect_url'] ?? '';
+            $targetUrl = is_string($redirectUrlVal) ? $redirectUrlVal : '';
             if (in_array($status, ['failed', 'cancelled', 'expired'], true)) {
-                $targetUrl = $intent['cancel_url'] ?? $intent['redirect_url'];
+                $cancelUrlVal = $intent['cancel_url'] ?? $intent['redirect_url'] ?? '';
+                $targetUrl = is_string($cancelUrlVal) ? $cancelUrlVal : '';
             }
         }
 
-        $tplName = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
+        $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
+        $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
         return Response::html($twig->render($tplName, [
             'txn'                   => $txn,
             'status'                => $status,
             'status_label'          => $statusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status)),
             'brand'                 => $brand,
             'lang'                  => [
-                'success_msg' => $this->settings->get('checkout', 'checkout_success_msg', '') ?: $this->settings->get('general', 'checkout_success_msg', ''),
-                'pending_msg' => $this->settings->get('checkout', 'checkout_pending_msg', '') ?: $this->settings->get('general', 'checkout_pending_msg', ''),
-                'failed_msg'  => $this->settings->get('checkout', 'checkout_failed_msg', '') ?: $this->settings->get('general', 'checkout_failed_msg', ''),
+                'success_msg' => is_string($this->settings->get('checkout', 'checkout_success_msg', '')) ? $this->settings->get('checkout', 'checkout_success_msg', '') : (is_string($this->settings->get('general', 'checkout_success_msg', '')) ? $this->settings->get('general', 'checkout_success_msg', '') : ''),
+                'pending_msg' => is_string($this->settings->get('checkout', 'checkout_pending_msg', '')) ? $this->settings->get('checkout', 'checkout_pending_msg', '') : (is_string($this->settings->get('general', 'checkout_pending_msg', '')) ? $this->settings->get('general', 'checkout_pending_msg', '') : ''),
+                'failed_msg'  => is_string($this->settings->get('checkout', 'checkout_failed_msg', '')) ? $this->settings->get('checkout', 'checkout_failed_msg', '') : (is_string($this->settings->get('general', 'checkout_failed_msg', '')) ? $this->settings->get('general', 'checkout_failed_msg', '') : ''),
             ],
             'merchant_redirect_url' => $targetUrl,
             'intent_token'          => $ref,
@@ -898,7 +1069,10 @@ final class PaymentIntentCheckoutController
     {
         // Load customized white-label styling assets via brand context layout services.
         if ($this->c->has(\OwnPay\Service\Brand\BrandThemeService::class)) {
-            return $this->c->get(\OwnPay\Service\Brand\BrandThemeService::class)->getBrandTheme($mid);
+            $brandThemeSvc = $this->c->get(\OwnPay\Service\Brand\BrandThemeService::class);
+            if ($brandThemeSvc instanceof \OwnPay\Service\Brand\BrandThemeService) {
+                return $brandThemeSvc->getBrandTheme($mid);
+            }
         }
 
         // Fallback: resolve basic branding elements using core configuration parameters.
@@ -906,10 +1080,10 @@ final class PaymentIntentCheckoutController
         $s = $this->settings->getGroup('general');
         $theme = $this->settings->getGroup('theme');
         return [
-            'name'          => $merchant['name'] ?? $s['app_name'] ?? 'Own Pay',
-            'logo'          => $merchant['logo'] ?? '',
-            'color'         => $theme['primary_color'] ?? $s['theme_primary'] ?? '#0D9488',
-            'support_email' => $s['support_email'] ?? '',
+            'name'          => ($merchant !== null && isset($merchant['name']) && is_string($merchant['name'])) ? $merchant['name'] : (isset($s['app_name']) ? $s['app_name'] : 'Own Pay'),
+            'logo'          => ($merchant !== null && isset($merchant['logo']) && is_string($merchant['logo'])) ? $merchant['logo'] : '',
+            'color'         => isset($theme['primary_color']) ? $theme['primary_color'] : (isset($s['theme_primary']) ? $s['theme_primary'] : '#0D9488'),
+            'support_email' => isset($s['support_email']) ? $s['support_email'] : '',
         ];
     }
 
@@ -928,29 +1102,42 @@ final class PaymentIntentCheckoutController
             return Response::json(['success' => false, 'error' => 'Transaction expired or not found.'], 404);
         }
 
-        if ($intent['status'] !== 'pending') {
+        $intentStatusVal = $intent['status'] ?? '';
+        $intentStatus = is_string($intentStatusVal) ? $intentStatusVal : '';
+        if ($intentStatus !== 'pending') {
             return Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
         }
 
+        $intentAmountVal = $intent['amount'] ?? '0';
+        $intentAmount = (is_string($intentAmountVal) || is_int($intentAmountVal) || is_float($intentAmountVal)) ? (string) $intentAmountVal : '0';
+        $intentCurrencyVal = $intent['currency'] ?? 'BDT';
+        $intentCurrency = is_string($intentCurrencyVal) ? $intentCurrencyVal : 'BDT';
+        $intentIdVal = $intent['id'] ?? 0;
+        $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
+
         // Verify active brand status
-        $mid = (int) $intent['merchant_id'];
+        $midVal = $intent['merchant_id'] ?? 0;
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $merchant = $this->merchants->find($mid);
         if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
             return Response::json(['success' => false, 'error' => 'Merchant account is suspended.'], 403);
         }
 
         // Verify checkout integrity via HMAC signature validation.
-        $submittedHash = $req->input('checkout_hash', '');
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $submittedHashVal = $req->input('checkout_hash', '');
+        $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
+        $hmacKeyVal = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        $hmacKey = is_string($hmacKeyVal) ? $hmacKeyVal : '';
         if ($hmacKey === '') {
             throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
         }
-        $expectedHash = hash_hmac('sha256', $intent['amount'] . '|' . $intent['currency'] . '|' . $token, $hmacKey);
+        $expectedHash = hash_hmac('sha256', $intentAmount . '|' . $intentCurrency . '|' . $token, $hmacKey);
         if (!hash_equals($expectedHash, $submittedHash)) {
             return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
         }
 
-        $provider = (string) $req->input('provider', '');
+        $providerVal = $req->input('provider', '');
+        $provider = is_string($providerVal) ? $providerVal : '';
         $gatewaySlug = '';
         if (in_array($provider, ['apple-pay', 'Apple Pay'], true)) {
             $gatewaySlug = 'apple-pay';
@@ -959,8 +1146,6 @@ final class PaymentIntentCheckoutController
         } else {
             return Response::json(['success' => false, 'error' => 'Invalid express provider.'], 400);
         }
-
-        $mid = (int) $intent['merchant_id'];
 
         // Assert configured and active
         $activeGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
@@ -978,11 +1163,11 @@ final class PaymentIntentCheckoutController
         // Initialize and write a database transaction record mapped to this intent.
         $txnData = [
             'merchant_id'       => $mid,
-            'payment_intent_id' => $intent['id'],
+            'payment_intent_id' => $intentId,
             'customer_id'       => $intent['customer_id'],
             'gateway_slug'      => $gatewaySlug,
-            'amount'            => $intent['amount'],
-            'currency'          => $intent['currency'],
+            'amount'            => $intentAmount,
+            'currency'          => $intentCurrency,
             'method'            => 'api',
             'status'            => 'pending',
             'reference'         => $intent['description'] ?? null,
@@ -992,47 +1177,68 @@ final class PaymentIntentCheckoutController
         try {
             $txn = $this->transactionService->create($mid, $txnData);
         } catch (\Throwable $e) {
-            $this->c->get(\OwnPay\Service\System\Logger::class)->error('Express Transaction creation failed: ' . $e->getMessage());
+            $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+            if ($logger instanceof \OwnPay\Service\System\Logger) {
+                $logger->error('Express Transaction creation failed: ' . $e->getMessage());
+            }
             return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
         }
+
+        $txnIdVal = $txn['id'] ?? 0;
+        $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
 
         if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
             try {
                 $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
-                
-                $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
-                $callbackUrl = $urlService->buildCallbackUrl($mid, $token, $req);
+                if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
+                    $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+                    if ($urlService instanceof \OwnPay\Service\Domain\DomainUrlService) {
+                        $callbackUrl = $urlService->buildCallbackUrl($mid, $token, $req);
+                        
+                        $txnAmountVal = $txn['amount'] ?? '0';
+                        $txnAmount = (is_string($txnAmountVal) || is_int($txnAmountVal) || is_float($txnAmountVal)) ? (string) $txnAmountVal : '0';
+                        $txnCurrencyVal = $txn['currency'] ?? 'BDT';
+                        $txnCurrency = is_string($txnCurrencyVal) ? $txnCurrencyVal : 'BDT';
+                        $txnTrxIdVal = $txn['trx_id'] ?? '';
+                        $txnTrxId = is_string($txnTrxIdVal) ? $txnTrxIdVal : '';
 
-                $result = $svc->initiatePayment($mid, $gatewaySlug, [
-                    'amount'       => $txn['amount'],
-                    'currency'     => $txn['currency'],
-                    'trx_id'       => $txn['trx_id'],
-                    'redirect_url' => $callbackUrl,
-                    'cancel_url'   => $callbackUrl,
-                    'existing_txn' => true,
-                ]);
+                        $result = $svc->initiatePayment($mid, $gatewaySlug, [
+                            'amount'       => $txnAmount,
+                            'currency'     => $txnCurrency,
+                            'trx_id'       => $txnTrxId,
+                            'redirect_url' => $callbackUrl,
+                            'cancel_url'   => $callbackUrl,
+                            'existing_txn' => true,
+                        ]);
 
-                if ($result['success'] && !empty($result['redirect_url'])) {
-                    $this->txnRepo->setGatewayAndStatus((int) $txn['id'], $gatewaySlug, 'processing', $mid);
-                    $this->intents->forTenant($mid)->updateScoped((int) $intent['id'], ['status' => 'processing']);
+                        if ($result['success'] && !empty($result['redirect_url'])) {
+                            $this->txnRepo->setGatewayAndStatus($txnId, $gatewaySlug, 'processing', $mid);
+                            $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'processing']);
 
-                    return Response::json([
-                        'success'      => true,
-                        'redirect_url' => $result['redirect_url'],
-                    ]);
+                            return Response::json([
+                                'success'      => true,
+                                'redirect_url' => $result['redirect_url'],
+                            ]);
+                        }
+
+                        $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
+                        $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+                        if ($logger instanceof \OwnPay\Service\System\Logger) {
+                            $logger->warning(
+                                "Express Gateway {$gatewaySlug} failed for intent {$intentId}: {$errorMsg}"
+                            );
+                        }
+
+                        return Response::json(['success' => false, 'error' => $errorMsg], 422);
+                    }
                 }
-
-                $errorMsg = $result['error'] ?? 'Gateway returned no redirect URL';
-                $this->c->get(\OwnPay\Service\System\Logger::class)->warning(
-                    "Express Gateway {$gatewaySlug} failed for intent {$intent['id']}: {$errorMsg}"
-                );
-
-                return Response::json(['success' => false, 'error' => $errorMsg], 422);
-
             } catch (\Throwable $e) {
-                $this->c->get(\OwnPay\Service\System\Logger::class)->error(
-                    "Express Gateway {$gatewaySlug} initiation failed: " . $e->getMessage()
-                );
+                $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $logger->error(
+                        "Express Gateway {$gatewaySlug} initiation failed: " . $e->getMessage()
+                    );
+                }
                 return Response::json(['success' => false, 'error' => 'Gateway connection error. Please try again.'], 422);
             }
         }

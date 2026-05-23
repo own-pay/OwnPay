@@ -91,7 +91,8 @@ final class DevicePairingService
                     'admin' => $adminId
                 ]
             );
-            if ($count && (int)$count['cnt'] >= 5) {
+            $cntVal = $count['cnt'] ?? 0;
+            if ($count && is_scalar($cntVal) && (int)$cntVal >= 5) {
                 return ['error' => 'Too many pairing attempts. Please try again later.'];
             }
         }
@@ -155,7 +156,8 @@ final class DevicePairingService
             return ['valid' => false, 'error' => 'Invalid or expired OTP'];
         }
 
-        return ['valid' => true, 'merchant_id' => (int) $matchedRow['merchant_id']];
+        $midVal = $matchedRow['merchant_id'] ?? 0;
+        return ['valid' => true, 'merchant_id' => is_scalar($midVal) ? (int) $midVal : 0];
     }
 
     /**
@@ -213,14 +215,16 @@ final class DevicePairingService
         }
         $merchantId = $valid['merchant_id'];
 
-        $userId = (int) ($_SESSION['auth_user_id'] ?? 0);
+        $sUserId = $_SESSION['auth_user_id'] ?? 0;
+        $userId = is_scalar($sUserId) ? (int) $sUserId : 0;
         if ($userId === 0) {
             $db = $this->devices->getDatabase();
             $admin = $db->fetchOne(
                 "SELECT id FROM op_merchant_users WHERE merchant_id = :mid AND is_superadmin = 1 AND status = 'active' ORDER BY id ASC LIMIT 1",
                 ['mid' => $merchantId]
             );
-            $userId = $admin ? (int) $admin['id'] : 1;
+            $adminIdVal = $admin['id'] ?? 1;
+            $userId = is_scalar($adminIdVal) ? (int) $adminIdVal : 1;
         }
 
         $fpHash = hash('sha256', $fingerprint);
@@ -228,7 +232,10 @@ final class DevicePairingService
         if ($existing !== null) {
             $existingUuid = $existing['device_uuid'] ?? $existing['device_id'] ?? '';
             if ($existingUuid !== '') {
-                $this->devices->forTenant($merchantId)->revoke((int) $existing['id']);
+                $existingId = $existing['id'] ?? 0;
+                if (is_scalar($existingId)) {
+                    $this->devices->forTenant($merchantId)->revoke((int) $existingId);
+                }
             }
         }
 
@@ -287,10 +294,14 @@ final class DevicePairingService
         $userId = 0;
         try {
             $claims = $this->jwt->verify($refreshToken);
-            $deviceId = $claims['did'] ?? '';
-            $mid = (int) ($claims['mid'] ?? 1);
-            $jti = $claims['jti'] ?? null;
-            $userId = (int) ($claims['sub'] ?? 0);
+            $deviceIdVal = $claims['did'] ?? '';
+            $deviceId = is_string($deviceIdVal) ? $deviceIdVal : '';
+            $midVal = $claims['mid'] ?? 1;
+            $mid = is_scalar($midVal) ? (int) $midVal : 1;
+            $jtiVal = $claims['jti'] ?? null;
+            $jti = is_scalar($jtiVal) ? (string) $jtiVal : null;
+            $subVal = $claims['sub'] ?? 0;
+            $userId = is_scalar($subVal) ? (int) $subVal : 0;
             if ($deviceId !== '') {
                 $device = $this->devices->forTenant($mid)->findByDeviceId($deviceId);
                 $isStateless = true;
@@ -379,13 +390,13 @@ final class DevicePairingService
         }
 
         $deviceUuid = '';
-        if (isset($claims['did'])) {
+        if (isset($claims['did']) && is_scalar($claims['did'])) {
             $deviceUuid = (string) $claims['did'];
         } elseif (isset($claims['sub'])) {
             $sub = $claims['sub'];
             if (is_string($sub) && str_starts_with($sub, 'device:')) {
                 $deviceUuid = substr($sub, 7);
-            } else {
+            } elseif (is_scalar($sub)) {
                 $deviceUuid = (string) $sub;
             }
         }
@@ -410,11 +421,13 @@ final class DevicePairingService
             return ['valid' => false, 'error' => 'FINGERPRINT_MISMATCH'];
         }
 
+        $uuidVal = $device['device_uuid'] ?? $device['device_id'] ?? '';
+        $merchantIdVal = $device['merchant_id'] ?? 0;
         return [
             'valid'  => true,
             'device' => [
-                'device_uuid' => $device['device_uuid'] ?? $device['device_id'],
-                'brand_id'    => (int) ($device['merchant_id']),
+                'device_uuid' => is_scalar($uuidVal) ? (string) $uuidVal : '',
+                'brand_id'    => is_scalar($merchantIdVal) ? (int) $merchantIdVal : 0,
             ],
             'error'  => null,
         ];
@@ -434,8 +447,13 @@ final class DevicePairingService
             return false;
         }
 
+        $deviceIdVal = $device['id'] ?? 0;
+        if (!is_scalar($deviceIdVal)) {
+            return false;
+        }
+
         $this->devices->forTenant($merchantId)
-            ->updateScoped((int) $device['id'], ['status' => 'revoked']);
+            ->updateScoped((int) $deviceIdVal, ['status' => 'revoked']);
 
         $this->events->doAction('mobile.device.revoked', $deviceUuid, $merchantId);
         return true;

@@ -38,7 +38,8 @@ final class SmsRegexParser
     public function parse(string $body, array $templates): ?array
     {
         foreach ($templates as $template) {
-            $pattern = $template['regex_pattern'] ?? '';
+            $patternVal = $template['regex_pattern'] ?? '';
+            $pattern = is_scalar($patternVal) ? (string) $patternVal : '';
             if ($pattern !== '') {
                 // Validate regex before executing
                 if (@preg_match($pattern, '') === false) {
@@ -56,15 +57,16 @@ final class SmsRegexParser
                         'parsed_trx_id'    => $this->clean($matches['trx_id'] ?? null),
                         'parsed_sender'    => $this->clean($matches['sender_number'] ?? null),
                         'parsed_balance'   => $this->extractAmount($matches['balance'] ?? null),
-                        'parsed_type'      => $template['transaction_type'] ?? 'unknown',
+                        'parsed_type'      => is_scalar($template['transaction_type'] ?? null) ? (string) $template['transaction_type'] : 'unknown',
                         'parse_method'     => 'regex',
-                        'template_id'      => (int) $template['id'],
+                        'template_id'      => is_scalar($template['id'] ?? null) ? (int) $template['id'] : 0,
                         'parse_confidence' => 'high',
                     ];
                 }
             } else {
                 // Database-defined individual regexes
-                $amountRegex = $template['amount_regex'] ?? '';
+                $amountRegexVal = $template['amount_regex'] ?? '';
+                $amountRegex = is_scalar($amountRegexVal) ? (string) $amountRegexVal : '';
                 if ($amountRegex === '') {
                     continue;
                 }
@@ -81,7 +83,8 @@ final class SmsRegexParser
                     }
 
                     $trxId = null;
-                    $trxIdRegex = $template['trx_id_regex'] ?? '';
+                    $trxIdRegexVal = $template['trx_id_regex'] ?? '';
+                    $trxIdRegex = is_scalar($trxIdRegexVal) ? (string) $trxIdRegexVal : '';
                     if ($trxIdRegex !== '') {
                         $trxIdPattern = $this->ensureDelimiters($trxIdRegex);
                         if (@preg_match($trxIdPattern, '') !== false) {
@@ -92,7 +95,8 @@ final class SmsRegexParser
                     }
 
                     $senderNumber = null;
-                    $senderRegex = $template['sender_regex'] ?? '';
+                    $senderRegexVal = $template['sender_regex'] ?? '';
+                    $senderRegex = is_scalar($senderRegexVal) ? (string) $senderRegexVal : '';
                     if ($senderRegex !== '') {
                         $senderPattern = $this->ensureDelimiters($senderRegex);
                         if (@preg_match($senderPattern, '') !== false) {
@@ -107,9 +111,9 @@ final class SmsRegexParser
                         'parsed_trx_id'    => $trxId,
                         'parsed_sender'    => $senderNumber,
                         'parsed_balance'   => null,
-                        'parsed_type'      => $template['transaction_type'] ?? 'credit',
+                        'parsed_type'      => is_scalar($template['transaction_type'] ?? null) ? (string) $template['transaction_type'] : 'credit',
                         'parse_method'     => 'regex',
-                        'template_id'      => (int) $template['id'],
+                        'template_id'      => is_scalar($template['id'] ?? null) ? (int) $template['id'] : 0,
                         'parse_confidence' => 'high',
                     ];
                 }

@@ -282,7 +282,9 @@ final class PluginInstaller
             \RecursiveIteratorIterator::CHILD_FIRST
         );
         foreach ($items as $item) {
-            $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+            if ($item instanceof \SplFileInfo) {
+                $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+            }
         }
         return @rmdir($dir);
     }
@@ -304,8 +306,10 @@ final class PluginInstaller
             \RecursiveIteratorIterator::SELF_FIRST
         );
         foreach ($items as $item) {
-            $target = $dst . '/' . $items->getSubPathname();
-            $item->isDir() ? @mkdir($target, 0755) : @copy($item->getPathname(), $target);
+            if ($item instanceof \SplFileInfo) {
+                $target = $dst . '/' . $items->getSubPathname();
+                $item->isDir() ? @mkdir($target, 0755) : @copy($item->getPathname(), $target);
+            }
         }
     }
 }

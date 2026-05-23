@@ -37,14 +37,17 @@ final class RequestValidator
             throw new InvalidArgumentException("Class {$dtoClass} must extend BaseDto.");
         }
 
-        $data = $request->expectsJson() ? $request->json() : $request->post();
+        $raw = $request->expectsJson() ? $request->json() : $request->post();
+        $data = is_array($raw) ? $raw : [];
         
         // Apply global sanitization rules to incoming string inputs before binding.
         $sensitivePatterns = ['password', 'secret', 'key', 'token', 'signature', 'hash', 'credential'];
+        $sanitizedData = [];
         foreach ($data as $key => $value) {
+            $keyStr = (string) $key;
             if (is_string($value)) {
                 // Check if this field matches a sensitive pattern to skip HTML tag removal.
-                $lowerKey = strtolower($key);
+                $lowerKey = strtolower($keyStr);
                 $isSensitive = false;
                 foreach ($sensitivePatterns as $pattern) {
                     if (str_contains($lowerKey, $pattern)) {
@@ -53,15 +56,17 @@ final class RequestValidator
                     }
                 }
                 if ($isSensitive) {
-                    $data[$key] = trim($value); // Preserve original formatting for cryptographic data.
+                    $sanitizedData[$keyStr] = trim($value); // Preserve original formatting for cryptographic data.
                 } elseif (filter_var($value, FILTER_VALIDATE_EMAIL)) {
-                    $data[$key] = InputSanitizer::email($value);
+                    $sanitizedData[$keyStr] = InputSanitizer::email($value);
                 } else {
-                    $data[$key] = InputSanitizer::string($value);
+                    $sanitizedData[$keyStr] = InputSanitizer::string($value);
                 }
+            } else {
+                $sanitizedData[$keyStr] = $value;
             }
         }
 
-        return $dtoClass::fromArray($data);
+        return $dtoClass::fromArray($sanitizedData);
     }
 }

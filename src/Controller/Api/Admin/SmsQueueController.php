@@ -39,7 +39,8 @@ final class SmsQueueController
      */
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $queue = $this->commRepo->listSmsQueue($mid, 100);
         return Response::json(['success' => true, 'data' => $queue]);
     }
@@ -53,7 +54,8 @@ final class SmsQueueController
     public function retry(Request $req): Response
     {
         $id  = (int) $req->param('id');
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $this->commRepo->retrySms($id, $mid);
         return Response::json(['success' => true, 'message' => 'Queued for retry']);
     }

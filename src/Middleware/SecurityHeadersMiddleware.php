@@ -64,7 +64,11 @@ final class SecurityHeadersMiddleware
         }
 
         // CSP — strict policy, report-only in debug mode
-        $debug = $this->container->get('config.app')['debug'] ?? false;
+        $configApp = $this->container->get('config.app');
+        $debug = false;
+        if (is_array($configApp)) {
+            $debug = (bool) ($configApp['debug'] ?? false);
+        }
         $cspHeader = $debug ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
         
         $path = $request->path();
@@ -133,7 +137,11 @@ final class SecurityHeadersMiddleware
 
         // 1. Read CSP declarations from gateway manifests
         try {
-            $modulesPath = $this->container->get('config.app')['paths']['modules'] ?? '';
+            $configApp = $this->container->get('config.app');
+            $modulesPath = '';
+            if (is_array($configApp) && isset($configApp['paths']) && is_array($configApp['paths'])) {
+                $modulesPath = is_string($configApp['paths']['modules'] ?? null) ? $configApp['paths']['modules'] : '';
+            }
             $gatewaysDir = $modulesPath . '/gateways';
 
             if ($modulesPath !== '' && is_dir($gatewaysDir)) {
@@ -149,12 +157,14 @@ final class SecurityHeadersMiddleware
                             continue;
                         }
                         $csp = $manifest['csp'];
-                        foreach (['script_src', 'style_src', 'frame_src', 'connect_src'] as $directive) {
-                            if (!empty($csp[$directive]) && is_array($csp[$directive])) {
-                                // Sanitize: only allow https:// origins
-                                foreach ($csp[$directive] as $origin) {
-                                    if (is_string($origin) && $this->isValidCspOrigin($origin)) {
-                                        $sources[$directive][] = $origin;
+                        if (is_array($csp)) {
+                            foreach (['script_src', 'style_src', 'frame_src', 'connect_src'] as $directive) {
+                                if (!empty($csp[$directive]) && is_array($csp[$directive])) {
+                                    // Sanitize: only allow https:// origins
+                                    foreach ($csp[$directive] as $origin) {
+                                        if (is_string($origin) && $this->isValidCspOrigin($origin)) {
+                                            $sources[$directive][] = $origin;
+                                        }
                                     }
                                 }
                             }
@@ -170,7 +180,22 @@ final class SecurityHeadersMiddleware
         if ($this->container->has(\OwnPay\Event\EventManager::class)) {
             try {
                 $events = $this->container->get(\OwnPay\Event\EventManager::class);
-                $sources = $events->applyFilter('checkout.csp.sources', $sources);
+                if ($events instanceof \OwnPay\Event\EventManager) {
+                    $filtered = $events->applyFilter('checkout.csp.sources', $sources);
+                    if (is_array($filtered)) {
+                        foreach (['script_src', 'style_src', 'frame_src', 'connect_src'] as $directive) {
+                            if (isset($filtered[$directive]) && is_array($filtered[$directive])) {
+                                $validated = [];
+                                foreach ($filtered[$directive] as $origin) {
+                                    if (is_string($origin)) {
+                                        $validated[] = $origin;
+                                    }
+                                }
+                                $sources[$directive] = $validated;
+                            }
+                        }
+                    }
+                }
             } catch (\Throwable) {
                 // Filter application failed — continue with manifest-only sources
             }

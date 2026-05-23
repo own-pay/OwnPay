@@ -56,15 +56,34 @@ final class DeveloperController
     public function index(Request $req): Response
     {
         $brand = $this->c->get(BrandContext::class);
+        if (!$brand instanceof BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
-        $apiKeys  = $this->c->get(ApiKeyService::class)->list($mid);
+        $apiKeySvc = $this->c->get(ApiKeyService::class);
+        if (!$apiKeySvc instanceof ApiKeyService) {
+            throw new \RuntimeException('ApiKeyService service unavailable');
+        }
+        $apiKeys = $apiKeySvc->list($mid);
+
         $settings = $this->c->get(SettingsRepository::class);
-        $webhookUrl    = $settings->get('general', 'webhook_url', '');
-        $webhookSecret = $settings->get('general', 'webhook_secret', '');
-        $apiRateLimit  = $settings->get('general', 'api_rate_limit', '60');
-        $baseUrl       = $settings->get('general', 'base_url', '');
+        if (!$settings instanceof SettingsRepository) {
+            throw new \RuntimeException('SettingsRepository service unavailable');
+        }
+        $webhookUrlVal    = $settings->get('general', 'webhook_url', '');
+        $webhookUrl       = is_string($webhookUrlVal) ? $webhookUrlVal : '';
+        $webhookSecretVal = $settings->get('general', 'webhook_secret', '');
+        $webhookSecret    = is_string($webhookSecretVal) ? $webhookSecretVal : '';
+        $apiRateLimitVal  = $settings->get('general', 'api_rate_limit', '60');
+        $apiRateLimit     = is_string($apiRateLimitVal) ? $apiRateLimitVal : '60';
+        $baseUrlVal       = $settings->get('general', 'base_url', '');
+        $baseUrl          = is_string($baseUrlVal) ? $baseUrlVal : '';
+
         if (empty($baseUrl)) {
             $baseUrl = ($req->isSecure() ? 'https' : 'http') . '://' . ($req->header('Host') ?: 'localhost');
         }
@@ -100,10 +119,17 @@ final class DeveloperController
     public function webhookTest(Request $req): Response
     {
         $brand = $this->c->get(BrandContext::class);
+        if (!$brand instanceof BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
 
-        $settings   = $this->c->get(SettingsRepository::class);
-        $webhookUrl = $settings->get('general', 'webhook_url', '');
+        $settings = $this->c->get(SettingsRepository::class);
+        if (!$settings instanceof SettingsRepository) {
+            throw new \RuntimeException('SettingsRepository service unavailable');
+        }
+        $webhookUrlVal = $settings->get('general', 'webhook_url', '');
+        $webhookUrl = is_string($webhookUrlVal) ? $webhookUrlVal : '';
 
         if (empty($webhookUrl)) {
             return Response::json(['success' => false, 'error' => 'No webhook URL configured']);
@@ -123,7 +149,8 @@ final class DeveloperController
             return Response::json(['success' => false, 'error' => 'Failed to serialize webhook payload']);
         }
 
-        $secret = $settings->get('general', 'webhook_secret', '');
+        $secretVal = $settings->get('general', 'webhook_secret', '');
+        $secret = is_string($secretVal) ? $secretVal : '';
         $sig    = hash_hmac('sha256', $payload, $secret);
 
         $ch = curl_init($webhookUrl);
@@ -217,15 +244,21 @@ final class DeveloperController
     public function saveLimits(Request $req): Response
     {
         $settings = $this->c->get(SettingsRepository::class);
-        $rateLimit    = (int) $req->post('api_rate_limit', 60);
-        $webhookUrl   = trim($req->post('webhook_url', ''));
-        $webhookSecret = trim($req->post('webhook_secret', ''));
+        if (!$settings instanceof SettingsRepository) {
+            throw new \RuntimeException('SettingsRepository service unavailable');
+        }
+        $rateLimitVal = $req->post('api_rate_limit', 60);
+        $rateLimit    = is_int($rateLimitVal) || is_string($rateLimitVal) ? (int)$rateLimitVal : 60;
+        $webhookUrlVal   = $req->post('webhook_url', '');
+        $webhookUrl      = is_string($webhookUrlVal) ? trim($webhookUrlVal) : '';
+        $webhookSecretVal = $req->post('webhook_secret', '');
+        $webhookSecret   = is_string($webhookSecretVal) ? trim($webhookSecretVal) : '';
 
         if ($rateLimit < 1 || $rateLimit > 10000) {
             $this->session->flashError('Rate limit must be 1–10000 requests/min');
             return Response::redirect('/admin/developer');
         }
-        if ($webhookUrl && !\OwnPay\Security\UrlValidator::isValidWebhookUrl($webhookUrl)) {
+        if ($webhookUrl !== '' && !\OwnPay\Security\UrlValidator::isValidWebhookUrl($webhookUrl)) {
             $this->session->flashError('Invalid webhook URL');
             return Response::redirect('/admin/developer');
         }
@@ -252,21 +285,26 @@ final class DeveloperController
     public function generateKey(Request $req): Response
     {
         $brand = $this->c->get(BrandContext::class);
+        if (!$brand instanceof BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
-        $label = trim($req->post('label', 'API Key'));
+        $labelVal = $req->post('label', 'API Key');
+        $label = is_string($labelVal) ? trim($labelVal) : 'API Key';
         $keyService = $this->c->get(ApiKeyService::class);
+        if (!$keyService instanceof ApiKeyService) {
+            throw new \RuntimeException('ApiKeyService service unavailable');
+        }
         $result = $keyService->generate($mid, $label);
 
-        if (!empty($result['key'])) {
-            // Store in session for one-time display in template
-            $_SESSION['_generated_api_key'] = $result['key'];
-            $_SESSION['_generated_api_key_label'] = $label;
-            $this->session->flashSuccess("API key \"{$label}\" generated successfully. Copy it below — it won't be shown again.");
-        } else {
-            $this->session->flashError($result['error'] ?? 'Key generation failed');
-        }
+        $_SESSION['_generated_api_key'] = $result['key'];
+        $_SESSION['_generated_api_key_label'] = $label;
+        $this->session->flashSuccess("API key \"{$label}\" generated successfully. Copy it below — it won't be shown again.");
 
         return Response::redirect('/admin/developer');
     }

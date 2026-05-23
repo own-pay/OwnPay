@@ -26,20 +26,13 @@ final class LedgerController
     private Container $c;
 
     /**
-     * @var AdminSession The administrative session service.
-     */
-    private AdminSession $session;
-
-    /**
      * LedgerController constructor.
      *
      * @param Container    $c       The dependency injection container.
-     * @param AdminSession $session The administrative session service.
      */
-    public function __construct(Container $c, AdminSession $session)
+    public function __construct(Container $c)
     {
         $this->c = $c;
-        $this->session = $session;
     }
 
     /**
@@ -52,21 +45,35 @@ final class LedgerController
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
         $ledgerService = $this->c->get(\OwnPay\Service\Payment\LedgerService::class);
-        $page = max(1, (int) $req->query('page', '1'));
+        $pageVal = $req->query('page', '1');
+        $page = max(1, is_scalar($pageVal) && is_numeric($pageVal) ? (int) $pageVal : 1);
 
-        $ledger = $ledgerService->entries($mid, $page, 50);
+        $ledger = [];
+        $balance = '0.00';
+        if ($ledgerService instanceof \OwnPay\Service\Payment\LedgerService) {
+            $ledger = $ledgerService->entries($mid, $page, 50);
 
-        // BUG-43 FIX: Resolve brand's default currency instead of hardcoding 'BDT'.
-        // Hardcoded BDT shows wrong balance for any non-BDT brand.
-        $db = $this->c->get(\OwnPay\Core\Database::class);
-        $merchant = $db->fetchOne("SELECT default_currency FROM op_merchants WHERE id = :id LIMIT 1", ['id' => $mid]);
-        $currency = $merchant['default_currency'] ?? 'USD';
+            $db = $this->c->get(\OwnPay\Core\Database::class);
+            $currency = 'USD';
+            if ($db instanceof \OwnPay\Core\Database) {
+                $merchant = $db->fetchOne("SELECT default_currency FROM op_merchants WHERE id = :id LIMIT 1", ['id' => $mid]);
+                if (is_array($merchant)) {
+                    $currency = is_string($merchant['default_currency'] ?? null) ? $merchant['default_currency'] : 'USD';
+                }
+            }
 
-        $balance = $ledgerService->calculateBalance($mid, $currency);
+            $balance = $ledgerService->calculateBalance($mid, $currency);
+        }
 
         return $this->renderAdminPage('admin/ledger/index.twig', [
             'active_page'     => 'ledger',

@@ -102,16 +102,24 @@ final class DomainMiddleware
             return Response::html('', 404);
         }
 
+        if (!isset($domainRecord['merchant_id']) || !is_scalar($domainRecord['merchant_id'])) {
+            return Response::html('<h1>404 Not Found</h1>', 404);
+        }
+        $merchantId = (int) $domainRecord['merchant_id'];
+
         // Enforce active merchant status check
         $merchantRepo = $this->container->get(\OwnPay\Repository\MerchantRepository::class);
-        $merchant = $merchantRepo->find((int) $domainRecord['merchant_id']);
+        if (!$merchantRepo instanceof \OwnPay\Repository\MerchantRepository) {
+            throw new \RuntimeException("MerchantRepository not found in container");
+        }
+        $merchant = $merchantRepo->find($merchantId);
         if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
             return Response::html('<h1>404 Not Found</h1>', 404);
         }
 
         // Set request attributes to propagate resolved brand parameters down the application pipeline.
         $request->setAttribute('domain', $domainRecord);
-        $request->setAttribute('merchant_id', (int) $domainRecord['merchant_id']);
+        $request->setAttribute('merchant_id', $merchantId);
         $request->setAttribute('domain_type', $domainRecord['type']);
         $request->setAttribute('custom_domain', $domain);
 
@@ -129,16 +137,18 @@ final class DomainMiddleware
     private function resolveMasterDomain(): string
     {
         // Step 1: Look for explicit APP_DOMAIN environment override configuration.
-        $appDomain = $_ENV['APP_DOMAIN'] ?? $_SERVER['APP_DOMAIN'] ?? getenv('APP_DOMAIN') ?: '';
+        $appDomainVal = $_ENV['APP_DOMAIN'] ?? $_SERVER['APP_DOMAIN'] ?? getenv('APP_DOMAIN') ?: '';
+        $appDomain = is_string($appDomainVal) ? $appDomainVal : '';
         if ($appDomain !== '') {
             return $appDomain;
         }
 
         // Step 2: Extract host section from the APP_URL environment variable.
-        $appUrl = $_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '';
+        $appUrlVal = $_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '';
+        $appUrl = is_string($appUrlVal) ? $appUrlVal : '';
         if ($appUrl !== '') {
             $parsed = parse_url($appUrl, PHP_URL_HOST);
-            if ($parsed !== null && $parsed !== false) {
+            if (is_string($parsed)) {
                 return $parsed;
             }
         }

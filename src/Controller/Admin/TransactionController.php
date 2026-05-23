@@ -95,17 +95,23 @@ final class TransactionController
      */
     public function index(Request $req): Response
     {
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = $this->resolveMerchant($req);
 
-        $page = max(1, (int) $req->query('page', '1'));
+        $pageVal = $req->query('page', '1');
+        $page = max(1, is_scalar($pageVal) && is_numeric($pageVal) ? (int) $pageVal : 1);
+        
+        $qVal = $req->query('q', '');
+        $statusVal = $req->query('status', '');
+        $gatewayVal = $req->query('gateway', '');
+        $dateFromVal = $req->query('date_from', '');
+        $dateToVal = $req->query('date_to', '');
+
         $filters = [
-            'q'         => $req->query('q', ''),
-            'status'    => $req->query('status', ''),
-            'gateway'   => $req->query('gateway', ''),
-            'date_from' => $req->query('date_from', ''),
-            'date_to'   => $req->query('date_to', ''),
+            'q'         => is_string($qVal) ? $qVal : '',
+            'status'    => is_string($statusVal) ? $statusVal : '',
+            'gateway'   => is_string($gatewayVal) ? $gatewayVal : '',
+            'date_from' => is_string($dateFromVal) ? $dateFromVal : '',
+            'date_to'   => is_string($dateToVal) ? $dateToVal : '',
         ];
 
         $repo = $this->txns->forTenant($mid);
@@ -114,18 +120,20 @@ final class TransactionController
         $transactions = $repo->listFiltered($filters, $pagination['per_page'], $pagination['offset']);
 
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
-        $transactions = array_map(function (array $txn) use ($enc) {
-            if (!empty($txn['customer_name'])) {
-                try {
-                    $txn['customer_name'] = $enc->decrypt($txn['customer_name']);
-                } catch (\Throwable $e) {
-                    $txn['customer_name'] = '[encrypted]';
+        if ($enc instanceof \OwnPay\Security\FieldEncryptor) {
+            $transactions = array_map(function (array $txn) use ($enc) {
+                if (!empty($txn['customer_name']) && is_string($txn['customer_name'])) {
+                    try {
+                        $txn['customer_name'] = $enc->decrypt($txn['customer_name']);
+                    } catch (\Throwable $e) {
+                        $txn['customer_name'] = '[encrypted]';
+                    }
+                } else {
+                    $txn['customer_name'] = '—';
                 }
-            } else {
-                $txn['customer_name'] = '—';
-            }
-            return $txn;
-        }, $transactions);
+                return $txn;
+            }, $transactions);
+        }
 
         $gateways = $this->txns->getDistinctGateways($mid);
 
@@ -148,9 +156,7 @@ final class TransactionController
     public function show(Request $req): Response
     {
         $id = (int) $req->param('id');
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = $this->resolveMerchant($req);
 
         $txn = $this->txns->forTenant($mid)->findScoped($id);
         if ($txn === null) {
@@ -161,17 +167,23 @@ final class TransactionController
         // Fetch and decrypt customer details if customer_id is present
         if (!empty($txn['customer_id'])) {
             $customerRepo = $this->c->get(\OwnPay\Repository\CustomerRepository::class);
-            $customer = $customerRepo->forTenant($mid)->findScoped((int) $txn['customer_id']);
-            if ($customer) {
-                $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
-                try {
-                    $txn['customer_name']  = !empty($customer['name_enc']) ? $enc->decrypt($customer['name_enc']) : ($customer['name'] ?? '—');
-                    $txn['customer_email'] = !empty($customer['email_enc']) ? $enc->decrypt($customer['email_enc']) : ($customer['email'] ?? '—');
-                    $txn['customer_phone'] = !empty($customer['phone_enc']) ? $enc->decrypt($customer['phone_enc']) : ($customer['phone'] ?? '—');
-                } catch (\Throwable $e) {
-                    $txn['customer_name']  = '[encrypted]';
-                    $txn['customer_email'] = '[encrypted]';
-                    $txn['customer_phone'] = '—';
+            if ($customerRepo instanceof \OwnPay\Repository\CustomerRepository) {
+                $customerIdVal = $txn['customer_id'];
+                $customerId = is_numeric($customerIdVal) ? (int) $customerIdVal : 0;
+                $customer = $customerRepo->forTenant($mid)->findScoped($customerId);
+                if ($customer) {
+                    $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
+                    if ($enc instanceof \OwnPay\Security\FieldEncryptor) {
+                        try {
+                            $txn['customer_name']  = (!empty($customer['name_enc']) && is_string($customer['name_enc'])) ? $enc->decrypt($customer['name_enc']) : (is_string($customer['name'] ?? null) ? $customer['name'] : '—');
+                            $txn['customer_email'] = (!empty($customer['email_enc']) && is_string($customer['email_enc'])) ? $enc->decrypt($customer['email_enc']) : (is_string($customer['email'] ?? null) ? $customer['email'] : '—');
+                            $txn['customer_phone'] = (!empty($customer['phone_enc']) && is_string($customer['phone_enc'])) ? $enc->decrypt($customer['phone_enc']) : (is_string($customer['phone'] ?? null) ? $customer['phone'] : '—');
+                        } catch (\Throwable $e) {
+                            $txn['customer_name']  = '[encrypted]';
+                            $txn['customer_email'] = '[encrypted]';
+                            $txn['customer_phone'] = '—';
+                        }
+                    }
                 }
             }
         }
@@ -197,9 +209,7 @@ final class TransactionController
     public function updateStatus(Request $req): Response
     {
         $id = (int) $req->param('id');
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = $this->resolveMerchant($req);
 
         $newStatus = $req->post('status', '');
         if (!in_array($newStatus, ['completed', 'canceled', 'refunded'], true)) {
@@ -221,27 +231,39 @@ final class TransactionController
         $transactionService = $this->c->get(\OwnPay\Service\Payment\TransactionService::class);
         $ledgerService = $this->c->get(\OwnPay\Service\Payment\LedgerService::class);
 
+        if (!$transactionService instanceof \OwnPay\Service\Payment\TransactionService) {
+            throw new \RuntimeException('TransactionService not found.');
+        }
+        if (!$ledgerService instanceof \OwnPay\Service\Payment\LedgerService) {
+            throw new \RuntimeException('LedgerService not found.');
+        }
+
         $this->events->doAction('transaction.status.before', $txn, $newStatus);
 
         if ($newStatus === 'completed') {
             $transactionService->complete($id, $mid);
             $updatedTxn = $this->txns->forTenant($mid)->findScoped($id);
             if ($updatedTxn !== null) {
+                $amountVal = $updatedTxn['amount'] ?? '0.00';
+                $feeVal = $updatedTxn['fee'] ?? '0.00';
+                $currencyVal = $updatedTxn['currency'] ?? 'BDT';
                 $ledgerService->recordPaymentReceived(
                     $mid,
                     $id,
-                    (string) $updatedTxn['amount'],
-                    (string) ($updatedTxn['fee'] ?? '0.00'),
-                    (string) $updatedTxn['currency']
+                    is_string($amountVal) ? $amountVal : '0.00',
+                    is_string($feeVal) ? $feeVal : '0.00',
+                    is_string($currencyVal) ? $currencyVal : 'BDT'
                 );
             }
         } elseif ($newStatus === 'refunded') {
             $this->txns->forTenant($mid)->updateScoped($id, ['status' => 'refunded', 'updated_at' => DateHelper::now()]);
+            $amountVal = $txn['amount'] ?? '0.00';
+            $currencyVal = $txn['currency'] ?? 'BDT';
             $ledgerService->recordRefund(
                 $mid,
                 $id,
-                (string) $txn['amount'],
-                (string) $txn['currency']
+                is_string($amountVal) ? $amountVal : '0.00',
+                is_string($currencyVal) ? $currencyVal : 'BDT'
             );
         } elseif ($newStatus === 'canceled') {
             $transactionService->cancel($id, $mid);
@@ -252,5 +274,26 @@ final class TransactionController
 
         $this->session->flashSuccess("Transaction marked {$newStatus}");
         return Response::redirect("/admin/transactions/{$id}");
+    }
+
+    /**
+     * Resolves the active merchant context ID from the request.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return int The resolved merchant ID.
+     */
+    private function resolveMerchant(Request $req): int
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('Brand ID not resolved.');
+        }
+        return $mid;
     }
 }

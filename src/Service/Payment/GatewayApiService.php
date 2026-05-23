@@ -83,10 +83,15 @@ final class GatewayApiService
             return ['success' => false, 'error' => 'Gateway not available'];
         }
 
+        $amountVal = $params['amount'] ?? '0.00';
+        $amount = is_scalar($amountVal) ? (string) $amountVal : '0.00';
+        $currencyVal = $params['currency'] ?? 'BDT';
+        $currency = is_scalar($currencyVal) ? (string) $currencyVal : 'BDT';
+
         // Calculate fee
         $fee = $this->fees->calculate(
-            $params['amount'],
-            $params['currency'],
+            $amount,
+            $currency,
             $gatewaySlug,
             $merchantId
         );
@@ -98,9 +103,9 @@ final class GatewayApiService
             // Create transaction (API direct-call flow)
             $transaction = $this->transactions->create($merchantId, [
                 'gateway_slug'      => $gatewaySlug,
-                'amount'            => $params['amount'],
+                'amount'            => $amount,
                 'fee'               => $fee,
-                'currency'          => $params['currency'],
+                'currency'          => $currency,
                 'method'            => 'api',
                 'sender_account'    => $params['sender_account'] ?? null,
                 'reference'         => $params['reference'] ?? null,
@@ -113,8 +118,8 @@ final class GatewayApiService
         // Initiate via gateway adapter
         try {
             $result = $this->bridge->initiate($gatewaySlug, $merchantId, [
-                'amount'       => $params['amount'],
-                'currency'     => $params['currency'],
+                'amount'       => $amount,
+                'currency'     => $currency,
                 'trx_id'       => $transaction['trx_id'],
                 'redirect_url' => $params['redirect_url'] ?? '',
                 'cancel_url'   => $params['cancel_url'] ?? '',
@@ -123,11 +128,11 @@ final class GatewayApiService
             $output = [
                 'success'      => true,
                 'transaction'  => $transaction,
-                'redirect_url' => $result['redirect_url'] ?? null,
+                'redirect_url' => is_string($result['redirect_url'] ?? null) ? $result['redirect_url'] : null,
                 // Defense-in-depth — sanitize form_html even from
                 // trusted gateway plugins. Strip event handlers and javascript: URIs
                 // while preserving forms, inputs, and inline auto-submit scripts.
-                'form_html'    => self::sanitizeFormHtml($result['form_html'] ?? null),
+                'form_html'    => self::sanitizeFormHtml(is_string($result['form_html'] ?? null) ? $result['form_html'] : null),
             ];
 
             return $output;
@@ -135,13 +140,15 @@ final class GatewayApiService
         } catch (\RuntimeException $e) {
             // Gateway adapter not registered / config error — surface to caller
             // Only mark transaction as failed if we own it (direct API flow, not checkout)
-            if (isset($transaction['id'])) {
-                $this->transactions->fail((int) $transaction['id'], $merchantId, $e->getMessage());
+            $txnId = $transaction['id'] ?? null;
+            if (is_scalar($txnId)) {
+                $this->transactions->fail((int) $txnId, $merchantId, $e->getMessage());
             }
             return ['success' => false, 'error' => $e->getMessage()];
         } catch (\Throwable $e) {
-            if (isset($transaction['id'])) {
-                $this->transactions->fail((int) $transaction['id'], $merchantId, $e->getMessage());
+            $txnId = $transaction['id'] ?? null;
+            if (is_scalar($txnId)) {
+                $this->transactions->fail((int) $txnId, $merchantId, $e->getMessage());
             }
             return ['success' => false, 'error' => 'Gateway initiation failed'];
         }
@@ -172,8 +179,9 @@ final class GatewayApiService
         $trxId = '';
         $trxIdFields = ['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id'];
         foreach ($trxIdFields as $field) {
-            if (!empty($callbackData[$field])) {
-                $trxId = (string) $callbackData[$field];
+            $fieldVal = $callbackData[$field] ?? null;
+            if (is_scalar($fieldVal) && $fieldVal !== '') {
+                $trxId = (string) $fieldVal;
                 break;
             }
         }
@@ -185,25 +193,31 @@ final class GatewayApiService
         }
 
         // Fallback: lookup by gateway_trx_id (bank/gateway reference)
-        if ($transaction === null && !empty($verification['gateway_trx_id'])) {
+        $gwTrxId = $verification['gateway_trx_id'] ?? null;
+        if ($transaction === null && is_string($gwTrxId) && $gwTrxId !== '') {
             $transaction = $this->transactions->findByGatewayTrxId(
                 $merchantId,
-                $verification['gateway_trx_id']
+                $gwTrxId
             );
         }
 
         if ($transaction !== null && in_array($transaction['status'], ['pending', 'processing', 'callback_processing'], true)) {
-            // Use TransactionService::complete() — fires events + audit log
-            $this->transactions->complete((int) $transaction['id'], $merchantId);
+            $txnId = $transaction['id'] ?? 0;
+            $amt = $transaction['amount'] ?? '0.00';
+            $feeVal = $transaction['fee'] ?? '0.00';
+            $cur = $transaction['currency'] ?? 'BDT';
+            if (is_scalar($txnId) && is_scalar($amt) && is_scalar($feeVal) && is_scalar($cur)) {
+                $this->transactions->complete((int) $txnId, $merchantId);
 
-            // Record in ledger
-            $this->ledger->recordPaymentReceived(
-                $merchantId,
-                (int) $transaction['id'],
-                $transaction['amount'],
-                $transaction['fee'] ?? '0.00',
-                $transaction['currency']
-            );
+                // Record in ledger
+                $this->ledger->recordPaymentReceived(
+                    $merchantId,
+                    (int) $txnId,
+                    (string) $amt,
+                    (string) $feeVal,
+                    (string) $cur
+                );
+            }
 
             return ['success' => true, 'transaction' => $transaction];
         }

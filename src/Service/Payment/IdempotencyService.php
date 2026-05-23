@@ -63,11 +63,21 @@ final class IdempotencyService
                 ];
             }
 
+            $responseBody = $existing['response_body'] ?? '{}';
+            $decoded = json_decode(is_string($responseBody) ? $responseBody : '{}', true);
+            if (!is_array($decoded)) {
+                $decoded = [];
+            }
+            $cachedResponse = [];
+            foreach ($decoded as $k => $v) {
+                $cachedResponse[(string)$k] = $v;
+            }
+
             return [
                 'is_duplicate' => true,
                 'status' => 'completed',
-                'cached_response' => json_decode($existing['response_body'] ?? '{}', true),
-                'http_status' => (int) $existing['response_code'],
+                'cached_response' => $cachedResponse,
+                'http_status' => is_scalar($existing['response_code']) ? (int) $existing['response_code'] : 200,
             ];
         }
 
@@ -98,7 +108,9 @@ final class IdempotencyService
         if ($existing !== null) {
             $json = json_encode($response);
             if (is_string($json)) {
-                $repo->complete((int) $existing['id'], $json, $statusCode);
+                $idVal = $existing['id'] ?? 0;
+                $id = is_scalar($idVal) ? (int) $idVal : 0;
+                $repo->complete($id, $json, $statusCode);
             }
         }
     }

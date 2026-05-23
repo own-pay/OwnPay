@@ -89,16 +89,18 @@ final class FileCache implements CacheInterface
         );
 
         foreach ($iterator as $item) {
-            $realPath = $item->getRealPath();
-            if ($realPath === false) {
-                continue;
-            }
-            // Safety: only delete within cache directory
-            if (!str_starts_with($realPath, realpath($this->directory) . DIRECTORY_SEPARATOR)) {
-                continue;
-            }
-            if ($item->isFile() && str_ends_with($item->getFilename(), '.cache')) {
-                @unlink($realPath);
+            if ($item instanceof \SplFileInfo) {
+                $realPath = $item->getRealPath();
+                if ($realPath === false) {
+                    continue;
+                }
+                // Safety: only delete within cache directory
+                if (!str_starts_with($realPath, realpath($this->directory) . DIRECTORY_SEPARATOR)) {
+                    continue;
+                }
+                if ($item->isFile() && str_ends_with($item->getFilename(), '.cache')) {
+                    @unlink($realPath);
+                }
             }
         }
     }

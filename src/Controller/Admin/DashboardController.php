@@ -147,8 +147,11 @@ final class DashboardController
 
         // Decrypt customer names for rendering
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
+        if (!$enc instanceof \OwnPay\Security\FieldEncryptor) {
+            throw new \RuntimeException('FieldEncryptor service unavailable');
+        }
         $recent = array_map(function (array $txn) use ($enc) {
-            if (!empty($txn['customer_name'])) {
+            if (!empty($txn['customer_name']) && is_string($txn['customer_name'])) {
                 try {
                     $txn['customer_name'] = $enc->decrypt($txn['customer_name']);
                 } catch (\Throwable $e) {
@@ -168,12 +171,19 @@ final class DashboardController
         $stats = $this->events->applyFilter('admin.dashboard.stats', $stats);
 
         $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
+        if (!$settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
+            throw new \RuntimeException('SettingsRepository service unavailable');
+        }
         $onboardingCompleted = (int) $settingsRepo->get('system', 'onboarding_completed', '0');
 
         $currencies = [];
         $timezones = [];
         if ($onboardingCompleted === 0) {
-            $currencies = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class)->listAll();
+            $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+            if (!$currencySvc instanceof \OwnPay\Service\Payment\CurrencyService) {
+                throw new \RuntimeException('CurrencyService unavailable');
+            }
+            $currencies = $currencySvc->listAll();
             $timezones = [
                 'UTC' => 'UTC (GMT+00:00)',
                 'America/New_York' => 'New York (EST/EDT)',
@@ -233,11 +243,14 @@ final class DashboardController
             throw new \RuntimeException('Active brand ID is not set.');
         }
 
-        $from    = $req->query('from', DateHelper::monthStart());
-        $to      = $req->query('to', DateHelper::today());
-        $gateway = $req->query('gateway', '');
+        $fromVal = $req->query('from', DateHelper::monthStart());
+        $from = is_string($fromVal) ? $fromVal : DateHelper::monthStart();
+        $toVal = $req->query('to', DateHelper::today());
+        $to = is_string($toVal) ? $toVal : DateHelper::today();
+        $gatewayVal = $req->query('gateway', '');
+        $gateway = is_string($gatewayVal) ? $gatewayVal : '';
 
-        $report   = $this->txnRepo->getReportData($mid, $from, $to, $gateway ?: null);
+        $report   = $this->txnRepo->getReportData($mid, $from, $to, $gateway !== '' ? $gateway : null);
         $gateways = $this->txnRepo->getDistinctGateways($mid);
 
         $report = $this->events->applyFilter('report.data', $report, ['from' => $from, 'to' => $to]);
@@ -263,7 +276,8 @@ final class DashboardController
         $this->brand->resolveFromRequest($req);
         $mid = $this->brand->getActiveBrandId();
 
-        $page   = max(1, (int) ($req->query('page', '1')));
+        $pageVal = $req->query('page', '1');
+        $page = max(1, is_int($pageVal) || is_string($pageVal) ? (int)$pageVal : 1);
         $limit  = 50;
         $offset = ($page - 1) * $limit;
 
@@ -316,6 +330,9 @@ final class DashboardController
     public function updateAccount(Request $req): Response
     {
         $data   = $req->post();
+        if (!is_array($data)) {
+            $data = [];
+        }
         $userId = $this->session->userId();
 
         if ($userId === null) {
@@ -323,9 +340,13 @@ final class DashboardController
             return Response::redirect('/' . $loginSlug);
         }
 
-        if (($data['type'] ?? '') === 'profile') {
-            $name  = \OwnPay\Service\System\InputSanitizer::string($data['name'] ?? '');
-            $email = \OwnPay\Service\System\InputSanitizer::email($data['email'] ?? '');
+        $type = is_string($data['type'] ?? null) ? $data['type'] : '';
+
+        if ($type === 'profile') {
+            $nameVal = $data['name'] ?? '';
+            $emailVal = $data['email'] ?? '';
+            $name  = \OwnPay\Service\System\InputSanitizer::string(is_string($nameVal) ? $nameVal : '');
+            $email = \OwnPay\Service\System\InputSanitizer::email(is_string($emailVal) ? $emailVal : '');
             if ($name !== '' && $email !== '') {
                 $this->userRepo->updateProfile($userId, $name, $email);
                 $this->session->updateProfile($name, $email);
@@ -333,10 +354,14 @@ final class DashboardController
             } else {
                 $this->session->flashError('Name and email are required.');
             }
-        } elseif (($data['type'] ?? '') === 'password') {
-            $current = $data['current_password'] ?? '';
-            $new     = $data['new_password'] ?? '';
-            $confirm = $data['confirm_password'] ?? '';
+        } elseif ($type === 'password') {
+            $currentVal = $data['current_password'] ?? '';
+            $newVal     = $data['new_password'] ?? '';
+            $confirmVal = $data['confirm_password'] ?? '';
+
+            $current = is_string($currentVal) ? $currentVal : '';
+            $new     = is_string($newVal) ? $newVal : '';
+            $confirm = is_string($confirmVal) ? $confirmVal : '';
 
             $hash = $this->userRepo->getPasswordHash($userId);
             if (!$hash || !password_verify($current, $hash)) {
@@ -370,14 +395,20 @@ final class DashboardController
             throw new \RuntimeException('Active brand ID is not set.');
         }
 
-        $from    = $req->query('from', DateHelper::monthStart());
-        $to      = $req->query('to', DateHelper::today());
-        $gateway = $req->query('gateway', '');
+        $fromVal = $req->query('from', DateHelper::monthStart());
+        $from = is_string($fromVal) ? $fromVal : DateHelper::monthStart();
+        $toVal = $req->query('to', DateHelper::today());
+        $to = is_string($toVal) ? $toVal : DateHelper::today();
+        $gatewayVal = $req->query('gateway', '');
+        $gateway = is_string($gatewayVal) ? $gatewayVal : '';
 
-        $rows = $this->txnRepo->getExportData($mid, $from, $to, $gateway ?: null);
+        $rows = $this->txnRepo->getExportData($mid, $from, $to, $gateway !== '' ? $gateway : null);
 
         $rows = array_map(
-            fn($row) => $this->events->applyFilter('export.row', $row),
+            function ($row) {
+                $filtered = $this->events->applyFilter('export.row', $row);
+                return is_array($filtered) ? $filtered : $row;
+            },
             $rows
         );
 
@@ -386,9 +417,19 @@ final class DashboardController
         if (is_resource($out)) {
             fputcsv($out, ['ID', 'Gateway', 'Currency', 'Amount', 'Status', 'Date']);
             foreach ($rows as $row) {
+                $idVal = $row['id'] ?? '';
+                $gwVal = $row['gateway_slug'] ?? '';
+                $curVal = $row['currency'] ?? '';
+                $amtVal = $row['amount'] ?? '';
+                $statVal = $row['status'] ?? '';
+                $dateVal = $row['created_at'] ?? '';
                 fputcsv($out, [
-                    $row['id'], $row['gateway_slug'], $row['currency'],
-                    $row['amount'], $row['status'], $row['created_at'],
+                    is_scalar($idVal) ? (string)$idVal : '',
+                    is_scalar($gwVal) ? (string)$gwVal : '',
+                    is_scalar($curVal) ? (string)$curVal : '',
+                    is_scalar($amtVal) ? (string)$amtVal : '',
+                    is_scalar($statVal) ? (string)$statVal : '',
+                    is_scalar($dateVal) ? (string)$dateVal : '',
                 ]);
             }
             fclose($out);
@@ -410,16 +451,24 @@ final class DashboardController
     public function saveOnboardingSettings(Request $req): Response
     {
         $data = $req->all();
-        $siteName = \OwnPay\Service\System\InputSanitizer::string($data['site_name'] ?? '');
-        $siteTagline = \OwnPay\Service\System\InputSanitizer::string($data['site_tagline'] ?? '');
-        $timezone = \OwnPay\Service\System\InputSanitizer::string($data['timezone'] ?? '');
-        $currency = \OwnPay\Service\System\InputSanitizer::string($data['currency'] ?? '');
+        $siteNameVal = $data['site_name'] ?? '';
+        $siteTaglineVal = $data['site_tagline'] ?? '';
+        $timezoneVal = $data['timezone'] ?? '';
+        $currencyVal = $data['currency'] ?? '';
+
+        $siteName = \OwnPay\Service\System\InputSanitizer::string(is_string($siteNameVal) ? $siteNameVal : '');
+        $siteTagline = \OwnPay\Service\System\InputSanitizer::string(is_string($siteTaglineVal) ? $siteTaglineVal : '');
+        $timezone = \OwnPay\Service\System\InputSanitizer::string(is_string($timezoneVal) ? $timezoneVal : '');
+        $currency = \OwnPay\Service\System\InputSanitizer::string(is_string($currencyVal) ? $currencyVal : '');
         
-        $timerMinutes = max(1, (int) ($data['timer_minutes'] ?? 10));
+        $timerMinutesVal = $data['timer_minutes'] ?? 10;
+        $timerMinutes = max(1, is_int($timerMinutesVal) || is_string($timerMinutesVal) ? (int)$timerMinutesVal : 10);
         $timerSeconds = $timerMinutes * 60;
         
-        $requirePhone = ($data['require_customer_phone'] ?? '0') === '1' ? '1' : '0';
-        $landingPageEnabled = ($data['landing_page_enabled'] ?? '0') === '1' ? '1' : '0';
+        $reqPhoneVal = $data['require_customer_phone'] ?? '0';
+        $requirePhone = (is_string($reqPhoneVal) && $reqPhoneVal === '1') ? '1' : '0';
+        $landingEnabledVal = $data['landing_page_enabled'] ?? '0';
+        $landingPageEnabled = (is_string($landingEnabledVal) && $landingEnabledVal === '1') ? '1' : '0';
 
         if ($siteName === '' || $timezone === '' || $currency === '') {
             return Response::json(['success' => false, 'error' => 'System name, currency, and timezone are required.']);
@@ -458,11 +507,17 @@ final class DashboardController
     public function createOnboardingBrand(Request $req): Response
     {
         $data = $req->all();
-        $brandName = \OwnPay\Service\System\InputSanitizer::string($data['brand_name'] ?? '');
-        $brandEmail = \OwnPay\Service\System\InputSanitizer::email($data['brand_email'] ?? '');
-        $brandPhone = \OwnPay\Service\System\InputSanitizer::string($data['brand_phone'] ?? '');
-        $brandCurrency = \OwnPay\Service\System\InputSanitizer::string($data['brand_currency'] ?? '');
-        $brandTimezone = \OwnPay\Service\System\InputSanitizer::string($data['brand_timezone'] ?? '');
+        $brandNameVal = $data['brand_name'] ?? '';
+        $brandEmailVal = $data['brand_email'] ?? '';
+        $brandPhoneVal = $data['brand_phone'] ?? '';
+        $brandCurrencyVal = $data['brand_currency'] ?? '';
+        $brandTimezoneVal = $data['brand_timezone'] ?? '';
+
+        $brandName = \OwnPay\Service\System\InputSanitizer::string(is_string($brandNameVal) ? $brandNameVal : '');
+        $brandEmail = \OwnPay\Service\System\InputSanitizer::email(is_string($brandEmailVal) ? $brandEmailVal : '');
+        $brandPhone = \OwnPay\Service\System\InputSanitizer::string(is_string($brandPhoneVal) ? $brandPhoneVal : '');
+        $brandCurrency = \OwnPay\Service\System\InputSanitizer::string(is_string($brandCurrencyVal) ? $brandCurrencyVal : '');
+        $brandTimezone = \OwnPay\Service\System\InputSanitizer::string(is_string($brandTimezoneVal) ? $brandTimezoneVal : '');
 
         if ($brandName === '' || $brandEmail === '' || $brandCurrency === '' || $brandTimezone === '') {
             return Response::json(['success' => false, 'error' => 'Brand name, email, currency, and timezone are required.']);
@@ -496,19 +551,20 @@ final class DashboardController
             ])
         ]);
 
+        $brandIdInt = (int) $brandId;
         // Auto-scope superadmin session to this new brand
-        $_SESSION['active_brand_id'] = (int) $brandId;
-        $_SESSION['auth_merchant_id'] = (int) $brandId;
+        $_SESSION['active_brand_id'] = $brandIdInt;
+        $_SESSION['auth_merchant_id'] = $brandIdInt;
 
         // Associate user if possible
         $userId = $this->session->userId();
         if ($userId !== null) {
             /** @var \OwnPay\Repository\MerchantUserRepository $userRepo */
             $userRepo = $this->c->get(\OwnPay\Repository\MerchantUserRepository::class);
-            $userRepo->update((int) $userId, ['merchant_id' => $brandId]);
+            $userRepo->update((int) $userId, ['merchant_id' => $brandIdInt]);
         }
 
-        return Response::json(['success' => true, 'brand_id' => $brandId]);
+        return Response::json(['success' => true, 'brand_id' => $brandIdInt]);
     }
 
     /**
@@ -521,9 +577,13 @@ final class DashboardController
     public function setupOnboardingMail(Request $req): Response
     {
         $data = $req->all();
-        $provider = \OwnPay\Service\System\InputSanitizer::string($data['provider'] ?? 'smtp');
-        $fromEmail = \OwnPay\Service\System\InputSanitizer::email($data['from_email'] ?? '');
-        $fromName = \OwnPay\Service\System\InputSanitizer::string($data['from_name'] ?? 'Own Pay');
+        $providerVal = $data['provider'] ?? 'smtp';
+        $fromEmailVal = $data['from_email'] ?? '';
+        $fromNameVal = $data['from_name'] ?? 'Own Pay';
+
+        $provider = \OwnPay\Service\System\InputSanitizer::string(is_string($providerVal) ? $providerVal : 'smtp');
+        $fromEmail = \OwnPay\Service\System\InputSanitizer::email(is_string($fromEmailVal) ? $fromEmailVal : '');
+        $fromName = \OwnPay\Service\System\InputSanitizer::string(is_string($fromNameVal) ? $fromNameVal : 'Own Pay');
         
         $skip = ($data['skip'] ?? '0') === '1';
         
@@ -548,24 +608,34 @@ final class DashboardController
         ];
 
         if ($provider === 'smtp') {
-            $settings['smtp_host'] = \OwnPay\Service\System\InputSanitizer::string($data['smtp_host'] ?? '');
-            $settings['smtp_port'] = \OwnPay\Service\System\InputSanitizer::string($data['smtp_port'] ?? '587');
-            $settings['smtp_user'] = \OwnPay\Service\System\InputSanitizer::string($data['smtp_user'] ?? '');
-            $settings['smtp_password'] = \OwnPay\Service\System\InputSanitizer::string($data['smtp_password'] ?? '');
-            $settings['smtp_encryption'] = \OwnPay\Service\System\InputSanitizer::string($data['smtp_encryption'] ?? 'tls');
+            $hostVal = $data['smtp_host'] ?? '';
+            $portVal = $data['smtp_port'] ?? '587';
+            $userVal = $data['smtp_user'] ?? '';
+            $passVal = $data['smtp_password'] ?? '';
+            $encVal = $data['smtp_encryption'] ?? 'tls';
+
+            $settings['smtp_host'] = \OwnPay\Service\System\InputSanitizer::string(is_string($hostVal) ? $hostVal : '');
+            $settings['smtp_port'] = \OwnPay\Service\System\InputSanitizer::string(is_string($portVal) ? $portVal : '587');
+            $settings['smtp_user'] = \OwnPay\Service\System\InputSanitizer::string(is_string($userVal) ? $userVal : '');
+            $settings['smtp_password'] = \OwnPay\Service\System\InputSanitizer::string(is_string($passVal) ? $passVal : '');
+            $settings['smtp_encryption'] = \OwnPay\Service\System\InputSanitizer::string(is_string($encVal) ? $encVal : 'tls');
 
             if ($settings['smtp_host'] === '') {
                 return Response::json(['success' => false, 'error' => 'SMTP Host is required.']);
             }
         } elseif ($provider === 'mailgun') {
-            $settings['mailgun_domain'] = \OwnPay\Service\System\InputSanitizer::string($data['mailgun_domain'] ?? '');
-            $settings['mailgun_key'] = \OwnPay\Service\System\InputSanitizer::string($data['mailgun_key'] ?? '');
+            $mgDomainVal = $data['mailgun_domain'] ?? '';
+            $mgKeyVal = $data['mailgun_key'] ?? '';
+
+            $settings['mailgun_domain'] = \OwnPay\Service\System\InputSanitizer::string(is_string($mgDomainVal) ? $mgDomainVal : '');
+            $settings['mailgun_key'] = \OwnPay\Service\System\InputSanitizer::string(is_string($mgKeyVal) ? $mgKeyVal : '');
 
             if ($settings['mailgun_domain'] === '' || $settings['mailgun_key'] === '') {
                 return Response::json(['success' => false, 'error' => 'Mailgun Domain and API Key are required.']);
             }
         } elseif ($provider === 'sendgrid') {
-            $settings['sendgrid_key'] = \OwnPay\Service\System\InputSanitizer::string($data['sendgrid_key'] ?? '');
+            $sgKeyVal = $data['sendgrid_key'] ?? '';
+            $settings['sendgrid_key'] = \OwnPay\Service\System\InputSanitizer::string(is_string($sgKeyVal) ? $sgKeyVal : '');
 
             if ($settings['sendgrid_key'] === '') {
                 return Response::json(['success' => false, 'error' => 'SendGrid API Key is required.']);
@@ -585,7 +655,9 @@ final class DashboardController
         $plugin = $pluginRepo->findBySlug('mail-gateway');
         
         if ($plugin) {
-            $pluginRepo->update((int) $plugin['id'], ['status' => 'active']);
+            $pluginIdVal = $plugin['id'] ?? 0;
+            $pluginId = is_int($pluginIdVal) || is_string($pluginIdVal) ? (int)$pluginIdVal : 0;
+            $pluginRepo->update($pluginId, ['status' => 'active']);
         } else {
             $pluginRepo->create([
                 'slug'       => 'mail-gateway',
@@ -615,8 +687,10 @@ final class DashboardController
     public function setupOnboardingGateway(Request $req): Response
     {
         $data = $req->all();
-        $brandId = (int) ($data['brand_id'] ?? 0);
-        $gatewayType = \OwnPay\Service\System\InputSanitizer::string($data['gateway_type'] ?? '');
+        $brandIdVal = $data['brand_id'] ?? 0;
+        $brandId = is_int($brandIdVal) || is_string($brandIdVal) ? (int)$brandIdVal : 0;
+        $gatewayTypeVal = $data['gateway_type'] ?? '';
+        $gatewayType = \OwnPay\Service\System\InputSanitizer::string(is_string($gatewayTypeVal) ? $gatewayTypeVal : '');
 
         if ($brandId <= 0 || $gatewayType === '') {
             return Response::json(['success' => false, 'error' => 'Invalid request arguments.']);
@@ -638,13 +712,16 @@ final class DashboardController
                     'sort_order' => 0
                 ]);
             } else {
-                $gwId = (int) $gateway['id'];
+                $gatewayIdVal = $gateway['id'] ?? 0;
+                $gwId = is_int($gatewayIdVal) || is_string($gatewayIdVal) ? (int)$gatewayIdVal : 0;
             }
 
             $credentials = [];
             if ($gatewayType === 'stripe') {
-                $stripeKey = \OwnPay\Service\System\InputSanitizer::string($data['stripe_key'] ?? '');
-                $stripeSecret = \OwnPay\Service\System\InputSanitizer::string($data['stripe_secret'] ?? '');
+                $stripeKeyVal = $data['stripe_key'] ?? '';
+                $stripeSecretVal = $data['stripe_secret'] ?? '';
+                $stripeKey = \OwnPay\Service\System\InputSanitizer::string(is_string($stripeKeyVal) ? $stripeKeyVal : '');
+                $stripeSecret = \OwnPay\Service\System\InputSanitizer::string(is_string($stripeSecretVal) ? $stripeSecretVal : '');
                 if ($stripeKey === '' || $stripeSecret === '') {
                     return Response::json(['success' => false, 'error' => 'Stripe Publishable Key and Secret Key are required.']);
                 }
@@ -653,8 +730,10 @@ final class DashboardController
                     'secret_key'      => $stripeSecret
                 ];
             } else {
-                $paypalClientId = \OwnPay\Service\System\InputSanitizer::string($data['paypal_client_id'] ?? '');
-                $paypalSecret = \OwnPay\Service\System\InputSanitizer::string($data['paypal_secret'] ?? '');
+                $paypalClientIdVal = $data['paypal_client_id'] ?? '';
+                $paypalSecretVal = $data['paypal_secret'] ?? '';
+                $paypalClientId = \OwnPay\Service\System\InputSanitizer::string(is_string($paypalClientIdVal) ? $paypalClientIdVal : '');
+                $paypalSecret = \OwnPay\Service\System\InputSanitizer::string(is_string($paypalSecretVal) ? $paypalSecretVal : '');
                 if ($paypalClientId === '' || $paypalSecret === '') {
                     return Response::json(['success' => false, 'error' => 'PayPal Client ID and Client Secret are required.']);
                 }
@@ -676,9 +755,11 @@ final class DashboardController
             $configRepo = $this->c->get(\OwnPay\Repository\GatewayConfigRepository::class);
             $configRepo = $configRepo->forTenant($brandId);
 
-            $existingConfig = $configRepo->findForGateway((int) $gwId);
+            $existingConfig = $configRepo->findForGateway($gwId);
             if ($existingConfig) {
-                $configRepo->update((int) $existingConfig['id'], [
+                $configIdVal = $existingConfig['id'] ?? 0;
+                $configId = is_int($configIdVal) || is_string($configIdVal) ? (int)$configIdVal : 0;
+                $configRepo->update($configId, [
                     'credentials_enc' => $encCreds,
                     'status'          => 'active',
                     'mode'            => 'sandbox'
@@ -698,7 +779,9 @@ final class DashboardController
             $pluginRepo = $this->c->get(\OwnPay\Repository\PluginRepository::class);
             $plugin = $pluginRepo->findBySlug($slug);
             if ($plugin) {
-                $pluginRepo->update((int) $plugin['id'], ['status' => 'active']);
+                $pluginIdVal = $plugin['id'] ?? 0;
+                $pluginId = is_int($pluginIdVal) || is_string($pluginIdVal) ? (int)$pluginIdVal : 0;
+                $pluginRepo->update($pluginId, ['status' => 'active']);
             } else {
                 $pluginRepo->create([
                     'slug'     => $slug,
@@ -711,8 +794,10 @@ final class DashboardController
             }
 
         } elseif ($gatewayType === 'manual') {
-            $manualName = \OwnPay\Service\System\InputSanitizer::string($data['manual_name'] ?? '');
-            $manualDetails = \OwnPay\Service\System\InputSanitizer::string($data['manual_details'] ?? '');
+            $manualNameVal = $data['manual_name'] ?? '';
+            $manualDetailsVal = $data['manual_details'] ?? '';
+            $manualName = \OwnPay\Service\System\InputSanitizer::string(is_string($manualNameVal) ? $manualNameVal : '');
+            $manualDetails = \OwnPay\Service\System\InputSanitizer::string(is_string($manualDetailsVal) ? $manualDetailsVal : '');
             
             if ($manualName === '' || $manualDetails === '') {
                 return Response::json(['success' => false, 'error' => 'Manual Gateway Name and Payment details/instructions are required.']);
@@ -721,7 +806,7 @@ final class DashboardController
             /** @var \OwnPay\Repository\MerchantRepository $merchantRepo */
             $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
             $brand = $merchantRepo->find($brandId);
-            $brandCurrency = $brand['default_currency'] ?? 'USD';
+            $brandCurrency = is_array($brand) && is_string($brand['default_currency'] ?? null) ? $brand['default_currency'] : 'USD';
 
             /** @var \OwnPay\Repository\ManualGatewayRepository $manualRepo */
             $manualRepo = $this->c->get(\OwnPay\Repository\ManualGatewayRepository::class);
@@ -791,7 +876,11 @@ final class DashboardController
 
         try {
             $settings = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
-            return $settings->get('landing', 'admin_login_slug', 'login');
+            if (!$settings instanceof \OwnPay\Repository\SettingsRepository) {
+                return 'login';
+            }
+            $slugSetting = $settings->get('landing', 'admin_login_slug', 'login');
+            return is_string($slugSetting) ? $slugSetting : 'login';
         } catch (\Throwable) {
             return 'login';
         }

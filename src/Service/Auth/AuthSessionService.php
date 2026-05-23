@@ -116,7 +116,7 @@ final class AuthSessionService
     public function currentUser(): ?array
     {
         $userId = $_SESSION['auth_user_id'] ?? null;
-        if ($userId === null) {
+        if (!is_int($userId) && !is_string($userId)) {
             return null;
         }
         return $this->users->find($userId);
@@ -130,7 +130,7 @@ final class AuthSessionService
     public function currentPermissions(): array
     {
         $roleId = $_SESSION['auth_role_id'] ?? null;
-        if ($roleId === null) {
+        if (!is_scalar($roleId)) {
             return [];
         }
         return $this->roles->getPermissions((int) $roleId);

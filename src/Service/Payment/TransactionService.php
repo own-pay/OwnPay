@@ -59,7 +59,8 @@ final class TransactionService
     public function create(int $merchantId, array $data): array
     {
         // Pre-create filter — plugins can modify data
-        $data = $this->events->applyFilter('payment.transaction.before_create', $data, $merchantId);
+        $res = $this->events->applyFilter('payment.transaction.before_create', $data, $merchantId);
+        $data = is_array($res) ? $res : $data;
 
         $repo = $this->transactions->forTenant($merchantId);
         $id = $repo->createTransaction($data);

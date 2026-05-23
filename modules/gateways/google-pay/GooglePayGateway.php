@@ -119,14 +119,15 @@ final class GooglePayGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $paymentId = $callbackData['paymentID'] ?? $callbackData['session_id'] ?? '';
+        $paymentIdStr = is_scalar($paymentId) ? (string) $paymentId : '';
         
-        if (str_starts_with((string)$paymentId, 'GPAY_MOCK_')) {
+        if (str_starts_with($paymentIdStr, 'GPAY_MOCK_')) {
             $res = [
                 'success'        => true,
                 'gateway_trx_id' => 'GPAY_TRX_' . bin2hex(random_bytes(12)),
                 'status'         => 'success',
             ];
-            if (isset($callbackData['amount'])) {
+            if (isset($callbackData['amount']) && is_scalar($callbackData['amount'])) {
                 $res['amount'] = (string)$callbackData['amount'];
             }
             return $res;

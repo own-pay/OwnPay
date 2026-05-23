@@ -49,7 +49,8 @@ final class DeviceController
     private function getService(): ?\OwnPay\Service\Device\DevicePairingService
     {
         try {
-            return $this->c->get(\OwnPay\Service\Device\DevicePairingService::class);
+            $svc = $this->c->get(\OwnPay\Service\Device\DevicePairingService::class);
+            return $svc instanceof \OwnPay\Service\Device\DevicePairingService ? $svc : null;
         } catch (\Throwable) {
             return null;
         }
@@ -75,8 +76,14 @@ final class DeviceController
         }
 
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
         $list = $svc->listDevices($mid);
 
@@ -108,8 +115,14 @@ final class DeviceController
         }
 
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
         try {
             $result = $svc->generatePairingOtp($mid);
@@ -119,6 +132,9 @@ final class DeviceController
 
             // Generate QR Code SVG base64 URI
             $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+            if (!$urlService instanceof \OwnPay\Service\Domain\DomainUrlService) {
+                throw new \RuntimeException('DomainUrlService unavailable');
+            }
             $serverUrl = $urlService->resolveBaseUrl($mid, $req);
 
             $qrPayload = json_encode([
@@ -167,8 +183,14 @@ final class DeviceController
 
         $uuid = (string) $req->param('id');
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
         $svc->revoke($uuid, $mid);
         $this->session->flashSuccess('Device revoked');
@@ -191,15 +213,26 @@ final class DeviceController
         }
 
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
-        $ids = $req->post('device_ids') ?? [];
-        if (is_array($ids) && !empty($ids)) {
+        $idsVal = $req->post('device_ids', []);
+        $ids = is_array($idsVal) ? $idsVal : [];
+        if (!empty($ids)) {
+            $count = 0;
             foreach ($ids as $uuid) {
-                $svc->revoke((string) $uuid, $mid);
+                if (is_string($uuid)) {
+                    $svc->revoke($uuid, $mid);
+                    $count++;
+                }
             }
-            $this->session->flashSuccess(count($ids) . ' devices revoked.');
+            $this->session->flashSuccess($count . ' devices revoked.');
         } else {
             $this->session->flashError('No devices selected.');
         }
@@ -221,8 +254,14 @@ final class DeviceController
         }
 
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
         $devices = $svc->listDevices($mid);
         $activeCount = count(array_filter($devices, fn($d) => ($d['status'] ?? '') === 'active'));

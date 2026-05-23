@@ -71,13 +71,18 @@ final class ApiKeyController
     public function generate(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
-        $label = $req->post('label', 'Default');
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
+        $labelVal = $req->post('label', 'Default');
+        $label = is_string($labelVal) ? $labelVal : 'Default';
         $key = $this->keys->generate($mid, $label);
 
-        // Store generated key in session for one-time display in template.
-        // The developer hub template reads this and shows a professional copy panel.
         $_SESSION['_generated_api_key'] = $key['key'];
         $_SESSION['_generated_api_key_label'] = $label;
 
@@ -94,10 +99,17 @@ final class ApiKeyController
      */
     public function revoke(Request $req): Response
     {
-        $id = (int) $req->param('id');
+        $idVal = $req->param('id');
+        $id = (int)$idVal;
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
         $this->keys->revoke($mid, $id);
         $this->session->flashSuccess('API key revoked');
         return Response::redirect('/admin/settings#tab-api');

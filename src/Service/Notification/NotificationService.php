@@ -83,9 +83,15 @@ final class NotificationService
      */
     private function notifyAdmin(int $merchantId, string $event, array $data): void
     {
-        $title = $data['title'] ?? $event;
-        $message = $data['message'] ?? json_encode($data);
-        $severity = $data['severity'] ?? 'info';
+        $titleVal = $data['title'] ?? $event;
+        $title = is_scalar($titleVal) ? (string) $titleVal : $event;
+        $messageVal = $data['message'] ?? null;
+        $message = is_scalar($messageVal) ? (string) $messageVal : json_encode($data);
+        if ($message === false) {
+            $message = '';
+        }
+        $severityVal = $data['severity'] ?? 'info';
+        $severity = is_scalar($severityVal) ? (string) $severityVal : 'info';
         $this->alerts->create($merchantId, $event, $title, $message, $severity);
     }
 
@@ -102,8 +108,12 @@ final class NotificationService
     private function notifyPush(int $merchantId, string $event, array $data): void
     {
         $deviceUuid = $data['device_uuid'] ?? null;
-        if ($deviceUuid !== null) {
-            $this->mobile->send($deviceUuid, $data['title'] ?? $event, $data['message'] ?? '', $data);
+        if (is_string($deviceUuid)) {
+            $titleVal = $data['title'] ?? $event;
+            $title = is_scalar($titleVal) ? (string) $titleVal : $event;
+            $bodyVal = $data['message'] ?? '';
+            $body = is_scalar($bodyVal) ? (string) $bodyVal : '';
+            $this->mobile->send($deviceUuid, $title, $body, $data);
         }
     }
 

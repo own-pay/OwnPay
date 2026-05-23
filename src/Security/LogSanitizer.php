@@ -84,7 +84,11 @@ final class LogSanitizer
 
             // Traverse nested arrays recursively.
             if (is_array($value)) {
-                $result[$key] = self::sanitize($value);
+                $stringKeyedValue = [];
+                foreach ($value as $k => $v) {
+                    $stringKeyedValue[(string) $k] = $v;
+                }
+                $result[$key] = self::sanitize($stringKeyedValue);
                 continue;
             }
 
@@ -163,7 +167,11 @@ final class LogSanitizer
     {
         $data = json_decode($json, true);
         if (is_array($data)) {
-            return json_encode($this->sanitizeArray($data)) ?: '{}';
+            $stringKeyed = [];
+            foreach ($data as $k => $v) {
+                $stringKeyed[(string) $k] = $v;
+            }
+            return json_encode($this->sanitizeArray($stringKeyed)) ?: '{}';
         }
         return $json;
     }

@@ -77,8 +77,11 @@ final class TwoFactorSetupController
                 $secret = $this->generateBase32Secret();
                 $this->userRepo->setTotpSecret($userId, $secret);
             }
-            $appName = rawurlencode($this->c->get('config.app')['name'] ?? 'OwnPay');
-            $email   = rawurlencode($user['email']);
+            $configApp = $this->c->get('config.app');
+            $configAppName = is_array($configApp) && isset($configApp['name']) && is_string($configApp['name']) ? $configApp['name'] : 'OwnPay';
+            $appName = rawurlencode($configAppName);
+            $userEmail = is_string($user['email'] ?? null) ? $user['email'] : '';
+            $email   = rawurlencode($userEmail);
             $qrUri   = "otpauth://totp/{$appName}:{$email}?secret={$secret}&issuer={$appName}&algorithm=SHA1&digits=6&period=30";
         }
 
@@ -137,10 +140,11 @@ final class TwoFactorSetupController
         if ($userId === null) {
             return Response::redirect('/admin/my-account/2fa');
         }
-        $password = $req->post('password', '');
+        $passwordRaw = $req->post('password', '');
+        $password = is_string($passwordRaw) ? $passwordRaw : '';
 
         $hash = $this->userRepo->getPasswordHash($userId);
-        if (!$hash || !password_verify($password, $hash)) {
+        if (!is_string($hash) || !password_verify($password, $hash)) {
             $this->session->flashError('Incorrect password.');
             return Response::redirect('/admin/my-account/2fa');
         }

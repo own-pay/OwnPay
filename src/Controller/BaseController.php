@@ -46,38 +46,52 @@ abstract class BaseController
         $events = $this->events();
 
         // Inject global template vars
-        $data['app_name'] = $this->container->get('config.app')['name'] ?? 'Own Pay';
-        $data['app_version'] = $this->container->get('config.app')['version'] ?? '0.1.0';
+        $configApp = $this->container->get('config.app');
+        $data['app_name'] = (is_array($configApp) && isset($configApp['name']) && is_string($configApp['name'])) ? $configApp['name'] : 'Own Pay';
+        $data['app_version'] = (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) ? $configApp['version'] : '0.1.0';
         $data['csrf_token'] = \OwnPay\Security\SecurityHelpers::csrfToken();
         
         $session = $this->container->has(\OwnPay\Service\Admin\AdminSession::class)
             ? $this->container->get(\OwnPay\Service\Admin\AdminSession::class)
             : null;
-        $data['current_user'] = [
-            'id' => $session?->userId(),
-            'name' => $session?->userName() ?? 'Admin',
-            'email' => $session?->userEmail() ?? '',
-        ];
-        $data['is_superadmin'] = $session?->isSuperadmin() ?? false;
+        if ($session instanceof \OwnPay\Service\Admin\AdminSession) {
+            $data['current_user'] = [
+                'id' => $session->userId(),
+                'name' => $session->userName(),
+                'email' => $session->userEmail(),
+            ];
+            $data['is_superadmin'] = $session->isSuperadmin();
+        } else {
+            $data['current_user'] = [
+                'id' => null,
+                'name' => 'Admin',
+                'email' => '',
+            ];
+            $data['is_superadmin'] = false;
+        }
         
         if ($this->container->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->container->get(\OwnPay\Service\Brand\BrandContext::class);
-            $data['brands'] = $brandCtx->getAllBrands();
-            $data['active_brand'] = $brandCtx->getActiveBrand();
-            $data['active_brand_id'] = $brandCtx->getActiveBrandId();
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $data['brands'] = $brandCtx->getAllBrands();
+                $data['active_brand'] = $brandCtx->getActiveBrand();
+                $data['active_brand_id'] = $brandCtx->getActiveBrandId();
+            }
         }
 
-        $flash = $session?->consumeFlash() ?? ['success' => null, 'error' => null];
-        $data['flash_success'] = $flash['success'];
-        $data['flash_error'] = $flash['error'];
+        $flash = ($session instanceof \OwnPay\Service\Admin\AdminSession) ? $session->consumeFlash() : ['success' => null, 'error' => null];
+        $data['flash_success'] = $flash['success'] ?? null;
+        $data['flash_error'] = $flash['error'] ?? null;
 
         // Allow plugins to modify data before render
-        $data = $events->applyFilter('admin.page.before_render', $data, $template);
+        $filteredData = $events->applyFilter('admin.page.before_render', $data, $template);
+        $data = is_array($filteredData) ? $filteredData : $data;
 
-        $html = $twig->render($template, $data);
+        $htmlVal = $twig->render($template, $data);
 
         // Allow plugins to modify rendered HTML
-        $html = $events->applyFilter('admin.page.after_render', $html, $template);
+        $filteredHtml = $events->applyFilter('admin.page.after_render', $htmlVal, $template);
+        $html = is_string($filteredHtml) ? $filteredHtml : $htmlVal;
 
         return Response::html($html, $status);
     }
@@ -167,7 +181,9 @@ abstract class BaseController
         $session = $this->container->has(\OwnPay\Service\Admin\AdminSession::class)
             ? $this->container->get(\OwnPay\Service\Admin\AdminSession::class)
             : null;
-        $session?->flash($type, $message);
+        if ($session instanceof \OwnPay\Service\Admin\AdminSession) {
+            $session->flash($type, $message);
+        }
     }
 
     /**
@@ -180,7 +196,10 @@ abstract class BaseController
         $session = $this->container->has(\OwnPay\Service\Admin\AdminSession::class)
             ? $this->container->get(\OwnPay\Service\Admin\AdminSession::class)
             : null;
-        return $session?->consumeFlash() ?? ['success' => null, 'error' => null];
+        if ($session instanceof \OwnPay\Service\Admin\AdminSession) {
+            return $session->consumeFlash();
+        }
+        return ['success' => null, 'error' => null];
     }
 
     // ——— DI Helpers ————————————————————————————————————————————
@@ -190,7 +209,11 @@ abstract class BaseController
      */
     protected function events(): EventManager
     {
-        return $this->container->get(EventManager::class);
+        $events = $this->container->get(EventManager::class);
+        if (!$events instanceof EventManager) {
+            throw new \RuntimeException('EventManager service not found.');
+        }
+        return $events;
     }
 
     /**
@@ -208,7 +231,12 @@ abstract class BaseController
      */
     protected function user(Request $request): ?array
     {
-        return $request->getAttribute('auth_user');
+        $userVal = $request->getAttribute('auth_user');
+        if (is_array($userVal)) {
+            /** @var array<string, mixed> $userVal */
+            return $userVal;
+        }
+        return null;
     }
 
     /**
@@ -218,6 +246,11 @@ abstract class BaseController
      */
     protected function merchant(Request $request): ?array
     {
-        return $request->getAttribute('merchant');
+        $merchantVal = $request->getAttribute('merchant');
+        if (is_array($merchantVal)) {
+            /** @var array<string, mixed> $merchantVal */
+            return $merchantVal;
+        }
+        return null;
     }
 }

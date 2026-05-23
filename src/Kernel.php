@@ -46,14 +46,22 @@ final class Kernel
             $request = Request::capture();
 
             // AUD-G4: system.request filter — plugins can modify request before processing
-            /** @var EventManager $events */
             $events = $this->container->get(EventManager::class);
-            $request = $events->applyFilter('system.request', $request);
+            if (!$events instanceof EventManager) {
+                throw new \RuntimeException("EventManager not found");
+            }
+            $filteredRequest = $events->applyFilter('system.request', $request);
+            if ($filteredRequest instanceof Request) {
+                $request = $filteredRequest;
+            }
 
             $response = $this->processRequest($request);
 
             // AUD-G4: system.response filter — plugins can modify response before send
-            $response = $events->applyFilter('system.response', $response, $request);
+            $filteredResponse = $events->applyFilter('system.response', $response, $request);
+            if ($filteredResponse instanceof Response) {
+                $response = $filteredResponse;
+            }
 
             $response->send();
 
@@ -88,9 +96,10 @@ final class Kernel
         // 2b. Bootstrap EnvironmentService with DB-backed persistence
         try {
             if ($this->container->has(\OwnPay\Repository\SettingsRepository::class)) {
-                \OwnPay\Service\System\EnvironmentService::boot(
-                    $this->container->get(\OwnPay\Repository\SettingsRepository::class)
-                );
+                $settingsRepo = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
+                if ($settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
+                    \OwnPay\Service\System\EnvironmentService::boot($settingsRepo);
+                }
             }
         } catch (\Throwable) {
             // DB not ready (install phase) — EnvironmentService stays in-memory mode
@@ -100,11 +109,19 @@ final class Kernel
         try {
             if ($this->container->has(\OwnPay\Core\Database::class)) {
                 $db = $this->container->get(\OwnPay\Core\Database::class);
-                if ($this->container->has(EventManager::class)) {
-                    $db->setEventManager($this->container->get(EventManager::class));
-                }
-                if ($this->container->has(\OwnPay\Plugin\PluginRegistry::class)) {
-                    $db->setPluginRegistry($this->container->get(\OwnPay\Plugin\PluginRegistry::class));
+                if ($db instanceof \OwnPay\Core\Database) {
+                    if ($this->container->has(EventManager::class)) {
+                        $events = $this->container->get(EventManager::class);
+                        if ($events instanceof EventManager) {
+                            $db->setEventManager($events);
+                        }
+                    }
+                    if ($this->container->has(\OwnPay\Plugin\PluginRegistry::class)) {
+                        $registry = $this->container->get(\OwnPay\Plugin\PluginRegistry::class);
+                        if ($registry instanceof \OwnPay\Plugin\PluginRegistry) {
+                            $db->setPluginRegistry($registry);
+                        }
+                    }
                 }
             }
         } catch (\Throwable) {
@@ -113,7 +130,11 @@ final class Kernel
 
         // 3. Set timezone
         $appConfig = $this->container->get('config.app');
-        date_default_timezone_set($appConfig['timezone']);
+        $tz = 'UTC';
+        if (is_array($appConfig) && isset($appConfig['timezone']) && is_string($appConfig['timezone'])) {
+            $tz = $appConfig['timezone'];
+        }
+        date_default_timezone_set($tz);
 
         // 4. Boot plugins FIRST — so they can register middleware filters
         // AUD-G1 fix: Moved plugin boot BEFORE middleware filter application.
@@ -134,12 +155,29 @@ final class Kernel
         $this->middlewareConfig = require $rootDir . '/config/middleware.php';
 
         // Apply filter — plugins can now modify this since they booted above
-        /** @var EventManager $events */
         $events = $this->container->get(EventManager::class);
-        $this->middlewareConfig = $events->applyFilter(
+        if (!$events instanceof EventManager) {
+            throw new \RuntimeException("EventManager not found");
+        }
+        $filteredPipeline = $events->applyFilter(
             'system.middleware.pipeline',
             $this->middlewareConfig
         );
+        if (is_array($filteredPipeline)) {
+            $validatedConfig = [];
+            foreach ($filteredPipeline as $group => $stack) {
+                if (is_string($group) && is_array($stack)) {
+                    $groupStack = [];
+                    foreach ($stack as $mw) {
+                        if (is_string($mw)) {
+                            $groupStack[] = $mw;
+                        }
+                    }
+                    $validatedConfig[$group] = $groupStack;
+                }
+            }
+            $this->middlewareConfig = $validatedConfig;
+        }
 
         // AUD-21 FIX: Assert security-critical middleware cannot be removed by plugins.
         $requiredAdmin = [
@@ -162,7 +200,8 @@ final class Kernel
         // Prevents JwtAuthMiddleware from returning 500 at runtime,
         // which leaks configuration state to attackers.
         if ($this->isInstalled()) {
-            $jwtSecret = getenv('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? '');
+            $jwtSecretRaw = getenv('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? '');
+            $jwtSecret = is_string($jwtSecretRaw) ? $jwtSecretRaw : '';
             if (strlen($jwtSecret) < 32) {
                 throw new \RuntimeException(
                     'JWT_SECRET must be set in .env and be at least 32 characters. '
@@ -172,14 +211,16 @@ final class Kernel
 
             // Validate APP_KEY and ENCRYPTION_KEY minimum entropy.
             // Keys shorter than 32 bytes provide insufficient cryptographic strength.
-            $appKey = getenv('APP_KEY') ?: ($_ENV['APP_KEY'] ?? '');
+            $appKeyRaw = getenv('APP_KEY') ?: ($_ENV['APP_KEY'] ?? '');
+            $appKey = is_string($appKeyRaw) ? $appKeyRaw : '';
             if (strlen($appKey) < 32) {
                 throw new \RuntimeException(
                     'APP_KEY must be at least 32 characters. '
                     . 'Generate with: php -r "echo base64_encode(random_bytes(32));"'
                 );
             }
-            $encKey = getenv('ENCRYPTION_KEY') ?: ($_ENV['ENCRYPTION_KEY'] ?? '');
+            $encKeyRaw = getenv('ENCRYPTION_KEY') ?: ($_ENV['ENCRYPTION_KEY'] ?? '');
+            $encKey = is_string($encKeyRaw) ? $encKeyRaw : '';
             if (strlen($encKey) < 32) {
                 throw new \RuntimeException(
                     'ENCRYPTION_KEY must be at least 32 characters. '
@@ -220,8 +261,17 @@ final class Kernel
         }
         if (file_exists($maintenanceLock) && !$pathAllowed) {
             $info = json_decode(file_get_contents($maintenanceLock) ?: '{}', true);
-            $retryAfter = (int) ($info['retry_after'] ?? 300);
-            $reason     = $info['reason'] ?? 'System maintenance in progress. Please try again shortly.';
+            if (!is_array($info)) {
+                $info = [];
+            }
+            $retryAfter = 300;
+            if (isset($info['retry_after']) && (is_int($info['retry_after']) || is_string($info['retry_after']) || is_numeric($info['retry_after']))) {
+                $retryAfter = (int) $info['retry_after'];
+            }
+            $reason = 'System maintenance in progress. Please try again shortly.';
+            if (isset($info['reason']) && is_string($info['reason'])) {
+                $reason = $info['reason'];
+            }
             if ($request->expectsJson()) {
                 return Response::maintenance($reason, $retryAfter);
             }
@@ -231,8 +281,10 @@ final class Kernel
             if ($this->container->has(\Twig\Environment::class)) {
                 try {
                     $twig = $this->container->get(\Twig\Environment::class);
-                    $html = $twig->render('error/503.twig', ['reason' => $reason, 'retry_after' => $retryAfter]);
-                    return Response::html($html, 503);
+                    if ($twig instanceof \Twig\Environment) {
+                        $html = $twig->render('error/503.twig', ['reason' => $reason, 'retry_after' => $retryAfter]);
+                        return Response::html($html, 503);
+                    }
                 } catch (\Throwable) { /* fall through */ }
             }
             return Response::html("<h1>Maintenance</h1><p>{$reason}</p>", 503);
@@ -251,7 +303,9 @@ final class Kernel
         // AUD-G4: system.route.matched action — plugins can react to route match
         // Useful for logging, analytics, access control, route-level caching
         $events = $this->container->get(EventManager::class);
-        $events->doAction('system.route.matched', $match, $request);
+        if ($events instanceof EventManager) {
+            $events->doAction('system.route.matched', $match, $request);
+        }
 
         // Run middleware pipeline
         $middlewareGroup = $match['middleware'];
@@ -371,9 +425,13 @@ final class Kernel
         http_response_code(500);
 
         // API requests get JSON (no sensitive data)
+        $accept = $_SERVER['HTTP_ACCEPT'] ?? '';
+        $uri = $_SERVER['REQUEST_URI'] ?? '';
+        $acceptStr = is_string($accept) ? $accept : '';
+        $uriStr = is_string($uri) ? $uri : '';
         if (
-            str_contains($_SERVER['HTTP_ACCEPT'] ?? '', 'application/json')
-            || str_contains($_SERVER['REQUEST_URI'] ?? '', '/api/')
+            str_contains($acceptStr, 'application/json')
+            || str_contains($uriStr, '/api/')
         ) {
             header('Content-Type: application/json; charset=UTF-8');
             $payload = ['success' => false, 'message' => 'Internal Server Error'];
@@ -392,8 +450,10 @@ final class Kernel
             if ($this->container->has(\Twig\Environment::class)) {
                 try {
                     $twig = $this->container->get(\Twig\Environment::class);
-                    echo $twig->render('error/500.twig');
-                    return;
+                    if ($twig instanceof \Twig\Environment) {
+                        echo $twig->render('error/500.twig');
+                        return;
+                    }
                 } catch (\Throwable) {
                     // Twig unavailable — fall through to inline
                 }
@@ -566,7 +626,9 @@ HTML;
 
     private function safeEnvName(): string
     {
-        return htmlspecialchars($_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production', ENT_QUOTES, 'UTF-8');
+        $rawEnv = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
+        $envStr = is_string($rawEnv) ? $rawEnv : 'production';
+        return htmlspecialchars($envStr, ENT_QUOTES, 'UTF-8');
     }
 
     /**

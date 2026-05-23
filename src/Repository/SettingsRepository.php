@@ -39,7 +39,8 @@ final class SettingsRepository extends BaseRepository
             "SELECT value FROM {$this->table} WHERE group_name = :g AND key_name = :k AND merchant_id IS NULL LIMIT 1",
             ['g' => $group, 'k' => $key]
         );
-        return $row['value'] ?? $default;
+        $val = $row['value'] ?? $default;
+        return is_scalar($val) ? (string) $val : null;
     }
 
     /**
@@ -78,7 +79,11 @@ final class SettingsRepository extends BaseRepository
         );
         $result = [];
         foreach ($rows as $row) {
-            $result[$row['key_name']] = $row['value'];
+            $k = $row['key_name'] ?? '';
+            $v = $row['value'] ?? '';
+            if (is_string($k) && is_scalar($v)) {
+                $result[$k] = (string) $v;
+            }
         }
         return $result;
     }
@@ -96,7 +101,8 @@ final class SettingsRepository extends BaseRepository
     {
         $this->db->transaction(function () use ($group, $keyValues) {
             foreach ($keyValues as $key => $value) {
-                $this->set($group, $key, (string) $value);
+                $vStr = is_scalar($value) ? (string) $value : '';
+                $this->set($group, $key, $vStr);
             }
         });
     }
@@ -136,7 +142,8 @@ final class SettingsRepository extends BaseRepository
             ['g' => $group, 'k' => $key, 'mid' => $merchantId]
         );
         if ($row !== null) {
-            return $row['value'];
+            $val = $row['value'] ?? null;
+            return is_scalar($val) ? (string) $val : null;
         }
         // Fall back to global
         return $this->get($group, $key, $default);
@@ -187,7 +194,8 @@ final class SettingsRepository extends BaseRepository
     {
         $this->db->transaction(function () use ($group, $keyValues, $merchantId) {
             foreach ($keyValues as $key => $value) {
-                $this->setScoped($group, $key, (string) $value, $merchantId);
+                $vStr = is_scalar($value) ? (string) $value : '';
+                $this->setScoped($group, $key, $vStr, $merchantId);
             }
         });
     }
@@ -209,7 +217,11 @@ final class SettingsRepository extends BaseRepository
             ['g' => $group, 'mid' => $merchantId]
         );
         foreach ($rows as $row) {
-            $result[$row['key_name']] = $row['value'];
+            $k = $row['key_name'] ?? '';
+            $v = $row['value'] ?? '';
+            if (is_string($k) && is_scalar($v)) {
+                $result[$k] = (string) $v;
+            }
         }
         return $result;
     }

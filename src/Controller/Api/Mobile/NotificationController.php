@@ -45,9 +45,11 @@ final class NotificationController
      */
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         // BUG-008 FIX: device_id is a UUID string — don't cast to int
-        $did = (string) $req->getAttribute('device_id');
+        $didVal = $req->getAttribute('device_id');
+        $did = is_string($didVal) ? $didVal : '';
         $notifs = $this->notifRepo->listForDevice($mid, $did);
         return Response::json(['success' => true, 'data' => $notifs]);
     }
@@ -67,13 +69,26 @@ final class NotificationController
     public function ack(Request $req): Response
     {
         $body = $req->json();
-        $ids = array_values(array_filter(array_map('intval', $body['ids'] ?? [])));
+        $bodyArr = is_array($body) ? $body : [];
+        $idsRaw = $bodyArr['ids'] ?? [];
+        $idsRaw = is_array($idsRaw) ? $idsRaw : [];
+
+        $ids = [];
+        foreach ($idsRaw as $idVal) {
+            if (is_int($idVal) || is_string($idVal) || is_numeric($idVal)) {
+                $ids[] = (int) $idVal;
+            }
+        }
+
         if (empty($ids)) {
             return Response::json(['success' => false, 'error' => 'ids required'], 422);
         }
 
-        $mid = (int) $req->getAttribute('merchant_id');
-        $did = (string) $req->getAttribute('device_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+        $didVal = $req->getAttribute('device_id');
+        $did = is_string($didVal) ? $didVal : '';
+        
         $count = $this->notifRepo->acknowledgeIds($ids, $mid, $did);
         return Response::json(['success' => true, 'acknowledged' => $count]);
     }

@@ -46,7 +46,8 @@ final class DeviceController
      */
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $list = $this->devices->listDevices($mid);
         return Response::json(['success' => true, 'data' => $list]);
     }
@@ -62,7 +63,8 @@ final class DeviceController
     {
         // BUG-47 FIX: Params were swapped — revoke(string $deviceUuid, int $merchantId)
         $deviceUuid = (string) $req->param('id');
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $this->devices->revoke($deviceUuid, $mid);
         return Response::json(['success' => true]);
     }

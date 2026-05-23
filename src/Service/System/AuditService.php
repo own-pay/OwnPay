@@ -55,6 +55,11 @@ final class AuditService
         ?array $oldValues = null,
         ?array $newValues = null
     ): void {
+        $ipVal = $_SERVER['REMOTE_ADDR'] ?? null;
+        $ip = is_scalar($ipVal) ? (string) $ipVal : null;
+        $uaVal = $_SERVER['HTTP_USER_AGENT'] ?? null;
+        $ua = is_scalar($uaVal) ? (string) $uaVal : null;
+
         $this->repo->record(
             $this->session?->activeBrandId() ?? $this->session?->merchantId(),
             $this->session?->userId(),
@@ -63,8 +68,8 @@ final class AuditService
             $entityId,
             $oldValues,
             $newValues,
-            $_SERVER['REMOTE_ADDR'] ?? null,
-            $_SERVER['HTTP_USER_AGENT'] ?? null
+            $ip,
+            $ua
         );
     }
 }

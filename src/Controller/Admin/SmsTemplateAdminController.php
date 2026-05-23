@@ -77,8 +77,14 @@ final class SmsTemplateAdminController
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
         $templates  = $this->tplRepo->listForAdmin($mid);
         $parsed     = $this->parsedRepo->forTenant($mid)->findUnmatched(100);
@@ -86,14 +92,18 @@ final class SmsTemplateAdminController
         $queueStats = $this->commRepo->getSmsQueueStats($mid);
 
         // Get gateway list for dropdown
-        $gateways = $this->c->get(\OwnPay\Core\Database::class)->fetchAll(
-            "SELECT slug, name FROM op_gateways WHERE status = 'active' ORDER BY name"
-        );
-        // Also manual gateways
-        $manualGateways = $this->c->get(\OwnPay\Core\Database::class)->fetchAll(
-            "SELECT slug, name FROM op_manual_gateways WHERE merchant_id = :mid AND status = 'active' ORDER BY name",
-            ['mid' => $mid]
-        );
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $gateways = [];
+        $manualGateways = [];
+        if ($db instanceof \OwnPay\Core\Database) {
+            $gateways = $db->fetchAll(
+                "SELECT slug, name FROM op_gateways WHERE status = 'active' ORDER BY name"
+            );
+            $manualGateways = $db->fetchAll(
+                "SELECT slug, name FROM op_manual_gateways WHERE merchant_id = :mid AND status = 'active' ORDER BY name",
+                ['mid' => $mid]
+            );
+        }
 
         return $this->renderAdminPage('admin/sms-center/index.twig', [
             'sms_templates'   => $templates,
@@ -116,17 +126,47 @@ final class SmsTemplateAdminController
     public function create(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
+
+        $postData = $req->post();
+        $data = is_array($postData) ? $postData : [];
+
+        $gatewaySlugVal = $data['gateway_slug'] ?? '';
+        $gatewaySlug = is_string($gatewaySlugVal) ? $gatewaySlugVal : '';
+
+        $senderPatternVal = $data['sender_pattern'] ?? '';
+        $senderPattern = is_string($senderPatternVal) ? $senderPatternVal : '';
+
+        $amountRegexVal = $data['amount_regex'] ?? '';
+        $amountRegex = is_string($amountRegexVal) ? $amountRegexVal : '';
+
+        $trxIdRegexVal = $data['trx_id_regex'] ?? '';
+        $trxIdRegex = is_string($trxIdRegexVal) ? $trxIdRegexVal : '';
+
+        $senderRegexVal = $data['sender_regex'] ?? '';
+        $senderRegex = is_string($senderRegexVal) ? $senderRegexVal : '';
+
+        $priorityVal = $data['priority'] ?? '10';
+        $priority = is_string($priorityVal) || is_int($priorityVal) ? (string) $priorityVal : '10';
+
+        $statusVal = $data['status'] ?? 'active';
+        $status = is_string($statusVal) ? $statusVal : 'active';
 
         $this->tplRepo->createTemplate($mid, [
-            'gateway_slug'   => $req->post('gateway_slug', ''),
-            'sender_pattern' => $req->post('sender_pattern', ''),
-            'amount_regex'   => $req->post('amount_regex', ''),
-            'trx_id_regex'   => $req->post('trx_id_regex', ''),
-            'sender_regex'   => $req->post('sender_regex', ''),
-            'priority'       => $req->post('priority', '10'),
-            'status'         => $req->post('status', 'active'),
+            'gateway_slug'   => $gatewaySlug,
+            'sender_pattern' => $senderPattern,
+            'amount_regex'   => $amountRegex,
+            'trx_id_regex'   => $trxIdRegex,
+            'sender_regex'   => $senderRegex,
+            'priority'       => $priority,
+            'status'         => $status,
         ]);
 
         $this->session->flashSuccess('Parsing template created.');
@@ -144,8 +184,14 @@ final class SmsTemplateAdminController
     {
         $id = (int) $req->param('id');
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
         $tpl = $this->tplRepo->findForAdmin($id, $mid);
         if (!$tpl) {
@@ -154,14 +200,38 @@ final class SmsTemplateAdminController
         }
 
         if ($req->method() === 'POST') {
+            $postData = $req->post();
+            $data = is_array($postData) ? $postData : [];
+
+            $gatewaySlugVal = $data['gateway_slug'] ?? '';
+            $gatewaySlug = is_string($gatewaySlugVal) ? $gatewaySlugVal : '';
+
+            $senderPatternVal = $data['sender_pattern'] ?? '';
+            $senderPattern = is_string($senderPatternVal) ? $senderPatternVal : '';
+
+            $amountRegexVal = $data['amount_regex'] ?? '';
+            $amountRegex = is_string($amountRegexVal) ? $amountRegexVal : '';
+
+            $trxIdRegexVal = $data['trx_id_regex'] ?? '';
+            $trxIdRegex = is_string($trxIdRegexVal) ? $trxIdRegexVal : '';
+
+            $senderRegexVal = $data['sender_regex'] ?? '';
+            $senderRegex = is_string($senderRegexVal) ? $senderRegexVal : '';
+
+            $priorityVal = $data['priority'] ?? '10';
+            $priority = is_string($priorityVal) || is_int($priorityVal) ? (string) $priorityVal : '10';
+
+            $statusVal = $data['status'] ?? 'active';
+            $status = is_string($statusVal) ? $statusVal : 'active';
+
             $this->tplRepo->updateTemplate($id, $mid, [
-                'gateway_slug'   => $req->post('gateway_slug', ''),
-                'sender_pattern' => $req->post('sender_pattern', ''),
-                'amount_regex'   => $req->post('amount_regex', ''),
-                'trx_id_regex'   => $req->post('trx_id_regex', ''),
-                'sender_regex'   => $req->post('sender_regex', ''),
-                'priority'       => $req->post('priority', '10'),
-                'status'         => $req->post('status', 'active'),
+                'gateway_slug'   => $gatewaySlug,
+                'sender_pattern' => $senderPattern,
+                'amount_regex'   => $amountRegex,
+                'trx_id_regex'   => $trxIdRegex,
+                'sender_regex'   => $senderRegex,
+                'priority'       => $priority,
+                'status'         => $status,
             ]);
 
             $this->session->flashSuccess('Template updated.');
@@ -169,13 +239,18 @@ final class SmsTemplateAdminController
         }
 
         // Get gateway list for dropdown
-        $gateways = $this->c->get(\OwnPay\Core\Database::class)->fetchAll(
-            "SELECT slug, name FROM op_gateways WHERE status = 'active' ORDER BY name"
-        );
-        $manualGateways = $this->c->get(\OwnPay\Core\Database::class)->fetchAll(
-            "SELECT slug, name FROM op_manual_gateways WHERE merchant_id = :mid AND status = 'active' ORDER BY name",
-            ['mid' => $mid]
-        );
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $gateways = [];
+        $manualGateways = [];
+        if ($db instanceof \OwnPay\Core\Database) {
+            $gateways = $db->fetchAll(
+                "SELECT slug, name FROM op_gateways WHERE status = 'active' ORDER BY name"
+            );
+            $manualGateways = $db->fetchAll(
+                "SELECT slug, name FROM op_manual_gateways WHERE merchant_id = :mid AND status = 'active' ORDER BY name",
+                ['mid' => $mid]
+            );
+        }
 
         return $this->renderAdminPage('admin/sms-center/edit.twig', [
             'template'    => $tpl,
@@ -195,8 +270,14 @@ final class SmsTemplateAdminController
     {
         $id = (int) $req->param('id');
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
         $this->tplRepo->deleteTemplate($id, $mid);
         $this->session->flashSuccess('Template deleted.');
@@ -211,9 +292,12 @@ final class SmsTemplateAdminController
      */
     public function testRegex(Request $req): Response
     {
-        $smsBody  = $req->post('sms_body', '');
-        $regex    = $req->post('regex', '');
-        $field    = $req->post('field', 'amount'); // amount, trx_id, sender
+        $smsBodyRaw  = $req->post('sms_body', '');
+        $smsBody = is_string($smsBodyRaw) ? $smsBodyRaw : '';
+        $regexRaw    = $req->post('regex', '');
+        $regex = is_string($regexRaw) ? $regexRaw : '';
+        $fieldRaw    = $req->post('field', 'amount'); // amount, trx_id, sender
+        $field = is_string($fieldRaw) ? $fieldRaw : 'amount';
 
         if (empty($regex) || empty($smsBody)) {
             return Response::json(['success' => false, 'error' => 'Both SMS body and regex required.']);
@@ -246,9 +330,12 @@ final class SmsTemplateAdminController
      */
     public function analyze(Request $req): Response
     {
-        $body   = $req->post();
-        $rawSms = trim($body['raw_sms'] ?? '');
-        $sender = trim($body['sender'] ?? '');
+        $postData = $req->post();
+        $body = is_array($postData) ? $postData : [];
+        $rawSmsVal = $body['raw_sms'] ?? '';
+        $rawSms = trim(is_string($rawSmsVal) ? $rawSmsVal : '');
+        $senderVal = $body['sender'] ?? '';
+        $sender = trim(is_string($senderVal) ? $senderVal : '');
 
         if ($rawSms === '') {
             return Response::json(['success' => false, 'error' => 'Please paste the SMS body.']);
@@ -259,8 +346,14 @@ final class SmsTemplateAdminController
 
         // Load sender whitelist from DB for current brand (case-sensitive exact match)
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
         $whitelist = $this->tplRepo->getSenderWhitelist($mid);
 
         $analyzer = new SmartSmsAnalyzer($whitelist);
@@ -281,9 +374,12 @@ final class SmsTemplateAdminController
      */
     public function aiPrompt(Request $req): Response
     {
-        $body   = $req->post();
-        $rawSms = trim($body['raw_sms'] ?? '');
-        $sender = trim($body['sender'] ?? '');
+        $postData = $req->post();
+        $body = is_array($postData) ? $postData : [];
+        $rawSmsVal = $body['raw_sms'] ?? '';
+        $rawSms = trim(is_string($rawSmsVal) ? $rawSmsVal : '');
+        $senderVal = $body['sender'] ?? '';
+        $sender = trim(is_string($senderVal) ? $senderVal : '');
 
         if ($rawSms === '') {
             return Response::json(['success' => false, 'error' => 'Please paste the SMS body.']);
@@ -310,28 +406,43 @@ final class SmsTemplateAdminController
     public function saveAnalysis(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
-        $data = $req->post();
-        $gatewaySlug   = trim($data['gateway_slug'] ?? '');
-        $senderPattern = trim($data['sender_pattern'] ?? '');
-        $amountRegex   = trim($data['amount_regex'] ?? '');
-        $trxIdRegex    = trim($data['trx_id_regex'] ?? '');
-        $senderRegex   = trim($data['sender_regex'] ?? '');
+        $postData = $req->post();
+        $data = is_array($postData) ? $postData : [];
+        $gatewaySlugVal   = $data['gateway_slug'] ?? '';
+        $gatewaySlug   = trim(is_string($gatewaySlugVal) ? $gatewaySlugVal : '');
+        $senderPatternVal = $data['sender_pattern'] ?? '';
+        $senderPattern = trim(is_string($senderPatternVal) ? $senderPatternVal : '');
+        $amountRegexVal   = $data['amount_regex'] ?? '';
+        $amountRegex   = trim(is_string($amountRegexVal) ? $amountRegexVal : '');
+        $trxIdRegexVal    = $data['trx_id_regex'] ?? '';
+        $trxIdRegex    = trim(is_string($trxIdRegexVal) ? $trxIdRegexVal : '');
+        $senderRegexVal   = $data['sender_regex'] ?? '';
+        $senderRegex   = trim(is_string($senderRegexVal) ? $senderRegexVal : '');
 
         if ($gatewaySlug === '') {
             $this->session->flashError('Gateway slug is required');
             return Response::redirect('/admin/sms-center');
         }
 
+        $priorityVal = $data['priority'] ?? 10;
+        $priority = is_scalar($priorityVal) && is_numeric($priorityVal) ? (int) $priorityVal : 10;
+
         $this->tplRepo->createTemplate($mid, [
             'gateway_slug'   => $gatewaySlug,
-            'sender_pattern' => $senderPattern ?: $gatewaySlug,
-            'amount_regex'   => $amountRegex ?: '',
-            'trx_id_regex'   => $trxIdRegex ?: '',
-            'sender_regex'   => $senderRegex ?: '',
-            'priority'       => (int) ($data['priority'] ?? 10),
+            'sender_pattern' => $senderPattern !== '' ? $senderPattern : $gatewaySlug,
+            'amount_regex'   => $amountRegex,
+            'trx_id_regex'   => $trxIdRegex,
+            'sender_regex'   => $senderRegex,
+            'priority'       => $priority,
             'status'         => 'active',
         ]);
 

@@ -65,7 +65,9 @@ final class CoreExtension extends AbstractExtension
      */
     public function renderFooter(string $extraClass = ''): string
     {
-        $appUrl = rtrim($_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: $this->appUrl, '/');
+        $rawUrl = $_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: $this->appUrl;
+        $urlStr = is_string($rawUrl) ? $rawUrl : '';
+        $appUrl = rtrim($urlStr, '/');
 
         $token = hash('sha256', $this->appVersion . '|' . $appUrl . '|ownpay-footer');
 

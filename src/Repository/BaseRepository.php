@@ -153,10 +153,11 @@ abstract class BaseRepository
         $perPage = (int) $perPage;
         $offset = ($page - 1) * $perPage;
 
-        $total = (int) $this->db->fetchColumn(
+        $totalVal = $this->db->fetchColumn(
             "SELECT COUNT(*) FROM {$this->table} WHERE {$where}",
             $params
         );
+        $total = is_scalar($totalVal) ? (int) $totalVal : 0;
 
         $items = $this->db->fetchAll(
             "SELECT * FROM {$this->table} WHERE {$where} ORDER BY {$safeOrder} LIMIT :lim OFFSET :off",
@@ -199,11 +200,16 @@ abstract class BaseRepository
             array_pop($items);
         }
 
+        $nextCursor = null;
+        if ($hasMore && !empty($items)) {
+            $lastItem = $items[array_key_last($items)];
+            $pkVal = $lastItem[$this->primaryKey] ?? '';
+            $nextCursor = is_scalar($pkVal) ? (string) $pkVal : null;
+        }
+
         return [
             'items'       => $items,
-            'next_cursor' => $hasMore && !empty($items)
-                ? (string) $items[array_key_last($items)][$this->primaryKey]
-                : null,
+            'next_cursor' => $nextCursor,
         ];
     }
 

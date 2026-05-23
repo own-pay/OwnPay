@@ -79,11 +79,28 @@ final class GatewayBridge
         $credentials = $this->decryptCredentials($gatewaySlug, $merchantId);
 
         // Pre-capture filter
-        $params = $this->events->applyFilter('gateway.capture.before', $params, $gatewaySlug, $merchantId);
+        $filteredParams = $this->events->applyFilter('gateway.capture.before', $params, $gatewaySlug, $merchantId);
 
-        $result = $adapter->initiate($params, $credentials);
+        if (!is_array($filteredParams) ||
+            !isset($filteredParams['amount']) || !is_string($filteredParams['amount']) ||
+            !isset($filteredParams['currency']) || !is_string($filteredParams['currency']) ||
+            !isset($filteredParams['trx_id']) || !is_string($filteredParams['trx_id']) ||
+            !isset($filteredParams['redirect_url']) || !is_string($filteredParams['redirect_url']) ||
+            !isset($filteredParams['cancel_url']) || !is_string($filteredParams['cancel_url'])) {
+            throw new \RuntimeException("Invalid payment parameters structure");
+        }
 
-        $this->events->doAction('gateway.capture.after', $gatewaySlug, $result, $params);
+        $metadata = $filteredParams['metadata'] ?? null;
+        if ($metadata !== null && !is_array($metadata)) {
+            unset($filteredParams['metadata']);
+        }
+
+        /** @var array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url: string, metadata?: array<string, mixed>} $paramsChecked */
+        $paramsChecked = $filteredParams;
+
+        $result = $adapter->initiate($paramsChecked, $credentials);
+
+        $this->events->doAction('gateway.capture.after', $gatewaySlug, $result, $paramsChecked);
 
         return $result;
     }
@@ -221,6 +238,16 @@ final class GatewayBridge
         }
 
         $decrypted = $this->encryptor->decrypt($credentialsEnc);
-        return json_decode($decrypted, true) ?: [];
+        $decoded = json_decode($decrypted, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+        $result = [];
+        foreach ($decoded as $k => $v) {
+            if (is_string($k) && is_scalar($v)) {
+                $result[$k] = (string) $v;
+            }
+        }
+        return $result;
     }
 }

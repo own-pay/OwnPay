@@ -95,20 +95,23 @@ final class BrandThemeService
         $fallbackFavicon = $brandingSettings['site_favicon'] ?? '';
 
         // Unpack merchant-specific JSON metadata settings overrides
-        $merchantJsonSettings = json_decode($merchant['settings'] ?? '{}', true) ?: [];
+        $settingsStr = $merchant['settings'] ?? '{}';
+        $settingsStr = is_string($settingsStr) ? $settingsStr : '{}';
+        $merchantJsonSettings = json_decode($settingsStr, true);
+        $merchantJsonSettings = is_array($merchantJsonSettings) ? $merchantJsonSettings : [];
 
-        $merchantLogo = !empty($merchant['logo_path']) ? $merchant['logo_path'] : $fallbackLogo;
+        $merchantLogo = !empty($merchant['logo_path']) && is_string($merchant['logo_path']) ? $merchant['logo_path'] : $fallbackLogo;
 
         return [
-            'name'           => $merchant['name'] ?? $globalSettings['app_name'] ?? 'Own Pay',
+            'name'           => is_scalar($merchant['name'] ?? null) ? (string) $merchant['name'] : ($globalSettings['app_name'] ?? 'Own Pay'),
             'logo'           => $this->resolveVal($brandSettings, $merchantJsonSettings, 'logo', $merchantLogo),
             'favicon'        => $this->resolveVal($brandSettings, $merchantJsonSettings, 'favicon', $fallbackFavicon),
-            'color'          => $this->resolveVal($brandSettings, $merchantJsonSettings, 'primary_color', $themeSettings['primary_color'] ?? '#0D9488'),
-            'accent_color'   => $this->resolveVal($brandSettings, $merchantJsonSettings, 'accent_color', $themeSettings['accent_color'] ?? '#0F766E'),
-            'support_email'  => $this->resolveVal($brandSettings, $merchantJsonSettings, 'support_email', $globalSettings['support_email'] ?? ''),
-            'custom_css'     => $brandSettings['custom_css'] ?? $merchantJsonSettings['custom_css'] ?? '',
-            'custom_js'      => $brandSettings['custom_js'] ?? $merchantJsonSettings['custom_js'] ?? '',
-            'footer_text'    => $this->resolveVal($brandSettings, $merchantJsonSettings, 'footer_text', 'Secured by ' . ($merchant['name'] ?? 'Own Pay') . ' · 256-bit encryption'),
+            'color'          => $this->resolveVal($brandSettings, $merchantJsonSettings, 'primary_color', (string) ($themeSettings['primary_color'] ?? '#0D9488')),
+            'accent_color'   => $this->resolveVal($brandSettings, $merchantJsonSettings, 'accent_color', (string) ($themeSettings['accent_color'] ?? '#0F766E')),
+            'support_email'  => $this->resolveVal($brandSettings, $merchantJsonSettings, 'support_email', (string) ($globalSettings['support_email'] ?? '')),
+            'custom_css'     => $this->resolveVal($brandSettings, $merchantJsonSettings, 'custom_css', ''),
+            'custom_js'      => $this->resolveVal($brandSettings, $merchantJsonSettings, 'custom_js', ''),
+            'footer_text'    => $this->resolveVal($brandSettings, $merchantJsonSettings, 'footer_text', 'Secured by ' . (is_scalar($merchant['name'] ?? null) ? (string) $merchant['name'] : 'Own Pay') . ' · 256-bit encryption'),
             'show_powered_by'=> (bool) ($brandSettings['show_powered_by'] ?? $merchantJsonSettings['show_powered_by'] ?? true),
         ];
     }
@@ -128,7 +131,11 @@ final class BrandThemeService
 
         $settings = [];
         foreach ($rows as $row) {
-            $settings[$row['key_name']] = $row['value'];
+            $k = $row['key_name'] ?? '';
+            $v = $row['value'] ?? '';
+            if (is_string($k) && is_scalar($v)) {
+                $settings[$k] = (string) $v;
+            }
         }
         return $settings;
     }
@@ -152,8 +159,9 @@ final class BrandThemeService
         if (!empty($brandSettings[$key])) {
             return $brandSettings[$key];
         }
-        if (!empty($merchantSettings[$key])) {
-            return $merchantSettings[$key];
+        $val = $merchantSettings[$key] ?? null;
+        if (is_scalar($val) && $val !== '') {
+            return (string) $val;
         }
         return $fallback;
     }

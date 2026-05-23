@@ -48,9 +48,14 @@ final class CustomerController
      */
     public function index(Request $req): Response
     {
-        $mid  = (int) $req->getAttribute('merchant_id');
-        $page = max(1, (int) $req->query('page', '1'));
-        $perPage = min(100, max(1, (int) $req->query('per_page', '25')));
+        $midVal  = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+        
+        $pageVal = $req->query('page', '1');
+        $page = max(1, (is_int($pageVal) || is_string($pageVal)) ? (int) $pageVal : 1);
+        
+        $perPageVal = $req->query('per_page', '25');
+        $perPage = min(100, max(1, (is_int($perPageVal) || is_string($perPageVal)) ? (int) $perPageVal : 25));
 
         $result = $this->pii->list($mid, $page, $perPage);
 
@@ -80,7 +85,8 @@ final class CustomerController
     public function show(Request $req): Response
     {
         $identifier = trim($req->param('identifier'));
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
 
         if ($identifier === '') {
             return Response::json(['success' => false, 'error' => 'Identifier required'], 422);
@@ -111,17 +117,22 @@ final class CustomerController
      */
     public function create(Request $req): Response
     {
-        $mid  = (int) $req->getAttribute('merchant_id');
+        $midVal  = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $body = $req->json();
+        $bodyArr = is_array($body) ? $body : [];
 
-        if (empty($body['name'])) {
+        $nameVal = $bodyArr['name'] ?? null;
+        if (!is_string($nameVal) || trim($nameVal) === '') {
             return Response::json(['success' => false, 'error' => 'name required'], 422);
         }
 
         try {
             // Check duplicate before insert (email uniqueness per brand)
-            if (!empty($body['email'])) {
-                $existing = $this->pii->findByEmail($mid, $body['email']);
+            $emailVal = $bodyArr['email'] ?? '';
+            $email = is_string($emailVal) ? $emailVal : '';
+            if ($email !== '') {
+                $existing = $this->pii->findByEmail($mid, $email);
                 if ($existing) {
                     return Response::json([
                         'success' => false,
@@ -131,10 +142,13 @@ final class CustomerController
                 }
             }
 
+            $phoneVal = $bodyArr['phone'] ?? null;
+            $phone = (is_string($phoneVal) || is_int($phoneVal) || is_float($phoneVal)) ? (string) $phoneVal : null;
+
             $customer = $this->pii->create($mid, [
-                'name'  => InputSanitizer::string($body['name']),
-                'email' => $body['email'] ?? null,
-                'phone' => $body['phone'] ?? null,
+                'name'  => InputSanitizer::string($nameVal),
+                'email' => $email !== '' ? $email : null,
+                'phone' => $phone,
             ]);
 
             return Response::json([

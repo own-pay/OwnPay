@@ -48,7 +48,9 @@ final class InstallerController
         if ($this->isInstalled()) {
             return Response::html($this->renderPhpTemplate('install/locked.php', []));
         }
-        $step = max(1, min(4, (int) $req->query('step', '1')));
+        $stepQuery = $req->query('step', '1');
+        $stepVal = (is_int($stepQuery) || is_string($stepQuery) || is_numeric($stepQuery)) ? (int) $stepQuery : 1;
+        $step = max(1, min(4, $stepVal));
 
         // Prevent skipping steps — must complete prerequisites
         $tempEnv = $this->rootDir . '/storage/.env.temp';
@@ -75,13 +77,22 @@ final class InstallerController
         if ($this->isInstalled()) {
             return Response::json(['success' => false, 'error' => 'Already installed'], 403);
         }
-        $body   = $req->json();
-        $host   = trim($body['host']   ?? 'localhost');
-        $port   = (int) ($body['port'] ?? 3306);
-        $name   = trim($body['name']   ?? '');
-        $user   = trim($body['user']   ?? '');
-        $pass   = $body['pass']        ?? '';
-        $prefix = trim($body['prefix'] ?? 'op_');
+        $body = $req->json();
+        if (!is_array($body)) {
+            $body = [];
+        }
+        $hostVal   = $body['host']   ?? 'localhost';
+        $host      = trim(is_string($hostVal) ? $hostVal : 'localhost');
+        $portVal   = $body['port'] ?? 3306;
+        $port      = (is_int($portVal) || is_string($portVal) || is_numeric($portVal)) ? (int) $portVal : 3306;
+        $nameVal   = $body['name']   ?? '';
+        $name      = trim(is_string($nameVal) ? $nameVal : '');
+        $userVal   = $body['user']   ?? '';
+        $user      = trim(is_string($userVal) ? $userVal : '');
+        $passVal   = $body['pass']        ?? '';
+        $pass      = is_string($passVal) ? $passVal : '';
+        $prefixVal = $body['prefix'] ?? 'op_';
+        $prefix    = trim(is_string($prefixVal) ? $prefixVal : 'op_');
 
         if (!$name || !$user) {
             return Response::json(['success' => false, 'error' => 'DB name and user required'], 422);
@@ -165,11 +176,18 @@ final class InstallerController
         if ($this->isInstalled()) {
             return Response::json(['success' => false, 'error' => 'Already installed'], 403);
         }
-        $body     = $req->json();
-        $name     = trim($body['name']     ?? '');
-        $email    = trim($body['email']    ?? '');
-        $username = trim($body['username'] ?? '');
-        $password = $body['password']      ?? '';
+        $body = $req->json();
+        if (!is_array($body)) {
+            $body = [];
+        }
+        $nameVal     = $body['name']     ?? '';
+        $name        = trim(is_string($nameVal) ? $nameVal : '');
+        $emailVal    = $body['email']    ?? '';
+        $email       = trim(is_string($emailVal) ? $emailVal : '');
+        $usernameVal = $body['username'] ?? '';
+        $username    = trim(is_string($usernameVal) ? $usernameVal : '');
+        $passwordVal = $body['password']      ?? '';
+        $password    = is_string($passwordVal) ? $passwordVal : '';
 
         if (!$name || !$email || !$username || !$password) {
             return Response::json(['success' => false, 'error' => 'All fields required'], 422);
@@ -191,12 +209,18 @@ final class InstallerController
             if ($env === false) {
                 return Response::json(['success' => false, 'error' => 'Failed to parse database environment configuration.'], 500);
             }
-            $dbHost = $env['DB_HOST'] ?? 'localhost';
-            $dbPort = $env['DB_PORT'] ?? '3306';
-            $dbName = $env['DB_NAME'] ?? 'ownpay';
-            $dbUser = $env['DB_USER'] ?? 'root';
-            $dbPass = $env['DB_PASS'] ?? '';
-            $p      = $env['DB_PREFIX'] ?? 'op_';
+            $dbHostVal = $env['DB_HOST'] ?? 'localhost';
+            $dbHost = is_string($dbHostVal) ? $dbHostVal : 'localhost';
+            $dbPortVal = $env['DB_PORT'] ?? '3306';
+            $dbPort = is_string($dbPortVal) || is_int($dbPortVal) || is_numeric($dbPortVal) ? (string) $dbPortVal : '3306';
+            $dbNameVal = $env['DB_NAME'] ?? 'ownpay';
+            $dbName = is_string($dbNameVal) ? $dbNameVal : 'ownpay';
+            $dbUserVal = $env['DB_USER'] ?? 'root';
+            $dbUser = is_string($dbUserVal) ? $dbUserVal : 'root';
+            $dbPassVal = $env['DB_PASS'] ?? '';
+            $dbPass = is_string($dbPassVal) ? $dbPassVal : '';
+            $pVal      = $env['DB_PREFIX'] ?? 'op_';
+            $p         = is_string($pVal) ? $pVal : 'op_';
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
@@ -325,9 +349,16 @@ final class InstallerController
             return Response::json(['success' => false, 'error' => 'Already installed'], 403);
         }
         $body     = $req->json();
-        $appName  = trim($body['app_name']  ?? 'Own Pay');
-        $currency = trim($body['currency']  ?? 'BDT');
-        $timezone = trim($body['timezone']  ?? 'Asia/Dhaka');
+        $body = $req->json();
+        if (!is_array($body)) {
+            $body = [];
+        }
+        $appNameVal  = $body['app_name']  ?? 'Own Pay';
+        $appName     = trim(is_string($appNameVal) ? $appNameVal : 'Own Pay');
+        $currencyVal = $body['currency']  ?? 'BDT';
+        $currency    = trim(is_string($currencyVal) ? $currencyVal : 'BDT');
+        $timezoneVal = $body['timezone']  ?? 'Asia/Dhaka';
+        $timezone    = trim(is_string($timezoneVal) ? $timezoneVal : 'Asia/Dhaka');
 
         $tempEnv  = $this->rootDir . '/storage/.env.temp';
         $finalEnv = $this->rootDir . '/.env';
@@ -365,12 +396,24 @@ final class InstallerController
             if ($dbEnv === false) {
                 return Response::json(['success' => false, 'error' => 'Database config corrupted. Please go back to Step 2.'], 500);
             }
+            $dbHostVal = $dbEnv['DB_HOST'] ?? 'localhost';
+            $dbHost = is_string($dbHostVal) ? $dbHostVal : 'localhost';
+            $dbPortVal = $dbEnv['DB_PORT'] ?? '3306';
+            $dbPort = is_string($dbPortVal) || is_int($dbPortVal) || is_numeric($dbPortVal) ? (string) $dbPortVal : '3306';
+            $dbNameVal = $dbEnv['DB_NAME'] ?? 'ownpay';
+            $dbName = is_string($dbNameVal) ? $dbNameVal : 'ownpay';
+            $dbUserVal = $dbEnv['DB_USER'] ?? 'root';
+            $dbUser = is_string($dbUserVal) ? $dbUserVal : 'root';
+            $dbPassVal = $dbEnv['DB_PASS'] ?? '';
+            $dbPass = is_string($dbPassVal) ? $dbPassVal : '';
+            $pVal      = $dbEnv['DB_PREFIX'] ?? 'op_';
+            $p         = is_string($pVal) ? $pVal : 'op_';
+
             $pdo = new \PDO(
-                "mysql:host={$dbEnv['DB_HOST']};port={$dbEnv['DB_PORT']};dbname={$dbEnv['DB_NAME']};charset=utf8mb4",
-                $dbEnv['DB_USER'], $dbEnv['DB_PASS']
+                "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
+                $dbUser, $dbPass
             );
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-            $p = $dbEnv['DB_PREFIX'];
 
             $seeds = [
                 ['general',  'app_name',        $appName,                  'string'],

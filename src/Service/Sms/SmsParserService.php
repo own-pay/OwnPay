@@ -144,7 +144,9 @@ final class SmsParserService
         }
 
         try {
-            $deviceAesKey = $this->encryptor->decrypt($device['aes_key_encrypted']);
+            $aesKeyEncVal = $device['aes_key_encrypted'] ?? '';
+            $aesKeyEnc = is_scalar($aesKeyEncVal) ? (string) $aesKeyEncVal : '';
+            $deviceAesKey = $this->encryptor->decrypt($aesKeyEnc);
         } catch (\Throwable) {
             return $this->rejectAll($messages, 'KEY_DECRYPTION_FAILED');
         }
@@ -169,10 +171,14 @@ final class SmsParserService
      */
     private function processOne(string $deviceUuid, int $brandId, string $aesKeyHex, array $msg): array
     {
-        $localId    = $msg['local_id'] ?? null;
-        $encrypted  = $msg['encrypted_payload'] ?? '';
-        $sender     = trim($msg['sender'] ?? '');
-        $receivedAt = $this->normalizeTimestamp($msg['received_at'] ?? DateHelper::now());
+        $localIdVal = $msg['local_id'] ?? null;
+        $localId    = is_scalar($localIdVal) ? (int) $localIdVal : null;
+        $encryptedVal = $msg['encrypted_payload'] ?? '';
+        $encrypted  = is_scalar($encryptedVal) ? (string) $encryptedVal : '';
+        $senderVal  = $msg['sender'] ?? '';
+        $sender     = trim(is_scalar($senderVal) ? (string)$senderVal : '');
+        $receivedAtVal = $msg['received_at'] ?? DateHelper::now();
+        $receivedAt = $this->normalizeTimestamp(is_scalar($receivedAtVal) ? (string)$receivedAtVal : DateHelper::now());
 
         if ($encrypted === '' || $sender === '') {
             return $this->makeResult($localId, 'rejected', null, 'MISSING_FIELDS');
@@ -207,7 +213,11 @@ final class SmsParserService
      */
     private function rejectAll(array $messages, string $error): array
     {
-        return array_map(fn($m) => $this->makeResult($m['local_id'] ?? null, 'rejected', null, $error), $messages);
+        return array_map(function($m) use ($error) {
+            $lidVal = $m['local_id'] ?? null;
+            $lid = is_scalar($lidVal) ? (int)$lidVal : null;
+            return $this->makeResult($lid, 'rejected', null, $error);
+        }, $messages);
     }
 
     /**
@@ -298,8 +308,21 @@ final class SmsParserService
      */
     private function attemptParse(string $rawMessage, string $sender, int $brandId): ?array
     {
-        $templates = $this->templateRepo->findBySender($sender, $brandId);
-        $templates  = $this->events->applyFilter('mfs.templates', $templates);
+        $templatesVal = $this->templateRepo->findBySender($sender, $brandId);
+        $res = $this->events->applyFilter('mfs.templates', $templatesVal);
+        if (!is_array($res)) {
+            $res = [];
+        }
+        $templates = [];
+        foreach ($res as $item) {
+            if (is_array($item)) {
+                $itemMap = [];
+                foreach ($item as $k => $v) {
+                    $itemMap[(string)$k] = $v;
+                }
+                $templates[] = $itemMap;
+            }
+        }
 
         if (empty($templates)) {
             return null;
@@ -359,12 +382,21 @@ final class SmsParserService
             return;
         }
         try {
+            $pTypeVal = $parsed['parsed_type'] ?? 'unknown';
+            $pType = is_scalar($pTypeVal) ? (string) $pTypeVal : 'unknown';
+            $pAmt = $parsed['parsed_amount'];
+            $amountVal = (is_float($pAmt) || is_int($pAmt) || is_string($pAmt)) ? $pAmt : null;
+            $pSenderVal = $parsed['parsed_sender'] ?? null;
+            $pSender = is_scalar($pSenderVal) ? (string) $pSenderVal : null;
+            $pTrxIdVal = $parsed['parsed_trx_id'] ?? null;
+            $pTrxId = is_scalar($pTrxIdVal) ? (string) $pTrxIdVal : null;
+
             $this->notifService->queuePaymentNotification(
                 $deviceUuid,
-                $parsed['parsed_type'] ?? 'unknown',
-                $parsed['parsed_amount'],
-                $parsed['parsed_sender'] ?? null,
-                $parsed['parsed_trx_id'] ?? null,
+                $pType,
+                $amountVal,
+                $pSender,
+                $pTrxId,
                 $sender,
             );
         } catch (\Throwable $e) {

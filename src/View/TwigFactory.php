@@ -32,26 +32,31 @@ final class TwigFactory
     public static function create(Container $container): Environment
     {
         $config = $container->get('config.app');
-        $paths  = $config['paths'];
+        if (!is_array($config)) {
+            $config = [];
+        }
+        $paths = isset($config['paths']) && is_array($config['paths']) ? $config['paths'] : [];
 
         $loader = new FilesystemLoader();
 
-        $coreTemplates = $paths['templates'];
-        if (is_dir($coreTemplates)) {
+        $coreTemplates = isset($paths['templates']) && is_string($paths['templates']) ? $paths['templates'] : '';
+        if ($coreTemplates !== '' && is_dir($coreTemplates)) {
             $loader->addPath($coreTemplates);
         }
 
+        $modulesPath = isset($paths['modules']) && is_string($paths['modules']) ? $paths['modules'] : '';
+
         $activeTheme = self::resolveActiveTheme($container);
-        if ($activeTheme !== null) {
-            $themeDir = $paths['modules'] . '/themes/' . $activeTheme . '/templates';
+        if ($activeTheme !== null && $modulesPath !== '') {
+            $themeDir = $modulesPath . '/themes/' . $activeTheme . '/templates';
             if (is_dir($themeDir)) {
                 $loader->prependPath($themeDir);
                 $loader->addPath($themeDir, 'theme');
             }
         }
 
-        $themesDir = $paths['modules'] . '/themes';
-        if (is_dir($themesDir)) {
+        $themesDir = $modulesPath !== '' ? $modulesPath . '/themes' : '';
+        if ($themesDir !== '' && is_dir($themesDir)) {
             $themeDirs = glob($themesDir . '/*/templates');
             if (is_array($themeDirs)) {
                 foreach ($themeDirs as $dir) {
@@ -61,8 +66,8 @@ final class TwigFactory
             }
         }
 
-        $addonsDir = $paths['modules'] . '/addons';
-        if (is_dir($addonsDir)) {
+        $addonsDir = $modulesPath !== '' ? $modulesPath . '/addons' : '';
+        if ($addonsDir !== '' && is_dir($addonsDir)) {
             $addonViewDirs = glob($addonsDir . '/*/views');
             if (is_array($addonViewDirs)) {
                 foreach ($addonViewDirs as $dir) {
@@ -72,8 +77,8 @@ final class TwigFactory
             }
         }
 
-        $gatewaysDir = $paths['modules'] . '/gateways';
-        if (is_dir($gatewaysDir)) {
+        $gatewaysDir = $modulesPath !== '' ? $modulesPath . '/gateways' : '';
+        if ($gatewaysDir !== '' && is_dir($gatewaysDir)) {
             $gatewayViewDirs = glob($gatewaysDir . '/*/views');
             if (is_array($gatewayViewDirs)) {
                 foreach ($gatewayViewDirs as $dir) {
@@ -83,18 +88,24 @@ final class TwigFactory
             }
         }
 
+        $cachePath = isset($paths['cache']) && is_string($paths['cache']) ? $paths['cache'] : '';
+        $debug = (bool) ($config['debug'] ?? false);
+
         $twig = new Environment($loader, [
-            'cache'            => $paths['cache'] . '/twig',
-            'auto_reload'      => $config['debug'],
+            'cache'            => $cachePath !== '' ? $cachePath . '/twig' : false,
+            'auto_reload'      => $debug,
             'strict_variables' => true,
             'autoescape'       => 'html',
         ]);
 
         $twig->addExtension(new TwigExtensions($container));
 
-        $twig->addGlobal('app_name', $config['name'] ?? 'Own Pay');
-        $twig->addGlobal('app_version', $config['version'] ?? '0.1.0');
-        $twig->addGlobal('app_debug', $config['debug'] ?? false);
+        $appName = isset($config['name']) && is_string($config['name']) ? $config['name'] : 'Own Pay';
+        $appVersion = isset($config['version']) && is_string($config['version']) ? $config['version'] : '0.1.0';
+
+        $twig->addGlobal('app_name', $appName);
+        $twig->addGlobal('app_version', $appVersion);
+        $twig->addGlobal('app_debug', $debug);
 
         return $twig;
     }
@@ -117,9 +128,11 @@ final class TwigFactory
         try {
             if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
                 $settings = $container->get(\OwnPay\Repository\SettingsRepository::class);
-                $dbTheme = $settings->get('appearance', 'active_theme', '');
-                if ($dbTheme !== '') {
-                    $theme = $dbTheme;
+                if ($settings instanceof \OwnPay\Repository\SettingsRepository) {
+                    $dbTheme = $settings->get('appearance', 'active_theme', '');
+                    if (is_string($dbTheme) && $dbTheme !== '') {
+                        $theme = $dbTheme;
+                    }
                 }
             }
         } catch (\Throwable) {
@@ -127,18 +140,24 @@ final class TwigFactory
         }
 
         if ($theme === null) {
-            $theme = getenv('ACTIVE_THEME') ?: 'own-pay';
+            $envTheme = getenv('ACTIVE_THEME');
+            $theme = is_string($envTheme) && $envTheme !== '' ? $envTheme : 'own-pay';
         }
 
-        $paths = $container->get('config.app')['paths'];
-        $themeDir = $paths['modules'] . '/themes/' . $theme;
-        if (is_dir($themeDir)) {
-            return $theme;
-        }
+        $config = $container->get('config.app');
+        $paths = is_array($config) && isset($config['paths']) && is_array($config['paths']) ? $config['paths'] : [];
+        $modulesPath = isset($paths['modules']) && is_string($paths['modules']) ? $paths['modules'] : '';
 
-        $defaultDir = $paths['modules'] . '/themes/own-pay';
-        if (is_dir($defaultDir)) {
-            return 'own-pay';
+        if ($modulesPath !== '') {
+            $themeDir = $modulesPath . '/themes/' . $theme;
+            if (is_dir($themeDir)) {
+                return $theme;
+            }
+
+            $defaultDir = $modulesPath . '/themes/own-pay';
+            if (is_dir($defaultDir)) {
+                return 'own-pay';
+            }
         }
 
         return null;

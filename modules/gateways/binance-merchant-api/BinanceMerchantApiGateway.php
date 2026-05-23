@@ -74,8 +74,8 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
 
     public function initiate(array $params, array $credentials): array
     {
-        $apiKey = $credentials['merchant_api_key'] ?? '';
-        $apiSecret = $credentials['merchant_secret_key'] ?? '';
+        $apiKey = is_scalar($credentials['merchant_api_key'] ?? null) ? (string) $credentials['merchant_api_key'] : '';
+        $apiSecret = is_scalar($credentials['merchant_secret_key'] ?? null) ? (string) $credentials['merchant_secret_key'] : '';
         $currency = $credentials['payment_currency'] ?? 'USDT';
 
         $merchantTradeNo = uniqid('order_');
@@ -128,25 +128,30 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
         }
 
         $data = json_decode((string) $response, true);
-        if (($data['status'] ?? '') !== 'SUCCESS' || empty($data['data']['checkoutUrl'])) {
+        if (!is_array($data)) {
+            throw new \RuntimeException('Binance Pay order creation failed: ' . $response);
+        }
+        $innerData = $data['data'] ?? null;
+        if (($data['status'] ?? '') !== 'SUCCESS' || !is_array($innerData) || empty($innerData['checkoutUrl']) || !is_string($innerData['checkoutUrl'])) {
             throw new \RuntimeException('Binance Pay order creation failed: ' . $response);
         }
 
         return [
-            'redirect_url' => $data['data']['checkoutUrl'],
+            'redirect_url' => $innerData['checkoutUrl'],
             'session_id'   => $merchantTradeNo,
         ];
     }
 
     public function verify(array $callbackData, array $credentials): array
     {
-        $merchantTradeNo = $callbackData['session_id'] ?? '';
+        $rawTradeNo = $callbackData['session_id'] ?? '';
+        $merchantTradeNo = is_scalar($rawTradeNo) ? (string) $rawTradeNo : '';
         if ($merchantTradeNo === '') {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
         }
 
-        $apiKey = $credentials['merchant_api_key'] ?? '';
-        $apiSecret = $credentials['merchant_secret_key'] ?? '';
+        $apiKey = is_scalar($credentials['merchant_api_key'] ?? null) ? (string) $credentials['merchant_api_key'] : '';
+        $apiSecret = is_scalar($credentials['merchant_secret_key'] ?? null) ? (string) $credentials['merchant_secret_key'] : '';
 
         $payload = json_encode(['merchantTradeNo' => $merchantTradeNo]);
         $timestamp = round(microtime(true) * 1000);
@@ -184,15 +189,33 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
         }
 
-        $bizStatus = $data['data']['status'] ?? '';
+        $innerData = $data['data'] ?? null;
+        if (!is_array($innerData)) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
+        }
+
+        $bizStatus = isset($innerData['status']) && is_scalar($innerData['status']) ? (string) $innerData['status'] : '';
         $paid = $bizStatus === 'PAID' || $bizStatus === 'PAY_SUCCESS';
+
+        $transactionId = isset($innerData['transactionId']) && is_scalar($innerData['transactionId']) ? (string) $innerData['transactionId'] : $merchantTradeNo;
+        $orderAmount = isset($innerData['orderAmount']) && is_scalar($innerData['orderAmount']) ? (string) $innerData['orderAmount'] : '';
+        
+        $goods = $innerData['goods'] ?? null;
+        $refGoodsId = '';
+        if (is_array($goods) && isset($goods['referenceGoodsId']) && is_scalar($goods['referenceGoodsId'])) {
+            $refGoodsId = (string) $goods['referenceGoodsId'];
+        }
+        if ($refGoodsId === '') {
+            $cbTrxId = $callbackData['trx_id'] ?? '';
+            $refGoodsId = is_scalar($cbTrxId) ? (string) $cbTrxId : '';
+        }
 
         return [
             'success'        => $paid,
-            'gateway_trx_id' => $data['data']['transactionId'] ?? $merchantTradeNo,
-            'amount'         => $data['data']['orderAmount'] ?? null,
+            'gateway_trx_id' => $transactionId,
+            'amount'         => $orderAmount,
             'status'         => $paid ? 'completed' : 'failed',
-            'trx_id'         => $data['data']['goods']['referenceGoodsId'] ?? $callbackData['trx_id'] ?? '',
+            'trx_id'         => $refGoodsId,
         ];
     }
 }

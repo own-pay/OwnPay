@@ -32,7 +32,17 @@ class FieldEncryptor
      */
     public function __construct(?string $key = null)
     {
-        $this->key = $key ?? ($_ENV['ENCRYPTION_KEY'] ?? $_ENV['APP_KEY'] ?? (getenv('ENCRYPTION_KEY') ?: (getenv('APP_KEY') ?: '')));
+        $envKey = $_ENV['ENCRYPTION_KEY'] ?? $_ENV['APP_KEY'] ?? null;
+        $envKeyStr = is_string($envKey) ? $envKey : '';
+        if ($envKeyStr === '') {
+            $getenvKey = getenv('ENCRYPTION_KEY');
+            $envKeyStr = is_string($getenvKey) ? $getenvKey : '';
+        }
+        if ($envKeyStr === '') {
+            $getAppKey = getenv('APP_KEY');
+            $envKeyStr = is_string($getAppKey) ? $getAppKey : '';
+        }
+        $this->key = $key ?? $envKeyStr;
         if ($this->key === '') {
             throw new \RuntimeException('ENCRYPTION_KEY not configured');
         }
@@ -112,7 +122,12 @@ class FieldEncryptor
         // Key rotation support - try old key if current key fails.
         // Set ENCRYPTION_KEY_OLD in .env during rotation window.
         if ($plaintext === false) {
-            $oldKeyRaw = $_ENV['ENCRYPTION_KEY_OLD'] ?? (getenv('ENCRYPTION_KEY_OLD') ?: '');
+            $oldKeyRawVal = $_ENV['ENCRYPTION_KEY_OLD'] ?? null;
+            $oldKeyRaw = is_string($oldKeyRawVal) ? $oldKeyRawVal : '';
+            if ($oldKeyRaw === '') {
+                $getOldKey = getenv('ENCRYPTION_KEY_OLD');
+                $oldKeyRaw = is_string($getOldKey) ? $getOldKey : '';
+            }
             if ($oldKeyRaw !== '') {
                 $oldKey = hash('sha256', $oldKeyRaw, true);
                 $plaintext = openssl_decrypt(

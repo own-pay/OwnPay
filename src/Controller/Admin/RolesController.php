@@ -63,17 +63,26 @@ final class RolesController
     public function index(Request $req): Response
     {
         $brand = $this->c->get(BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
         $rolesData = $this->roles->forTenant($mid)->paginateScoped(1, 100);
-        $roles = $rolesData['items'] ?? $rolesData['data'] ?? [];
+        $roles = isset($rolesData['items']) && is_array($rolesData['items']) ? $rolesData['items'] : [];
 
         // Enrich with permission count
         foreach ($roles as &$r) {
-            $perms = $this->roles->getPermissions((int) $r['id']);
-            $r['permission_count'] = count($perms);
-            $r['permissions']      = $perms;
+            if (is_array($r)) {
+                $rId = $r['id'] ?? null;
+                $perms = is_scalar($rId) && is_numeric($rId) ? $this->roles->getPermissions((int) $rId) : [];
+                $r['permission_count'] = count($perms);
+                $r['permissions']      = $perms;
+            }
         }
         unset($r);
 
@@ -97,11 +106,19 @@ final class RolesController
     public function store(Request $req): Response
     {
         $brand = $this->c->get(BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
-        $name = trim($req->post('name') ?? '');
-        $desc = trim($req->post('description') ?? '');
+        $nameRaw = $req->post('name') ?? '';
+        $name = trim(is_string($nameRaw) ? $nameRaw : '');
+        $descRaw = $req->post('description') ?? '';
+        $desc = trim(is_string($descRaw) ? $descRaw : '');
 
         if ($name === '') {
             $this->session->flashError('Role name is required');
@@ -140,8 +157,14 @@ final class RolesController
     {
         $id    = (int) $req->param('id');
         $brand = $this->c->get(BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
         $role = $this->roles->forTenant($mid)->findScoped($id);
         if ($role === null) {
@@ -150,35 +173,49 @@ final class RolesController
         }
 
         // Update name/description
-        $name = trim($req->post('name') ?? $role['name']);
-        $desc = trim($req->post('description') ?? $role['description'] ?? '');
+        $roleName = is_string($role['name'] ?? null) ? $role['name'] : '';
+        $roleDesc = is_string($role['description'] ?? null) ? $role['description'] : '';
+        $nameRaw = $req->post('name') ?? $roleName;
+        $name = trim(is_string($nameRaw) ? $nameRaw : '');
+        $descRaw = $req->post('description') ?? $roleDesc;
+        $desc = trim(is_string($descRaw) ? $descRaw : '');
         $this->roles->forTenant($mid)->updateScoped($id, [
             'name'        => $name,
             'description' => $desc,
         ]);
 
         // Sync permissions
-        $permIds = array_map('intval', $req->post('permissions') ?? []);
+        $permsInput = $req->post('permissions');
+        $permsArray = is_array($permsInput) ? $permsInput : [];
+        $permIds = [];
+        foreach ($permsArray as $p) {
+            if (is_scalar($p) && is_numeric($p)) {
+                $permIds[] = (int) $p;
+            }
+        }
 
         // AUD-B5 fix: Prevent privilege escalation — non-superadmins can only
         // assign permissions they themselves hold.
         $isSuperadmin = !empty($_SESSION['is_superadmin']);
         if (!$isSuperadmin && !empty($permIds)) {
-            $userRoleId = (int) ($_SESSION['auth_role_id'] ?? 0);
+            $authRoleId = $_SESSION['auth_role_id'] ?? 0;
+            $userRoleId = is_scalar($authRoleId) && is_numeric($authRoleId) ? (int) $authRoleId : 0;
             $db = $this->c->get(\OwnPay\Core\Database::class);
-            $rows = $db->fetchAll(
-                "SELECT permission_id FROM op_role_permissions WHERE role_id = :rid",
-                ['rid' => $userRoleId]
-            );
-            $userPermIds = array_map(fn($r) => (int) $r['permission_id'], $rows);
-            $unauthorized = array_diff($permIds, $userPermIds);
-            if (!empty($unauthorized)) {
-                $this->session->flashError('Cannot assign permissions you do not hold');
-                return Response::redirect('/admin/roles');
+            if ($db instanceof \OwnPay\Core\Database) {
+                $rows = $db->fetchAll(
+                    "SELECT permission_id FROM op_role_permissions WHERE role_id = :rid",
+                    ['rid' => $userRoleId]
+                );
+                $userPermIds = array_map(fn($r) => isset($r['permission_id']) && is_numeric($r['permission_id']) ? (int) $r['permission_id'] : 0, $rows);
+                $unauthorized = array_diff($permIds, $userPermIds);
+                if (!empty($unauthorized)) {
+                    $this->session->flashError('Cannot assign permissions you do not hold');
+                    return Response::redirect('/admin/roles');
+                }
             }
         }
 
-        $this->roles->syncPermissions($id, array_values($permIds));
+        $this->roles->syncPermissions($id, $permIds);
 
         $this->session->flashSuccess("Role '{$name}' updated");
         return Response::redirect('/admin/roles');
@@ -195,8 +232,14 @@ final class RolesController
     {
         $id    = (int) $req->param('id');
         $brand = $this->c->get(BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
         $role = $this->roles->forTenant($mid)->findScoped($id);
         if ($role === null) {
@@ -209,8 +252,9 @@ final class RolesController
             return Response::redirect('/admin/roles');
         }
 
+        $roleName = is_string($role['name'] ?? null) ? $role['name'] : 'Unknown';
         $this->roles->forTenant($mid)->deleteScoped($id);
-        $this->session->flashSuccess("Role '{$role['name']}' deleted");
+        $this->session->flashSuccess("Role '{$roleName}' deleted");
         return Response::redirect('/admin/roles');
     }
 
@@ -225,7 +269,8 @@ final class RolesController
         $rows = $db->fetchAll("SELECT * FROM op_permissions ORDER BY group_name, slug");
         $grouped = [];
         foreach ($rows as $r) {
-            $grouped[$r['group_name'] ?? 'general'][] = $r;
+            $groupName = is_string($r['group_name'] ?? null) ? $r['group_name'] : 'general';
+            $grouped[$groupName][] = $r;
         }
         return $grouped;
     }

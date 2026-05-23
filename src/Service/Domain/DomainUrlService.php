@@ -126,12 +126,14 @@ final class DomainUrlService
 
         try {
             $domain = $this->domainRepo->forTenant($merchantId)->findActiveDomain();
-            $this->domainCache[$merchantId] = $domain ? $domain['domain'] : null;
+            $domainName = $domain['domain'] ?? null;
+            $this->domainCache[$merchantId] = is_string($domainName) ? $domainName : null;
         } catch (\Throwable) {
             $this->domainCache[$merchantId] = null;
         }
 
-        return $this->domainCache[$merchantId];
+        $res = $this->domainCache[$merchantId];
+        return is_string($res) ? $res : null;
     }
 
     /**
@@ -142,6 +144,7 @@ final class DomainUrlService
      */
     private function envGet(string $key): string
     {
-        return (string) ($_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: '');
+        $val = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key) ?: '';
+        return is_scalar($val) ? (string) $val : '';
     }
 }

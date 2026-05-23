@@ -85,16 +85,24 @@ final class WebhookDispatcher
         }
 
         foreach ($webhooks as $webhook) {
-            $subscribedEvents = json_decode($webhook['events'] ?? '[]', true) ?: [];
+            $eventsStr = $webhook['events'] ?? '[]';
+            $subscribedEvents = json_decode(is_string($eventsStr) ? $eventsStr : '[]', true);
+            $subscribedEvents = is_array($subscribedEvents) ? $subscribedEvents : [];
+
             if (!empty($subscribedEvents) && !in_array($event, $subscribedEvents, true) && !in_array('*', $subscribedEvents, true)) {
                 continue;
             }
 
-            $secret = $webhook['secret'] ?? '';
+            $secretVal = $webhook['secret'] ?? '';
+            $secret = is_string($secretVal) ? $secretVal : '';
             $signature = hash_hmac('sha256', $jsonPayload, $secret);
             $timestamp = time();
 
-            $this->sendWithRetry($webhook['url'], $jsonPayload, $signature, $timestamp, $merchantId, $event);
+            $urlVal = $webhook['url'] ?? '';
+            $url = is_string($urlVal) ? $urlVal : '';
+            if ($url !== '') {
+                $this->sendWithRetry($url, $jsonPayload, $signature, $timestamp, $merchantId, $event);
+            }
         }
     }
 
@@ -173,9 +181,13 @@ final class WebhookDispatcher
         if (!is_string($json)) {
             $json = '';
         }
-        $signature = $this->sign($json, (string) ($webhook['secret'] ?? ''));
+        $secretVal = $webhook['secret'] ?? '';
+        $secret = is_scalar($secretVal) ? (string) $secretVal : '';
+        $signature = $this->sign($json, $secret);
 
-        return $this->doSend($webhook['url'], $json, $signature, time());
+        $urlVal = $webhook['url'];
+        $url = is_string($urlVal) ? $urlVal : '';
+        return $this->doSend($url, $json, $signature, time());
     }
 
     /**

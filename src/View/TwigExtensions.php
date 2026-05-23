@@ -98,7 +98,8 @@ final class TwigExtensions extends AbstractExtension
         if (empty($_SESSION['_csrf_token'])) {
             $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
         }
-        return $_SESSION['_csrf_token'];
+        $token = $_SESSION['_csrf_token'];
+        return is_string($token) ? $token : '';
     }
 
     /**
@@ -120,7 +121,11 @@ final class TwigExtensions extends AbstractExtension
      */
     public function asset(string $path): string
     {
-        $version = $this->container->get('config.app')['version'] ?? '0.1.0';
+        $configApp = $this->container->get('config.app');
+        $version = '0.1.0';
+        if (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) {
+            $version = $configApp['version'];
+        }
         $cleanPath = ltrim($path, '/');
         return '/assets/' . $cleanPath . '?v=' . $version;
     }
@@ -210,7 +215,11 @@ final class TwigExtensions extends AbstractExtension
      */
     public function appName(): string
     {
-        return $this->container->get('config.app')['name'] ?? 'Own Pay';
+        $configApp = $this->container->get('config.app');
+        if (is_array($configApp) && isset($configApp['name']) && is_string($configApp['name'])) {
+            return $configApp['name'];
+        }
+        return 'Own Pay';
     }
 
     /**
@@ -220,7 +229,11 @@ final class TwigExtensions extends AbstractExtension
      */
     public function appVersion(): string
     {
-        return $this->container->get('config.app')['version'] ?? '0.1.0';
+        $configApp = $this->container->get('config.app');
+        if (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) {
+            return $configApp['version'];
+        }
+        return '0.1.0';
     }
 
     /**
@@ -246,7 +259,22 @@ final class TwigExtensions extends AbstractExtension
     {
         $flash = $_SESSION['_flash'] ?? [];
         unset($_SESSION['_flash']);
-        return $flash;
+        if (!is_array($flash)) {
+            return [];
+        }
+        $validated = [];
+        foreach ($flash as $key => $messages) {
+            if (is_string($key) && is_array($messages)) {
+                $msgList = [];
+                foreach ($messages as $msg) {
+                    if (is_string($msg)) {
+                        $msgList[] = $msg;
+                    }
+                }
+                $validated[$key] = $msgList;
+            }
+        }
+        return $validated;
     }
 
     /**

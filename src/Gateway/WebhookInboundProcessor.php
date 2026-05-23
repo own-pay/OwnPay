@@ -126,13 +126,17 @@ final class WebhookInboundProcessor
 
         // Parse
         $payload = json_decode($rawBody, true);
-        if ($payload === null) {
+        if (!is_array($payload)) {
             return $this->result(false, 'Invalid JSON payload.', $eventId);
+        }
+        $payloadChecked = [];
+        foreach ($payload as $k => $v) {
+            $payloadChecked[(string) $k] = $v;
         }
 
         // Record + route
         $this->recordEvent($merchantId, $eventId, $eventType, $payloadHash);
-        return $this->executeEvent($eventType, $payload, $merchantId, $eventId, $payloadHash);
+        return $this->executeEvent($eventType, $payloadChecked, $merchantId, $eventId, $payloadHash);
     }
 
     /**
@@ -304,15 +308,25 @@ final class WebhookInboundProcessor
     private function handlePaymentCompleted(array $payload, int $merchantId): void
     {
         $txn = $this->resolveTransaction($payload, $merchantId);
-        if ($txn['status'] !== 'completed') {
-            $this->transactionService->complete((int) $txn['id'], $merchantId);
-            $updatedTxn = $this->transactionRepo->forTenant($merchantId)->findScoped((int) $txn['id']);
+        if (!isset($txn['id']) || !is_scalar($txn['id'])) {
+            return;
+        }
+        $txnId = (int) $txn['id'];
+
+        if (isset($txn['status']) && $txn['status'] !== 'completed') {
+            $this->transactionService->complete($txnId, $merchantId);
+            $updatedTxn = $this->transactionRepo->forTenant($merchantId)->findScoped($txnId);
             if ($updatedTxn !== null) {
+                if (!isset($updatedTxn['id']) || !is_scalar($updatedTxn['id']) ||
+                    !isset($updatedTxn['amount']) || !is_scalar($updatedTxn['amount']) ||
+                    !isset($updatedTxn['currency']) || !is_scalar($updatedTxn['currency'])) {
+                    return;
+                }
                 $this->ledgerService->recordPaymentReceived(
                     $merchantId,
                     (int) $updatedTxn['id'],
                     (string) $updatedTxn['amount'],
-                    (string) ($updatedTxn['fee'] ?? '0.00'),
+                    isset($updatedTxn['fee']) && is_scalar($updatedTxn['fee']) ? (string) $updatedTxn['fee'] : '0.00',
                     (string) $updatedTxn['currency']
                 );
             }
@@ -329,16 +343,20 @@ final class WebhookInboundProcessor
      */
     private function handlePaymentStatusChange(array $payload, int $merchantId, string $status): void
     {
-        $reference = $payload['data']['reference'] ?? $payload['data']['transaction_id'] ?? '';
-        if (empty($reference)) return;
+        $data = $payload['data'] ?? null;
+        if (!is_array($data)) return;
+        $referenceVal = $data['reference'] ?? $data['transaction_id'] ?? null;
+        if (!is_string($referenceVal) || empty($referenceVal)) return;
 
-        $txn = $this->findTransaction($reference, $merchantId);
-        if ($txn === null || $txn['status'] === $status) return;
+        $txn = $this->findTransaction($referenceVal, $merchantId);
+        if ($txn === null || !isset($txn['id']) || !is_scalar($txn['id']) || (isset($txn['status']) && $txn['status'] === $status)) return;
+        
+        $txnId = (int) $txn['id'];
 
         match ($status) {
-            'failed'   => $this->transactionService->fail((int) $txn['id'], $merchantId, 'Webhook status update'),
-            'canceled' => $this->transactionService->cancel((int) $txn['id'], $merchantId),
-            default    => $this->transactionRepo->forTenant($merchantId)->updateScoped((int) $txn['id'], ['status' => $status]),
+            'failed'   => $this->transactionService->fail($txnId, $merchantId, 'Webhook status update'),
+            'canceled' => $this->transactionService->cancel($txnId, $merchantId),
+            default    => $this->transactionRepo->forTenant($merchantId)->updateScoped($txnId, ['status' => $status]),
         };
     }
 
@@ -351,18 +369,32 @@ final class WebhookInboundProcessor
      */
     private function handleRefundCompleted(array $payload, int $merchantId): void
     {
-        $reference = $payload['data']['reference'] ?? $payload['data']['transaction_id'] ?? '';
-        if (empty($reference)) return;
+        $data = $payload['data'] ?? null;
+        if (!is_array($data)) return;
+        $referenceVal = $data['reference'] ?? $data['transaction_id'] ?? null;
+        if (!is_string($referenceVal) || empty($referenceVal)) return;
 
-        $txn = $this->findTransaction($reference, $merchantId);
-        if ($txn !== null && $txn['status'] === 'completed') {
-            $this->transactionRepo->forTenant($merchantId)->updateScoped((int) $txn['id'], ['status' => 'refunded']);
-            $amount = (string) ($payload['data']['refund_amount'] ?? $payload['data']['amount'] ?? $txn['amount']);
+        $txn = $this->findTransaction($referenceVal, $merchantId);
+        if ($txn !== null && isset($txn['status']) && $txn['status'] === 'completed') {
+            if (!isset($txn['id']) || !is_scalar($txn['id']) || !isset($txn['currency']) || !is_scalar($txn['currency'])) {
+                return;
+            }
+            $txnId = (int) $txn['id'];
+            $txnCurrency = (string) $txn['currency'];
+            
+            $this->transactionRepo->forTenant($merchantId)->updateScoped($txnId, ['status' => 'refunded']);
+            
+            $refundAmountVal = $data['refund_amount'] ?? $data['amount'] ?? $txn['amount'] ?? null;
+            if ($refundAmountVal === null || !is_scalar($refundAmountVal)) {
+                return;
+            }
+            $amount = (string) $refundAmountVal;
+            
             $this->ledgerService->recordRefund(
                 $merchantId,
-                (int) $txn['id'],
+                $txnId,
                 $amount,
-                $txn['currency']
+                $txnCurrency
             );
         }
     }
@@ -390,10 +422,12 @@ final class WebhookInboundProcessor
      */
     private function resolveTransaction(array $payload, int $merchantId): array
     {
-        $reference = $payload['data']['reference'] ?? $payload['data']['transaction_id'] ?? '';
-        if (empty($reference)) throw new RuntimeException('Missing reference in payload.');
-        $txn = $this->findTransaction($reference, $merchantId);
-        if ($txn === null) throw new RuntimeException("Transaction not found: {$reference}");
+        $data = $payload['data'] ?? null;
+        if (!is_array($data)) throw new RuntimeException('Missing data in payload.');
+        $referenceVal = $data['reference'] ?? $data['transaction_id'] ?? null;
+        if (!is_string($referenceVal) || empty($referenceVal)) throw new RuntimeException('Missing reference in payload.');
+        $txn = $this->findTransaction($referenceVal, $merchantId);
+        if ($txn === null) throw new RuntimeException("Transaction not found: {$referenceVal}");
         return $txn;
     }
 
@@ -421,8 +455,8 @@ final class WebhookInboundProcessor
     {
         $headers = [];
         foreach ($_SERVER as $key => $value) {
-            if (str_starts_with($key, 'HTTP_')) {
-                $headers[str_replace('_', '-', substr($key, 5))] = $value;
+            if (str_starts_with($key, 'HTTP_') && is_scalar($value)) {
+                $headers[str_replace('_', '-', substr($key, 5))] = (string) $value;
             }
         }
         return $headers;

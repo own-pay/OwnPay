@@ -167,12 +167,22 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
         $response = curl_exec($ch);
         curl_close($ch);
         $data = json_decode((string) $response, true);
-
-        if (($data['status'] ?? '') !== 'SUCCESS') {
-            throw new \RuntimeException('SSLCommerz error: ' . ($data['failedreason'] ?? 'Unknown'));
+        if (!is_array($data)) {
+            throw new \RuntimeException('SSLCommerz error: Invalid response format');
         }
 
-        return ['redirect_url' => $data['GatewayPageURL'] ?? null];
+        $status = $data['status'] ?? '';
+        $statusStr = is_scalar($status) ? (string) $status : '';
+        if ($statusStr !== 'SUCCESS') {
+            $failedReason = $data['failedreason'] ?? 'Unknown';
+            $failedReasonStr = is_scalar($failedReason) ? (string) $failedReason : 'Unknown';
+            throw new \RuntimeException('SSLCommerz error: ' . $failedReasonStr);
+        }
+
+        $gatewayPageURL = $data['GatewayPageURL'] ?? null;
+        $gatewayPageURLStr = is_scalar($gatewayPageURL) ? (string) $gatewayPageURL : null;
+
+        return ['redirect_url' => $gatewayPageURLStr];
     }
 
     /**
@@ -200,12 +210,29 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
         curl_close($ch);
 
         $data = json_decode((string) $response, true);
-        $valid = ($data['status'] ?? '') === 'VALID' || ($data['status'] ?? '') === 'VALIDATED';
+        if (!is_array($data)) {
+            return [
+                'success'        => false,
+                'gateway_trx_id' => '',
+                'amount'         => null,
+                'status'         => 'failed',
+            ];
+        }
+        
+        $status = $data['status'] ?? '';
+        $statusStr = is_scalar($status) ? (string) $status : '';
+        $valid = $statusStr === 'VALID' || $statusStr === 'VALIDATED';
+
+        $bankTranId = $data['bank_tran_id'] ?? '';
+        $bankTranIdStr = is_scalar($bankTranId) ? (string) $bankTranId : '';
+
+        $amount = $data['amount'] ?? null;
+        $amountStr = is_scalar($amount) ? (string) $amount : null;
 
         return [
             'success'        => $valid,
-            'gateway_trx_id' => $data['bank_tran_id'] ?? '',
-            'amount'         => $data['amount'] ?? null,
+            'gateway_trx_id' => $bankTranIdStr,
+            'amount'         => $amountStr,
             'status'         => $valid ? 'completed' : 'failed',
         ];
     }

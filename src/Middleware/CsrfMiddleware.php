@@ -145,7 +145,8 @@ final class CsrfMiddleware
      */
     public function validate(string $token, ?Request $request = null): array
     {
-        $secret = $_ENV['APP_HMAC_SECRET'] ?? '';
+        $secretVal = $_ENV['APP_HMAC_SECRET'] ?? '';
+        $secret = is_string($secretVal) ? $secretVal : '';
         if ($secret !== '') {
             // HMAC mode — read from Request if available, else $_POST
             $appId = $request !== null ? ($request->post('op-app-id') ?? '') : ($_POST['op-app-id'] ?? '');

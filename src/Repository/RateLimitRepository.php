@@ -50,7 +50,8 @@ final class RateLimitRepository extends BaseRepository
                 "SELECT hits FROM {$this->table} WHERE key_name = :k AND expires_at > :now",
                 ['k' => $key, 'now' => $now]
             );
-            return (int) ($row['hits'] ?? 0);
+            $hitsVal = $row['hits'] ?? 0;
+            return is_scalar($hitsVal) ? (int) $hitsVal : 0;
         } catch (\PDOException $e) {
             return 0;
         }
@@ -72,7 +73,8 @@ final class RateLimitRepository extends BaseRepository
                 "SELECT hits FROM {$this->table} WHERE key_name = :k AND expires_at > :now",
                 ['k' => $key, 'now' => $now]
             );
-            $count = (int) ($row['hits'] ?? 0);
+            $hitsVal = $row['hits'] ?? 0;
+            $count = is_scalar($hitsVal) ? (int) $hitsVal : 0;
             return max(0, $limit - $count);
         } catch (\PDOException $e) {
             return $limit;

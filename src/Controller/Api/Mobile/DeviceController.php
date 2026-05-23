@@ -63,17 +63,27 @@ final class DeviceController
     public function pair(Request $req): Response
     {
         $body = $req->json();
-        if (empty($body['pairing_code']) || empty($body['device_id'])) {
+        $bodyArr = is_array($body) ? $body : [];
+        $pairingCodeVal = $bodyArr['pairing_code'] ?? null;
+        $pairingCode = is_string($pairingCodeVal) ? $pairingCodeVal : '';
+        $deviceIdVal = $bodyArr['device_id'] ?? null;
+        $deviceId = is_string($deviceIdVal) ? $deviceIdVal : '';
+
+        if ($pairingCode === '' || $deviceId === '') {
             return Response::json(['success' => false, 'error' => 'pairing_code and device_id required'], 422);
         }
 
         try {
+            $deviceNameVal = $bodyArr['device_name'] ?? 'Unknown';
+            $appVersionVal = $bodyArr['app_version'] ?? '1.0.0';
+            $platformVal = $bodyArr['platform'] ?? 'android';
+            
             $result = $this->devices->pairDevice(
-                InputSanitizer::string($body['pairing_code']),
-                InputSanitizer::string($body['device_name'] ?? 'Unknown'),
-                InputSanitizer::string($body['device_id']),
-                InputSanitizer::string($body['app_version'] ?? '1.0.0'),
-                InputSanitizer::string($body['platform'] ?? 'android')
+                InputSanitizer::string($pairingCode),
+                InputSanitizer::string(is_string($deviceNameVal) ? $deviceNameVal : 'Unknown'),
+                InputSanitizer::string($deviceId),
+                InputSanitizer::string(is_string($appVersionVal) ? $appVersionVal : '1.0.0'),
+                InputSanitizer::string(is_string($platformVal) ? $platformVal : 'android')
             );
 
             if (!$result['success']) {
@@ -103,8 +113,9 @@ final class DeviceController
      */
     public function heartbeat(Request $req): Response
     {
-        $deviceId = $req->getAttribute('device_id');
-        /** @phpstan-ignore-next-line */ $this->devices->heartbeat((string) $deviceId);
+        $deviceIdVal = $req->getAttribute('device_id');
+        $deviceId = is_string($deviceIdVal) ? $deviceIdVal : '';
+        $this->devices->heartbeat($deviceId);
         return Response::json(['success' => true, 'server_time' => DateHelper::iso()]);
     }
 
@@ -118,17 +129,20 @@ final class DeviceController
      */
     public function revoke(Request $req): Response
     {
-        $deviceId = (string) $req->getAttribute('device_id');
-        $mid      = (int) $req->getAttribute('merchant_id');
+        $deviceIdVal = $req->getAttribute('device_id');
+        $deviceId = is_string($deviceIdVal) ? $deviceIdVal : '';
+        $midVal      = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
 
         if (ctype_digit($deviceId)) {
             $device = $this->deviceRepo->forTenant($mid)->findScoped((int) $deviceId);
             if ($device !== null) {
-                $deviceId = (string) $device['device_id'];
+                $deviceUuidVal = $device['device_id'] ?? '';
+                $deviceId = is_string($deviceUuidVal) ? $deviceUuidVal : '';
             }
         }
 
-        $this->devices->revoke((string) $deviceId, $mid);
+        $this->devices->revoke($deviceId, $mid);
         return Response::json(['success' => true]);
     }
 
@@ -138,24 +152,26 @@ final class DeviceController
      * POST /api/mobile/v1/devices/bulk-revoke
      * Input Body: { device_ids: ["uuid1", "uuid2"] }
      *
-     * BUG-38 FIX: Accept string UUIDs, not integers.
-     * revoke() expects UUID strings; intval('uuid') = 0, filtering out all valid devices.
-     *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP response with the count of revoked devices.
      */
     public function bulkRevoke(Request $req): Response
     {
-        $mid  = (int) $req->getAttribute('merchant_id');
+        $midVal  = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $body = $req->json();
+        $bodyArr = is_array($body) ? $body : [];
 
-        $deviceIds = $body['device_ids'] ?? [];
+        $deviceIds = $bodyArr['device_ids'] ?? [];
         if (!is_array($deviceIds)) {
             return Response::json(['success' => false, 'error' => 'device_ids must be an array'], 422);
         }
 
         $ids  = array_filter(
-            array_map(fn($id) => InputSanitizer::string((string) $id), $deviceIds),
+            array_map(function($id) {
+                $idStr = is_string($id) ? $id : (is_scalar($id) ? (string) $id : '');
+                return InputSanitizer::string($idStr);
+            }, $deviceIds),
             fn($id) => $id !== ''
         );
         if (empty($ids)) {
@@ -186,13 +202,16 @@ final class DeviceController
     public function refresh(Request $req): Response
     {
         $body         = $req->json();
-        $refreshToken = trim($body['refresh_token'] ?? '');
+        $bodyArr      = is_array($body) ? $body : [];
+        $refreshTokenVal = $bodyArr['refresh_token'] ?? '';
+        $refreshToken = trim(is_string($refreshTokenVal) ? $refreshTokenVal : '');
 
         if ($refreshToken === '') {
             return Response::json(['success' => false, 'error' => 'refresh_token required'], 422);
         }
 
-        $fingerprint = $req->header('X-Device-Fingerprint') ?: $req->input('fingerprint') ?: '';
+        $fingerprintVal = $req->header('X-Device-Fingerprint') ?: $req->input('fingerprint') ?: '';
+        $fingerprint = is_string($fingerprintVal) ? $fingerprintVal : '';
         if ($fingerprint === '') {
             return Response::json(['success' => false, 'error' => 'Device fingerprint required'], 422);
         }
@@ -227,8 +246,10 @@ final class DeviceController
      */
     public function status(Request $req): Response
     {
-        $deviceId = (string) $req->getAttribute('device_id');
-        $mid      = (int)    $req->getAttribute('merchant_id');
+        $deviceIdVal = $req->getAttribute('device_id');
+        $deviceId = is_string($deviceIdVal) ? $deviceIdVal : '';
+        $midVal      = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
 
         $device = $this->deviceRepo->forTenant($mid)->findByDeviceId($deviceId);
 

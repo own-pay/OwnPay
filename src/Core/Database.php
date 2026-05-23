@@ -165,7 +165,14 @@ class Database
     {
         $stmt = $this->execute($sql, $params);
         $row = $stmt->fetch(PDO::FETCH_ASSOC);
-        return $row !== false ? $row : null;
+        if (is_array($row)) {
+            $mapped = [];
+            foreach ($row as $k => $v) {
+                $mapped[(string)$k] = $v;
+            }
+            return $mapped;
+        }
+        return null;
     }
 
     /**
@@ -397,7 +404,8 @@ class Database
             throw new \InvalidArgumentException('Invalid table name: ' . $table);
         }
         $sql = "SELECT COUNT(*) FROM {$table} WHERE {$where}";
-        return (int) $this->fetchColumn($sql, $params);
+        $val = $this->fetchColumn($sql, $params);
+        return is_scalar($val) ? (int) $val : 0;
     }
 
     /**

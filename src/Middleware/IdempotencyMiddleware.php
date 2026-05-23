@@ -61,12 +61,16 @@ final class IdempotencyMiddleware
             ], 400);
         }
 
-        $merchantId = (int) $request->getAttribute('merchant_id');
+        $midVal = $request->getAttribute('merchant_id');
+        $merchantId = is_scalar($midVal) ? (int) $midVal : 0;
         if ($merchantId <= 0) {
             return $next($request);
         }
 
         $svc = $this->container->get(IdempotencyService::class);
+        if (!$svc instanceof IdempotencyService) {
+            throw new \RuntimeException("IdempotencyService not found in container");
+        }
         
         // Compute request signature to prevent false replay collisions
         $requestHash = hash('sha256', $request->method() . "\n" . $request->uri() . "\n" . ($request->rawBody() ?? ''));
@@ -101,7 +105,8 @@ final class IdempotencyMiddleware
 
             // Only cache successful responses (2xx) — don't cache transient server errors
             if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
-                $body = json_decode($response->getBody(), true) ?: [];
+                $bodyDecoded = json_decode($response->getBody(), true);
+                $body = is_array($bodyDecoded) ? $bodyDecoded : [];
                 $svc->storeResponse($idempotencyKey, $merchantId, $response->getStatusCode(), $body);
             } else {
                 // Delete lock on non-2xx response status to allow retry

@@ -112,6 +112,9 @@ final class PluginManager
         }
 
         $loader = $this->container->get(PluginLoader::class);
+        if (!$loader instanceof PluginLoader) {
+            return ['success' => false, 'error' => 'PluginLoader not found'];
+        }
         $manifests = $loader->discover();
         $manifest = $manifests[$slug] ?? null;
 
@@ -148,6 +151,9 @@ final class PluginManager
         $plugin = $this->repo->findBySlug($slug);
         if ($plugin === null) {
             $loader = $this->container->get(PluginLoader::class);
+            if (!$loader instanceof PluginLoader) {
+                return ['success' => false, 'error' => 'PluginLoader not found'];
+            }
             $manifests = $loader->discover();
             $manifest = $manifests[$slug] ?? null;
 
@@ -201,13 +207,15 @@ final class PluginManager
 
         try {
             $loader = $this->container->get(PluginLoader::class);
-            $manifest = $loader->discover()[$slug] ?? null;
-            if ($manifest !== null) {
-                $entrypointFile = $manifest->path . '/' . $manifest->entrypoint;
-                if (file_exists($entrypointFile)) {
-                    $errors = $manifest->validate();
-                    if (!empty($errors)) {
-                        throw new \RuntimeException('Invalid manifest: ' . implode(', ', $errors));
+            if ($loader instanceof PluginLoader) {
+                $manifest = $loader->discover()[$slug] ?? null;
+                if ($manifest !== null) {
+                    $entrypointFile = $manifest->path . '/' . $manifest->entrypoint;
+                    if (file_exists($entrypointFile)) {
+                        $errors = $manifest->validate();
+                        if (!empty($errors)) {
+                            throw new \RuntimeException('Invalid manifest: ' . implode(', ', $errors));
+                        }
                     }
                 }
             }
@@ -257,9 +265,12 @@ final class PluginManager
 
             if ($plugin['type'] === 'gateway') {
                 $gwRepo = $this->container->get(GatewayRepository::class);
-                $gw = $gwRepo->findBySlug($slug);
-                if ($gw !== null) {
-                    $gwRepo->update((int) $gw['id'], ['status' => 'inactive']);
+                if ($gwRepo instanceof GatewayRepository) {
+                    $gw = $gwRepo->findBySlug($slug);
+                    if (is_array($gw) && isset($gw['id'])) {
+                        $gwId = is_numeric($gw['id']) ? (int) $gw['id'] : 0;
+                        $gwRepo->update($gwId, ['status' => 'inactive']);
+                    }
                 }
             }
         } else {
@@ -310,9 +321,11 @@ final class PluginManager
             // Roll back in batches.
         }
 
-        $this->installer->uninstall($slug, $plugin['type']);
+        $pluginType = is_string($plugin['type'] ?? null) ? $plugin['type'] : 'addon';
+        $this->installer->uninstall($slug, $pluginType);
 
-        $this->repo->delete((int) $plugin['id']);
+        $pluginId = is_numeric($plugin['id'] ?? null) ? (int) $plugin['id'] : 0;
+        $this->repo->delete($pluginId);
 
         $this->events->doAction('plugin.uninstalled', $slug);
 
@@ -327,12 +340,18 @@ final class PluginManager
     public function listAll(): array
     {
         $loader = $this->container->get(PluginLoader::class);
-        $discovered = $loader->discover();
+        $discovered = [];
+        if ($loader instanceof PluginLoader) {
+            $discovered = $loader->discover();
+        }
         $installed = [];
 
         $dbPlugins = $this->repo->paginate(1, 100);
         foreach ($dbPlugins['items'] as $p) {
-            $installed[$p['slug']] = $p;
+            $slug = is_string($p['slug'] ?? null) ? $p['slug'] : '';
+            if ($slug !== '') {
+                $installed[$slug] = $p;
+            }
         }
 
         return [
@@ -349,16 +368,22 @@ final class PluginManager
      */
     private function resolveDir(array $plugin): string
     {
-        $paths = $this->container->get('config.app')['paths'];
-        $typeDir = match ($plugin['type']) {
+        $configApp = $this->container->get('config.app');
+        $paths = is_array($configApp) && isset($configApp['paths']) && is_array($configApp['paths']) ? $configApp['paths'] : [];
+        $storagePath = is_string($paths['storage'] ?? null) ? $paths['storage'] : '';
+        $modulesPath = is_string($paths['modules'] ?? null) ? $paths['modules'] : '';
+
+        $type = is_string($plugin['type'] ?? null) ? $plugin['type'] : 'addon';
+        $typeDir = match ($type) {
             'gateway' => 'gateways',
             'theme'   => 'themes',
             default   => 'addons',
         };
+        $slug = is_string($plugin['slug'] ?? null) ? $plugin['slug'] : '';
         if (($plugin['status'] ?? '') === 'trashed') {
-            return $paths['storage'] . '/trash/plugins/' . $typeDir . '/' . $plugin['slug'];
+            return $storagePath . '/trash/plugins/' . $typeDir . '/' . $slug;
         }
-        return $paths['modules'] . '/' . $typeDir . '/' . $plugin['slug'];
+        return $modulesPath . '/' . $typeDir . '/' . $slug;
     }
 
     /**
@@ -388,15 +413,21 @@ final class PluginManager
             }
         }
 
-        $paths = $this->container->get('config.app')['paths'];
-        $typeDir = match ($plugin['type']) {
+        $configApp = $this->container->get('config.app');
+        $paths = is_array($configApp) && isset($configApp['paths']) && is_array($configApp['paths']) ? $configApp['paths'] : [];
+        $storagePath = is_string($paths['storage'] ?? null) ? $paths['storage'] : '';
+        $modulesPath = is_string($paths['modules'] ?? null) ? $paths['modules'] : '';
+
+        $type = is_string($plugin['type'] ?? null) ? $plugin['type'] : 'addon';
+        $typeDir = match ($type) {
             'gateway' => 'gateways',
             'theme'   => 'themes',
             default   => 'addons',
         };
 
-        $srcDir = $paths['modules'] . '/' . $typeDir . '/' . $plugin['slug'];
-        $destDir = $paths['storage'] . '/trash/plugins/' . $typeDir . '/' . $plugin['slug'];
+        $slugStr = is_string($plugin['slug'] ?? null) ? $plugin['slug'] : '';
+        $srcDir = $modulesPath . '/' . $typeDir . '/' . $slugStr;
+        $destDir = $storagePath . '/trash/plugins/' . $typeDir . '/' . $slugStr;
 
         if (!is_dir($srcDir)) {
             return ['success' => false, 'error' => 'Plugin files not found in modules path'];
@@ -415,7 +446,8 @@ final class PluginManager
         }
 
         // Update database status to trashed
-        $this->repo->update((int) $plugin['id'], ['status' => 'trashed']);
+        $pluginId = is_numeric($plugin['id'] ?? null) ? (int) $plugin['id'] : 0;
+        $this->repo->update($pluginId, ['status' => 'trashed']);
 
         $this->events->doAction('plugin.trashed', $slug);
 
@@ -439,15 +471,21 @@ final class PluginManager
             return ['success' => false, 'error' => 'Plugin is not in the trash'];
         }
 
-        $paths = $this->container->get('config.app')['paths'];
-        $typeDir = match ($plugin['type']) {
+        $configApp = $this->container->get('config.app');
+        $paths = is_array($configApp) && isset($configApp['paths']) && is_array($configApp['paths']) ? $configApp['paths'] : [];
+        $storagePath = is_string($paths['storage'] ?? null) ? $paths['storage'] : '';
+        $modulesPath = is_string($paths['modules'] ?? null) ? $paths['modules'] : '';
+
+        $type = is_string($plugin['type'] ?? null) ? $plugin['type'] : 'addon';
+        $typeDir = match ($type) {
             'gateway' => 'gateways',
             'theme'   => 'themes',
             default   => 'addons',
         };
 
-        $srcDir = $paths['storage'] . '/trash/plugins/' . $typeDir . '/' . $plugin['slug'];
-        $destDir = $paths['modules'] . '/' . $typeDir . '/' . $plugin['slug'];
+        $slugStr = is_string($plugin['slug'] ?? null) ? $plugin['slug'] : '';
+        $srcDir = $storagePath . '/trash/plugins/' . $typeDir . '/' . $slugStr;
+        $destDir = $modulesPath . '/' . $typeDir . '/' . $slugStr;
 
         if (!is_dir($srcDir)) {
             return ['success' => false, 'error' => 'Plugin files not found in trash path'];
@@ -470,7 +508,8 @@ final class PluginManager
         }
 
         // Update database status to inactive
-        $this->repo->update((int) $plugin['id'], ['status' => 'inactive']);
+        $pluginId = is_numeric($plugin['id'] ?? null) ? (int) $plugin['id'] : 0;
+        $this->repo->update($pluginId, ['status' => 'inactive']);
 
         $this->events->doAction('plugin.restored', $slug);
 
@@ -491,7 +530,9 @@ final class PluginManager
             \RecursiveIteratorIterator::CHILD_FIRST
         );
         foreach ($items as $item) {
-            $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+            if ($item instanceof \SplFileInfo) {
+                $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+            }
         }
         return @rmdir($dir);
     }
@@ -511,8 +552,10 @@ final class PluginManager
             \RecursiveIteratorIterator::SELF_FIRST
         );
         foreach ($items as $item) {
-            $target = $dst . '/' . $items->getSubPathname();
-            $item->isDir() ? @mkdir($target, 0755) : @copy($item->getPathname(), $target);
+            if ($item instanceof \SplFileInfo) {
+                $target = $dst . '/' . $items->getSubPathname();
+                $item->isDir() ? @mkdir($target, 0755) : @copy($item->getPathname(), $target);
+            }
         }
     }
 
@@ -528,25 +571,31 @@ final class PluginManager
     private function registerGatewayDefinition(string $slug, array $plugin): void
     {
         $gwRepo = $this->container->get(GatewayRepository::class);
+        if (!$gwRepo instanceof GatewayRepository) {
+            return;
+        }
         $existing = $gwRepo->findBySlug($slug);
 
-        if ($existing !== null) {
-            $loader = $this->container->get(PluginLoader::class);
+        $loader = $this->container->get(PluginLoader::class);
+        $manifest = null;
+        if ($loader instanceof PluginLoader) {
             $manifest = $loader->discover()[$slug] ?? null;
-            $logoPath = $this->resolveIconPath($slug, $plugin, $manifest);
-            $gwRepo->update((int) $existing['id'], [
+        }
+
+        $logoPath = $this->resolveIconPath($slug, $plugin, $manifest);
+
+        if ($existing !== null) {
+            $gwId = is_numeric($existing['id'] ?? null) ? (int) $existing['id'] : 0;
+            $gwRepo->update($gwId, [
                 'status'    => 'active',
                 'logo_path' => $logoPath,
             ]);
         } else {
-            $loader = $this->container->get(PluginLoader::class);
-            $manifest = $loader->discover()[$slug] ?? null;
-            $logoPath = $this->resolveIconPath($slug, $plugin, $manifest);
-
             $manifestName = $manifest ? $manifest->name : null;
+            $pluginName = is_string($plugin['name'] ?? null) ? $plugin['name'] : '';
             $gwRepo->create([
                 'slug'       => $slug,
-                'name'       => $manifestName ?? $plugin['name'] ?? $slug,
+                'name'       => $manifestName ?? ($pluginName !== '' ? $pluginName : $slug),
                 'type'       => 'api',
                 'logo_path'  => $logoPath,
                 'is_builtin' => 0,
@@ -573,17 +622,22 @@ final class PluginManager
             return null;
         }
 
-        $paths = $this->container->get('config.app')['paths'];
-        $typeDir = match ($plugin['type'] ?? 'gateway') {
+        $configApp = $this->container->get('config.app');
+        $paths = is_array($configApp) && isset($configApp['paths']) && is_array($configApp['paths']) ? $configApp['paths'] : [];
+        $modulesPath = is_string($paths['modules'] ?? null) ? $paths['modules'] : '';
+        $publicPath = is_string($paths['public'] ?? null) ? $paths['public'] : '';
+
+        $type = is_string($plugin['type'] ?? null) ? $plugin['type'] : 'gateway';
+        $typeDir = match ($type) {
             'gateway' => 'gateways',
             default   => 'addons',
         };
-        $srcPath = $paths['modules'] . '/' . $typeDir . '/' . $slug . '/' . $iconFile;
+        $srcPath = $modulesPath . '/' . $typeDir . '/' . $slug . '/' . $iconFile;
         if (!file_exists($srcPath)) {
             return null;
         }
 
-        $destDir = $paths['public'] . '/assets/img/gateways';
+        $destDir = $publicPath . '/assets/img/gateways';
         if (!is_dir($destDir)) {
             mkdir($destDir, 0755, true);
         }

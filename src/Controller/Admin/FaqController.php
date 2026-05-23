@@ -70,19 +70,29 @@ final class FaqController
      */
     public function save(Request $req): Response
     {
-        $faqs  = $req->post('faqs', []);
+        $faqsVal  = $req->post('faqs', []);
+        $faqs = is_array($faqsVal) ? $faqsVal : [];
         $clean = [];
         foreach ($faqs as $f) {
-            if (!empty($f['question'])) {
-                $clean[] = ['question' => $f['question'], 'answer' => $f['answer'] ?? ''];
+            if (is_array($f) && !empty($f['question'])) {
+                $questionVal = $f['question'];
+                $answerVal = $f['answer'] ?? '';
+                $clean[] = [
+                    'question' => is_string($questionVal) ? $questionVal : '',
+                    'answer' => is_string($answerVal) ? $answerVal : ''
+                ];
             }
         }
 
         // BUG-42 FIX: Save FAQs scoped to the active brand, not global.
         // Global-only writes cause all brands to share the same FAQ set.
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $midVal = $brand->getActiveBrandId();
+        $mid = is_int($midVal) ? $midVal : 0;
 
         $faqJson = json_encode($clean);
         if ($faqJson === false) {

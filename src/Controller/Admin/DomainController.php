@@ -59,15 +59,31 @@ final class DomainController
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
         $repo = $this->c->get(\OwnPay\Repository\DomainRepository::class);
+        if (!$repo instanceof \OwnPay\Repository\DomainRepository) {
+            throw new \RuntimeException('DomainRepository service unavailable');
+        }
         $list = $repo->forTenant($mid)->listAllScoped();
 
+        $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
+        if (!$merchantRepo instanceof \OwnPay\Repository\MerchantRepository) {
+            throw new \RuntimeException('MerchantRepository service unavailable');
+        }
+
         foreach ($list as &$d) {
-            $m = $this->c->get(\OwnPay\Repository\MerchantRepository::class)->find($d['merchant_id']);
-            $d['merchant_name'] = $m['name'] ?? '—';
+            $merchantIdVal = $d['merchant_id'] ?? 0;
+            $merchantId = is_int($merchantIdVal) || is_string($merchantIdVal) ? (int)$merchantIdVal : 0;
+            $m = $merchantRepo->find($merchantId);
+            $d['merchant_name'] = is_array($m) && is_string($m['name'] ?? null) ? $m['name'] : '—';
         }
 
         $host = $req->header('Host') ?: '127.0.0.1';
@@ -97,11 +113,18 @@ final class DomainController
     public function store(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
-        $domain = $req->post('domain', '');
-        if (empty($domain)) {
+        $domainVal = $req->post('domain', '');
+        $domain = is_string($domainVal) ? trim($domainVal) : '';
+        if ($domain === '') {
             $this->session->flashError('Domain required');
             return Response::redirect('/admin/domains');
         }
@@ -126,8 +149,14 @@ final class DomainController
     {
         $id = (int) $req->param('id');
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
         $result = $this->domains->verify($id, $mid);
         if (!empty($result['success'])) {
@@ -153,8 +182,14 @@ final class DomainController
     {
         $id = (int) $req->param('id');
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
         $this->domains->remove($id, $mid);
         $this->session->flashSuccess('Domain removed');

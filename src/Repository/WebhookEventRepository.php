@@ -103,7 +103,8 @@ final class WebhookEventRepository extends BaseRepository
             INNER JOIN op_webhooks w ON we.webhook_id = w.id
             WHERE w.merchant_id = :mid AND we.status = 'failed'
         ", ['mid' => $merchantId]);
-        return (int) ($row['cnt'] ?? 0);
+        $cntVal = $row['cnt'] ?? 0;
+        return is_scalar($cntVal) ? (int) $cntVal : 0;
     }
 
     /**

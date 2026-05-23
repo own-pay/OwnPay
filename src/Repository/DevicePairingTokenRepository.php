@@ -69,7 +69,9 @@ final class DevicePairingTokenRepository extends BaseRepository
                 return null;
             }
 
-            $this->updateScoped((int) $token['id'], [
+            $idVal = $token['id'] ?? 0;
+            $idInt = is_scalar($idVal) ? (int) $idVal : 0;
+            $this->updateScoped($idInt, [
                 'is_used' => 1,
                 'used_at' => DateHelper::nowMicro(),
             ]);
@@ -95,7 +97,8 @@ final class DevicePairingTokenRepository extends BaseRepository
             ['admin' => $createdBy, 'since' => $since, 'mid' => $this->requireTenant()]
         );
 
-        return (int) ($row['cnt'] ?? 0);
+        $cntVal = is_array($row) ? ($row['cnt'] ?? 0) : 0;
+        return is_scalar($cntVal) ? (int) $cntVal : 0;
     }
 
     /**

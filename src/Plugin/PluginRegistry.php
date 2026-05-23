@@ -110,9 +110,11 @@ final class PluginRegistry
             // For plugins not overridden in the pivot table, look up their global status.
             $globalPlugins = $this->repo->listActive();
             foreach ($globalPlugins as $gp) {
-                $gpslug = $gp['slug'];
-                if (!isset($statuses[$gpslug])) {
-                    $statuses[$gpslug] = 'active';
+                $gpslug = is_string($gp['slug'] ?? null) ? $gp['slug'] : '';
+                if ($gpslug !== '') {
+                    if (!isset($statuses[$gpslug])) {
+                        $statuses[$gpslug] = 'active';
+                    }
                 }
             }
 
@@ -252,7 +254,8 @@ final class PluginRegistry
     {
         $plugin = $this->repo->findBySlug($slug);
         if ($plugin !== null) {
-            $this->repo->update((int) $plugin['id'], ['status' => 'error']);
+            $pluginId = is_numeric($plugin['id'] ?? null) ? (int) $plugin['id'] : 0;
+            $this->repo->update($pluginId, ['status' => 'error']);
         }
         unset($this->loaded[$slug], $this->manifests[$slug], $this->sandboxes[$slug]);
     }

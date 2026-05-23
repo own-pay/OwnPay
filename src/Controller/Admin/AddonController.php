@@ -17,17 +17,13 @@ final class AddonController
 {
     use AdminPageTrait;
 
-    /**
-     * Dependency injection container.
-     *
-     * @var Container
-     */
     private Container $c;
 
     /**
      * Session wrapper service for authenticated administrative operations.
      *
      * @var AdminSession
+     * @phpstan-ignore property.onlyWritten
      */
     private AdminSession $session;
 
@@ -76,30 +72,42 @@ final class AddonController
         $brandId = null;
         if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-            $brandCtx->resolveFromRequest($request);
-            $brandId = $brandCtx->getActiveBrandId();
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandCtx->resolveFromRequest($request);
+                $brandId = $brandCtx->getActiveBrandId();
+            }
         }
 
         $addons = $this->repo->listByType('addon');
 
         // Enrich database plugin models with manifest parameters
         foreach ($addons as &$addon) {
-            $m = json_decode($addon['manifest'] ?? '{}', true) ?: [];
-            if (!empty($m['name'])) {
-                $addon['name'] = $m['name']; // Prefer manifest name over database slug representation
+            $manifestStr = isset($addon['manifest']) && is_string($addon['manifest']) ? $addon['manifest'] : '{}';
+            $m = json_decode($manifestStr, true);
+            if (!is_array($m)) {
+                $m = [];
             }
-            $addon['description'] = $addon['description'] ?? $m['description'] ?? '';
-            $addon['author']      = $addon['author']      ?? $m['author']      ?? 'Unknown';
+            $mName = $m['name'] ?? null;
+            if (is_string($mName) && $mName !== '') {
+                $addon['name'] = $mName; // Prefer manifest name over database slug representation
+            }
+            $mDesc = $m['description'] ?? '';
+            $addon['description'] = $addon['description'] ?? (is_string($mDesc) ? $mDesc : '');
+            $mAuthor = $m['author'] ?? 'Unknown';
+            $addon['author']      = $addon['author']      ?? (is_string($mAuthor) ? $mAuthor : 'Unknown');
 
+            $addonSlug = isset($addon['slug']) && is_string($addon['slug']) ? $addon['slug'] : '';
             // Local active/inactive status override if brand context is active
             if ($brandId !== null && $brandId > 0 && !in_array($addon['status'], ['uninstalled', 'trashed'], true)) {
-                $addon['status'] = $this->repo->isPluginActiveForBrand($addon['slug'], $brandId) ? 'active' : 'inactive';
+                $addon['status'] = $this->repo->isPluginActiveForBrand($addonSlug, $brandId) ? 'active' : 'inactive';
             }
         }
         unset($addon);
 
-        /** @var \OwnPay\Plugin\PluginLoader $loader */
         $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
+        if (!$loader instanceof \OwnPay\Plugin\PluginLoader) {
+            throw new \RuntimeException('PluginLoader service unavailable');
+        }
         $discovered = $loader->discover();
 
         // Map discovered filesystem manifests to active lookup table
@@ -112,8 +120,9 @@ final class AddonController
 
         // Align DB stored metadata with latest filesystem configurations
         foreach ($addons as &$addon) {
-            if (isset($manifestLookup[$addon['slug']])) {
-                $fsManifest = $manifestLookup[$addon['slug']];
+            $addonSlug = isset($addon['slug']) && is_string($addon['slug']) ? $addon['slug'] : '';
+            if (isset($manifestLookup[$addonSlug])) {
+                $fsManifest = $manifestLookup[$addonSlug];
                 $addon['name']        = $fsManifest->name;
                 $addon['description'] = $addon['description'] ?: ($fsManifest->description ?? '');
                 $addon['author']      = $addon['author']      ?: ($fsManifest->author      ?? 'Unknown');

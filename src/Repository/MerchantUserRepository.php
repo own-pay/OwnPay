@@ -166,7 +166,8 @@ final class MerchantUserRepository extends BaseRepository
             "SELECT password_hash FROM {$this->table} WHERE id = :id LIMIT 1",
             ['id' => $id]
         );
-        return $row['password_hash'] ?? null;
+        $hash = $row['password_hash'] ?? null;
+        return is_string($hash) ? $hash : null;
     }
 
     /**
@@ -262,7 +263,7 @@ final class MerchantUserRepository extends BaseRepository
                 "SELECT id FROM op_roles WHERE merchant_id = :mid AND slug = 'staff' LIMIT 1",
                 ['mid' => $merchantId]
             );
-            $roleId = $role ? (int) $role['id'] : 1;
+            $roleId = ($role && isset($role['id']) && is_scalar($role['id'])) ? (int) $role['id'] : 1;
         }
 
         return $this->create([
@@ -343,7 +344,7 @@ final class MerchantUserRepository extends BaseRepository
             ['id' => $id]
         );
         $raw = $row['totp_secret_enc'] ?? null;
-        if ($raw === null) {
+        if (!is_string($raw)) {
             return null;
         }
         return $this->encryptor ? $this->encryptor->decrypt($raw) : $raw;

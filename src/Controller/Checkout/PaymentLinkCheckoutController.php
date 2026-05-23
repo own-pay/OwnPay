@@ -74,31 +74,46 @@ final class PaymentLinkCheckoutController
         $slug = (string) $req->param('slug');
         $link = $this->linkRepo->findActiveBySlug($slug);
         $twig = $this->c->get(\Twig\Environment::class);
+        if (!$twig instanceof \Twig\Environment) {
+            throw new \RuntimeException("Twig Environment not found");
+        }
 
         if (!$link) {
             return $this->renderExpired($twig);
         }
 
         // Verify usage limits: ensure the link has not exceeded its maximum allowed completions.
-        if ($link['max_uses'] > 0 && ($link['use_count'] ?? 0) >= $link['max_uses']) {
-            return $this->renderExpired($twig);
-        }
-        if (!empty($link['expires_at']) && DateHelper::isPast($link['expires_at'])) {
+        $maxUsesVal = $link['max_uses'] ?? 0;
+        $maxUses = (is_int($maxUsesVal) || is_string($maxUsesVal)) ? (int) $maxUsesVal : 0;
+        $useCountVal = $link['use_count'] ?? 0;
+        $useCount = (is_int($useCountVal) || is_string($useCountVal)) ? (int) $useCountVal : 0;
+        if ($maxUses > 0 && $useCount >= $maxUses) {
             return $this->renderExpired($twig);
         }
 
-        $amount = (string) ($link['amount'] ?? $req->query('amount', '0'));
+        $expiresAtVal = $link['expires_at'] ?? '';
+        $expiresAt = is_string($expiresAtVal) ? $expiresAtVal : '';
+        if ($expiresAt && DateHelper::isPast($expiresAt)) {
+            return $this->renderExpired($twig);
+        }
+
+        $linkAmtVal = $link['amount'] ?? null;
+        $queryAmtVal = $req->query('amount', '0');
+        $queryAmtStr = is_string($queryAmtVal) ? $queryAmtVal : '0';
+        $amount = (is_string($linkAmtVal) || is_int($linkAmtVal) || is_float($linkAmtVal)) ? (string) $linkAmtVal : $queryAmtStr;
         if (!is_numeric($amount)) {
             $amount = '0';
         }
 
         // Validate query amount: verify that the amount parameter remains within the configured minimum and maximum limits (using high-precision BCMath comparisons).
         if (bccomp($amount, '0', 2) > 0) {
-            $minAmount = (string) ($link['min_amount'] ?? '0');
+            $minAmountVal = $link['min_amount'] ?? '0';
+            $minAmount = (is_string($minAmountVal) || is_int($minAmountVal) || is_float($minAmountVal)) ? (string) $minAmountVal : '0';
             if (!is_numeric($minAmount)) {
                 $minAmount = '0';
             }
-            $maxAmount = (string) ($link['max_amount'] ?? '0');
+            $maxAmountVal = $link['max_amount'] ?? '0';
+            $maxAmount = (is_string($maxAmountVal) || is_int($maxAmountVal) || is_float($maxAmountVal)) ? (string) $maxAmountVal : '0';
             if (!is_numeric($maxAmount)) {
                 $maxAmount = '0';
             }
@@ -111,7 +126,8 @@ final class PaymentLinkCheckoutController
         if (bccomp($amount, '0', 2) <= 0) {
             // Retrieve the dynamic CSRF token to secure the form submission.
             $csrf = \OwnPay\Security\SecurityHelpers::csrfToken();
-            $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
+            $tplFilter = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
+            $tpl = is_string($tplFilter) ? $tplFilter : 'checkout/payment-link-amount.twig';
             $queryAmt = $req->query('amount', '');
             /** @var numeric-string $queryAmtStr */
             $queryAmtStr = is_numeric($queryAmt) ? (string) $queryAmt : '0';
@@ -126,11 +142,16 @@ final class PaymentLinkCheckoutController
         }
 
         // Check for an existing active transaction session key to avoid duplicate ledger allocations.
-        $sessionKey = 'pay_link_txn_' . $link['id'];
+        $linkIdVal = $link['id'] ?? 0;
+        $linkId = (is_int($linkIdVal) || is_string($linkIdVal)) ? (int) $linkIdVal : 0;
+        $sessionKey = 'pay_link_txn_' . $linkId;
         if (!empty($_SESSION[$sessionKey])) {
-            $existingTxn = $this->txnRepo->findActiveForCheckout($_SESSION[$sessionKey]);
-            if ($existingTxn) {
-                return Response::redirect("/checkout/{$existingTxn['trx_id']}");
+            $sessionTrxIdVal = $_SESSION[$sessionKey];
+            if (is_string($sessionTrxIdVal)) {
+                $existingTxn = $this->txnRepo->findActiveForCheckout($sessionTrxIdVal);
+                if (is_array($existingTxn) && isset($existingTxn['trx_id']) && is_string($existingTxn['trx_id'])) {
+                    return Response::redirect("/checkout/{$existingTxn['trx_id']}");
+                }
             }
             // Clear stale or completed session references to allow a fresh transaction session.
             unset($_SESSION[$sessionKey]);
@@ -139,17 +160,23 @@ final class PaymentLinkCheckoutController
         $trxId = $this->txnRepo->generateTrxId();
         $uuid  = \Ramsey\Uuid\Uuid::uuid4()->toString();
 
+        $merchantIdVal = $link['merchant_id'] ?? 0;
+        $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
+
+        $currencyVal = $link['currency'] ?? 'BDT';
+        $currency = is_string($currencyVal) ? $currencyVal : 'BDT';
+
         $this->txnRepo->create([
             'uuid'         => $uuid,
             'trx_id'       => $trxId,
-            'merchant_id'  => $link['merchant_id'],
+            'merchant_id'  => $merchantId,
             'gateway_slug' => 'link',
             'amount'       => $amount,
             'net_amount'   => $amount,
-            'currency'     => $link['currency'] ?? 'BDT',
+            'currency'     => $currency,
             'method'       => 'link',
             'status'       => 'pending',
-            'metadata'     => json_encode(['payment_link_id' => $link['id']]),
+            'metadata'     => json_encode(['payment_link_id' => $linkId]),
         ]);
 
         // Save transaction reference within the session store to enable deduplication upon page reload.
@@ -176,20 +203,26 @@ final class PaymentLinkCheckoutController
         $slug = (string) $req->param('slug');
         $link = $this->linkRepo->findActiveBySlug($slug);
         $twig = $this->c->get(\Twig\Environment::class);
+        if (!$twig instanceof \Twig\Environment) {
+            throw new \RuntimeException("Twig Environment not found");
+        }
 
         if (!$link) {
             return $this->renderExpired($twig);
         }
 
-        $amountStr = (string) $req->post('amount', '0');
+        $amountRaw = $req->post('amount', '0');
+        $amountStr = is_string($amountRaw) ? $amountRaw : '0';
         if (!is_numeric($amountStr)) {
             $amountStr = '0';
         }
         $csrf = \OwnPay\Security\SecurityHelpers::csrfToken();
 
+        $tplFilter = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
+        $tpl = is_string($tplFilter) ? $tplFilter : 'checkout/payment-link-amount.twig';
+
         // Perform basic sanity check using high-precision BCMath comparison (must be greater than zero).
         if (bccomp($amountStr, '0', 2) <= 0) {
-            $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
             return Response::html($twig->render($tpl, [
                 'link'       => $link,
                 'error'      => 'Please enter a valid amount',
@@ -198,18 +231,21 @@ final class PaymentLinkCheckoutController
         }
 
         // Enforce configured minimum and maximum boundary constraints utilizing BCMath.
-        $minAmount = (string) ($link['min_amount'] ?? '0');
+        $minAmountVal = $link['min_amount'] ?? '0';
+        $minAmount = (is_string($minAmountVal) || is_int($minAmountVal) || is_float($minAmountVal)) ? (string) $minAmountVal : '0';
         if (!is_numeric($minAmount)) {
             $minAmount = '0';
         }
-        $maxAmount = (string) ($link['max_amount'] ?? '0');
+        $maxAmountVal = $link['max_amount'] ?? '0';
+        $maxAmount = (is_string($maxAmountVal) || is_int($maxAmountVal) || is_float($maxAmountVal)) ? (string) $maxAmountVal : '0';
         if (!is_numeric($maxAmount)) {
             $maxAmount = '0';
         }
 
+        $currencyVal = $link['currency'] ?? 'BDT';
+        $currency = is_string($currencyVal) ? $currencyVal : 'BDT';
+
         if (bccomp($minAmount, '0', 2) > 0 && bccomp($amountStr, $minAmount, 2) < 0) {
-            $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
-            $currency = $link['currency'] ?? 'BDT';
             return Response::html($twig->render($tpl, [
                 'link'       => $link,
                 'error'      => "Minimum amount is {$minAmount} {$currency}",
@@ -217,8 +253,6 @@ final class PaymentLinkCheckoutController
             ]));
         }
         if (bccomp($maxAmount, '0', 2) > 0 && bccomp($amountStr, $maxAmount, 2) > 0) {
-            $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
-            $currency = $link['currency'] ?? 'BDT';
             return Response::html($twig->render($tpl, [
                 'link'       => $link,
                 'error'      => "Maximum amount is {$maxAmount} {$currency}",
@@ -227,11 +261,16 @@ final class PaymentLinkCheckoutController
         }
 
         // Prevent double-submission: reuse existing pending transaction reference registered in current session.
-        $sessionKey = 'pay_link_txn_' . $link['id'];
+        $linkIdVal = $link['id'] ?? 0;
+        $linkId = (is_int($linkIdVal) || is_string($linkIdVal)) ? (int) $linkIdVal : 0;
+        $sessionKey = 'pay_link_txn_' . $linkId;
         if (!empty($_SESSION[$sessionKey])) {
-            $existingTxn = $this->txnRepo->findActiveForCheckout($_SESSION[$sessionKey]);
-            if ($existingTxn) {
-                return Response::redirect("/checkout/{$existingTxn['trx_id']}");
+            $sessionTrxIdVal = $_SESSION[$sessionKey];
+            if (is_string($sessionTrxIdVal)) {
+                $existingTxn = $this->txnRepo->findActiveForCheckout($sessionTrxIdVal);
+                if (is_array($existingTxn) && isset($existingTxn['trx_id']) && is_string($existingTxn['trx_id'])) {
+                    return Response::redirect("/checkout/{$existingTxn['trx_id']}");
+                }
             }
             unset($_SESSION[$sessionKey]);
         }
@@ -239,17 +278,20 @@ final class PaymentLinkCheckoutController
         $trxId = $this->txnRepo->generateTrxId();
         $uuid  = \Ramsey\Uuid\Uuid::uuid4()->toString();
 
+        $merchantIdVal = $link['merchant_id'] ?? 0;
+        $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
+
         $this->txnRepo->create([
             'uuid'         => $uuid,
             'trx_id'       => $trxId,
-            'merchant_id'  => $link['merchant_id'],
+            'merchant_id'  => $merchantId,
             'gateway_slug' => 'link',
             'amount'       => $amountStr,
             'net_amount'   => $amountStr,
-            'currency'     => $link['currency'] ?? 'BDT',
+            'currency'     => $currency,
             'method'       => 'link',
             'status'       => 'pending',
-            'metadata'     => json_encode(['payment_link_id' => $link['id']]),
+            'metadata'     => json_encode(['payment_link_id' => $linkId]),
         ]);
 
         $_SESSION[$sessionKey] = $trxId;
@@ -265,7 +307,8 @@ final class PaymentLinkCheckoutController
      */
     private function renderExpired(\Twig\Environment $twig): Response
     {
-        $tpl = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
+        $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
+        $tpl = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
         return Response::html($twig->render($tpl, [
             'status'       => 'expired',
             'status_label' => 'Payment Link Expired',

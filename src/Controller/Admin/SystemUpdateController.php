@@ -76,7 +76,8 @@ final class SystemUpdateController
     public function index(Request $req): Response
     {
         $cacheFile = dirname(__DIR__, 3) . '/storage/cache/update_check.json';
-        $page   = max(1, (int)($req->query('page') ?? 1));
+        $pageVal = $req->query('page') ?? 1;
+        $page   = max(1, is_scalar($pageVal) && is_numeric($pageVal) ? (int)$pageVal : 1);
         $offset = ($page - 1) * 10;
 
         $history = $this->historyRepo->listFinished(10, $offset);
@@ -91,7 +92,8 @@ final class SystemUpdateController
         }
 
         $autoUpdate     = $this->settingsRepo->get('general', 'auto_update', '0');
-        $currentVersion = $this->c->get('config.app')['version'] ?? '0.1.0';
+        $configApp = $this->c->get('config.app');
+        $currentVersion = is_array($configApp) && isset($configApp['version']) && is_string($configApp['version']) ? $configApp['version'] : '0.1.0';
         $latestVersion  = is_array($latestCheck) && isset($latestCheck['version']) && is_string($latestCheck['version']) ? $latestCheck['version'] : $currentVersion;
 
         return $this->renderAdminPage('admin/system-update.twig', [
@@ -142,7 +144,8 @@ final class SystemUpdateController
      */
     public function install(Request $req): Response
     {
-        $version  = $req->post('version', '');
+        $versionRaw  = $req->post('version', '');
+        $version = is_string($versionRaw) ? $versionRaw : '';
         if ($version === '') {
             $this->session->flashError('Missing version.');
             return Response::redirect('/admin/system-update');

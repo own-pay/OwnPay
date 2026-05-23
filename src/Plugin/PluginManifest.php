@@ -198,24 +198,45 @@ final class PluginManifest
      */
     private function __construct(array $data, string $sourcePath)
     {
-        $this->name = $data['name'] ?? '';
-        $this->slug = $data['slug'] ?? '';
-        $this->version = $data['version'] ?? '0.0.0';
-        $this->type = $data['type'] ?? 'plugin';
-        $this->description = $data['description'] ?? '';
-        $this->author = $data['author'] ?? '';
-        $this->authorUrl = $data['author_url'] ?? $data['author_url'] ?? '';
-        $this->license = $data['license'] ?? '';
-        $this->entrypoint = $data['entrypoint'] ?? $data['entry'] ?? 'Plugin.php';
-        $this->namespace = $data['namespace'] ?? '';
+        $this->name = is_string($data['name'] ?? null) ? $data['name'] : '';
+        $this->slug = is_string($data['slug'] ?? null) ? $data['slug'] : '';
+        $this->version = is_string($data['version'] ?? null) ? $data['version'] : '0.0.0';
+        $this->type = is_string($data['type'] ?? null) ? $data['type'] : 'plugin';
+        $this->description = is_string($data['description'] ?? null) ? $data['description'] : '';
+        $this->author = is_string($data['author'] ?? null) ? $data['author'] : '';
+        $this->authorUrl = is_string($data['author_url'] ?? null) ? $data['author_url'] : '';
+        $this->license = is_string($data['license'] ?? null) ? $data['license'] : '';
         
-        $minPhpRaw = $data['min_php'] ?? ($data['requires']['php'] ?? '8.2');
+        $entrypointRaw = $data['entrypoint'] ?? ($data['entry'] ?? null);
+        $this->entrypoint = is_string($entrypointRaw) ? $entrypointRaw : 'Plugin.php';
+        $this->namespace = is_string($data['namespace'] ?? null) ? $data['namespace'] : '';
+        
+        $minPhpRaw = '8.2';
+        if (isset($data['min_php']) && is_string($data['min_php'])) {
+            $minPhpRaw = $data['min_php'];
+        } elseif (isset($data['requires']) && is_array($data['requires']) && isset($data['requires']['php']) && is_string($data['requires']['php'])) {
+            $minPhpRaw = $data['requires']['php'];
+        }
         $this->minPhp = ltrim($minPhpRaw, '>= ');
         
-        $minAppRaw = $data['min_app'] ?? ($data['requires']['core'] ?? '');
+        $minAppRaw = '';
+        if (isset($data['min_app']) && is_string($data['min_app'])) {
+            $minAppRaw = $data['min_app'];
+        } elseif (isset($data['requires']) && is_array($data['requires']) && isset($data['requires']['core']) && is_string($data['requires']['core'])) {
+            $minAppRaw = $data['requires']['core'];
+        }
         $this->minApp = ltrim($minAppRaw, '>= ');
 
-        $this->capabilities = $data['capabilities'] ?? [];
+        $rawCapabilities = $data['capabilities'] ?? [];
+        $capabilities = [];
+        if (is_array($rawCapabilities)) {
+            foreach ($rawCapabilities as $cap) {
+                if (is_string($cap) && $cap !== '') {
+                    $capabilities[] = $cap;
+                }
+            }
+        }
+        $this->capabilities = $capabilities;
         
         $rawDeps = $data['dependencies'] ?? [];
         $dependencies = [];
@@ -229,26 +250,93 @@ final class PluginManifest
         $this->dependencies = $dependencies;
 
         $rawHooks = $data['hooks'] ?? [];
+        $actions = [];
+        $filters = [];
+        if (is_array($rawHooks)) {
+            if (isset($rawHooks['actions']) && is_array($rawHooks['actions'])) {
+                foreach ($rawHooks['actions'] as $k => $v) {
+                    $actions[(string) $k] = $v;
+                }
+            }
+            if (isset($rawHooks['filters']) && is_array($rawHooks['filters'])) {
+                foreach ($rawHooks['filters'] as $k => $v) {
+                    $filters[(string) $k] = $v;
+                }
+            }
+        }
         $this->hooks = [
-            'actions' => $rawHooks['actions'] ?? [],
-            'filters' => $rawHooks['filters'] ?? [],
+            'actions' => $actions,
+            'filters' => $filters,
         ];
 
-        $this->adminMenu = $data['admin_menu'] ?? $data['adminMenu'] ?? [];
-        $this->cron = $data['cron'] ?? [];
-        $this->migrations = $data['migrations'] ?? [];
+        $rawAdminMenu = $data['admin_menu'] ?? $data['adminMenu'] ?? [];
+        $adminMenu = [];
+        if (is_array($rawAdminMenu)) {
+            foreach ($rawAdminMenu as $k => $v) {
+                $adminMenu[(string) $k] = $v;
+            }
+        }
+        $this->adminMenu = $adminMenu;
+
+        $rawCron = $data['cron'] ?? [];
+        $cron = [];
+        if (is_array($rawCron)) {
+            foreach ($rawCron as $entry) {
+                if (is_array($entry) && isset($entry['name'], $entry['schedule']) && is_string($entry['name']) && is_string($entry['schedule'])) {
+                    $cronEntry = [
+                        'name' => $entry['name'],
+                        'schedule' => $entry['schedule'],
+                    ];
+                    if (isset($entry['class']) && is_string($entry['class'])) {
+                        $cronEntry['class'] = $entry['class'];
+                    }
+                    $cron[] = $cronEntry;
+                }
+            }
+        }
+        $this->cron = $cron;
+
+        $rawMigrations = $data['migrations'] ?? [];
+        $migrations = [];
+        if (is_array($rawMigrations)) {
+            foreach ($rawMigrations as $migration) {
+                if (is_string($migration) && $migration !== '') {
+                    $migrations[] = $migration;
+                }
+            }
+        }
+        $this->migrations = $migrations;
         
         $this->sourcePath = $sourcePath;
         
-        $this->permissions = $data['permissions'] ?? [];
-        $this->category = $data['category'] ?? 'global';
-        $this->icon = $data['icon'] ?? '';
-        $this->color = $data['color'] ?? '#0D9488';
+        $rawPermissions = $data['permissions'] ?? [];
+        $permissions = [];
+        if (is_array($rawPermissions)) {
+            foreach ($rawPermissions as $perm) {
+                if (is_string($perm) && $perm !== '') {
+                    $permissions[] = $perm;
+                }
+            }
+        }
+        $this->permissions = $permissions;
+
+        $this->category = is_string($data['category'] ?? null) ? $data['category'] : 'global';
+        $this->icon = is_string($data['icon'] ?? null) ? $data['icon'] : '';
+        $this->color = is_string($data['color'] ?? null) ? $data['color'] : '#0D9488';
         $this->path = $sourcePath;
-        $this->requires = $data['requires'] ?? [
-            'php' => '>=' . $this->minPhp,
-            'core' => '>=' . $this->minApp,
-        ];
+
+        $rawRequires = $data['requires'] ?? null;
+        if (is_array($rawRequires) && isset($rawRequires['php'], $rawRequires['core']) && is_string($rawRequires['php']) && is_string($rawRequires['core'])) {
+            $this->requires = [
+                'php' => $rawRequires['php'],
+                'core' => $rawRequires['core'],
+            ];
+        } else {
+            $this->requires = [
+                'php' => '>=' . $this->minPhp,
+                'core' => '>=' . $this->minApp,
+            ];
+        }
     }
 
     /**
@@ -308,7 +396,12 @@ final class PluginManifest
             throw new \RuntimeException('Manifest must decode to a JSON object');
         }
 
-        return new self($data, dirname($path));
+        $stringKeyedData = [];
+        foreach ($data as $k => $v) {
+            $stringKeyedData[(string) $k] = $v;
+        }
+
+        return new self($stringKeyedData, dirname($path));
     }
 
     /**

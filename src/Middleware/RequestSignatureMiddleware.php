@@ -43,13 +43,15 @@ final class RequestSignatureMiddleware
     public function handle(Request $request, callable $next): Response
     {
         // Use explicit !== '' checks to avoid dropping valid-but-falsy values like '0'
-        $signature = $request->header('X-Signature');
-        if ($signature === '') {
-            $signature = $request->header('X-Hub-Signature-256');
+        $signatureVal = $request->header('X-Signature');
+        if ($signatureVal === '') {
+            $signatureVal = $request->header('X-Hub-Signature-256');
         }
-        if ($signature === '') {
-            $signature = $request->query('signature') ?? '';
+        if ($signatureVal === '') {
+            $querySig = $request->query('signature');
+            $signatureVal = is_string($querySig) ? $querySig : '';
         }
+        $signature = $signatureVal;
 
         if ($signature === '') {
             return Response::json([
@@ -122,23 +124,31 @@ final class RequestSignatureMiddleware
     private function resolveSecret(Request $request): ?string
     {
         // Try merchant webhook secret from route params
-        $merchantId = $request->getAttribute('merchant_id');
-        if ($merchantId !== null) {
+        $midVal = $request->getAttribute('merchant_id');
+        if ($midVal !== null && is_scalar($midVal)) {
+            $merchantId = (int) $midVal;
             try {
                 $repo = $this->container->get(\OwnPay\Repository\MerchantRepository::class);
+                if (!$repo instanceof \OwnPay\Repository\MerchantRepository) {
+                    throw new \RuntimeException("MerchantRepository not found in container");
+                }
                 $merchant = $repo->find($merchantId);
-                if ($merchant !== null && !empty($merchant['webhook_secret'])) {
+                if ($merchant !== null && isset($merchant['webhook_secret']) && is_string($merchant['webhook_secret']) && $merchant['webhook_secret'] !== '') {
                     return $merchant['webhook_secret'];
                 }
             } catch (\Throwable $e) {
                 if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
-                    $this->container->get(\OwnPay\Service\System\Logger::class)->warning('Signature secret resolve failed: ' . $e->getMessage());
+                    $logger = $this->container->get(\OwnPay\Service\System\Logger::class);
+                    if ($logger instanceof \OwnPay\Service\System\Logger) {
+                        $logger->warning('Signature secret resolve failed: ' . $e->getMessage());
+                    }
                 }
             }
         }
 
         // Fallback to env
-        $secret = getenv('WEBHOOK_SIGNING_SECRET') ?: null;
+        $secretVal = getenv('WEBHOOK_SIGNING_SECRET') ?: null;
+        $secret = is_string($secretVal) ? $secretVal : null;
         return $secret ?: null;
     }
 }

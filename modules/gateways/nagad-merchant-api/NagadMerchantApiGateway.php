@@ -141,7 +141,18 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         $mode = $credentials['nagad_mode'] ?? 'sandbox';
         $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
 
-        $merchantId = $credentials['nagad_merchant_id'] ?? '';
+        $merchantIdRaw = $credentials['nagad_merchant_id'] ?? '';
+        $merchantId = is_scalar($merchantIdRaw) ? (string) $merchantIdRaw : '';
+        
+        $publicKeyRaw = $credentials['nagad_public_key'] ?? '';
+        $publicKey = is_scalar($publicKeyRaw) ? (string) $publicKeyRaw : '';
+
+        $privateKeyRaw = $credentials['nagad_private_key'] ?? '';
+        $privateKey = is_scalar($privateKeyRaw) ? (string) $privateKeyRaw : '';
+
+        $appAccountRaw = $credentials['nagad_app_account'] ?? '';
+        $appAccount = is_scalar($appAccountRaw) ? (string) $appAccountRaw : '';
+
         $trxId = $params['trx_id'];
         
         // Nagad invoice length must be <= 20 chars
@@ -158,11 +169,11 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         ];
 
         $sensitiveJson = (string) json_encode($sensitiveData);
-        $encryptedSensitiveData = $this->encryptWithPublicKey($sensitiveJson, (string) ($credentials['nagad_public_key'] ?? ''));
-        $signature = $this->signWithPrivateKey($sensitiveJson, (string) ($credentials['nagad_private_key'] ?? ''));
+        $encryptedSensitiveData = $this->encryptWithPublicKey($sensitiveJson, $publicKey);
+        $signature = $this->signWithPrivateKey($sensitiveJson, $privateKey);
 
         $postData = [
-            'accountNumber' => $credentials['nagad_app_account'] ?? '',
+            'accountNumber' => $appAccount,
             'dateTime'      => date('YmdHis'),
             'sensitiveData' => $encryptedSensitiveData,
             'signature'     => $signature
@@ -193,21 +204,36 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         }
 
         $initData = json_decode((string) $response, true);
-        if (empty($initData['sensitiveData'])) {
+        if (!is_array($initData)) {
+            throw new \RuntimeException('Nagad initialization failed: Invalid JSON response');
+        }
+
+        $initSensData = $initData['sensitiveData'] ?? '';
+        $sensitiveDataStr = is_scalar($initSensData) ? (string) $initSensData : '';
+
+        if ($sensitiveDataStr === '') {
             $reason = $initData['message'] ?? 'Unknown error';
-            throw new \RuntimeException('Nagad initialization failed: ' . $reason);
+            $reasonStr = is_scalar($reason) ? (string) $reason : 'Unknown error';
+            throw new \RuntimeException('Nagad initialization failed: ' . $reasonStr);
         }
 
         // Decrypt step 1 response
-        $decryptedSensitive = $this->decryptWithPrivateKey($initData['sensitiveData'], $credentials['nagad_private_key']);
+        $decryptedSensitive = $this->decryptWithPrivateKey($sensitiveDataStr, $privateKey);
         $decryptedData = json_decode($decryptedSensitive, true);
 
-        if (empty($decryptedData['paymentReferenceId']) || empty($decryptedData['challenge'])) {
-            throw new \RuntimeException('Nagad decrypted response has missing data');
+        if (!is_array($decryptedData)) {
+            throw new \RuntimeException('Nagad decrypted response has invalid JSON');
         }
 
-        $paymentReferenceId = $decryptedData['paymentReferenceId'];
-        $challenge = $decryptedData['challenge'];
+        $paymentReferenceIdVal = $decryptedData['paymentReferenceId'] ?? '';
+        $paymentReferenceId = is_scalar($paymentReferenceIdVal) ? (string) $paymentReferenceIdVal : '';
+        
+        $challengeVal = $decryptedData['challenge'] ?? '';
+        $challenge = is_scalar($challengeVal) ? (string) $challengeVal : '';
+
+        if ($paymentReferenceId === '' || $challenge === '') {
+            throw new \RuntimeException('Nagad decrypted response has missing data');
+        }
 
         // Step 2: Complete Payment request to Nagad
         $completeUrl = $baseUrl . 'check-out/complete/' . $paymentReferenceId;
@@ -221,8 +247,8 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         ];
 
         $orderJson = (string) json_encode($sensitiveDataOrder);
-        $encryptedOrderData = $this->encryptWithPublicKey($orderJson, (string) ($credentials['nagad_public_key'] ?? ''));
-        $signatureOrder = $this->signWithPrivateKey($orderJson, (string) ($credentials['nagad_private_key'] ?? ''));
+        $encryptedOrderData = $this->encryptWithPublicKey($orderJson, $publicKey);
+        $signatureOrder = $this->signWithPrivateKey($orderJson, $privateKey);
 
         // Success redirect callback: we want to append paymentID/trx_id to trigger status callback
         $separator = (strpos($params['redirect_url'], '?') !== false) ? '&' : '?';
@@ -259,13 +285,23 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         }
 
         $orderResult = json_decode((string) $responseOrder, true);
-        if (empty($orderResult['callBackUrl']) || ($orderResult['status'] ?? '') !== 'Success') {
+        if (!is_array($orderResult)) {
+            throw new \RuntimeException('Nagad complete failed: Invalid JSON response');
+        }
+
+        $callBackUrl = $orderResult['callBackUrl'] ?? '';
+        $callBackUrlStr = is_scalar($callBackUrl) ? (string) $callBackUrl : '';
+        $orderStatus = $orderResult['status'] ?? '';
+        $orderStatusStr = is_scalar($orderStatus) ? (string) $orderStatus : '';
+
+        if ($callBackUrlStr === '' || $orderStatusStr !== 'Success') {
             $reason = $orderResult['message'] ?? 'Unknown error';
-            throw new \RuntimeException('Nagad complete failed: ' . $reason);
+            $reasonStr = is_scalar($reason) ? (string) $reason : 'Unknown error';
+            throw new \RuntimeException('Nagad complete failed: ' . $reasonStr);
         }
 
         return [
-            'redirect_url' => $orderResult['callBackUrl'],
+            'redirect_url' => $callBackUrlStr,
             'session_id'   => $paymentReferenceId,
         ];
     }
@@ -283,14 +319,18 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         $paymentRefId = $callbackData['payment_ref_id'] ?? '';
         $trxId = $callbackData['trx_id'] ?? $callbackData['paymentID'] ?? '';
 
-        if (strtolower($status) !== 'success' || $paymentRefId === '') {
+        $statusStr = is_scalar($status) ? (string) $status : '';
+        $paymentRefIdStr = is_scalar($paymentRefId) ? (string) $paymentRefId : '';
+        $trxIdStr = is_scalar($trxId) ? (string) $trxId : '';
+
+        if (strtolower($statusStr) !== 'success' || $paymentRefIdStr === '') {
             return ['success' => false, 'gateway_trx_id' => '', 'amount' => null, 'status' => 'failed'];
         }
 
         $mode = $credentials['nagad_mode'] ?? 'sandbox';
         $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
 
-        $url = $baseUrl . 'verify/payment/' . urlencode($paymentRefId);
+        $url = $baseUrl . 'verify/payment/' . urlencode($paymentRefIdStr);
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -314,14 +354,21 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             return ['success' => false, 'gateway_trx_id' => '', 'amount' => null, 'status' => 'invalid_response'];
         }
 
-        $paid = isset($data['status']) && strtolower($data['status']) === 'success';
+        $statusVal = $data['status'] ?? '';
+        $statusValStr = is_scalar($statusVal) ? (string) $statusVal : '';
+        $paid = strtolower($statusValStr) === 'success';
+
+        $issuerPaymentRefNo = $data['issuerPaymentRefNo'] ?? $paymentRefIdStr;
+        $issuerPaymentRefNoStr = is_scalar($issuerPaymentRefNo) ? (string) $issuerPaymentRefNo : '';
+        $amountVal = $data['amount'] ?? null;
+        $amountValStr = is_scalar($amountVal) ? (string) $amountVal : null;
 
         return [
             'success'        => $paid,
-            'gateway_trx_id' => $data['issuerPaymentRefNo'] ?? $paymentRefId,
-            'amount'         => $data['amount'] ?? null,
+            'gateway_trx_id' => $issuerPaymentRefNoStr,
+            'amount'         => $amountValStr,
             'status'         => $paid ? 'completed' : 'failed',
-            'trx_id'         => $trxId,
+            'trx_id'         => $trxIdStr,
         ];
     }
 
@@ -448,7 +495,8 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
      */
     private function getClientIp(): string
     {
-        return $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        $ip = $_SERVER['HTTP_X_FORWARDED_FOR'] ?? $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1';
+        return is_scalar($ip) ? (string) $ip : '127.0.0.1';
     }
 
     /**

@@ -90,10 +90,13 @@ class MaintenanceMode
         if (!is_array($data)) {
             return null;
         }
+        $reason = $data['reason'] ?? 'System maintenance';
+        $startedAt = $data['started_at'] ?? DateHelper::now();
+        $retryAfter = $data['retry_after'] ?? 300;
         return [
-            'reason'      => (string) ($data['reason'] ?? 'System maintenance'),
-            'started_at'  => (string) ($data['started_at'] ?? DateHelper::now()),
-            'retry_after' => (int) ($data['retry_after'] ?? 300),
+            'reason'      => is_string($reason) ? $reason : 'System maintenance',
+            'started_at'  => is_string($startedAt) ? $startedAt : DateHelper::now(),
+            'retry_after' => is_numeric($retryAfter) ? (int) $retryAfter : 300,
         ];
     }
 }

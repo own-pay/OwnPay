@@ -59,10 +59,11 @@ final class InvoiceService
      */
     public function pagination(int $merchantId, int $page = 1, int $perPage = 25): array
     {
-        $total = (int) $this->db->fetchColumn(
+        $totalVal = $this->db->fetchColumn(
             "SELECT COUNT(*) FROM op_invoices WHERE merchant_id = :mid",
             ['mid' => $merchantId]
         );
+        $total = is_scalar($totalVal) ? (int) $totalVal : 0;
         return [
             'page'     => $page,
             'per_page' => $perPage,

@@ -54,7 +54,14 @@ final class RoleRepository extends BaseRepository
              WHERE rp.role_id = :rid",
             ['rid' => $roleId]
         );
-        return array_column($rows, 'slug');
+        $result = [];
+        foreach ($rows as $row) {
+            $slug = $row['slug'] ?? '';
+            if (is_string($slug) && $slug !== '') {
+                $result[] = $slug;
+            }
+        }
+        return $result;
     }
 
     /**

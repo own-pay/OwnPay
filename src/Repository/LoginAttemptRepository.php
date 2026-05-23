@@ -38,12 +38,13 @@ final class LoginAttemptRepository extends BaseRepository
     public function recentFailedCount(string $email, string $ip, int $windowSeconds = 300): int
     {
         $since = DateHelper::ago($windowSeconds);
-        return (int) $this->db->fetchColumn(
+        $countVal = $this->db->fetchColumn(
             "SELECT COUNT(*) FROM {$this->table}
              WHERE (email = :email OR ip_address = :ip)
              AND success = 0 AND created_at > :since",
             ['email' => $email, 'ip' => $ip, 'since' => $since]
         );
+        return is_scalar($countVal) ? (int) $countVal : 0;
     }
 
     /**

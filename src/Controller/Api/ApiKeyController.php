@@ -46,7 +46,8 @@ final class ApiKeyController
      */
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $list = $this->keys->list($mid);
 
         // OWASP: Never expose full key or hash, only prefix
@@ -72,9 +73,12 @@ final class ApiKeyController
      */
     public function generate(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $body = $req->json();
-        $label = $body['name'] ?? $body['label'] ?? 'Default';
+        $bodyArr = is_array($body) ? $body : [];
+        $labelVal = $bodyArr['name'] ?? $bodyArr['label'] ?? 'Default';
+        $label = is_string($labelVal) ? $labelVal : 'Default';
         $result = $this->keys->generate($mid, $label);
 
         // PCI: Show key only once
@@ -96,7 +100,8 @@ final class ApiKeyController
     public function revoke(Request $req): Response
     {
         $id = (int) $req->param('id');
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $this->keys->revoke($mid, $id);
         return Response::json(['success' => true, 'message' => 'Key revoked']);
     }

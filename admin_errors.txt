@@ -1,0 +1,701 @@
+﻿ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   BrandController.php                                                                                            
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  112    Cannot access offset 'name' on mixed.                                                                          
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  112    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed      
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  113    Cannot access offset 'email' on mixed.                                                                         
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  113    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::email() expects string, mixed       
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  125    Cannot access offset 'email' on mixed.                                                                         
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  126    Cannot access offset 'phone' on mixed.                                                                         
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  127    Cannot access offset 'timezone' on mixed.                                                                      
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  128    Cannot access offset 'default_currency' on mixed.                                                              
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  129    Cannot access offset 'status' on mixed.                                                                        
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  133    Parameter #3 $data of method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects  
+         array<string, mixed>, mixed given.                                                                             
+         🪪  argument.type                                                                                              
+  136    Cannot access offset 'email' on mixed.                                                                         
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  137    Cannot access offset 'phone' on mixed.                                                                         
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  138    Cannot access offset 'timezone' on mixed.                                                                      
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  139    Cannot access offset 'default_currency' on mixed.                                                              
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  140    Cannot access offset 'status' on mixed.                                                                        
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  143    Parameter #1 $string of function trim expects string, mixed given.                                             
+         🪪  argument.type                                                                                              
+  146    Cannot call method map() on mixed.                                                                             
+         🪪  method.nonObject                                                                                           
+  156    Cannot access offset 'default_currency' on mixed.                                                              
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  157    Cannot call method ensureDefault() on mixed.                                                                   
+         🪪  method.nonObject                                                                                           
+  182    Parameter #1 $json of function json_decode expects string, mixed given.                                        
+         🪪  argument.type                                                                                              
+  205    Cannot access offset 'name' on mixed.                                                                          
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  205    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed      
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  206    Cannot access offset 'email' on mixed.                                                                         
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  217    Parameter #1 $json of function json_decode expects string, mixed given.                                        
+         🪪  argument.type                                                                                              
+  221    Parameter #3 $data of method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects  
+         array<string, mixed>, mixed given.                                                                             
+         🪪  argument.type                                                                                              
+  221    Parameter #4 $existingLogoPath of method                                                                       
+         OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects string|null, mixed given.     
+         🪪  argument.type                                                                                              
+  221    Parameter #5 $existingSettings of method                                                                       
+         OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects array<string, mixed>, mixed   
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  223    Parameter #1 ...$arrays of function array_merge expects array, mixed given.                                    
+         🪪  argument.type                                                                                              
+  223    Parameter #2 $data of method OwnPay\Repository\MerchantRepository::updateBrand() expects array<string, mixed>  
+         , array<mixed, mixed> given.                                                                                   
+         🪪  argument.type                                                                                              
+  225    Parameter #1 $string of function trim expects string, mixed given.                                             
+         🪪  argument.type                                                                                              
+  228    Cannot call method map() on mixed.                                                                             
+         🪪  method.nonObject                                                                                           
+  251    Cannot cast mixed to int.                                                                                      
+         🪪  cast.int                                                                                                   
+  337    Cannot call method execute() on mixed.                                                                         
+         🪪  method.nonObject                                                                                           
+  340    Part $brand['name'] (mixed) of encapsed string cannot be cast to string.                                       
+         🪪  encapsedStringPart.nonString                                                                               
+  398    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed      
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  399    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed      
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  400    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::email() expects string, mixed       
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  401    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed      
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  409    Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, mixed given.            
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   GatewayController.php                                                                                          
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  94     Cannot call method resolveFromRequest() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  95     Cannot call method getActiveBrandId() on mixed.                                                                
+         🪪  method.nonObject                                                                                           
+  100    Parameter #1 $json of function json_decode expects string, mixed given.                                        
+         🪪  argument.type                                                                                              
+  101    Parameter #1 $json of function json_decode expects string, mixed given.                                        
+         🪪  argument.type                                                                                              
+  116    Possibly invalid array key type mixed.                                                                         
+         🪪  offsetAccess.invalidOffset                                                                                 
+  122    Possibly invalid array key type mixed.                                                                         
+         🪪  offsetAccess.invalidOffset                                                                                 
+  178    Parameter #1 $data of method OwnPay\Controller\Admin\GatewayController::validateManualGateway() expects array  
+         <string, mixed>, mixed given.                                                                                  
+         🪪  argument.type                                                                                              
+  184    Parameter #1 $data of method OwnPay\Controller\Admin\GatewayController::buildGatewayRecord() expects array<st  
+         ring, mixed>, mixed given.                                                                                     
+         🪪  argument.type                                                                                              
+  185    Cannot access offset 'slug' on mixed.                                                                          
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  185    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::slug() expects string, mixed        
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  213    Parameter #1 $json of function json_decode expects string, mixed given.                                        
+         🪪  argument.type                                                                                              
+  214    Parameter #1 $json of function json_decode expects string, mixed given.                                        
+         🪪  argument.type                                                                                              
+  221    Parameter #1 $data of method OwnPay\Controller\Admin\GatewayController::validateManualGateway() expects array  
+         <string, mixed>, mixed given.                                                                                  
+         🪪  argument.type                                                                                              
+  223    Parameter #2 ...$arrays of function array_merge expects array, mixed given.                                    
+         🪪  argument.type                                                                                              
+  226    Parameter #1 $data of method OwnPay\Controller\Admin\GatewayController::buildGatewayRecord() expects array<st  
+         ring, mixed>, mixed given.                                                                                     
+         🪪  argument.type                                                                                              
+  312    Cannot call method resolveFromRequest() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  313    Cannot call method getActiveBrandId() on mixed.                                                                
+         🪪  method.nonObject                                                                                           
+  326    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed      
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  327    Parameter #1 $raw of method OwnPay\Controller\Admin\GatewayController::buildInstructionsJson() expects         
+         string, mixed given.                                                                                           
+         🪪  argument.type                                                                                              
+  329    Parameter #1 $fields of method OwnPay\Controller\Admin\GatewayController::buildFieldsJson() expects            
+         array<int, array<string, mixed>>, mixed given.                                                                 
+         🪪  argument.type                                                                                              
+  377    Cannot access offset 'tmp_name' on mixed.                                                                      
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  378    Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int,  
+         name: string, tmp_name: string}, mixed given.                                                                  
+         🪪  argument.type                                                                                              
+  380    Cannot access offset 'tmp_name' on mixed.                                                                      
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  381    Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int,  
+         name: string, tmp_name: string}, mixed given.                                                                  
+         🪪  argument.type                                                                                              
+  402    Parameter #2 $subject of function preg_match expects string, mixed given.                                      
+         🪪  argument.type                                                                                              
+  421    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::slug() expects string, mixed        
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  422    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed      
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   InvoiceController.php                                                                                          
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  76     Cannot call method resolveFromRequest() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  77     Cannot call method getActiveBrandId() on mixed.                                                                
+         🪪  method.nonObject                                                                                           
+  78     Cannot cast mixed to int.                                                                                      
+         🪪  cast.int                                                                                                   
+  86     Cannot call method decrypt() on mixed.                                                                         
+         🪪  method.nonObject                                                                                           
+  110    Cannot call method resolveFromRequest() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  111    Cannot call method getActiveBrandId() on mixed.                                                                
+         🪪  method.nonObject                                                                                           
+  123    Parameter #2 $data of method OwnPay\Service\Payment\InvoiceService::create() expects array{invoice_number?:    
+         string, customer_id?: int|string, due_date?: string|null, notes?: string|null, currency?: string, tax?:        
+         float|int|string, discount?: float|int|string, items?: array<int, array{description?: string, quantity?: int|  
+         string, unit_price?: float|int|string, amount?: float|int|string}>}, mixed given.                              
+         🪪  argument.type                                                                                              
+  140    Cannot call method resolveFromRequest() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  141    Cannot call method getActiveBrandId() on mixed.                                                                
+         🪪  method.nonObject                                                                                           
+  160    Parameter #3 $data of method OwnPay\Service\Payment\InvoiceService::update() expects array{customer_id?:       
+         int|string, due_date?: string|null, notes?: string|null, currency?: string, tax?: float|int|string,            
+         discount?: float|int|string, status?: string, items?: array<int, array{description?: string, quantity?: int|s  
+         tring, unit_price?: float|int|string, amount?: float|int|string}>}, mixed given.                               
+         🪪  argument.type                                                                                              
+  213    Cannot call method resolveFromRequest() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  214    Cannot call method getActiveBrandId() on mixed.                                                                
+         🪪  method.nonObject                                                                                           
+  229    Cannot call method forTenant() on mixed.                                                                       
+         🪪  method.nonObject                                                                                           
+  234    Cannot call method decrypt() on mixed.                                                                         
+         🪪  method.nonObject                                                                                           
+  247    Cannot call method listAll() on mixed.                                                                         
+         🪪  method.nonObject                                                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------- 
+  Line   LedgerController.php                               
+ ------ --------------------------------------------------- 
+  55     Cannot call method resolveFromRequest() on mixed.  
+         🪪  method.nonObject                               
+  56     Cannot call method getActiveBrandId() on mixed.    
+         🪪  method.nonObject                               
+  59     Cannot cast mixed to int.                          
+         🪪  cast.int                                       
+  61     Cannot call method entries() on mixed.             
+         🪪  method.nonObject                               
+  66     Cannot call method fetchOne() on mixed.            
+         🪪  method.nonObject                               
+  69     Cannot call method calculateBalance() on mixed.    
+         🪪  method.nonObject                               
+ ------ --------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   PaymentLinkController.php                                                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  75     Cannot call method resolveFromRequest() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  76     Cannot call method getActiveBrandId() on mixed.                                                                
+         🪪  method.nonObject                                                                                           
+  95     Cannot call method resolveFromRequest() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  96     Cannot call method getActiveBrandId() on mixed.                                                                
+         🪪  method.nonObject                                                                                           
+  106    Parameter #2 $data of method OwnPay\Service\Payment\PaymentLinkService::create() expects array{title?:         
+         string, slug?: string, description?: string|null, amount?: float|int|string|null, currency?: string,           
+         is_amount_fixed?: bool|int, min_amount?: float|int|string|null, max_amount?: float|int|string|null, ...},      
+         mixed given.                                                                                                   
+         🪪  argument.type                                                                                              
+  122    Cannot call method resolveFromRequest() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  123    Cannot call method getActiveBrandId() on mixed.                                                                
+         🪪  method.nonObject                                                                                           
+  140    Parameter #3 $data of method OwnPay\Service\Payment\PaymentLinkService::update() expects array{title?:         
+         string, description?: string|null, amount?: float|int|string|null, currency?: string, status?: string}, mixed  
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  189    Cannot call method listAll() on mixed.                                                                         
+         🪪  method.nonObject                                                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  Line   PluginController.php                                                                                       
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  99     Cannot call method resolveFromRequest() on mixed.                                                          
+         🪪  method.nonObject                                                                                       
+  100    Cannot call method getActiveBrandId() on mixed.                                                            
+         🪪  method.nonObject                                                                                       
+  107    Parameter #1 $json of function json_decode expects string, mixed given.                                    
+         🪪  argument.type                                                                                          
+  108    Cannot access offset 'name' on mixed.                                                                      
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  111    Cannot access offset 'description' on mixed.                                                               
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  115    Parameter #1 $slug of method OwnPay\Repository\PluginRepository::isPluginActiveForBrand() expects string,  
+         mixed given.                                                                                               
+         🪪  argument.type                                                                                          
+  188    Parameter #1 $string of function strtolower expects string, mixed given.                                   
+         🪪  argument.type                                                                                          
+  192    Parameter #1 $zipPath of method OwnPay\Plugin\PluginManager::install() expects string, mixed given.        
+         🪪  argument.type                                                                                          
+  216    Cannot call method resolveFromRequest() on mixed.                                                          
+         🪪  method.nonObject                                                                                       
+  217    Cannot call method getActiveBrandId() on mixed.                                                            
+         🪪  method.nonObject                                                                                       
+  246    Cannot call method resolveFromRequest() on mixed.                                                          
+         🪪  method.nonObject                                                                                       
+  247    Cannot call method getActiveBrandId() on mixed.                                                            
+         🪪  method.nonObject                                                                                       
+  345    Parameter #1 $json of function json_decode expects string, mixed given.                                    
+         🪪  argument.type                                                                                          
+  346    Cannot access offset 'author' on mixed.                                                                    
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  347    Cannot access offset 'description' on mixed.                                                               
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  355    Cannot call method discover() on mixed.                                                                    
+         🪪  method.nonObject                                                                                       
+  362    Cannot access offset 'namespace' on mixed.                                                                 
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  363    Parameter #1 $string of function rtrim expects string, mixed given.                                        
+         🪪  argument.type                                                                                          
+  383    Cannot call method getActiveBrandId() on mixed.                                                            
+         🪪  method.nonObject                                                                                       
+  387    Cannot call method getGroupScoped() on mixed.                                                              
+         🪪  method.nonObject                                                                                       
+  389    Cannot call method getGroup() on mixed.                                                                    
+         🪪  method.nonObject                                                                                       
+  432    Cannot call method getActiveBrandId() on mixed.                                                            
+         🪪  method.nonObject                                                                                       
+ ------ ----------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   RolesController.php                                                                                           
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  66     Cannot call method resolveFromRequest() on mixed.                                                             
+         🪪  method.nonObject                                                                                          
+  67     Cannot call method getActiveBrandId() on mixed.                                                               
+         🪪  method.nonObject                                                                                          
+  73     Argument of an invalid type mixed supplied for foreach, only iterables are supported.                         
+         🪪  foreach.nonIterable                                                                                       
+  74     Cannot access offset 'id' on mixed.                                                                           
+         🪪  offsetAccess.nonOffsetAccessible                                                                          
+  74     Cannot cast mixed to int.                                                                                     
+         🪪  cast.int                                                                                                  
+  75     Cannot access offset 'permission_count' on mixed.                                                             
+         🪪  offsetAccess.nonOffsetAccessible                                                                          
+  76     Cannot access offset 'permissions' on mixed.                                                                  
+         🪪  offsetAccess.nonOffsetAccessible                                                                          
+  100    Cannot call method resolveFromRequest() on mixed.                                                             
+         🪪  method.nonObject                                                                                          
+  101    Cannot call method getActiveBrandId() on mixed.                                                               
+         🪪  method.nonObject                                                                                          
+  103    Parameter #1 $string of function trim expects string, mixed given.                                            
+         🪪  argument.type                                                                                             
+  104    Parameter #1 $string of function trim expects string, mixed given.                                            
+         🪪  argument.type                                                                                             
+  143    Cannot call method resolveFromRequest() on mixed.                                                             
+         🪪  method.nonObject                                                                                          
+  144    Cannot call method getActiveBrandId() on mixed.                                                               
+         🪪  method.nonObject                                                                                          
+  153    Parameter #1 $string of function trim expects string, mixed given.                                            
+         🪪  argument.type                                                                                             
+  154    Parameter #1 $string of function trim expects string, mixed given.                                            
+         🪪  argument.type                                                                                             
+  161    Parameter #1 $callback of function array_map expects (callable(mixed): mixed)|null, 'intval' given.           
+         🪪  argument.type                                                                                             
+         💡  Type #1 from the union: Type array|bool|float|GMP|int|resource|SimpleXMLElement|string|null of parameter  
+         #1 $value of passed callable needs to be same or wider than parameter type mixed of accepting callable.       
+  161    Parameter #2 $array of function array_map expects array, mixed given.                                         
+         🪪  argument.type                                                                                             
+  167    Cannot cast mixed to int.                                                                                     
+         🪪  cast.int                                                                                                  
+  169    Cannot call method fetchAll() on mixed.                                                                       
+         🪪  method.nonObject                                                                                          
+  198    Cannot call method resolveFromRequest() on mixed.                                                             
+         🪪  method.nonObject                                                                                          
+  199    Cannot call method getActiveBrandId() on mixed.                                                               
+         🪪  method.nonObject                                                                                          
+  213    Part $role['name'] (mixed) of encapsed string cannot be cast to string.                                       
+         🪪  encapsedStringPart.nonString                                                                              
+  228    Possibly invalid array key type mixed.                                                                        
+         🪪  offsetAccess.invalidOffset                                                                                
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   SettingsController.php                                                                                         
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  107    Cannot call method listAll() on mixed.                                                                         
+         🪪  method.nonObject                                                                                           
+  111    Cannot call method resolveFromRequest() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  112    Cannot call method getActiveBrandId() on mixed.                                                                
+         🪪  method.nonObject                                                                                           
+  113    Cannot call method list() on mixed.                                                                            
+         🪪  method.nonObject                                                                                           
+  125    Cannot call method resolveBaseUrl() on mixed.                                                                  
+         🪪  method.nonObject                                                                                           
+  127    Parameter #1 $string of function rtrim expects string, mixed given.                                            
+         🪪  argument.type                                                                                              
+  131    Cannot call method getJobs() on mixed.                                                                         
+         🪪  method.nonObject                                                                                           
+  145    Cannot call method getLastRunTime() on mixed.                                                                  
+         🪪  method.nonObject                                                                                           
+  201    Cannot access offset '_csrf_token' on mixed.                                                                   
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  201    Cannot access offset '_tab' on mixed.                                                                          
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  205    Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::saveBranding() expects array<string,  
+          mixed>, mixed given.                                                                                          
+         🪪  argument.type                                                                                              
+  209    Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::saveLanding() expects array<string,   
+         mixed>, mixed given.                                                                                           
+         🪪  argument.type                                                                                              
+  213    Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::savePayment() expects array<string,   
+         mixed>, mixed given.                                                                                           
+         🪪  argument.type                                                                                              
+  217    Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::saveCheckout() expects array<string,  
+          mixed>, mixed given.                                                                                          
+         🪪  argument.type                                                                                              
+  221    Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::saveTheme() expects array<string, mi  
+         xed>, mixed given.                                                                                             
+         🪪  argument.type                                                                                              
+  225    Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::saveGeneral() expects array<string,   
+         mixed>, mixed given.                                                                                           
+         🪪  argument.type                                                                                              
+  232    Binary operation "." between '/admin/settings/' and mixed results in an error.                                 
+         🪪  binaryOp.invalid                                                                                           
+  312    Parameter #1 $array of function array_values expects array<T>, mixed given.                                    
+         🪪  argument.type                                                                                              
+  330    Cannot cast mixed to string.                                                                                   
+         🪪  cast.string                                                                                                
+  369    Cannot cast mixed to string.                                                                                   
+         🪪  cast.string                                                                                                
+  391    Parameter #1 $array of function array_values expects array<T>, mixed given.                                    
+         🪪  argument.type                                                                                              
+  409    Cannot cast mixed to string.                                                                                   
+         🪪  cast.string                                                                                                
+  442    Cannot access offset 'rate' on mixed.                                                                          
+         🪪  offsetAccess.nonOffsetAccessible                                                                           
+  443    Cannot call method updateExchangeRate() on mixed.                                                              
+         🪪  method.nonObject                                                                                           
+  443    Cannot cast mixed to string.                                                                                   
+         🪪  cast.string                                                                                                
+  459    Cannot cast mixed to string.                                                                                   
+         🪪  cast.string                                                                                                
+  494    Cannot cast mixed to string.                                                                                   
+         🪪  cast.string                                                                                                
+  517    Cannot cast mixed to string.                                                                                   
+         🪪  cast.string                                                                                                
+  556    Cannot call method runJob() on mixed.                                                                          
+         🪪  method.nonObject                                                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ---------------------------------------------------------------------------------------------------------- 
+  Line   SmsDataController.php                                                                                     
+ ------ ---------------------------------------------------------------------------------------------------------- 
+  60     Cannot call method resolveFromRequest() on mixed.                                                         
+         🪪  method.nonObject                                                                                      
+  61     Cannot call method getActiveBrandId() on mixed.                                                           
+         🪪  method.nonObject                                                                                      
+  63     Cannot cast mixed to int.                                                                                 
+         🪪  cast.int                                                                                              
+  69     Parameter #3 $status of method OwnPay\Repository\SmsDataRepository::listPaginated() expects string|null,  
+         mixed given.                                                                                              
+         🪪  argument.type                                                                                         
+ ------ ---------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------- 
+  Line   SmsTemplateAdminController.php                                             
+ ------ --------------------------------------------------------------------------- 
+  80     Cannot call method resolveFromRequest() on mixed.                          
+         🪪  method.nonObject                                                       
+  81     Cannot call method getActiveBrandId() on mixed.                            
+         🪪  method.nonObject                                                       
+  89     Cannot call method fetchAll() on mixed.                                    
+         🪪  method.nonObject                                                       
+  93     Cannot call method fetchAll() on mixed.                                    
+         🪪  method.nonObject                                                       
+  119    Cannot call method resolveFromRequest() on mixed.                          
+         🪪  method.nonObject                                                       
+  120    Cannot call method getActiveBrandId() on mixed.                            
+         🪪  method.nonObject                                                       
+  147    Cannot call method resolveFromRequest() on mixed.                          
+         🪪  method.nonObject                                                       
+  148    Cannot call method getActiveBrandId() on mixed.                            
+         🪪  method.nonObject                                                       
+  172    Cannot call method fetchAll() on mixed.                                    
+         🪪  method.nonObject                                                       
+  175    Cannot call method fetchAll() on mixed.                                    
+         🪪  method.nonObject                                                       
+  198    Cannot call method resolveFromRequest() on mixed.                          
+         🪪  method.nonObject                                                       
+  199    Cannot call method getActiveBrandId() on mixed.                            
+         🪪  method.nonObject                                                       
+  223    Binary operation "." between '/' and mixed results in an error.            
+         🪪  binaryOp.invalid                                                       
+  228    Binary operation "." between '/' and mixed results in an error.            
+         🪪  binaryOp.invalid                                                       
+  228    Parameter #2 $subject of function preg_match expects string, mixed given.  
+         🪪  argument.type                                                          
+  250    Cannot access offset 'raw_sms' on mixed.                                   
+         🪪  offsetAccess.nonOffsetAccessible                                       
+  250    Parameter #1 $string of function trim expects string, mixed given.         
+         🪪  argument.type                                                          
+  251    Cannot access offset 'sender' on mixed.                                    
+         🪪  offsetAccess.nonOffsetAccessible                                       
+  251    Parameter #1 $string of function trim expects string, mixed given.         
+         🪪  argument.type                                                          
+  262    Cannot call method resolveFromRequest() on mixed.                          
+         🪪  method.nonObject                                                       
+  263    Cannot call method getActiveBrandId() on mixed.                            
+         🪪  method.nonObject                                                       
+  285    Cannot access offset 'raw_sms' on mixed.                                   
+         🪪  offsetAccess.nonOffsetAccessible                                       
+  285    Parameter #1 $string of function trim expects string, mixed given.         
+         🪪  argument.type                                                          
+  286    Cannot access offset 'sender' on mixed.                                    
+         🪪  offsetAccess.nonOffsetAccessible                                       
+  286    Parameter #1 $string of function trim expects string, mixed given.         
+         🪪  argument.type                                                          
+  313    Cannot call method resolveFromRequest() on mixed.                          
+         🪪  method.nonObject                                                       
+  314    Cannot call method getActiveBrandId() on mixed.                            
+         🪪  method.nonObject                                                       
+  317    Cannot access offset 'gateway_slug' on mixed.                              
+         🪪  offsetAccess.nonOffsetAccessible                                       
+  317    Parameter #1 $string of function trim expects string, mixed given.         
+         🪪  argument.type                                                          
+  318    Cannot access offset 'sender_pattern' on mixed.                            
+         🪪  offsetAccess.nonOffsetAccessible                                       
+  318    Parameter #1 $string of function trim expects string, mixed given.         
+         🪪  argument.type                                                          
+  319    Cannot access offset 'amount_regex' on mixed.                              
+         🪪  offsetAccess.nonOffsetAccessible                                       
+  319    Parameter #1 $string of function trim expects string, mixed given.         
+         🪪  argument.type                                                          
+  320    Cannot access offset 'trx_id_regex' on mixed.                              
+         🪪  offsetAccess.nonOffsetAccessible                                       
+  320    Parameter #1 $string of function trim expects string, mixed given.         
+         🪪  argument.type                                                          
+  321    Cannot access offset 'sender_regex' on mixed.                              
+         🪪  offsetAccess.nonOffsetAccessible                                       
+  321    Parameter #1 $string of function trim expects string, mixed given.         
+         🪪  argument.type                                                          
+  334    Cannot access offset 'priority' on mixed.                                  
+         🪪  offsetAccess.nonOffsetAccessible                                       
+  334    Cannot cast mixed to int.                                                  
+         🪪  cast.int                                                               
+ ------ --------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  Line   StaffController.php                                                                                        
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  110    Cannot access offset 'role_id' on mixed.                                                                   
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  110    Cannot cast mixed to int.                                                                                  
+         🪪  cast.int                                                                                               
+  116    Cannot cast mixed to int.                                                                                  
+         🪪  cast.int                                                                                               
+  131    Cannot cast mixed to int.                                                                                  
+         🪪  cast.int                                                                                               
+  138    Cannot access offset 'name' on mixed.                                                                      
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  138    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed  
+         given.                                                                                                     
+         🪪  argument.type                                                                                          
+  139    Cannot access offset 'email' on mixed.                                                                     
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  139    Parameter #1 $string of function trim expects string, mixed given.                                         
+         🪪  argument.type                                                                                          
+  140    Cannot access offset 'password' on mixed.                                                                  
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  146    Parameter #1 $string of function strlen expects string, mixed given.                                       
+         🪪  argument.type                                                                                          
+  156    Parameter #1 $password of function password_hash expects string, mixed given.                              
+         🪪  argument.type                                                                                          
+  185    Parameter #1 $merchantId of method OwnPay\Controller\Admin\StaffController::getRolesForMerchant() expects  
+         int, mixed given.                                                                                          
+         🪪  argument.type                                                                                          
+  197    Cannot access offset 'email' on mixed.                                                                     
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  197    Cannot access offset 'name' on mixed.                                                                      
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  197    Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed  
+         given.                                                                                                     
+         🪪  argument.type                                                                                          
+  198    Cannot access offset 'password' on mixed.                                                                  
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  199    Parameter #1 $password of function password_hash expects string, mixed given.                              
+         🪪  argument.type                                                                                          
+  201    Cannot access offset 'role_id' on mixed.                                                                   
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  203    Cannot cast mixed to int.                                                                                  
+         🪪  cast.int                                                                                               
+  206    Cannot cast mixed to int.                                                                                  
+         🪪  cast.int                                                                                               
+  278    Cannot call method fetchAll() on mixed.                                                                    
+         🪪  method.nonObject                                                                                       
+ ------ ----------------------------------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------------------------------- 
+  Line   SystemUpdateController.php                                                                           
+ ------ ----------------------------------------------------------------------------------------------------- 
+  79     Cannot cast mixed to int.                                                                            
+         🪪  cast.int                                                                                         
+  94     Cannot access offset 'version' on mixed.                                                             
+         🪪  offsetAccess.nonOffsetAccessible                                                                 
+  100    Parameter #1 $version1 of function version_compare expects string, mixed given.                      
+         🪪  argument.type                                                                                    
+  100    Parameter #2 $version2 of function version_compare expects string, mixed given.                      
+         🪪  argument.type                                                                                    
+  150    Parameter #1 $version of method OwnPay\Update\UpdateService::execute() expects string, mixed given.  
+         🪪  argument.type                                                                                    
+  152    Part $version (mixed) of encapsed string cannot be cast to string.                                   
+         🪪  encapsedStringPart.nonString                                                                     
+ ------ ----------------------------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  Line   ThemeController.php                                                                                        
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  80     Cannot call method resolveFromRequest() on mixed.                                                          
+         🪪  method.nonObject                                                                                       
+  81     Cannot call method getActiveBrandId() on mixed.                                                            
+         🪪  method.nonObject                                                                                       
+  89     Parameter #1 $json of function json_decode expects string, mixed given.                                    
+         🪪  argument.type                                                                                          
+  90     Cannot access offset 'name' on mixed.                                                                      
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  93     Cannot access offset 'description' on mixed.                                                               
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  94     Cannot access offset 'author' on mixed.                                                                    
+         🪪  offsetAccess.nonOffsetAccessible                                                                       
+  98     Parameter #1 $slug of method OwnPay\Repository\PluginRepository::isPluginActiveForBrand() expects string,  
+         mixed given.                                                                                               
+         🪪  argument.type                                                                                          
+  118    Possibly invalid array key type mixed.                                                                     
+         🪪  offsetAccess.invalidOffset                                                                             
+  119    Possibly invalid array key type mixed.                                                                     
+         🪪  offsetAccess.invalidOffset                                                                             
+  221    Part $plugin['name'] (mixed) of encapsed string cannot be cast to string.                                  
+         🪪  encapsedStringPart.nonString                                                                           
+  239    Parameter #1 $string of function strtolower expects string, mixed given.                                   
+         🪪  argument.type                                                                                          
+  244    Parameter #1 $zipPath of method OwnPay\Plugin\PluginManager::install() expects string, mixed given.        
+         🪪  argument.type                                                                                          
+ ------ ----------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  Line   TransactionController.php                                                                                    
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  99     Cannot call method resolveFromRequest() on mixed.                                                            
+         🪪  method.nonObject                                                                                         
+  100    Cannot call method getActiveBrandId() on mixed.                                                              
+         🪪  method.nonObject                                                                                         
+  102    Cannot cast mixed to int.                                                                                    
+         🪪  cast.int                                                                                                 
+  112    Parameter #1 $filters of method OwnPay\Repository\TransactionRepository::countFiltered() expects             
+         array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string}, array{q: mixed,  
+         status: mixed, gateway: mixed, date_from: mixed, date_to: mixed} given.                                      
+         🪪  argument.type                                                                                            
+         💡  Offset 'status' (string) does not accept type mixed.                                                     
+         💡  Offset 'gateway' (string) does not accept type mixed.                                                    
+         💡  Offset 'q' (string) does not accept type mixed.                                                          
+         💡  Offset 'date_from' (string) does not accept type mixed.                                                  
+         💡  Offset 'date_to' (string) does not accept type mixed.                                                    
+  114    Parameter #1 $filters of method OwnPay\Repository\TransactionRepository::listFiltered() expects              
+         array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string}, array{q: mixed,  
+         status: mixed, gateway: mixed, date_from: mixed, date_to: mixed} given.                                      
+         🪪  argument.type                                                                                            
+         💡  Offset 'status' (string) does not accept type mixed.                                                     
+         💡  Offset 'gateway' (string) does not accept type mixed.                                                    
+         💡  Offset 'q' (string) does not accept type mixed.                                                          
+         💡  Offset 'date_from' (string) does not accept type mixed.                                                  
+         💡  Offset 'date_to' (string) does not accept type mixed.                                                    
+  120    Cannot call method decrypt() on mixed.                                                                       
+         🪪  method.nonObject                                                                                         
+  152    Cannot call method resolveFromRequest() on mixed.                                                            
+         🪪  method.nonObject                                                                                         
+  153    Cannot call method getActiveBrandId() on mixed.                                                              
+         🪪  method.nonObject                                                                                         
+  164    Cannot call method forTenant() on mixed.                                                                     
+         🪪  method.nonObject                                                                                         
+  164    Cannot cast mixed to int.                                                                                    
+         🪪  cast.int                                                                                                 
+  168    Cannot call method decrypt() on mixed.                                                                       
+         🪪  method.nonObject                                                                                         
+  169    Cannot call method decrypt() on mixed.                                                                       
+         🪪  method.nonObject                                                                                         
+  170    Cannot call method decrypt() on mixed.                                                                       
+         🪪  method.nonObject                                                                                         
+  201    Cannot call method resolveFromRequest() on mixed.                                                            
+         🪪  method.nonObject                                                                                         
+  202    Cannot call method getActiveBrandId() on mixed.                                                              
+         🪪  method.nonObject                                                                                         
+  227    Cannot call method complete() on mixed.                                                                      
+         🪪  method.nonObject                                                                                         
+  230    Cannot call method recordPaymentReceived() on mixed.                                                         
+         🪪  method.nonObject                                                                                         
+  233    Cannot cast mixed to string.                                                                                 
+         🪪  cast.string                                                                                              
+  234    Cannot cast mixed to string.                                                                                 
+         🪪  cast.string                                                                                              
+  235    Cannot cast mixed to string.                                                                                 
+         🪪  cast.string                                                                                              
+  240    Cannot call method recordRefund() on mixed.                                                                  
+         🪪  method.nonObject                                                                                         
+  243    Cannot cast mixed to string.                                                                                 
+         🪪  cast.string                                                                                              
+  244    Cannot cast mixed to string.                                                                                 
+         🪪  cast.string                                                                                              
+  247    Cannot call method cancel() on mixed.                                                                        
+         🪪  method.nonObject                                                                                         
+ ------ ------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------- 
+  Line   TwoFactorSetupController.php                                                     
+ ------ --------------------------------------------------------------------------------- 
+  80     Cannot access offset 'name' on mixed.                                            
+         🪪  offsetAccess.nonOffsetAccessible                                             
+  80     Parameter #1 $string of function rawurlencode expects string, mixed given.       
+         🪪  argument.type                                                                
+  81     Parameter #1 $string of function rawurlencode expects string, mixed given.       
+         🪪  argument.type                                                                
+  143    Parameter #1 $password of function password_verify expects string, mixed given.  
+         🪪  argument.type                                                                
+ ------ --------------------------------------------------------------------------------- 
+
+ [ERROR] Found 280 errors                                                                                              
+

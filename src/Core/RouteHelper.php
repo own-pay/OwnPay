@@ -24,26 +24,33 @@ final class RouteHelper
      */
     public static function siteUrl(string $type = "Full", ?\OwnPay\Http\Request $request = null): string
     {
+        $isHttps = false;
+        $host = 'localhost';
+        $requestUri = '';
         if ($request !== null) {
             $isHttps = $request->header('X-Forwarded-Proto') === 'https' || $request->isSecure();
-            $protocol = $isHttps ? 'https://' : 'http://';
-            $host = $request->header('Host') ?: 'localhost';
+            $hostVal = $request->header('Host') ?: 'localhost';
+            $host = (string) $hostVal;
             $requestUri = $request->uri();
         } else {
-            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'
-                || ($_SERVER['SERVER_PORT'] ?? 0) == 443) ? "https://" : "http://";
-            $host = $_SERVER['HTTP_HOST'] ?? 'localhost';
-            $requestUri = $_SERVER['REQUEST_URI'] ?? '';
+            $isHttps = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off'
+                || ($_SERVER['SERVER_PORT'] ?? 0) == 443);
+            $hostVal = $_SERVER['HTTP_HOST'] ?? 'localhost';
+            $host = is_string($hostVal) ? $hostVal : 'localhost';
+            $requestUriVal = $_SERVER['REQUEST_URI'] ?? '';
+            $requestUri = is_string($requestUriVal) ? $requestUriVal : '';
         }
+        $protocol = $isHttps ? 'https://' : 'http://';
 
         // BUG-5 FIX: Strip port from host before domain parsing.
         // 'ownpay.test:8443' → explode('.') produces 'test:8443' as last part.
         $hostWithoutPort = preg_replace('/:\d+$/', '', $host);
-        $hostParts = explode('.', $hostWithoutPort);
+        $hostWithoutPortStr = is_string($hostWithoutPort) ? $hostWithoutPort : $host;
+        $hostParts = explode('.', $hostWithoutPortStr);
         $numParts = count($hostParts);
         $mainDomain = ($numParts >= 2)
             ? $hostParts[$numParts - 2] . '.' . $hostParts[$numParts - 1]
-            : $hostWithoutPort;
+            : $hostWithoutPortStr;
 
         return match (strtolower($type)) {
             'fulldomain' => $protocol . $host,

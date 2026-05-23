@@ -151,16 +151,17 @@ EOT;
             $changelog = null;
             $checksum = null;
 
-            if (isset($data['channels']['stable'])) {
-                $stable = $data['channels']['stable'];
-                $latestVersion = $stable['latest_version_name'] ?? null;
-                $downloadUrl = $stable['download_url'] ?? null;
-                $changelog = $stable['changelog'] ?? null;
-                $checksum = $stable['checksum_sha256'] ?? null;
+            $channels = $data['channels'] ?? null;
+            if (is_array($channels) && isset($channels['stable']) && is_array($channels['stable'])) {
+                $stable = $channels['stable'];
+                $latestVersion = is_string($stable['latest_version_name'] ?? null) ? $stable['latest_version_name'] : null;
+                $downloadUrl = is_string($stable['download_url'] ?? null) ? $stable['download_url'] : null;
+                $changelog = is_string($stable['changelog'] ?? null) ? $stable['changelog'] : null;
+                $checksum = is_string($stable['checksum_sha256'] ?? null) ? $stable['checksum_sha256'] : null;
             } else {
-                $latestVersion = $data['version'] ?? null;
-                $downloadUrl = $data['download_url'] ?? null;
-                $changelog = $data['changelog'] ?? null;
+                $latestVersion = is_string($data['version'] ?? null) ? $data['version'] : null;
+                $downloadUrl = is_string($data['download_url'] ?? null) ? $data['download_url'] : null;
+                $changelog = is_string($data['changelog'] ?? null) ? $data['changelog'] : null;
             }
 
             if ($latestVersion === null) {
@@ -172,13 +173,20 @@ EOT;
                 $this->events->doAction('update.available', $latestVersion);
             }
 
-            return [
+            $result = [
                 'available' => $hasUpdate,
                 'version'   => $latestVersion,
-                'url'       => $downloadUrl,
-                'changelog' => $changelog,
-                'checksum'  => $checksum,
             ];
+            if ($downloadUrl !== null) {
+                $result['url'] = $downloadUrl;
+            }
+            if ($changelog !== null) {
+                $result['changelog'] = $changelog;
+            }
+            if ($checksum !== null) {
+                $result['checksum'] = $checksum;
+            }
+            return $result;
 
         } catch (\Throwable $e) {
             return ['available' => false, 'error' => 'connection_failed', 'message' => $e->getMessage()];
@@ -214,7 +222,7 @@ EOT;
             $releaseEntry = null;
             if (isset($manifest['releases']) && is_array($manifest['releases'])) {
                 foreach ($manifest['releases'] as $release) {
-                    if (isset($release['version']) && $release['version'] === $version) {
+                    if (is_array($release) && isset($release['version']) && $release['version'] === $version) {
                         $releaseEntry = $release;
                         break;
                     }
@@ -225,9 +233,9 @@ EOT;
                 throw new \RuntimeException("Target version v{$version} not found in official update server manifest.");
             }
 
-            $downloadUrl = $releaseEntry['download_url'] ?? '';
-            $expectedChecksum = $releaseEntry['checksum_sha256'] ?? '';
-            $signatureBase64 = $releaseEntry['signature'] ?? '';
+            $downloadUrl = is_string($releaseEntry['download_url'] ?? null) ? $releaseEntry['download_url'] : '';
+            $expectedChecksum = is_string($releaseEntry['checksum_sha256'] ?? null) ? $releaseEntry['checksum_sha256'] : '';
+            $signatureBase64 = is_string($releaseEntry['signature'] ?? null) ? $releaseEntry['signature'] : '';
 
             if (empty($downloadUrl)) {
                 throw new \RuntimeException("Download URL for v{$version} is empty.");
@@ -393,7 +401,12 @@ EOT;
             throw new \RuntimeException("Update server returned an invalid manifest format.");
         }
 
-        return $data;
+        $stringKeyedData = [];
+        foreach ($data as $k => $v) {
+            $stringKeyedData[(string) $k] = $v;
+        }
+
+        return $stringKeyedData;
     }
 
     /**
@@ -640,7 +653,9 @@ EOT;
             \RecursiveIteratorIterator::CHILD_FIRST
         );
         foreach ($items as $item) {
-            $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+            if ($item instanceof \SplFileInfo) {
+                $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+            }
         }
         @rmdir($dir);
     }

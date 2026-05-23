@@ -54,8 +54,11 @@ final class PermissionMiddleware
         $user = $request->getAttribute('auth_user');
         if ($user === null) {
             $db = $this->container->get(\OwnPay\Core\Database::class);
-            $user = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
-            if (!$user) {
+            if (!$db instanceof \OwnPay\Core\Database) {
+                throw new \RuntimeException("Database not found in container");
+            }
+            $userVal = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
+            if (!is_array($userVal)) {
                 // Wipe the full session on invalid user
                 $_SESSION = [];
                 if (session_status() === PHP_SESSION_ACTIVE) {
@@ -64,7 +67,12 @@ final class PermissionMiddleware
                 $loginSlug = $this->resolveLoginSlug();
                 return Response::redirect("/{$loginSlug}");
             }
+            $user = $userVal;
             $request->setAttribute('auth_user', $user);
+        } else {
+            if (!is_array($user)) {
+                $user = [];
+            }
         }
 
         // Superadmin bypass — MySQL returns "1" (string), not true (bool)
@@ -82,10 +90,21 @@ final class PermissionMiddleware
 
         // Load user permissions from DB via role → role_permissions → permissions.
         // Previously $userPermissions was always [] because no upstream middleware populated it.
-        $userPermissions = $request->getAttribute('user_permissions');
-        if ($userPermissions === null) {
-            $userPermissions = $this->loadPermissions((int) ($user['role_id'] ?? 0));
+        $userPermissionsVal = $request->getAttribute('user_permissions');
+        if (!is_array($userPermissionsVal)) {
+            $roleId = 0;
+            if (isset($user['role_id']) && (is_int($user['role_id']) || is_string($user['role_id']) || is_numeric($user['role_id']))) {
+                $roleId = (int) $user['role_id'];
+            }
+            $userPermissions = $this->loadPermissions($roleId);
             $request->setAttribute('user_permissions', $userPermissions);
+        } else {
+            $userPermissions = [];
+            foreach ($userPermissionsVal as $permVal) {
+                if (is_string($permVal)) {
+                    $userPermissions[] = $permVal;
+                }
+            }
         }
 
         $allowed = in_array($requiredPermission, $userPermissions, true);
@@ -114,13 +133,22 @@ final class PermissionMiddleware
 
         try {
             $db = $this->container->get(\OwnPay\Core\Database::class);
+            if (!$db instanceof \OwnPay\Core\Database) {
+                return [];
+            }
             $rows = $db->fetchAll(
                 "SELECT p.slug FROM op_role_permissions rp
                  JOIN op_permissions p ON p.id = rp.permission_id
                  WHERE rp.role_id = :rid",
                 ['rid' => $roleId]
             );
-            return array_column($rows, 'slug');
+            $slugs = [];
+            foreach ($rows as $row) {
+                if (isset($row['slug']) && is_string($row['slug'])) {
+                    $slugs[] = $row['slug'];
+                }
+            }
+            return $slugs;
         } catch (\Throwable) {
             return [];
         }
@@ -224,7 +252,13 @@ final class PermissionMiddleware
 
         try {
             $settings = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
-            return $settings->get('landing', 'admin_login_slug', 'login');
+            if ($settings instanceof \OwnPay\Repository\SettingsRepository) {
+                $slug = $settings->get('landing', 'admin_login_slug', 'login');
+                if (is_string($slug)) {
+                    return $slug;
+                }
+            }
+            return 'login';
         } catch (\Throwable) {
             return 'login';
         }

@@ -61,25 +61,36 @@ final class CustomerController
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class); 
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req); 
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
         
-        $page = max(1, (int) $req->query('page', '1'));
-        $q = $req->query('q', '');
+        $pageVal = $req->query('page', '1');
+        $page = max(1, is_int($pageVal) || is_string($pageVal) ? (int)$pageVal : 1);
+        $qVal = $req->query('q', '');
+        $q = is_string($qVal) ? $qVal : '';
 
         $paginated = $this->customerRepo->paginateWithStats($mid, $q, $page, 20);
 
         // Decrypt PII fields for display
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
+        if (!$enc instanceof \OwnPay\Security\FieldEncryptor) {
+            throw new \RuntimeException('FieldEncryptor service unavailable');
+        }
         $customers = array_map(function (array $c) use ($enc) {
             try {
-                $c['name']  = !empty($c['name_enc']) ? $enc->decrypt($c['name_enc']) : ($c['name'] ?? '—');
-                $c['email'] = !empty($c['email_enc']) ? $enc->decrypt($c['email_enc']) : ($c['email'] ?? '—');
-                $c['phone'] = !empty($c['phone_enc']) ? $enc->decrypt($c['phone_enc']) : ($c['phone'] ?? '—');
+                $c['name']  = !empty($c['name_enc']) && is_string($c['name_enc']) ? $enc->decrypt($c['name_enc']) : (is_string($c['name'] ?? null) ? $c['name'] : '—');
+                $c['email'] = !empty($c['email_enc']) && is_string($c['email_enc']) ? $enc->decrypt($c['email_enc']) : (is_string($c['email'] ?? null) ? $c['email'] : '—');
+                $c['phone'] = !empty($c['phone_enc']) && is_string($c['phone_enc']) ? $enc->decrypt($c['phone_enc']) : (is_string($c['phone'] ?? null) ? $c['phone'] : '—');
             } catch (\Throwable $e) {
-                $c['name']  = $c['name'] ?? '[encrypted]';
-                $c['email'] = $c['email'] ?? '[encrypted]';
-                $c['phone'] = $c['phone'] ?? '—';
+                $c['name']  = is_string($c['name'] ?? null) ? $c['name'] : '[encrypted]';
+                $c['email'] = is_string($c['email'] ?? null) ? $c['email'] : '[encrypted]';
+                $c['phone'] = is_string($c['phone'] ?? null) ? $c['phone'] : '—';
             }
             return $c;
         }, $paginated['items']);
@@ -112,8 +123,14 @@ final class CustomerController
     {
         $id = (int) $req->param('id');
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class); 
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req); 
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
         
         $scopedRepo = $this->customerRepo->forTenant($mid);
         $customer = $scopedRepo->findScoped($id);
@@ -125,10 +142,13 @@ final class CustomerController
 
         // Decrypt PII
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
+        if (!$enc instanceof \OwnPay\Security\FieldEncryptor) {
+            throw new \RuntimeException('FieldEncryptor service unavailable');
+        }
         try {
-            $customer['name']  = !empty($customer['name_enc']) ? $enc->decrypt($customer['name_enc']) : ($customer['name'] ?? '—');
-            $customer['email'] = !empty($customer['email_enc']) ? $enc->decrypt($customer['email_enc']) : ($customer['email'] ?? '—');
-            $customer['phone'] = !empty($customer['phone_enc']) ? $enc->decrypt($customer['phone_enc']) : ($customer['phone'] ?? '—');
+            $customer['name']  = !empty($customer['name_enc']) && is_string($customer['name_enc']) ? $enc->decrypt($customer['name_enc']) : (is_string($customer['name'] ?? null) ? $customer['name'] : '—');
+            $customer['email'] = !empty($customer['email_enc']) && is_string($customer['email_enc']) ? $enc->decrypt($customer['email_enc']) : (is_string($customer['email'] ?? null) ? $customer['email'] : '—');
+            $customer['phone'] = !empty($customer['phone_enc']) && is_string($customer['phone_enc']) ? $enc->decrypt($customer['phone_enc']) : (is_string($customer['phone'] ?? null) ? $customer['phone'] : '—');
         } catch (\Throwable $e) {
             $customer['name']  = '[encrypted]';
             $customer['email'] = '[encrypted]';
@@ -169,12 +189,22 @@ final class CustomerController
     public function store(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
-        $name  = trim($req->post('name', ''));
-        $email = trim($req->post('email', ''));
-        $phone = trim($req->post('phone', ''));
+        $nameVal = $req->post('name', '');
+        $emailVal = $req->post('email', '');
+        $phoneVal = $req->post('phone', '');
+
+        $name  = is_string($nameVal) ? trim($nameVal) : '';
+        $email = is_string($emailVal) ? trim($emailVal) : '';
+        $phone = is_string($phoneVal) ? trim($phoneVal) : '';
 
         if ($name === '' || $email === '') {
             $this->session->flashError('Name and email are required');
@@ -182,10 +212,16 @@ final class CustomerController
         }
 
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
+        if (!$enc instanceof \OwnPay\Security\FieldEncryptor) {
+            throw new \RuntimeException('FieldEncryptor service unavailable');
+        }
         $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
         $now = \OwnPay\Support\DateHelper::nowMicro();
 
         $db = $this->c->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            throw new \RuntimeException('Database service unavailable');
+        }
         $db->insert(
             "INSERT INTO op_customers (merchant_id, uuid, name_enc, email_enc, email_hash, phone_enc, phone_hash, created_at, updated_at)
              VALUES (:mid, :uuid, :name, :email, :ehash, :phone, :phash, :now, :now2)",
@@ -195,8 +231,8 @@ final class CustomerController
                 'name'  => $enc->encrypt($name),
                 'email' => $enc->encrypt($email),
                 'ehash' => $enc->hash($email),
-                'phone' => !empty($phone) ? $enc->encrypt($phone) : null,
-                'phash' => !empty($phone) ? $enc->hash($phone) : null,
+                'phone' => $phone !== '' ? $enc->encrypt($phone) : null,
+                'phash' => $phone !== '' ? $enc->hash($phone) : null,
                 'now'   => $now,
                 'now2'  => $now,
             ]
@@ -217,8 +253,14 @@ final class CustomerController
     {
         $id = (int) $req->param('id');
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
 
         $scopedRepo = $this->customerRepo->forTenant($mid);
         $customer = $scopedRepo->findScoped($id);
@@ -229,6 +271,9 @@ final class CustomerController
         }
 
         $db = $this->c->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            throw new \RuntimeException('Database service unavailable');
+        }
         $db->execute('DELETE FROM op_customers WHERE id = :id AND merchant_id = :mid', [
             'id'  => $id,
             'mid' => $mid,

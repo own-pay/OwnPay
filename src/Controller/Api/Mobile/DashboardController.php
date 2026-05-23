@@ -58,21 +58,29 @@ final class DashboardController
      */
     public function index(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         // BUG-008 FIX: device_id is a UUID string — don't cast to int
-        $did = (string) $req->getAttribute('device_id');
-
+        $didVal = $req->getAttribute('device_id');
+        $did = is_string($didVal) ? $didVal : '';
+ 
         $today   = $this->txnRepo->getTodayStats($mid);
         $recent  = $this->txnRepo->getRecentTransactions($mid, 5);
-        $unread  = $this->notifRepo->countUnread($mid, (string) $did);
+        $unread  = $this->notifRepo->countUnread($mid, $did);
+ 
+        $appConfig = $this->c->get('config.app');
+        $version = (is_array($appConfig) && isset($appConfig['version']) && is_string($appConfig['version'])) ? $appConfig['version'] : '0.1.0';
 
-        /** @phpstan-ignore-next-line */
+        $headers = [
+            'X-API-Version' => $version,
+        ];
+
         return Response::json([
             'success'               => true,
             'today'                 => $today,
             'recent_transactions'   => $recent,
             'unread_notifications'  => $unread,
             'server_time'           => DateHelper::iso(),
-        ], 200, ['X-API-Version' => $this->c->get('config.app')['version'] ?? '0.1.0']);
+        ], 200, $headers);
     }
 }

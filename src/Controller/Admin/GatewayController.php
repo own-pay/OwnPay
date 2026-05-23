@@ -91,14 +91,22 @@ final class GatewayController
     public function index(Request $request): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
         $brand->resolveFromRequest($request);
         $merchantId = $brand->getActiveBrandId();
+        if ($merchantId === null) {
+            throw new \RuntimeException('Brand ID not resolved.');
+        }
 
         $manualGateways = $this->manualGateways->forTenant($merchantId)->listAll();
 
         foreach ($manualGateways as &$mg) {
-            $mg['input_fields'] = json_decode($mg['input_fields'] ?? '[]', true);
-            $mg['colors'] = json_decode($mg['colors'] ?? '{}', true);
+            $inputFieldsVal = $mg['input_fields'] ?? '[]';
+            $mg['input_fields'] = json_decode(is_string($inputFieldsVal) ? $inputFieldsVal : '[]', true);
+            $colorsVal = $mg['colors'] ?? '{}';
+            $mg['colors'] = json_decode(is_string($colorsVal) ? $colorsVal : '{}', true);
         }
         unset($mg);
 
@@ -112,14 +120,19 @@ final class GatewayController
 
         // Index installed plugins by slug for O(1) lookup
         $installedPlugins = [];
-        foreach ($pluginRepo->paginate(1, 200)['items'] as $p) {
-            $installedPlugins[$p['slug']] = $p;
+        $paginated = $pluginRepo->paginate(1, 200);
+        foreach ($paginated['items'] as $p) {
+            if (isset($p['slug']) && is_string($p['slug'])) {
+                $installedPlugins[$p['slug']] = $p;
+            }
         }
 
         // Also get gateway configs (credentials) per slug
         $configuredGateways = [];
         foreach ($this->apiConfigs->forTenant($merchantId)->listActive() as $g) {
-            $configuredGateways[$g['slug']] = $g;
+            if (isset($g['slug']) && is_string($g['slug'])) {
+                $configuredGateways[$g['slug']] = $g;
+            }
         }
 
         $apiGateways = [];
@@ -174,7 +187,8 @@ final class GatewayController
         }
 
         $merchantId = $this->resolveMerchant($request);
-        $data = $request->post();
+        $postData = $request->post();
+        $data = is_array($postData) ? $postData : [];
         $errors = $this->validateManualGateway($data);
 
         if (!empty($errors)) {
@@ -182,7 +196,8 @@ final class GatewayController
         }
 
         $record = $this->buildGatewayRecord($data);
-        $record['slug']   = InputSanitizer::slug($data['slug'] ?? '');
+        $slugVal = $data['slug'] ?? '';
+        $record['slug']   = InputSanitizer::slug(is_string($slugVal) ? $slugVal : '');
         $record['status'] = 'active';
         $this->applyUploads($record);
 
@@ -210,14 +225,17 @@ final class GatewayController
             return Response::redirect('/admin/gateways');
         }
 
-        $gateway['input_fields'] = json_decode($gateway['input_fields'] ?? '[]', true);
-        $gateway['colors'] = json_decode($gateway['colors'] ?? '{}', true);
+        $inputFieldsVal = $gateway['input_fields'] ?? '[]';
+        $gateway['input_fields'] = json_decode(is_string($inputFieldsVal) ? $inputFieldsVal : '[]', true);
+        $colorsVal = $gateway['colors'] ?? '{}';
+        $gateway['colors'] = json_decode(is_string($colorsVal) ? $colorsVal : '{}', true);
 
         if ($request->method() === 'GET') {
             return $this->renderAdminPage('admin/gateways/edit-manual.twig', ['gateway' => $gateway, 'active_page' => 'gateways']);
         }
 
-        $data = $request->post();
+        $postData = $request->post();
+        $data = is_array($postData) ? $postData : [];
         $errors = $this->validateManualGateway($data, true);
         if (!empty($errors)) {
             return $this->renderAdminPage('admin/gateways/edit-manual.twig', ['gateway' => array_merge($gateway, $data), 'errors' => $errors, 'active_page' => 'gateways']);
@@ -309,8 +327,15 @@ final class GatewayController
     private function resolveMerchant(Request $request): int
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
         $brand->resolveFromRequest($request);
-        return $brand->getActiveBrandId();
+        $merchantId = $brand->getActiveBrandId();
+        if ($merchantId === null) {
+            throw new \RuntimeException('Merchant ID not resolved.');
+        }
+        return $merchantId;
     }
 
     /**
@@ -322,13 +347,29 @@ final class GatewayController
      */
     private function buildGatewayRecord(array $data): array
     {
+        $nameVal = $data['name'] ?? '';
+        $instructionsVal = $data['instructions'] ?? '';
+        $fieldsVal = $data['fields'] ?? [];
+        $minVal = $data['min_amount'] ?? '0';
+        $maxVal = $data['max_amount'] ?? '0';
+
+        /** @var array<int, array<string, mixed>> $fieldsArray */
+        $fieldsArray = [];
+        if (is_array($fieldsVal)) {
+            foreach ($fieldsVal as $fv) {
+                if (is_array($fv)) {
+                    $fieldsArray[] = $fv;
+                }
+            }
+        }
+
         return [
-            'name'             => InputSanitizer::string($data['name'] ?? ''),
-            'instructions'     => $this->buildInstructionsJson($data['instructions'] ?? ''),
+            'name'             => InputSanitizer::string(is_string($nameVal) ? $nameVal : ''),
+            'instructions'     => $this->buildInstructionsJson(is_string($instructionsVal) ? $instructionsVal : ''),
             'colors'           => $this->buildColorsJson($data),
-            'input_fields'     => $this->buildFieldsJson($data['fields'] ?? []),
-            'min_amount'       => InputSanitizer::decimal($data['min_amount'] ?? '0'),
-            'max_amount'       => InputSanitizer::decimal($data['max_amount'] ?? '0'),
+            'input_fields'     => $this->buildFieldsJson($fieldsArray),
+            'min_amount'       => InputSanitizer::decimal(is_string($minVal) ? $minVal : '0'),
+            'max_amount'       => InputSanitizer::decimal(is_string($maxVal) ? $maxVal : '0'),
             'sms_verification' => isset($data['sms_verification']) ? 1 : 0,
         ];
     }
@@ -374,11 +415,15 @@ final class GatewayController
      */
     private function applyUploads(array &$record): void
     {
-        if (!empty($_FILES['logo']['tmp_name'])) {
-            $record['logo_path'] = $this->fs->storeUpload($_FILES['logo'], 'gateways');
+        if (isset($_FILES['logo']) && is_array($_FILES['logo']) && !empty($_FILES['logo']['tmp_name']) && is_string($_FILES['logo']['tmp_name'])) {
+            /** @var array{error: int, name: string, tmp_name: string} $file */
+            $file = $_FILES['logo'];
+            $record['logo_path'] = $this->fs->storeUpload($file, 'gateways');
         }
-        if (!empty($_FILES['qr_code']['tmp_name'])) {
-            $record['qr_code_path'] = $this->fs->storeUpload($_FILES['qr_code'], 'gateways');
+        if (isset($_FILES['qr_code']) && is_array($_FILES['qr_code']) && !empty($_FILES['qr_code']['tmp_name']) && is_string($_FILES['qr_code']['tmp_name'])) {
+            /** @var array{error: int, name: string, tmp_name: string} $file */
+            $file = $_FILES['qr_code'];
+            $record['qr_code_path'] = $this->fs->storeUpload($file, 'gateways');
         }
     }
 
@@ -399,7 +444,8 @@ final class GatewayController
         if (!$isEdit && empty($data['slug'])) {
             $errors[] = 'Slug is required';
         }
-        if (!$isEdit && !empty($data['slug']) && !preg_match('/^[a-z0-9\-]+$/', $data['slug'])) {
+        $slugVal = $data['slug'] ?? '';
+        if (!$isEdit && !empty($slugVal) && is_string($slugVal) && !preg_match('/^[a-z0-9\-]+$/', $slugVal)) {
             $errors[] = 'Slug must be lowercase alphanumeric with hyphens only';
         }
         return $errors;
@@ -416,11 +462,12 @@ final class GatewayController
     {
         $clean = [];
         foreach ($fields as $field) {
-            if (!empty($field['name']) && !empty($field['label'])) {
+            if (!empty($field['name']) && is_string($field['name']) && !empty($field['label']) && is_string($field['label'])) {
+                $typeVal = $field['type'] ?? 'text';
                 $clean[] = [
                     'name'     => InputSanitizer::slug($field['name']),
                     'label'    => InputSanitizer::string($field['label']),
-                    'type'     => $field['type'] ?? 'text',
+                    'type'     => is_string($typeVal) ? $typeVal : 'text',
                     'required' => !empty($field['required']),
                 ];
             }

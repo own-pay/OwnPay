@@ -186,14 +186,19 @@ class BackupService
         $sql = "-- OwnPay Database Backup\n-- Generated: " . DateHelper::now() . "\n\n";
 
         foreach ($tables as $row) {
-            $tableName = array_values($row)[0];
+            $tableNameRaw = array_values($row)[0] ?? '';
+            $tableName = is_string($tableNameRaw) ? $tableNameRaw : '';
+            if ($tableName === '') {
+                continue;
+            }
             $createRow = $db->fetchOne("SHOW CREATE TABLE `{$tableName}`");
-            $sql .= ($createRow['Create Table'] ?? '') . ";\n\n";
+            $createTableSql = is_array($createRow) && isset($createRow['Create Table']) && is_string($createRow['Create Table']) ? $createRow['Create Table'] : '';
+            $sql .= $createTableSql . ";\n\n";
 
             $rows = $db->fetchAll("SELECT * FROM `{$tableName}`");
             foreach ($rows as $dataRow) {
                 $values = array_map(function ($v) use ($pdo) {
-                    return $v === null ? 'NULL' : $pdo->quote((string) $v);
+                    return $v === null ? 'NULL' : $pdo->quote(is_scalar($v) ? (string) $v : '');
                 }, array_values($dataRow));
                 $sql .= "INSERT INTO `{$tableName}` VALUES (" . implode(',', $values) . ");\n";
             }
@@ -306,7 +311,7 @@ class BackupService
                 \RecursiveIteratorIterator::SELF_FIRST
             );
             foreach ($iterator as $item) {
-                if ($item->isFile()) {
+                if ($item instanceof \SplFileInfo && $item->isFile()) {
                     $relativePath = $dir . '/' . $iterator->getSubPathname();
                     $zip->addFile($item->getPathname(), $relativePath);
                 }
@@ -329,7 +334,9 @@ class BackupService
             \RecursiveIteratorIterator::CHILD_FIRST
         );
         foreach ($items as $item) {
-            $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+            if ($item instanceof \SplFileInfo) {
+                $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+            }
         }
         @rmdir($dir);
     }

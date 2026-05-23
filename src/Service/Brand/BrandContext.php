@@ -58,27 +58,29 @@ final class BrandContext
     {
         // 1. Request attribute resolution
         $fromReq = $req->getAttribute('merchant_id');
-        if ($fromReq !== null) {
+        if ($fromReq !== null && is_scalar($fromReq)) {
             $this->activeBrandId = (int) $fromReq;
             return $this->activeBrandId;
         }
 
         // 2. Session state checks (guarding against CLI or API bootstrap environments)
         if (session_status() === PHP_SESSION_ACTIVE) {
-            if (isset($_SESSION['active_brand_id'])) {
-                $this->activeBrandId = (int) $_SESSION['active_brand_id'];
+            $abId = $_SESSION['active_brand_id'] ?? null;
+            if (is_scalar($abId)) {
+                $this->activeBrandId = (int) $abId;
                 return $this->activeBrandId;
             }
 
-            if (isset($_SESSION['auth_merchant_id'])) {
-                $this->activeBrandId = (int) $_SESSION['auth_merchant_id'];
+            $amId = $_SESSION['auth_merchant_id'] ?? null;
+            if (is_scalar($amId)) {
+                $this->activeBrandId = (int) $amId;
                 return $this->activeBrandId;
             }
         }
 
         // 3. System fallback resolution
         $first = $this->db->fetchOne("SELECT id FROM op_merchants ORDER BY id ASC LIMIT 1");
-        if ($first) {
+        if ($first && isset($first['id']) && is_scalar($first['id'])) {
             $this->activeBrandId = (int) $first['id'];
         }
 
@@ -97,11 +99,13 @@ final class BrandContext
         }
 
         if (session_status() === PHP_SESSION_ACTIVE) {
-            if (isset($_SESSION['active_brand_id'])) {
-                return (int) $_SESSION['active_brand_id'];
+            $abId = $_SESSION['active_brand_id'] ?? null;
+            if (is_scalar($abId)) {
+                return (int) $abId;
             }
-            if (isset($_SESSION['auth_merchant_id'])) {
-                return (int) $_SESSION['auth_merchant_id'];
+            $amId = $_SESSION['auth_merchant_id'] ?? null;
+            if (is_scalar($amId)) {
+                return (int) $amId;
             }
         }
 

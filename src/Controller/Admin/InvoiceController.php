@@ -73,20 +73,29 @@ final class InvoiceController
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid  = $brand->getActiveBrandId();
-        $page = max(1, (int) $req->query('page', '1'));
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
+        $pageVal = $req->query('page', '1');
+        $page = max(1, is_scalar($pageVal) && is_numeric($pageVal) ? (int) $pageVal : 1);
 
         $invoices = $this->invoices->listForMerchant($mid, $page);
 
         // Decrypt customer names for display
         $enc = $this->c->get(FieldEncryptor::class);
-        foreach ($invoices as &$inv) {
-            $inv['customer_name'] = !empty($inv['customer_name_enc'])
-                ? $enc->decrypt($inv['customer_name_enc'])
-                : '—';
+        if ($enc instanceof FieldEncryptor) {
+            foreach ($invoices as &$inv) {
+                $inv['customer_name'] = !empty($inv['customer_name_enc']) && is_string($inv['customer_name_enc'])
+                    ? $enc->decrypt($inv['customer_name_enc'])
+                    : '—';
+            }
+            unset($inv);
         }
-        unset($inv);
 
         $pagination = $this->invoices->pagination($mid, $page);
 
@@ -107,8 +116,14 @@ final class InvoiceController
     public function create(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
 
         if ($req->method() === 'GET') {
             return $this->renderAdminPage('admin/invoices/edit.twig', [
@@ -119,8 +134,10 @@ final class InvoiceController
             ]);
         }
 
-        $data    = $req->post();
-        $invoice = $this->invoices->create($mid, $data);
+        $data = $req->post();
+        /** @var array{invoice_number?: string, customer_id?: int|string, due_date?: string|null, notes?: string|null, currency?: string, tax?: float|int|string, discount?: float|int|string, items?: array<int, array{description?: string, quantity?: int|string, unit_price?: float|int|string, amount?: float|int|string}>} $postData */
+        $postData = is_array($data) ? $data : [];
+        $invoice = $this->invoices->create($mid, $postData);
         $this->events->doAction('invoice.created', $invoice);
 
         $this->session->flashSuccess('Invoice created');
@@ -137,8 +154,14 @@ final class InvoiceController
     public function edit(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid     = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
         $id      = (int) $req->param('id');
         $invoice = $this->invoices->find($mid, $id);
 
@@ -156,8 +179,10 @@ final class InvoiceController
             ]);
         }
 
-        $data    = $req->post();
-        $updated = $this->invoices->update($mid, $id, $data);
+        $data = $req->post();
+        /** @var array{customer_id?: int|string, due_date?: string|null, notes?: string|null, currency?: string, tax?: float|int|string, discount?: float|int|string, status?: string, items?: array<int, array{description?: string, quantity?: int|string, unit_price?: float|int|string, amount?: float|int|string}>} $postData */
+        $postData = is_array($data) ? $data : [];
+        $updated = $this->invoices->update($mid, $id, $postData);
         $this->events->doAction('invoice.updated', $updated);
 
         $this->session->flashSuccess('Invoice updated');
@@ -210,8 +235,14 @@ final class InvoiceController
     public function pdf(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $brand->resolveFromRequest($req);
-        $mid        = $brand->getActiveBrandId();
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
         $id         = (int) $req->param('id');
         $pdfContent = $this->invoices->generatePdf($mid, $id);
         return Response::download($pdfContent, "invoice-{$id}.pdf", 'application/pdf');
@@ -226,13 +257,19 @@ final class InvoiceController
      */
     private function getCustomers(int $mid): array
     {
-        $repo = $this->c->get(\OwnPay\Repository\CustomerRepository::class)->forTenant($mid);
+        $customerRepo = $this->c->get(\OwnPay\Repository\CustomerRepository::class);
         $enc  = $this->c->get(FieldEncryptor::class);
-        $customers = $repo->paginateScoped(1, 1000)['items'];
         $result = [];
-        foreach ($customers as $c) {
-            $name = !empty($c['name_enc']) ? $enc->decrypt($c['name_enc']) : ($c['name'] ?? 'Unknown');
-            $result[] = ['id' => $c['id'], 'name' => $name];
+        if ($customerRepo instanceof \OwnPay\Repository\CustomerRepository && $enc instanceof FieldEncryptor) {
+            $repo = $customerRepo->forTenant($mid);
+            $paginateResult = $repo->paginateScoped(1, 1000);
+            $customers = is_array($paginateResult['items'] ?? null) ? $paginateResult['items'] : [];
+            foreach ($customers as $c) {
+                if (is_array($c)) {
+                    $name = !empty($c['name_enc']) && is_string($c['name_enc']) ? $enc->decrypt($c['name_enc']) : (is_string($c['name'] ?? null) ? $c['name'] : 'Unknown');
+                    $result[] = ['id' => isset($c['id']) && is_scalar($c['id']) && is_numeric($c['id']) ? (int) $c['id'] : 0, 'name' => $name];
+                }
+            }
         }
         return $result;
     }
@@ -244,6 +281,10 @@ final class InvoiceController
      */
     private function getCurrencies(): array
     {
-        return $this->c->get(\OwnPay\Service\Payment\CurrencyService::class)->listAll();
+        $currencyService = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+        if ($currencyService instanceof \OwnPay\Service\Payment\CurrencyService) {
+            return $currencyService->listAll();
+        }
+        return [];
     }
 }

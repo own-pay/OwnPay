@@ -228,7 +228,10 @@ final class MobileNotificationService
         $file = sys_get_temp_dir() . '/op_notifications.json';
         $queue = [];
         if (file_exists($file)) {
-            $queue = json_decode(file_get_contents($file) ?: '[]', true) ?: [];
+            $decoded = json_decode(file_get_contents($file) ?: '[]', true);
+            if (is_array($decoded)) {
+                $queue = $decoded;
+            }
         }
         $payload['queued_at'] = DateHelper::now();
         $queue[] = $payload;

@@ -86,8 +86,13 @@ final class RefundService
             throw new InvalidArgumentException('Only completed transactions can be refunded');
         }
 
-        $alreadyRefunded = $this->refunds->getTotalRefundedAmount($txn['id'], $merchantId);
-        $origAmount = (string) $txn['amount'];
+        $txnIdVal = $txn['id'] ?? 0;
+        $txnId = is_scalar($txnIdVal) ? (int)$txnIdVal : 0;
+
+        $alreadyRefunded = $this->refunds->getTotalRefundedAmount($txnId, $merchantId);
+        
+        $origAmountVal = $txn['amount'] ?? '0.00';
+        $origAmount = is_scalar($origAmountVal) ? (string) $origAmountVal : '0.00';
 
         /** @var numeric-string $alreadyRefunded */
         /** @var numeric-string $origAmount */
@@ -109,7 +114,7 @@ final class RefundService
 
         // Create refund record
         $id = $this->refunds->forTenant($merchantId)->createRefund([
-            'transaction_id' => $txn['id'],
+            'transaction_id' => $txnId,
             'amount' => (string)$amount,
             'reason' => $data['reason'] ?? '',
             'status' => 'pending'
@@ -121,10 +126,15 @@ final class RefundService
         }
 
         try {
+            $gwSlugVal = $txn['gateway_slug'] ?? '';
+            $gwSlug = is_scalar($gwSlugVal) ? (string)$gwSlugVal : '';
+            $gwTrxIdVal = $txn['gateway_trx_id'] ?? $txn['trx_id'] ?? '';
+            $gwTrxId = is_scalar($gwTrxIdVal) ? (string)$gwTrxIdVal : '';
+
             $result = $this->bridge->refund(
-                $txn['gateway_slug'],
+                $gwSlug,
                 $merchantId,
-                $txn['gateway_trx_id'] ?? $txn['trx_id'],
+                $gwTrxId,
                 (string)$amount
             );
 
@@ -135,10 +145,12 @@ final class RefundService
                 ]);
                 
                 // Ledger recording
-                $this->ledger->recordRefund($merchantId, $txn['id'], (string)$amount, $txn['currency']);
+                $currencyVal = $txn['currency'] ?? 'BDT';
+                $currency = is_scalar($currencyVal) ? (string)$currencyVal : 'BDT';
+                $this->ledger->recordRefund($merchantId, $txnId, (string)$amount, $currency);
 
-                if (bccomp($newTotal, $txn['amount'], 2) === 0) {
-                    $this->transactions->forTenant($merchantId)->updateScoped($txn['id'], [
+                if (bccomp($newTotal, $origAmount, 2) === 0) {
+                    $this->transactions->forTenant($merchantId)->updateScoped($txnId, [
                         'status' => 'refunded'
                     ]);
                 }

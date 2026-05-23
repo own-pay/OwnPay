@@ -91,7 +91,8 @@ final class InputSanitizer
      */
     public static function decimal(mixed $input): string
     {
-        $cleaned = preg_replace('/[^0-9.\-]/', '', (string) $input);
+        $strInput = is_scalar($input) ? (string) $input : '';
+        $cleaned = preg_replace('/[^0-9.\-]/', '', $strInput);
         return is_numeric($cleaned) ? $cleaned : '0.00';
     }
 

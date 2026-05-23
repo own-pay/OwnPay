@@ -32,7 +32,8 @@ final class ReconciliationService
              WHERE merchant_id = :mid AND currency = :cur AND status = 'completed'",
             ['mid' => $merchantId, 'cur' => $currency]
         );
-        $txnTotal = (string) ($txnRow['total'] ?? '0.00');
+        $totalVal = $txnRow['total'] ?? '0.00';
+        $txnTotal = is_scalar($totalVal) ? (string) $totalVal : '0.00';
         /** @var numeric-string $txnTotal */
 
         // Sum refunds (calculating proportional net refund amounts to match new GAAP model)
@@ -46,9 +47,12 @@ final class ReconciliationService
 
         $refundNetTotal = '0.00';
         foreach ($refundRows as $row) {
-            $refAmt = (string)$row['refund_amount'];
-            $txAmt = (string)$row['tx_amount'];
-            $txFee = (string)$row['tx_fee'];
+            $refAmtVal = $row['refund_amount'] ?? '0.00';
+            $txAmtVal = $row['tx_amount'] ?? '0.00';
+            $txFeeVal = $row['tx_fee'] ?? '0.00';
+            $refAmt = is_scalar($refAmtVal) ? (string)$refAmtVal : '0.00';
+            $txAmt = is_scalar($txAmtVal) ? (string)$txAmtVal : '0.00';
+            $txFee = is_scalar($txFeeVal) ? (string)$txFeeVal : '0.00';
 
             /** @var numeric-string $refAmt */
             /** @var numeric-string $txAmt */

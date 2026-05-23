@@ -68,22 +68,25 @@ final class SmsController
      */
     public function receive(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
-        $deviceId = (string) $req->getAttribute('device_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+        $deviceIdVal = $req->getAttribute('device_id');
+        $deviceId = is_string($deviceIdVal) ? $deviceIdVal : '';
         $body = $req->json();
+        $bodyArr = is_array($body) ? $body : [];
 
         // Check if batch payload or single
         $isBatch = false;
         $messages = [];
 
-        if (isset($body['messages']) && is_array($body['messages'])) {
+        if (isset($bodyArr['messages']) && is_array($bodyArr['messages'])) {
             $isBatch = true;
-            $messages = $body['messages'];
-        } elseif (is_array($body) && isset($body[0])) {
+            $messages = $bodyArr['messages'];
+        } elseif (isset($bodyArr[0]) && is_array($bodyArr[0])) {
             $isBatch = true;
-            $messages = $body;
+            $messages = $bodyArr;
         } else {
-            $messages = [$body];
+            $messages = [$bodyArr];
         }
 
         if (empty($messages)) {
@@ -92,7 +95,13 @@ final class SmsController
 
         // Validate messages
         foreach ($messages as $msg) {
-            if (empty($msg['sender']) || (empty($msg['encrypted_payload']) && empty($msg['body']))) {
+            if (!is_array($msg)) {
+                return Response::json(['success' => false, 'error' => 'Invalid message format'], 422);
+            }
+            $senderVal = $msg['sender'] ?? null;
+            $encryptedPayloadVal = $msg['encrypted_payload'] ?? null;
+            $bodyVal = $msg['body'] ?? null;
+            if (empty($senderVal) || (empty($encryptedPayloadVal) && empty($bodyVal))) {
                 return Response::json(['success' => false, 'error' => 'sender and encrypted_payload/body required'], 422);
             }
         }
@@ -101,16 +110,27 @@ final class SmsController
 
         $parsedMessages = [];
         foreach ($messages as $msg) {
-            $parsedMessages[] = [
-                'local_id'          => isset($msg['local_id']) ? (int) $msg['local_id'] : null,
-                'sender'            => $msg['sender'],
-                'encrypted_payload' => $msg['encrypted_payload'] ?? $msg['body'] ?? '',
-                'received_at'       => $msg['received_at'] ?? DateHelper::now(),
-                'device_id'         => $deviceId,
-            ];
+            if (is_array($msg)) {
+                $localIdVal = $msg['local_id'] ?? null;
+                $localId = (is_int($localIdVal) || is_string($localIdVal)) ? (int) $localIdVal : null;
+                $senderVal = $msg['sender'] ?? '';
+                $sender = is_string($senderVal) ? $senderVal : '';
+                $encryptedPayloadVal = $msg['encrypted_payload'] ?? $msg['body'] ?? '';
+                $encryptedPayload = is_string($encryptedPayloadVal) ? $encryptedPayloadVal : '';
+                $receivedAtVal = $msg['received_at'] ?? DateHelper::now();
+                $receivedAt = is_string($receivedAtVal) ? $receivedAtVal : DateHelper::now();
+
+                $parsedMessages[] = [
+                    'local_id'          => $localId,
+                    'sender'            => $sender,
+                    'encrypted_payload' => $encryptedPayload,
+                    'received_at'       => $receivedAt,
+                    'device_id'         => $deviceId,
+                ];
+            }
         }
 
-        $results = $this->parser->processBatch((string) $deviceId, $mid, $parsedMessages);
+        $results = $this->parser->processBatch($deviceId, $mid, $parsedMessages);
 
         $this->events->doAction('sms.received.after', $results);
 
@@ -144,7 +164,8 @@ final class SmsController
      */
     public function queue(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $pending = $this->commRepo->listPendingSms($mid, 20);
         return Response::json(['success' => true, 'queue' => $pending]);
     }

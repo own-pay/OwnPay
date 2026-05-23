@@ -36,8 +36,12 @@ final class HealthController
      */
     public function check(Request $req): Response
     {
-        $mid = (int) $req->getAttribute('merchant_id');
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $db = $this->c->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            throw new \RuntimeException('Database not found');
+        }
 
         // DB ping
         $dbOk = false;
@@ -46,7 +50,10 @@ final class HealthController
             $dbOk = true;
         } catch (\Throwable $e) {
             try {
-                $this->c->get(\OwnPay\Service\System\Logger::class)->warning('Health check DB ping failed: ' . $e->getMessage());
+                $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $logger->warning('Health check DB ping failed: ' . $e->getMessage());
+                }
             } catch (\Throwable) {
                 // Logger may not be available
             }
@@ -81,7 +88,10 @@ final class HealthController
                 "SELECT COUNT(*) as cnt FROM op_gateway_configs WHERE merchant_id = :mid AND status = 'active'",
                 ['mid' => $mid]
             );
-            $gatewayCount = (int) ($row['cnt'] ?? 0);
+            if (is_array($row)) {
+                $cntVal = $row['cnt'] ?? 0;
+                $gatewayCount = is_int($cntVal) || is_string($cntVal) || is_float($cntVal) ? (int) $cntVal : 0;
+            }
         } catch (\Throwable) {
         }
 
@@ -92,13 +102,22 @@ final class HealthController
                 "SELECT COUNT(*) as cnt FROM op_customers WHERE merchant_id = :mid",
                 ['mid' => $mid]
             );
-            $customerCount = (int) ($row['cnt'] ?? 0);
+            if (is_array($row)) {
+                $cntVal = $row['cnt'] ?? 0;
+                $customerCount = is_int($cntVal) || is_string($cntVal) || is_float($cntVal) ? (int) $cntVal : 0;
+            }
         } catch (\Throwable) {
         }
 
         $status = $dbOk ? 'healthy' : 'degraded';
         $code = $dbOk ? 200 : 503;
-        $version = $this->c->get('config.app')['version'] ?? '0.1.0';
+        
+        $appConfig = $this->c->get('config.app');
+        $version = (is_array($appConfig) && isset($appConfig['version']) && is_string($appConfig['version'])) ? $appConfig['version'] : '0.1.0';
+
+        $headers = [
+            'X-API-Version' => $version,
+        ];
 
         return Response::json([
             'status'  => $status,
@@ -111,8 +130,6 @@ final class HealthController
             'gateways'  => $gatewayCount,
             'customers' => $customerCount,
             'time'      => DateHelper::iso(),
-        ], $code, [
-            'X-API-Version' => $version,
-        ]);
+        ], $code, $headers);
     }
 }

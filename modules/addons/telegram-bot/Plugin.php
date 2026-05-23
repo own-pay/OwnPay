@@ -48,7 +48,9 @@ final class Plugin implements PluginInterface
         $this->container = $container;
         if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
             $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
-            $this->settings = $repo->getGroup('plugin.telegram-bot');
+            if ($repo instanceof \OwnPay\Repository\SettingsRepository) {
+                $this->settings = $repo->getGroup('plugin.telegram-bot');
+            }
         }
     }
 
@@ -58,7 +60,9 @@ final class Plugin implements PluginInterface
     {
         if ($container->has(\OwnPay\Repository\SettingsRepository::class)) {
             $repo = $container->get(\OwnPay\Repository\SettingsRepository::class);
-            $repo->deleteGroup('plugin.telegram-bot');
+            if ($repo instanceof \OwnPay\Repository\SettingsRepository) {
+                $repo->deleteGroup('plugin.telegram-bot');
+            }
         }
     }
 
@@ -111,16 +115,17 @@ final class Plugin implements PluginInterface
     /** @param array<string, mixed> $txn */
     private function formatAlert(string $title, array $txn): string
     {
-        $amount = $txn['amount'] ?? '0.00';
-        $currency = $txn['currency'] ?? 'BDT';
-        $trxId = $txn['trx_id'] ?? 'N/A';
-        $gateway = $txn['gateway'] ?? 'N/A';
-        $customer = $txn['customer_name'] ?? ($txn['customer_email'] ?? 'Anonymous');
+        $amount = is_scalar($txn['amount'] ?? null) ? (string) $txn['amount'] : '0.00';
+        $currency = is_scalar($txn['currency'] ?? null) ? (string) $txn['currency'] : 'BDT';
+        $trxId = is_scalar($txn['trx_id'] ?? null) ? (string) $txn['trx_id'] : 'N/A';
+        $gatewayStr = is_scalar($txn['gateway'] ?? null) ? (string) $txn['gateway'] : 'N/A';
+        $custVal = $txn['customer_name'] ?? ($txn['customer_email'] ?? 'Anonymous');
+        $customer = is_scalar($custVal) ? (string) $custVal : 'Anonymous';
 
         return "{$title}\n\n"
             . "💰 Amount: {$currency} {$amount}\n"
             . "🆔 Ref: `{$trxId}`\n"
-            . "🏦 Gateway: {$gateway}\n"
+            . "🏦 Gateway: {$gatewayStr}\n"
             . "👤 Customer: {$customer}\n"
             . "🕐 " . date('Y-m-d H:i:s');
     }
@@ -131,9 +136,19 @@ final class Plugin implements PluginInterface
     public function handleWebhook(Request $req): Response
     {
         $body = $req->json();
+        if (!is_array($body)) {
+            return Response::json(['ok' => false], 400);
+        }
         $message = $body['message'] ?? [];
-        $text = trim($message['text'] ?? '');
-        $chatId = (string) ($message['chat']['id'] ?? '');
+        if (!is_array($message)) {
+            $message = [];
+        }
+        $text = trim(is_string($message['text'] ?? null) ? $message['text'] : '');
+        $chat = $message['chat'] ?? null;
+        $chatId = '';
+        if (is_array($chat) && isset($chat['id']) && is_scalar($chat['id'])) {
+            $chatId = (string) $chat['id'];
+        }
 
         if ($chatId !== ($this->settings['chat_id'] ?? '')) {
             return Response::json(['ok' => false], 403);
@@ -162,33 +177,60 @@ final class Plugin implements PluginInterface
         if (!$this->container) return '⚠️ Not initialized';
 
         $db = $this->container->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            return '⚠️ Not initialized';
+        }
         $txn = $db->fetchOne("SELECT trx_id, amount, currency, status, gateway, created_at FROM op_transactions WHERE trx_id = :ref", ['ref' => $ref]);
-        if (!$txn) return "❌ Transaction `{$ref}` not found.";
+        if (!is_array($txn)) return "❌ Transaction `{$ref}` not found.";
 
-        return "📋 Transaction Status\n\n🆔 `{$txn['trx_id']}`\n💰 {$txn['currency']} {$txn['amount']}\n📊 Status: {$txn['status']}\n🏦 Gateway: {$txn['gateway']}\n🕐 {$txn['created_at']}";
+        $trxId = is_scalar($txn['trx_id'] ?? null) ? (string) $txn['trx_id'] : '';
+        $currency = is_scalar($txn['currency'] ?? null) ? (string) $txn['currency'] : '';
+        $amount = is_scalar($txn['amount'] ?? null) ? (string) $txn['amount'] : '';
+        $status = is_scalar($txn['status'] ?? null) ? (string) $txn['status'] : '';
+        $gatewayStr = is_scalar($txn['gateway'] ?? null) ? (string) $txn['gateway'] : '';
+        $createdAt = is_scalar($txn['created_at'] ?? null) ? (string) $txn['created_at'] : '';
+
+        return "📋 Transaction Status\n\n🆔 `{$trxId}`\n💰 {$currency} {$amount}\n📊 Status: {$status}\n🏦 Gateway: {$gatewayStr}\n🕐 {$createdAt}";
     }
 
     private function cmdToday(): string
     {
         if (!$this->container) return '⚠️ Not initialized';
         $db = $this->container->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            return '⚠️ Not initialized';
+        }
         $stats = $db->fetchOne(
             "SELECT COUNT(*) as total, COALESCE(SUM(CASE WHEN status='completed' THEN amount ELSE 0 END),0) as revenue, COUNT(CASE WHEN status='completed' THEN 1 END) as completed, COUNT(CASE WHEN status='pending' THEN 1 END) as pending FROM op_transactions WHERE DATE(created_at) = CURDATE()"
         );
-        return "📊 Today's Summary\n\n📦 Total: {$stats['total']}\n✅ Completed: {$stats['completed']}\n⏳ Pending: {$stats['pending']}\n💰 Revenue: BDT {$stats['revenue']}";
+        if (!is_array($stats)) {
+            $stats = ['total' => 0, 'completed' => 0, 'pending' => 0, 'revenue' => '0.00'];
+        }
+        $total = is_scalar($stats['total'] ?? null) ? (string) $stats['total'] : '0';
+        $completed = is_scalar($stats['completed'] ?? null) ? (string) $stats['completed'] : '0';
+        $pending = is_scalar($stats['pending'] ?? null) ? (string) $stats['pending'] : '0';
+        $revenue = is_scalar($stats['revenue'] ?? null) ? (string) $stats['revenue'] : '0.00';
+        return "📊 Today's Summary\n\n📦 Total: {$total}\n✅ Completed: {$completed}\n⏳ Pending: {$pending}\n💰 Revenue: BDT {$revenue}";
     }
 
     private function cmdRecent(): string
     {
         if (!$this->container) return '⚠️ Not initialized';
         $db = $this->container->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            return '⚠️ Not initialized';
+        }
         $txns = $db->fetchAll("SELECT trx_id, amount, currency, status FROM op_transactions ORDER BY created_at DESC LIMIT 5");
         if (empty($txns)) return '📭 No recent transactions.';
 
         $lines = ["📋 Last 5 Transactions\n"];
         foreach ($txns as $t) {
-            $icon = $t['status'] === 'completed' ? '✅' : ($t['status'] === 'pending' ? '⏳' : '❌');
-            $lines[] = "{$icon} `{$t['trx_id']}` — {$t['currency']} {$t['amount']}";
+            $status = is_scalar($t['status'] ?? null) ? (string) $t['status'] : '';
+            $icon = $status === 'completed' ? '✅' : ($status === 'pending' ? '⏳' : '❌');
+            $trxId = is_scalar($t['trx_id'] ?? null) ? (string) $t['trx_id'] : '';
+            $currency = is_scalar($t['currency'] ?? null) ? (string) $t['currency'] : '';
+            $amount = is_scalar($t['amount'] ?? null) ? (string) $t['amount'] : '';
+            $lines[] = "{$icon} `{$trxId}` — {$currency} {$amount}";
         }
         return implode("\n", $lines);
     }
