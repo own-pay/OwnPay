@@ -4,10 +4,11 @@ parameters:
         - src
     excludePaths:
         - vendor
-        - mobile_app
+        - mobile_app (?)
         - cli
-        - update
-        - graphify-out
+        - update (?)
+        - graphify-out (?)
+        - node_modules (?)
     ignoreErrors:
         - '#Constant OWNPAY_INIT not found.#'
     reportUnmatchedIgnoredErrors: false
