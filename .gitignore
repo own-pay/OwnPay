@@ -10,7 +10,6 @@
 cookie.txt
 test_*.php
 check_db.php
-scratch/
 phpstan_report*.txt
 phpstan_results.json
 
@@ -44,12 +43,9 @@ storage/pdf/*
 storage/sessions/*
 storage/backups/*
 !storage/*/.gitkeep
-scratch_test.php
 
 # Mobile app
 /mobile_app/
-
-/scratch/
 
 #Php cli nd update
 /update/releases/*
