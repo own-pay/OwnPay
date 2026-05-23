@@ -206,7 +206,11 @@ final class ThemeController
                 $this->session->flashError($result['error'] ?? 'Failed to activate theme');
                 return Response::redirect('/admin/themes');
             }
-            $plugin = $this->repo->findBySlug($slug);
+        }
+
+        if ($plugin === null) {
+            $this->session->flashError('Failed to activate theme');
+            return Response::redirect('/admin/themes');
         }
 
         if ($plugin['status'] !== 'active') {

@@ -142,7 +142,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         $baseUrl = $mode === 'live' ? self::LIVE_URL : self::SANDBOX_URL;
 
         $merchantId = $credentials['nagad_merchant_id'] ?? '';
-        $trxId = $params['trx_id'] ?? '';
+        $trxId = $params['trx_id'];
         
         // Nagad invoice length must be <= 20 chars
         $invoice = substr($trxId, 0, 20);
@@ -157,9 +157,9 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             'challenge'  => $this->generateRandomString(40)
         ];
 
-        $sensitiveJson = json_encode($sensitiveData);
-        $encryptedSensitiveData = $this->encryptWithPublicKey($sensitiveJson, $credentials['nagad_public_key']);
-        $signature = $this->signWithPrivateKey($sensitiveJson, $credentials['nagad_private_key']);
+        $sensitiveJson = (string) json_encode($sensitiveData);
+        $encryptedSensitiveData = $this->encryptWithPublicKey($sensitiveJson, (string) ($credentials['nagad_public_key'] ?? ''));
+        $signature = $this->signWithPrivateKey($sensitiveJson, (string) ($credentials['nagad_private_key'] ?? ''));
 
         $postData = [
             'accountNumber' => $credentials['nagad_app_account'] ?? '',
@@ -174,14 +174,14 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
                 'X-KM-Api-Version: v-0.2.0',
                 'X-KM-IP-V4: ' . ($this->getClientIp()),
                 'X-KM-Client-Type: PC_WEB'
             ],
-            CURLOPT_POSTFIELDS => json_encode($postData),
+            CURLOPT_POSTFIELDS => (string) json_encode($postData),
         ]);
 
         $response = curl_exec($ch);
@@ -192,7 +192,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             throw new \RuntimeException('Nagad API Error: HTTP ' . $httpCode);
         }
 
-        $initData = json_decode($response, true);
+        $initData = json_decode((string) $response, true);
         if (empty($initData['sensitiveData'])) {
             $reason = $initData['message'] ?? 'Unknown error';
             throw new \RuntimeException('Nagad initialization failed: ' . $reason);
@@ -220,9 +220,9 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             'challenge'    => $challenge
         ];
 
-        $orderJson = json_encode($sensitiveDataOrder);
-        $encryptedOrderData = $this->encryptWithPublicKey($orderJson, $credentials['nagad_public_key']);
-        $signatureOrder = $this->signWithPrivateKey($orderJson, $credentials['nagad_private_key']);
+        $orderJson = (string) json_encode($sensitiveDataOrder);
+        $encryptedOrderData = $this->encryptWithPublicKey($orderJson, (string) ($credentials['nagad_public_key'] ?? ''));
+        $signatureOrder = $this->signWithPrivateKey($orderJson, (string) ($credentials['nagad_private_key'] ?? ''));
 
         // Success redirect callback: we want to append paymentID/trx_id to trigger status callback
         $separator = (strpos($params['redirect_url'], '?') !== false) ? '&' : '?';
@@ -240,14 +240,14 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json',
                 'X-KM-Api-Version: v-0.2.0',
                 'X-KM-IP-V4: ' . ($this->getClientIp()),
                 'X-KM-Client-Type: PC_WEB'
             ],
-            CURLOPT_POSTFIELDS => json_encode($postDataOrder),
+            CURLOPT_POSTFIELDS => (string) json_encode($postDataOrder),
         ]);
 
         $responseOrder = curl_exec($ch);
@@ -258,7 +258,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             throw new \RuntimeException('Nagad Order API Error: HTTP ' . $httpCodeOrder);
         }
 
-        $orderResult = json_decode($responseOrder, true);
+        $orderResult = json_decode((string) $responseOrder, true);
         if (empty($orderResult['callBackUrl']) || ($orderResult['status'] ?? '') !== 'Success') {
             $reason = $orderResult['message'] ?? 'Unknown error';
             throw new \RuntimeException('Nagad complete failed: ' . $reason);
@@ -284,7 +284,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         $trxId = $callbackData['trx_id'] ?? $callbackData['paymentID'] ?? '';
 
         if (strtolower($status) !== 'success' || $paymentRefId === '') {
-            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            return ['success' => false, 'gateway_trx_id' => '', 'amount' => null, 'status' => 'failed'];
         }
 
         $mode = $credentials['nagad_mode'] ?? 'sandbox';
@@ -297,7 +297,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_USERAGENT      => 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
         ]);
 
@@ -306,12 +306,12 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
         curl_close($ch);
 
         if ($httpCode !== 200 || !$response) {
-            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'api_error'];
+            return ['success' => false, 'gateway_trx_id' => '', 'amount' => null, 'status' => 'api_error'];
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (!is_array($data)) {
-            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
+            return ['success' => false, 'gateway_trx_id' => '', 'amount' => null, 'status' => 'invalid_response'];
         }
 
         $paid = isset($data['status']) && strtolower($data['status']) === 'success';

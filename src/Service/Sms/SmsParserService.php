@@ -286,7 +286,7 @@ final class SmsParserService
      * @param string $sender Carrier identifier patterns.
      * @param int $brandId Brand/merchant context identifier.
      * @return array{
-     *   parsed_amount: float,
+     *   parsed_amount: float|null,
      *   parsed_trx_id: string|null,
      *   parsed_sender: string|null,
      *   parsed_balance: float|null,

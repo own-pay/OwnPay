@@ -140,7 +140,7 @@ final class LogSanitizer
 
         // Redact Maestro/UnionPay 13-19 digit card patterns using Luhn checksum validation.
         $input = preg_replace_callback('/\b(?:\d[ -]*?){13,19}\b/', function (array $match): string {
-            $digits = preg_replace('/\D/', '', $match[0]);
+            $digits = (string) preg_replace('/\D/', '', $match[0]);
             return self::passesLuhn($digits) ? '[CARD_REDACTED]' : $match[0];
         }, $input) ?? $input;
 

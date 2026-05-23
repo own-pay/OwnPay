@@ -16,6 +16,7 @@ use OwnPay\Http\Response;
  */
 final class Plugin implements PluginInterface
 {
+    /** @var array<string, string> */
     private array $settings = [];
     private ?Container $container = null;
 
@@ -93,18 +94,21 @@ final class Plugin implements PluginInterface
         ];
     }
 
+    /** @param array<string, mixed> $txn */
     public function onCompleted(array $txn): void
     {
-        if (empty($this->settings['alert_on_success']) || $this->settings['alert_on_success'] === '0') return;
+        if (empty($this->settings['alert_on_success'])) return;
         $this->sendMessage($this->formatAlert('✅ Payment Received', $txn));
     }
 
+    /** @param array<string, mixed> $txn */
     public function onFailed(array $txn): void
     {
-        if (empty($this->settings['alert_on_failure']) || $this->settings['alert_on_failure'] === '0') return;
+        if (empty($this->settings['alert_on_failure'])) return;
         $this->sendMessage($this->formatAlert('❌ Payment Failed', $txn));
     }
 
+    /** @param array<string, mixed> $txn */
     private function formatAlert(string $title, array $txn): string
     {
         $amount = $txn['amount'] ?? '0.00';
@@ -126,7 +130,7 @@ final class Plugin implements PluginInterface
      */
     public function handleWebhook(Request $req): Response
     {
-        $body = $req->jsonBody();
+        $body = $req->json();
         $message = $body['message'] ?? [];
         $text = trim($message['text'] ?? '');
         $chatId = (string) ($message['chat']['id'] ?? '');
@@ -199,7 +203,7 @@ final class Plugin implements PluginInterface
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS => json_encode([
+            CURLOPT_POSTFIELDS => (string) json_encode([
                 'chat_id' => $chat,
                 'text' => $text,
                 'parse_mode' => 'Markdown',

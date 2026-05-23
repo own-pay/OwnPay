@@ -69,7 +69,7 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
                 'name'     => 'pay_with_charge',
                 'label'    => 'Fee Pay',
                 'type'     => 'select',
-                'options'  => ['0' => 'Customer', '1' => 'Merchant'],
+                'options'  => ['customer' => 'Customer', 'merchant' => 'Merchant'],
                 'required' => true
             ],
             [
@@ -90,21 +90,21 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
 
         $merchantId = $credentials['merchant_id'] ?? '';
         $merchantPassword = $credentials['merchant_password'] ?? '';
-        $payWithCharge = $credentials['pay_with_charge'] ?? '0';
+        $payWithCharge = ($credentials['pay_with_charge'] ?? 'customer') === 'merchant' ? '1' : '0';
         $checkoutItems = $credentials['checkout_items'] ?? 'Payment';
 
-        $trxId = $params['trx_id'] ?? '';
+        $trxId = $params['trx_id'];
         $amount = number_format((float) $params['amount'], 2, '.', '');
-        $redirectUrl = $params['redirect_url'] ?? '';
+        $redirectUrl = $params['redirect_url'];
 
         $postFields = [
             'invoice_number'  => $trxId,
             'currency'        => 'BDT',
             'payment_amount'  => $amount,
             'reference'       => $trxId,
-            'cust_name'       => $params['customer_name'] ?? 'Customer',
-            'cust_phone'      => $params['customer_phone'] ?? '01700000000',
-            'cust_email'      => $params['customer_email'] ?? 'customer@example.com',
+            'cust_name'       => $params['metadata']['customer_name'] ?? 'Customer',
+            'cust_phone'      => $params['metadata']['customer_phone'] ?? '01700000000',
+            'cust_email'      => $params['metadata']['customer_email'] ?? 'customer@example.com',
             'cust_address'    => 'Bangladesh',
             'pay_with_charge' => $payWithCharge,
             'callback_url'    => $redirectUrl,
@@ -119,7 +119,7 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_POSTFIELDS     => $postFields,
         ]);
 
@@ -131,7 +131,7 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
             throw new \RuntimeException('PayStation API Error: HTTP ' . $httpCode);
         }
 
-        $result = json_decode($response, true);
+        $result = json_decode((string) $response, true);
         if (empty($result['payment_url'])) {
             $errMsg = $result['message'] ?? 'Missing payment URL';
             throw new \RuntimeException('PayStation Initiation Error: ' . $errMsg);
@@ -151,8 +151,7 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
         if (empty($invoiceNumber)) {
             return [
                 'success'        => false,
-                'gateway_trx_id' => null,
-                'amount'         => null,
+                'gateway_trx_id' => '',
                 'status'         => 'pending',
                 'order_id'       => null,
             ];
@@ -161,8 +160,7 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
         if ($status !== 'Successful') {
             return [
                 'success'        => false,
-                'gateway_trx_id' => null,
-                'amount'         => null,
+                'gateway_trx_id' => '',
                 'status'         => 'failed',
                 'order_id'       => $invoiceNumber,
             ];
@@ -180,7 +178,7 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => false,
+            CURLOPT_SSL_VERIFYHOST => 0,
             CURLOPT_HTTPHEADER     => [
                 'merchantId: ' . $merchantId
             ],
@@ -196,14 +194,13 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
         if ($httpCode !== 200 || !$response) {
             return [
                 'success'        => false,
-                'gateway_trx_id' => null,
-                'amount'         => null,
+                'gateway_trx_id' => '',
                 'status'         => 'failed',
                 'order_id'       => $invoiceNumber,
             ];
         }
 
-        $result = json_decode($response, true);
+        $result = json_decode((string) $response, true);
         if (($result['status_code'] ?? '') === '200' && ($result['status'] ?? '') === 'success') {
             $trxStatus = $result['data']['trx_status'] ?? '';
             $isPaid = in_array(strtolower($trxStatus), ['successful', 'success'], true);
@@ -212,20 +209,22 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
                 $gatewayTrxId = $result['data']['trx_id'] ?? $invoiceNumber;
                 $amount = $result['data']['payment_amount'] ?? null;
 
-                return [
+                $res = [
                     'success'        => true,
                     'gateway_trx_id' => (string) $gatewayTrxId,
-                    'amount'         => $amount !== null ? (string) $amount : null,
                     'status'         => 'completed',
                     'order_id'       => $invoiceNumber,
                 ];
+                if ($amount !== null) {
+                    $res['amount'] = (string) $amount;
+                }
+                return $res;
             }
         }
 
         return [
             'success'        => false,
-            'gateway_trx_id' => null,
-            'amount'         => null,
+            'gateway_trx_id' => '',
             'status'         => 'failed',
             'order_id'       => $invoiceNumber,
         ];

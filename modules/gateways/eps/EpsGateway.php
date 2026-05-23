@@ -72,10 +72,10 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
 
         $separator = (strpos($params['redirect_url'], '?') !== false) ? '&' : '?';
 
-        // Extract or default customer details
-        $email = $params['customer_email'] ?? 'customer@example.com';
-        $phone = $params['customer_phone'] ?? '01700000000';
-        $name  = $params['customer_name'] ?? 'Customer';
+        // Extract or default customer details from metadata
+        $email = $params['metadata']['customer_email'] ?? 'customer@example.com';
+        $phone = $params['metadata']['customer_phone'] ?? '01700000000';
+        $name  = $params['metadata']['customer_name'] ?? 'Customer';
 
         $payload = [
             'storeId'               => $credentials['store_id'] ?? '',
@@ -87,9 +87,9 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
             'totalAmount'           => $params['amount'],
             'ipAddress'             => $_SERVER['REMOTE_ADDR'] ?? '127.0.0.1',
             'version'               => '1',
-            'successUrl'            => $params['redirect_url'] . $separator . 'ppstatus=success&paymentID=' . urlencode($params['trx_id'] ?? ''),
-            'failUrl'               => $params['cancel_url'] ?? '',
-            'cancelUrl'             => $params['cancel_url'] ?? '',
+            'successUrl'            => $params['redirect_url'] . $separator . 'ppstatus=success&paymentID=' . urlencode($params['trx_id']),
+            'failUrl'               => $params['cancel_url'],
+            'cancelUrl'             => $params['cancel_url'],
             'customerName'          => $name,
             'customerEmail'         => $email,
             'CustomerAddress'       => 'Dhaka, Bangladesh',
@@ -106,18 +106,18 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
             'ShipmentState'         => 'Dhaka',
             'ShipmentPostcode'      => '1200',
             'ShipmentCountry'       => 'BD',
-            'ValueA'                => $params['trx_id'] ?? '',
+            'ValueA'                => $params['trx_id'],
             'ValueB'                => '',
             'ValueC'                => '',
             'ValueD'                => '',
             'ShippingMethod'        => 'NO',
             'NoOfItem'              => '1',
-            'ProductName'           => 'Payment ' . ($params['trx_id'] ?? ''),
+            'ProductName'           => 'Payment ' . $params['trx_id'],
             'ProductProfile'        => 'general',
             'ProductCategory'       => 'Digital',
             'ProductList'           => [
                 [
-                    'ProductName'     => 'Payment ' . ($params['trx_id'] ?? ''),
+                    'ProductName'     => 'Payment ' . $params['trx_id'],
                     'NoOfItem'        => '1',
                     'ProductProfile'  => 'general',
                     'ProductCategory' => 'Digital',
@@ -136,7 +136,7 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
                 'x-hash: ' . $xHash,
                 'Authorization: Bearer ' . $token
             ],
-            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_POSTFIELDS => (string) json_encode($payload),
         ]);
 
         $response = curl_exec($ch);
@@ -147,9 +147,9 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('EPS API connection error: HTTP ' . $httpCode);
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (empty($data['RedirectURL'])) {
-            throw new \RuntimeException('EPS initiation failed: ' . ($response ?: 'Empty response'));
+            throw new \RuntimeException('EPS initiation failed: ' . $response);
         }
 
         return [
@@ -197,7 +197,7 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'api_error'];
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (!is_array($data)) {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
         }
@@ -213,6 +213,7 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /** @param array<string, string> $credentials */
     private function getToken(string $baseUrl, array $credentials): string
     {
         $username = $credentials['username'] ?? '';
@@ -231,7 +232,7 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
                 'Content-Type: application/json',
                 'x-hash: ' . $xHash
             ],
-            CURLOPT_POSTFIELDS => json_encode([
+            CURLOPT_POSTFIELDS => (string) json_encode([
                 'userName' => $username,
                 'password' => $password
             ]),
@@ -245,9 +246,9 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('EPS Token generation error: HTTP ' . $httpCode);
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (empty($data['token'])) {
-            throw new \RuntimeException('EPS Token generation failed: ' . ($response ?: 'Empty response'));
+            throw new \RuntimeException('EPS Token generation failed: ' . $response);
         }
 
         return $data['token'];

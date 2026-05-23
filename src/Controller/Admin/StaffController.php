@@ -73,7 +73,7 @@ final class StaffController
 
         $staff = $this->brand->isGlobalView()
             ? $this->userRepo->listAllStaff()
-            : $this->userRepo->listStaffForMerchant($mid);
+            : $this->userRepo->listStaffForMerchant((int) $mid);
 
         return $this->renderAdminPage('admin/staff/index.twig', ['staff' => $staff, 'active_page' => 'staff']);
     }

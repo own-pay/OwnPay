@@ -15,6 +15,7 @@ use OwnPay\Event\EventManager;
  */
 final class Plugin implements PluginInterface
 {
+    /** @var array<string, string> */
     private array $settings = [];
 
     public static function metadata(): array
@@ -138,10 +139,14 @@ final class Plugin implements PluginInterface
     /**
      * @param array{to: string, body: string, merchant_id?: int} $payload
      */
+    /**
+     * @param array{to: string, body: string, merchant_id?: int} $payload
+     * @return array<string, mixed>
+     */
     public function send(array $payload): array
     {
-        $to = $payload['to'] ?? '';
-        $body = $payload['body'] ?? '';
+        $to = $payload['to'];
+        $body = $payload['body'];
         if ($to === '' || $body === '') {
             return ['success' => false, 'error' => 'Missing to/body'];
         }
@@ -159,6 +164,7 @@ final class Plugin implements PluginInterface
         }
     }
 
+    /** @return array<string, mixed> */
     private function sendTwilio(string $to, string $body): array
     {
         $sid = $this->settings['twilio_sid'] ?? '';
@@ -181,6 +187,7 @@ final class Plugin implements PluginInterface
         return ['success' => $httpCode >= 200 && $httpCode < 300, 'sid' => $data['sid'] ?? null];
     }
 
+    /** @return array<string, mixed> */
     private function sendVonage(string $to, string $body): array
     {
         $key = $this->settings['vonage_key'] ?? '';
@@ -191,7 +198,7 @@ final class Plugin implements PluginInterface
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS => json_encode(['api_key' => $key, 'api_secret' => $secret, 'from' => $from, 'to' => $to, 'text' => $body]),
+            CURLOPT_POSTFIELDS => (string) json_encode(['api_key' => $key, 'api_secret' => $secret, 'from' => $from, 'to' => $to, 'text' => $body]),
             CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
             CURLOPT_TIMEOUT => 15,
         ]);
@@ -203,6 +210,7 @@ final class Plugin implements PluginInterface
         return ['success' => ($msg['status'] ?? '1') === '0'];
     }
 
+    /** @return array<string, mixed> */
     private function sendCustom(string $to, string $body): array
     {
         $url = $this->settings['custom_api_url'] ?? '';
@@ -221,9 +229,9 @@ final class Plugin implements PluginInterface
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
-            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_CUSTOMREQUEST => $method !== '' ? $method : null,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS => $rendered,
+            CURLOPT_POSTFIELDS => (string) $rendered,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . ($this->settings['custom_api_key'] ?? ''),

@@ -64,6 +64,9 @@ final class TransactionService
         $repo = $this->transactions->forTenant($merchantId);
         $id = $repo->createTransaction($data);
         $transaction = $repo->findScoped((int) $id);
+        if ($transaction === null) {
+            throw new \RuntimeException('Failed to retrieve newly created transaction.');
+        }
 
         $this->events->doAction('payment.transaction.created', $transaction);
 
@@ -94,6 +97,9 @@ final class TransactionService
         $repo = $this->transactions->forTenant($merchantId);
         $repo->markCompleted($transactionId);
         $transaction = $repo->findScoped($transactionId);
+        if ($transaction === null) {
+            throw new \RuntimeException('Failed to retrieve completed transaction.');
+        }
 
         $this->events->doAction('payment.transaction.completed', $transaction);
 
@@ -127,6 +133,9 @@ final class TransactionService
         }
         $repo->updateScoped($transactionId, $updateData);
         $transaction = $repo->findScoped($transactionId);
+        if ($transaction === null) {
+            throw new \RuntimeException('Failed to retrieve failed transaction.');
+        }
 
         $this->events->doAction('payment.transaction.failed', $transaction);
 
@@ -145,6 +154,9 @@ final class TransactionService
         $repo = $this->transactions->forTenant($merchantId);
         $repo->updateScoped($transactionId, ['status' => 'cancelled']);
         $transaction = $repo->findScoped($transactionId);
+        if ($transaction === null) {
+            throw new \RuntimeException('Failed to retrieve cancelled transaction.');
+        }
 
         $this->events->doAction('payment.transaction.cancelled', $transaction);
 

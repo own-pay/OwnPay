@@ -68,24 +68,31 @@ final class MfsService
             'device_id'    => $deviceId,
             'sender'       => $sender,
             'body'         => $body,
-            'amount'       => $parsed['amount'] ?? null,
-            'trx_id'       => $parsed['trx_id'] ?? null,
+            'amount'       => $parsed['parsed_amount'] ?? $parsed['amount'] ?? null,
+            'trx_id'       => $parsed['parsed_trx_id'] ?? $parsed['trx_id'] ?? null,
             'gateway_slug' => $parsed['gateway_slug'] ?? null,
-            'parser_type'  => $parsed['parser_type'] ?? 'none',
+            'parser_type'  => $parsed['parse_method'] ?? $parsed['parser_type'] ?? 'none',
             'match_status' => 'pending',
             'raw_data'     => json_encode($parsed),
             'received_at'  => DateHelper::now(),
         ]);
 
+        $trxId = $parsed['parsed_trx_id'] ?? $parsed['trx_id'] ?? null;
+
         // Try auto-match to pending transaction
-        if (!empty($parsed['trx_id'])) {
-            $transaction = $this->transactions->findByTrxId($merchantId, $parsed['trx_id']);
+        if (!empty($trxId)) {
+            $transaction = $this->transactions->findByTrxId($merchantId, $trxId);
             if ($transaction !== null && $transaction['status'] === 'pending') {
                 $this->smsParsed->forTenant($merchantId)->linkToTransaction((int) $smsId, (int) $transaction['id']);
                 return ['matched' => true, 'transaction_id' => $transaction['id'], 'sms_id' => $smsId];
             }
         }
 
-        return ['matched' => false, 'sms_id' => $smsId, 'parsed' => $parsed];
+        $result = ['matched' => false, 'sms_id' => $smsId];
+        if ($parsed !== null) {
+            $result['parsed'] = $parsed;
+        }
+
+        return $result;
     }
 }

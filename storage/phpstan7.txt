@@ -1,0 +1,294 @@
+﻿vendor/bin/phpstan : Note: Using configuration file C:\laragon\www\ownpay\phpstan.neon.
+At line:1 char:1
++ vendor/bin/phpstan analyse --no-progress 2>&1 | Out-File -FilePath st ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Note: Using con...y\phpstan.neon.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  Line   cli\build-update.php                                                                                        
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  149    Cannot access offset 'key' on array|false.                                                                  
+         🪪  offsetAccess.nonOffsetAccessible                                                                        
+  260    Parameter #2 $subject of function preg_match expects string, string|false given.                            
+         🪪  argument.type                                                                                           
+  323    Parameter #1 $string of function trim expects string, string|false given.                                   
+         🪪  argument.type                                                                                           
+  335    Parameter #1 $json of function json_decode expects string, string|false given.                              
+         🪪  argument.type                                                                                           
+  482    Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|false given.  
+         🪪  argument.type                                                                                           
+  514    Parameter #1 $data of function openssl_sign expects string, string|false given.                             
+         🪪  argument.type                                                                                           
+  562    Parameter #1 $json of function json_decode expects string, string|false given.                              
+         🪪  argument.type                                                                                           
+  697    Parameter #1 $num of function number_format expects float, int<0, max>|false given.                         
+         🪪  argument.type                                                                                           
+ ------ ------------------------------------------------------------------------------------------------------------ 
+
+ ------ ---------------------------------------------------------------------------------------------------- 
+  Line   config\services.php                                                                                 
+ ------ ---------------------------------------------------------------------------------------------------- 
+  125    Argument of an invalid type list<string>|false supplied for foreach, only iterables are supported.  
+         🪪  foreach.nonIterable                                                                             
+ ------ ---------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\addons\mail-gateway\Plugin.php                                                                         
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  238    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 10015: array|string,  
+         10023: array<int, string>, 13: int}, array{47: true, 19913: true, 10015: non-empty-string|false, 10023: array  
+         {'Content-Type:…', non-falsy-string}, 13: 15} given.                                                           
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\addons\sms-gateway\Plugin.php                                                                          
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  198    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 10015: array|string,  
+         10023: array<int, string>, 13: int}, array{47: true, 19913: true, 10015: non-empty-string|false, 10023: array  
+         {'Content-Type:…'}, 13: 15} given.                                                                             
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  231    Parameter #2 $options of function curl_setopt_array expects array{10036: non-empty-string|null, 19913: bool,   
+         10015: array|string, 10023: array<int, string>, 13: int}, array{10036: string, 19913: true, 10015: string, 10  
+         023: array{'Content-Type:…', non-falsy-string}, 13: 15} given.                                                 
+         🪪  argument.type                                                                                              
+         💡  Offset 10036 (non-empty-string|null) does not accept type string.                                          
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\addons\telegram-bot\Plugin.php                                                                         
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  203    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 10015: array|string,  
+         10023: array<int, string>, 13: int}, array{47: true, 19913: true, 10015: non-empty-string|false, 10023: array  
+         {'Content-Type:…'}, 13: 10} given.                                                                             
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\aamarpay\AamarpayGateway.php                                                                  
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  96     Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 10023:       
+         array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 10023: array{'Content-Type:…'}  
+         , 10015: non-empty-string|false} given.                                                                        
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  112    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  161    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\binance-merchant-api\BinanceMerchantApiGateway.php                                            
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  114    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 10023:       
+         array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 10023: array{'Content-Type:…',  
+          non-falsy-string, non-falsy-string, non-falsy-string, non-falsy-string}, 10015: non-empty-string|false}       
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  130    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  166    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 10023:       
+         array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 10023: array{'Content-Type:…',  
+          non-falsy-string, non-falsy-string, non-falsy-string, non-falsy-string}, 10015: non-empty-string|false}       
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  182    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\bkash-api\BkashApiGateway.php                                                                 
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  155    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 10023:       
+         array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 10023: array{'Content-Type:…',  
+          non-falsy-string, non-falsy-string}, 10015: non-empty-string|false} given.                                    
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  183    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  218    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 10023:       
+         array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 10023: array{'Content-Type:…',  
+          non-falsy-string, non-falsy-string}, 10015: non-empty-string|false} given.                                    
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  244    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  315    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 10023:       
+         array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 10, 10023: array{'Content-Type:…',  
+          non-falsy-string, non-falsy-string}, 10015: non-empty-string|false} given.                                    
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  338    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------- 
+  Line   modules\gateways\cashmaal\CashmaalGateway.php                                  
+ ------ ------------------------------------------------------------------------------- 
+  104    Parameter #1 $json of function json_decode expects string, string|true given.  
+         🪪  argument.type                                                              
+ ------ ------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\eps\EpsGateway.php                                                                            
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  130    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 10023:       
+         array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 10023: array{'Content-Type:…',  
+          non-falsy-string, non-falsy-string}, 10015: non-empty-string|false} given.                                    
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  150    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  200    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  227    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 10023:       
+         array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 10023: array{'Content-Type:…',  
+          non-falsy-string}, 10015: non-empty-string|false} given.                                                      
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  249    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\nagad-merchant-api\NagadMerchantApiGateway.php                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  161    Parameter #1 $data of method                                                                                   
+         OwnPay\Modules\Gateways\NagadMerchantApi\NagadMerchantApiGateway::encryptWithPublicKey() expects string,       
+         string|false given.                                                                                            
+         🪪  argument.type                                                                                              
+  162    Parameter #1 $data of method                                                                                   
+         OwnPay\Modules\Gateways\NagadMerchantApi\NagadMerchantApiGateway::signWithPrivateKey() expects string,         
+         string|false given.                                                                                            
+         🪪  argument.type                                                                                              
+  172    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          0, 10023: array{'Content-Type:…', 'X-KM-Api-Version: v…', non-falsy-string, 'X-KM-Client-Type:…'}, 10015:     
+         non-empty-string|false} given.                                                                                 
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  195    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  224    Parameter #1 $data of method                                                                                   
+         OwnPay\Modules\Gateways\NagadMerchantApi\NagadMerchantApiGateway::encryptWithPublicKey() expects string,       
+         string|false given.                                                                                            
+         🪪  argument.type                                                                                              
+  225    Parameter #1 $data of method                                                                                   
+         OwnPay\Modules\Gateways\NagadMerchantApi\NagadMerchantApiGateway::signWithPrivateKey() expects string,         
+         string|false given.                                                                                            
+         🪪  argument.type                                                                                              
+  238    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          0, 10023: array{'Content-Type:…', 'X-KM-Api-Version: v…', non-falsy-string, 'X-KM-Client-Type:…'}, 10015:     
+         non-empty-string|false} given.                                                                                 
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  261    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  312    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\now-payments\NowPaymentsGateway.php                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  103    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          0, 10023: array{non-falsy-string, 'Content-Type:…'}, 10015: non-empty-string|false} given.                    
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  126    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  189    Parameter #2 $data of function hash_hmac expects string, string|false given.                                   
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\oxapay\OxapayGateway.php                                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  85     Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          0, 10023: array{'Content-Type:…'}, 10015: non-empty-string|false} given.                                      
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  105    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\paypal-checkout\PaypalCheckoutGateway.php                                                     
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  108    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          0, 10023: array{'Content-Type:…', non-falsy-string}, 10015: non-empty-string|false} given.                    
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  131    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  290    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------- 
+  Line   modules\gateways\paystation\PaystationGateway.php                              
+ ------ ------------------------------------------------------------------------------- 
+  134    Parameter #1 $json of function json_decode expects string, string|true given.  
+         🪪  argument.type                                                              
+  203    Parameter #1 $json of function json_decode expects string, string|true given.  
+         🪪  argument.type                                                              
+ ------ ------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\shurjopay\ShurjopayGateway.php                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  152    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  219    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          0, 10023: array{non-falsy-string, 'Content-Type:…'}, 10015: non-empty-string|false} given.                    
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  245    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+  281    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          0, 10023: array{'Content-Type:…'}, 10015: non-empty-string|false} given.                                      
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+  304    Parameter #1 $json of function json_decode expects string, string|true given.                                  
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------- 
+  Line   modules\gateways\sslcommerz\SslCommerzGateway.php                              
+ ------ ------------------------------------------------------------------------------- 
+  169    Parameter #1 $json of function json_decode expects string, bool|string given.  
+         🪪  argument.type                                                              
+  202    Parameter #1 $json of function json_decode expects string, bool|string given.  
+         🪪  argument.type                                                              
+ ------ ------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------- 
+  Line   modules\gateways\stripe\StripeGateway.php                                      
+ ------ ------------------------------------------------------------------------------- 
+  134    Parameter #1 $num1 of function bcmul expects numeric-string, string given.     
+         🪪  argument.type                                                              
+  164    Parameter #1 $json of function json_decode expects string, bool|string given.  
+         🪪  argument.type                                                              
+  223    Parameter #1 $json of function json_decode expects string, string|true given.  
+         🪪  argument.type                                                              
+  302    Parameter #1 $num1 of function bcmul expects numeric-string, string given.     
+         🪪  argument.type                                                              
+  318    Parameter #1 $json of function json_decode expects string, bool|string given.  
+         🪪  argument.type                                                              
+ ------ ------------------------------------------------------------------------------- 
+
+ [ERROR] Found 63 errors                                                                                               
+

@@ -72,6 +72,9 @@ final class PaymentService
         $repo = $this->intents->forTenant($merchantId);
         $id = $repo->createIntent($data);
         $intent = $repo->findScoped((int) $id);
+        if ($intent === null) {
+            throw new \RuntimeException('Failed to retrieve newly created payment intent.');
+        }
 
         $this->events->doAction('payment.intent.created', $intent);
 

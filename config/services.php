@@ -122,7 +122,7 @@ return static function (\OwnPay\Container $c): void {
         // Add module theme paths for overrides
         $themesDir = $paths['modules'] . '/themes';
         if (is_dir($themesDir)) {
-            foreach (glob($themesDir . '/*/templates') as $themeTemplateDir) {
+            foreach (glob($themesDir . '/*/templates') ?: [] as $themeTemplateDir) {
                 $themeName = basename(dirname($themeTemplateDir));
                 $loader->addPath($themeTemplateDir, $themeName);
             }
@@ -207,8 +207,7 @@ return static function (\OwnPay\Container $c): void {
 
     $c->singleton(\OwnPay\Plugin\PluginInstaller::class, static function (\OwnPay\Container $c): \OwnPay\Plugin\PluginInstaller {
         return new \OwnPay\Plugin\PluginInstaller(
-            $c->get('config.app')['paths']['modules'],
-            $c->get(\OwnPay\Plugin\PluginRegistry::class)
+            $c->get('config.app')['paths']['modules']
         );
     });
 

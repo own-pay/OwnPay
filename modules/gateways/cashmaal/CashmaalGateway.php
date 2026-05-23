@@ -69,7 +69,7 @@ final class CashmaalGateway implements PluginInterface, GatewayAdapterInterface
 
         return [
             'redirect_url' => $checkoutUrl . $separator . 'redirect_to=cashmaal',
-            'session_id'   => $params['trx_id'] ?? '',
+            'session_id'   => $params['trx_id'],
         ];
     }
 
@@ -101,7 +101,7 @@ final class CashmaalGateway implements PluginInterface, GatewayAdapterInterface
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'api_error'];
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (!is_array($data)) {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
         }
@@ -118,6 +118,7 @@ final class CashmaalGateway implements PluginInterface, GatewayAdapterInterface
         ];
     }
 
+    /** @param array<string, mixed> $txn */
     public function handleCheckoutBefore(array $txn): void
     {
         if (isset($_GET['redirect_to']) && $_GET['redirect_to'] === 'cashmaal' && $this->container !== null) {

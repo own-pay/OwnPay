@@ -234,11 +234,11 @@ final class FeeService
     private function getFeeConfig(string $gatewaySlug): array
     {
         return [
-            'percentage' => $this->settings->get('fees', "{$gatewaySlug}.percentage", '2.50'),
-            'fixed'      => $this->settings->get('fees', "{$gatewaySlug}.fixed", '0.00'),
-            'min'        => $this->settings->get('fees', "{$gatewaySlug}.min", '0.00'),
-            'max'        => $this->settings->get('fees', "{$gatewaySlug}.max", '0.00'),
-            'mode'       => $this->settings->get('fees', "{$gatewaySlug}.mode", 'sum'),
+            'percentage' => (string) $this->settings->get('fees', "{$gatewaySlug}.percentage", '2.50'),
+            'fixed'      => (string) $this->settings->get('fees', "{$gatewaySlug}.fixed", '0.00'),
+            'min'        => (string) $this->settings->get('fees', "{$gatewaySlug}.min", '0.00'),
+            'max'        => (string) $this->settings->get('fees', "{$gatewaySlug}.max", '0.00'),
+            'mode'       => (string) $this->settings->get('fees', "{$gatewaySlug}.mode", 'sum'),
         ];
     }
 }

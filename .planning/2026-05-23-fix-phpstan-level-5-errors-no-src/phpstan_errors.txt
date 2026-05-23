@@ -1,0 +1,527 @@
+﻿ ------ ----------------------------------------------------------------------------------- 
+  Line   config\routes\web.php                                                              
+ ------ ----------------------------------------------------------------------------------- 
+  36     Using nullsafe method call on non-nullable type OwnPay\Container. Use -> instead.  
+         🪪  nullsafe.neverNull                                                             
+ ------ ----------------------------------------------------------------------------------- 
+
+ ------ ---------------------------------------------------------------------------------------- 
+  Line   config\services.php                                                                     
+ ------ ---------------------------------------------------------------------------------------- 
+  209    Class OwnPay\Plugin\PluginInstaller constructor invoked with 2 parameters, 1 required.  
+         🪪  arguments.count                                                                     
+ ------ ---------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  Line   modules\addons\mail-gateway\Plugin.php                                                                       
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  157    Strict comparison using === between mixed~(0|0.0|''|'0'|array{}|false|null) and '0' will always evaluate to  
+         false.                                                                                                       
+         🪪  identical.alwaysFalse                                                                                    
+         💡  Type 0|0.0|''|'0'|array{}|false|null has already been eliminated from mixed.                             
+  161    Offset 'to' on array{to: string, subject: string, template?: string, body?: string, data?: array} on left    
+         side of ?? always exists and is not nullable.                                                                
+         🪪  nullCoalesce.offset                                                                                      
+  162    Offset 'subject' on array{to: string, subject: string, template?: string, body?: string, data?: array} on    
+         left side of ?? always exists and is not nullable.                                                           
+         🪪  nullCoalesce.offset                                                                                      
+ ------ ------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\addons\sms-gateway\Plugin.php                                                                          
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  143    Offset 'to' on array{to: string, body: string, merchant_id?: int} on left side of ?? always exists and is not  
+         nullable.                                                                                                      
+         🪪  nullCoalesce.offset                                                                                        
+  144    Offset 'body' on array{to: string, body: string, merchant_id?: int} on left side of ?? always exists and is    
+         not nullable.                                                                                                  
+         🪪  nullCoalesce.offset                                                                                        
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  Line   modules\addons\telegram-bot\Plugin.php                                                                       
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  98     Strict comparison using === between mixed~(0|0.0|''|'0'|array{}|false|null) and '0' will always evaluate to  
+         false.                                                                                                       
+         🪪  identical.alwaysFalse                                                                                    
+         💡  Type 0|0.0|''|'0'|array{}|false|null has already been eliminated from mixed.                             
+  104    Strict comparison using === between mixed~(0|0.0|''|'0'|array{}|false|null) and '0' will always evaluate to  
+         false.                                                                                                       
+         🪪  identical.alwaysFalse                                                                                    
+         💡  Type 0|0.0|''|'0'|array{}|false|null has already been eliminated from mixed.                             
+  129    Call to an undefined method OwnPay\Http\Request::jsonBody().                                                 
+         🪪  method.notFound                                                                                          
+ ------ ------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\aamarpay\AamarpayGateway.php                                                                 
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  65     Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+  68     Offset 'customer_email' on array{amount: string, currency: string, trx_id: string, redirect_url: string,      
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                       
+         🪪  nullCoalesce.offset                                                                                       
+  69     Offset 'customer_phone' on array{amount: string, currency: string, trx_id: string, redirect_url: string,      
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                       
+         🪪  nullCoalesce.offset                                                                                       
+  70     Offset 'customer_name' on array{amount: string, currency: string, trx_id: string, redirect_url: string,       
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                       
+         🪪  nullCoalesce.offset                                                                                       
+  76     Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,          
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.    
+         🪪  nullCoalesce.offset                                                                                       
+  77     Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,          
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.    
+         🪪  nullCoalesce.offset                                                                                       
+  79     Offset 'currency' on array{amount: string, currency: string, trx_id: string, redirect_url: string,            
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.    
+         🪪  nullCoalesce.offset                                                                                       
+  114    Ternary operator condition is always true.                                                                    
+         🪪  ternary.alwaysTrue                                                                                        
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\apple-pay\ApplePayGateway.php                                                                
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  96     Offset 'redirect_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,        
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.    
+         🪪  nullCoalesce.offset                                                                                       
+  114    Method OwnPay\Modules\Gateways\ApplePay\ApplePayGateway::verify() should return array{success: bool,          
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:  
+         null, amount: null, status: 'failed'}.                                                                        
+         🪪  return.type                                                                                               
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                               
+  133    Method OwnPay\Modules\Gateways\ApplePay\ApplePayGateway::verify() should return array{success: bool,          
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:  
+         null, amount: null, status: 'failed'}.                                                                        
+         🪪  return.type                                                                                               
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                               
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\binance-merchant-api\BinanceMerchantApiGateway.php                                           
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  91     Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+  92     Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+  94     Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+  95     Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,          
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.    
+         🪪  nullCoalesce.offset                                                                                       
+  132    Ternary operator condition is always true.                                                                    
+         🪪  ternary.alwaysTrue                                                                                        
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\bkash-api\BkashApiGateway.php                                                                
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  162    Offset 'app_key' on non-empty-array<string, mixed> on left side of ?? always exists and is not nullable.      
+         🪪  nullCoalesce.offset                                                                                       
+  166    Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+  167    Offset 'redirect_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,        
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.    
+         🪪  nullCoalesce.offset                                                                                       
+  171    Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+  235    Method OwnPay\Modules\Gateways\BkashApi\BkashApiGateway::verify() should return array{success: bool,          
+         gateway_trx_id: string, amount: string|null, status: string, error?: string} but returns array{success:       
+         false, status: 'failed', error: non-falsy-string}.                                                            
+         🪪  return.type                                                                                               
+         💡  Array does not have offset 'gateway_trx_id'.                                                              
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\cashmaal\CashmaalGateway.php                                                                 
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  72     Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\eps\EpsGateway.php                                                                           
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  76     Offset 'customer_email' on array{amount: string, currency: string, trx_id: string, redirect_url: string,      
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                       
+         🪪  nullCoalesce.offset                                                                                       
+  77     Offset 'customer_phone' on array{amount: string, currency: string, trx_id: string, redirect_url: string,      
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                       
+         🪪  nullCoalesce.offset                                                                                       
+  78     Offset 'customer_name' on array{amount: string, currency: string, trx_id: string, redirect_url: string,       
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                       
+         🪪  nullCoalesce.offset                                                                                       
+  90     Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+  91     Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,          
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.    
+         🪪  nullCoalesce.offset                                                                                       
+  92     Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,          
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.    
+         🪪  nullCoalesce.offset                                                                                       
+  109    Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+  115    Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+  120    Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:  
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                
+         🪪  nullCoalesce.offset                                                                                       
+  152    Ternary operator condition is always true.                                                                    
+         🪪  ternary.alwaysTrue                                                                                        
+  250    Ternary operator condition is always true.                                                                    
+         🪪  ternary.alwaysTrue                                                                                        
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\google-pay\GooglePayGateway.php                                                              
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  96     Offset 'redirect_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,        
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.    
+         🪪  nullCoalesce.offset                                                                                       
+  114    Method OwnPay\Modules\Gateways\GooglePay\GooglePayGateway::verify() should return array{success: bool,        
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:  
+         null, amount: null, status: 'failed'}.                                                                        
+         🪪  return.type                                                                                               
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                               
+  133    Method OwnPay\Modules\Gateways\GooglePay\GooglePayGateway::verify() should return array{success: bool,        
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:  
+         null, amount: null, status: 'failed'}.                                                                        
+         🪪  return.type                                                                                               
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                               
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\nagad-merchant-api\NagadMerchantApiGateway.php                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  145    Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:   
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                 
+         🪪  nullCoalesce.offset                                                                                        
+  172    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          false, 10023: array{'Content-Type:…', 'X-KM-Api-Version: v…', non-falsy-string, 'X-KM-Client-Type:…'},        
+         10015: non-empty-string|false} given.                                                                          
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  238    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          false, 10023: array{'Content-Type:…', 'X-KM-Api-Version: v…', non-falsy-string, 'X-KM-Client-Type:…'},        
+         10015: non-empty-string|false} given.                                                                          
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  287    Method OwnPay\Modules\Gateways\NagadMerchantApi\NagadMerchantApiGateway::verify() should return                
+         array{success: bool, gateway_trx_id: string, amount: string|null, status: string, trx_id?: string} but         
+         returns array{success: false, gateway_trx_id: '', status: 'failed'}.                                           
+         🪪  return.type                                                                                                
+         💡  Array does not have offset 'amount'.                                                                       
+  296    Parameter #2 $options of function curl_setopt_array expects array{19913: bool, 13: int, 64: bool, 81: 0|2,     
+         10018: non-empty-string}, array{19913: true, 13: 15, 64: false, 81: false, 10018: 'Mozilla/5.0 …'} given.      
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  309    Method OwnPay\Modules\Gateways\NagadMerchantApi\NagadMerchantApiGateway::verify() should return                
+         array{success: bool, gateway_trx_id: string, amount: string|null, status: string, trx_id?: string} but         
+         returns array{success: false, gateway_trx_id: '', status: 'api_error'}.                                        
+         🪪  return.type                                                                                                
+         💡  Array does not have offset 'amount'.                                                                       
+  314    Method OwnPay\Modules\Gateways\NagadMerchantApi\NagadMerchantApiGateway::verify() should return                
+         array{success: bool, gateway_trx_id: string, amount: string|null, status: string, trx_id?: string} but         
+         returns array{success: false, gateway_trx_id: '', status: 'invalid_response'}.                                 
+         🪪  return.type                                                                                                
+         💡  Array does not have offset 'amount'.                                                                       
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\now-payments\NowPaymentsGateway.php                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  79     Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:   
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                 
+         🪪  nullCoalesce.offset                                                                                        
+  81     Offset 'redirect_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,         
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  82     Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,           
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  93     Offset 'currency' on array{amount: string, currency: string, trx_id: string, redirect_url: string,             
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  103    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          false, 10023: array{non-falsy-string, 'Content-Type:…'}, 10015: non-empty-string|false} given.                
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  158    Method OwnPay\Modules\Gateways\NowPayments\NowPaymentsGateway::verify() should return array{success: bool,     
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'pending', trx_id: mixed}.                                                         
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\oxapay\OxapayGateway.php                                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  63     Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:   
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                 
+         🪪  nullCoalesce.offset                                                                                        
+  65     Offset 'redirect_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,         
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  77     Offset 'currency' on array{amount: string, currency: string, trx_id: string, redirect_url: string,             
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  85     Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          false, 10023: array{'Content-Type:…'}, 10015: non-empty-string|false} given.                                  
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  138    Method OwnPay\Modules\Gateways\Oxapay\OxapayGateway::verify() should return array{success: bool,               
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'pending', trx_id: mixed}.                                                         
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\paypal-checkout\PaypalCheckoutGateway.php                                                     
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  86     Offset 'redirect_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,         
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  87     Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,           
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  89     Offset 'currency' on array{amount: string, currency: string, trx_id: string, redirect_url: string,             
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  108    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          false, 10023: array{'Content-Type:…', non-falsy-string}, 10015: non-empty-string|false} given.                
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  158    Method OwnPay\Modules\Gateways\PaypalCheckout\PaypalCheckoutGateway::verify() should return array{success:     
+         bool, gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false,             
+         gateway_trx_id: null, amount: null, status: 'pending', order_id: null}.                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  173    Method OwnPay\Modules\Gateways\PaypalCheckout\PaypalCheckoutGateway::verify() should return array{success:     
+         bool, gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false,             
+         gateway_trx_id: null, amount: null, status: 'failed', order_id: mixed}.                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  187    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 20, 64: false, 81:  
+          false, 10023: array{'Content-Type:…', non-falsy-string}, 10015: ''} given.                                    
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  211    Parameter #2 $options of function curl_setopt_array expects array{19913: bool, 13: int, 64: bool, 81: 0|2,     
+         10023: array<int, string>}, array{19913: true, 13: 15, 64: false, 81: false, 10023: array{'Content-Type:…', n  
+         on-falsy-string}} given.                                                                                       
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  246    Method OwnPay\Modules\Gateways\PaypalCheckout\PaypalCheckoutGateway::verify() should return array{success:     
+         bool, gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false,             
+         gateway_trx_id: null, amount: null, status: 'failed', order_id: mixed}.                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  268    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10005: non-empty-string, 10015: array|string, 10023: array<int, string>}, array{47: true, 19913: tru  
+         e, 13: 15, 64: false, 81: false, 10005: non-falsy-string, 10015: 'grant_type=client…', 10023: array{'Accept:   
+         application…', 'Accept-Language: en…'}} given.                                                                 
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\paystation\PaystationGateway.php                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  49     Method OwnPay\Modules\Gateways\Paystation\PaystationGateway::fields() should return array<int, array{name:     
+         string, label: string, type: string, default?: mixed, options?: array<string, string>}> but returns array{arr  
+         ay{name: 'merchant_id', label: 'Merchant ID', type: 'text', required: true}, array{name: 'merchant_password',  
+         label: 'Merchant Password', type: 'text', required: true}, array{name: 'checkout_items', label: 'Checkout      
+         Items', type: 'text', required: false}, array{name: 'pay_with_charge', label: 'Fee Pay', type: 'select',       
+         options: array{'Customer', 'Merchant'}, required: true}, array{name: 'merchant_mode', label: 'Mode', type:     
+         'select', options: array{sandbox: 'sandbox', live: 'live'}, required: true}}.                                  
+         🪪  return.type                                                                                                
+         💡  Offset 'options' (array<string, string>) does not accept type array<int, string>.                          
+  96     Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:   
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                 
+         🪪  nullCoalesce.offset                                                                                        
+  98     Offset 'redirect_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,         
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  105    Offset 'customer_name' on array{amount: string, currency: string, trx_id: string, redirect_url: string,        
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                        
+         🪪  nullCoalesce.offset                                                                                        
+  106    Offset 'customer_phone' on array{amount: string, currency: string, trx_id: string, redirect_url: string,       
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                        
+         🪪  nullCoalesce.offset                                                                                        
+  107    Offset 'customer_email' on array{amount: string, currency: string, trx_id: string, redirect_url: string,       
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                        
+         🪪  nullCoalesce.offset                                                                                        
+  117    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81: false, 10015:               
+         array{invoice_number: string, currency: 'BDT', payment_amount: numeric-string, reference: string, cust_name:   
+         'Customer', cust_phone: '01700000000', cust_email: 'customer@example.com', cust_address: 'Bangladesh', ...}}   
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  152    Method OwnPay\Modules\Gateways\Paystation\PaystationGateway::verify() should return array{success: bool,       
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'pending', order_id: null}.                                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  162    Method OwnPay\Modules\Gateways\Paystation\PaystationGateway::verify() should return array{success: bool,       
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'failed', order_id: mixed}.                                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  178    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          false, 10023: array{non-falsy-string}, 10015: array{invoice_number: mixed}} given.                            
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  197    Method OwnPay\Modules\Gateways\Paystation\PaystationGateway::verify() should return array{success: bool,       
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'failed', order_id: mixed}.                                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  225    Method OwnPay\Modules\Gateways\Paystation\PaystationGateway::verify() should return array{success: bool,       
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'failed', order_id: mixed}.                                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\shurjopay\ShurjopayGateway.php                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  95     Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:   
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                 
+         🪪  nullCoalesce.offset                                                                                        
+  97     Offset 'redirect_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,         
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  98     Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,           
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  113    Offset 'customer_name' on array{amount: string, currency: string, trx_id: string, redirect_url: string,        
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                        
+         🪪  nullCoalesce.offset                                                                                        
+  115    Offset 'customer_phone' on array{amount: string, currency: string, trx_id: string, redirect_url: string,       
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                        
+         🪪  nullCoalesce.offset                                                                                        
+  120    Offset 'customer_email' on array{amount: string, currency: string, trx_id: string, redirect_url: string,       
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                        
+         🪪  nullCoalesce.offset                                                                                        
+  128    Offset 'customer_phone' on array{amount: string, currency: string, trx_id: string, redirect_url: string,       
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? does not exist.                        
+         🪪  nullCoalesce.offset                                                                                        
+  132    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 20, 64: false, 81:  
+          false, 10023: array{non-falsy-string}, 10015: array{prefix: mixed, token: mixed, return_url:                  
+         non-falsy-string, cancel_url: non-falsy-string, store_id: mixed, amount: numeric-string, order_id: string,     
+         currency: 'BDT', ...}} given.                                                                                  
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  183    Method OwnPay\Modules\Gateways\Shurjopay\ShurjopayGateway::verify() should return array{success: bool,         
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'pending', order_id: null}.                                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  193    Method OwnPay\Modules\Gateways\Shurjopay\ShurjopayGateway::verify() should return array{success: bool,         
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'failed', order_id: mixed}.                                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  210    Method OwnPay\Modules\Gateways\Shurjopay\ShurjopayGateway::verify() should return array{success: bool,         
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'failed', order_id: mixed}.                                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  222    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          false, 10023: array{non-falsy-string, 'Content-Type:…'}, 10015: non-empty-string|false} given.                
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+  240    Method OwnPay\Modules\Gateways\Shurjopay\ShurjopayGateway::verify() should return array{success: bool,         
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'failed', order_id: mixed}.                                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  265    Method OwnPay\Modules\Gateways\Shurjopay\ShurjopayGateway::verify() should return array{success: bool,         
+         gateway_trx_id?: string, amount?: string, status?: string} but returns array{success: false, gateway_trx_id:   
+         null, amount: null, status: 'failed', order_id: mixed}.                                                        
+         🪪  return.type                                                                                                
+         💡  Offset 'gateway_trx_id' (string) does not accept type null.                                                
+  282    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 19913: bool, 13: int, 64: bool,    
+         81: 0|2, 10023: array<int, string>, 10015: array|string}, array{47: true, 19913: true, 13: 15, 64: false, 81:  
+          false, 10023: array{'Content-Type:…'}, 10015: non-empty-string|false} given.                                  
+         🪪  argument.type                                                                                              
+         💡  Offset 81 (0|2) does not accept type false.                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\sslcommerz\SslCommerzGateway.php                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  120    Return type (array<int, array{name: string, label: string, type: string, required: bool, options?: array<int,  
+          string>}>) of method OwnPay\Modules\Gateways\SslCommerz\SslCommerzGateway::fields() should be compatible wit  
+         h return type (array<int, array{name: string, label: string, type: string, default?: mixed, options?: array<s  
+         tring, string>}>) of method OwnPay\Plugin\PluginInterface::fields()                                            
+         🪪  method.childReturnType                                                                                     
+  147    Offset 'redirect_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,         
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  148    Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,           
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  149    Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,           
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   modules\gateways\stripe\StripeGateway.php                                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  115    Method OwnPay\Modules\Gateways\Stripe\StripeGateway::fields() should return array<int, array{name: string,     
+         label: string, type: string, required: bool, options?: array<string, string>}> but returns array{array{name:   
+         'publishable_key', label: 'Publishable Key', type: 'text', required: true}, array{name: 'secret_key', label:   
+         'Secret Key', type: 'password', required: true}, array{name: 'webhook_secret', label: 'Webhook Secret', type:  
+         'password', required: false}, array{name: 'mode', label: 'Mode', type: 'select', options: array{'test',        
+         'live'}, required: true}}.                                                                                     
+         🪪  return.type                                                                                                
+         💡  Offset 'options' (array<string, string>) does not accept type array<int, string>.                          
+  133    Offset 'secret_key' on array{secret_key: string, publishable_key: string, webhook_secret?: string, mode:       
+         string} on left side of ?? always exists and is not nullable.                                                  
+         🪪  nullCoalesce.offset                                                                                        
+  146    Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:   
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                 
+         🪪  nullCoalesce.offset                                                                                        
+  150    Offset 'redirect_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,         
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  151    Offset 'cancel_url' on array{amount: string, currency: string, trx_id: string, redirect_url: string,           
+         cancel_url: string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.     
+         🪪  nullCoalesce.offset                                                                                        
+  152    Offset 'trx_id' on array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url:   
+         string, metadata?: array<string, mixed>} on left side of ?? always exists and is not nullable.                 
+         🪪  nullCoalesce.offset                                                                                        
+  205    Offset 'secret_key' on array{secret_key: string, publishable_key: string, webhook_secret?: string, mode:       
+         string} on left side of ?? always exists and is not nullable.                                                  
+         🪪  nullCoalesce.offset                                                                                        
+  301    Offset 'secret_key' on array{secret_key: string, publishable_key: string, webhook_secret?: string, mode:       
+         string} on left side of ?? always exists and is not nullable.                                                  
+         🪪  nullCoalesce.offset                                                                                        
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ [ERROR] Found 113 errors                                                                                              
+

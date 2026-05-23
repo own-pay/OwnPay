@@ -15,6 +15,7 @@ use OwnPay\Event\EventManager;
  */
 final class Plugin implements PluginInterface
 {
+    /** @var array<string, string> */
     private array $settings = [];
 
     public static function metadata(): array
@@ -152,14 +153,18 @@ final class Plugin implements PluginInterface
     /**
      * @param array{to: string, subject: string, template?: string, body?: string, data?: array} $payload
      */
+    /**
+     * @param array{to: string, subject: string, template?: string, body?: string, data?: array<string, mixed>} $payload
+     * @return array<string, mixed>
+     */
     public function send(array $payload): array
     {
-        if (empty($this->settings['enabled']) || $this->settings['enabled'] === '0') {
+        if (empty($this->settings['enabled'])) {
             return ['success' => false, 'error' => 'Email sending disabled'];
         }
 
-        $to = $payload['to'] ?? '';
-        $subject = $payload['subject'] ?? '';
+        $to = $payload['to'];
+        $subject = $payload['subject'];
         if ($to === '' || $subject === '') return ['success' => false, 'error' => 'Missing to/subject'];
 
         $body = $payload['body'] ?? '';
@@ -176,6 +181,7 @@ final class Plugin implements PluginInterface
         }
     }
 
+    /** @return array<string, mixed> */
     private function sendSmtp(string $to, string $subject, string $body): array
     {
         $fromEmail = $this->settings['from_email'] ?? 'noreply@example.com';
@@ -193,6 +199,7 @@ final class Plugin implements PluginInterface
         return ['success' => $result, 'provider' => 'smtp'];
     }
 
+    /** @return array<string, mixed> */
     private function sendMailgun(string $to, string $subject, string $body): array
     {
         $domain = $this->settings['mailgun_domain'] ?? '';
@@ -214,6 +221,7 @@ final class Plugin implements PluginInterface
         return ['success' => $httpCode >= 200 && $httpCode < 300, 'provider' => 'mailgun'];
     }
 
+    /** @return array<string, mixed> */
     private function sendSendGrid(string $to, string $subject, string $body): array
     {
         $key = $this->settings['sendgrid_key'] ?? '';
@@ -230,7 +238,7 @@ final class Plugin implements PluginInterface
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_POSTFIELDS => (string) $payload,
             CURLOPT_HTTPHEADER => ['Content-Type: application/json', "Authorization: Bearer {$key}"],
             CURLOPT_TIMEOUT => 15,
         ]);

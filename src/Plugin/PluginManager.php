@@ -169,6 +169,10 @@ final class PluginManager
             $plugin = $this->repo->findBySlug($slug);
         }
 
+        if ($plugin === null) {
+            return ['success' => false, 'error' => 'Plugin record not found in database'];
+        }
+
         if ($brandId !== null && $brandId > 0) {
             if ($this->repo->isPluginActiveForBrand($slug, $brandId)) {
                 return ['success' => true, 'message' => 'Already active for this brand'];
@@ -379,6 +383,9 @@ final class PluginManager
             $this->deactivate($slug);
             // Refresh plugin record
             $plugin = $this->repo->findBySlug($slug);
+            if ($plugin === null) {
+                return ['success' => false, 'error' => 'Plugin not found after deactivation'];
+            }
         }
 
         $paths = $this->container->get('config.app')['paths'];

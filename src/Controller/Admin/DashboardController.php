@@ -229,6 +229,9 @@ final class DashboardController
     {
         $this->brand->resolveFromRequest($req);
         $mid = $this->brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('Active brand ID is not set.');
+        }
 
         $from    = $req->query('from', DateHelper::monthStart());
         $to      = $req->query('to', DateHelper::today());
@@ -363,6 +366,9 @@ final class DashboardController
     {
         $this->brand->resolveFromRequest($req);
         $mid = $this->brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('Active brand ID is not set.');
+        }
 
         $from    = $req->query('from', DateHelper::monthStart());
         $to      = $req->query('to', DateHelper::today());
@@ -464,7 +470,7 @@ final class DashboardController
 
         /** @var \OwnPay\Repository\MerchantRepository $merchantRepo */
         $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
-        $slug = strtolower(trim(preg_replace('/[^A-Za-z0-9-]+/', '-', $brandName)));
+        $slug = strtolower(trim((string) preg_replace('/[^A-Za-z0-9-]+/', '-', $brandName)));
         if ($slug === '') {
             $slug = 'brand';
         }

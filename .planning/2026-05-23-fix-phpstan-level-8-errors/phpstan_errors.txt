@@ -1,0 +1,320 @@
+﻿ ------ --------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\AuthController.php                                                                      
+ ------ --------------------------------------------------------------------------------------------------------- 
+  207    Parameter #2 $code of static method OwnPay\Middleware\TwoFactorMiddleware::verifyTotp() expects string,  
+         string|null given.                                                                                       
+         🪪  argument.type                                                                                        
+  314    Method OwnPay\Controller\Admin\AuthController::resolveLoginSlug() should return string but returns       
+         string|null.                                                                                             
+         🪪  return.type                                                                                          
+ ------ --------------------------------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\DashboardController.php                                                                   
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  237    Parameter #1 $merchantId of method OwnPay\Repository\TransactionRepository::getReportData() expects int,   
+         int|null given.                                                                                            
+         🪪  argument.type                                                                                          
+  238    Parameter #1 $merchantId of method OwnPay\Repository\TransactionRepository::getDistinctGateways() expects  
+         int, int|null given.                                                                                       
+         🪪  argument.type                                                                                          
+  371    Parameter #1 $merchantId of method OwnPay\Repository\TransactionRepository::getExportData() expects int,   
+         int|null given.                                                                                            
+         🪪  argument.type                                                                                          
+  467    Parameter #1 $string of function trim expects string, string|null given.                                   
+         🪪  argument.type                                                                                          
+ ------ ----------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\StaffController.php                                                                         
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  76     Parameter #1 $merchantId of method OwnPay\Repository\MerchantUserRepository::listStaffForMerchant() expects  
+         int, int|null given.                                                                                         
+         🪪  argument.type                                                                                            
+ ------ ------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------- 
+  Line   Controller\Admin\ThemeController.php                           
+ ------ --------------------------------------------------------------- 
+  212    Offset 'status' might not exist on array<string, mixed>|null.  
+         🪪  offsetAccess.notFound                                      
+ ------ --------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\TwoFactorSetupController.php                                                                 
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  60     Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::findById() expects int, int|null given.  
+         🪪  argument.type                                                                                             
+  68     Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::getTotpSecret() expects int, int|null    
+         given.                                                                                                        
+         🪪  argument.type                                                                                             
+  75     Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::setTotpSecret() expects int, int|null    
+         given.                                                                                                        
+         🪪  argument.type                                                                                             
+  103    Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::getTotpSecret() expects int, int|null    
+         given.                                                                                                        
+         🪪  argument.type                                                                                             
+  110    Parameter #2 $code of method OwnPay\Controller\Admin\TwoFactorSetupController::verifyTotp() expects string,   
+         string|null given.                                                                                            
+         🪪  argument.type                                                                                             
+  115    Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::enableTotp() expects int, int|null       
+         given.                                                                                                        
+         🪪  argument.type                                                                                             
+  133    Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::getPasswordHash() expects int, int|null  
+         given.                                                                                                        
+         🪪  argument.type                                                                                             
+  139    Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::disableTotp() expects int, int|null      
+         given.                                                                                                        
+         🪪  argument.type                                                                                             
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  Line   Controller\Api\Mobile\ConfigController.php                                                                  
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  79     Parameter #1 $raw of method OwnPay\Controller\Api\Mobile\ConfigController::parseKeywords() expects string,  
+         string|null given.                                                                                          
+         🪪  argument.type                                                                                           
+  82     Parameter #1 $raw of method OwnPay\Controller\Api\Mobile\ConfigController::parseKeywords() expects string,  
+         string|null given.                                                                                          
+         🪪  argument.type                                                                                           
+ ------ ------------------------------------------------------------------------------------------------------------ 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Api\PaymentController.php                                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  161    Parameter #2 $data of method OwnPay\Service\Payment\PaymentService::createIntent() expects array{amount:       
+         string, currency: string, description?: string, redirect_url?: string, cancel_url?: string, webhook_url?:      
+         string, metadata?: array<string, mixed>}, array{amount: string, currency: string, customer_id: int|null, desc  
+         ription: string|null, redirect_url: non-falsy-string|null, cancel_url: non-falsy-string|null, webhook_url:     
+         non-falsy-string|null, metadata: array{reference: mixed, customer_email: string|null, customer_name:           
+         string|null, customer_phone: string|null, gateway: mixed, custom_metadata: mixed}} given.                      
+         🪪  argument.type                                                                                              
+         💡  Offset 'description' (string) does not accept type string|null.                                            
+         💡  Offset 'redirect_url' (string) does not accept type string|null.                                           
+         💡  Offset 'cancel_url' (string) does not accept type string|null.                                             
+         💡  Offset 'webhook_url' (string) does not accept type string|null.                                            
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------- 
+  Line   Controller\Checkout\CheckoutController.php                                     
+ ------ ------------------------------------------------------------------------------- 
+  182    Parameter #1 $json of function json_decode expects string, string|null given.  
+         🪪  argument.type                                                              
+ ------ ------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------- 
+  Line   Controller\Checkout\PaymentIntentCheckoutController.php                        
+ ------ ------------------------------------------------------------------------------- 
+  242    Parameter #1 $json of function json_decode expects string, string|null given.  
+         🪪  argument.type                                                              
+ ------ ------------------------------------------------------------------------------- 
+
+ ------ ---------------------------------------------------------------------------- 
+  Line   Controller\Install\InstallerController.php                                  
+ ------ ---------------------------------------------------------------------------- 
+  492    Parameter #1 $string of function trim expects string, string|null given.    
+         🪪  argument.type                                                           
+  497    Parameter #1 $string of function strlen expects string, string|null given.  
+         🪪  argument.type                                                           
+  499    Offset int<0, max> might not exist on string|null.                          
+         🪪  offsetAccess.notFound                                                   
+  503    Offset int<1, max> might not exist on string|null.                          
+         🪪  offsetAccess.notFound                                                   
+ ------ ---------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Webhook\UnifiedWebhookController.php                                                         
+ ------ -------------------------------------------------------------------------------------------------------- 
+  105    Parameter $rawBody of class OwnPay\Model\WebhookPayload constructor expects string, string|null given.  
+         🪪  argument.type                                                                                       
+  136    Parameter #2 $data of function hash expects string, string|null given.                                  
+         🪪  argument.type                                                                                       
+ ------ -------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------- 
+  Line   Core\RouteHelper.php                                                             
+ ------ --------------------------------------------------------------------------------- 
+  100    Parameter #2 $subject of function preg_match expects string, string|null given.  
+         🪪  argument.type                                                                
+  104    Parameter #1 $string of function strtolower expects string, string|null given.   
+         🪪  argument.type                                                                
+ ------ --------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------- 
+  Line   Middleware\RequestSignatureMiddleware.php                                    
+ ------ ----------------------------------------------------------------------------- 
+  87     Parameter #2 $data of function hash_hmac expects string, string|null given.  
+         🪪  argument.type                                                            
+ ------ ----------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Plugin\PluginManager.php                                                                                       
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  177    Offset 'status' might not exist on array<string, mixed>|null.                                                  
+         🪪  offsetAccess.notFound                                                                                      
+  184    Parameter #1 $plugin of method OwnPay\Plugin\PluginManager::resolveDir() expects array<string, mixed>, array<  
+         string, mixed>|null given.                                                                                     
+         🪪  argument.type                                                                                              
+  220    Offset 'type' might not exist on array<string, mixed>|null.                                                    
+         🪪  offsetAccess.notFound                                                                                      
+  385    Offset 'type' might not exist on array<string, mixed>|null.                                                    
+         🪪  offsetAccess.notFound                                                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------- 
+  Line   Repository\BaseRepository.php                                                   
+ ------ -------------------------------------------------------------------------------- 
+  144    Parameter #1 $string of function strtolower expects string, string|null given.  
+         🪪  argument.type                                                               
+ ------ -------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\LedgerRepository.php                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  79     Method OwnPay\Repository\LedgerRepository::findOrCreateAccount() should return array<string, mixed> but retur  
+         ns array<string, mixed>|null.                                                                                  
+         🪪  return.type                                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------ 
+  Line   Security\Authenticator.php                                                                
+ ------ ------------------------------------------------------------------------------------------ 
+  73     Cannot call method recentFailedCount() on OwnPay\Repository\LoginAttemptRepository|null.  
+         🪪  method.nonObject                                                                      
+  76     Cannot call method doAction() on OwnPay\Event\EventManager|null.                          
+         🪪  method.nonObject                                                                      
+  80     Cannot call method findActiveByLogin() on OwnPay\Repository\MerchantUserRepository|null.  
+         🪪  method.nonObject                                                                      
+  86     Cannot call method doAction() on OwnPay\Event\EventManager|null.                          
+         🪪  method.nonObject                                                                      
+  92     Cannot call method doAction() on OwnPay\Event\EventManager|null.                          
+         🪪  method.nonObject                                                                      
+  110    Cannot call method updateLastLogin() on OwnPay\Repository\MerchantUserRepository|null.    
+         🪪  method.nonObject                                                                      
+  112    Cannot call method doAction() on OwnPay\Event\EventManager|null.                          
+         🪪  method.nonObject                                                                      
+ ------ ------------------------------------------------------------------------------------------ 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   Security\LogSanitizer.php                                                                                     
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  144    Parameter #1 $number of static method OwnPay\Security\LogSanitizer::passesLuhn() expects string, string|null  
+         given.                                                                                                        
+         🪪  argument.type                                                                                             
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Customer\CustomerPiiService.php                                                                        
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  83     Parameter #1 $customer of method OwnPay\Service\Customer\CustomerPiiService::maskForEvent() expects array<str  
+         ing, mixed>, array<string, mixed>|null given.                                                                  
+         🪪  argument.type                                                                                              
+  85     Method OwnPay\Service\Customer\CustomerPiiService::create() should return array<string, mixed> but returns ar  
+         ray<string, mixed>|null.                                                                                       
+         🪪  return.type                                                                                                
+  179    Parameter #1 $customer of method OwnPay\Service\Customer\CustomerPiiService::maskForEvent() expects array<str  
+         ing, mixed>, array<string, mixed>|null given.                                                                  
+         🪪  argument.type                                                                                              
+  181    Method OwnPay\Service\Customer\CustomerPiiService::update() should return array<string, mixed> but returns ar  
+         ray<string, mixed>|null.                                                                                       
+         🪪  return.type                                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  Line   Service\Device\DevicePairingService.php                                                                    
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  155    Method OwnPay\Service\Device\DevicePairingService::validatePairingOtp() should return array{valid: false,  
+         error: string}|array{valid: true, merchant_id: int} but returns array{valid: false, error: 'Invalid or     
+         expired…'}|array{valid: true, merchant_id: int}|null.                                                      
+         🪪  return.type                                                                                            
+         💡  Type #2 from the union: Offset 'valid' (true) does not accept type false.                              
+         💡  Type #1 from the union: Offset 'valid' (false) does not accept type true.                              
+ ------ ----------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------- 
+  Line   Service\Payment\FeeService.php                                                                           
+ ------ --------------------------------------------------------------------------------------------------------- 
+  236    Method OwnPay\Service\Payment\FeeService::getFeeConfig() should return array{percentage: string, fixed:  
+         string, min: string, max: string, mode: string} but returns array{percentage: string|null, fixed:        
+         string|null, min: string|null, max: string|null, mode: string|null}.                                     
+         🪪  return.type                                                                                          
+         💡  Offset 'percentage' (string) does not accept type string|null.                                       
+         💡  Offset 'fixed' (string) does not accept type string|null.                                            
+         💡  Offset 'min' (string) does not accept type string|null.                                              
+         💡  Offset 'max' (string) does not accept type string|null.                                              
+         💡  Offset 'mode' (string) does not accept type string|null.                                             
+ ------ --------------------------------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  Line   Service\Payment\GatewayApiService.php                                                                      
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  232    Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.  
+         🪪  argument.type                                                                                          
+  238    Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.  
+         🪪  argument.type                                                                                          
+  242    Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.  
+         🪪  argument.type                                                                                          
+ ------ ----------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Payment\MfsService.php                                                                                 
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  89     Method OwnPay\Service\Payment\MfsService::processIncomingSms() should return array{matched: bool,              
+         transaction_id?: int|string, sms_id: int|string, parsed?: array<string, mixed>} but returns array{matched: fa  
+         lse, sms_id: string, parsed: array<string, mixed>|null}.                                                       
+         🪪  return.type                                                                                                
+         💡  Offset 'parsed' (array<string, mixed>) does not accept type array<string, mixed>|null.                     
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Payment\PaymentService.php                                                                             
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  78     Method OwnPay\Service\Payment\PaymentService::createIntent() should return array<string, mixed> but returns a  
+         rray<string, mixed>|null.                                                                                      
+         🪪  return.type                                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Payment\TransactionService.php                                                                         
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  77     Offset 'amount' might not exist on array<string, mixed>|null.                                                  
+         🪪  offsetAccess.notFound                                                                                      
+  77     Offset 'trx_id' might not exist on array<string, mixed>|null.                                                  
+         🪪  offsetAccess.notFound                                                                                      
+  80     Method OwnPay\Service\Payment\TransactionService::create() should return array<string, mixed> but returns arr  
+         ay<string, mixed>|null.                                                                                        
+         🪪  return.type                                                                                                
+  110    Method OwnPay\Service\Payment\TransactionService::complete() should return array<string, mixed> but returns a  
+         rray<string, mixed>|null.                                                                                      
+         🪪  return.type                                                                                                
+  133    Method OwnPay\Service\Payment\TransactionService::fail() should return array<string, mixed> but returns array  
+         <string, mixed>|null.                                                                                          
+         🪪  return.type                                                                                                
+  151    Method OwnPay\Service\Payment\TransactionService::cancel() should return array<string, mixed> but returns arr  
+         ay<string, mixed>|null.                                                                                        
+         🪪  return.type                                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Sms\SmsParserService.php                                                                              
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  310    Method OwnPay\Service\Sms\SmsParserService::attemptParse() should return array{parsed_amount: float,          
+         parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: string,      
+         parse_method: string, template_id: int|null, parse_confidence: string}|null but returns array{parsed_amount:  
+         float|null, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type:  
+         string, parse_method: string, template_id: int|null, parse_confidence: string}|null.                          
+         🪪  return.type                                                                                               
+         💡  Type #1 from the union: Offset 'parsed_amount' (float) does not accept type float|null.                   
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------- 
+  Line   Service\System\InputSanitizer.php                                                                  
+ ------ --------------------------------------------------------------------------------------------------- 
+  121    Method OwnPay\Service\System\InputSanitizer::slug() should return string but returns string|null.  
+         🪪  return.type                                                                                    
+  121    Parameter #1 $string of function trim expects string, string|null given.                           
+         🪪  argument.type                                                                                  
+ ------ --------------------------------------------------------------------------------------------------- 
+
+ [ERROR] Found 64 errors                                                                                               
+

@@ -187,7 +187,7 @@ final class AuthController
         }
 
         $codeRaw = $req->post('code', '');
-        $code = preg_replace('/\D/', '', is_string($codeRaw) ? $codeRaw : '');
+        $code = (string) preg_replace('/\D/', '', is_string($codeRaw) ? $codeRaw : '');
         $user = $this->userRepo->findActiveByEmail(
             $this->userRepo->findById((int) $userId)['email'] ?? ''
         );
@@ -311,7 +311,7 @@ final class AuthController
         }
 
         try {
-            return $this->settings->get('landing', 'admin_login_slug', 'login');
+            return (string) $this->settings->get('landing', 'admin_login_slug', 'login');
         } catch (\Throwable) {
             return 'login';
         }

@@ -116,7 +116,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
             ['name' => 'publishable_key', 'label' => 'Publishable Key', 'type' => 'text', 'required' => true],
             ['name' => 'secret_key', 'label' => 'Secret Key', 'type' => 'password', 'required' => true],
             ['name' => 'webhook_secret', 'label' => 'Webhook Secret', 'type' => 'password', 'required' => false],
-            ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['test', 'live'], 'required' => true],
+            ['name' => 'mode', 'label' => 'Mode', 'type' => 'select', 'options' => ['test' => 'test', 'live' => 'live'], 'required' => true],
         ];
     }
 
@@ -130,8 +130,8 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
      */
     public function initiate(array $params, array $credentials): array
     {
-        $secretKey = $credentials['secret_key'] ?? '';
-        $amount = (int) bcmul($params['amount'], '100', 0); // Stripe uses cents
+        $secretKey = $credentials['secret_key'];
+        $amount = (int) bcmul((string) (float) $params['amount'], '100', 0); // Stripe uses cents
         $currency = strtolower($params['currency']);
 
         $ch = curl_init('https://api.stripe.com/v1/checkout/sessions');
@@ -143,13 +143,13 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_POSTFIELDS     => http_build_query([
                 'payment_method_types[]' => 'card',
                 'line_items[0][price_data][currency]' => $currency,
-                'line_items[0][price_data][product_data][name]' => 'Payment ' . ($params['trx_id'] ?? ''),
+                'line_items[0][price_data][product_data][name]' => 'Payment ' . $params['trx_id'],
                 'line_items[0][price_data][unit_amount]' => $amount,
                 'line_items[0][quantity]' => 1,
                 'mode' => 'payment',
-                'success_url' => ($params['redirect_url'] ?? '') . '?session_id={CHECKOUT_SESSION_ID}',
-                'cancel_url'  => $params['cancel_url'] ?? '',
-                'metadata[trx_id]' => $params['trx_id'] ?? '',
+                'success_url' => $params['redirect_url'] . '?session_id={CHECKOUT_SESSION_ID}',
+                'cancel_url'  => $params['cancel_url'],
+                'metadata[trx_id]' => $params['trx_id'],
             ]),
         ]);
 
@@ -161,7 +161,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('Stripe API error: HTTP ' . $httpCode);
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
 
         return [
             'redirect_url' => $data['url'] ?? null,
@@ -202,7 +202,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         // ALWAYS verify server-side via Stripe API — never trust inbound payload
-        $secretKey = $credentials['secret_key'] ?? '';
+        $secretKey = $credentials['secret_key'];
 
         $ch = curl_init('https://api.stripe.com/v1/checkout/sessions/' . urlencode($sessionId));
         curl_setopt_array($ch, [
@@ -220,7 +220,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'api_error'];
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (!is_array($data)) {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
         }
@@ -298,8 +298,8 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
      */
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array
     {
-        $secretKey = $credentials['secret_key'] ?? '';
-        $amountCents = (int) bcmul($amount, '100', 0);
+        $secretKey = $credentials['secret_key'];
+        $amountCents = (int) bcmul((string) (float) $amount, '100', 0);
 
         $ch = curl_init('https://api.stripe.com/v1/refunds');
         curl_setopt_array($ch, [
@@ -315,7 +315,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
 
         $response = curl_exec($ch);
         curl_close($ch);
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
 
         return [
             'success'   => ($data['status'] ?? '') === 'succeeded',

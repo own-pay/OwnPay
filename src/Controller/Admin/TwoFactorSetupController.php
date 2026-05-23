@@ -57,6 +57,9 @@ final class TwoFactorSetupController
     public function index(Request $req): Response
     {
         $userId = $this->session->userId();
+        if ($userId === null) {
+            return Response::redirect('/admin');
+        }
         $user   = $this->userRepo->findById($userId);
 
         if (!$user) {
@@ -98,8 +101,11 @@ final class TwoFactorSetupController
     public function enable(Request $req): Response
     {
         $userId = $this->session->userId();
+        if ($userId === null) {
+            return Response::redirect('/admin/my-account/2fa');
+        }
         $codeRaw = $req->post('code', '');
-        $code   = preg_replace('/\D/', '', is_string($codeRaw) ? $codeRaw : '');
+        $code   = (string) preg_replace('/\D/', '', is_string($codeRaw) ? $codeRaw : '');
         $secret = $this->userRepo->getTotpSecret($userId);
 
         if (!$secret) {
@@ -128,6 +134,9 @@ final class TwoFactorSetupController
     public function disable(Request $req): Response
     {
         $userId   = $this->session->userId();
+        if ($userId === null) {
+            return Response::redirect('/admin/my-account/2fa');
+        }
         $password = $req->post('password', '');
 
         $hash = $this->userRepo->getPasswordHash($userId);

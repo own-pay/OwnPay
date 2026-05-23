@@ -102,7 +102,7 @@ final class UnifiedWebhookController
             $payload = new WebhookPayload(
                 gateway: $gateway,
                 merchantId: (int) $merchantId,
-                rawBody: $req->rawBody(),
+                rawBody: $rawBody,
                 headers: $req->allHeaders(),
                 ip: $req->ip(),
                 method: $req->method(),
@@ -117,7 +117,7 @@ final class UnifiedWebhookController
         // This handles the common case where gateway plugins implement
         // GatewayAdapterInterface but don't register custom webhook hooks.
         if ($this->c->has(GatewayApiService::class)) {
-            $rawWebhookBody = $req->rawBody() ?? '';
+            $rawWebhookBody = $rawBody;
             $callbackData = json_decode($rawWebhookBody, true);
             if (!is_array($callbackData)) {
                 parse_str($rawWebhookBody, $callbackData);
@@ -133,7 +133,7 @@ final class UnifiedWebhookController
                 $svc = $this->c->get(GatewayApiService::class);
                 $result = $svc->handleCallback((int) $merchantId, $gateway, $callbackData);
 
-                $payloadHash = hash('sha256', $req->rawBody());
+                $payloadHash = hash('sha256', $rawBody);
                 $this->logDelivery($gateway, $merchantId, $payloadHash);
 
                 if ($result['success'] ?? false) {

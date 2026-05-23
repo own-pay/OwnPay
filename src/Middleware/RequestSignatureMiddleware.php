@@ -58,7 +58,7 @@ final class RequestSignatureMiddleware
             ], 401);
         }
 
-        $body = $request->rawBody();
+        $body = $request->rawBody() ?? '';
         $secret = $this->resolveSecret($request);
 
         if ($secret === null /** @phpstan-ignore identical.alwaysFalse */) {

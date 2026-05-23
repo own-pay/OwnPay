@@ -239,7 +239,7 @@ final class PaymentIntentCheckoutController
         }
 
         $brand = $this->loadBrand($mid);
-        $faqs = json_decode($this->settings->get('general', 'faqs', '[]'), true);
+        $faqs = json_decode((string) $this->settings->get('general', 'faqs', '[]'), true);
 
         // Generate HMAC signature securing amount, currency, and token details against checkout tampering.
         // Security check: ensure HMAC_KEY or APP_KEY is properly configured; fallback or throw if missing.
