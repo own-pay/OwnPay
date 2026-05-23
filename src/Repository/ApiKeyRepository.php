@@ -66,7 +66,7 @@ final class ApiKeyRepository extends BaseRepository
     /**
      * Lists active API keys under the active tenant context.
      *
-     * @return list<array<string, mixed>> List of active API key records.
+     * @return array<int, array<string, mixed>> List of active API key records.
      */
     public function listActiveKeys(): array
     {

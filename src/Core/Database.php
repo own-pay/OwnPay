@@ -273,7 +273,8 @@ class Database
     public function insert(string $sql, array $params = []): string
     {
         $this->execute($sql, $params);
-        return $this->pdo->lastInsertId();
+        $id = $this->pdo->lastInsertId();
+        return is_string($id) ? $id : '0';
     }
 
     /**
@@ -406,6 +407,7 @@ class Database
      */
     public function lastInsertId(): string
     {
-        return $this->pdo->lastInsertId();
+        $id = $this->pdo->lastInsertId();
+        return is_string($id) ? $id : '0';
     }
 }

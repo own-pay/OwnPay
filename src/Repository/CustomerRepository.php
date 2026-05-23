@@ -62,7 +62,7 @@ final class CustomerRepository extends BaseRepository
      * @param string $query Optional search query (matches against email hash).
      * @param int $page Page number (1-indexed).
      * @param int $perPage Maximum items per page.
-     * @return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} Pagination envelope.
+     * @return array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} Pagination envelope.
      */
     public function paginateWithStats(int $merchantId, string $query, int $page, int $perPage): array
     {
@@ -107,7 +107,7 @@ final class CustomerRepository extends BaseRepository
      * @param int $customerId Primary key identifier of the customer.
      * @param int $merchantId Scoping merchant ID context.
      * @param int $limit Maximum records to return.
-     * @return list<array<string, mixed>> List of matching transaction records.
+     * @return array<int, array<string, mixed>> List of matching transaction records.
      */
     public function getRecentTransactions(int $customerId, int $merchantId, int $limit = 50): array
     {

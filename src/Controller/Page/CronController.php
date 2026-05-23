@@ -53,7 +53,8 @@ final class CronController
 
         // 2. Run cron jobs
         $runner = $this->c->get(\OwnPay\Cron\CronJobRunner::class);
-        $count = $runner->run();
+        $results = $runner->run();
+        $count = count($results);
 
         return Response::plain("OK: {$count} jobs run");
     }

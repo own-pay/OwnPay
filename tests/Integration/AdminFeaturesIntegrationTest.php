@@ -8,10 +8,11 @@ use OwnPay\Core\Database;
 use OwnPay\Repository\SmsTemplateRepository;
 use OwnPay\Repository\SmsDataRepository;
 use OwnPay\Repository\MobileNotificationRepository;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * AdminFeaturesIntegrationTest â€” Integration tests for Part 5 admin features.
+ * AdminFeaturesIntegrationTest — Integration tests for Part 5 admin features.
  *
  * Tests:
  *   1. SMS Template CRUD round-trip
@@ -21,6 +22,7 @@ use Tests\Integration\IntegrationTestCase;
  *
  * @group Integration
  */
+#[AllowMockObjectsWithoutExpectations]
 final class AdminFeaturesIntegrationTest extends IntegrationTestCase
 {
     private const TEST_DEVICE_UUID = 'integ-admin-test-0000';
@@ -30,114 +32,127 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
 
     protected function setUp(): void
     {
-        $this->markTestSkipped('References V1 schema (device_uuid, brand_id, SmsDataRepository) — pending schema migration to V0.1.0.');
+        parent::setUp();
+
+        $this->templateRepo = new SmsTemplateRepository(Database::getInstance());
+        $this->dataRepo = new SmsDataRepository(Database::getInstance());
+
+        // Set tenant context (brand context 1)
+        $this->templateRepo = $this->templateRepo->forTenant(1);
+        $this->dataRepo = $this->dataRepo->forTenant(1);
+
+        // Ensure test device exists for Foreign Key constraints
+        $pdo = Database::getInstance()->pdo();
+        $pdo->exec("DELETE FROM op_sms_parsed WHERE device_id = '" . self::TEST_DEVICE_UUID . "'");
+        $pdo->exec("DELETE FROM op_mobile_notifications WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
+        $pdo->exec("DELETE FROM op_paired_devices WHERE device_id = '" . self::TEST_DEVICE_UUID . "'");
+
+        $pdo->prepare(
+            "INSERT INTO op_paired_devices (merchant_id, device_id, device_name, platform, status, paired_at)
+             VALUES (1, :uuid, 'Test Device', 'android', 'active', NOW())"
+        )->execute([':uuid' => self::TEST_DEVICE_UUID]);
     }
 
     protected function tearDown(): void
     {
-        if (!isset($this->templateRepo)) {
-            return;
-        }
-
         if (!static::$dbAvailable) {
             return;
         }
 
         $pdo = Database::getInstance()->pdo();
-        $pdo->exec("DELETE FROM op_sms_parsed WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
+        $pdo->exec("DELETE FROM op_sms_parsed WHERE device_id = '" . self::TEST_DEVICE_UUID . "'");
         $pdo->exec("DELETE FROM op_mobile_notifications WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
-        $pdo->exec("DELETE FROM op_paired_devices WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
+        $pdo->exec("DELETE FROM op_paired_devices WHERE device_id = '" . self::TEST_DEVICE_UUID . "'");
+
+        parent::tearDown();
     }
 
-    // â”€â”€â”€ Test 1: Template CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Test 1: Template CRUD ───────────────────────────────────────────
 
     public function testTemplateCrudRoundTrip(): void
     {
         // Create
-        $id = $this->templateRepo->create([
-            'sender_pattern'   => 'TestProvider',
-            'regex_pattern'    => '/Test Tk\s*(?P<amount>[\d.]+)/i',
-            'provider_name'    => 'TestProvider',
-            'transaction_type' => 'credit',
-            'priority'         => 999,
-            'description'      => 'Integration test template',
+        $id = (int) $this->templateRepo->createScoped([
+            'gateway_slug'   => 'bkash',
+            'sender_pattern' => 'TestProvider',
+            'amount_regex'   => '/Test Tk\\s*(?P<amount>[\\d.]+)/i',
+            'trx_id_regex'   => '/Test TrxID (?P<trx_id>\\w+)/i',
+            'priority'       => 999,
+            'status'         => 'active',
         ]);
         $this->assertGreaterThan(0, $id);
 
         // Read
-        $template = $this->templateRepo->findById($id);
+        $template = $this->templateRepo->findScoped($id);
         $this->assertNotNull($template);
         $this->assertSame('TestProvider', $template['sender_pattern']);
         $this->assertSame(999, (int) $template['priority']);
 
         // Update
-        $this->templateRepo->update($id, [
-            'priority'    => 50,
-            'description' => 'Updated description',
+        $this->templateRepo->updateScoped($id, [
+            'priority' => 50,
+            'status'   => 'inactive',
         ]);
-        $updated = $this->templateRepo->findById($id);
+        $updated = $this->templateRepo->findScoped($id);
         $this->assertSame(50, (int) $updated['priority']);
-        $this->assertSame('Updated description', $updated['description']);
+        $this->assertSame('inactive', $updated['status']);
 
         // Delete
-        $this->templateRepo->delete($id);
-        $deleted = $this->templateRepo->findById($id);
+        $this->templateRepo->deleteScoped($id);
+        $deleted = $this->templateRepo->findScoped($id);
         $this->assertNull($deleted);
     }
 
-    // â”€â”€â”€ Test 2: updateParsedData â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Test 2: updateParsedData ───────────────────────────────────────────
 
     public function testUpdateParsedDataForReprocess(): void
     {
         // Insert a record with admin_review status
-        $id = $this->dataRepo->create([
-            'device_uuid'   => self::TEST_DEVICE_UUID,
-            'brand_id'      => 1,
+        $id = (int) $this->dataRepo->createScoped([
+            'device_id'     => self::TEST_DEVICE_UUID,
             'sender'        => 'TestSender',
             'received_at'   => date('Y-m-d H:i:s'),
             'encrypted_raw' => 'test_encrypted',
-            'raw_message'   => 'Received Tk 500 from 01712345678. TrxID RPR001.',
-            'parse_method'  => 'unparsed',
-            'status'        => 'admin_review',
+            'body'          => 'Received Tk 500 from 01712345678. TrxID RPR001.',
+            'parser_type'   => 'unparsed',
+            'match_status'  => 'admin_review',
         ]);
         $this->assertGreaterThan(0, $id);
 
         // Simulate admin reprocess
         $this->dataRepo->updateParsedData($id, [
-            'parsed_amount'    => 500.0,
-            'parsed_type'      => 'credit',
-            'parsed_trx_id'    => 'RPR001',
-            'parsed_sender'    => '01712345678',
-            'parse_method'     => 'regex',
-            'parse_confidence' => 'high',
-            'status'           => 'accepted',
+            'amount'       => 500.0,
+            'trx_id'       => 'RPR001',
+            'gateway_slug' => 'bkash',
+            'parser_type'  => 'regex',
+            'match_status' => 'accepted',
         ]);
 
-        $record = $this->dataRepo->findById($id);
-        $this->assertSame('accepted', $record['status']);
-        $this->assertSame(500.0, (float) $record['parsed_amount']);
-        $this->assertSame('RPR001', $record['parsed_trx_id']);
-        $this->assertSame('regex', $record['parse_method']);
-        $this->assertNotNull($record['processed_at']);
+        $record = $this->dataRepo->findScoped($id);
+        $this->assertSame('accepted', $record['match_status']);
+        $this->assertSame(500.0, (float) $record['amount']);
+        $this->assertSame('RPR001', $record['trx_id']);
+        $this->assertSame('regex', $record['parser_type']);
+        $this->assertNotNull($record['created_at']);
     }
 
-    // â”€â”€â”€ Test 3: Notification cleanup â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Test 3: Notification cleanup ───────────────────────────────────────
 
     public function testNotificationCleanup(): void
     {
-        $notifRepo = new MobileNotificationRepository();
-        $pdo = Database::getInstance()->getPdo();
+        $notifRepo = new MobileNotificationRepository(Database::getInstance());
+        $pdo = Database::getInstance()->pdo();
 
         // Insert an old read notification (8 days ago)
         $pdo->prepare(
-            "INSERT INTO op_mobile_notifications (device_uuid, type, title, body, payload, is_read, read_at, created_at)
-             VALUES (:uuid, 'test', 'Old', 'Old body', '{}', 1, DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 8 DAY))"
+            "INSERT INTO op_mobile_notifications (merchant_id, device_uuid, type, title, body, payload, is_read, read_at, created_at)
+             VALUES (1, :uuid, 'test', 'Old', 'Old body', '{}', 1, DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 8 DAY))"
         )->execute([':uuid' => self::TEST_DEVICE_UUID]);
 
         // Insert a recent read notification (1 day ago)
         $pdo->prepare(
-            "INSERT INTO op_mobile_notifications (device_uuid, type, title, body, payload, is_read, read_at, created_at)
-             VALUES (:uuid, 'test', 'Recent', 'Recent body', '{}', 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY))"
+            "INSERT INTO op_mobile_notifications (merchant_id, device_uuid, type, title, body, payload, is_read, read_at, created_at)
+             VALUES (1, :uuid, 'test', 'Recent', 'Recent body', '{}', 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY))"
         )->execute([':uuid' => self::TEST_DEVICE_UUID]);
 
         // Purge > 7 days
@@ -147,50 +162,48 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         $this->assertGreaterThanOrEqual(1, $purged);
 
         // Recent one should still exist
-        $remaining = $notifRepo->pollSince(self::TEST_DEVICE_UUID);
-        // The recent notification should be in results (it's read, but pollSince may exclude read by default)
-        // At minimum, verify no crash
+        $remaining = $notifRepo->forTenant(1)->pollSince(self::TEST_DEVICE_UUID);
         $this->assertIsArray($remaining);
     }
 
-    // â”€â”€â”€ Test 4: SMS stats aggregation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Test 4: SMS stats aggregation ───────────────────────────────────────
 
     public function testSmsStatsAggregation(): void
     {
-        $pdo = Database::getInstance()->getPdo();
+        $pdo = Database::getInstance()->pdo();
 
         // Insert test records
         $this->dataRepo->create([
-            'device_uuid'   => self::TEST_DEVICE_UUID,
-            'brand_id'      => 1,
-            'sender'        => 'bKash',
-            'received_at'   => date('Y-m-d H:i:s'),
-            'encrypted_raw' => 'test',
-            'parsed_amount' => 500.0,
-            'parsed_type'   => 'credit',
-            'parse_method'  => 'regex',
-            'template_id'   => 1,
+            'merchant_id'      => 1,
+            'device_id'        => self::TEST_DEVICE_UUID,
+            'sender'           => 'bKash',
+            'received_at'      => date('Y-m-d H:i:s'),
+            'encrypted_raw'    => 'test',
+            'amount'           => 500.0,
+            'parsed_type'      => 'credit',
+            'parser_type'      => 'regex',
+            'template_id'      => 1,
             'parse_confidence' => 'high',
-            'status'        => 'accepted',
+            'match_status'     => 'accepted',
         ]);
 
         $this->dataRepo->create([
-            'device_uuid'   => self::TEST_DEVICE_UUID,
-            'brand_id'      => 1,
-            'sender'        => 'Nagad',
-            'received_at'   => date('Y-m-d H:i:s'),
-            'encrypted_raw' => 'test',
-            'parsed_amount' => 200.0,
-            'parsed_type'   => 'debit',
-            'parse_method'  => 'heuristic',
+            'merchant_id'      => 1,
+            'device_id'        => self::TEST_DEVICE_UUID,
+            'sender'           => 'Nagad',
+            'received_at'      => date('Y-m-d H:i:s'),
+            'encrypted_raw'    => 'test',
+            'amount'           => 200.0,
+            'parsed_type'      => 'debit',
+            'parser_type'      => 'heuristic',
             'parse_confidence' => 'medium',
-            'status'        => 'accepted',
+            'match_status'     => 'accepted',
         ]);
 
         // Query stats
         $statusStmt = $pdo->prepare(
-            "SELECT status, COUNT(*) AS count FROM op_sms_parsed
-             WHERE brand_id = 1 AND device_uuid = :uuid GROUP BY status"
+            "SELECT match_status, COUNT(*) AS count FROM op_sms_parsed
+             WHERE merchant_id = 1 AND device_id = :uuid GROUP BY match_status"
         );
         $statusStmt->execute([':uuid' => self::TEST_DEVICE_UUID]);
         $byStatus = $statusStmt->fetchAll(\PDO::FETCH_ASSOC);
@@ -198,16 +211,14 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         $this->assertNotEmpty($byStatus);
 
         $methodStmt = $pdo->prepare(
-            "SELECT parse_method, COUNT(*) AS count FROM op_sms_parsed
-             WHERE brand_id = 1 AND device_uuid = :uuid GROUP BY parse_method"
+            "SELECT parser_type, COUNT(*) AS count FROM op_sms_parsed
+             WHERE merchant_id = 1 AND device_id = :uuid GROUP BY parser_type"
         );
         $methodStmt->execute([':uuid' => self::TEST_DEVICE_UUID]);
         $byMethod = $methodStmt->fetchAll(\PDO::FETCH_ASSOC);
 
-        $methods = array_column($byMethod, 'parse_method');
+        $methods = array_column($byMethod, 'parser_type');
         $this->assertContains('regex', $methods);
         $this->assertContains('heuristic', $methods);
     }
 }
-
-

@@ -299,6 +299,9 @@ final class PluginManifest
         }
 
         $json = file_get_contents($path);
+        if ($json === false) {
+            throw new \RuntimeException('Failed to read manifest file');
+        }
         $data = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
 
         if (!is_array($data)) {

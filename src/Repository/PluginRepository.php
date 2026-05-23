@@ -43,7 +43,7 @@ final class PluginRepository extends BaseRepository
     /**
      * Lists all active plugins registered in the system.
      *
-     * @return list<array<string, mixed>> List of active plugin records.
+     * @return array<int, array<string, mixed>> List of active plugin records.
      */
     public function listActive(): array
     {
@@ -56,7 +56,7 @@ final class PluginRepository extends BaseRepository
      * Lists plugins matching a specific type classification.
      *
      * @param string $type The plugin type (e.g. 'gateway', 'addon', 'theme').
-     * @return list<array<string, mixed>> List of matching plugins.
+     * @return array<int, array<string, mixed>> List of matching plugins.
      */
     public function listByType(string $type): array
     {
@@ -161,7 +161,7 @@ final class PluginRepository extends BaseRepository
     /**
      * Lists all plugins that are active globally OR active on at least one brand.
      *
-     * @return list<array<string, mixed>>
+     * @return array<int, array<string, mixed>>
      */
     public function listActiveAndBrandActive(): array
     {

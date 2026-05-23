@@ -28,7 +28,7 @@ final class GatewayRepository extends BaseRepository
     /**
      * Lists active gateway records globally.
      *
-     * @return list<array<string, mixed>> List of active gateway records.
+     * @return array<int, array<string, mixed>> List of active gateway records.
      */
     public function listActive(): array
     {

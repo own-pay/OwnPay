@@ -282,7 +282,7 @@ final class BrandController
             || str_contains($path, '\\') 
             || str_contains($path, '//') 
             || str_contains($path, '..')
-            || ($host !== null && strtolower($host) !== strtolower($req->host()))
+            || (is_string($host) && strtolower($host) !== strtolower($req->host()))
         ) {
             $ref = '/admin';
         } else {
@@ -369,8 +369,10 @@ final class BrandController
         $logoFile = $req->file('brand_logo');
         if ($logoFile !== null && ($logoFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
             try {
-                $storedPath = $fs->storeUpload($logoFile, 'uploads/brands');
-                $logoPath = '/assets/' . $storedPath;
+                if (isset($logoFile['name'], $logoFile['tmp_name']) && is_string($logoFile['name']) && is_string($logoFile['tmp_name'])) {
+                    $storedPath = $fs->storeUpload($logoFile, 'uploads/brands');
+                    $logoPath = '/assets/' . $storedPath;
+                }
             } catch (\Throwable $e) {
                 $this->session->flashError('Invalid file for brand logo: ' . $e->getMessage());
             }
@@ -380,8 +382,10 @@ final class BrandController
         $faviconFile = $req->file('brand_favicon');
         if ($faviconFile !== null && ($faviconFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
             try {
-                $storedPath = $fs->storeUpload($faviconFile, 'uploads/brands');
-                $faviconPath = '/assets/' . $storedPath;
+                if (isset($faviconFile['name'], $faviconFile['tmp_name']) && is_string($faviconFile['name']) && is_string($faviconFile['tmp_name'])) {
+                    $storedPath = $fs->storeUpload($faviconFile, 'uploads/brands');
+                    $faviconPath = '/assets/' . $storedPath;
+                }
             } catch (\Throwable $e) {
                 $this->session->flashError('Invalid file for brand favicon: ' . $e->getMessage());
             }

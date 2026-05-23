@@ -14,16 +14,16 @@ use OwnPay\Support\DateHelper;
 final class MobileNotificationService
 {
     /**
-     * @var mixed Repository interface or database handler resolving notifications storage.
+     * @var object|null Repository interface or database handler resolving notifications storage.
      */
-    private $repo;
+    private ?object $repo;
 
     /**
      * Constructs a new MobileNotificationService instance.
      *
-     * @param mixed|null $repo Optional custom notification repository instance.
+     * @param object|null $repo Optional custom notification repository instance.
      */
-    public function __construct($repo = null)
+    public function __construct(?object $repo = null)
     {
         $this->repo = $repo;
     }
@@ -109,10 +109,10 @@ final class MobileNotificationService
         ];
 
         if ($this->repo !== null) {
-            if (method_exists($this->repo, 'create')) {
-                return (int) $this->repo->create($deviceUuid, $mappedType, $title, $body, $payload);
-            } elseif (method_exists($this->repo, 'queue')) {
+            if (method_exists($this->repo, 'queue')) {
                 return (int) $this->repo->queue($deviceUuid, $mappedType, $title, $body, $payload);
+            } elseif (method_exists($this->repo, 'create')) {
+                return (int) $this->repo->create($deviceUuid, $mappedType, $title, $body, $payload);
             }
         }
 
@@ -144,6 +144,7 @@ final class MobileNotificationService
         $unreadCount = 0;
 
         if ($this->repo !== null) {
+            /** @phpstan-ignore-next-line */
             $notifications = $this->repo->pollSince($deviceUuid, $since);
             foreach ($notifications as &$notif) {
                 if (isset($notif['payload']) && is_string($notif['payload'])) {

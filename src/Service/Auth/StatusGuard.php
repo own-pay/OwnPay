@@ -80,8 +80,9 @@ final class StatusGuard
      */
     public static function requireActive(array $entity, string $label = 'Entity'): void
     {
-        if (!in_array($entity['status'] ?? '', self::ACTIVE_STATUSES, true)) {
-            throw new \RuntimeException("{$label} is not active (status: {$entity['status']})");
+        $status = $entity['status'] ?? 'inactive';
+        if (!in_array($status, self::ACTIVE_STATUSES, true)) {
+            throw new \RuntimeException("{$label} is not active (status: {$status})");
         }
     }
 }

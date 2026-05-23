@@ -43,8 +43,8 @@ final class ImageService
             return $outputPath;
         }
 
-        $newW = (int) ($origW * $ratio);
-        $newH = (int) ($origH * $ratio);
+        $newW = max(1, (int) ($origW * $ratio));
+        $newH = max(1, (int) ($origH * $ratio));
 
         $src = $this->createFromFile($inputPath, $info[2]);
         $dst = imagecreatetruecolor($newW, $newH);
@@ -88,13 +88,19 @@ final class ImageService
      */
     private function createFromFile(string $path, int $type): \GdImage
     {
-        return match ($type) {
+        $im = match ($type) {
             IMAGETYPE_JPEG => imagecreatefromjpeg($path),
             IMAGETYPE_PNG  => imagecreatefrompng($path),
             IMAGETYPE_GIF  => imagecreatefromgif($path),
             IMAGETYPE_WEBP => imagecreatefromwebp($path),
             default => throw new \RuntimeException('Unsupported image type'),
         };
+
+        if ($im === false) {
+            throw new \RuntimeException('Failed to create image resource from file: ' . $path);
+        }
+
+        return $im;
     }
 
     /**

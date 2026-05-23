@@ -87,17 +87,23 @@ final class RefundService
         }
 
         $alreadyRefunded = $this->refunds->getTotalRefundedAmount($txn['id'], $merchantId);
+        $origAmount = (string) $txn['amount'];
 
+        /** @var numeric-string $alreadyRefunded */
+        /** @var numeric-string $origAmount */
         if ($amount === null || !is_numeric($amount) || bccomp((string)$amount, '0', 2) <= 0) {
-            $amount = bcsub($txn['amount'], $alreadyRefunded, 2);
+            $amount = bcsub($origAmount, $alreadyRefunded, 2);
         }
 
-        if (bccomp((string)$amount, '0.00', 2) <= 0) {
+        $amountStr = (string)$amount;
+        /** @var numeric-string $amountStr */
+        if (bccomp($amountStr, '0.00', 2) <= 0) {
             throw new InvalidArgumentException('No remaining amount left to refund');
         }
 
-        $newTotal = bcadd($alreadyRefunded, (string)$amount, 2);
-        if (bccomp($newTotal, $txn['amount'], 2) > 0) {
+        $newTotal = bcadd($alreadyRefunded, $amountStr, 2);
+        /** @var numeric-string $newTotal */
+        if (bccomp($newTotal, $origAmount, 2) > 0) {
             throw new InvalidArgumentException('Refund amount cannot exceed transaction amount');
         }
 

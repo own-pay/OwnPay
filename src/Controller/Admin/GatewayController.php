@@ -334,19 +334,19 @@ final class GatewayController
     }
 
     /**
-     * Assembles gateway theme colors into a JSON string format.
+     * Builds gateway brand color settings as a JSON string.
      *
-     * @param array<string, mixed> $data Raw input data containing color overrides.
-     *
-     * @return string Serialized JSON color configuration.
+     * @param array<string, mixed> $data Raw input data from request payload.
+     * @return string Serialized colors JSON.
      */
     private function buildColorsJson(array $data): string
     {
-        return json_encode([
+        $json = json_encode([
             'primary'   => $data['color_primary'] ?? '#E2136E',
             'secondary' => $data['color_secondary'] ?? '#FFFFFF',
             'text'      => $data['color_text'] ?? '#FFFFFF',
         ]);
+        return is_string($json) ? $json : '{}';
     }
 
     /**
@@ -361,7 +361,8 @@ final class GatewayController
         if (empty($raw)) {
             return '{"steps":[]}';
         }
-        return json_encode(['steps' => array_filter(array_map('trim', explode("\n", $raw)))]);
+        $json = json_encode(['steps' => array_filter(array_map('trim', explode("\n", $raw)))]);
+        return is_string($json) ? $json : '{"steps":[]}';
     }
 
     /**
@@ -424,6 +425,7 @@ final class GatewayController
                 ];
             }
         }
-        return json_encode($clean);
+        $json = json_encode($clean);
+        return is_string($json) ? $json : '[]';
     }
 }

@@ -88,13 +88,18 @@ final class WebhookService
             return false;
         }
 
-        $body = json_encode([
+        $encoded = json_encode([
             'event' => $eventType,
             'data'  => $payload,
             'timestamp' => time(),
         ]);
+        if (!is_string($encoded)) {
+            $encoded = '';
+        }
+        $body = $encoded;
 
-        $signature = hash_hmac('sha256', $body, $webhook['secret']);
+        $secret = (string) ($webhook['secret'] ?? '');
+        $signature = hash_hmac('sha256', $body, $secret);
 
         $logId = $this->commLog->log(
             $webhook['merchant_id'] ?? null,

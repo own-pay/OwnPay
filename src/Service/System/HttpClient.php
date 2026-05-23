@@ -230,7 +230,7 @@ final class HttpClient
             $error = curl_error($ch);
             curl_close($ch);
 
-            if ($body === false) {
+            if (!is_string($body)) {
                 throw new \RuntimeException("HTTP request failed: {$error}");
             }
 
@@ -277,7 +277,7 @@ final class HttpClient
                     // Enforce header safety for cross-origin redirects
                     $origHost = parse_url($currentUrl, PHP_URL_HOST);
                     $newHost = parse_url($redirectUrl, PHP_URL_HOST);
-                    if ($origHost !== null && $newHost !== null && strtolower($origHost) !== strtolower($newHost)) {
+                    if (is_string($origHost) && is_string($newHost) && strtolower($origHost) !== strtolower($newHost)) {
                         $sensitive = ['authorization', 'cookie', 'x-api-key'];
                         foreach ($headers as $key => $value) {
                             if (in_array(strtolower($key), $sensitive, true)) {

@@ -38,7 +38,7 @@ final class GatewayConfigRepository extends BaseRepository
      *
      * Joins global gateway adapters to populate metadata.
      *
-     * @return list<array<string, mixed>> List of matching gateway configs with descriptors.
+     * @return array<int, array<string, mixed>> List of matching gateway configs with descriptors.
      */
     public function listActive(): array
     {
@@ -72,7 +72,7 @@ final class GatewayConfigRepository extends BaseRepository
     /**
      * Lists active gateway configurations with gateway descriptors.
      *
-     * @return list<array<string, mixed>> List of matching gateway configs.
+     * @return array<int, array<string, mixed>> List of matching gateway configs.
      */
     public function listActiveWithGateway(): array
     {
@@ -84,7 +84,7 @@ final class GatewayConfigRepository extends BaseRepository
      *
      * Prevents leakage of encrypted credentials and internal settings to client-facing Twig views.
      *
-     * @return list<array<string, mixed>> List of public-safe gateway configs.
+     * @return array<int, array<string, mixed>> List of public-safe gateway configs.
      */
     public function listActiveForCheckout(): array
     {

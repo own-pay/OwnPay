@@ -88,12 +88,20 @@ final class PaymentLinkCheckoutController
         }
 
         $amount = (string) ($link['amount'] ?? $req->query('amount', '0'));
-        if (!is_numeric($amount)) $amount = '0';
+        if (!is_numeric($amount)) {
+            $amount = '0';
+        }
 
         // Validate query amount: verify that the amount parameter remains within the configured minimum and maximum limits (using high-precision BCMath comparisons).
         if (bccomp($amount, '0', 2) > 0) {
             $minAmount = (string) ($link['min_amount'] ?? '0');
+            if (!is_numeric($minAmount)) {
+                $minAmount = '0';
+            }
             $maxAmount = (string) ($link['max_amount'] ?? '0');
+            if (!is_numeric($maxAmount)) {
+                $maxAmount = '0';
+            }
             if ((bccomp($minAmount, '0', 2) > 0 && bccomp($amount, $minAmount, 2) < 0)
                 || (bccomp($maxAmount, '0', 2) > 0 && bccomp($amount, $maxAmount, 2) > 0)) {
                 $amount = '0';
@@ -105,7 +113,9 @@ final class PaymentLinkCheckoutController
             $csrf = \OwnPay\Security\SecurityHelpers::csrfToken();
             $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');
             $queryAmt = $req->query('amount', '');
-            $error = ($queryAmt !== '' && is_numeric($queryAmt) && bccomp($queryAmt, '0', 2) > 0)
+            /** @var numeric-string $queryAmtStr */
+            $queryAmtStr = is_numeric($queryAmt) ? (string) $queryAmt : '0';
+            $error = ($queryAmt !== '' && is_numeric($queryAmt) && bccomp($queryAmtStr, '0', 2) > 0)
                 ? 'Amount is out of valid bounds.'
                 : null;
             return Response::html($twig->render($tpl, [
@@ -172,7 +182,9 @@ final class PaymentLinkCheckoutController
         }
 
         $amountStr = (string) $req->post('amount', '0');
-        if (!is_numeric($amountStr)) $amountStr = '0';
+        if (!is_numeric($amountStr)) {
+            $amountStr = '0';
+        }
         $csrf = \OwnPay\Security\SecurityHelpers::csrfToken();
 
         // Perform basic sanity check using high-precision BCMath comparison (must be greater than zero).
@@ -187,7 +199,13 @@ final class PaymentLinkCheckoutController
 
         // Enforce configured minimum and maximum boundary constraints utilizing BCMath.
         $minAmount = (string) ($link['min_amount'] ?? '0');
+        if (!is_numeric($minAmount)) {
+            $minAmount = '0';
+        }
         $maxAmount = (string) ($link['max_amount'] ?? '0');
+        if (!is_numeric($maxAmount)) {
+            $maxAmount = '0';
+        }
 
         if (bccomp($minAmount, '0', 2) > 0 && bccomp($amountStr, $minAmount, 2) < 0) {
             $tpl = $this->events->applyFilter('checkout.payment_link.template', 'checkout/payment-link-amount.twig');

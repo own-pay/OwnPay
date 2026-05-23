@@ -32,7 +32,8 @@ final class ReconciliationService
              WHERE merchant_id = :mid AND currency = :cur AND status = 'completed'",
             ['mid' => $merchantId, 'cur' => $currency]
         );
-        $txnTotal = $txnRow['total'] ?? '0.00';
+        $txnTotal = (string) ($txnRow['total'] ?? '0.00');
+        /** @var numeric-string $txnTotal */
 
         // Sum refunds (calculating proportional net refund amounts to match new GAAP model)
         $refundRows = $this->db->fetchAll(
@@ -49,27 +50,40 @@ final class ReconciliationService
             $txAmt = (string)$row['tx_amount'];
             $txFee = (string)$row['tx_fee'];
 
+            /** @var numeric-string $refAmt */
+            /** @var numeric-string $txAmt */
+            /** @var numeric-string $txFee */
             if (bccomp($txAmt, '0.00', 4) > 0) {
                 $ratio = bcdiv($txFee, $txAmt, 18);
+                /** @var numeric-string $ratio */
                 $refundFee = bcmul($refAmt, $ratio, 4);
             } else {
                 $refundFee = '0.00';
             }
+            /** @var numeric-string $refundFee */
             $refundNet = bcsub($refAmt, $refundFee, 4);
+            /** @var numeric-string $refundNetTotal */
+            /** @var numeric-string $refundNet */
             $refundNetTotal = bcadd($refundNetTotal, $refundNet, 4);
         }
+        /** @var numeric-string $refundNetTotal */
         $refundTotal = bcadd('0.00', $refundNetTotal, 2);
 
         // Expected balance = transactions - refunds
         $settlementTotal = '0.00';
 
+        /** @var numeric-string $refundTotal */
+        /** @var numeric-string $settlementTotal */
         $expectedBalance = bcsub(bcsub($txnTotal, $refundTotal, 2), $settlementTotal, 2);
 
         // Ledger balance
         $ledgerBalance = $this->ledger->calculateBalance($merchantId, $currency);
 
+        /** @var numeric-string $expectedBalance */
+        /** @var numeric-string $ledgerBalance */
         $difference = bcsub($expectedBalance, $ledgerBalance, 2);
 
+        /** @var numeric-string $difference */
         return [
             'balanced'          => bccomp($difference, '0.00', 2) === 0,
             'transaction_total' => $txnTotal,

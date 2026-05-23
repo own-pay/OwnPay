@@ -84,12 +84,15 @@ final class SystemUpdateController
 
         $latestCheck = null;
         if (is_file($cacheFile) && (time() - filemtime($cacheFile)) < 3600) {
-            $latestCheck = json_decode(file_get_contents($cacheFile), true);
+            $content = file_get_contents($cacheFile);
+            if (is_string($content)) {
+                $latestCheck = json_decode($content, true);
+            }
         }
 
         $autoUpdate     = $this->settingsRepo->get('general', 'auto_update', '0');
         $currentVersion = $this->c->get('config.app')['version'] ?? '0.1.0';
-        $latestVersion  = $latestCheck['version'] ?? $currentVersion;
+        $latestVersion  = is_array($latestCheck) && isset($latestCheck['version']) && is_string($latestCheck['version']) ? $latestCheck['version'] : $currentVersion;
 
         return $this->renderAdminPage('admin/system-update.twig', [
             'current_version'  => $currentVersion,
@@ -120,7 +123,8 @@ final class SystemUpdateController
             } elseif ($result['available']) {
                 $cacheFile = dirname(__DIR__, 3) . '/storage/cache/update_check.json';
                 @file_put_contents($cacheFile, json_encode($result));
-                $this->session->flashSuccess("Update available: v{$result['version']}");
+                $version = $result['version'] ?? 'unknown';
+                $this->session->flashSuccess("Update available: v{$version}");
             } else {
                 $this->session->flashSuccess('You are on the latest version.');
             }
@@ -147,7 +151,8 @@ final class SystemUpdateController
         if ($result['success']) {
             $this->session->flashSuccess("Updated to v{$version}!");
         } else {
-            $this->session->flashError("Update failed: {$result['error']}");
+            $error = $result['error'] ?? 'unknown error';
+            $this->session->flashError("Update failed: {$error}");
         }
         return Response::redirect('/admin/system-update');
     }

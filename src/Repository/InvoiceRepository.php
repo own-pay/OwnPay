@@ -105,7 +105,7 @@ final class InvoiceRepository extends BaseRepository
      * Lists invoice items for a specific invoice.
      *
      * @param int $invoiceId Primary key identifier of the invoice.
-     * @return list<array<string, mixed>> List of invoice item rows.
+     * @return array<int, array<string, mixed>> List of invoice item rows.
      */
     public function listItems(int $invoiceId): array
     {

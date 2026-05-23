@@ -113,17 +113,18 @@ final class FormattingHelper
     }
 
     /**
-     * Builds a flattened translations array using the target language fallback.
+     * Builds a flattened localized language key-value array.
      *
-     * @param array<string, array<string, string>> $langText The multidimensional language translations array.
-     * @param string|null $language The target language code.
-     * @return array<string, string> The resolved flat key-value translations list.
+     * @param array<string, array<string, string>> $langText The raw nested translations array.
+     * @param string|null                          $language The target language code.
+     * @return array<string, string> The localized translation key-value mapping.
      */
     public static function buildLangArray(array $langText, ?string $language = 'en'): array
     {
         $lang = [];
         foreach ($langText as $key => $translations) {
-            $lang[$key] = $translations[$language] ?? reset($translations);
+            $val = $translations[$language] ?? reset($translations);
+            $lang[$key] = is_string($val) ? $val : '';
         }
         return $lang;
     }

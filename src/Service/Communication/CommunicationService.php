@@ -102,7 +102,7 @@ final class CommunicationService
      * Falls back to local PHP mail() transport if no external plugin is active.
      *
      * @param int $merchantId The primary identifier of the brand/merchant context.
-     * @param array{to?: string, subject?: string, body?: string, html?: string, from?: string} $message Email payload.
+     * @param array{to: string, subject: string, body: string, html?: string, from?: string, reply_to?: string, attachments?: array<int, array<string, mixed>>} $message Email payload.
      * @return array{success: bool, error?: string|null} Execution status results.
      */
     public function sendEmail(int $merchantId, array $message): array
@@ -114,8 +114,8 @@ final class CommunicationService
 
         /** @var MailProviderInterface $provider */
         $logId = $this->commLog->log(
-            $merchantId, 'email', $message['to'] ?? '', 'mail.send',
-            $message['subject'] ?? '', $provider->slug(), 'queued'
+            $merchantId, 'email', $message['to'], 'mail.send',
+            $message['subject'], $provider->slug(), 'queued'
         );
 
         try {
@@ -206,14 +206,14 @@ final class CommunicationService
     /**
      * Internal fallback using php mail() when no SMTP/API plugins are registered.
      *
-     * @param array{to?: string, subject?: string, body?: string, html?: string, from?: string} $message Email details.
+     * @param array{to: string, subject: string, body: string, html?: string, from?: string, reply_to?: string, attachments?: array<int, array<string, mixed>>} $message Email details.
      * @return array{success: bool, error: string|null} Status vector.
      */
     private function fallbackMail(array $message): array
     {
-        $to = $message['to'] ?? '';
-        $subject = $message['subject'] ?? '';
-        $body = $message['html'] ?? $message['body'] ?? '';
+        $to = $message['to'];
+        $subject = $message['subject'];
+        $body = $message['html'] ?? $message['body'];
         $headers = "Content-Type: text/html; charset=UTF-8\r\n";
 
         if (!empty($message['from'])) {

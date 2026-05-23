@@ -107,7 +107,7 @@ final class InstallerController
                 return Response::json(['success' => false, 'error' => 'Schema file missing'], 500);
             }
             $sql = file_get_contents($sqlPath);
-            if (strlen($sql) < 10000) {
+            if ($sql === false || strlen($sql) < 10000) {
                 return Response::json(['success' => false, 'error' => 'Schema integrity failed'], 500);
             }
 
@@ -117,7 +117,11 @@ final class InstallerController
 
             // Drop existing tables so a re-install works cleanly
             $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
-            $existing = $pdo->query("SHOW TABLES")->fetchAll(\PDO::FETCH_COLUMN);
+            $existing = [];
+            $showTablesStmt = $pdo->query("SHOW TABLES");
+            if ($showTablesStmt !== false) {
+                $existing = $showTablesStmt->fetchAll(\PDO::FETCH_COLUMN);
+            }
             foreach ($existing as $table) {
                 $pdo->exec("DROP TABLE IF EXISTS `{$table}`");
             }
@@ -184,12 +188,21 @@ final class InstallerController
 
         try {
             $env = parse_ini_file($envFile);
+            if ($env === false) {
+                return Response::json(['success' => false, 'error' => 'Failed to parse database environment configuration.'], 500);
+            }
+            $dbHost = $env['DB_HOST'] ?? 'localhost';
+            $dbPort = $env['DB_PORT'] ?? '3306';
+            $dbName = $env['DB_NAME'] ?? 'ownpay';
+            $dbUser = $env['DB_USER'] ?? 'root';
+            $dbPass = $env['DB_PASS'] ?? '';
+            $p      = $env['DB_PREFIX'] ?? 'op_';
+
             $pdo = new \PDO(
-                "mysql:host={$env['DB_HOST']};port={$env['DB_PORT']};dbname={$env['DB_NAME']};charset=utf8mb4",
-                $env['DB_USER'], $env['DB_PASS']
+                "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
+                $dbUser, $dbPass
             );
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
-            $p   = $env['DB_PREFIX'];
             $now = DateHelper::now();
 
             // Use CSPRNG random_int() instead of weak mt_rand() for UUID.
@@ -276,7 +289,11 @@ final class InstallerController
             }
 
             // 6. Assign ALL permissions to the Owner role
-            $allPerms = $pdo->query("SELECT id FROM {$p}permissions")->fetchAll(\PDO::FETCH_COLUMN);
+            $allPerms = [];
+            $allPermsStmt = $pdo->query("SELECT id FROM {$p}permissions");
+            if ($allPermsStmt !== false) {
+                $allPerms = $allPermsStmt->fetchAll(\PDO::FETCH_COLUMN);
+            }
             $rps = $pdo->prepare("INSERT IGNORE INTO {$p}role_permissions (role_id, permission_id) VALUES (?,?)");
             foreach ($allPerms as $permId) {
                 $rps->execute([$roleId, $permId]);

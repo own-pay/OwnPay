@@ -377,14 +377,16 @@ final class DashboardController
 
         ob_start();
         $out = fopen('php://output', 'w');
-        fputcsv($out, ['ID', 'Gateway', 'Currency', 'Amount', 'Status', 'Date']);
-        foreach ($rows as $row) {
-            fputcsv($out, [
-                $row['id'], $row['gateway_slug'], $row['currency'],
-                $row['amount'], $row['status'], $row['created_at'],
-            ]);
+        if (is_resource($out)) {
+            fputcsv($out, ['ID', 'Gateway', 'Currency', 'Amount', 'Status', 'Date']);
+            foreach ($rows as $row) {
+                fputcsv($out, [
+                    $row['id'], $row['gateway_slug'], $row['currency'],
+                    $row['amount'], $row['status'], $row['created_at'],
+                ]);
+            }
+            fclose($out);
         }
-        fclose($out);
         $csv = ob_get_clean() ?: '';
 
         $filename = "report_{$from}_{$to}.csv";
@@ -658,7 +660,11 @@ final class DashboardController
 
             /** @var \OwnPay\Security\FieldEncryptor $enc */
             $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
-            $encCreds = $enc->encrypt(json_encode($credentials));
+            $credsJson = json_encode($credentials);
+            if ($credsJson === false) {
+                return Response::json(['success' => false, 'error' => 'Failed to serialize credentials.']);
+            }
+            $encCreds = $enc->encrypt($credsJson);
 
             /** @var \OwnPay\Repository\GatewayConfigRepository $configRepo */
             $configRepo = $this->c->get(\OwnPay\Repository\GatewayConfigRepository::class);

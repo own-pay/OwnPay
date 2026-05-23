@@ -30,6 +30,18 @@ Dashboard → Payments → Gateways → People → Mobile & SMS → Reports & Fi
 * **Repositories:** Create in `src/Repository/` extending `BaseRepository`. If scoped by brand, the class MUST use `TenantScope`. The container registers the class automatically via PSR-4 autowiring.
 * **Services:** Create in `src/Service/{Domain}/`. If the constructor requires non-autowirable parameters, register the service explicitly in `config/services.php`.
 
+### 1.4 Mandatory Automated Testing & Quality Verification
+AI Agents MUST execute the following verification commands after ANY code modifications to guarantee zero regressions before completing a task:
+* **PHP Backend Edits:**
+  * **Static Analysis:** Run `vendor/bin/phpstan analyse` to verify zero type-checking/structure errors.
+  * **Unit/Integration Tests:** Run `vendor/bin/phpunit` to ensure all 390+ business logic and ledger test cases pass.
+* **Frontend, JSON, and Twig Template Edits:**
+  * **Twig Templates:** Run `composer lint:twig` to verify Twig layout syntax using `twig-cs-fixer`.
+  * **JavaScript Files:** Run `npm run lint:js` to verify asset logic using `eslint`.
+  * **CSS Files:** Run `npm run lint:css` to verify styles using `stylelint`.
+  * **JSON Config Files:** Run `npm run lint:json` to verify schema compliance using `eslint-plugin-jsonc`.
+  * **Unified Quality Pass:** Run `npm run lint && composer lint:twig` to verify all static assets concurrently.
+
 ---
 
 ## 2. Installer Wizard Architecture

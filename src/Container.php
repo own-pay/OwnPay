@@ -247,7 +247,7 @@ final class Container
     /**
      * Dynamically construct an object and inject its constructor dependencies using Reflection.
      *
-     * @param string $class Fully qualified class name to instantiate.
+     * @param class-string $class Fully qualified class name to instantiate.
      * @return mixed Instantiated class with resolved dependencies.
      * @throws \RuntimeException If class is uninstantiable or constructor arguments cannot be resolved.
      */

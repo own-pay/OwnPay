@@ -66,11 +66,12 @@ final readonly class WebhookPayload
     /**
      * Parse the raw request body as form-urlencoded data.
      *
-     * @return array<string, mixed> The parsed query string variables as an associative array.
+     * @return array<int|string, mixed> The parsed query string variables as an associative array.
      */
     public function formData(): array
     {
         parse_str($this->rawBody, $data);
+        /** @var array<int|string, array<mixed>|string> $data */
         return $data;
     }
 

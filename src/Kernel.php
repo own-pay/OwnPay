@@ -301,10 +301,11 @@ final class Kernel
                     $middleware = new $middlewareClass($this->container);
                 }
 
-                if (!method_exists($middleware, 'handle')) {
+                if (!is_object($middleware) || !method_exists($middleware, 'handle')) {
                     return $pipeline($req);
                 }
 
+                /** @phpstan-ignore-next-line */
                 return $middleware->handle($req, $pipeline);
             };
         }

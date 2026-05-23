@@ -283,6 +283,10 @@ final class InvoiceService
     {
         // Stub — return HTML as PDF placeholder
         $invoice = $this->find($merchantId, $id);
-        return $invoice ? json_encode($invoice) : '';
+        if (!$invoice) {
+            return '';
+        }
+        $json = json_encode($invoice);
+        return is_string($json) ? $json : '';
     }
 }

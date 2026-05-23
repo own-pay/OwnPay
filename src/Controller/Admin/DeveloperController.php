@@ -119,8 +119,12 @@ final class DeveloperController
             'data'      => ['message' => 'OwnPay webhook test event'],
         ]);
 
+        if (!is_string($payload)) {
+            return Response::json(['success' => false, 'error' => 'Failed to serialize webhook payload']);
+        }
+
         $secret = $settings->get('general', 'webhook_secret', '');
-        $sig    = hash_hmac('sha256', (string) $payload, $secret);
+        $sig    = hash_hmac('sha256', $payload, $secret);
 
         $ch = curl_init($webhookUrl);
         curl_setopt_array($ch, [

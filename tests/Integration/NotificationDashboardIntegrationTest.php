@@ -7,13 +7,14 @@ namespace Tests\Integration;
 use OwnPay\Core\Database;
 use OwnPay\Repository\MobileNotificationRepository;
 use OwnPay\Service\Notification\MobileNotificationService;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * NotificationDashboardIntegrationTest â€” End-to-end tests for Part 4.
+ * NotificationDashboardIntegrationTest — End-to-end tests for Part 4.
  *
  * Requires live DB. Tests:
- *   1. Notification create â†’ poll â†’ markRead round-trip
+ *   1. Notification create → poll → markRead round-trip
  *   2. Cursor-based polling (since parameter)
  *   3. Unread count accuracy
  *   4. Dashboard summary query (via raw SQL against op_sms_parsed)
@@ -21,6 +22,7 @@ use Tests\Integration\IntegrationTestCase;
  *
  * @group Integration
  */
+#[AllowMockObjectsWithoutExpectations]
 final class NotificationDashboardIntegrationTest extends IntegrationTestCase
 {
     private const TEST_DEVICE_UUID = 'integ-notif-test-0000';
@@ -30,29 +32,43 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
 
     protected function setUp(): void
     {
-        $this->markTestSkipped('References V1 schema (device_uuid in op_mobile_notifications, op_paired_devices) — pending schema migration to V0.1.0.');
+        parent::setUp();
+
+        $this->notifRepo = new MobileNotificationRepository(Database::getInstance());
+        // Set tenant context (brand context 1)
+        $this->notifRepo = $this->notifRepo->forTenant(1);
+        $this->notifService = new MobileNotificationService($this->notifRepo);
+
+        // Ensure test device exists for Foreign Key constraints
+        $pdo = Database::getInstance()->pdo();
+        $pdo->exec("DELETE FROM op_mobile_notifications WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
+        $pdo->exec("DELETE FROM op_paired_devices WHERE device_id = '" . self::TEST_DEVICE_UUID . "'");
+
+        $pdo->prepare(
+            "INSERT INTO op_paired_devices (merchant_id, device_id, device_name, platform, status, paired_at)
+             VALUES (1, :uuid, 'Test Device', 'android', 'active', NOW())"
+        )->execute([':uuid' => self::TEST_DEVICE_UUID]);
     }
 
     protected function tearDown(): void
     {
-        if (!isset($this->notifRepo)) {
-            return;
-        }
-
         if (!static::$dbAvailable) {
             return;
         }
 
         $pdo = Database::getInstance()->pdo();
         $pdo->exec("DELETE FROM op_mobile_notifications WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
+        $pdo->exec("DELETE FROM op_paired_devices WHERE device_id = '" . self::TEST_DEVICE_UUID . "'");
+
+        parent::tearDown();
     }
 
-    // â”€â”€â”€ Test 1: Create â†’ Poll â†’ MarkRead round-trip â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Test 1: Create → Poll → MarkRead round-trip ───────────────────────
 
     public function testCreatePollMarkReadRoundTrip(): void
     {
         // Create notification
-        $id = $this->notifRepo->create(
+        $id = (int) $this->notifRepo->queue(
             self::TEST_DEVICE_UUID,
             'payment_received',
             'Payment Received',
@@ -61,7 +77,7 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
         );
         $this->assertGreaterThan(0, $id);
 
-        // Poll â€” should appear
+        // Poll — should appear
         $notifications = $this->notifRepo->pollSince(self::TEST_DEVICE_UUID);
         $found = array_filter($notifications, fn ($n) => (int)$n['id'] === $id);
         $this->assertNotEmpty($found, 'Notification should appear in poll');
@@ -76,61 +92,65 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
         $this->assertSame(1, $readCount);
 
         // Verify read status
-        $row = $this->notifRepo->findById($id);
+        $row = $this->notifRepo->findScoped($id);
         $this->assertSame(1, (int) $row['is_read']);
         $this->assertNotNull($row['read_at']);
     }
 
-    // â”€â”€â”€ Test 2: Cursor-based polling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Test 2: Cursor-based polling ─────────────────────────────────────
 
     public function testCursorBasedPolling(): void
     {
+        $pdo = Database::getInstance()->pdo();
+        $dbTimeRow = $pdo->query("SELECT NOW() as now")->fetch();
+        $dbTime = strtotime($dbTimeRow['now']);
+
         // Record a cursor BEFORE creating any notifications
-        $cursorBefore = date('Y-m-d H:i:s', time() - 2);
+        $cursorBefore = date('Y-m-d H:i:s', $dbTime - 5);
 
         // Create notification
-        $id1 = $this->notifRepo->create(
+        $id1 = (int) $this->notifRepo->queue(
             self::TEST_DEVICE_UUID, 'payment_received',
             'Cursor Test Payment', 'Tk 100.00'
         );
 
-        // Poll since the past cursor â€” should get the notification
+        // Poll since the past cursor — should get the notification
         $results = $this->notifRepo->pollSince(self::TEST_DEVICE_UUID, $cursorBefore);
         $this->assertNotEmpty($results, 'Should have notifications newer than past cursor');
         $resultIds = array_map('intval', array_column($results, 'id'));
         $this->assertContains($id1, $resultIds);
 
-        // Poll since a FUTURE cursor â€” should get nothing for this device
-        $futureCursor = date('Y-m-d H:i:s', time() + 3600);
+        // Poll since a FUTURE cursor — should get nothing for this device
+        $futureCursor = date('Y-m-d H:i:s', $dbTime + 3600);
         $futureResults = $this->notifRepo->pollSince(self::TEST_DEVICE_UUID, $futureCursor);
         $this->assertEmpty($futureResults, 'Should have no notifications newer than future cursor');
     }
 
-    // â”€â”€â”€ Test 3: Unread count â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Test 3: Unread count ─────────────────────────────────────────────
 
     public function testUnreadCount(): void
     {
         // Start fresh
-        $initial = $this->notifRepo->countUnread(self::TEST_DEVICE_UUID);
+        $initial = $this->notifRepo->countUnread(1, self::TEST_DEVICE_UUID);
 
         // Create 3 notifications
         $ids = [];
         for ($i = 0; $i < 3; $i++) {
-            $ids[] = $this->notifRepo->create(
+            $ids[] = (int) $this->notifRepo->queue(
                 self::TEST_DEVICE_UUID, 'payment_received',
                 "Payment {$i}", "Tk " . (($i + 1) * 100)
             );
         }
 
-        $this->assertSame($initial + 3, $this->notifRepo->countUnread(self::TEST_DEVICE_UUID));
+        $this->assertSame($initial + 3, $this->notifRepo->countUnread(1, self::TEST_DEVICE_UUID));
 
         // Mark 2 as read
         $this->notifRepo->markRead(self::TEST_DEVICE_UUID, [$ids[0], $ids[1]]);
 
-        $this->assertSame($initial + 1, $this->notifRepo->countUnread(self::TEST_DEVICE_UUID));
+        $this->assertSame($initial + 1, $this->notifRepo->countUnread(1, self::TEST_DEVICE_UUID));
     }
 
-    // â”€â”€â”€ Test 4: Service-level poll response structure â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Test 4: Service-level poll response structure ────────────────────
 
     public function testServicePollResponseStructure(): void
     {
@@ -152,51 +172,44 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
         $this->assertEquals(1500, $notif['payload']['amount']);
     }
 
-    // â”€â”€â”€ Test 5: Dashboard summary SQL â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    // ─── Test 5: Dashboard summary SQL ─────────────────────────────────────
 
     public function testDashboardSummaryQuery(): void
     {
-        $pdo = Database::getInstance()->getPdo();
+        $pdo = Database::getInstance()->pdo();
 
         // Ensure test device exists for FK
-        $stmt = $pdo->prepare("SELECT id FROM op_paired_devices WHERE device_uuid = :uuid");
+        $stmt = $pdo->prepare("SELECT id FROM op_paired_devices WHERE device_id = :uuid");
         $stmt->execute([':uuid' => self::TEST_DEVICE_UUID]);
         if (!$stmt->fetch()) {
             $pdo->prepare(
-                "INSERT INTO op_paired_devices (device_uuid, brand_id, device_name, fingerprint_hash,
-                 aes_key_encrypted, refresh_token_hash, refresh_token_expires_at, jwt_secret,
-                 platform, app_version, created_at)
-                 VALUES (:uuid, 1, 'Test Device', :fp, 'test', :rt, DATE_ADD(NOW(), INTERVAL 90 DAY), :jwt, 'android', '1.0.0', NOW())"
-            )->execute([
-                ':uuid' => self::TEST_DEVICE_UUID,
-                ':fp' => hash('sha256', 'test'),
-                ':rt' => hash('sha256', 'test_refresh'),
-                ':jwt' => bin2hex(random_bytes(32)),
-            ]);
+                "INSERT INTO op_paired_devices (merchant_id, device_id, device_name, platform, status, paired_at)
+                 VALUES (1, :uuid, 'Test Device', 'android', 'active', NOW())"
+            )->execute([':uuid' => self::TEST_DEVICE_UUID]);
         }
 
         // Insert test transactions
         $pdo->prepare(
-            "INSERT INTO op_sms_parsed (device_uuid, brand_id, sender, received_at, encrypted_raw,
-             parsed_amount, parsed_type, parse_method, parse_confidence, status)
+            "INSERT INTO op_sms_parsed (device_id, merchant_id, sender, received_at, encrypted_raw,
+             amount, parsed_type, parser_type, parse_confidence, match_status)
              VALUES (:uuid, 1, 'bKash', NOW(), 'test', 500.00, 'credit', 'regex', 'high', 'accepted')"
         )->execute([':uuid' => self::TEST_DEVICE_UUID]);
 
         $pdo->prepare(
-            "INSERT INTO op_sms_parsed (device_uuid, brand_id, sender, received_at, encrypted_raw,
-             parsed_amount, parsed_type, parse_method, parse_confidence, status)
+            "INSERT INTO op_sms_parsed (device_id, merchant_id, sender, received_at, encrypted_raw,
+             amount, parsed_type, parser_type, parse_confidence, match_status)
              VALUES (:uuid, 1, 'Nagad', NOW(), 'test', 200.00, 'debit', 'heuristic', 'medium', 'accepted')"
         )->execute([':uuid' => self::TEST_DEVICE_UUID]);
 
         // Query summary
         $stmt = $pdo->prepare(
             "SELECT
-                COALESCE(SUM(CASE WHEN parsed_type = 'credit' THEN parsed_amount ELSE 0 END), 0) AS total_received,
-                COALESCE(SUM(CASE WHEN parsed_type = 'debit'  THEN parsed_amount ELSE 0 END), 0) AS total_sent,
+                COALESCE(SUM(CASE WHEN parsed_type = 'credit' THEN amount ELSE 0 END), 0) AS total_received,
+                COALESCE(SUM(CASE WHEN parsed_type = 'debit'  THEN amount ELSE 0 END), 0) AS total_sent,
                 COALESCE(SUM(CASE WHEN parsed_type = 'credit' THEN 1 ELSE 0 END), 0) AS credit_count,
                 COALESCE(SUM(CASE WHEN parsed_type = 'debit'  THEN 1 ELSE 0 END), 0) AS debit_count
              FROM op_sms_parsed
-             WHERE brand_id = 1 AND status = 'accepted' AND DATE(received_at) = CURDATE()"
+             WHERE merchant_id = 1 AND match_status = 'accepted' AND DATE(received_at) = CURDATE()"
         );
         $stmt->execute();
         $summary = $stmt->fetch(\PDO::FETCH_ASSOC);
@@ -207,9 +220,7 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
         $this->assertGreaterThanOrEqual(1, (int) $summary['debit_count']);
 
         // Cleanup
-        $pdo->exec("DELETE FROM op_sms_parsed WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
-        $pdo->exec("DELETE FROM op_paired_devices WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
+        $pdo->exec("DELETE FROM op_sms_parsed WHERE device_id = '" . self::TEST_DEVICE_UUID . "'");
+        $pdo->exec("DELETE FROM op_paired_devices WHERE device_id = '" . self::TEST_DEVICE_UUID . "'");
     }
 }
-
-

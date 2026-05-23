@@ -28,4 +28,5 @@
 - **Action**: Verified functionality by running the PHPUnit test suite using `vendor/bin/phpunit`. All 394 test cases pass with zero failures.
 - **Action**: Completed all tasks in `task.md` and local planning phases.
 - **Action**: Resolved GitHub Actions telemetry warning ("Resource not accessible by integration") in `.github/workflows/security-audit.yml` by adding `actions: read` to the `permissions` block.
+- **Action**: Created `phpunit-tests.yml` workflow in `.github/workflows/phpunit-tests.yml` to automatically spin up a MySQL service container, import `database/schema.sql`, and execute the 394 PHPUnit tests in CI/CD pipeline on pushes and pull requests.
 - **Status**: Complete! Delivering results.

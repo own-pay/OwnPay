@@ -178,7 +178,7 @@ final class RolesController
             }
         }
 
-        $this->roles->syncPermissions($id, $permIds);
+        $this->roles->syncPermissions($id, array_values($permIds));
 
         $this->session->flashSuccess("Role '{$name}' updated");
         return Response::redirect('/admin/roles');

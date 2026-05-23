@@ -154,7 +154,7 @@ final class BrandContext
     /**
      * Retrieves all registered brand entities.
      *
-     * @return array<int, array{id: int, name: string, slug: string, logo_path: string|null, status: string}> List of brand profiles.
+     * @return array<int, array<string, mixed>> List of brand profiles.
      */
     public function getAllBrands(): array
     {

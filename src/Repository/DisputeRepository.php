@@ -22,7 +22,7 @@ final class DisputeRepository extends BaseRepository
      * @param int $merchantId Active brand/store identifier context.
      * @param int $limit Maximum records to return.
      * @param int $offset Records offset.
-     * @return list<array<string, mixed>> List of matching dispute records.
+     * @return array<int, array<string, mixed>> List of matching dispute records.
      */
     public function findByMerchant(int $merchantId, int $limit = 20, int $offset = 0): array
     {

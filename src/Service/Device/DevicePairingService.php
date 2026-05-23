@@ -124,7 +124,7 @@ final class DevicePairingService
      * concurrent token reuse or replay attacks.
      *
      * @param string $otp The plain pairing OTP code.
-     * @return array{valid: bool, merchant_id?: int, error?: string} Validation outcome payload.
+     * @return array{valid: true, merchant_id: int}|array{valid: false, error: string} Validation outcome payload.
      */
     public function validatePairingOtp(string $otp): array
     {

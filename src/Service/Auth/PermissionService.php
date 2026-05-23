@@ -144,7 +144,7 @@ final class PermissionService
         ]);
 
         if (!empty($permissionIds)) {
-            $this->roles->syncPermissions((int) $id, $permissionIds);
+            $this->roles->syncPermissions((int) $id, array_values($permissionIds));
         }
 
         return $id;
@@ -163,7 +163,7 @@ final class PermissionService
         if ($this->roles === null) {
             throw new \RuntimeException('Role repository not configured');
         }
-        $this->roles->syncPermissions($roleId, $permissionIds);
+        $this->roles->syncPermissions($roleId, array_values($permissionIds));
     }
 
     /**

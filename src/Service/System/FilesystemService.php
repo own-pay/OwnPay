@@ -62,6 +62,9 @@ final class FilesystemService
         // Verify MIME type matches extension to detect spoofing attempts
         $finfo = new \finfo(FILEINFO_MIME_TYPE);
         $mimeType = $finfo->file($file['tmp_name']);
+        if (!is_string($mimeType)) {
+            throw new \RuntimeException('Failed to determine file MIME type');
+        }
         if (!$this->isMimeAllowed($mimeType, $ext)) {
             throw new \RuntimeException('File MIME type mismatch');
         }

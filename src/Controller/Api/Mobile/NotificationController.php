@@ -67,7 +67,7 @@ final class NotificationController
     public function ack(Request $req): Response
     {
         $body = $req->json();
-        $ids = array_filter(array_map('intval', $body['ids'] ?? []));
+        $ids = array_values(array_filter(array_map('intval', $body['ids'] ?? [])));
         if (empty($ids)) {
             return Response::json(['success' => false, 'error' => 'ids required'], 422);
         }

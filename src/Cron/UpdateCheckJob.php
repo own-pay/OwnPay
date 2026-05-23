@@ -51,12 +51,13 @@ final class UpdateCheckJob
         $autoUpdate = (getenv('AUTO_UPDATE') ?: 'false') === 'true';
         $hour = DateHelper::currentHour();
         $inNightWindow = ($hour >= 2 && $hour <= 5);
+        $version = $check['version'] ?? '0.1.0';
 
         if ($autoUpdate && $inNightWindow && !empty($check['url'])) {
-            $result = $this->updateService->execute($check['version']);
+            $result = $this->updateService->execute($version);
             return [
                 'action'  => 'updated',
-                'version' => $check['version'],
+                'version' => $version,
                 'success' => $result['success'],
                 'error'   => $result['error'] ?? null,
             ];
@@ -64,7 +65,7 @@ final class UpdateCheckJob
 
         return [
             'action'  => 'available',
-            'version' => $check['version'],
+            'version' => $version,
             'message' => $autoUpdate ? 'Update available, waiting for night window (2-5 AM)' : 'Auto-update disabled',
         ];
     }

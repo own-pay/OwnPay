@@ -135,14 +135,18 @@ final class PaymentController
             }
         }
 
+        $redirectVal = !empty($body['redirect_url']) ? filter_var($body['redirect_url'], FILTER_VALIDATE_URL) : (!empty($body['callback_url']) ? filter_var($body['callback_url'], FILTER_VALIDATE_URL) : null);
+        $cancelVal   = !empty($body['cancel_url']) ? filter_var($body['cancel_url'], FILTER_VALIDATE_URL) : (!empty($body['callback_url']) ? filter_var($body['callback_url'], FILTER_VALIDATE_URL) : null);
+        $webhookVal  = !empty($body['callback_url']) ? filter_var($body['callback_url'], FILTER_VALIDATE_URL) : null;
+
         $intentData = [
             'amount'       => InputSanitizer::decimal($body['amount']),
             'currency'     => $currencyCode ?? strtoupper(InputSanitizer::string($body['currency'])),
             'customer_id'  => $customerId,
             'description'  => !empty($body['reference']) ? InputSanitizer::string($body['reference']) : null,
-            'redirect_url' => !empty($body['redirect_url']) ? filter_var($body['redirect_url'], FILTER_VALIDATE_URL) : (!empty($body['callback_url']) ? filter_var($body['callback_url'], FILTER_VALIDATE_URL) : null),
-            'cancel_url'   => !empty($body['cancel_url']) ? filter_var($body['cancel_url'], FILTER_VALIDATE_URL) : (!empty($body['callback_url']) ? filter_var($body['callback_url'], FILTER_VALIDATE_URL) : null),
-            'webhook_url'  => !empty($body['callback_url']) ? filter_var($body['callback_url'], FILTER_VALIDATE_URL) : null,
+            'redirect_url' => is_string($redirectVal) ? $redirectVal : null,
+            'cancel_url'   => is_string($cancelVal) ? $cancelVal : null,
+            'webhook_url'  => is_string($webhookVal) ? $webhookVal : null,
             'metadata'     => [
                 'reference'      => $body['reference'] ?? null,
                 'customer_email' => $customerEmail,

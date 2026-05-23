@@ -7,12 +7,14 @@ namespace Tests\Service;
 use OwnPay\Service\Device\DevicePairingService;
 use OwnPay\Service\Auth\JwtService;
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 
 /**
  * Unit tests for DevicePairingService.
  *
  * Repos are final classes so we use anonymous-class stubs instead of mocks.
  */
+#[AllowMockObjectsWithoutExpectations]
 class DevicePairingServiceTest extends TestCase
 {
     private JwtService $jwt;
