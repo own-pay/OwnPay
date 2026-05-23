@@ -533,7 +533,7 @@ $releaseMetadata = [
     'min_ownpay_version' => $minOwnPay,
     'breaking_changes' => $breakingChanges,
     'breaking_notes' => $breakingNotes,
-    'notes' => "Release generated automatically via OwnPay CLI."
+    'notes' => "Verified"
 ];
 file_put_contents(
     $releaseVersionDir . '/release.json',
