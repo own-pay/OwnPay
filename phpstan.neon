@@ -1,14 +1,21 @@
 parameters:
-    level: 7
+    level: 9
+    
     paths:
-        - src
-    excludePaths:
-        - vendor
-        - mobile_app (?)
         - cli
-        - update (?)
-        - graphify-out (?)
-        - node_modules (?)
+        - config
+        - modules
+        - src
+        
+    excludePaths:
+        analyse:
+            - vendor
+            - node_modules
+            - mobile_app
+            - update
+            - graphify-out
+            
     ignoreErrors:
         - '#Constant OWNPAY_INIT not found.#'
+        
     reportUnmatchedIgnoredErrors: false
