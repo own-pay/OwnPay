@@ -290,7 +290,8 @@ final class DashboardController
     {
         $userId = $this->session->userId();
         if ($userId === null) {
-            return Response::redirect('/login');
+            $loginSlug = $this->resolveLoginSlug();
+            return Response::redirect('/' . $loginSlug);
         }
 
         $user = $this->userRepo->findById($userId);
@@ -315,7 +316,8 @@ final class DashboardController
         $userId = $this->session->userId();
 
         if ($userId === null) {
-            return Response::redirect('/login');
+            $loginSlug = $this->resolveLoginSlug();
+            return Response::redirect('/' . $loginSlug);
         }
 
         if (($data['type'] ?? '') === 'profile') {
@@ -342,7 +344,8 @@ final class DashboardController
                 $this->userRepo->updatePassword($userId, password_hash($new, PASSWORD_ARGON2ID));
                 $this->session->flashSuccess('Password updated. Please log in again.');
                 $this->auth->logout();
-                return Response::redirect('/login');
+                $loginSlug = $this->resolveLoginSlug();
+                return Response::redirect('/' . $loginSlug);
             }
         }
 
@@ -754,5 +757,31 @@ final class DashboardController
         $settingsRepo->set('system', 'onboarding_completed', '1');
 
         return Response::json(['success' => true]);
+    }
+
+    /**
+     * Resolves the dynamic login slug from the storage cache or settings.
+     *
+     * @return string
+     */
+    private function resolveLoginSlug(): string
+    {
+        $cacheFile = dirname(__DIR__, 3) . '/storage/cache/login_slug.cache';
+        if (file_exists($cacheFile)) {
+            $slug = @file_get_contents($cacheFile);
+            if ($slug !== false && $slug !== '') {
+                $slug = trim($slug);
+                if (preg_match('/^[a-z0-9\-]+$/', $slug)) {
+                    return $slug;
+                }
+            }
+        }
+
+        try {
+            $settings = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
+            return $settings->get('landing', 'admin_login_slug', 'login');
+        } catch (\Throwable) {
+            return 'login';
+        }
     }
 }

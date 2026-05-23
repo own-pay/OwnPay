@@ -109,7 +109,16 @@ if ($Clear) {
     exit 0
 }
 
-$hashVal = (Get-FileHash -LiteralPath $planFile -Algorithm SHA256).Hash.ToLowerInvariant()
+$hashVal = ""
+if (Get-Command Get-FileHash -ErrorAction SilentlyContinue) {
+    $hashVal = (Get-FileHash -LiteralPath $planFile -Algorithm SHA256).Hash.ToLowerInvariant()
+} else {
+    $fileBytes = [System.IO.File]::ReadAllBytes($planFile)
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $hashBytes = $sha.ComputeHash($fileBytes)
+    $sha.Dispose()
+    $hashVal = -join ($hashBytes | ForEach-Object { $_.ToString("x2") })
+}
 Set-Content -LiteralPath $attestationFile -Value $hashVal -NoNewline -Encoding ascii
 $short = $hashVal.Substring(0, 12)
 Write-Output "[plan-attest] Locked $planFile"

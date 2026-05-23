@@ -200,6 +200,7 @@ final class HttpClient
                 CURLOPT_USERAGENT      => 'OwnPay/' . EnvironmentService::version(),
                 CURLOPT_SSL_VERIFYPEER => true,
                 CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_IPRESOLVE      => CURL_IPRESOLVE_V4,
                 CURLOPT_HEADERFUNCTION => function ($ch, $header) use (&$responseHeaders) {
                     $parts = explode(':', $header, 2);
                     if (count($parts) === 2) {
@@ -270,6 +271,18 @@ final class HttpClient
                                 $dir = '';
                             }
                             $redirectUrl = $base . '/' . ltrim($dir . '/' . $redirectUrl, '/');
+                        }
+                    }
+
+                    // Enforce header safety for cross-origin redirects
+                    $origHost = parse_url($currentUrl, PHP_URL_HOST);
+                    $newHost = parse_url($redirectUrl, PHP_URL_HOST);
+                    if ($origHost !== null && $newHost !== null && strtolower($origHost) !== strtolower($newHost)) {
+                        $sensitive = ['authorization', 'cookie', 'x-api-key'];
+                        foreach ($headers as $key => $value) {
+                            if (in_array(strtolower($key), $sensitive, true)) {
+                                unset($headers[$key]);
+                            }
                         }
                     }
 

@@ -8,7 +8,6 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Repository\PairedDeviceRepository;
 use OwnPay\Service\Device\DevicePairingService;
-use OwnPay\Service\Auth\JwtService;
 use OwnPay\Service\System\InputSanitizer;
 use OwnPay\Support\DateHelper;
 
@@ -39,24 +38,17 @@ final class DeviceController
     private PairedDeviceRepository $deviceRepo;
 
     /**
-     * @var JwtService The JWT utility service.
-     */
-    private JwtService $jwt;
-
-    /**
      * DeviceController constructor.
      *
      * @param Container              $c          The DI container.
      * @param DevicePairingService   $devices    The device pairing service.
      * @param PairedDeviceRepository $deviceRepo The paired device repository.
-     * @param JwtService             $jwt        The JWT utility service.
      */
-    public function __construct(Container $c, DevicePairingService $devices, PairedDeviceRepository $deviceRepo, JwtService $jwt)
+    public function __construct(Container $c, DevicePairingService $devices, PairedDeviceRepository $deviceRepo)
     {
         $this->c          = $c;
         $this->devices    = $devices;
         $this->deviceRepo = $deviceRepo;
-        $this->jwt        = $jwt;
     }
 
     /**
@@ -207,7 +199,7 @@ final class DeviceController
 
         $res = $this->devices->refreshAccessToken($refreshToken, $fingerprint);
         if (!$res['success']) {
-            $err = match ($res['error'] ?? '') {
+            $err = match ($res['error']) {
                 'DEVICE_REVOKED' => 'Device revoked or not found',
                 'FINGERPRINT_MISMATCH' => 'Device fingerprint mismatch',
                 default => 'Invalid or expired refresh token'
@@ -219,7 +211,7 @@ final class DeviceController
             'success'       => true,
             'access_token'  => $res['access_token'],
             'refresh_token' => $res['refresh_token'],
-            'expires_in'    => $res['expires_in'] ?? 900,
+            'expires_in'    => $res['expires_in'],
             'server_time'   => DateHelper::iso(),
         ]);
     }
