@@ -1,6 +1,6 @@
 # Own Pay: Mobile Companion App & API Ecosystem — Master Architecture
 
-> **Version:** 0.1.0 | **Date:** 2026-05-20 | **Status:** Updated
+> **Version:** 0.1.1 | **Date:** 2026-05-23 | **Status:** Updated
 
 ---
 
@@ -206,18 +206,20 @@ Receive encrypted payload → Decrypt with device's AES key
 
 Stored in `op_sms_templates` table.
 
-| Column | Type |
-|---|---|
-| id | BIGINT UNSIGNED PK |
-| merchant_id | BIGINT UNSIGNED |
-| sender_pattern | VARCHAR(100) — e.g. "bKash", "Nagad" |
-| regex_pattern | TEXT — Named capture groups |
-| transaction_type | VARCHAR(50) — e.g. "credit", "debit" |
-| provider_name | VARCHAR(100) |
-| currency | VARCHAR(10) |
-| priority | INT |
-| is_active | TINYINT(1) |
-| created_at | DATETIME(6) |
+| Column | Type | Notes |
+|---|---|---|
+| id | BIGINT UNSIGNED PK | |
+| merchant_id | BIGINT UNSIGNED | FK → op_merchants (NULL for global templates) |
+| gateway_slug | VARCHAR(60) | Linked payment gateway slug |
+| sender_pattern | VARCHAR(100) | E.g. "bKash", "Nagad" |
+| amount_regex | VARCHAR(500) | Regex pattern to extract payment amount |
+| trx_id_regex | VARCHAR(500) | Regex pattern to extract transaction ID (nullable) |
+| sender_regex | VARCHAR(500) | Regex pattern to extract sender phone number (nullable) |
+| priority | INT | Matching priority ascending (default: 10) |
+| status | ENUM('active','inactive') | Active/inactive state (default: 'active') |
+| created_at | DATETIME(6) | Timestamp when created |
+| updated_at | DATETIME(6) | Timestamp when updated |
+
 
 ### Tier 2: Heuristic Engine
 

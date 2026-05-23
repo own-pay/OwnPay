@@ -29,15 +29,24 @@ final class HttpClient
     private int $connectTimeout;
 
     /**
+     * Maximum redirect hops allowed.
+     *
+     * @var int
+     */
+    private int $maxRedirects;
+
+    /**
      * Initialises the HTTP Client wrapper.
      *
      * @param int $timeout Max duration in seconds to wait for request resolution.
      * @param int $connectTimeout Max duration in seconds to wait to establish connection.
+     * @param int $maxRedirects Maximum redirect hops allowed.
      */
-    public function __construct(int $timeout = 30, int $connectTimeout = 5)
+    public function __construct(int $timeout = 30, int $connectTimeout = 5, int $maxRedirects = 3)
     {
         $this->timeout = $timeout;
         $this->connectTimeout = $connectTimeout;
+        $this->maxRedirects = $maxRedirects;
     }
 
     /**
@@ -115,6 +124,20 @@ final class HttpClient
     }
 
     /**
+     * Executes a PATCH request to the specified URL.
+     *
+     * @param string $url Target address.
+     * @param mixed $data Payload to dispatch.
+     * @param array<string, string> $headers Custom request headers.
+     * @return array{status: int, body: string, headers: array<string, string>} The response metadata.
+     * @throws \RuntimeException If the outbound request fails or is blocked.
+     */
+    public function patch(string $url, mixed $data = null, array $headers = []): array
+    {
+        return $this->request('PATCH', $url, $data, $headers);
+    }
+
+    /**
      * Executes a DELETE request to the specified URL.
      *
      * @param string $url Target address.
@@ -147,7 +170,7 @@ final class HttpClient
     /**
      * Initialises and executes the cURL transaction with targeted parameters.
      *
-     * @param string $method HTTP action (e.g. GET, POST, PUT, DELETE).
+     * @param string $method HTTP action (e.g. GET, POST, PUT, DELETE, PATCH).
      * @param string $url Target address.
      * @param mixed $data Payload package.
      * @param array<string, string> $headers Mapping of HTTP headers.
@@ -156,58 +179,110 @@ final class HttpClient
      */
     private function request(string $method, string $url, mixed $data, array $headers): array
     {
-        // Enforce SSRF protection: reject addresses targeting local or private ranges
-        if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($url)) {
-            throw new \RuntimeException('URL blocked by SSRF protection');
-        }
+        $redirects = 0;
+        $currentUrl = $url;
 
-        $ch = curl_init($url);
-        $responseHeaders = [];
+        while (true) {
+            // Enforce SSRF protection: reject addresses targeting local or private ranges
+            if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($currentUrl)) {
+                throw new \RuntimeException('URL blocked by SSRF protection');
+            }
 
-        curl_setopt_array($ch, [
-            CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_TIMEOUT        => $this->timeout,
-            CURLOPT_CONNECTTIMEOUT => $this->connectTimeout,
-            CURLOPT_FOLLOWLOCATION => true,
-            CURLOPT_MAXREDIRS      => 3,
-            CURLOPT_CUSTOMREQUEST  => $method,
-            CURLOPT_USERAGENT      => 'OwnPay/' . EnvironmentService::version(),
-            CURLOPT_HEADERFUNCTION => function ($ch, $header) use (&$responseHeaders) {
-                $parts = explode(':', $header, 2);
-                if (count($parts) === 2) {
-                    $responseHeaders[trim($parts[0])] = trim($parts[1]);
+            $ch = curl_init($currentUrl);
+            $responseHeaders = [];
+
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_TIMEOUT        => $this->timeout,
+                CURLOPT_CONNECTTIMEOUT => $this->connectTimeout,
+                CURLOPT_FOLLOWLOCATION => false,
+                CURLOPT_CUSTOMREQUEST  => $method,
+                CURLOPT_USERAGENT      => 'OwnPay/' . EnvironmentService::version(),
+                CURLOPT_SSL_VERIFYPEER => true,
+                CURLOPT_SSL_VERIFYHOST => 2,
+                CURLOPT_HEADERFUNCTION => function ($ch, $header) use (&$responseHeaders) {
+                    $parts = explode(':', $header, 2);
+                    if (count($parts) === 2) {
+                        $responseHeaders[trim($parts[0])] = trim($parts[1]);
+                    }
+                    return strlen($header);
+                },
+            ]);
+
+            // Build header structures for cURL execution
+            $curlHeaders = [];
+            foreach ($headers as $key => $value) {
+                $curlHeaders[] = "{$key}: {$value}";
+            }
+            if (!empty($curlHeaders)) {
+                curl_setopt($ch, CURLOPT_HTTPHEADER, $curlHeaders);
+            }
+
+            // Apply payload content body for outbound mutations
+            if ($data !== null && in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
+                curl_setopt($ch, CURLOPT_POSTFIELDS, is_string($data) ? $data : http_build_query($data));
+            }
+
+            $body = curl_exec($ch);
+            $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $redirectUrl = curl_getinfo($ch, CURLINFO_REDIRECT_URL);
+            $error = curl_error($ch);
+            curl_close($ch);
+
+            if ($body === false) {
+                throw new \RuntimeException("HTTP request failed: {$error}");
+            }
+
+            // If it is a redirect, follow manually and validate the target
+            if ($status >= 300 && $status < 400) {
+                // Find Location header if redirectUrl is empty
+                if (empty($redirectUrl)) {
+                    foreach ($responseHeaders as $hName => $hVal) {
+                        if (strtolower($hName) === 'location') {
+                            $redirectUrl = $hVal;
+                            break;
+                        }
+                    }
                 }
-                return strlen($header);
-            },
-        ]);
 
-        // Build header structures for cURL execution
-        $curlHeaders = [];
-        foreach ($headers as $key => $value) {
-            $curlHeaders[] = "{$key}: {$value}";
+                if (!empty($redirectUrl)) {
+                    if ($redirects >= $this->maxRedirects) {
+                        throw new \RuntimeException('URL blocked by SSRF protection');
+                    }
+                    $redirects++;
+
+                    // Resolve relative or protocol-relative redirect if needed
+                    if (str_starts_with($redirectUrl, '//')) {
+                        $parsedCurrent = parse_url($currentUrl);
+                        $redirectUrl = ($parsedCurrent['scheme'] ?? 'https') . ':' . $redirectUrl;
+                    } elseif (!preg_match('#^https?://#i', $redirectUrl)) {
+                        $parsedCurrent = parse_url($currentUrl);
+                        $base = ($parsedCurrent['scheme'] ?? 'https') . '://' . ($parsedCurrent['host'] ?? 'localhost');
+                        if (isset($parsedCurrent['port'])) {
+                            $base .= ':' . $parsedCurrent['port'];
+                        }
+                        if (str_starts_with($redirectUrl, '/')) {
+                            $redirectUrl = $base . $redirectUrl;
+                        } else {
+                            $path = $parsedCurrent['path'] ?? '/';
+                            $dir = dirname($path);
+                            if ($dir === '\\' || $dir === '/') {
+                                $dir = '';
+                            }
+                            $redirectUrl = $base . '/' . ltrim($dir . '/' . $redirectUrl, '/');
+                        }
+                    }
+
+                    $currentUrl = $redirectUrl;
+                    continue;
+                }
+            }
+
+            return [
+                'status'  => $status,
+                'body'    => $body,
+                'headers' => $responseHeaders,
+            ];
         }
-        if (!empty($curlHeaders)) {
-            curl_setopt($ch, CURLOPT_HTTPHEADER, $curlHeaders);
-        }
-
-        // Apply payload content body for outbound mutations
-        if ($data !== null && in_array($method, ['POST', 'PUT', 'PATCH'], true)) {
-            curl_setopt($ch, CURLOPT_POSTFIELDS, is_string($data) ? $data : http_build_query($data));
-        }
-
-        $body = curl_exec($ch);
-        $status = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
-        $error = curl_error($ch);
-        curl_close($ch);
-
-        if ($body === false) {
-            throw new \RuntimeException("HTTP request failed: {$error}");
-        }
-
-        return [
-            'status'  => $status,
-            'body'    => $body,
-            'headers' => $responseHeaders,
-        ];
     }
 }

@@ -311,9 +311,30 @@ final class EventManager
             }
             $this->ownerStack[] = $listener['owner'];
             try {
-                $value = ($listener['callable'])($value, ...$args);
+                $newValue = ($listener['callable'])($value, ...$args);
+
+                // Enforce SQL sandbox check if a plugin hook modifies database queries
+                if ($hook === 'db.query.before' && $listener['owner'] !== 'core') {
+                    $sqlToCheck = $newValue['sql'] ?? '';
+                    if ($this->container !== null) {
+                        $registry = $this->container->get(\OwnPay\Plugin\PluginRegistry::class);
+                        if ($registry !== null) {
+                            $sandbox = $registry->getSandbox($listener['owner']);
+                            if ($sandbox !== null && !$sandbox->validateSql($sqlToCheck)) {
+                                throw new \RuntimeException(
+                                    "Database query modified by plugin '{$listener['owner']}' blocked: direct access to core tables or dangerous SQL operations are restricted."
+                                );
+                            }
+                        }
+                    }
+                }
+
+                $value = $newValue;
             } catch (\Throwable $e) {
                 $this->logHookError($hook, $listener['owner'], $e);
+                if ($e instanceof \RuntimeException && str_contains($e->getMessage(), 'blocked')) {
+                    throw $e;
+                }
             } finally {
                 array_pop($this->ownerStack);
             }

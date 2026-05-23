@@ -88,6 +88,11 @@ final class ApplePayGateway implements PluginInterface, GatewayAdapterInterface
      */
     public function initiate(array $params, array $credentials): array
     {
+        $mode = $credentials['mode'] ?? 'test';
+        if ($mode === 'live') {
+            throw new \RuntimeException('Apple Pay is in live mode but only supports simulated payments.');
+        }
+
         $redirectUrl = $params['redirect_url'] ?? '';
         $separator = str_contains($redirectUrl, '?') ? '&' : '?';
         
@@ -104,6 +109,16 @@ final class ApplePayGateway implements PluginInterface, GatewayAdapterInterface
      */
     public function verify(array $callbackData, array $credentials): array
     {
+        $mode = $credentials['mode'] ?? 'test';
+        if ($mode === 'live') {
+            return [
+                'success'        => false,
+                'gateway_trx_id' => null,
+                'amount'         => null,
+                'status'         => 'failed',
+            ];
+        }
+
         $paymentId = $callbackData['paymentID'] ?? $callbackData['session_id'] ?? '';
         
         if (str_starts_with((string)$paymentId, 'APAY_MOCK_')) {

@@ -124,6 +124,11 @@ final class PluginSandbox
             'unlink', 'rmdir', 'rename', 'chmod', 'chown',
             'putenv',
             'dl',
+            'call_user_func', 'call_user_func_array', 'forward_static_call', 'forward_static_call_array',
+            'array_map', 'array_filter', 'array_reduce', 'array_walk', 'array_walk_recursive',
+            'usort', 'uasort', 'uksort', 'register_shutdown_function', 'register_tick_function',
+            'set_exception_handler', 'set_error_handler', 'ob_start',
+            'reflectionfunction', 'reflectionclass', 'reflectionmethod', 'reflectionobject', 'reflectionproperty',
         ];
         return in_array(strtolower($function), $dangerous, true);
     }

@@ -193,21 +193,6 @@ class Database
      */
     public function execute(string $sql, array $params = []): PDOStatement
     {
-        // AUD-G8 fix: Validate SQL query safety if executed within plugin context.
-        if ($this->registry !== null && $this->events !== null) {
-            $activeOwner = $this->events->getActiveOwner();
-            if ($activeOwner !== 'core') {
-                $sandbox = $this->registry->getSandbox($activeOwner);
-                if ($sandbox !== null) {
-                    if (!$sandbox->validateSql($sql)) {
-                        throw new \RuntimeException(
-                            "Database query blocked by plugin sandbox for '{$activeOwner}': direct access to core tables or dangerous SQL operations are restricted."
-                        );
-                    }
-                }
-            }
-        }
-
         // AUD-G3: Fire db.query.before filter — plugins can modify SQL/params
         // Guard prevents infinite recursion when hook listeners query DB
         if ($this->events !== null && !$this->firingHooks) {
@@ -226,6 +211,21 @@ class Database
                 }
             } finally {
                 $this->firingHooks = false;
+            }
+        }
+
+        // AUD-G8 fix: Validate SQL query safety if executed within plugin context.
+        if ($this->registry !== null && $this->events !== null) {
+            $activeOwner = $this->events->getActiveOwner();
+            if ($activeOwner !== 'core') {
+                $sandbox = $this->registry->getSandbox($activeOwner);
+                if ($sandbox !== null) {
+                    if (!$sandbox->validateSql($sql)) {
+                        throw new \RuntimeException(
+                            "Database query blocked by plugin sandbox for '{$activeOwner}': direct access to core tables or dangerous SQL operations are restricted."
+                        );
+                    }
+                }
             }
         }
 

@@ -66,6 +66,16 @@ final class FilesystemService
             throw new \RuntimeException('File MIME type mismatch');
         }
 
+        // Add SVG safety check to mitigate Stored XSS and XML attacks
+        if ($ext === 'svg') {
+            $svgContent = file_get_contents($file['tmp_name']);
+            if ($svgContent !== false) {
+                if ($this->isSvgMalicious($svgContent)) {
+                    throw new \RuntimeException('Malicious SVG content detected');
+                }
+            }
+        }
+
         $targetDir = $this->baseDir . '/' . $subDir . '/' . DateHelper::yearMonthPath();
         if (!is_dir($targetDir)) {
             @mkdir($targetDir, 0755, true);
@@ -182,5 +192,38 @@ final class FilesystemService
         ];
 
         return in_array($mime, $allowed[$ext] ?? [], true);
+    }
+
+    /**
+     * Inspects SVG XML payload for XSS scripts, handlers, javascript URIs, or XXE entities.
+     *
+     * @param string $content Raw SVG content.
+     * @return bool True if content is deemed malicious.
+     */
+    private function isSvgMalicious(string $content): bool
+    {
+        $lower = strtolower($content);
+
+        // Block script tag
+        if (str_contains($lower, '<script')) {
+            return true;
+        }
+
+        // Block XML entity definitions/DTDs (XXE mitigation)
+        if (str_contains($lower, '<!entity') || str_contains($lower, '<!doctype')) {
+            return true;
+        }
+
+        // Block javascript: URIs
+        if (str_contains($lower, 'javascript:')) {
+            return true;
+        }
+
+        // Block inline event handlers (e.g. onload, onclick)
+        if (preg_match('/on[a-z]+\s*=/i', $content)) {
+            return true;
+        }
+
+        return false;
     }
 }

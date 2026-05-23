@@ -273,6 +273,30 @@ final class BrandController
         }
 
         $ref = $req->header('referer', '/admin');
+        $host = parse_url($ref, PHP_URL_HOST);
+        $path = parse_url($ref, PHP_URL_PATH);
+        if (
+            $path === null 
+            || $path === false 
+            || !str_starts_with($path, '/admin') 
+            || str_contains($path, '\\') 
+            || str_contains($path, '//') 
+            || str_contains($path, '..')
+            || ($host !== null && strtolower($host) !== strtolower($req->host()))
+        ) {
+            $ref = '/admin';
+        } else {
+            $query = parse_url($ref, PHP_URL_QUERY);
+            $fragment = parse_url($ref, PHP_URL_FRAGMENT);
+            $ref = $path;
+            if (is_string($query) && $query !== '') {
+                $ref .= '?' . $query;
+            }
+            if (is_string($fragment) && $fragment !== '') {
+                $ref .= '#' . $fragment;
+            }
+        }
+
         return Response::redirect($ref);
     }
 
