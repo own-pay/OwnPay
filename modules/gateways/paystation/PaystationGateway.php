@@ -131,7 +131,7 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
             throw new \RuntimeException('PayStation API Error: HTTP ' . $httpCode);
         }
 
-        $result = json_decode($response, true);
+        $result = json_decode((string) $response, true);
         if (empty($result['payment_url'])) {
             $errMsg = $result['message'] ?? 'Missing payment URL';
             throw new \RuntimeException('PayStation Initiation Error: ' . $errMsg);
@@ -200,7 +200,7 @@ final class PaystationGateway implements PluginInterface, GatewayAdapterInterfac
             ];
         }
 
-        $result = json_decode($response, true);
+        $result = json_decode((string) $response, true);
         if (($result['status_code'] ?? '') === '200' && ($result['status'] ?? '') === 'success') {
             $trxStatus = $result['data']['trx_status'] ?? '';
             $isPaid = in_array(strtolower($trxStatus), ['successful', 'success'], true);

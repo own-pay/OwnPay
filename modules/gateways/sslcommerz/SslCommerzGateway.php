@@ -166,7 +166,7 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
 
         $response = curl_exec($ch);
         curl_close($ch);
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
 
         if (($data['status'] ?? '') !== 'SUCCESS') {
             throw new \RuntimeException('SSLCommerz error: ' . ($data['failedreason'] ?? 'Unknown'));
@@ -199,7 +199,7 @@ final class SslCommerzGateway implements PluginInterface, GatewayAdapterInterfac
         $response = curl_exec($ch);
         curl_close($ch);
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         $valid = ($data['status'] ?? '') === 'VALID' || ($data['status'] ?? '') === 'VALIDATED';
 
         return [

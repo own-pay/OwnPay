@@ -203,7 +203,7 @@ final class Plugin implements PluginInterface
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS => json_encode([
+            CURLOPT_POSTFIELDS => (string) json_encode([
                 'chat_id' => $chat,
                 'text' => $text,
                 'parse_mode' => 'Markdown',

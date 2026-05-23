@@ -136,7 +136,7 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
                 'x-hash: ' . $xHash,
                 'Authorization: Bearer ' . $token
             ],
-            CURLOPT_POSTFIELDS => json_encode($payload),
+            CURLOPT_POSTFIELDS => (string) json_encode($payload),
         ]);
 
         $response = curl_exec($ch);
@@ -147,7 +147,7 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('EPS API connection error: HTTP ' . $httpCode);
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (empty($data['RedirectURL'])) {
             throw new \RuntimeException('EPS initiation failed: ' . $response);
         }
@@ -197,7 +197,7 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'api_error'];
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (!is_array($data)) {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
         }
@@ -232,7 +232,7 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
                 'Content-Type: application/json',
                 'x-hash: ' . $xHash
             ],
-            CURLOPT_POSTFIELDS => json_encode([
+            CURLOPT_POSTFIELDS => (string) json_encode([
                 'userName' => $username,
                 'password' => $password
             ]),
@@ -246,7 +246,7 @@ final class EpsGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('EPS Token generation error: HTTP ' . $httpCode);
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (empty($data['token'])) {
             throw new \RuntimeException('EPS Token generation failed: ' . $response);
         }

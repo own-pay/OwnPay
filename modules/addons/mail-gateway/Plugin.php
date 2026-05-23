@@ -238,7 +238,7 @@ final class Plugin implements PluginInterface
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS => $payload,
+            CURLOPT_POSTFIELDS => (string) $payload,
             CURLOPT_HTTPHEADER => ['Content-Type: application/json', "Authorization: Bearer {$key}"],
             CURLOPT_TIMEOUT => 15,
         ]);

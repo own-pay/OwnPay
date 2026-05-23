@@ -198,7 +198,7 @@ final class Plugin implements PluginInterface
         curl_setopt_array($ch, [
             CURLOPT_POST => true,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS => json_encode(['api_key' => $key, 'api_secret' => $secret, 'from' => $from, 'to' => $to, 'text' => $body]),
+            CURLOPT_POSTFIELDS => (string) json_encode(['api_key' => $key, 'api_secret' => $secret, 'from' => $from, 'to' => $to, 'text' => $body]),
             CURLOPT_HTTPHEADER => ['Content-Type: application/json'],
             CURLOPT_TIMEOUT => 15,
         ]);
@@ -229,9 +229,9 @@ final class Plugin implements PluginInterface
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
-            CURLOPT_CUSTOMREQUEST => $method,
+            CURLOPT_CUSTOMREQUEST => $method !== '' ? $method : null,
             CURLOPT_RETURNTRANSFER => true,
-            CURLOPT_POSTFIELDS => $rendered,
+            CURLOPT_POSTFIELDS => (string) $rendered,
             CURLOPT_HTTPHEADER => [
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . ($this->settings['custom_api_key'] ?? ''),

@@ -161,7 +161,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
                 'Authorization: ' . $token,
                 'X-APP-Key: ' . $credentials['app_key'],
             ],
-            CURLOPT_POSTFIELDS => json_encode([
+            CURLOPT_POSTFIELDS => (string) json_encode([
                 'mode'                => '0011',
                 'payerReference'      => $params['trx_id'],
                 'callbackURL'         => $params['redirect_url'],
@@ -180,7 +180,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('bKash API connection error: ' . ($err ?: 'Unknown'));
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
 
         if (empty($data['bkashURL'])) {
             $statusCode = $data['statusCode'] ?? '';
@@ -224,7 +224,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
                 'Authorization: ' . $token,
                 'X-APP-Key: ' . $credentials['app_key'],
             ],
-            CURLOPT_POSTFIELDS => json_encode(['paymentID' => $paymentId]),
+            CURLOPT_POSTFIELDS => (string) json_encode(['paymentID' => $paymentId]),
         ]);
 
         $response = curl_exec($ch);
@@ -241,7 +241,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
             ];
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
 
         $success = ($data['statusCode'] ?? '') === '0000' && ($data['transactionStatus'] ?? '') === 'Completed';
 
@@ -321,7 +321,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
                 'username: ' . ($credentials['username'] ?? ''),
                 'password: ' . ($credentials['password'] ?? ''),
             ],
-            CURLOPT_POSTFIELDS => json_encode([
+            CURLOPT_POSTFIELDS => (string) json_encode([
                 'app_key'    => $credentials['app_key'] ?? '',
                 'app_secret' => $credentials['app_secret'] ?? '',
             ]),
@@ -335,7 +335,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('bKash Token Grant API connection error: ' . ($err ?: 'Unknown'));
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
 
         $token = $data['id_token'] ?? '';
         if ($token !== '') {

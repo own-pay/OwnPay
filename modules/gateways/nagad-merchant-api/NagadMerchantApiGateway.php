@@ -157,9 +157,9 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             'challenge'  => $this->generateRandomString(40)
         ];
 
-        $sensitiveJson = json_encode($sensitiveData);
-        $encryptedSensitiveData = $this->encryptWithPublicKey($sensitiveJson, $credentials['nagad_public_key']);
-        $signature = $this->signWithPrivateKey($sensitiveJson, $credentials['nagad_private_key']);
+        $sensitiveJson = (string) json_encode($sensitiveData);
+        $encryptedSensitiveData = $this->encryptWithPublicKey($sensitiveJson, (string) ($credentials['nagad_public_key'] ?? ''));
+        $signature = $this->signWithPrivateKey($sensitiveJson, (string) ($credentials['nagad_private_key'] ?? ''));
 
         $postData = [
             'accountNumber' => $credentials['nagad_app_account'] ?? '',
@@ -181,7 +181,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
                 'X-KM-IP-V4: ' . ($this->getClientIp()),
                 'X-KM-Client-Type: PC_WEB'
             ],
-            CURLOPT_POSTFIELDS => json_encode($postData),
+            CURLOPT_POSTFIELDS => (string) json_encode($postData),
         ]);
 
         $response = curl_exec($ch);
@@ -192,7 +192,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             throw new \RuntimeException('Nagad API Error: HTTP ' . $httpCode);
         }
 
-        $initData = json_decode($response, true);
+        $initData = json_decode((string) $response, true);
         if (empty($initData['sensitiveData'])) {
             $reason = $initData['message'] ?? 'Unknown error';
             throw new \RuntimeException('Nagad initialization failed: ' . $reason);
@@ -220,9 +220,9 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             'challenge'    => $challenge
         ];
 
-        $orderJson = json_encode($sensitiveDataOrder);
-        $encryptedOrderData = $this->encryptWithPublicKey($orderJson, $credentials['nagad_public_key']);
-        $signatureOrder = $this->signWithPrivateKey($orderJson, $credentials['nagad_private_key']);
+        $orderJson = (string) json_encode($sensitiveDataOrder);
+        $encryptedOrderData = $this->encryptWithPublicKey($orderJson, (string) ($credentials['nagad_public_key'] ?? ''));
+        $signatureOrder = $this->signWithPrivateKey($orderJson, (string) ($credentials['nagad_private_key'] ?? ''));
 
         // Success redirect callback: we want to append paymentID/trx_id to trigger status callback
         $separator = (strpos($params['redirect_url'], '?') !== false) ? '&' : '?';
@@ -247,7 +247,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
                 'X-KM-IP-V4: ' . ($this->getClientIp()),
                 'X-KM-Client-Type: PC_WEB'
             ],
-            CURLOPT_POSTFIELDS => json_encode($postDataOrder),
+            CURLOPT_POSTFIELDS => (string) json_encode($postDataOrder),
         ]);
 
         $responseOrder = curl_exec($ch);
@@ -258,7 +258,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             throw new \RuntimeException('Nagad Order API Error: HTTP ' . $httpCodeOrder);
         }
 
-        $orderResult = json_decode($responseOrder, true);
+        $orderResult = json_decode((string) $responseOrder, true);
         if (empty($orderResult['callBackUrl']) || ($orderResult['status'] ?? '') !== 'Success') {
             $reason = $orderResult['message'] ?? 'Unknown error';
             throw new \RuntimeException('Nagad complete failed: ' . $reason);
@@ -309,7 +309,7 @@ final class NagadMerchantApiGateway implements PluginInterface, GatewayAdapterIn
             return ['success' => false, 'gateway_trx_id' => '', 'amount' => null, 'status' => 'api_error'];
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (!is_array($data)) {
             return ['success' => false, 'gateway_trx_id' => '', 'amount' => null, 'status' => 'invalid_response'];
         }

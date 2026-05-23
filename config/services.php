@@ -122,7 +122,7 @@ return static function (\OwnPay\Container $c): void {
         // Add module theme paths for overrides
         $themesDir = $paths['modules'] . '/themes';
         if (is_dir($themesDir)) {
-            foreach (glob($themesDir . '/*/templates') as $themeTemplateDir) {
+            foreach (glob($themesDir . '/*/templates') ?: [] as $themeTemplateDir) {
                 $themeName = basename(dirname($themeTemplateDir));
                 $loader->addPath($themeTemplateDir, $themeName);
             }

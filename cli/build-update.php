@@ -42,9 +42,9 @@ function cleanInput(string $input): string
         $input = substr($input, 3);
     }
     // Remove Zero-Width spaces, Joiners, Non-Joiners, and BOM
-    $input = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $input);
+    $input = (string) preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $input);
     // Remove control characters (0-31 and 127 ASCII)
-    $input = preg_replace('/[\x00-\x1F\x7F]/', '', $input);
+    $input = (string) preg_replace('/[\x00-\x1F\x7F]/', '', $input);
     return trim($input);
 }
 
@@ -146,6 +146,10 @@ if (!file_exists($privateKeyPath)) {
         }
         openssl_pkey_export($res, $privateKeyContent, null, $options);
         $details = openssl_pkey_get_details($res);
+        if ($details === false) {
+            echo CLI_RED . "Failed to extract public key!" . CLI_RESET . "\n";
+            exit(1);
+        }
         $publicKeyContent = $details["key"];
 
         file_put_contents($privateKeyPath, $privateKeyContent);
@@ -257,7 +261,7 @@ if (file_exists($changelogFile)) {
     $content = file_get_contents($changelogFile);
     // Robust parsing regex to find the section under ## [vX.Y.Z] or ## [X.Y.Z] or ## vX.Y.Z or ## X.Y.Z
     $pattern = '/##\s*\[?v?' . preg_quote($version, '/') . '\]?(?:\s*-\s*\d{4}-\d{2}-\d{2})?\s*(.*?)(?=##\s*\[?v?\d|\z)/is';
-    if (preg_match($pattern, $content, $matches)) {
+    if (is_string($content) && preg_match($pattern, $content, $matches)) {
         $changelogContent = trim($matches[1]);
     }
 }
@@ -314,7 +318,7 @@ if ($changelogOption === 2) {
     }
     
     prompt("Please edit, save, and close the file, then press Enter to continue");
-    $changelogContent = file_get_contents($tempFile);
+    $changelogContent = (string) file_get_contents($tempFile);
     @unlink($tempFile);
 } elseif ($changelogOption === 4) {
     $changelogContent = "## v{$version} Release\n\n- Incremental improvements and stability fixes.";
@@ -332,7 +336,7 @@ printStep("Checking Database Migrations");
 $localManifestPath = $updateDir . '/manifest.json';
 $existingManifest = [];
 if (file_exists($localManifestPath)) {
-    $existingManifest = json_decode(file_get_contents($localManifestPath), true) ?: [];
+    $existingManifest = json_decode((string) file_get_contents($localManifestPath), true) ?: [];
 }
 
 // Extract registered migrations
@@ -475,8 +479,8 @@ function scanAndZip(string $dir, ZipArchive $zip, string $projectRoot, array $ro
         if ($fileinfo->isFile()) {
             if ($relativePath === 'config/app.php') {
                 // In-memory version bump
-                $appConfigContent = file_get_contents($absolutePath);
-                $updatedAppConfigContent = preg_replace(
+                $appConfigContent = (string) file_get_contents($absolutePath);
+                $updatedAppConfigContent = (string) preg_replace(
                     "/('version'\s*=>\s*')[^']*(')/",
                     "\${1}{$newVersion}\${2}",
                     $appConfigContent
@@ -510,7 +514,7 @@ file_put_contents($releaseVersionDir . '/checksum.sha256', $sha256 . "  {$zipNam
 $signatureBase64 = null;
 if ($privateKey !== null) {
     echo "Signing ZIP package with private key... ";
-    $zipData = file_get_contents($zipPath);
+    $zipData = (string) file_get_contents($zipPath);
     if (openssl_sign($zipData, $binarySignature, $privateKey, OPENSSL_ALGO_SHA256)) {
         $signatureBase64 = base64_encode($binarySignature);
         file_put_contents($releaseVersionDir . '/signature.sig', $signatureBase64);
@@ -559,7 +563,7 @@ printStep("Updating manifest.json");
 // Load existing manifest (ensure self-healing if empty/corrupted)
 $manifest = [];
 if (file_exists($localManifestPath)) {
-    $manifest = json_decode(file_get_contents($localManifestPath), true) ?: [];
+    $manifest = json_decode((string) file_get_contents($localManifestPath), true) ?: [];
 }
 
 if (!isset($manifest['schema_version'])) {
@@ -694,7 +698,7 @@ echo CLI_GREEN . "manifest.json updated successfully.\n" . CLI_RESET;
 // -------------------------------------------------------------
 printStep("Release Packaging Successful!");
 echo "Release version: " . CLI_GREEN . $version . CLI_RESET . " (" . CLI_GREEN . $channel . CLI_RESET . ")\n";
-echo "Release Zip file: " . CLI_CYAN . $zipPath . CLI_RESET . " (" . number_format(filesize($zipPath)) . " bytes)\n";
+echo "Release Zip file: " . CLI_CYAN . $zipPath . CLI_RESET . " (" . number_format((int) filesize($zipPath)) . " bytes)\n";
 echo "Integrity hash:   " . CLI_YELLOW . $sha256 . CLI_RESET . "\n\n";
 
 echo "Next Steps:\n";

@@ -51,8 +51,8 @@ function cleanInputString(string $input): string
     if (str_starts_with($input, "\xEF\xBB\xBF")) {
         $input = substr($input, 3);
     }
-    $input = preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $input);
-    $input = preg_replace('/[\x00-\x1F\x7F]/', '', $input);
+    $input = (string) preg_replace('/[\x{200B}-\x{200D}\x{FEFF}]/u', '', $input);
+    $input = (string) preg_replace('/[\x00-\x1F\x7F]/', '', $input);
     return trim($input);
 }
 
@@ -169,7 +169,7 @@ $defaultName = $moduleType === 'theme' ? 'Custom Dark Theme' : ($moduleType === 
 $name = promptInput("Module Name", $defaultName);
 
 // Auto-generate slug from module name (no prompt, per requirements)
-$slug = strtolower(preg_replace('/[^a-zA-Z0-9]+/', '-', $name));
+$slug = strtolower((string) preg_replace('/[^a-zA-Z0-9]+/', '-', $name));
 $slug = trim($slug, '-');
 if ($slug === '') {
     $slug = 'custom-module-' . bin2hex(random_bytes(3));

@@ -91,7 +91,7 @@ final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json'
             ],
-            CURLOPT_POSTFIELDS => json_encode($postData),
+            CURLOPT_POSTFIELDS => (string) json_encode($postData),
         ]);
 
         $response = curl_exec($ch);
@@ -102,7 +102,7 @@ final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('OxaPay API Error: HTTP ' . $httpCode);
         }
 
-        $result = json_decode($response, true);
+        $result = json_decode((string) $response, true);
         if (empty($result['payLink'])) {
             $msg = $result['message'] ?? 'Unknown error';
             throw new \RuntimeException('OxaPay initiation failed: ' . $msg);

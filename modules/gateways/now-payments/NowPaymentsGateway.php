@@ -110,7 +110,7 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
                 'x-api-key: ' . $apiKey,
                 'Content-Type: application/json'
             ],
-            CURLOPT_POSTFIELDS => json_encode($postData),
+            CURLOPT_POSTFIELDS => (string) json_encode($postData),
         ]);
 
         $response = curl_exec($ch);
@@ -123,7 +123,7 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
             throw new \RuntimeException('NOWPayments API Error: ' . $errMsg);
         }
 
-        $result = json_decode($response, true);
+        $result = json_decode((string) $response, true);
         if (empty($result['invoice_url'])) {
             throw new \RuntimeException('NOWPayments response has missing invoice URL');
         }
@@ -186,7 +186,7 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
             return false;
         }
 
-        $expectedSignature = hash_hmac('sha512', $sortedRequestJson, trim($ipnSecret));
+        $expectedSignature = hash_hmac('sha512', (string) $sortedRequestJson, trim($ipnSecret));
 
         return hash_equals($receivedSignature, $expectedSignature);
     }

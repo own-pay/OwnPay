@@ -149,7 +149,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('shurjoPay API Error: HTTP ' . $httpCode);
         }
 
-        $result = json_decode($response, true);
+        $result = json_decode((string) $response, true);
         if (empty($result['checkout_url'])) {
             $errMsg = $result['message'] ?? 'Missing checkout URL';
             throw new \RuntimeException('shurjoPay Initiation Error: ' . $errMsg);
@@ -226,7 +226,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
                 'Authorization: Bearer ' . $token,
                 'Content-Type: application/json'
             ],
-            CURLOPT_POSTFIELDS     => json_encode(['order_id' => $orderId]),
+            CURLOPT_POSTFIELDS     => (string) json_encode(['order_id' => $orderId]),
         ]);
 
         $response = curl_exec($ch);
@@ -242,7 +242,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             ];
         }
 
-        $resultList = json_decode($response, true);
+        $resultList = json_decode((string) $response, true);
         $data = $resultList[0] ?? null;
 
         if ($data && isset($data['bank_status']) && strtolower($data['bank_status']) === 'success') {
@@ -287,7 +287,7 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json'
             ],
-            CURLOPT_POSTFIELDS     => json_encode([
+            CURLOPT_POSTFIELDS     => (string) json_encode([
                 'username' => $username,
                 'password' => $password
             ]),
@@ -301,6 +301,6 @@ final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
             return null;
         }
 
-        return json_decode($response, true);
+        return json_decode((string) $response, true);
     }
 }

@@ -115,7 +115,7 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
                 'Content-Type: application/json',
                 'Authorization: Bearer ' . $accessToken
             ],
-            CURLOPT_POSTFIELDS => json_encode($orderData),
+            CURLOPT_POSTFIELDS => (string) json_encode($orderData),
         ]);
 
         $response = curl_exec($ch);
@@ -128,7 +128,7 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
             throw new \RuntimeException('PayPal Order Creation Error: ' . $errMsg);
         }
 
-        $result = json_decode($response, true);
+        $result = json_decode((string) $response, true);
         $orderId = $result['id'] ?? '';
         
         $approvalUrl = '';
@@ -287,7 +287,7 @@ final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInte
             return null;
         }
 
-        $result = json_decode($response, true);
+        $result = json_decode((string) $response, true);
         return $result['access_token'] ?? null;
     }
 }

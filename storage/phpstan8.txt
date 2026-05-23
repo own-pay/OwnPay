@@ -1,0 +1,29 @@
+﻿vendor/bin/phpstan : Note: Using configuration file C:\laragon\www\ownpay\phpstan.neon.
+At line:1 char:1
++ vendor/bin/phpstan analyse --no-progress 2>&1 | Out-File -FilePath st ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (Note: Using con...y\phpstan.neon.:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  Line   cli\build-update.php                                                                                       
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  47     Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.  
+         🪪  argument.type                                                                                          
+  48     Parameter #1 $string of function trim expects string, string|null given.                                   
+         🪪  argument.type                                                                                          
+ ------ ----------------------------------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  Line   cli\create-module.php                                                                                      
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  55     Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.  
+         🪪  argument.type                                                                                          
+  56     Parameter #1 $string of function trim expects string, string|null given.                                   
+         🪪  argument.type                                                                                          
+  172    Parameter #1 $string of function strtolower expects string, string|null given.                             
+         🪪  argument.type                                                                                          
+ ------ ----------------------------------------------------------------------------------------------------------- 
+
+ [ERROR] Found 5 errors                                                                                                
+

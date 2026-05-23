@@ -116,7 +116,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_POSTFIELDS     => (string) json_encode($orderData),
         ]);
 
         $response = curl_exec($ch);
@@ -127,7 +127,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
             throw new \RuntimeException('Binance Pay API connection error: HTTP ' . $httpCode);
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (($data['status'] ?? '') !== 'SUCCESS' || empty($data['data']['checkoutUrl'])) {
             throw new \RuntimeException('Binance Pay order creation failed: ' . $response);
         }
@@ -168,7 +168,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_HTTPHEADER     => $headers,
-            CURLOPT_POSTFIELDS     => $payload,
+            CURLOPT_POSTFIELDS     => (string) json_encode(['merchantTradeNo' => $merchantTradeNo]),
         ]);
 
         $response = curl_exec($ch);
@@ -179,7 +179,7 @@ final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapter
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'api_error'];
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (!is_array($data) || ($data['status'] ?? '') !== 'SUCCESS') {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
         }

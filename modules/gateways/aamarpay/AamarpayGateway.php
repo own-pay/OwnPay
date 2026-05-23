@@ -98,7 +98,7 @@ final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_HTTPHEADER     => ['Content-Type: application/json'],
-            CURLOPT_POSTFIELDS     => json_encode($payload),
+            CURLOPT_POSTFIELDS     => (string) json_encode($payload),
         ]);
 
         $response = curl_exec($ch);
@@ -109,7 +109,7 @@ final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
             throw new \RuntimeException('Aamarpay API connection error: HTTP ' . $httpCode);
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (empty($data['payment_url'])) {
             throw new \RuntimeException('Aamarpay initiation failed: ' . $response);
         }
@@ -158,7 +158,7 @@ final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'api_error'];
         }
 
-        $data = json_decode($response, true);
+        $data = json_decode((string) $response, true);
         if (!is_array($data)) {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'invalid_response'];
         }
