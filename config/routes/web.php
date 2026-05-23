@@ -56,7 +56,6 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/' . $loginSlug,  'Admin\\AuthController@loginForm', 'web-auth');
     $router->post('/' . $loginSlug, 'Admin\\AuthController@login',     'web-auth');
     // Backward compat: if slug changed away from 'login', /login returns 404 (no route registered)
-    $router->get('/logout',  'Admin\\AuthController@logout', 'web');
     $router->post('/logout', 'Admin\\AuthController@logout', 'web');
     $router->post('/admin/logout', 'Admin\\AuthController@logout', 'admin');
     $router->get('/forgot-password',  'Admin\\AuthController@forgotForm',   'web-auth');

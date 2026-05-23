@@ -75,9 +75,9 @@
 - [x] Route registration in `config/routes/api.php`
 
 ### 2.4 Admin UI
-- [ ] Admin page: "SMS Templates" list (sender, regex, type, active toggle)
-- [ ] Admin page: "Add/Edit SMS Template" form with regex test input
-- [ ] Admin page: "Unparsed SMS" queue (review + manually assign template)
+- [x] Admin page: "SMS Templates" list (sender, regex, type, active toggle)
+- [x] Admin page: "Add/Edit SMS Template" form with regex test input
+- [x] Admin page: "Unparsed SMS" queue (review + manually assign template)
 
 ### 2.5 Tests
 - [x] Unit test: SmsRegexParser — 13 tests, bKash/Nagad patterns, optional fields, priority, invalid regex ✅
@@ -191,4 +191,4 @@
 
 ---
 
-*Last updated: 2026-05-20 | Parts 1–5 (PHP backend) complete. Flutter app deferred.*
+*Last updated: 2026-05-23 | Parts 1–5 (PHP backend) complete, including SMS Center Admin UIs. Flutter app deferred.*

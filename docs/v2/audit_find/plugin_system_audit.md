@@ -16,7 +16,7 @@ This document presents a deep, isolated structural audit of the **Universal Plug
 ## 1. True WordPress-like Extensibility
 
 ### G1: Middleware Lifecycle Bootstrapping Bug
-* **File Reference**: [Kernel.php](file:///c:/laragon/www/ownpay/src/Kernel.php#L95-L128)
+* **File Reference**: [Kernel.php](src/Kernel.php#L95-L128)
 * **Code Evidence**:
   ```php
   // Line 95: Load middleware config
@@ -41,7 +41,7 @@ This document presents a deep, isolated structural audit of the **Universal Plug
 * **Impact**: Plugins are physically unable to hooks into `system.middleware.pipeline` to dynamically inject custom middleware (e.g. custom rate-limiters, specific IP restrictions).
 
 ### G2: Router Controller Namespace Lock
-* **File Reference**: [Router.php](file:///c:/laragon/www/ownpay/src/Http/Router.php#L196)
+* **File Reference**: [Router.php](src/Http/Router.php#L196)
 * **Code Evidence**:
   ```php
   [$controllerName, $methodName] = explode('@', $handler, 2);
@@ -55,7 +55,7 @@ This document presents a deep, isolated structural audit of the **Universal Plug
 * **Impact**: Plugins cannot direct route targets to their own vendor namespaces (e.g. `OwnPay\Modules\Gateways\BkashApi\Controller`). All plugin-defined routes must have controllers colocated within the core `OwnPay\Controller\` folder, which breaks the boundary of independent plug-and-play modules.
 
 ### G3: Core Database Hook Void
-* **File Reference**: [Database.php](file:///c:/laragon/www/ownpay/src/Core/Database.php#L76-L121)
+* **File Reference**: [Database.php](src/Core/Database.php#L76-L121)
 * **Code Evidence**:
   ```php
   public function execute(string $sql, array $params = []): PDOStatement
@@ -69,7 +69,7 @@ This document presents a deep, isolated structural audit of the **Universal Plug
 * **Impact**: Developers cannot build caching plugins, query loggers, dynamic database table routing plugins, or automated database auditors because query execution is completely sealed and invisible to the hook dispatcher.
 
 ### G4: Request/Response Interception Void
-* **File Reference**: [Kernel.php](file:///c:/laragon/www/ownpay/src/Kernel.php#L173-L232)
+* **File Reference**: [Kernel.php](src/Kernel.php#L173-L232)
 * **Code Evidence**:
   ```php
   // Matches route, runs middleware, and returns response
@@ -87,7 +87,7 @@ This document presents a deep, isolated structural audit of the **Universal Plug
 ## 2. Third-Party Gateway Isolation
 
 ### G5: Brand-Scoped Config UI & Settings Context Lock
-* **File References**: [PluginController.php](file:///c:/laragon/www/ownpay/src/Controller/Admin/PluginController.php#L207-L245) and [SettingsRepository.php](file:///c:/laragon/www/ownpay/src/Repository/SettingsRepository.php#L6-L72)
+* **File References**: [PluginController.php](src/Controller/Admin/PluginController.php#L207-L245) and [SettingsRepository.php](src/Repository/SettingsRepository.php#L6-L72)
 * **Code Evidence**:
   ```php
   // PluginController.php (L210)
@@ -103,7 +103,7 @@ This document presents a deep, isolated structural audit of the **Universal Plug
 * **Impact**: Setting up Stripe or bKash keys in the admin dashboard configures them **globally** for all stores/brands, leaking credentials and disabling multi-brand gateway autonomy.
 
 ### G6: Inbound Webhook Routing Lock
-* **File References**: [WebhookInboundProcessor.php](file:///c:/laragon/www/ownpay/src/Gateway/WebhookInboundProcessor.php#L167-L177) and [UnifiedWebhookController.php](file:///c:/laragon/www/ownpay/src/Controller/Webhook/UnifiedWebhookController.php#L80-L125)
+* **File References**: [WebhookInboundProcessor.php](src/Gateway/WebhookInboundProcessor.php#L167-L177) and [UnifiedWebhookController.php](src/Controller/Webhook/UnifiedWebhookController.php#L80-L125)
 * **Code Evidence**:
   ```php
   // WebhookInboundProcessor.php (L169)
@@ -130,7 +130,7 @@ This document presents a deep, isolated structural audit of the **Universal Plug
 ## 3. Dynamic Feature Addons
 
 ### G7: Sidebar HTML Injection Vulnerability
-* **File Reference**: [sidebar.twig](file:///c:/laragon/www/ownpay/templates/admin/layout/sidebar.twig#L232)
+* **File Reference**: [sidebar.twig](templates/admin/layout/sidebar.twig#L232)
 * **Code Evidence**:
   ```twig
   {{ hook('admin.menu.register')|raw }}
@@ -142,7 +142,7 @@ This document presents a deep, isolated structural audit of the **Universal Plug
   3. No menu builder object is passed, meaning plugins cannot sort, nest, group, or programmatically evaluate permissions for custom links.
 
 ### G8: Dead Sandbox Code (Zero Runtime Sandboxing)
-* **File References**: [PluginLoader.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginLoader.php#L134-L204) and [PluginSandbox.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginSandbox.php)
+* **File References**: [PluginLoader.php](src/Plugin/PluginLoader.php#L134-L204) and [PluginSandbox.php](src/Plugin/PluginSandbox.php)
 * **Code Evidence**:
   ```php
   // PluginLoader.php (L187-200)
@@ -161,7 +161,7 @@ This document presents a deep, isolated structural audit of the **Universal Plug
 ## 4. Universal Theme Engine
 
 ### G9: Theme Resolution Settings Bypass
-* **File Reference**: [TwigFactory.php](file:///c:/laragon/www/ownpay/src/View/TwigFactory.php#L116)
+* **File Reference**: [TwigFactory.php](src/View/TwigFactory.php#L116)
 * **Code Evidence**:
   ```php
   private static function resolveActiveTheme(Container $container): ?string
@@ -174,7 +174,7 @@ This document presents a deep, isolated structural audit of the **Universal Plug
 * **Impact**: The theme switcher in the admin UI is a pure illusion; changing active themes in the dashboard has absolutely zero impact on the checkout page rendering.
 
 ### G10: Admin Template Override Decoupling Void
-* **File Reference**: [AdminPageTrait.php](file:///c:/laragon/www/ownpay/src/Controller/Admin/AdminPageTrait.php#L16-L46)
+* **File Reference**: [AdminPageTrait.php](src/Controller/Admin/AdminPageTrait.php#L16-L46)
 * **Code Evidence**:
   ```php
   return Response::html($twig->render($tpl, $data));

@@ -244,4 +244,4 @@ Gateways must tell the checkout system which currencies they accept.
 ---
 
 ## 8. Complete Reference
-* List of hooks, filters, and lifecycle triggers: [Hooks Reference](file:///c:/laragon/www/ownpay/docs/v2/plugins/hooks-reference.md).
+* List of hooks, filters, and lifecycle triggers: [Hooks Reference](docs/v2/plugins/hooks-reference.md).

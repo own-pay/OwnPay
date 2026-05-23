@@ -2,7 +2,7 @@
 
 Welcome to the official API Reference for **OwnPay**. OwnPay provides developer-friendly REST endpoints to initiate payments, track transactions, manage customer profiles, pair companion mobile devices, and audit double-entry ledger balances.
 
-This documentation is fully structured to follow the **OpenAPI Specification v3.2.0**. The complete OpenAPI specification is located at [`openapi.yaml`](file:///c:/laragon/www/ownpay/docs/v2/api/openapi.yaml).
+This documentation is fully structured to follow the **OpenAPI Specification v3.2.0**. The complete OpenAPI specification is located at [`openapi.yaml`](docs/v2/api/openapi.yaml).
 
 ---
 

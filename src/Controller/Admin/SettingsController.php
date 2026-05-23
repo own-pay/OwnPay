@@ -240,30 +240,23 @@ final class SettingsController
      */
     public function upload(Request $req): Response
     {
-        $uploadDir = dirname(__DIR__, 3) . '/public/assets/uploads/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
         $saved = [];
+        $fs = new \OwnPay\Service\System\FilesystemService(dirname(__DIR__, 3) . '/public/assets');
+
         foreach (['site_logo', 'site_favicon'] as $field) {
             $file = $req->file($field);
             if ($file === null || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
                 continue;
             }
-            $allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon'];
-            $mime = mime_content_type($file['tmp_name']);
-            if (!in_array($mime, $allowed, true)) {
-                $this->session->flashError("Invalid file type for {$field}");
-                return Response::redirect('/admin/settings/branding');
-            }
-            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $filename = $field . '_' . time() . '.' . strtolower($ext);
-            $dest = $uploadDir . $filename;
-            if (move_uploaded_file($file['tmp_name'], $dest)) {
-                $path = '/assets/uploads/' . $filename;
+
+            try {
+                $storedPath = $fs->storeUpload($file, 'uploads');
+                $path = '/assets/' . $storedPath;
                 $this->settingsRepo->set('branding', $field, $path);
                 $saved[$field] = $path;
+            } catch (\Throwable $e) {
+                $this->session->flashError("Invalid file for {$field}: " . $e->getMessage());
+                return Response::redirect('/admin/settings/branding');
             }
         }
 
@@ -414,6 +407,12 @@ final class SettingsController
             }
         }
         $this->settingsRepo->bulkSet('landing', $filtered);
+
+        // Invalidate login slug cache to apply changes immediately
+        $cacheFile = dirname(__DIR__, 3) . '/storage/cache/login_slug.cache';
+        if (file_exists($cacheFile)) {
+            @unlink($cacheFile);
+        }
     }
 
     /**

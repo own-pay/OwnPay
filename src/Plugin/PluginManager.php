@@ -133,15 +133,14 @@ final class PluginManager
     }
 
     /**
-     * Activates a plugin, executing database migrations and loading its instance.
+     * Activates an installed plugin, executing database migrations and loading its instance.
+     * Supports brand-scoped activation if brand ID context is provided.
      *
-     * If the plugin is a payment gateway, it will auto-register the corresponding definition
-     * in the `op_gateways` table to ensure checkout UI visibility.
-     *
-     * @param string $slug Unique plugin identifier.
+     * @param string   $slug    Unique plugin identifier.
+     * @param int|null $brandId The brand ID context.
      * @return array{success: bool, message?: string, error?: string, migrations_run?: int} Activation outcome.
      */
-    public function activate(string $slug): array
+    public function activate(string $slug, ?int $brandId = null): array
     {
         $plugin = $this->repo->findBySlug($slug);
         if ($plugin === null) {
@@ -167,11 +166,17 @@ final class PluginManager
             $plugin = $this->repo->findBySlug($slug);
         }
 
-        if ($plugin['status'] === 'active') {
-            return ['success' => true, 'message' => 'Already active'];
+        if ($brandId !== null && $brandId > 0) {
+            if ($this->repo->isPluginActiveForBrand($slug, $brandId)) {
+                return ['success' => true, 'message' => 'Already active for this brand'];
+            }
+        } else {
+            if ($plugin['status'] === 'active') {
+                return ['success' => true, 'message' => 'Already active'];
+            }
         }
 
-        $this->events->doAction('plugin.before_activate', $slug);
+        $this->events->doAction('plugin.before_activate', $slug, $brandId);
 
         $migrationsDir = $this->resolveDir($plugin) . '/migrations';
         try {
@@ -180,7 +185,12 @@ final class PluginManager
             return ['success' => false, 'error' => 'Migration failed: ' . $e->getMessage()];
         }
 
-        $this->repo->activate($slug);
+        if ($brandId !== null && $brandId > 0) {
+            $this->repo->setBrandPluginStatus($slug, $brandId, 'active');
+            $this->registry->clearBrandActiveCache($brandId);
+        } else {
+            $this->repo->activate($slug);
+        }
 
         try {
             $loader = $this->container->get(PluginLoader::class);
@@ -195,7 +205,12 @@ final class PluginManager
                 }
             }
         } catch (\Throwable $e) {
-            $this->repo->deactivate($slug);
+            if ($brandId !== null && $brandId > 0) {
+                $this->repo->setBrandPluginStatus($slug, $brandId, 'inactive');
+                $this->registry->clearBrandActiveCache($brandId);
+            } else {
+                $this->repo->deactivate($slug);
+            }
             return ['success' => false, 'error' => 'Plugin activation failed: ' . $e->getMessage()];
         }
 
@@ -203,61 +218,73 @@ final class PluginManager
             $this->registerGatewayDefinition($slug, $plugin);
         }
 
-        $this->events->doAction('plugin.activated', $slug, $ran);
+        $this->events->doAction('plugin.activated', $slug, $ran, $brandId);
 
         return ['success' => true, 'migrations_run' => count($ran)];
     }
 
     /**
      * Deactivates an active plugin, disabling its hooks and gateway configurations.
+     * Supports brand-scoped deactivation if brand ID context is provided.
      *
-     * Triggers the plugin's `deactivate` method to perform memory or session teardown.
-     *
-     * @param string $slug Unique plugin identifier.
+     * @param string   $slug    Unique plugin identifier.
+     * @param int|null $brandId The brand ID context.
      * @return array{success: bool, error?: string} Deactivation outcome.
      */
-    public function deactivate(string $slug): array
+    public function deactivate(string $slug, ?int $brandId = null): array
     {
         $plugin = $this->repo->findBySlug($slug);
         if ($plugin === null) {
             return ['success' => false, 'error' => 'Plugin not found'];
         }
 
-        $this->events->doAction('plugin.before_deactivate', $slug);
+        $this->events->doAction('plugin.before_deactivate', $slug, $brandId);
 
-        $instance = $this->registry->get($slug);
-        if ($instance !== null) {
-            $instance->deactivate($this->container);
-        }
-
-        $this->repo->deactivate($slug);
-
-        if ($plugin['type'] === 'gateway') {
-            $gwRepo = $this->container->get(GatewayRepository::class);
-            $gw = $gwRepo->findBySlug($slug);
-            if ($gw !== null) {
-                $gwRepo->update((int) $gw['id'], ['status' => 'inactive']);
+        if ($brandId === null || $brandId <= 0) {
+            $instance = $this->registry->get($slug);
+            if ($instance !== null) {
+                $instance->deactivate($this->container);
             }
+
+            $this->repo->deactivate($slug);
+
+            if ($plugin['type'] === 'gateway') {
+                $gwRepo = $this->container->get(GatewayRepository::class);
+                $gw = $gwRepo->findBySlug($slug);
+                if ($gw !== null) {
+                    $gwRepo->update((int) $gw['id'], ['status' => 'inactive']);
+                }
+            }
+        } else {
+            $this->repo->setBrandPluginStatus($slug, $brandId, 'inactive');
+            $this->registry->clearBrandActiveCache($brandId);
         }
 
-        $this->events->doAction('plugin.deactivated', $slug);
+        $this->events->doAction('plugin.deactivated', $slug, $brandId);
 
         return ['success' => true];
     }
 
     /**
      * Uninstalls a plugin by removing database records, rolling back migrations, and deleting files.
-     *
-     * Ensures all database modifications are rolled back sequentially before removing files.
+     * Stops and throws if the plugin is currently active on one or more brands.
      *
      * @param string $slug Unique plugin identifier.
      * @return array{success: bool, error?: string} Uninstallation outcome.
+     * @throws \OwnPay\Plugin\Exception\PluginInUseException
      */
     public function uninstall(string $slug): array
     {
         $plugin = $this->repo->findBySlug($slug);
         if ($plugin === null) {
             return ['success' => false, 'error' => 'Plugin not found'];
+        }
+
+        $activeCount = $this->repo->countActiveBrandInstances($slug);
+        if ($activeCount > 0) {
+            throw new \OwnPay\Plugin\Exception\PluginInUseException(
+                "Plugin '{$slug}' cannot be uninstalled because it is currently active on one or more brands."
+            );
         }
 
         $this->events->doAction('plugin.before_uninstall', $slug);

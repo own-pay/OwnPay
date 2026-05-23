@@ -62,6 +62,20 @@ body.op-auth-page {
     box-shadow: 0 4px 15px rgba(59,130,246,0.4);
 }
 
+.op-logo-img-container {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+}
+
+.op-auth-logo-img {
+    max-height: 50px;
+    max-width: 200px;
+    width: auto;
+    object-fit: contain;
+}
+
 .op-auth-header h1 {
     margin: 0 0 5px 0;
     font-size: 24px;

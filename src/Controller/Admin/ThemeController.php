@@ -74,6 +74,13 @@ final class ThemeController
      */
     public function index(Request $request): Response
     {
+        $brandId = null;
+        if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
+            $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+            $brandCtx->resolveFromRequest($request);
+            $brandId = $brandCtx->getActiveBrandId();
+        }
+
         $themes      = $this->repo->listByType('theme');
         $activeTheme = $this->settings->get('appearance', 'active_theme', 'default');
 
@@ -85,6 +92,11 @@ final class ThemeController
             }
             $t['description'] = $t['description'] ?? $m['description'] ?? '';
             $t['author']      = $t['author']      ?? $m['author']      ?? 'Unknown';
+
+            // Local active/inactive status override if brand context is active
+            if ($brandId !== null && $brandId > 0 && !in_array($t['status'], ['uninstalled', 'trashed'], true)) {
+                $t['status'] = $this->repo->isPluginActiveForBrand($t['slug'], $brandId) ? 'active' : 'inactive';
+            }
         }
         unset($t);
 
@@ -253,11 +265,15 @@ final class ThemeController
             return Response::redirect('/admin/themes');
         }
 
-        $result = $this->manager->uninstall($slug);
-        if ($result['success']) {
-            $this->session->flashSuccess('Theme removed.');
-        } else {
-            $this->session->flashError($result['error'] ?? 'Failed to remove theme');
+        try {
+            $result = $this->manager->uninstall($slug);
+            if ($result['success']) {
+                $this->session->flashSuccess('Theme removed.');
+            } else {
+                $this->session->flashError($result['error'] ?? 'Failed to remove theme');
+            }
+        } catch (\OwnPay\Plugin\Exception\PluginInUseException $e) {
+            $this->session->flashError($e->getMessage());
         }
 
         return Response::redirect('/admin/themes');

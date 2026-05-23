@@ -98,7 +98,8 @@ final class TwoFactorSetupController
     public function enable(Request $req): Response
     {
         $userId = $this->session->userId();
-        $code   = preg_replace('/\D/', '', $req->post('code', ''));
+        $codeRaw = $req->post('code', '');
+        $code   = preg_replace('/\D/', '', is_string($codeRaw) ? $codeRaw : '');
         $secret = $this->userRepo->getTotpSecret($userId);
 
         if (!$secret) {

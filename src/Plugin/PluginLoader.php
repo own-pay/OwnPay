@@ -200,8 +200,19 @@ final class PluginLoader
             // Extract function calls using token_get_all for accurate detection
             $tokens = @token_get_all($content);
             for ($i = 0, $count = count($tokens); $i < $count; $i++) {
-                if (is_array($tokens[$i]) && $tokens[$i][0] === T_STRING) {
-                    $funcName = $tokens[$i][1];
+                if (is_array($tokens[$i]) && in_array($tokens[$i][0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE], true)) {
+                    $rawName = $tokens[$i][1];
+                    $funcName = ltrim($rawName, '\\');
+                    $lowerFuncName = strtolower($funcName);
+
+                    // Block banned classes and reflection references directly (no parenthetical check required)
+                    if (str_starts_with($lowerFuncName, 'reflection') || in_array($lowerFuncName, ['pdo', 'mysqli'], true)) {
+                        $relPath = str_replace($manifest->path . '/', '', $phpFile);
+                        throw new \RuntimeException(
+                            "Plugin {$slug} blocked: {$relPath} contains restricted reference: {$rawName}"
+                        );
+                    }
+
                     if (PluginSandbox::isDangerousFunction($funcName)) {
                         // Skip if the function identifier is part of an object or class declaration context.
                         $prev = $i - 1;
@@ -238,6 +249,60 @@ final class PluginLoader
                         }
                     }
                 }
+
+                // Block variable function calls: $func(...)
+                if (is_array($tokens[$i]) && $tokens[$i][0] === T_VARIABLE) {
+                    $next = $i + 1;
+                    while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
+                        $next++;
+                    }
+                    if ($next < $count && $tokens[$next] === '(') {
+                        $relPath = str_replace($manifest->path . '/', '', $phpFile);
+                        throw new \RuntimeException(
+                            "Plugin {$slug} blocked: {$relPath} contains dynamic/variable function call: " . $tokens[$i][1] . "()"
+                        );
+                    }
+                }
+
+                // Block wrapped variable calls: ($func)(...)
+                if ($tokens[$i] === ')') {
+                    $next = $i + 1;
+                    while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
+                        $next++;
+                    }
+                    if ($next < $count && $tokens[$next] === '(') {
+                        $prev = $i - 1;
+                        while ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_WHITESPACE) {
+                            $prev--;
+                        }
+                        if ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_VARIABLE) {
+                            $prev2 = $prev - 1;
+                            while ($prev2 >= 0 && is_array($tokens[$prev2]) && $tokens[$prev2][0] === T_WHITESPACE) {
+                                $prev2--;
+                            }
+                            if ($prev2 >= 0 && $tokens[$prev2] === '(') {
+                                $relPath = str_replace($manifest->path . '/', '', $phpFile);
+                                throw new \RuntimeException(
+                                    "Plugin {$slug} blocked: {$relPath} contains dynamic/variable function call."
+                                );
+                            }
+                        }
+                    }
+                }
+
+                // Block dynamic class instantiations: new $class(...)
+                if (is_array($tokens[$i]) && $tokens[$i][0] === T_NEW) {
+                    $next = $i + 1;
+                    while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
+                        $next++;
+                    }
+                    if ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_VARIABLE) {
+                        $relPath = str_replace($manifest->path . '/', '', $phpFile);
+                        throw new \RuntimeException(
+                            "Plugin {$slug} blocked: {$relPath} contains dynamic class instantiation: new " . $tokens[$next][1]
+                        );
+                    }
+                }
             }
         }
 
@@ -259,7 +324,12 @@ final class PluginLoader
 
         /** @var PluginInterface $instance */
         $instance = new $className();
-        $instance->register($this->events, $this->container);
+        $this->events->pushOwner($slug);
+        try {
+            $instance->register($this->events, $this->container);
+        } finally {
+            $this->events->popOwner();
+        }
 
         $this->registry->registerLoaded($slug, $instance, $manifest, $sandbox);
     }

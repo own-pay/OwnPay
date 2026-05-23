@@ -211,6 +211,17 @@ final class PermissionMiddleware
      */
     private function resolveLoginSlug(): string
     {
+        $cacheFile = dirname(__DIR__, 2) . '/storage/cache/login_slug.cache';
+        if (file_exists($cacheFile)) {
+            $slug = @file_get_contents($cacheFile);
+            if ($slug !== false && $slug !== '') {
+                $slug = trim($slug);
+                if (preg_match('/^[a-z0-9\-]+$/', $slug)) {
+                    return $slug;
+                }
+            }
+        }
+
         try {
             $settings = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
             return $settings->get('landing', 'admin_login_slug', 'login');

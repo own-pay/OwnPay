@@ -55,8 +55,10 @@ return static function (\OwnPay\Container $c): void {
     });
 
     // ─── Event Manager ─────────────────────────────────────────
-    $c->singleton(\OwnPay\Event\EventManager::class, static function (): \OwnPay\Event\EventManager {
-        return new \OwnPay\Event\EventManager();
+    $c->singleton(\OwnPay\Event\EventManager::class, static function (\OwnPay\Container $c): \OwnPay\Event\EventManager {
+        $events = new \OwnPay\Event\EventManager();
+        $events->setContainer($c);
+        return $events;
     });
 
     // ─── Cache ─────────────────────────────────────────────────

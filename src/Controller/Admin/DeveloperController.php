@@ -109,7 +109,7 @@ final class DeveloperController
             return Response::json(['success' => false, 'error' => 'No webhook URL configured']);
         }
 
-        if (!filter_var($webhookUrl, FILTER_VALIDATE_URL)) {
+        if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($webhookUrl)) {
             return Response::json(['success' => false, 'error' => 'Invalid webhook URL']);
         }
 
@@ -221,7 +221,7 @@ final class DeveloperController
             $this->session->flashError('Rate limit must be 1–10000 requests/min');
             return Response::redirect('/admin/developer');
         }
-        if ($webhookUrl && !filter_var($webhookUrl, FILTER_VALIDATE_URL)) {
+        if ($webhookUrl && !\OwnPay\Security\UrlValidator::isValidWebhookUrl($webhookUrl)) {
             $this->session->flashError('Invalid webhook URL');
             return Response::redirect('/admin/developer');
         }

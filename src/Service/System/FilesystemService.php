@@ -25,7 +25,7 @@ final class FilesystemService
      *
      * @var string[]
      */
-    private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'zip'];
+    private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'pdf', 'zip'];
 
     /**
      * Initialises the filesystem service.
@@ -64,6 +64,16 @@ final class FilesystemService
         $mimeType = $finfo->file($file['tmp_name']);
         if (!$this->isMimeAllowed($mimeType, $ext)) {
             throw new \RuntimeException('File MIME type mismatch');
+        }
+
+        // Add SVG safety check to mitigate Stored XSS and XML attacks
+        if ($ext === 'svg') {
+            $svgContent = file_get_contents($file['tmp_name']);
+            if ($svgContent !== false) {
+                if ($this->isSvgMalicious($svgContent)) {
+                    throw new \RuntimeException('Malicious SVG content detected');
+                }
+            }
         }
 
         $targetDir = $this->baseDir . '/' . $subDir . '/' . DateHelper::yearMonthPath();
@@ -176,10 +186,44 @@ final class FilesystemService
             'gif'  => ['image/gif'],
             'webp' => ['image/webp'],
             'svg'  => ['image/svg+xml'],
+            'ico'  => ['image/x-icon', 'image/vnd.microsoft.icon', 'image/x-ico', 'image/icon'],
             'pdf'  => ['application/pdf'],
             'zip'  => ['application/zip', 'application/x-zip-compressed'],
         ];
 
         return in_array($mime, $allowed[$ext] ?? [], true);
+    }
+
+    /**
+     * Inspects SVG XML payload for XSS scripts, handlers, javascript URIs, or XXE entities.
+     *
+     * @param string $content Raw SVG content.
+     * @return bool True if content is deemed malicious.
+     */
+    private function isSvgMalicious(string $content): bool
+    {
+        $lower = strtolower($content);
+
+        // Block script tag
+        if (str_contains($lower, '<script')) {
+            return true;
+        }
+
+        // Block XML entity definitions/DTDs (XXE mitigation)
+        if (str_contains($lower, '<!entity') || str_contains($lower, '<!doctype')) {
+            return true;
+        }
+
+        // Block javascript: URIs
+        if (str_contains($lower, 'javascript:')) {
+            return true;
+        }
+
+        // Block inline event handlers (e.g. onload, onclick)
+        if (preg_match('/on[a-z]+\s*=/i', $content)) {
+            return true;
+        }
+
+        return false;
     }
 }

@@ -200,35 +200,26 @@ final class DeviceController
             return Response::json(['success' => false, 'error' => 'refresh_token required'], 422);
         }
 
-        try {
-            $claims = $this->jwt->verify($refreshToken);
-        } catch (\RuntimeException $e) {
-            return Response::json(['success' => false, 'error' => 'Invalid or expired refresh token'], 401);
+        $fingerprint = $req->header('X-Device-Fingerprint') ?: $req->input('fingerprint') ?: '';
+        if ($fingerprint === '') {
+            return Response::json(['success' => false, 'error' => 'Device fingerprint required'], 422);
         }
 
-        $userId     = (int) $claims['sub'];
-        $mid        = (int) $claims['mid'];
-        $deviceId   = (string) $claims['did'];
-
-        if (!$userId || !$mid || $deviceId === '') {
-            return Response::json(['success' => false, 'error' => 'Malformed refresh token'], 401);
+        $res = $this->devices->refreshAccessToken($refreshToken, $fingerprint);
+        if (!$res['success']) {
+            $err = match ($res['error'] ?? '') {
+                'DEVICE_REVOKED' => 'Device revoked or not found',
+                'FINGERPRINT_MISMATCH' => 'Device fingerprint mismatch',
+                default => 'Invalid or expired refresh token'
+            };
+            return Response::json(['success' => false, 'error' => $err], 401);
         }
-
-        // Verify device is still active
-        $device = $this->deviceRepo->forTenant($mid)->findByDeviceId($deviceId);
-        if ($device === null || ($device['status'] ?? '') !== 'active') {
-            return Response::json(['success' => false, 'error' => 'Device revoked or not found'], 403);
-        }
-
-        // Issue fresh access token (24h) + new refresh token (30 days)
-        $newAccess  = $this->jwt->issue($userId, $mid, $deviceId);
-        $newRefresh = $this->jwt->issueRefreshToken($userId, $mid, $deviceId);
 
         return Response::json([
             'success'       => true,
-            'access_token'  => $newAccess,
-            'refresh_token' => $newRefresh,
-            'expires_in'    => 86400,
+            'access_token'  => $res['access_token'],
+            'refresh_token' => $res['refresh_token'],
+            'expires_in'    => $res['expires_in'] ?? 900,
             'server_time'   => DateHelper::iso(),
         ]);
     }

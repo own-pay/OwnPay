@@ -82,6 +82,12 @@ body.op-landing {
     text-decoration: none;
 }
 
+.op-logo img {
+    max-height: 32px;
+    max-width: 150px;
+    object-fit: contain;
+}
+
 .op-logo-icon {
     display: inline-flex;
     align-items: center;

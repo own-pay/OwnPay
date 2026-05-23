@@ -192,5 +192,30 @@ class CsrfMiddlewareTest extends TestCase
         // Should fail because op-app-id / op-app-timestamp are not set
         $this->assertFalse($result['valid']);
     }
+
+    public function testCsrfRejectsNonStringTokensGracefully(): void
+    {
+        $_SESSION['_csrf_token'] = 'expected-token';
+        // $_POST['_csrf_token'] is an array (e.g. spoofed array param)
+        $_POST['_csrf_token']    = ['array', 'values'];
+
+        $result = (new CsrfMiddleware())->validate('');
+
+        $this->assertFalse($result['valid']);
+        $this->assertSame('Invalid request token', $result['error']);
+    }
+
+    public function testHmacRejectsNonStringParametersGracefully(): void
+    {
+        $_ENV['APP_HMAC_SECRET'] = 'shared-secret';
+        $_POST['op-app-id']        = ['array', 'values']; // appId is an array
+        $_POST['op-app-timestamp'] = (string) time();
+        $_POST['action']           = 'do-thing';
+
+        $result = (new CsrfMiddleware())->validate('any-token');
+
+        $this->assertFalse($result['valid']);
+        $this->assertSame('Request expired. Please try again.', $result['error']);
+    }
 }
 

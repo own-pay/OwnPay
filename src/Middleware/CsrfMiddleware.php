@@ -64,6 +64,10 @@ final class CsrfMiddleware
         $submittedToken = $request->post('_csrf_token')
             ?? $request->header('X-CSRF-Token');
 
+        if (!is_string($sessionToken) || !is_string($submittedToken)) {
+            return $this->forbidden($request, 'Invalid CSRF token type');
+        }
+
         if ($sessionToken === '' || $submittedToken === '') {
             return $this->forbidden($request, 'CSRF token missing');
         }
@@ -71,10 +75,13 @@ final class CsrfMiddleware
         // Support token pool for multi-tab usage.
         // Check current token + recent pool of old tokens.
         $tokenPool = $_SESSION['_csrf_token_pool'] ?? [];
+        if (!is_array($tokenPool)) {
+            $tokenPool = [];
+        }
         $valid = hash_equals($sessionToken, $submittedToken);
         if (!$valid) {
             foreach ($tokenPool as $oldToken) {
-                if (hash_equals($oldToken, $submittedToken)) {
+                if (is_string($oldToken) && hash_equals($oldToken, $submittedToken)) {
                     $valid = true;
                     break;
                 }
@@ -145,6 +152,16 @@ final class CsrfMiddleware
             $timestampRaw = $request !== null ? ($request->post('op-app-timestamp') ?? '') : ($_POST['op-app-timestamp'] ?? '');
             $action = $request !== null ? ($request->post('action') ?? '') : ($_POST['action'] ?? '');
 
+            if (!is_string($appId)) {
+                $appId = '';
+            }
+            if (!is_string($timestampRaw)) {
+                $timestampRaw = '';
+            }
+            if (!is_string($action)) {
+                $action = '';
+            }
+
             if ($appId === '' || $timestampRaw === '' || !is_numeric($timestampRaw)) {
                 return [
                     'valid' => false,
@@ -180,7 +197,13 @@ final class CsrfMiddleware
             ? ($request->post('_csrf_token') ?? '')
             : ($_POST['_csrf_token'] ?? '');
 
-        if ($sessionToken === '' || $submittedToken === '' || !hash_equals($sessionToken, $submittedToken)) {
+        if (
+            !is_string($sessionToken) ||
+            !is_string($submittedToken) ||
+            $sessionToken === '' ||
+            $submittedToken === '' ||
+            !hash_equals($sessionToken, $submittedToken)
+        ) {
             $newToken = bin2hex(random_bytes(32));
             $_SESSION['_csrf_token'] = $newToken;
             return [

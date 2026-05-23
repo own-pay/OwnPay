@@ -32,12 +32,10 @@ Thumbs.db
 storage/.installed
 
 # Agent/AI tool configuration
-.claude/
-.gemini/
 .agents/skills/*/scripts/__pycache__/
-.superpowers
 graphify-out/
 .antigravitycli/
+.graphifyignore
 
 # Runtime storage (keep structure, ignore contents)
 storage/cache/*
@@ -46,9 +44,10 @@ storage/pdf/*
 storage/sessions/*
 storage/backups/*
 !storage/*/.gitkeep
+scratch_test.php
 
 # Mobile app
-mobile_app
+/mobile_app/
 
 # Documentation and planning
 findings.md
@@ -58,7 +57,7 @@ task_plan.md
 /scratch/
 
 #Php cli nd update
-/cli/
-/update/
+/update/releases/*
 storage/cron/98a234fa4953567787cf87e47c1f5e21.lock
 update_private_key.pem
+public/assets/uploads/site_logo_1779482544.jpg

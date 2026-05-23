@@ -32,10 +32,10 @@ This report documents the newly discovered UI/UX, functional, and database-integ
 ### UI-001: Brand Status Database Truncation Crash
 - **Target Component:** Merchant Management / Brand Configuration
 - **Exact File & Line Numbers:**
-  - Twig Template: [edit.twig](file:///c:/laragon/www/ownpay/templates/admin/brands/edit.twig#L33)
-  - Database Schema: [schema.sql](file:///c:/laragon/www/ownpay/database/schema.sql#L25)
+  - Twig Template: [edit.twig](templates/admin/brands/edit.twig#L33)
+  - Database Schema: [schema.sql](database/schema.sql#L25)
 - **Flaw Description:**
-  In the Brand Edit form, the HTML status combobox includes an option with `value="inactive"` (`<option value="inactive" ...>Inactive</option>`). However, the `op_merchants` status column in the database is defined as `enum('active','suspended','pending')` (in [schema.sql](file:///c:/laragon/www/ownpay/database/schema.sql#L25)). The value `inactive` is missing from the database ENUM definition.
+  In the Brand Edit form, the HTML status combobox includes an option with `value="inactive"` (`<option value="inactive" ...>Inactive</option>`). However, the `op_merchants` status column in the database is defined as `enum('active','suspended','pending')` (in [schema.sql](database/schema.sql#L25)). The value `inactive` is missing from the database ENUM definition.
 - **Exploit Scenario / Failure Mode:**
   When an admin edits a Brand (e.g. Test Brand) and selects the "Inactive" status, the database layer throws a strict mode warning/error: `SQLSTATE[01000]: Warning: 1265 Data truncated for column 'status' at row 1`, crashing the application and displaying a raw PDO exception to the user.
 - **Architectural Fix Plan:**
@@ -47,8 +47,8 @@ This report documents the newly discovered UI/UX, functional, and database-integ
 ### UI-002: Wiped-Out Invoice Subtotal and Total on Update
 - **Target Component:** Invoice Creation / Invoice Management
 - **Exact File & Line Numbers:**
-  - Service Layer: [InvoiceService.php](file:///c:/laragon/www/ownpay/src/Service/Payment/InvoiceService.php#L123-L126)
-  - Twig Template: [edit.twig](file:///c:/laragon/www/ownpay/templates/admin/invoices/edit.twig#L59-L61)
+  - Service Layer: [InvoiceService.php](src/Service/Payment/InvoiceService.php#L123-L126)
+  - Twig Template: [edit.twig](templates/admin/invoices/edit.twig#L59-L61)
 - **Flaw Description:**
   In `InvoiceService::update()`, the subtotal is calculated as: `$subtotal = array_sum(array_column($data['items'] ?? [], 'total'));`. However, the line item form fields are named `items[{{ i }}][description]`, `items[{{ i }}][quantity]`, and `items[{{ i }}][amount]`. Since there is no form input field named `total` for line items, the submitted `$data['items']` does not contain the `total` key. Thus, `array_sum(empty)` resolves to `0.00`, overwriting the parent invoice's subtotal and total in `op_invoices` to `0.00` BDT on save.
   Additionally, `InvoiceService::update()` lacks any database operations to update, delete, or sync the line items in the `op_invoice_items` table.
@@ -74,7 +74,7 @@ This report documents the newly discovered UI/UX, functional, and database-integ
 ### UI-003: Broken Manual Gateway Logo Path (Relative Path Bug)
 - **Target Component:** Gateway Settings
 - **Exact File & Line Numbers:**
-  - Twig Template: [index.twig](file:///c:/laragon/www/ownpay/templates/admin/gateways/index.twig#L115)
+  - Twig Template: [index.twig](templates/admin/gateways/index.twig#L115)
 - **Flaw Description:**
   The `index.twig` template renders a manual gateway's logo using: `<img src="{{ mg.logo_path }}" ...>`. The uploaded files are saved in the database under a relative directory schema (e.g. `gateways/2026/05/filename.jpg`). Because there is no leading slash `/` or public base URL prefix (such as `/uploads/` or `/storage/`), the browser resolves the image relative to the current URL pathname `/admin/gateways/`.
 - **Exploit Scenario / Failure Mode:**
@@ -90,8 +90,8 @@ This report documents the newly discovered UI/UX, functional, and database-integ
 ### UI-004: All Plugins Bricked with "Error" Status
 - **Target Component:** Plugin System / API Gateways
 - **Exact File & Line Numbers:**
-  - Loader Layer: [PluginLoader.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginLoader.php#L160-L208)
-  - Sandbox Definition: [PluginSandbox.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginSandbox.php#L81-L93)
+  - Loader Layer: [PluginLoader.php](src/Plugin/PluginLoader.php#L160-L208)
+  - Sandbox Definition: [PluginSandbox.php](src/Plugin/PluginSandbox.php#L81-L93)
 - **Flaw Description:**
   During plugin activation/boot in `PluginLoader::loadPlugin()`, the code scans all PHP files inside the plugin directory and blocks standard built-in PHP functions like `header()`, `fwrite()`, `ini_set()`, `setcookie()`, and `mail()`.
 - **Exploit Scenario / Failure Mode:**
@@ -105,7 +105,7 @@ This report documents the newly discovered UI/UX, functional, and database-integ
 ### UI-005: Empty CSRF Token Rendering Dynamic Checkout Dead and Unusable
 - **Target Component:** Checkout View / Payment Links
 - **Exact File & Line Numbers:**
-  - Controller Layer: [PaymentLinkCheckoutController.php](file:///c:/laragon/www/ownpay/src/Controller/Checkout/PaymentLinkCheckoutController.php#L71)
+  - Controller Layer: [PaymentLinkCheckoutController.php](src/Controller/Checkout/PaymentLinkCheckoutController.php#L71)
 - **Flaw Description:**
   In `PaymentLinkCheckoutController.php`, the controller attempts to retrieve the CSRF token from the session using: `$csrf = $_SESSION['csrf_token'] ?? '';`. However, the rest of the application (including the global CSRF middleware, security helpers, and Twig engines) stores the token under the key `$_SESSION['_csrf_token']` (with a leading underscore).
 - **Exploit Scenario / Failure Mode:**
