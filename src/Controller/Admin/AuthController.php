@@ -102,8 +102,10 @@ final class AuthController
             return Response::redirect('/admin');
         }
 
+        $loginSlug = $this->resolveLoginSlug();
+
         return $this->renderAdminPage('page/login.twig', [
-            'login_url' => $this->c->get('config.app')['login_url'] ?? '/login',
+            'login_url' => '/' . $loginSlug,
             'error'     => null,
             'old_email' => null,
         ]);
@@ -126,7 +128,9 @@ final class AuthController
         $result = $this->auth->login($email, $password, $req->ip(), $req->userAgent());
         if (!$result['success']) {
             $this->audit->log('login.failed', 'user', null, null, ['email' => $email]);
+            $loginSlug = $this->resolveLoginSlug();
             return $this->renderAdminPage('page/login.twig', [
+                'login_url' => '/' . $loginSlug,
                 'error'     => $result['error'] ?? 'Invalid credentials',
                 'old_email' => $email,
             ]);
@@ -152,7 +156,8 @@ final class AuthController
     public function twoFactorForm(Request $req): Response
     {
         if ($this->session->get('2fa_user_id') === null) {
-            return Response::redirect('/login');
+            $loginSlug = $this->resolveLoginSlug();
+            return Response::redirect('/' . $loginSlug);
         }
         return $this->renderAdminPage('page/2fa.twig');
     }
@@ -168,7 +173,8 @@ final class AuthController
     {
         $userId = $this->session->get('2fa_user_id');
         if ($userId === null) {
-            return Response::redirect('/login');
+            $loginSlug = $this->resolveLoginSlug();
+            return Response::redirect('/' . $loginSlug);
         }
 
         $codeRaw = $req->post('code', '');
@@ -275,5 +281,30 @@ final class AuthController
             }
         } catch (\Throwable) {}
         return Response::redirect('/' . $loginSlug);
+    }
+
+    /**
+     * Resolves the dynamic login slug from the storage cache or settings.
+     *
+     * @return string
+     */
+    private function resolveLoginSlug(): string
+    {
+        $cacheFile = dirname(__DIR__, 3) . '/storage/cache/login_slug.cache';
+        if (file_exists($cacheFile)) {
+            $slug = @file_get_contents($cacheFile);
+            if ($slug !== false && $slug !== '') {
+                $slug = trim($slug);
+                if (preg_match('/^[a-z0-9\-]+$/', $slug)) {
+                    return $slug;
+                }
+            }
+        }
+
+        try {
+            return $this->settings->get('landing', 'admin_login_slug', 'login');
+        } catch (\Throwable) {
+            return 'login';
+        }
     }
 }
