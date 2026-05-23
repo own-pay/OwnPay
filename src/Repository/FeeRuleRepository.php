@@ -27,6 +27,11 @@ final class FeeRuleRepository extends BaseRepository
 
     /**
      * Resolve the active fee rule prioritised by specificity.
+     *
+     * @param int $merchantId The merchant/brand ID.
+     * @param string $gatewaySlug The payment gateway slug.
+     * @param string $currency The transaction currency.
+     * @return array<string, mixed>|null The active fee rule array, or null if none matches.
      */
     public function resolveActiveRule(int $merchantId, string $gatewaySlug, string $currency): ?array
     {

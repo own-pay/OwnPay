@@ -1,0 +1,191 @@
+﻿ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\BrandController.php                                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  348    Method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() has parameter $data with no    
+         value type specified in iterable type array.                                                                   
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+  348    Method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() has parameter                  
+         $existingSettings with no value type specified in iterable type array.                                         
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+  348    Method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() return type has no value type  
+         specified in iterable type array.                                                                              
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\StaffController.php                                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  275    Method OwnPay\Controller\Admin\StaffController::getRolesForMerchant() return type has no value type specified  
+         in iterable type array.                                                                                        
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Api\TransactionController.php                                                                     
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  116    Method OwnPay\Controller\Api\TransactionController::safeFields() has parameter $t with no value type         
+         specified in iterable type array.                                                                            
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+  116    Method OwnPay\Controller\Api\TransactionController::safeFields() return type has no value type specified in  
+         iterable type array.                                                                                         
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+ ------ ------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\BaseController.php                                                                                  
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  88     Method OwnPay\Controller\BaseController::renderFragment() has parameter $data with no value type specified in  
+         iterable type array.                                                                                           
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+  115    Method OwnPay\Controller\BaseController::jsonError() has parameter $errors with no value type specified in     
+         iterable type array.                                                                                           
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Checkout\PaymentIntentCheckoutController.php                                                       
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  808    Method OwnPay\Controller\Checkout\PaymentIntentCheckoutController::renderStatus() has parameter $intent with  
+         no value type specified in iterable type array.                                                               
+         🪪  missingType.iterableValue                                                                                 
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                    
+  897    Method OwnPay\Controller\Checkout\PaymentIntentCheckoutController::loadBrand() return type has no value type  
+         specified in iterable type array.                                                                             
+         🪪  missingType.iterableValue                                                                                 
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                    
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Install\InstallerController.php                                                                   
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  404    Method OwnPay\Controller\Install\InstallerController::checkRequirements() return type has no value type      
+         specified in iterable type array.                                                                            
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+  447    Method OwnPay\Controller\Install\InstallerController::renderPhpTemplate() has parameter $data with no value  
+         type specified in iterable type array.                                                                       
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+ ------ ------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Webhook\UnifiedWebhookController.php                                                               
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  207    Method OwnPay\Controller\Webhook\UnifiedWebhookController::logAttempt() has parameter $context with no value  
+         type specified in iterable type array.                                                                        
+         🪪  missingType.iterableValue                                                                                 
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                    
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  Line   Core\Database.php                                                                                            
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  151    Method OwnPay\Core\Database::fetchAll() has parameter $params with no value type specified in iterable type  
+         array.                                                                                                       
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+  164    Method OwnPay\Core\Database::fetchOne() has parameter $params with no value type specified in iterable type  
+         array.                                                                                                       
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+  179    Method OwnPay\Core\Database::fetchColumn() has parameter $params with no value type specified in iterable    
+         type array.                                                                                                  
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+  194    Method OwnPay\Core\Database::execute() has parameter $params with no value type specified in iterable type   
+         array.                                                                                                       
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+  273    Method OwnPay\Core\Database::insert() has parameter $params with no value type specified in iterable type    
+         array.                                                                                                       
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+  286    Method OwnPay\Core\Database::update() has parameter $params with no value type specified in iterable type    
+         array.                                                                                                       
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+  298    Method OwnPay\Core\Database::delete() has parameter $params with no value type specified in iterable type    
+         array.                                                                                                       
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+  373    Method OwnPay\Core\Database::exists() has parameter $params with no value type specified in iterable type    
+         array.                                                                                                       
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+  392    Method OwnPay\Core\Database::count() has parameter $params with no value type specified in iterable type     
+         array.                                                                                                       
+         🪪  missingType.iterableValue                                                                                
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                   
+ ------ ------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Core\FormattingHelper.php                                                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  102    Method OwnPay\Core\FormattingHelper::resolveModuleLanguage() has parameter $supportedLanguages with no value   
+         type specified in iterable type array.                                                                         
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+  122    Method OwnPay\Core\FormattingHelper::buildLangArray() has parameter $langText with no value type specified in  
+         iterable type array.                                                                                           
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+  122    Method OwnPay\Core\FormattingHelper::buildLangArray() return type has no value type specified in iterable      
+         type array.                                                                                                    
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Plugin\PluginLoader.php                                                                                        
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  169    Method OwnPay\Plugin\PluginLoader::loadPlugin() has parameter $pluginData with no value type specified in      
+         iterable type array.                                                                                           
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+  343    Method OwnPay\Plugin\PluginLoader::resolvePluginPath() has parameter $pluginData with no value type specified  
+         in iterable type array.                                                                                        
+         🪪  missingType.iterableValue                                                                                  
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                     
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  Line   Repository\FeeRuleRepository.php                                                                            
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  31     Method OwnPay\Repository\FeeRuleRepository::resolveActiveRule() return type has no value type specified in  
+         iterable type array.                                                                                        
+         🪪  missingType.iterableValue                                                                               
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                  
+ ------ ------------------------------------------------------------------------------------------------------------ 
+
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  Line   Service\Payment\LedgerService.php                                                                           
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  56     Method OwnPay\Service\Payment\LedgerService::postEntries() has parameter $entries with no value type        
+         specified in iterable type array.                                                                           
+         🪪  missingType.iterableValue                                                                               
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                  
+  215    Method OwnPay\Service\Payment\LedgerService::entries() return type has no value type specified in iterable  
+         type array.                                                                                                 
+         🪪  missingType.iterableValue                                                                               
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                  
+ ------ ------------------------------------------------------------------------------------------------------------ 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   Update\UpdateService.php                                                                                      
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  362    Method OwnPay\Update\UpdateService::fetchManifest() return type has no value type specified in iterable type  
+         array.                                                                                                        
+         🪪  missingType.iterableValue                                                                                 
+         💡  See: https://phpstan.org/blog/solving-phpstan-no-value-type-specified-in-iterable-type                    
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ [ERROR] Found 31 errors                                                                                               
+

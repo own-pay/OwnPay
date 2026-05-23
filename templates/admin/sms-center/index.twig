@@ -97,8 +97,8 @@
                     <tr>
                         <td><code>{{ tpl.gateway_slug }}</code></td>
                         <td><code class="op-text-sm">{{ tpl.sender_pattern }}</code></td>
-                        <td><code class="op-text-sm">{{ tpl.amount_regex|slice(0,40) }}{{ tpl.amount_regex|length > 40 ? '…' : '' }}</code></td>
-                        <td><code class="op-text-sm">{{ tpl.trx_id_regex|default('')|slice(0,30) }}{{ tpl.trx_id_regex|default('')|length > 30 ? '…' : '' }}</code></td>
+                        <td><code class="op-text-sm">{{ tpl.amount_regex|slice(0, 40) }}{{ tpl.amount_regex|length > 40 ? '…' : '' }}</code></td>
+                        <td><code class="op-text-sm">{{ tpl.trx_id_regex|default('')|slice(0, 30) }}{{ tpl.trx_id_regex|default('')|length > 30 ? '…' : '' }}</code></td>
                         <td>{{ tpl.priority }}</td>
                         <td><span class="op-badge op-badge-{{ tpl.status == 'active' ? 'success' : 'muted' }}">{{ tpl.status|capitalize }}</span></td>
                         <td>
@@ -295,7 +295,7 @@
                             </span>
                         </td>
                         <td class="op-text-sm">{{ sms.received_at }}</td>
-                        <td class="op-text-sm">{{ sms.body|slice(0,60) }}…</td>
+                        <td class="op-text-sm">{{ sms.body|slice(0, 60) }}…</td>
                     </tr>
                     {% else %}
                     <tr><td colspan="7" class="op-empty">No parsed SMS messages yet. Messages appear when the companion app sends SMS data.</td></tr>
@@ -324,7 +324,7 @@
                     {% for sms in sms_queue %}
                     <tr>
                         <td>{{ sms.recipient }}</td>
-                        <td class="op-text-sm">{{ sms.body|slice(0,60) }}…</td>
+                        <td class="op-text-sm">{{ sms.body|slice(0, 60) }}…</td>
                         <td>{{ sms.provider ?? '—' }}</td>
                         <td><span class="op-badge op-badge-{{ sms.status == 'sent' ? 'success' : (sms.status == 'failed' ? 'danger' : 'warning') }}">{{ sms.status }}</span></td>
                         <td>{{ sms.sent_at ?? '—' }}</td>

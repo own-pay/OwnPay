@@ -356,7 +356,7 @@ EOT;
     /**
      * Queries the remote manifest directly on the server side.
      *
-     * @return array Loaded manifest array payload.
+     * @return array<string, mixed> Loaded manifest array payload.
      * @throws \RuntimeException If the connection fails or JSON is corrupted.
      */
     protected function fetchManifest(): array

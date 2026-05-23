@@ -7,9 +7,9 @@
 :root {
     --ink: #080D1A; --ink-2: #1A2038; --ink-3: #2D3555; --ink-4: #4A5578;
     --mute: #7A84A0; --faint: #A8B0C8; --whisper: #D4D9E8; --cloud: #ECEEF5;
-    --snow: #F5F6FA; --white: #FFFFFF;
+    --snow: #F5F6FA; --white: #FFF;
     --teal: #0D9488; --teal-deep: #0A7B70; --teal-pale: #CCFBF1;
-    --teal-glow: rgba(13,148,136,0.10);
+    --teal-glow: rgb(13 148 136 / 10%);
     --red: #EF4444; --green: #10B981;
     --font: 'Outfit', sans-serif; --mono: 'JetBrains Mono', monospace;
 }
@@ -19,33 +19,33 @@
 ::-webkit-scrollbar { width: 3px; } ::-webkit-scrollbar-thumb { background: var(--whisper); border-radius: 99px; }
 
 /* ========================= SHELL ========================= */
-.ck-shell { width: 100%; max-width: 1120px; min-height: 690px; display: flex; border-radius: 24px; overflow: hidden; box-shadow: 0 40px 80px rgba(0,0,0,.06), 0 0 0 1px rgba(0,0,0,.03); }
+.ck-shell { width: 100%; max-width: 1120px; min-height: 690px; display: flex; border-radius: 24px; overflow: hidden; box-shadow: 0 40px 80px rgb(0 0 0 / 6%), 0 0 0 1px rgb(0 0 0 / 3%); }
 
 /* ========================= LEFT PANEL ========================= */
 .ck-left { display: flex; flex-direction: column; width: 390px; flex-shrink: 0; padding: 40px; position: relative; z-index: 10; background: linear-gradient(160deg, #080D1A 0%, #1A2038 55%, #2D3555 100%); color: #fff; }
-.ck-left::before { content: ''; position: absolute; width: 700px; height: 700px; background: radial-gradient(circle, rgba(13,148,136,.08) 0%, transparent 60%); top: -250px; right: -250px; pointer-events: none; }
+.ck-left::before { content: ''; position: absolute; width: 700px; height: 700px; background: radial-gradient(circle, rgb(13 148 136 / 8%) 0%, transparent 60%); top: -250px; right: -250px; pointer-events: none; }
 .ck-brand { display: flex; align-items: center; gap: 16px; margin-bottom: 48px; }
-.ck-brand-logo { width: 52px; height: 52px; border-radius: 16px; background: rgba(255,255,255,0.1); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(255,255,255,0.08); }
+.ck-brand-logo { width: 52px; height: 52px; border-radius: 16px; background: rgb(255 255 255 / 10%); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; border: 1px solid rgb(255 255 255 / 8%); }
 .ck-brand-img { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; }
 .ck-brand-img-sm { width: 24px; height: 24px; border-radius: 4px; object-fit: contain; }
-.ck-label-xs { font-size: 11px; color: rgba(255,255,255,0.35); font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; }
+.ck-label-xs { font-size: 11px; color: rgb(255 255 255 / 35%); font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; }
 .ck-brand-name { font-size: 18px; font-weight: 800; line-height: 1.2; margin-top: 2px; max-width: 250px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.ck-section-label { font-size: 9.5px; font-weight: 700; color: rgba(255,255,255,0.25); text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 20px; }
+.ck-section-label { font-size: 9.5px; font-weight: 700; color: rgb(255 255 255 / 25%); text-transform: uppercase; letter-spacing: 0.2em; margin-bottom: 20px; }
 .ck-items { flex: 1; }
 .ck-item-list { display: flex; flex-direction: column; gap: 20px; }
 .ck-item { display: flex; justify-content: space-between; align-items: flex-start; }
-.ck-item-name { font-size: 13px; font-weight: 600; color: rgba(255,255,255,0.85); }
-.ck-item-desc { font-size: 10.5px; color: rgba(255,255,255,0.3); margin-top: 2px; }
+.ck-item-name { font-size: 13px; font-weight: 600; color: rgb(255 255 255 / 85%); }
+.ck-item-desc { font-size: 10.5px; color: rgb(255 255 255 / 30%); margin-top: 2px; }
 .ck-item-price { font-size: 13px; font-weight: 700; color: #fff; font-family: var(--mono); }
-.ck-divider { height: 1px; background: rgba(255,255,255,0.06); }
+.ck-divider { height: 1px; background: rgb(255 255 255 / 6%); }
 .ck-row { display: flex; justify-content: space-between; }
-.ck-text-muted { font-size: 11px; color: rgba(255,255,255,0.3); font-weight: 500; }
-.ck-text-mono { font-size: 12px; color: rgba(255,255,255,0.5); font-family: var(--mono); }
+.ck-text-muted { font-size: 11px; color: rgb(255 255 255 / 30%); font-weight: 500; }
+.ck-text-mono { font-size: 12px; color: rgb(255 255 255 / 50%); font-family: var(--mono); }
 .ck-total-row { display: flex; justify-content: space-between; align-items: flex-end; }
-.ck-total-label { font-size: 12px; color: rgba(255,255,255,0.4); font-weight: 600; }
+.ck-total-label { font-size: 12px; color: rgb(255 255 255 / 40%); font-weight: 600; }
 .ck-total-big { font-size: 30px; font-weight: 800; font-family: var(--mono); line-height: 1; letter-spacing: -0.5px; }
-.ck-total-decimal { font-size: 10px; color: rgba(255,255,255,0.25); font-family: var(--mono); margin-top: 4px; }
-.ck-security-badge { margin-top: 28px; display: flex; align-items: center; gap: 8px; font-size: 10px; color: rgba(255,255,255,0.25); }
+.ck-total-decimal { font-size: 10px; color: rgb(255 255 255 / 25%); font-family: var(--mono); margin-top: 4px; }
+.ck-security-badge { margin-top: 28px; display: flex; align-items: center; gap: 8px; font-size: 10px; color: rgb(255 255 255 / 25%); }
 
 /* ========================= RIGHT PANEL ========================= */
 .ck-right { flex: 1; background: var(--white); display: flex; flex-direction: column; position: relative; }
@@ -72,26 +72,26 @@
 /* ========================= TABS ========================= */
 .ck-tabs { display: flex; gap: 6px; padding: 6px; background: var(--snow); border-radius: 16px; margin-bottom: 20px; }
 .ck-tab { flex: 1; padding: 10px 6px; font-size: 12.5px; font-weight: 700; border-radius: 12px; cursor: pointer; border: none; background: transparent; color: var(--mute); text-align: center; display: flex; align-items: center; justify-content: center; gap: 5px; transition: all 0.25s; }
-.ck-tab.on { background: var(--ink); color: var(--white); box-shadow: 0 2px 12px rgba(8,13,26,0.18); }
+.ck-tab.on { background: var(--ink); color: var(--white); box-shadow: 0 2px 12px rgb(8 13 26 / 18%); }
 .ck-tab:not(.on):hover { background: var(--cloud); color: var(--ink-3); }
 
 /* ========================= GATEWAY GRID ========================= */
 .ck-gw-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 20px; }
 .ck-gw { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 7px; padding: 16px 8px; border: 1.5px solid var(--cloud); border-radius: 16px; cursor: pointer; transition: all 0.22s cubic-bezier(.4,0,.2,1); background: var(--white); position: relative; overflow: hidden; min-height: 90px; }
-.ck-gw:hover { border-color: var(--whisper); transform: translateY(-2px); box-shadow: 0 8px 28px rgba(0,0,0,0.05); }
-.ck-gw.on { border-color: var(--teal); background: var(--teal-pale); box-shadow: 0 0 0 3px var(--teal-glow), 0 4px 18px rgba(13,148,136,0.08); }
+.ck-gw:hover { border-color: var(--whisper); transform: translateY(-2px); box-shadow: 0 8px 28px rgb(0 0 0 / 5%); }
+.ck-gw.on { border-color: var(--teal); background: var(--teal-pale); box-shadow: 0 0 0 3px var(--teal-glow), 0 4px 18px rgb(13 148 136 / 8%); }
 .ck-gw.on::after { content: ''; position: absolute; top: 7px; right: 7px; width: 20px; height: 20px; background: var(--teal); border-radius: 50%; background-image: url("data:image/svg+xml,%3Csvg width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round' xmlns='http://www.w3.org/2000/svg'%3E%3Cpolyline points='20 6 9 17 4 12'/%3E%3C/svg%3E"); background-repeat: no-repeat; background-position: center; background-size: 11px; }
 .ck-gw-badge { position: absolute; top: 7px; left: 7px; background: var(--ink); color: var(--white); font-size: 8px; font-weight: 800; padding: 2px 6px; border-radius: 6px; letter-spacing: 0.5px; text-transform: uppercase; }
 .ck-gw-ico { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 13px; color: var(--ink); }
 .ck-gw-logo { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; }
 .ck-gw-name { font-size: 11.5px; font-weight: 700; text-align: center; line-height: 1.2; }
 .ck-empty-gw { grid-column: 1 / -1; text-align: center; font-size: 13px; color: var(--mute); padding: 24px; }
-.ck-tc { } .ck-hidden { display: none !important; }
+.ck-hidden { display: none !important; }
 
 /* ========================= PAY BUTTON ========================= */
 .ck-pay-btn { width: 100%; padding: 15px; border-radius: 16px; font-weight: 700; font-size: 14px; border: none; cursor: pointer; transition: all 0.3s; }
 .ck-pay-disabled { background: var(--cloud); color: var(--faint); cursor: not-allowed; }
-.ck-pay-active { background: var(--teal); color: var(--white); box-shadow: 0 4px 20px rgba(13,148,136,0.3); }
+.ck-pay-active { background: var(--teal); color: var(--white); box-shadow: 0 4px 20px rgb(13 148 136 / 30%); }
 .ck-pay-active:hover { background: var(--teal-deep); transform: translateY(-1px); }
 
 /* ========================= EXPRESS ========================= */
@@ -109,8 +109,8 @@
 
 /* ========================= POPUP ========================= */
 .ck-popup { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; padding: 16px; }
-.ck-popup-backdrop { position: absolute; inset: 0; background: rgba(8,13,26,0.55); backdrop-filter: blur(20px); }
-.ck-popup-dialog { position: relative; z-index: 1; width: 100%; max-width: 460px; max-height: 92vh; overflow-y: auto; background: var(--white); border-radius: 28px; box-shadow: 0 40px 80px rgba(0,0,0,0.18); }
+.ck-popup-backdrop { position: absolute; inset: 0; background: rgb(8 13 26 / 55%); backdrop-filter: blur(20px); }
+.ck-popup-dialog { position: relative; z-index: 1; width: 100%; max-width: 460px; max-height: 92vh; overflow-y: auto; background: var(--white); border-radius: 28px; box-shadow: 0 40px 80px rgb(0 0 0 / 18%); }
 .ck-popup-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--cloud); }
 .ck-popup-gw-info { display: flex; align-items: center; gap: 12px; }
 .ck-popup-gw-icon { width: 40px; height: 40px; border-radius: 12px; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 16px; color: #fff; }
@@ -134,8 +134,8 @@
 
 /* ========================= MODALS ========================= */
 .ck-modal { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; }
-.ck-modal-backdrop { position: absolute; inset: 0; background: rgba(8,13,26,0.45); backdrop-filter: blur(14px); }
-.ck-modal-dialog { position: relative; background: rgba(255,255,255,0.96); backdrop-filter: blur(24px); border-radius: 24px; padding: 28px; max-width: 400px; width: 92%; box-shadow: 0 32px 64px rgba(0,0,0,0.14); }
+.ck-modal-backdrop { position: absolute; inset: 0; background: rgb(8 13 26 / 45%); backdrop-filter: blur(14px); }
+.ck-modal-dialog { position: relative; background: rgb(255 255 255 / 96%); backdrop-filter: blur(24px); border-radius: 24px; padding: 28px; max-width: 400px; width: 92%; box-shadow: 0 32px 64px rgb(0 0 0 / 14%); }
 .ck-modal-dialog h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
 .ck-modal-dialog p { font-size: 14px; color: var(--ink-4); line-height: 1.6; }
 .ck-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
@@ -158,7 +158,7 @@
 
 /* ========================= STATUS PAGES ========================= */
 .ck-status-shell { width: 100%; max-width: 480px; }
-.ck-status { text-align: center; padding: 60px 24px; background: var(--white); border-radius: 24px; box-shadow: 0 20px 60px rgba(0,0,0,0.06); }
+.ck-status { text-align: center; padding: 60px 24px; background: var(--white); border-radius: 24px; box-shadow: 0 20px 60px rgb(0 0 0 / 6%); }
 .ck-status-icon { margin-bottom: 24px; }
 .ck-status h2 { font-size: 20px; font-weight: 700; margin-bottom: 8px; }
 .ck-status-amount { font-size: 28px; font-weight: 800; font-family: var(--mono); margin-bottom: 8px; }
@@ -176,5 +176,7 @@
 
 /* ========================= RESPONSIVE ========================= */
 @media (max-width: 1024px) { .ck-left { display: none; } }
+
 @media (max-width: 768px) { .ck-mobile-summary { display: block; } .ck-gw-grid { grid-template-columns: repeat(2, 1fr); } }
+
 @media (max-width: 480px) { .ck-gw { min-height: 80px; padding: 14px 6px; } .ck-gw-ico { width: 36px; height: 36px; } .ck-gw-name { font-size: 10.5px; } .ck-scroll { padding: 16px; } }

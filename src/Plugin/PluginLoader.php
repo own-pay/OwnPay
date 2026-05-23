@@ -162,7 +162,7 @@ final class PluginLoader
      * Performs a deep token scanner scan on all PHP files within the plugin to block
      * unapproved execution of dangerous system-level PHP functions.
      *
-     * @param array $pluginData Plugin registration database record data.
+     * @param array<string, mixed> $pluginData Plugin registration database record data.
      * @return void
      * @throws \RuntimeException If the manifest, entrypoint, or PHP source security scanning fails.
      */
@@ -337,7 +337,7 @@ final class PluginLoader
     /**
      * Resolve the absolute path of a plugin folder on the server filesystem.
      *
-     * @param array $pluginData Plugin registry metadata.
+     * @param array<string, mixed> $pluginData Plugin registry metadata.
      * @return string Absolute filesystem path to the plugin.
      */
     private function resolvePluginPath(array $pluginData): string

@@ -269,7 +269,7 @@ final class StaffController
      * Resolve roles configured under a specific merchant.
      *
      * @param int $merchantId The merchant ID.
-     * @return array The list of roles.
+     * @return array<int, array<string, mixed>> The list of roles.
      * @throws \Exception If DB query fails.
      */
     private function getRolesForMerchant(int $merchantId): array

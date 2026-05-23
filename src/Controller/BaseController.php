@@ -84,6 +84,9 @@ abstract class BaseController
 
     /**
      * Render a Twig template and return just the HTML fragment (for AJAX SPA loads).
+     *
+     * @param string $template The template path.
+     * @param array<string, mixed> $data The template variables.
      */
     protected function renderFragment(string $template, array $data = []): Response
     {
@@ -111,6 +114,10 @@ abstract class BaseController
 
     /**
      * Return a JSON error response.
+     *
+     * @param string $message The error message.
+     * @param int $status The HTTP status code.
+     * @param array<string, mixed>|array<int, mixed> $errors The details of specific errors.
      */
     protected function jsonError(string $message, int $status = 400, array $errors = []): Response
     {

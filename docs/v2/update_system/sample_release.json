@@ -1,8 +1,8 @@
 {
-    "release_date": "2026-05-20",
-    "min_php_version": "8.2.0",
-    "min_ownpay_version": "0.1.0",
-    "breaking_changes": false,
-    "breaking_notes": null,
-    "notes": "Place this file in releases/{version}/release.json alongside the ZIP."
+  "release_date": "2026-05-20",
+  "min_php_version": "8.2.0",
+  "min_ownpay_version": "0.1.0",
+  "breaking_changes": false,
+  "breaking_notes": null,
+  "notes": "Place this file in releases/{version}/release.json alongside the ZIP."
 }

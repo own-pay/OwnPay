@@ -55,7 +55,7 @@
             <span class="ck-total-label">{{ lang.total ?? 'Total' }}</span>
             <div class="ck-total-amount">
                 <p class="ck-total-big">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(0) }}</p>
-                <p class="ck-total-decimal">.{{ '%02d'|format(((txn.amount - txn.amount|round(0,'floor')) * 100)|round) }} {{ txn.currency ?? 'BDT' }}</p>
+                <p class="ck-total-decimal">.{{ '%02d'|format(((txn.amount - txn.amount|round(0, 'floor')) * 100)|round) }} {{ txn.currency ?? 'BDT' }}</p>
             </div>
         </div>
         <div class="ck-security-badge">

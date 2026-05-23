@@ -399,7 +399,7 @@ final class InstallerController
     /**
      * Run system requirements checks.
      *
-     * @return array The list of requirements checked and their statuses.
+     * @return array<int, array{name: string, required: string, current: string, ok: bool}> The list of requirements checked and their statuses.
      */
     private function checkRequirements(): array
     {
@@ -441,7 +441,7 @@ final class InstallerController
      * Renders a PHP template file with parameters.
      *
      * @param string $template The template name/path.
-     * @param array  $data     The template parameters.
+     * @param array<string, mixed>  $data     The template parameters.
      * @return string The rendered template content.
      */
     private function renderPhpTemplate(string $template, array $data): string

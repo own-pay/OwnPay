@@ -52,6 +52,15 @@ final class LedgerService
 
     /**
      * Post a balanced multi-entry journal transaction.
+     *
+     * @param int $merchantId The merchant/brand ID.
+     * @param string $eventType The type of transaction event.
+     * @param string $currency The transaction currency.
+     * @param array<int, array{account: string, type: 'debit'|'credit', amount: string}> $entries The double-entry bookkeeping ledger entries.
+     * @param string $referenceType The type of referenced entity (e.g. 'transaction').
+     * @param string $referenceId The unique ID of the referenced entity.
+     * @param string|null $description Optional descriptive text.
+     * @return void
      */
     public function postEntries(
         int $merchantId,
@@ -211,6 +220,11 @@ final class LedgerService
 
     /**
      * Get ledger transactions for merchant (paginated).
+     *
+     * @param int $merchantId The merchant/brand ID.
+     * @param int $page The page number.
+     * @param int $perPage The number of entries per page.
+     * @return array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} The paginated ledger entries result.
      */
     public function entries(int $merchantId, int $page = 1, int $perPage = 50): array
     {

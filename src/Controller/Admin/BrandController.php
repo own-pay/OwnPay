@@ -344,6 +344,13 @@ final class BrandController
     /**
      * Handles file uploads for brand logo and favicon, and aggregates all brand customizations
      * into logo_path and JSON settings fields.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @param int $merchantId The brand's merchant ID.
+     * @param array<string, mixed> $data The incoming POST/customization data.
+     * @param string|null $existingLogoPath The existing brand logo file path, if any.
+     * @param array<string, mixed> $existingSettings The existing brand settings, if any.
+     * @return array<string, mixed> The compiled branding data.
      */
     private function handleBrandUploadsAndSettings(Request $req, int $merchantId, array $data, ?string $existingLogoPath = null, array $existingSettings = []): array
     {
