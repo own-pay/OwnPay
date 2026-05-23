@@ -109,12 +109,11 @@ final class JwtService
      *
      * @param string $deviceUuid The companion device registered UUID.
      * @param int $brandId The system brand/merchant owner identifier.
-     * @param string|null $secret Optional target signing secret key override.
      * @param string[] $scopes The array of authorization scopes allowed.
      * @param int $ttl Lifetime duration of the generated token.
      * @return array{token: string, expires_at: int, expires_in: int}
      */
-    public function encode(string $deviceUuid, int $brandId, ?string $secret = null, array $scopes = [], int $ttl = 900): array
+    public function encode(string $deviceUuid, int $brandId, array $scopes = [], int $ttl = 900): array
     {
         $now = time();
         $payload = [
@@ -129,8 +128,7 @@ final class JwtService
             'exp'      => $now + $ttl,
             'jti'      => bin2hex(random_bytes(8)),
         ];
-        $key = $secret ?? $this->secret;
-        $token = JWT::encode($payload, $key, 'HS256');
+        $token = JWT::encode($payload, $this->secret, 'HS256');
         return [
             'token'      => $token,
             'expires_at' => $now + $ttl,
@@ -145,17 +143,15 @@ final class JwtService
      * and general parsing syntax failures.
      *
      * @param string $token The input JWT string.
-     * @param string|null $secret The cryptographic validation secret key override.
      * @return array{valid: bool, error: string|null, payload: object|null}
      */
-    public function decode(string $token, ?string $secret = null): array
+    public function decode(string $token): array
     {
         if ($token === '') {
             return ['valid' => false, 'error' => 'EMPTY_TOKEN', 'payload' => null];
         }
         try {
-            $key = $secret ?? $this->secret;
-            $decoded = JWT::decode($token, new Key($key, 'HS256'));
+            $decoded = JWT::decode($token, new Key($this->secret, 'HS256'));
             return [
                 'valid'   => true,
                 'error'   => null,

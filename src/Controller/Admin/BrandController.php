@@ -331,37 +331,28 @@ final class BrandController
         $logoPath = $existingLogoPath;
         $faviconPath = $existingSettings['favicon'] ?? null;
 
+        // Securely instantiate FilesystemService targeting the public assets folder.
+        $fs = new \OwnPay\Service\System\FilesystemService(dirname(__DIR__, 3) . '/public/assets');
+
         // Process Brand Logo File
         $logoFile = $req->file('brand_logo');
         if ($logoFile !== null && ($logoFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-            $allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp'];
-            $mime = mime_content_type($logoFile['tmp_name']);
-            if (in_array($mime, $allowed, true)) {
-                $ext = pathinfo($logoFile['name'], PATHINFO_EXTENSION);
-                $filename = 'brand_logo_' . $merchantId . '_' . time() . '.' . strtolower($ext);
-                $dest = $uploadDir . $filename;
-                if (move_uploaded_file($logoFile['tmp_name'], $dest)) {
-                    $logoPath = '/assets/uploads/brands/' . $filename;
-                }
-            } else {
-                $this->session->flashError('Invalid file type for brand logo');
+            try {
+                $storedPath = $fs->storeUpload($logoFile, 'uploads/brands');
+                $logoPath = '/assets/' . $storedPath;
+            } catch (\Throwable $e) {
+                $this->session->flashError('Invalid file for brand logo: ' . $e->getMessage());
             }
         }
 
         // Process Brand Favicon File
         $faviconFile = $req->file('brand_favicon');
         if ($faviconFile !== null && ($faviconFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-            $allowed = ['image/png', 'image/jpeg', 'image/gif', 'image/svg+xml', 'image/webp', 'image/x-icon', 'image/vnd.microsoft.icon'];
-            $mime = mime_content_type($faviconFile['tmp_name']);
-            if (in_array($mime, $allowed, true)) {
-                $ext = pathinfo($faviconFile['name'], PATHINFO_EXTENSION);
-                $filename = 'brand_favicon_' . $merchantId . '_' . time() . '.' . strtolower($ext);
-                $dest = $uploadDir . $filename;
-                if (move_uploaded_file($faviconFile['tmp_name'], $dest)) {
-                    $faviconPath = '/assets/uploads/brands/' . $filename;
-                }
-            } else {
-                $this->session->flashError('Invalid file type for brand favicon');
+            try {
+                $storedPath = $fs->storeUpload($faviconFile, 'uploads/brands');
+                $faviconPath = '/assets/' . $storedPath;
+            } catch (\Throwable $e) {
+                $this->session->flashError('Invalid file for brand favicon: ' . $e->getMessage());
             }
         }
 

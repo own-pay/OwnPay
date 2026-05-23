@@ -212,7 +212,7 @@ class DevicePairingServiceTest extends TestCase
         $this->assertTrue($result['success']);
 
         // Verify the JWT is decodable and contains the correct device UUID
-        $decoded = $this->jwt->decode($result['access_token'], $this->getJwtSecretFromResult($result));
+        $decoded = $this->jwt->decode($result['access_token']);
         // We can't easily get the secret from the result, but we can verify the device_id format
         $this->assertMatchesRegularExpression(
             '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/',
@@ -318,10 +318,6 @@ class DevicePairingServiceTest extends TestCase
         $this->assertSame('FINGERPRINT_MISMATCH', $result['error']);
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    //  validateRequest()
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
     public function testValidateRequestSuccess(): void
     {
         $jwtSecret = JwtService::generateSecret();
@@ -329,7 +325,7 @@ class DevicePairingServiceTest extends TestCase
         $fingerprint = 'validate_fp';
         $fpHash = hash('sha256', $fingerprint);
 
-        $encoded = $this->jwt->encode($deviceUuid, 5, null);
+        $encoded = $this->jwt->encode($deviceUuid, 5);
 
         $svc = $this->buildService([], [
             'findByUuidResult' => [
@@ -353,7 +349,7 @@ class DevicePairingServiceTest extends TestCase
     {
         $jwtSecret = JwtService::generateSecret();
         $deviceUuid = 'revoked-uuid';
-        $encoded = $this->jwt->encode($deviceUuid, 1, null);
+        $encoded = $this->jwt->encode($deviceUuid, 1);
 
         $svc = $this->buildService([], [
             'findByUuidResult' => [
@@ -383,7 +379,7 @@ class DevicePairingServiceTest extends TestCase
     {
         $jwtSecret = JwtService::generateSecret();
         $deviceUuid = 'fp-mismatch-uuid';
-        $encoded = $this->jwt->encode($deviceUuid, 1, null);
+        $encoded = $this->jwt->encode($deviceUuid, 1);
 
         $svc = $this->buildService([], [
             'findByUuidResult' => [
@@ -404,7 +400,7 @@ class DevicePairingServiceTest extends TestCase
     public function testValidateRequestFailsForUnknownDevice(): void
     {
         $jwtSecret = JwtService::generateSecret();
-        $encoded = $this->jwt->encode('nonexistent-uuid', 1, null);
+        $encoded = $this->jwt->encode('nonexistent-uuid', 1);
 
         $svc = $this->buildService([], ['findByUuidResult' => null]);
         $result = $svc->validateRequest($encoded['token'], 'fp');
@@ -413,7 +409,6 @@ class DevicePairingServiceTest extends TestCase
         $this->assertSame('DEVICE_REVOKED', $result['error']);
     }
 
-    // â”€â”€ Private helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     /**
      * We can't retrieve the JWT secret from the result (by design),

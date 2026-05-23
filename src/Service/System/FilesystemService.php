@@ -25,7 +25,7 @@ final class FilesystemService
      *
      * @var string[]
      */
-    private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'pdf', 'zip'];
+    private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'pdf', 'zip'];
 
     /**
      * Initialises the filesystem service.
@@ -176,6 +176,7 @@ final class FilesystemService
             'gif'  => ['image/gif'],
             'webp' => ['image/webp'],
             'svg'  => ['image/svg+xml'],
+            'ico'  => ['image/x-icon', 'image/vnd.microsoft.icon', 'image/x-ico', 'image/icon'],
             'pdf'  => ['application/pdf'],
             'zip'  => ['application/zip', 'application/x-zip-compressed'],
         ];

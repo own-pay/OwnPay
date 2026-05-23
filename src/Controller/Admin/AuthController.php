@@ -171,7 +171,8 @@ final class AuthController
             return Response::redirect('/login');
         }
 
-        $code = preg_replace('/\D/', '', $req->post('code', ''));
+        $codeRaw = $req->post('code', '');
+        $code = preg_replace('/\D/', '', is_string($codeRaw) ? $codeRaw : '');
         $user = $this->userRepo->findActiveByEmail(
             $this->userRepo->findById((int) $userId)['email'] ?? ''
         );
