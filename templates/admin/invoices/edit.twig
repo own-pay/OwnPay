@@ -42,7 +42,7 @@
                 <div class="op-form-group">
                     <label>Status</label>
                     <select name="status" class="op-input">
-                        {% for s in ['draft','sent','paid','overdue','cancelled'] %}
+                        {% for s in ['draft', 'sent', 'paid', 'overdue', 'cancelled'] %}
                             <option value="{{ s }}" {{ (invoice.status ?? 'draft') == s ? 'selected' : '' }}>{{ s|capitalize }}</option>
                         {% endfor %}
                     </select>

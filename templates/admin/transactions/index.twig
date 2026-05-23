@@ -15,12 +15,12 @@
 {# ── Status Chips ──────────────────────────────────────────────── #}
 <div class="op-filter-chips-row op-mb-3">
     {% set statuses = [
-        {key: '',          label: 'All'},
+        {key: '', label: 'All'},
         {key: 'completed', label: 'Completed'},
-        {key: 'pending',   label: 'Pending'},
-        {key: 'failed',    label: 'Failed'},
-        {key: 'refunded',  label: 'Refunded'},
-        {key: 'canceled',  label: 'Canceled'},
+        {key: 'pending', label: 'Pending'},
+        {key: 'failed', label: 'Failed'},
+        {key: 'refunded', label: 'Refunded'},
+        {key: 'canceled', label: 'Canceled'},
     ] %}
     {% for s in statuses %}
     <a href="?status={{ s.key }}&q={{ filters.q|default('') }}&gateway={{ filters.gateway|default('') }}&date_from={{ filters.date_from|default('') }}&date_to={{ filters.date_to|default('') }}"

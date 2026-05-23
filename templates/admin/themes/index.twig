@@ -31,7 +31,7 @@
             <h3>{{ theme.name }}</h3>
             <p class="op-text-muted">v{{ theme.version }} — {{ theme.author|default('Unknown') }}</p>
             {% if theme.description is defined and theme.description %}
-                <p class="op-theme-desc">{{ theme.description|length > 100 ? theme.description|slice(0,100) ~ '...' : theme.description }}</p>
+                <p class="op-theme-desc">{{ theme.description|length > 100 ? theme.description|slice(0, 100) ~ '...' : theme.description }}</p>
             {% endif %}
         </div>
         <div class="op-theme-actions">

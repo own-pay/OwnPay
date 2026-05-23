@@ -48,7 +48,7 @@
             <h3 class="op-plugin-card-title">{{ plugin.name }}</h3>
             <p class="op-plugin-card-slug">{{ plugin.slug }}</p>
             {% if plugin.description is defined and plugin.description %}
-            <p class="op-plugin-card-desc">{{ plugin.description|slice(0,120) }}{% if plugin.description|length > 120 %}…{% endif %}</p>
+            <p class="op-plugin-card-desc">{{ plugin.description|slice(0, 120) }}{% if plugin.description|length > 120 %}…{% endif %}</p>
             {% else %}
             <p class="op-plugin-card-desc op-text-dim">No description available.</p>
             {% endif %}

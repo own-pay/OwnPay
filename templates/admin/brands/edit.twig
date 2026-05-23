@@ -38,7 +38,7 @@
                 <div class="op-form-group op-col-6">
                     <label>Timezone</label>
                     <select name="timezone" class="op-input">
-                        {% for tz in ['Asia/Dhaka','Asia/Kolkata','UTC','America/New_York','Europe/London','Asia/Dubai','Asia/Singapore'] %}
+                        {% for tz in ['Asia/Dhaka', 'Asia/Kolkata', 'UTC', 'America/New_York', 'Europe/London', 'Asia/Dubai', 'Asia/Singapore'] %}
                             <option value="{{ tz }}" {{ (brand.timezone ?? 'Asia/Dhaka') == tz ? 'selected' : '' }}>{{ tz }}</option>
                         {% endfor %}
                     </select>

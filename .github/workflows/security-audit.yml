@@ -51,7 +51,7 @@ jobs:
       - name: 🧪 Static Analysis - PHPStan
         run: |
           composer install --no-progress --prefer-dist
-          phpstan analyze src --level=5 --error-format=github
+          phpstan analyze src --level=6 --error-format=github
 
       - name: 🏛️ Filesystem Vulnerability Scan - Trivy
         uses: aquasecurity/trivy-action@v0.36.0

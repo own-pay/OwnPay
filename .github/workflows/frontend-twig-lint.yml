@@ -1,0 +1,46 @@
+name: Frontend & Twig Static Analysis
+
+on:
+  push:
+    branches: [ "main", "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+permissions:
+  contents: read
+
+jobs:
+  static-analysis:
+    name: Frontend & Twig Linting
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: Checkout Code
+      uses: actions/checkout@v4
+
+    - name: Setup PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3'
+        tools: composer:v2
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '24'
+        cache: 'npm'
+
+    - name: Install PHP Dependencies
+      run: composer install --no-progress --prefer-dist --dev
+
+    - name: Install Node Dependencies
+      run: npm ci
+
+    - name: 🔬 Lint JavaScript & CSS (ESLint & Stylelint)
+      run: npm run lint
+
+    - name: 📝 Lint Twig Templates (Twig-CS-Fixer)
+      run: composer lint:twig
+
+    - name: 🗃️ Lint JSON Files (ESLint JSON Plugin)
+      run: npm run lint:json

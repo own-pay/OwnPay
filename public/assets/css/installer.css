@@ -1,22 +1,22 @@
 /** OwnPay Installer v2 — Premium Dark Theme */
 :root {
     --bg: #060912;
-    --surface: rgba(255,255,255,.03);
-    --surface-hover: rgba(255,255,255,.05);
-    --border: rgba(255,255,255,.07);
-    --border-focus: rgba(99,102,241,.5);
+    --surface: rgb(255 255 255 / 3%);
+    --surface-hover: rgb(255 255 255 / 5%);
+    --border: rgb(255 255 255 / 7%);
+    --border-focus: rgb(99 102 241 / 50%);
     --text: #f0f2f5;
     --text2: #9ca3af;
     --text3: #6b7280;
     --accent: #818cf8;
-    --accent-glow: rgba(129,140,248,.25);
+    --accent-glow: rgb(129 140 248 / 25%);
     --accent-hover: #a5b4fc;
     --success: #34d399;
-    --success-bg: rgba(52,211,153,.08);
-    --success-border: rgba(52,211,153,.25);
+    --success-bg: rgb(52 211 153 / 8%);
+    --success-border: rgb(52 211 153 / 25%);
     --danger: #fb7185;
-    --danger-bg: rgba(251,113,133,.08);
-    --danger-border: rgba(251,113,133,.25);
+    --danger-bg: rgb(251 113 133 / 8%);
+    --danger-border: rgb(251 113 133 / 25%);
     --warn: #fbbf24;
     --mono: 'JetBrains Mono', 'Fira Code', monospace;
     --ui: 'Inter', system-ui, -apple-system, sans-serif;
@@ -43,9 +43,9 @@ body::before {
     position: fixed;
     inset: 0;
     background:
-        radial-gradient(ellipse 80% 60% at 10% -10%, rgba(99,102,241,.12) 0%, transparent 50%),
-        radial-gradient(ellipse 60% 50% at 90% 110%, rgba(168,85,247,.08) 0%, transparent 50%),
-        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(6,9,18,.6) 0%, transparent 100%);
+        radial-gradient(ellipse 80% 60% at 10% -10%, rgb(99 102 241 / 12%) 0%, transparent 50%),
+        radial-gradient(ellipse 60% 50% at 90% 110%, rgb(168 85 247 / 8%) 0%, transparent 50%),
+        radial-gradient(ellipse 40% 40% at 50% 50%, rgb(6 9 18 / 60%) 0%, transparent 100%);
     pointer-events: none;
     z-index: 0;
 }
@@ -61,9 +61,8 @@ body::before {
     align-items: center;
     justify-content: space-between;
     gap: 1rem;
-    background: rgba(6,9,18,.75);
+    background: rgb(6 9 18 / 75%);
     backdrop-filter: blur(20px) saturate(1.8);
-    -webkit-backdrop-filter: blur(20px) saturate(1.8);
     border-bottom: 1px solid var(--border);
     flex-wrap: nowrap;
 }
@@ -86,7 +85,7 @@ body::before {
     font-weight: 800;
     font-size: .75rem;
     font-family: var(--mono);
-    box-shadow: 0 0 20px rgba(99,102,241,.4), inset 0 1px 0 rgba(255,255,255,.15);
+    box-shadow: 0 0 20px rgb(99 102 241 / 40%), inset 0 1px 0 rgb(255 255 255 / 15%);
 }
 
 .ins-name {
@@ -186,13 +185,12 @@ body::before {
 .ins-card {
     background: var(--surface);
     backdrop-filter: blur(24px) saturate(1.5);
-    -webkit-backdrop-filter: blur(24px) saturate(1.5);
     border: 1px solid var(--border);
     border-radius: 20px;
     box-shadow:
-        0 1px 0 rgba(255,255,255,.04) inset,
-        0 40px 80px -20px rgba(0,0,0,.6),
-        0 0 1px rgba(255,255,255,.1) inset;
+        0 1px 0 rgb(255 255 255 / 4%) inset,
+        0 40px 80px -20px rgb(0 0 0 / 60%),
+        0 0 1px rgb(255 255 255 / 10%) inset;
     max-width: 580px;
     width: 100%;
     padding: 2.5rem 2.75rem;
@@ -210,7 +208,6 @@ body::before {
     letter-spacing: -.03em;
     margin-bottom: .4rem;
     background: linear-gradient(135deg, #f0f2f5, #d1d5db);
-    -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
@@ -253,7 +250,7 @@ body::before {
 
 .ins-field input,
 .ins-field select {
-    background: rgba(255,255,255,.025);
+    background: rgb(255 255 255 / 2.5%);
     border: 1px solid var(--border);
     border-radius: var(--radius-sm);
     padding: .75rem 1rem;
@@ -274,7 +271,7 @@ body::before {
 .ins-field select:focus {
     border-color: var(--border-focus);
     box-shadow: 0 0 0 3px var(--accent-glow), 0 0 16px var(--accent-glow);
-    background: rgba(99,102,241,.03);
+    background: rgb(99 102 241 / 3%);
 }
 
 .ins-field select {
@@ -316,14 +313,14 @@ body::before {
     content: '';
     position: absolute;
     inset: 0;
-    background: linear-gradient(135deg, transparent 40%, rgba(255,255,255,.1) 100%);
+    background: linear-gradient(135deg, transparent 40%, rgb(255 255 255 / 10%) 100%);
     pointer-events: none;
 }
 
 .ins-btn:hover {
     background: linear-gradient(135deg, #7c7ff7, #9b76f8);
     transform: translateY(-1px);
-    box-shadow: 0 6px 24px rgba(99,102,241,.35);
+    box-shadow: 0 6px 24px rgb(99 102 241 / 35%);
 }
 
 .ins-btn:active {
@@ -348,7 +345,7 @@ body::before {
 .ins-btn-outline:hover {
     background: var(--surface-hover);
     color: var(--text);
-    border-color: rgba(255,255,255,.12);
+    border-color: rgb(255 255 255 / 12%);
     box-shadow: none;
 }
 
@@ -386,7 +383,7 @@ body::before {
     padding: .65rem 1rem;
     border-radius: var(--radius-sm);
     font-size: .85rem;
-    background: rgba(255,255,255,.015);
+    background: rgb(255 255 255 / 1.5%);
     border: 1px solid var(--border);
     transition: all .2s ease;
 }
@@ -439,7 +436,7 @@ body::before {
 .ins-spinner {
     width: 18px;
     height: 18px;
-    border: 2px solid rgba(255,255,255,.2);
+    border: 2px solid rgb(255 255 255 / 20%);
     border-top-color: #fff;
     border-radius: 50%;
     animation: spin .6s linear infinite;
@@ -468,13 +465,13 @@ body::before {
     font-size: 2rem;
     margin-bottom: 1.5rem;
     border: 1px solid var(--success-border);
-    box-shadow: 0 0 32px rgba(52,211,153,.2);
+    box-shadow: 0 0 32px rgb(52 211 153 / 20%);
     animation: doneGlow 2s ease-in-out infinite;
 }
 
 @keyframes doneGlow {
-    0%, 100% { box-shadow: 0 0 32px rgba(52,211,153,.2); }
-    50% { box-shadow: 0 0 48px rgba(52,211,153,.35); }
+    0%, 100% { box-shadow: 0 0 32px rgb(52 211 153 / 20%); }
+    50% { box-shadow: 0 0 48px rgb(52 211 153 / 35%); }
 }
 
 .ins-done h2 {
@@ -482,7 +479,6 @@ body::before {
     font-weight: 700;
     margin-bottom: .5rem;
     background: linear-gradient(135deg, #f0f2f5, var(--success));
-    -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
     background-clip: text;
 }
@@ -511,13 +507,13 @@ body::before {
 }
 
 .ins-hint code {
-    background: rgba(99,102,241,.1);
+    background: rgb(99 102 241 / 10%);
     padding: 2px 8px;
     border-radius: 4px;
     color: var(--accent);
     font-family: var(--mono);
     font-size: .82em;
-    border: 1px solid rgba(99,102,241,.2);
+    border: 1px solid rgb(99 102 241 / 20%);
 }
 
 /* ─── Password strength meter ──────────────────────────────── */
@@ -549,14 +545,14 @@ body::before {
     width: 72px;
     height: 72px;
     border-radius: 20px;
-    background: rgba(99,102,241,.08);
+    background: rgb(99 102 241 / 8%);
     color: var(--accent);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 2rem;
     margin-bottom: 1.5rem;
-    border: 1px solid rgba(99,102,241,.2);
+    border: 1px solid rgb(99 102 241 / 20%);
 }
 
 /* ─── Footer ───────────────────────────────────────────────── */
