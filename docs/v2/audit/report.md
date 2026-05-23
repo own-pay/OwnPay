@@ -38,33 +38,33 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 - TOTP (RFC 6238) with ±1 window, `hash_equals` comparison
 
 #### 🔴 C-01: CSRF Token Not Rotated Per Request
-**File**: [SecurityHelpers.php](file:///c:/laragon/www/ownpay/src/Security/SecurityHelpers.php#L16-L25)
+**File**: [SecurityHelpers.php](src/Security/SecurityHelpers.php#L16-L25)
 **Evidence**: `csrfToken()` reuses `$_SESSION['_csrf_token']` for entire session lifetime. Config says `csrf_rotation => true` but no code enforces rotation.
 **Impact**: Token fixation — stolen token valid for full session (up to 2h).
 **OWASP**: A01:2021 — Broken Access Control
 **Fix**: Rotate token after each state-changing request in `CsrfMiddleware`.
 
 #### 🔴 C-02: 2FA Bypass via Plugin Filter
-**File**: [TwoFactorMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/TwoFactorMiddleware.php#L59-L66)
+**File**: [TwoFactorMiddleware.php](src/Middleware/TwoFactorMiddleware.php#L59-L66)
 **Evidence**: `auth.2fa.required` filter allows ANY plugin to return `false` and skip 2FA entirely. No validation that the overriding plugin is trusted.
 **Impact**: Malicious/compromised plugin can bypass 2FA for all users.
 **PCI-DSS**: Req 8.4.2 — MFA must not be bypassable.
 **Fix**: Remove plugin filter from 2FA enforcement, or restrict to core-only.
 
 #### 🟠 H-01: Session Fixation Window
-**File**: [SessionMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/SessionMiddleware.php#L52-L58)
+**File**: [SessionMiddleware.php](src/Middleware/SessionMiddleware.php#L52-L58)
 **Evidence**: `session_regenerate_id(true)` only runs every 15 min. Between regeneration cycles, a hijacked session ID remains valid.
 **Impact**: 15-minute fixation window.
 **Fix**: Regenerate on auth state changes (login, 2FA verify, brand switch).
 
 #### 🟠 H-02: Permission Bypass via Plugin Filter
-**File**: [PermissionMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/PermissionMiddleware.php#L66-L72)
+**File**: [PermissionMiddleware.php](src/Middleware/PermissionMiddleware.php#L66-L72)
 **Evidence**: `auth.permission.check` filter lets plugins override RBAC decisions. A compromised plugin can grant any user any permission.
 **Impact**: Full privilege escalation.
 **Fix**: Remove filter or add allowlist of trusted plugin slugs.
 
 #### 🟡 M-01: Missing Permission Mappings
-**File**: [PermissionMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/PermissionMiddleware.php#L89-L131)
+**File**: [PermissionMiddleware.php](src/Middleware/PermissionMiddleware.php#L89-L131)
 **Evidence**: Routes not in `$map` return `null` → no permission required. New admin routes (e.g., `/admin/roles`, `/admin/developer-hub`) skip RBAC entirely.
 **Impact**: Staff users access admin pages without proper role check.
 **Fix**: Default-deny — return a generic `admin.access` for unmapped `/admin/*` routes.
@@ -87,7 +87,7 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 - Skips API routes (bearer auth) and webhooks
 
 #### 🟠 H-03: CSRF Token in Twig Global Set At Boot Time
-**File**: [services.php](file:///c:/laragon/www/ownpay/config/services.php#L134)
+**File**: [services.php](config/services.php#L134)
 **Evidence**: `$twig->addGlobal('csrf_token', $_SESSION['_csrf_token'] ?? '')` — executed during container build, before session starts. Token is always empty string on first request.
 **Impact**: First POST after cold-start fails CSRF validation silently. Race condition on session init.
 **Fix**: Use a Twig function (`csrf_token()`) that reads session lazily at render time.
@@ -109,25 +109,25 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 - `last_used_at` touch for activity tracking
 
 #### 🔴 C-03: JWT Secret From `getenv()` — Empty String Fallback
-**File**: [JwtAuthMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/JwtAuthMiddleware.php#L37)
+**File**: [JwtAuthMiddleware.php](src/Middleware/JwtAuthMiddleware.php#L37)
 **Evidence**: `$secret = getenv('JWT_SECRET') ?: ''` — returns 500 if empty, but `getenv()` can fail silently in certain SAPI configs (FPM with `clear_env=on`).
 **Impact**: If JWT_SECRET not in env, middleware returns 500 but leaks config state to attacker.
 **Fix**: Fail at boot time (Kernel) if JWT_SECRET is missing. Never reach middleware.
 
 #### 🟠 H-04: JWT No `iss`/`aud` Validation
-**File**: [JwtAuthMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/JwtAuthMiddleware.php#L49)
+**File**: [JwtAuthMiddleware.php](src/Middleware/JwtAuthMiddleware.php#L49)
 **Evidence**: Only checks `sub`, `mid`, `did`. Does not validate `iss` (issuer) or `aud` (audience).
 **Impact**: Token from different system using same secret would be accepted.
 **Fix**: Add `iss` and `aud` validation in JWT decode.
 
 #### 🟠 H-05: API Key Revocation Not Checked
-**File**: [BearerAuthMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/BearerAuthMiddleware.php#L52-L66)
+**File**: [BearerAuthMiddleware.php](src/Middleware/BearerAuthMiddleware.php#L52-L66)
 **Evidence**: `findByPrefix()` fetches key but never checks `status = 'active'`. A revoked key still authenticates.
 **Impact**: Revoked API keys remain functional.
 **Fix**: Add `AND status = 'active'` to `findByPrefix()` query or check status after fetch.
 
 #### 🟡 M-04: BearerAuth Syntax Error
-**File**: [BearerAuthMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/BearerAuthMiddleware.php#L10-L11)
+**File**: [BearerAuthMiddleware.php](src/Middleware/BearerAuthMiddleware.php#L10-L11)
 **Evidence**: Lines 10-11 have corrupted `use` statement — `\ruse OwnPay\Support\DateHelper;\n` (carriage return before `use`). May cause parse error on strict PHP.
 
 ---
@@ -143,7 +143,7 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 - Double-entry ledger for financial integrity
 
 #### 🟠 H-06: Payment Intent Expiry Not Enforced in Checkout
-**File**: [CheckoutController.php](file:///c:/laragon/www/ownpay/src/Controller/Checkout/CheckoutController.php)
+**File**: [CheckoutController.php](src/Controller/Checkout/CheckoutController.php)
 **Evidence**: Controller loads payment intent by token but doesn't verify `expires_at` < NOW(). Expired intents can still be rendered and submitted.
 **Impact**: Expired payment sessions remain usable.
 **Fix**: Add expiry check before rendering checkout page.
@@ -164,23 +164,23 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 - PCI: payload hash logged, never raw card data
 
 #### 🔴 C-04: Webhook Controller Writes to Non-Existent Table
-**File**: [UnifiedWebhookController.php](file:///c:/laragon/www/ownpay/src/Controller/Webhook/UnifiedWebhookController.php#L130-L133)
+**File**: [UnifiedWebhookController.php](src/Controller/Webhook/UnifiedWebhookController.php#L130-L133)
 **Evidence**: `logDelivery()` inserts into `op_webhook_deliveries` — this table did NOT exist in `schema.sql`. `WebhookDispatcher` also uses this table for outbound delivery logging.
 **Impact**: All webhook deliveries crash with SQL error. Payment notifications lost.
 **Fix**: ✅ FIXED — Added `op_webhook_deliveries` table to `schema.sql` with proper columns matching both inbound (UnifiedWebhookController) and outbound (WebhookDispatcher) usage.
 
 #### 🟠 H-07: Webhook Merchant Resolution Uses Wrong Column
-**File**: [UnifiedWebhookController.php](file:///c:/laragon/www/ownpay/src/Controller/Webhook/UnifiedWebhookController.php#L99)
+**File**: [UnifiedWebhookController.php](src/Controller/Webhook/UnifiedWebhookController.php#L99)
 **Evidence**: `WHERE transaction_id = :ref` — `op_transactions` has column `trx_id`, not `transaction_id`.
 **Impact**: Merchant resolution always fails. Webhook processed with `merchant_id = 0`.
 
 #### 🟠 H-08: Timestamp Replay Window Optional
-**File**: [RequestSignatureMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/RequestSignatureMiddleware.php#L66-L76)
+**File**: [RequestSignatureMiddleware.php](src/Middleware/RequestSignatureMiddleware.php#L66-L76)
 **Evidence**: `if ($timestamp !== null)` — timestamp check only runs if header present. Attacker can replay any signed request indefinitely by omitting the header.
 **Fix**: Require timestamp header, or use nonce-based replay protection.
 
 #### 🟡 M-06: Signature Algorithm Attacker-Controlled
-**File**: [RequestSignatureMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/RequestSignatureMiddleware.php#L49-L53)
+**File**: [RequestSignatureMiddleware.php](src/Middleware/RequestSignatureMiddleware.php#L49-L53)
 **Evidence**: `[$algo, $sigValue] = explode('=', $signature, 2)` — attacker can specify weak hash algorithm (e.g., `md5=...`).
 **Fix**: Allowlist algorithms to `['sha256', 'sha512']`.
 
@@ -191,23 +191,23 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 **File**: `InstallerController.php`
 
 #### 🔴 C-05: SQL Injection in Installer — DB Name Not Parameterized
-**File**: [InstallerController.php](file:///c:/laragon/www/ownpay/src/Controller/Install/InstallerController.php#L56-L60)
+**File**: [InstallerController.php](src/Controller/Install/InstallerController.php#L56-L60)
 **Evidence**: `$pdo->exec("CREATE DATABASE IF NOT EXISTS \`{$name}\`...")` and `$pdo->exec("USE \`{$name}\`")` — DB name from user input interpolated directly. Backtick-escaping is insufficient (attacker sends `a\`; DROP DATABASE ownpay; --`).
 **Impact**: Full DB destruction during installation.
 **Fix**: Validate `$name` against `/^[a-zA-Z0-9_]+$/` (already partially done for prefix but not for name).
 
 #### 🟠 H-09: `extract()` Without `EXTR_SKIP` in Installer
-**File**: [InstallerController.php](file:///c:/laragon/www/ownpay/src/Controller/Install/InstallerController.php#L268)
+**File**: [InstallerController.php](src/Controller/Install/InstallerController.php#L268)
 **Evidence**: `extract($data)` — no flag. Template data can overwrite local variables including `$this`.
 **Fix**: Use `extract($data, EXTR_SKIP)` or pass to Twig directly.
 
 #### 🟠 H-10: `.env.temp` Written With Credentials
-**File**: [InstallerController.php](file:///c:/laragon/www/ownpay/src/Controller/Install/InstallerController.php#L83-L85)
+**File**: [InstallerController.php](src/Controller/Install/InstallerController.php#L83-L85)
 **Evidence**: DB credentials written to `.env.temp` in webroot parent. If webserver misconfigured, file readable. `chmod 0640` is good but relies on correct owner.
 **Fix**: Write to `storage/` directory instead of project root.
 
 #### 🟡 M-07: UUID Generation Uses `mt_rand()`
-**File**: [InstallerController.php](file:///c:/laragon/www/ownpay/src/Controller/Install/InstallerController.php#L120-L124)
+**File**: [InstallerController.php](src/Controller/Install/InstallerController.php#L120-L124)
 **Evidence**: Merchant UUID generated with `mt_rand()` — cryptographically weak PRNG.
 **Fix**: Use `random_int()` or `UuidGenerator` class.
 
@@ -226,19 +226,19 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 - `forTenant()` returns clone — immutable original
 
 #### 🟠 H-11: `Database::exists()` and `count()` Accept Raw WHERE Clause
-**File**: [Database.php](file:///c:/laragon/www/ownpay/src/Core/Database.php#L170-L180)
+**File**: [Database.php](src/Core/Database.php#L170-L180)
 **Evidence**: `$sql = "SELECT 1 FROM {$table} WHERE {$where} LIMIT 1"` — `$table` and `$where` are string-interpolated. If caller passes user input, SQL injection possible.
 **Impact**: Depends on callers. Currently all callers use hardcoded strings — LOW risk today, HIGH risk if pattern spreads.
 **Fix**: Add table name validation, or deprecate these methods.
 
 #### 🟠 H-12: Dual PDO Connections
-**File**: [services.php](file:///c:/laragon/www/ownpay/config/services.php#L25-L55)
+**File**: [services.php](config/services.php#L25-L55)
 **Evidence**: Container registers BOTH `PDO::class` (line 25) and `Database::class` (line 42) as separate singletons. `Database::init()` creates its own internal PDO. Two connections to same DB.
 **Impact**: Resource waste, transaction isolation issues — commit on one PDO doesn't affect other.
 **Fix**: Remove raw `PDO::class` binding, or have `Database` use the container's PDO.
 
 #### 🟡 M-08: `BaseRepository::paginate()` WHERE Clause Injection Risk
-**File**: [BaseRepository.php](file:///c:/laragon/www/ownpay/src/Repository/BaseRepository.php#L74-L97)
+**File**: [BaseRepository.php](src/Repository/BaseRepository.php#L74-L97)
 **Evidence**: `$where` parameter interpolated into SQL. Callers must ensure safety. No validation.
 
 #### 🟡 M-09: No Foreign Key on `op_transactions.customer_id`
@@ -258,7 +258,7 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 - HMAC-SHA256 for deterministic lookup hashes
 
 #### 🟠 H-13: APP_KEY = ENCRYPTION_KEY — Same Key For Everything
-**File**: [.env](file:///c:/laragon/www/ownpay/.env#L12-L13)
+**File**: [.env](.env#L12-L13)
 **Evidence**: `APP_KEY` and `ENCRYPTION_KEY` are identical. Used for PII encryption, session, HMAC hashing.
 **Impact**: Single key compromise exposes all encrypted data.
 **PCI-DSS**: Req 3.6 — Separate keys for different purposes.
@@ -281,13 +281,13 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 - Error isolation — plugin crash doesn't kill app
 
 #### 🟠 H-14: `require_once` Without Sandbox Enforcement
-**File**: [PluginLoader.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginLoader.php#L138)
+**File**: [PluginLoader.php](src/Plugin/PluginLoader.php#L138)
 **Evidence**: `require_once $entrypointFile` — file is loaded with full PHP privileges. `PluginSandbox` defines restrictions but nothing enforces them at runtime. Plugin code can call `exec()`, `file_put_contents()`, etc.
 **Impact**: Malicious plugin has full server access.
 **Fix**: Use `PluginSandbox::isDangerousFunction()` in a custom autoloader or token-based scanner before `require_once`.
 
 #### 🟡 M-11: Plugin SQL Validation Easily Bypassed
-**File**: [PluginSandbox.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginSandbox.php#L51-L69)
+**File**: [PluginSandbox.php](src/Plugin/PluginSandbox.php#L51-L69)
 **Evidence**: `validateSql()` uses `str_contains()` on lowercase — easily bypassed with comments (`DR/**/OP`) or encoding.
 
 ---
@@ -297,7 +297,7 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 **Files**: `RedisCache.php`, `FileCache.php`
 
 #### 🟠 H-15: RedisCache `unserialize()` Without Class Restriction
-**File**: [RedisCache.php](file:///c:/laragon/www/ownpay/src/Cache/RedisCache.php#L41)
+**File**: [RedisCache.php](src/Cache/RedisCache.php#L41)
 **Evidence**: `@unserialize($raw)` — no `allowed_classes => false`. If Redis is compromised, attacker can inject PHP objects for deserialization attack.
 **Impact**: Remote Code Execution via gadget chains.
 **Fix**: Use `@unserialize($raw, ['allowed_classes' => false])` (like `FileCache` does).
@@ -309,7 +309,7 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 **Files**: `BackupService.php`, `UpdateService.php`
 
 #### 🟠 H-16: `exec()` Call for `mysqldump`
-**File**: [BackupService.php](file:///c:/laragon/www/ownpay/src/Update/BackupService.php#L106-L118)
+**File**: [BackupService.php](src/Update/BackupService.php#L106-L118)
 **Evidence**: `exec($cmd, $output, $exitCode)` — uses `escapeshellarg()` on all params (good), but `exec()` still carries risk. Password visible in process list.
 **Impact**: DB password exposed in `ps aux` on shared hosting.
 **Fix**: Use `--defaults-extra-file` with temp config file, or PDO-based dump only.
@@ -327,7 +327,7 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 - Deflate compression enabled
 
 #### 🟡 M-12: CSP `style-src 'unsafe-inline'`
-**File**: [SecurityHeadersMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/SecurityHeadersMiddleware.php#L45)
+**File**: [SecurityHeadersMiddleware.php](src/Middleware/SecurityHeadersMiddleware.php#L45)
 **Evidence**: `style-src 'self' 'unsafe-inline'` — allows inline style injection.
 **Fix**: Use nonce-based CSP for styles, remove `'unsafe-inline'`.
 
@@ -342,7 +342,7 @@ OwnPay v0.1.0 shows **strong foundational security** — Argon2id passwords, AES
 ### 13. Miscellaneous Findings
 
 #### 🟡 M-15: `FragmentRenderer` Uses `$_GET` Directly
-**File**: [FragmentRenderer.php](file:///c:/laragon/www/ownpay/src/View/FragmentRenderer.php#L45)
+**File**: [FragmentRenderer.php](src/View/FragmentRenderer.php#L45)
 **Evidence**: `isset($_GET['_fragment'])` — bypasses Request abstraction.
 
 #### 🟡 M-16: `$_SERVER` Direct Access in `FragmentRenderer`

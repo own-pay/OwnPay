@@ -51,11 +51,8 @@ if [ "$TEMPLATE" != "default" ] && [ "$TEMPLATE" != "analytics" ]; then
     TEMPLATE="default"
 fi
 
-# Slug mode triggers when a project name was given OR --plan-dir was passed.
-SLUG_MODE=0
-if [ -n "$PROJECT_NAME" ] || [ "$USE_PLAN_DIR" -eq 1 ]; then
-    SLUG_MODE=1
-fi
+# Force slug mode to always use the .planning directory. Legacy mode is retired to ensure all plans are kept as memory in the .planning/ folder.
+SLUG_MODE=1
 
 slugify() {
     # Lowercase, non-alphanumerics → '-', collapse repeats, trim leading/trailing '-'

@@ -15,8 +15,8 @@ Phase 2 audit reveals multiple critical defects in the payment callback and webh
 ### 1. SSLCommerz Webhook Callback Transaction Resolution Failure
 - **Severity**: Critical (Breaks payment completions)
 - **Files**: 
-  - [`SslCommerzGateway.php`](file:///c:/laragon/www/ownpay/modules/gateways/sslcommerz/SslCommerzGateway.php#L97-L123)
-  - [`GatewayApiService.php`](file:///c:/laragon/www/ownpay/src/Service/Payment/GatewayApiService.php#L122-L138)
+  - [`SslCommerzGateway.php`](modules/gateways/sslcommerz/SslCommerzGateway.php#L97-L123)
+  - [`GatewayApiService.php`](src/Service/Payment/GatewayApiService.php#L122-L138)
 - **Description**:
   In `GatewayApiService::handleCallback()`, the system resolves the transaction by checking:
   ```php
@@ -40,8 +40,8 @@ Phase 2 audit reveals multiple critical defects in the payment callback and webh
 ### 2. Stripe Webhook Verification Payload Structure Incompatibility
 - **Severity**: Critical (Breaks Stripe webhooks)
 - **Files**:
-  - [`StripeGateway.php`](file:///c:/laragon/www/ownpay/modules/gateways/stripe/StripeGateway.php#L95-L119)
-  - [`UnifiedWebhookController.php`](file:///c:/laragon/www/ownpay/src/Controller/Webhook/UnifiedWebhookController.php#L79-L90)
+  - [`StripeGateway.php`](modules/gateways/stripe/StripeGateway.php#L95-L119)
+  - [`UnifiedWebhookController.php`](src/Controller/Webhook/UnifiedWebhookController.php#L79-L90)
 - **Description**:
   `StripeGateway::verify()` expects the callback payload to have a top-level `session_id` parameter:
   ```php
@@ -58,9 +58,9 @@ Phase 2 audit reveals multiple critical defects in the payment callback and webh
 ### 3. Double-Entry Ledger System Database Constraint Crash
 - **Severity**: Critical (Halts checkout completion & throws 500 errors)
 - **Files**:
-  - [`LedgerService.php`](file:///c:/laragon/www/ownpay/src/Service/Payment/LedgerService.php#L29-L70)
-  - [`LedgerRepository.php`](file:///c:/laragon/www/ownpay/src/Repository/LedgerRepository.php#L94-L118)
-  - [`schema.sql`](file:///c:/laragon/www/ownpay/database/schema.sql#L490-L502)
+  - [`LedgerService.php`](src/Service/Payment/LedgerService.php#L29-L70)
+  - [`LedgerRepository.php`](src/Repository/LedgerRepository.php#L94-L118)
+  - [`schema.sql`](database/schema.sql#L490-L502)
 - **Description**:
   `op_ledger_transactions` has a database column constraint: `` `merchant_id` BIGINT UNSIGNED NOT NULL ``.
   `LedgerRepository` uses the `TenantScope` trait. In `createTransaction()`, it extracts the merchant ID from its internal scope:
@@ -78,8 +78,8 @@ Phase 2 audit reveals multiple critical defects in the payment callback and webh
 ### 4. WebhookInboundProcessor Header Case-Sensitivity Mismatch
 - **Severity**: High (Prevents validation of webhooks)
 - **Files**:
-  - [`WebhookInboundProcessor.php`](file:///c:/laragon/www/ownpay/src/Gateway/WebhookInboundProcessor.php#L85-L93)
-  - [`WebhookInboundProcessor.php`](file:///c:/laragon/www/ownpay/src/Gateway/WebhookInboundProcessor.php#L239-L248)
+  - [`WebhookInboundProcessor.php`](src/Gateway/WebhookInboundProcessor.php#L85-L93)
+  - [`WebhookInboundProcessor.php`](src/Gateway/WebhookInboundProcessor.php#L239-L248)
 - **Description**:
   `WebhookInboundProcessor::extractHeaders()` normalizes headers from `$_SERVER` by converting underscore to dash:
   ```php
@@ -98,7 +98,7 @@ Phase 2 audit reveals multiple critical defects in the payment callback and webh
 ### 5. UnifiedWebhookController Request rawBody Null Type Error
 - **Severity**: High (Potential PHP crash)
 - **Files**:
-  - [`UnifiedWebhookController.php`](file:///c:/laragon/www/ownpay/src/Controller/Webhook/UnifiedWebhookController.php#L132-L141)
+  - [`UnifiedWebhookController.php`](src/Controller/Webhook/UnifiedWebhookController.php#L132-L141)
 - **Description**:
   In `resolveMerchantFromPayload()`, the controller retrieves the request body:
   ```php
@@ -115,7 +115,7 @@ Phase 2 audit reveals multiple critical defects in the payment callback and webh
 ### 6. Double API Latency Call during bKash Gateway Initiations
 - **Severity**: Medium (Latency/Performance bottleneck)
 - **Files**:
-  - [`BkashApiGateway.php`](file:///c:/laragon/www/ownpay/modules/gateways/bkash-api/BkashApiGateway.php#L58-L96)
+  - [`BkashApiGateway.php`](modules/gateways/bkash-api/BkashApiGateway.php#L58-L96)
 - **Description**:
   Every time a bKash checkout is initiated or verified, the gateway makes an HTTP request to `/tokenized/checkout/token/grant` to fetch a new token, followed by the actual transaction request. The bKash token is not cached or persisted.
 - **Impact**: Doubles payment latency for the user (adding ~1-2 seconds per step).
@@ -125,8 +125,8 @@ Phase 2 audit reveals multiple critical defects in the payment callback and webh
 ### 7. Hardcoded Base Currency and Silent Exchange Rate Fallback
 - **Severity**: Medium (Accounting discrepancies)
 - **Files**:
-  - [`CurrencyService.php`](file:///c:/laragon/www/ownpay/src/Service/Payment/CurrencyService.php#L15)
-  - [`CurrencyService.php`](file:///c:/laragon/www/ownpay/src/Service/Payment/CurrencyService.php#L100-L124)
+  - [`CurrencyService.php`](src/Service/Payment/CurrencyService.php#L15)
+  - [`CurrencyService.php`](src/Service/Payment/CurrencyService.php#L100-L124)
 - **Description**:
   1. The base currency is hardcoded: `private string $baseCurrency = 'USD';`, making it impossible to configure an alternative base currency (such as BDT) through the system settings.
   2. If a conversion rate is missing in `op_exchange_rates`, the service defaults the rate to `1.00000000` silently, rather than throwing a validation exception or warning.

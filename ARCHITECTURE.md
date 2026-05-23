@@ -6,7 +6,7 @@ This document provides a comprehensive technical overview of the **OwnPay** arch
 
 ## 1. System Vision & Business Model
 
-OwnPay is a self-hosted, enterprise-grade **single-owner, multi-brand (store)** payment orchestrator. It is explicitly **not a multi-tenant SaaS platform**. For historical context on the migration from a multi-tenant SaaS model and the details of the single-owner multi-brand layout, see [Business Model Document](file:///c:/laragon/www/ownpay/docs/v2/model/business_model.md).
+OwnPay is a self-hosted, enterprise-grade **single-owner, multi-brand (store)** payment orchestrator. It is explicitly **not a multi-tenant SaaS platform**. For historical context on the migration from a multi-tenant SaaS model and the details of the single-owner multi-brand layout, see [Business Model Document](docs/v2/model/business_model.md).
 
 ```mermaid
 graph TD
@@ -86,7 +86,7 @@ To maintain bulletproof financial audit readiness, OwnPay utilizes a double-entr
   * **Liability / Equity / Revenue**: Credits increase (+), Debits decrease (-).
 
 ### 4.3. Universal Plugin System & Sandbox Security
-Plugins (Gateways, Addons, and Themes) reside in `modules/` and dynamically register callbacks via the `EventManager` hook loop. For detailed guides on building plugins, see [Plugin Developer Guide](file:///c:/laragon/www/ownpay/docs/v2/plugins/developer-guide.md) and [Hooks Reference](file:///c:/laragon/www/ownpay/docs/v2/plugins/hooks-reference.md).
+Plugins (Gateways, Addons, and Themes) reside in `modules/` and dynamically register callbacks via the `EventManager` hook loop. For detailed guides on building plugins, see [Plugin Developer Guide](docs/v2/plugins/developer-guide.md) and [Hooks Reference](docs/v2/plugins/hooks-reference.md).
 
 ```
 Plugin Discovery ──> Manifest Check ──> Static Code Audit ──> Sandbox Execution
@@ -98,7 +98,7 @@ Plugin Discovery ──> Manifest Check ──> Static Code Audit ──> Sandbo
 
 ### 4.4. White-Label Custom Domain Pipeline
 
-OwnPay is a sovereign white-labeled fintech engine. The end-customer must **never** see the master domain. For full architectural specifications and detailed request flows, refer to the [White-Label Custom Domain Pipeline Document](file:///c:/laragon/www/ownpay/docs/v2/model/white-label-domain-pipeline.md).
+OwnPay is a sovereign white-labeled fintech engine. The end-customer must **never** see the master domain. For full architectural specifications and detailed request flows, refer to the [White-Label Custom Domain Pipeline Document](docs/v2/model/white-label-domain-pipeline.md).
 
 ```
 Request → DomainMiddleware → Resolve HTTP_HOST against op_domains → Inject merchant_id
@@ -240,8 +240,8 @@ The Settlement payout system has been completely decommissioned and its associat
 ## 8. API Specifications
 
 OwnPay exposes three main API layers (Merchant, Mobile, and Admin). API schema definitions and integration guides are located in the following documentation files:
-* [API Integration Guide](file:///c:/laragon/www/ownpay/docs/v2/api/README.md) — Authentication patterns, cURL/PHP examples, and webhook verification code.
-* [OpenAPI v3 Specification](file:///c:/laragon/www/ownpay/docs/v2/api/openapi.yaml) — Formal REST schema definition file (can be imported into readme.io, Swagger, or Postman).
-* [Mobile Companion Architecture](file:///c:/laragon/www/ownpay/docs/v2/mobile_app/plan.md) — Technical overview of the companion app and pairing security.
-* [Flutter App Implementation Plan](file:///c:/laragon/www/ownpay/docs/v2/mobile_app/flutter_plan.md) — Frontend architecture, local Hive schema, and offline sync state machine.
-* [Mobile Execution Checklist](file:///c:/laragon/www/ownpay/docs/v2/mobile_app/todo.md) — Full feature checklist and current backend completion status.
+* [API Integration Guide](docs/v2/api/README.md) — Authentication patterns, cURL/PHP examples, and webhook verification code.
+* [OpenAPI v3 Specification](docs/v2/api/openapi.yaml) — Formal REST schema definition file (can be imported into readme.io, Swagger, or Postman).
+* [Mobile Companion Architecture](docs/v2/mobile_app/plan.md) — Technical overview of the companion app and pairing security.
+* [Flutter App Implementation Plan](docs/v2/mobile_app/flutter_plan.md) — Frontend architecture, local Hive schema, and offline sync state machine.
+* [Mobile Execution Checklist](docs/v2/mobile_app/todo.md) — Full feature checklist and current backend completion status.

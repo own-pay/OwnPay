@@ -8,8 +8,8 @@ This document details the critical findings, vulnerabilities, and structural fla
 - **Severity**: Critical
 - **Component**: `src/Repository/MerchantUserRepository.php` & `src/Controller/Admin/TwoFactorSetupController.php`
 - **Location**:
-  - [MerchantUserRepository.php:L212-L230](file:///c:/laragon/www/ownpay/src/Repository/MerchantUserRepository.php#L212-L230)
-  - [TwoFactorSetupController.php:L50](file:///c:/laragon/www/ownpay/src/Controller/Admin/TwoFactorSetupController.php#L50)
+  - [MerchantUserRepository.php:L212-L230](src/Repository/MerchantUserRepository.php#L212-L230)
+  - [TwoFactorSetupController.php:L50](src/Controller/Admin/TwoFactorSetupController.php#L50)
 - **Vulnerability**:
   The database column is named `totp_secret_enc`, suggesting encrypted storage. However, the repository methods `getTotpSecret()` and `setTotpSecret()` save and retrieve the raw base32 secret in plaintext. No encryption wrapper (e.g., using `FieldEncryptor`) is ever applied to the secret before write or after read.
 - **Impact**:
@@ -21,7 +21,7 @@ This document details the critical findings, vulnerabilities, and structural fla
 - **Severity**: High
 - **Component**: `src/Middleware/JwtAuthMiddleware.php`
 - **Location**:
-  - [JwtAuthMiddleware.php:L48-L81](file:///c:/laragon/www/ownpay/src/Middleware/JwtAuthMiddleware.php#L48-L81)
+  - [JwtAuthMiddleware.php:L48-L81](src/Middleware/JwtAuthMiddleware.php#L48-L81)
 - **Vulnerability**:
   `JwtAuthMiddleware` validates companion mobile app requests using stateless JWT signatures. Although the system supports revoking paired devices (setting `status = 'revoked'` in `op_paired_devices`), the middleware never checks the database to verify if the decoded device ID (`did` claim) has been suspended or revoked.
 - **Impact**:
@@ -33,8 +33,8 @@ This document details the critical findings, vulnerabilities, and structural fla
 - **Severity**: High
 - **Component**: `src/Http/Request.php`
 - **Location**:
-  - [Request.php:L221-L224](file:///c:/laragon/www/ownpay/src/Http/Request.php#L221-L224) (for `ip()`)
-  - [Request.php:L242-L245](file:///c:/laragon/www/ownpay/src/Http/Request.php#L242-L245) (for `isSecure()`)
+  - [Request.php:L221-L224](src/Http/Request.php#L221-L224) (for `ip()`)
+  - [Request.php:L242-L245](src/Http/Request.php#L242-L245) (for `isSecure()`)
 - **Vulnerability**:
   The request wrapper relies exclusively on `REMOTE_ADDR` for identifying client IPs and `HTTPS` server variable for detecting SSL. It does not parse or trust HTTP headers commonly set by upstream reverse proxies, load balancers, or Cloudflare (e.g., `X-Forwarded-For`, `X-Forwarded-Proto`, or `X-Real-IP`).
 - **Impact**:
@@ -48,8 +48,8 @@ This document details the critical findings, vulnerabilities, and structural fla
 - **Severity**: Medium
 - **Component**: `src/Middleware/RequestSignatureMiddleware.php` & `src/Service/Payment/IdempotencyBridge.php`
 - **Location**:
-  - [RequestSignatureMiddleware.php:L28](file:///c:/laragon/www/ownpay/src/Middleware/RequestSignatureMiddleware.php#L28)
-  - [IdempotencyBridge.php:L26-L27](file:///c:/laragon/www/ownpay/src/Service/Payment/IdempotencyBridge.php#L26-L27)
+  - [RequestSignatureMiddleware.php:L28](src/Middleware/RequestSignatureMiddleware.php#L28)
+  - [IdempotencyBridge.php:L26-L27](src/Service/Payment/IdempotencyBridge.php#L26-L27)
 - **Vulnerability**:
   `Request::header()` has a return type hint of `string` and defaults to `''`. When the code attempts to resolve fallback headers using the null coalescing operator `??` (e.g. `$request->header('X-Signature') ?? $request->header('X-Hub-Signature-256')`), the left expression evaluates to `''` instead of `null` if the header is absent.
 - **Impact**:
@@ -62,7 +62,7 @@ This document details the critical findings, vulnerabilities, and structural fla
 - **Severity**: High
 - **Component**: `src/Controller/Admin/RolesController.php`
 - **Location**:
-  - [RolesController.php:L127-L129](file:///c:/laragon/www/ownpay/src/Controller/Admin/RolesController.php#L127-L129)
+  - [RolesController.php:L127-L129](src/Controller/Admin/RolesController.php#L127-L129)
 - **Vulnerability**:
   The `store` and `update` endpoints for managing roles do not validate if the logged-in user possesses the permissions they are granting.
 - **Impact**:
@@ -74,8 +74,8 @@ This document details the critical findings, vulnerabilities, and structural fla
 - **Severity**: Low
 - **Component**: `src/Middleware/TwoFactorMiddleware.php` & `src/Middleware/PermissionMiddleware.php`
 - **Location**:
-  - [TwoFactorMiddleware.php:L38-L41](file:///c:/laragon/www/ownpay/src/Middleware/TwoFactorMiddleware.php#L38-L41)
-  - [PermissionMiddleware.php:L42-L44](file:///c:/laragon/www/ownpay/src/Middleware/PermissionMiddleware.php#L42-L44)
+  - [TwoFactorMiddleware.php:L38-L41](src/Middleware/TwoFactorMiddleware.php#L38-L41)
+  - [PermissionMiddleware.php:L42-L44](src/Middleware/PermissionMiddleware.php#L42-L44)
 - **Vulnerability**:
   Upon discovering that an authenticated user has been deleted or deactivated in the DB, the middlewares only unset `auth_user_id` or a partial set of session variables instead of calling `session_destroy()` or clearing the entire `$_SESSION` array.
 - **Impact**:
@@ -87,7 +87,7 @@ This document details the critical findings, vulnerabilities, and structural fla
 - **Severity**: Low
 - **Component**: `src/Middleware/CorsMiddleware.php`
 - **Location**:
-  - [CorsMiddleware.php:L65-L68](file:///c:/laragon/www/ownpay/src/Middleware/CorsMiddleware.php#L65-L68)
+  - [CorsMiddleware.php:L65-L68](src/Middleware/CorsMiddleware.php#L65-L68)
 - **Vulnerability**:
   If the administrator configures `CORS_ALLOWED_ORIGINS=*` in the environment, the parser returns `[]` (empty list), completely blocking cross-origin requests rather than supporting wildcard operations.
 - **Impact**:

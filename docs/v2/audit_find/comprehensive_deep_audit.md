@@ -28,9 +28,9 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 #### BUG 01: Duplicate Ledger Account Creation & Fatal Database Crash
 * **Component**: Double-Entry Ledger Bookkeeping Engine
 * **File & Lines**:
-  * [LedgerService.php](file:///c:/laragon/www/ownpay/src/Service/Payment/LedgerService.php#L41-L42)
-  * [LedgerRepository.php](file:///c:/laragon/www/ownpay/src/Repository/LedgerRepository.php#L36-L37)
-  * [schema.sql](file:///c:/laragon/www/ownpay/database/schema.sql#L492)
+  * [LedgerService.php](src/Service/Payment/LedgerService.php#L41-L42)
+  * [LedgerRepository.php](src/Repository/LedgerRepository.php#L36-L37)
+  * [schema.sql](database/schema.sql#L492)
 * **Code Evidence**:
   * *`LedgerService.php` L41-42*:
     ```php
@@ -63,8 +63,8 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 #### BUG 02: Ledger Balance Accumulation Failure & Ledger Corruption
 * **Component**: Double-Entry Ledger Bookkeeping Engine
 * **File & Lines**:
-  * [LedgerRepository.php](file:///c:/laragon/www/ownpay/src/Repository/LedgerRepository.php#L75-L87)
-  * [LedgerService.php](file:///c:/laragon/www/ownpay/src/Service/Payment/LedgerService.php#L60-L61)
+  * [LedgerRepository.php](src/Repository/LedgerRepository.php#L75-L87)
+  * [LedgerService.php](src/Service/Payment/LedgerService.php#L60-L61)
 * **Code Evidence**:
   * *`LedgerRepository.php` L84*:
     ```php
@@ -87,9 +87,9 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 #### BUG 03: Transaction Metadata Overwrite & Invoice 'Paid' Loss
 * **Component**: Checkout Flow & Invoice Status State Machine
 * **File & Lines**:
-  * [CheckoutController.php](file:///c:/laragon/www/ownpay/src/Controller/Checkout/CheckoutController.php#L320-L323)
-  * [TransactionRepository.php](file:///c:/laragon/www/ownpay/src/Repository/TransactionRepository.php#L251-L264)
-  * [PaymentCompletionListener.php](file:///c:/laragon/www/ownpay/src/Service/Payment/PaymentCompletionListener.php#L39-L45)
+  * [CheckoutController.php](src/Controller/Checkout/CheckoutController.php#L320-L323)
+  * [TransactionRepository.php](src/Repository/TransactionRepository.php#L251-L264)
+  * [PaymentCompletionListener.php](src/Service/Payment/PaymentCompletionListener.php#L39-L45)
 * **Code Evidence**:
   * *`CheckoutController.php` L320-323*:
     ```php
@@ -113,8 +113,8 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 #### BUG 04: Multi-Refund / Over-Refund Financial Leakage
 * **Component**: Refund Services & Financial Integrity
 * **File & Lines**:
-  * [RefundService.php](file:///c:/laragon/www/ownpay/src/Service/Payment/RefundService.php#L43-L49)
-  * [RefundRepository.php](file:///c:/laragon/www/ownpay/src/Repository/RefundRepository.php#L1-L24)
+  * [RefundService.php](src/Service/Payment/RefundService.php#L43-L49)
+  * [RefundRepository.php](src/Repository/RefundRepository.php#L1-L24)
 * **Code Evidence**:
   * *`RefundService.php` L47-49*:
     ```php
@@ -132,9 +132,9 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 #### BUG 05: Inactive Plugin Sandbox Security Bypass
 * **Component**: Core Plugin System Architecture
 * **File & Lines**:
-  * [PluginLoader.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginLoader.php#L200-L209)
-  * [PluginRegistry.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginRegistry.php#L80-L83)
-  * [PluginSandbox.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginSandbox.php#L1-L107)
+  * [PluginLoader.php](src/Plugin/PluginLoader.php#L200-L209)
+  * [PluginRegistry.php](src/Plugin/PluginRegistry.php#L80-L83)
+  * [PluginSandbox.php](src/Plugin/PluginSandbox.php#L1-L107)
 * **Code Evidence**:
   * *`PluginRegistry.php` L80-83*:
     ```php
@@ -151,9 +151,9 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 #### BUG 06: DI Container JWT Issuer Mismatch & Broken Companion App Authentication
 * **Component**: API Companion App Security Middleware / DI container
 * **File & Lines**:
-  * [JwtService.php](file:///c:/laragon/www/ownpay/src/Service/Auth/JwtService.php#L20)
-  * [JwtAuthMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/JwtAuthMiddleware.php#L60)
-  * [services.php](file:///c:/laragon/www/ownpay/config/services.php#L262-L264)
+  * [JwtService.php](src/Service/Auth/JwtService.php#L20)
+  * [JwtAuthMiddleware.php](src/Middleware/JwtAuthMiddleware.php#L60)
+  * [services.php](config/services.php#L262-L264)
 * **Code Evidence**:
   * *`services.php` L262-264*:
     ```php
@@ -182,7 +182,7 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 #### BUG 07: Privilege Escalation via Unmapped Admin Routes
 * **Component**: Role-Based Access Control (RBAC) Security Middleware
 * **File & Lines**:
-  * [PermissionMiddleware.php](file:///c:/laragon/www/ownpay/src/Middleware/PermissionMiddleware.php#L172-L175)
+  * [PermissionMiddleware.php](src/Middleware/PermissionMiddleware.php#L172-L175)
 * **Code Evidence**:
   * *`PermissionMiddleware.php` L172-175*:
     ```php
@@ -201,7 +201,7 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 #### BUG 08: AST-Token Scanner False Positives Block OOP Plugins
 * **Component**: Core Plugin Loading Engine
 * **File & Lines**:
-  * [PluginLoader.php](file:///c:/laragon/www/ownpay/src/Plugin/PluginLoader.php#L168-L186)
+  * [PluginLoader.php](src/Plugin/PluginLoader.php#L168-L186)
 * **Code Evidence**:
   * *`PluginLoader.php` L169-171*:
     ```php
@@ -222,7 +222,7 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 #### BUG 09: Executable PHP templates misnamed as ".twig"
 * **Component**: Installer Framework
 * **File & Lines**:
-  * [InstallerController.php](file:///c:/laragon/www/ownpay/src/Controller/Install/InstallerController.php#L307-L315)
+  * [InstallerController.php](src/Controller/Install/InstallerController.php#L307-L315)
 * **Code Evidence**:
   * *`InstallerController.php` L307-315*:
     ```php
@@ -247,7 +247,7 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 
 ### I. Severe Performance & Lock Risks on JSON Extract Queries
 * **Component**: Database Query Performance
-* **File & Lines**: [InvoiceRepository.php](file:///c:/laragon/www/ownpay/src/Repository/InvoiceRepository.php#L60-L61)
+* **File & Lines**: [InvoiceRepository.php](src/Repository/InvoiceRepository.php#L60-L61)
 * **Code Snippet**:
   ```sql
   SELECT trx_id FROM op_transactions WHERE JSON_EXTRACT(metadata, '$.invoice_id') = :iid AND status = 'pending' LIMIT 1
@@ -270,7 +270,7 @@ This forensic re-audit was initiated to verify post-patch integrity, detect side
 
 ### III. Dynamic Invoices Trapped in Overdue State
 * **Component**: Invoice Checkout Status Pipeline
-* **File & Lines**: [InvoiceCheckoutController.php](file:///c:/laragon/www/ownpay/src/Controller/Checkout/InvoiceCheckoutController.php#L36-L53)
+* **File & Lines**: [InvoiceCheckoutController.php](src/Controller/Checkout/InvoiceCheckoutController.php#L36-L53)
 * **Fintech Gap**:
   * In the invoice status check, if the system detects an invoice is past its due date, it updates its status to `'overdue'` and sets `$invoice = null` to block checkout.
   * However, `'overdue'` is explicitly listed in the whitelisted allowed payable statuses (`$allowedStatuses = ['sent', 'overdue']`).

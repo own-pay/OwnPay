@@ -233,6 +233,156 @@ SECRET_PATTERNS = [
         recommendation="Use environment variables for database credentials"
     ),
 
+    # OwnPay Platform — Application-Specific Keys
+    SecretPattern(
+        pattern_id="OP001",
+        name="OwnPay APP_KEY",
+        description="OwnPay application encryption key (base64-encoded 32 bytes)",
+        regex=r'APP_KEY\s*=\s*[A-Za-z0-9+/]{43}=',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php", ".env", ".env.example", ".env.local", ".txt", ".conf", ".yml", ".yaml"],
+        recommendation="Store APP_KEY exclusively in .env — never in source code or version control"
+    ),
+    SecretPattern(
+        pattern_id="OP002",
+        name="OwnPay HMAC_KEY",
+        description="OwnPay HMAC signing key (hex-encoded 32 bytes = 64 hex chars)",
+        regex=r'HMAC_KEY\s*=\s*[a-fA-F0-9]{64}',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php", ".env", ".env.example", ".env.local", ".txt", ".conf", ".yml", ".yaml"],
+        recommendation="Store HMAC_KEY exclusively in .env; used for webhook signature verification"
+    ),
+    SecretPattern(
+        pattern_id="OP003",
+        name="OwnPay JWT_SECRET",
+        description="OwnPay JWT signing secret for mobile API (hex-encoded 32+ bytes)",
+        regex=r'JWT_SECRET\s*=\s*[a-fA-F0-9]{64,}',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php", ".env", ".env.example", ".env.local", ".txt", ".conf", ".yml", ".yaml"],
+        recommendation="Store JWT_SECRET exclusively in .env; rotate immediately if exposed"
+    ),
+    SecretPattern(
+        pattern_id="OP004",
+        name="OwnPay ENCRYPTION_KEY",
+        description="OwnPay AES-256-GCM encryption key (base64-encoded 32 bytes)",
+        regex=r'ENCRYPTION_KEY\s*=\s*[A-Za-z0-9+/]{43}=',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php", ".env", ".env.example", ".env.local", ".txt", ".conf"],
+        recommendation="Store ENCRYPTION_KEY in .env only; used to encrypt TOTP secrets and gateway credentials"
+    ),
+    SecretPattern(
+        pattern_id="OP005",
+        name="OwnPay Hardcoded Key in PHP",
+        description="Hardcoded HMAC_KEY/APP_KEY string in PHP source — forbidden per OwnPay security rules",
+        regex=r'(?i)(?:hmac_key|app_key|jwt_secret|encryption_key)\s*[=:>]+\s*["\'][A-Za-z0-9+/=_\-]{16,}["\']',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php"],
+        recommendation="Remove hardcoded key. Use EnvironmentService::get() or $_ENV. PaymentIntentCheckoutController must throw RuntimeException if HMAC_KEY is missing"
+    ),
+    SecretPattern(
+        pattern_id="OP006",
+        name="TOTP Secret in PHP Source",
+        description="Raw TOTP secret (Base32) hardcoded in PHP — must be stored encrypted as totp_secret_enc",
+        regex=r'(?:totp_secret|otp_secret|2fa_secret)\s*[=:>]+\s*["\'][A-Z2-7]{16,}["\']',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php"],
+        recommendation="TOTP secrets must be AES-256-GCM encrypted and stored only in the totp_secret_enc column"
+    ),
+
+    # Payment Gateway API Keys
+    SecretPattern(
+        pattern_id="PAY001",
+        name="bKash API Credentials",
+        description="bKash payment gateway credentials hardcoded in source",
+        regex=r'(?i)(?:bkash|b_kash).*(?:username|password|app_key|app_secret)\s*[=:>]+\s*["\'][^\s"\']{8,}["\']',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php", ".env", ".json", ".yml", ".yaml"],
+        recommendation="Store bKash credentials in op_gateway_configs (AES-256-GCM encrypted), never in source"
+    ),
+    SecretPattern(
+        pattern_id="PAY002",
+        name="Nagad API Credentials",
+        description="Nagad payment gateway merchant ID or private key hardcoded in source",
+        regex=r'(?i)(?:nagad).*(?:merchant_id|private_key|public_key)\s*[=:>]+\s*["\'][^\s"\']{8,}["\']',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php", ".env", ".json", ".yml", ".yaml"],
+        recommendation="Store Nagad credentials in op_gateway_configs (AES-256-GCM encrypted)"
+    ),
+    SecretPattern(
+        pattern_id="PAY003",
+        name="SSLCommerz Store Credentials",
+        description="SSLCommerz store ID or password hardcoded in source",
+        regex=r'(?i)(?:ssl_?store_id|ssl_?store_password|sslcz_?\w+)\s*[=:>]+\s*["\'][^\s"\']{8,}["\']',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php", ".env", ".json"],
+        recommendation="Store SSLCommerz credentials in op_gateway_configs (AES-256-GCM encrypted)"
+    ),
+    SecretPattern(
+        pattern_id="PAY004",
+        name="PayPal Client Secret",
+        description="PayPal client secret or webhook ID hardcoded in source",
+        regex=r'(?:PAYPAL_CLIENT_SECRET|paypal.*secret)\s*[=:>]+\s*["\'][A-Za-z0-9_\-]{20,}["\']',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php", ".env", ".json", ".yml"],
+        recommendation="Store PayPal credentials in op_gateway_configs (AES-256-GCM encrypted)"
+    ),
+
+    # PHP-Specific Dangerous Patterns
+    SecretPattern(
+        pattern_id="PHP001",
+        name="PHP eval() Usage",
+        description="PHP eval() — code execution sink, forbidden in all OwnPay source and plugin files",
+        regex=r'\beval\s*\(',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php"],
+        recommendation="Remove eval(). Forbidden by PluginSandbox blocklist. No exceptions."
+    ),
+    SecretPattern(
+        pattern_id="PHP002",
+        name="PHP unserialize() on External Data",
+        description="PHP unserialize() on user-controlled input — PHP object injection / RCE risk",
+        regex=r'\bunserialize\s*\(\s*(?:\$_(?:POST|GET|REQUEST|COOKIE|SERVER)|base64_decode)',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php"],
+        recommendation="Never pass user-controlled data to unserialize(). Use json_decode() instead"
+    ),
+    SecretPattern(
+        pattern_id="PHP003",
+        name="PHP Variable Function (Sandbox Bypass)",
+        description="Dynamic variable function call to bypass PluginSandbox blocklist",
+        regex=r'\$\w+\s*=\s*["\'](?:exec|shell_exec|passthru|system|popen|proc_open|eval)["\']',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php"],
+        recommendation="Forbidden pattern in OwnPay plugins. PluginSandbox must detect and block at scan time"
+    ),
+    SecretPattern(
+        pattern_id="PHP004",
+        name="PHP call_user_func Sandbox Bypass",
+        description="call_user_func() / call_user_func_array() used to invoke blocked system functions",
+        regex=r'call_user_func(?:_array)?\s*\(\s*["\'](?:exec|shell_exec|passthru|system|popen|proc_open)',
+        severity=Severity.CRITICAL,
+        file_extensions=[".php"],
+        recommendation="Forbidden pattern. PluginSandbox blocklist must cover call_user_func with dangerous callbacks"
+    ),
+    SecretPattern(
+        pattern_id="PHP005",
+        name="PHP Loose Comparison on Tokens (Type Juggling)",
+        description="Loose == comparison on security tokens — vulnerable to PHP type juggling bypass",
+        regex=r'(?:token|hash|secret|key|code|sig|hmac)\b[^=!<>]*==(?!=)',
+        severity=Severity.HIGH,
+        file_extensions=[".php"],
+        recommendation="Use hash_equals() for all security token comparisons. Never use == or ==="
+    ),
+    SecretPattern(
+        pattern_id="PHP006",
+        name="PHP Hardcoded Argon2id/bcrypt Hash",
+        description="Argon2id or bcrypt password hash hardcoded in PHP source",
+        regex=r'(?:\$argon2id\$[^\s"\']{20,}|\$2[aby]\$\d+\$[A-Za-z0-9./]{53})',
+        severity=Severity.HIGH,
+        file_extensions=[".php"],
+        recommendation="Never hardcode password hashes in source code; use secure credential management"
+    ),
+
     # Low Severity Patterns
     SecretPattern(
         pattern_id="LOW001",
@@ -242,6 +392,15 @@ SECRET_PATTERNS = [
         severity=Severity.LOW,
         file_extensions=[".py", ".js", ".ts", ".java", ".go", ".rb", ".php"],
         recommendation="Address security TODOs before deployment"
+    ),
+    SecretPattern(
+        pattern_id="LOW002",
+        name="Debug/Test Credential Comment",
+        description="Comment referencing test credentials left in production code",
+        regex=r'(?:#|//|/\*)\s*(?:test|dev|debug|temp|temporary).*(?:pass|password|secret|key|token)',
+        severity=Severity.LOW,
+        file_extensions=[".php", ".py", ".js", ".ts"],
+        recommendation="Remove debug credential comments before committing to version control"
     ),
 ]
 

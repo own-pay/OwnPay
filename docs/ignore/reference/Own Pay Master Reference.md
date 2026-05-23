@@ -39,7 +39,7 @@
 
 ## 2. Licensing & Attribution
 
-- **License file:** [LICENSE](file:///c:/laragon/www/ownpay/LICENSE) — GNU AGPL v3.0
+- **License file:** [LICENSE](LICENSE) — GNU AGPL v3.0
 - **Upstream acknowledgment:** All original code by QubePlug/OwnPay contributors
 - **Fork obligation:** Source code must be made available for any network-accessible deployment (AGPL §13)
 - **Trademark note:** "OwnPay" trademarks belong to QubePlug — this fork operates under "Own Pay"
@@ -99,7 +99,7 @@ ownpay/
 
 ## 4. Current Database Schema
 
-The installer [db.sql](file:///c:/laragon/www/ownpay/pp-content/pp-install/db.sql) defines **17 legacy tables**:
+The installer [db.sql](pp-content/pp-install/db.sql) defines **17 legacy tables**:
 
 | # | Table | Purpose | Key Issues |
 |---|---|---|---|
@@ -133,7 +133,7 @@ The installer [db.sql](file:///c:/laragon/www/ownpay/pp-content/pp-install/db.sq
 
 ## 5. Security Audit Summary
 
-Source: [OwnPay_Audit_Report.md](file:///c:/laragon/www/ownpay/docs/OwnPay_Audit_Report.md)
+Source: [OwnPay_Audit_Report.md](docs/OwnPay_Audit_Report.md)
 
 ### Risk Distribution
 
@@ -175,7 +175,7 @@ SEC-09 (companion token), SEC-10 (weak RNG), SEC-11 (upload MIME bypass), SEC-12
 
 ## 6. Business Logic Gap Analysis
 
-Source: [Payment_Flow_Fix_Report_BN.md](file:///c:/laragon/www/ownpay/docs/Payment_Flow_Fix_Report_BN.md)
+Source: [Payment_Flow_Fix_Report_BN.md](docs/Payment_Flow_Fix_Report_BN.md)
 
 ### Fixes Already Applied (per docs)
 
@@ -228,7 +228,7 @@ Form submit → backend init call → pp_transaction INSERT (sender_type missing
 
 ## 8. Fintech Target Architecture
 
-Sources: [Fintech_Target_Schema_v1](file:///c:/laragon/www/ownpay/docs/Fintech_Target_Schema_v1_and_SQL_1101_Fix_BN.md) · [Schema_Changes_Code_Impact](file:///c:/laragon/www/ownpay/docs/Fintech_Schema_Changes_Code_Impact_Guide_BN.md)
+Sources: [Fintech_Target_Schema_v1](docs/Fintech_Target_Schema_v1_and_SQL_1101_Fix_BN.md) · [Schema_Changes_Code_Impact](docs/Fintech_Schema_Changes_Code_Impact_Guide_BN.md)
 
 ### 8.1 Target Tables (10 new)
 
@@ -314,7 +314,7 @@ initiated → pending → completed → refunded
 
 ## 9. Implementation Roadmap
 
-Source: [Cutover_Migration_Task_List](file:///c:/laragon/www/ownpay/docs/Fintech_Cutover_Migration_Task_List_and_Patch_Plan_BN.md)
+Source: [Cutover_Migration_Task_List](docs/Fintech_Cutover_Migration_Task_List_and_Patch_Plan_BN.md)
 
 ### Phase 1: Foundation & Security Hardening (P0)
 
@@ -411,7 +411,7 @@ Source: [Cutover_Migration_Task_List](file:///c:/laragon/www/ownpay/docs/Fintech
 
 ## 10. Gateway Inventory
 
-**46 payment gateway plugins** in [pp-gateways/](file:///c:/laragon/www/ownpay/pp-content/pp-modules/pp-gateways):
+**46 payment gateway plugins** in [pp-gateways/](pp-content/pp-modules/pp-gateways):
 
 | Category | Gateways |
 |---|---|
@@ -465,7 +465,7 @@ Source: [Cutover_Migration_Task_List](file:///c:/laragon/www/ownpay/docs/Fintech
 
 ## 12. Verification & Release Governance
 
-Source: [Release_Checklist_and_Rollback_SOP](file:///c:/laragon/www/ownpay/docs/Fintech_Release_Checklist_and_Rollback_SOP_BN.md)
+Source: [Release_Checklist_and_Rollback_SOP](docs/Fintech_Release_Checklist_and_Rollback_SOP_BN.md)
 
 ### Go/No-Go Checklist
 
@@ -499,13 +499,13 @@ Source: [Release_Checklist_and_Rollback_SOP](file:///c:/laragon/www/ownpay/docs/
 
 | Document | Purpose |
 |---|---|
-| [OwnPay_Audit_Report.md](file:///c:/laragon/www/ownpay/docs/OwnPay_Audit_Report.md) | Full security + architecture audit (28 findings) |
-| [Payment_Flow_Fix_Report_BN.md](file:///c:/laragon/www/ownpay/docs/Payment_Flow_Fix_Report_BN.md) | Payment bug RCA + fix + remaining open issues |
-| [Fintech_Target_Schema_v1_and_SQL_1101_Fix_BN.md](file:///c:/laragon/www/ownpay/docs/Fintech_Target_Schema_v1_and_SQL_1101_Fix_BN.md) | Target DB blueprint + SQL 1101 error fix |
-| [Fintech_Schema_Changes_Code_Impact_Guide_BN.md](file:///c:/laragon/www/ownpay/docs/Fintech_Schema_Changes_Code_Impact_Guide_BN.md) | Where/why/what/how code must change for schema migration |
-| [Fintech_Cutover_Migration_Task_List_and_Patch_Plan_BN.md](file:///c:/laragon/www/ownpay/docs/Fintech_Cutover_Migration_Task_List_and_Patch_Plan_BN.md) | Workstream breakdown + patch execution order |
-| [Fintech_Release_Checklist_and_Rollback_SOP_BN.md](file:///c:/laragon/www/ownpay/docs/Fintech_Release_Checklist_and_Rollback_SOP_BN.md) | Production release gate + rollback procedures |
-| [PR_Branch_Wise_Title_Description_BN.md](file:///c:/laragon/www/ownpay/docs/PR_Branch_Wise_Title_Description_BN.md) | Git branch PR title/description templates |
+| [OwnPay_Audit_Report.md](docs/OwnPay_Audit_Report.md) | Full security + architecture audit (28 findings) |
+| [Payment_Flow_Fix_Report_BN.md](docs/Payment_Flow_Fix_Report_BN.md) | Payment bug RCA + fix + remaining open issues |
+| [Fintech_Target_Schema_v1_and_SQL_1101_Fix_BN.md](docs/Fintech_Target_Schema_v1_and_SQL_1101_Fix_BN.md) | Target DB blueprint + SQL 1101 error fix |
+| [Fintech_Schema_Changes_Code_Impact_Guide_BN.md](docs/Fintech_Schema_Changes_Code_Impact_Guide_BN.md) | Where/why/what/how code must change for schema migration |
+| [Fintech_Cutover_Migration_Task_List_and_Patch_Plan_BN.md](docs/Fintech_Cutover_Migration_Task_List_and_Patch_Plan_BN.md) | Workstream breakdown + patch execution order |
+| [Fintech_Release_Checklist_and_Rollback_SOP_BN.md](docs/Fintech_Release_Checklist_and_Rollback_SOP_BN.md) | Production release gate + rollback procedures |
+| [PR_Branch_Wise_Title_Description_BN.md](docs/PR_Branch_Wise_Title_Description_BN.md) | Git branch PR title/description templates |
 
 ---
 

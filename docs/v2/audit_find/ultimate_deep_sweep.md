@@ -63,7 +63,7 @@ Audited 168 routes (web + API), 28 admin controllers, 14 middleware, 35+ reposit
 ### CRITICAL Severity
 
 #### DS-01: CsrfMiddleware validate() uses wrong session key
-- **File**: [`src/Middleware/CsrfMiddleware.php`](file:///c:/laragon/www/ownpay/src/Middleware/CsrfMiddleware.php#L136)
+- **File**: [`src/Middleware/CsrfMiddleware.php`](src/Middleware/CsrfMiddleware.php#L136)
 - **Line**: 136-137
 - **Code**:
   ```php
@@ -79,7 +79,7 @@ Audited 168 routes (web + API), 28 admin controllers, 14 middleware, 35+ reposit
 ### HIGH Severity
 
 #### DS-02: Float cast for monetary amount in checkout submission
-- **File**: [`src/Controller/Checkout/PaymentLinkCheckoutController.php`](file:///c:/laragon/www/ownpay/src/Controller/Checkout/PaymentLinkCheckoutController.php#L135)
+- **File**: [`src/Controller/Checkout/PaymentLinkCheckoutController.php`](src/Controller/Checkout/PaymentLinkCheckoutController.php#L135)
 - **Line**: 135
 - **Code**: `$amount = (float) $req->post('amount', '0');`
 - **Issue**: User-submitted payment amount is cast to float before validation. While the downstream `GatewayApiService` re-sanitizes via `InputSanitizer::decimal()`, the float cast at this layer can cause precision loss for amounts like `99999999.99` (IEEE 754 rounding). Should use `bccomp()` for validation and pass string through.
@@ -87,14 +87,14 @@ Audited 168 routes (web + API), 28 admin controllers, 14 middleware, 35+ reposit
 - **Remediation**: Replace `(float)` with string-based `bccomp()` validation.
 
 #### DS-03: Float cast for invoice total in checkout
-- **File**: [`src/Controller/Checkout/InvoiceCheckoutController.php`](file:///c:/laragon/www/ownpay/src/Controller/Checkout/InvoiceCheckoutController.php#L70)
+- **File**: [`src/Controller/Checkout/InvoiceCheckoutController.php`](src/Controller/Checkout/InvoiceCheckoutController.php#L70)
 - **Line**: 70
 - **Code**: `$total = (float) $invoice['total'];`
 - **Issue**: Invoice total from DB (DECIMAL) is cast to float before comparison. Same IEEE 754 precision risk as DS-02.
 - **Remediation**: Use `bccomp($invoice['total'], '0', 2) > 0` instead.
 
 #### DS-04: Raw $_POST superglobal access in CsrfMiddleware::validate()
-- **File**: [`src/Middleware/CsrfMiddleware.php`](file:///c:/laragon/www/ownpay/src/Middleware/CsrfMiddleware.php#L102-L104)
+- **File**: [`src/Middleware/CsrfMiddleware.php`](src/Middleware/CsrfMiddleware.php#L102-L104)
 - **Lines**: 102-104, 137
 - **Code**:
   ```php
@@ -117,25 +117,25 @@ Audited 168 routes (web + API), 28 admin controllers, 14 middleware, 35+ reposit
 - **Remediation**: Add FK constraints with `ON DELETE SET NULL` or `ON DELETE CASCADE` as appropriate. For log tables (`op_audit_logs`, `op_comm_log`), `ON DELETE SET NULL` is preferred to preserve audit trail.
 
 #### DS-06: PaymentLinkCheckoutController amount validation uses float comparison
-- **File**: [`src/Controller/Checkout/PaymentLinkCheckoutController.php`](file:///c:/laragon/www/ownpay/src/Controller/Checkout/PaymentLinkCheckoutController.php#L73)
+- **File**: [`src/Controller/Checkout/PaymentLinkCheckoutController.php`](src/Controller/Checkout/PaymentLinkCheckoutController.php#L73)
 - **Line**: 73
 - **Code**: `(float) $req->query('amount', '0') > 0`
 - **Issue**: Float comparison for user input amount validation. Should use `bccomp()`.
 
 #### DS-07: API PaymentController float validation
-- **File**: [`src/Controller/Api/PaymentController.php`](file:///c:/laragon/www/ownpay/src/Controller/Api/PaymentController.php#L46)
+- **File**: [`src/Controller/Api/PaymentController.php`](src/Controller/Api/PaymentController.php#L46)
 - **Line**: 46
 - **Code**: `(float) $body['amount'] <= 0`
 - **Issue**: Same pattern — float cast for validation. However, the actual amount passed to service uses `InputSanitizer::decimal()` (L125), so this is validation-only. Low practical impact.
 
 #### DS-08: `op_system_settings` lacks `base_currency` seed
-- **File**: [`src/Controller/Install/InstallerController.php`](file:///c:/laragon/www/ownpay/src/Controller/Install/InstallerController.php#L246)
+- **File**: [`src/Controller/Install/InstallerController.php`](src/Controller/Install/InstallerController.php#L246)
 - **Line**: 246-263
 - **Issue**: The `finalize()` method seeds `general.currency` but CurrencyService L21 reads `general.base_currency`. If no `base_currency` row exists, CurrencyService defaults to 'USD' which may not match the installer's chosen currency.
 - **Remediation**: Add `['general', 'base_currency', $currency, 'string']` to seeds array.
 
 #### DS-09: CurrencyService::format() uses float cast
-- **File**: [`src/Service/Payment/CurrencyService.php`](file:///c:/laragon/www/ownpay/src/Service/Payment/CurrencyService.php#L55)
+- **File**: [`src/Service/Payment/CurrencyService.php`](src/Service/Payment/CurrencyService.php#L55)
 - **Line**: 55
 - **Code**: `number_format((float) $amount, $decimals, '.', ',')`
 - **Issue**: `number_format()` requires float input in PHP. For display-only formatting this is acceptable, but amounts > 2^53 would lose precision. OwnPay amounts are DECIMAL(18,2) so max is 10^16, within float safe range. **Low practical impact**.
@@ -145,13 +145,13 @@ Audited 168 routes (web + API), 28 admin controllers, 14 middleware, 35+ reposit
 - **Issue**: The fragment route exists but returns 404 when accessed without proper context. The DashboardController `fragment()` method should return a descriptive error if the page parameter doesn't match any known fragment.
 
 #### DS-11: Installer `createAdmin` doesn't set `username` column
-- **File**: [`src/Controller/Install/InstallerController.php`](file:///c:/laragon/www/ownpay/src/Controller/Install/InstallerController.php#L165-L169)
+- **File**: [`src/Controller/Install/InstallerController.php`](src/Controller/Install/InstallerController.php#L165-L169)
 - **Line**: 165-169
 - **Issue**: The INSERT statement for `op_merchant_users` does NOT include the `username` column, even though L121 reads `$username` from the request body and the schema has `username VARCHAR(100)`. The username provided during install is silently discarded.
 - **Remediation**: Add `username` to the INSERT column list.
 
 #### DS-12: Missing `updated_at` in several INSERT statements
-- **File**: [`src/Controller/Install/InstallerController.php`](file:///c:/laragon/www/ownpay/src/Controller/Install/InstallerController.php#L158-L161)
+- **File**: [`src/Controller/Install/InstallerController.php`](src/Controller/Install/InstallerController.php#L158-L161)
 - **Line**: 158-161
 - **Issue**: The `op_roles` INSERT (L158) does not set `updated_at`. If the column has `NOT NULL` without `DEFAULT`, this would fail. Schema shows `updated_at DATETIME(6) DEFAULT NULL` so it's safe, but inconsistent.
 
@@ -160,11 +160,11 @@ Audited 168 routes (web + API), 28 admin controllers, 14 middleware, 35+ reposit
 ### LOW Severity
 
 #### DS-13: `die()` / `exit()` used in update system
-- **Files**: [`src/Update/MaintenanceMode.php`](file:///c:/laragon/www/ownpay/src/Update/MaintenanceMode.php#L30), [`src/Update/UpdateService.php`](file:///c:/laragon/www/ownpay/src/Update/UpdateService.php#L197)
+- **Files**: [`src/Update/MaintenanceMode.php`](src/Update/MaintenanceMode.php#L30), [`src/Update/UpdateService.php`](src/Update/UpdateService.php#L197)
 - **Issue**: `exit()` calls in production code prevent proper response handling. Should use Response objects.
 
 #### DS-14: PdfService uses echo-style output
-- **File**: [`src/Service/System/PdfService.php`](file:///c:/laragon/www/ownpay/src/Service/System/PdfService.php#L76)
+- **File**: [`src/Service/System/PdfService.php`](src/Service/System/PdfService.php#L76)
 - **Issue**: Uses inline HTML/CSS construction. Not a bug but code quality issue.
 
 #### DS-15: Missing `op_permissions` table seeding
@@ -172,23 +172,23 @@ Audited 168 routes (web + API), 28 admin controllers, 14 middleware, 35+ reposit
 - **Impact**: Staff members created post-install cannot access anything until admin manually creates permissions. Not a bug per se (superadmin bypasses all checks) but poor UX.
 
 #### DS-16: CronJobRunner uses md5 for lock file names
-- **File**: [`src/Cron/CronJobRunner.php`](file:///c:/laragon/www/ownpay/src/Cron/CronJobRunner.php#L135)
+- **File**: [`src/Cron/CronJobRunner.php`](src/Cron/CronJobRunner.php#L135)
 - **Line**: 135
 - **Code**: `md5($name) . '.lock'`
 - **Issue**: md5 used for file naming, not security. Not a vulnerability but flagged by scanner.
 
 #### DS-17: BackupService path concatenation
-- **File**: [`src/Update/BackupService.php`](file:///c:/laragon/www/ownpay/src/Update/BackupService.php#L192)
+- **File**: [`src/Update/BackupService.php`](src/Update/BackupService.php#L192)
 - **Issue**: Path concatenation uses `$dir . '/' . $iterator->getSubPathname()`. Input is from `RecursiveDirectoryIterator` on the project directory — not user input. Safe.
 
 #### DS-18: Template rendering uses `extract()` 
-- **File**: [`src/Controller/Install/InstallerController.php`](file:///c:/laragon/www/ownpay/src/Controller/Install/InstallerController.php#L311)
+- **File**: [`src/Controller/Install/InstallerController.php`](src/Controller/Install/InstallerController.php#L311)
 - **Line**: 311
 - **Code**: `extract($data, EXTR_SKIP);`
 - **Issue**: `extract()` with `EXTR_SKIP` flag prevents variable overwriting. The data comes from internal controller logic, not user input. Safe but generally discouraged.
 
 #### DS-19: `SettingsRenderer` HTML generation via string concatenation
-- **File**: [`src/View/SettingsRenderer.php`](file:///c:/laragon/www/ownpay/src/View/SettingsRenderer.php#L88)
+- **File**: [`src/View/SettingsRenderer.php`](src/View/SettingsRenderer.php#L88)
 - **Issue**: Uses `htmlspecialchars()` (via `self::e()`) for all values. Properly escaped. Not a vulnerability.
 
 ---

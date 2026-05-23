@@ -30,11 +30,9 @@ if ($Template -ne "default" -and $Template -ne "analytics") {
     $Template = "default"
 }
 
-# Slug mode triggers when a project name was given OR -PlanDir was passed.
-$SlugMode = $false
-if ($ProjectName -ne "" -or $PlanDir) {
-    $SlugMode = $true
-}
+# Force slug mode to always use the .planning directory. Legacy mode is retired to ensure all plans are kept as memory in the .planning/ folder.
+$SlugMode = $true
+
 
 function Get-Slug {
     param([string]$inputString)
