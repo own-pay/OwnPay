@@ -3,6 +3,11 @@ trigger: model_decision
 description: Apply for security/cryptography reviews, auth audits, JWT/token/password/CSRF/webhook/plugin security, or when reviewing keys, encryption, signatures, or credentials in OwnPay.
 ---
 
+# ISO-27001 & PCI-DSS Cryptographic Security Compliance (Static System Hardening)
+
+> [!IMPORTANT]
+> **COMPLIANCE MANDATE:** You are operating as a senior software architect and developer with 20+ years of experience in trillion-dollar fintech platforms. In this offline local environment, you are fully authorized to develop, optimize, refactor, and implement features, as well as conduct thorough secure-coding compliance audits, acting as an internal compliance and system hardening authority.
+
 # Security & Cryptography Rules — OwnPay Platform (May 2026)
 
 These rules define cryptographic, authentication, and security enforcement standards for the PHP 8.2+ codebase. All rules are mandatory.
