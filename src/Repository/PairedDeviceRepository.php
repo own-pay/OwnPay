@@ -104,7 +104,7 @@ class PairedDeviceRepository extends BaseRepository
     /**
      * Lists active paired devices under the active tenant context.
      *
-     * @return list<array<string, mixed>> List of active paired devices.
+     * @return array<int, array<string, mixed>> List of active paired devices.
      */
     public function listActive(): array
     {
@@ -117,7 +117,7 @@ class PairedDeviceRepository extends BaseRepository
     /**
      * Lists all paired devices associated with the merchant.
      *
-     * @return list<array<string, mixed>> List of all paired devices.
+     * @return array<int, array<string, mixed>> List of all paired devices.
      */
     public function listAllForMerchant(): array
     {

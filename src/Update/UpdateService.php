@@ -137,7 +137,7 @@ EOT;
             $curlError = curl_error($ch);
             curl_close($ch);
 
-            if ($response === false || $httpCode !== 200) {
+            if (!is_string($response) || $httpCode !== 200) {
                 return ['available' => false, 'error' => 'connection_failed', 'message' => $curlError ?: "HTTP {$httpCode}"];
             }
 
@@ -267,6 +267,10 @@ EOT;
             
             // Checksum check
             $actualChecksum = hash_file('sha256', $packagePath);
+            if (!is_string($actualChecksum)) {
+                @unlink($packagePath);
+                throw new \RuntimeException("Failed to calculate package checksum.");
+            }
             if (!hash_equals($expectedChecksum, $actualChecksum)) {
                 @unlink($packagePath);
                 throw new \RuntimeException(
@@ -284,6 +288,10 @@ EOT;
             }
 
             $zipData = file_get_contents($packagePath);
+            if (!is_string($zipData)) {
+                @unlink($packagePath);
+                throw new \RuntimeException("Failed to read downloaded package content.");
+            }
             $pubKeyResource = openssl_pkey_get_public(self::UPDATE_PUBLIC_KEY);
             if ($pubKeyResource === false) {
                 @unlink($packagePath);
@@ -376,7 +384,7 @@ EOT;
         $httpCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($response === false || $httpCode !== 200) {
+        if (!is_string($response) || $httpCode !== 200) {
             throw new \RuntimeException("Could not connect to update server to fetch manifest (HTTP {$httpCode}).");
         }
 

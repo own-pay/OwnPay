@@ -67,7 +67,7 @@ final class AuditLogRepository extends BaseRepository
      * @param int|null $merchantId Scoping merchant ID context, or null for all merchants.
      * @param int $limit Maximum records to return.
      * @param int $offset Records offset.
-     * @return list<array<string, mixed>> List of audit log records.
+     * @return array<int, array<string, mixed>> List of audit log records.
      */
     public function listPaginated(?int $merchantId, int $limit, int $offset): array
     {
@@ -106,7 +106,7 @@ final class AuditLogRepository extends BaseRepository
      *
      * @param string $entityType The entity's structural type name.
      * @param int $entityId The primary key identifier of the target entity.
-     * @return list<array<string, mixed>> List of matching audit log entries.
+     * @return array<int, array<string, mixed>> List of matching audit log entries.
      */
     public function listForEntity(string $entityType, int $entityId): array
     {

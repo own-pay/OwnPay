@@ -78,7 +78,8 @@ final class LedgerService
         foreach ($entries as $entry) {
             $code = $entry['account'];
             $type = $entry['type']; // 'debit' or 'credit'
-            $amount = $entry['amount'];
+            $amount = (string) $entry['amount'];
+            /** @var numeric-string $amount */
 
             $acctType = $this->getAccountType($code);
             $account = $this->ledger->findOrCreateAccount($code, $acctType, $currency, $merchantId);
@@ -152,6 +153,8 @@ final class LedgerService
      */
     public function recordPaymentReceived(int $merchantId, int $transactionId, string $amount, string $fee, string $currency): void
     {
+        /** @var numeric-string $amount */
+        /** @var numeric-string $fee */
         $net = bcsub($amount, $fee, 4);
         
         $entries = [
@@ -184,13 +187,18 @@ final class LedgerService
         $origGross = (string) $txn['amount'];
         $origFee = (string) ($txn['fee'] ?? '0.00');
 
+        /** @var numeric-string $origGross */
+        /** @var numeric-string $origFee */
+        /** @var numeric-string $amount */
         if (bccomp($origGross, '0.00', 4) > 0) {
             $ratio = bcdiv($origFee, $origGross, 18);
+            /** @var numeric-string $ratio */
             $refundFee = bcmul($amount, $ratio, 4);
         } else {
             $refundFee = '0.00';
         }
 
+        /** @var numeric-string $refundFee */
         $refundNet = bcsub($amount, $refundFee, 4);
 
         $entries = [

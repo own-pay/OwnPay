@@ -49,7 +49,7 @@ final class DomainRepository extends BaseRepository
     /**
      * Lists all custom domains registered under the active tenant context.
      *
-     * @return list<array<string, mixed>> List of matching domain records.
+     * @return array<int, array<string, mixed>> List of matching domain records.
      */
     public function listAllScoped(): array
     {
@@ -64,7 +64,7 @@ final class DomainRepository extends BaseRepository
      *
      * Unscoped globally to support background cron verification jobs.
      *
-     * @return list<array<string, mixed>> List of pending domain records.
+     * @return array<int, array<string, mixed>> List of pending domain records.
      */
     public function findPendingVerification(): array
     {

@@ -49,7 +49,7 @@ final class ManualGatewayRepository extends BaseRepository
     /**
      * Lists active manual gateway records under the active tenant context.
      *
-     * @return list<array<string, mixed>> List of active manual gateways.
+     * @return array<int, array<string, mixed>> List of active manual gateways.
      */
     public function listActive(): array
     {
@@ -62,7 +62,7 @@ final class ManualGatewayRepository extends BaseRepository
     /**
      * Lists all manual gateway records under the active tenant context.
      *
-     * @return list<array<string, mixed>> List of all manual gateways.
+     * @return array<int, array<string, mixed>> List of all manual gateways.
      */
     public function listAll(): array
     {

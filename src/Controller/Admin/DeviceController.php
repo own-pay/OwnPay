@@ -113,6 +113,9 @@ final class DeviceController
 
         try {
             $result = $svc->generatePairingOtp($mid);
+            if (!isset($result['otp'])) {
+                return Response::json(['success' => false, 'error' => $result['error']]);
+            }
 
             // Generate QR Code SVG base64 URI
             $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
@@ -122,6 +125,10 @@ final class DeviceController
                 'server_url' => $serverUrl,
                 'otp'        => $result['otp']
             ]);
+
+            if (!is_string($qrPayload)) {
+                return Response::json(['success' => false, 'error' => 'Failed to serialize QR payload']);
+            }
 
             $options = new \chillerlan\QRCode\QROptions([
                 'version'    => 5,
@@ -134,7 +141,7 @@ final class DeviceController
             return Response::json([
                 'success'    => true,
                 'otp'        => $result['otp'],
-                'expires_in' => $result['expires_in'] ?? 300,
+                'expires_in' => $result['expires_in'],
                 'qr_svg'     => $qrSvg,
                 'csrf_token' => \OwnPay\Security\SecurityHelpers::csrfToken(),
             ]);

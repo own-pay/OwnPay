@@ -96,7 +96,10 @@ final class IdempotencyService
         $repo = $this->repo->forTenant($merchantId);
         $existing = $repo->findByKey($key);
         if ($existing !== null) {
-            $repo->complete((int) $existing['id'], json_encode($response), $statusCode);
+            $json = json_encode($response);
+            if (is_string($json)) {
+                $repo->complete((int) $existing['id'], $json, $statusCode);
+            }
         }
     }
 

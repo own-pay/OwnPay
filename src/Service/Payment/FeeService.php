@@ -66,10 +66,17 @@ final class FeeService
             // Fall back to default settings config
             $feeConfig = $this->getFeeConfig($gatewaySlug);
 
-            $percentFee = bcmul($amount, bcdiv($feeConfig['percentage'], '100', 6), 2);
-            $fixedFee = $feeConfig['fixed'];
+            $percentageStr = (string) $feeConfig['percentage'];
+            $fixedFee = (string) $feeConfig['fixed'];
+            
+            /** @var numeric-string $amount */
+            /** @var numeric-string $percentageStr */
+            /** @var numeric-string $fixedFee */
+            $percentFee = bcmul($amount, bcdiv($percentageStr, '100', 6), 2);
 
             // Use whichever is greater, or sum
+            /** @var numeric-string $percentFee */
+            /** @var numeric-string $fixedFee */
             $fee = match ($feeConfig['mode']) {
                 'sum'     => bcadd($percentFee, $fixedFee, 2),
                 'greater' => bccomp($percentFee, $fixedFee, 2) >= 0 ? $percentFee : $fixedFee,
@@ -77,11 +84,16 @@ final class FeeService
             };
 
             // Min/max cap for default config
-            if (bccomp($fee, $feeConfig['min'], 2) < 0) {
-                $fee = $feeConfig['min'];
+            $minFee = (string) $feeConfig['min'];
+            $maxFee = (string) $feeConfig['max'];
+            /** @var numeric-string $fee */
+            /** @var numeric-string $minFee */
+            /** @var numeric-string $maxFee */
+            if (bccomp($fee, $minFee, 2) < 0) {
+                $fee = $minFee;
             }
-            if ($feeConfig['max'] !== '0.00' && bccomp($fee, $feeConfig['max'], 2) > 0) {
-                $fee = $feeConfig['max'];
+            if ($maxFee !== '0.00' && bccomp($fee, $maxFee, 2) > 0) {
+                $fee = $maxFee;
             }
         }
 
@@ -126,6 +138,8 @@ final class FeeService
         $type = $rule['type'];
         $value = (string) $rule['value'];
 
+        /** @var numeric-string $amount */
+        /** @var numeric-string $value */
         if ($type === 'flat') {
             $fee = $value;
         } elseif ($type === 'percentage') {
@@ -143,25 +157,28 @@ final class FeeService
             } else {
                 // Sort tiers by limit ascending
                 usort($tiers, static function (array $a, array $b) {
-                    $limA = $a['limit'] ?? null;
-                    $limB = $b['limit'] ?? null;
-                    if ($limA === null && $limB === null) {
+                    $limA = (string) ($a['limit'] ?? '');
+                    $limB = (string) ($b['limit'] ?? '');
+                    if ($limA === '' && $limB === '') {
                         return 0;
                     }
-                    if ($limA === null) {
+                    if ($limA === '') {
                         return 1;
                     }
-                    if ($limB === null) {
+                    if ($limB === '') {
                         return -1;
                     }
-                    return bccomp((string) $limA, (string) $limB, 4);
+                    $valA = is_numeric($limA) ? $limA : '0';
+                    $valB = is_numeric($limB) ? $limB : '0';
+                    return bccomp($valA, $valB, 4);
                 });
 
                 // Find matching tier
                 $matchedTier = null;
                 foreach ($tiers as $tier) {
-                    $limit = $tier['limit'] ?? null;
-                    if ($limit === null || bccomp($amount, (string) $limit, 4) <= 0) {
+                    $limit = (string) ($tier['limit'] ?? '');
+                    $limitVal = is_numeric($limit) ? $limit : '';
+                    if ($limitVal === '' || bccomp($amount, $limitVal, 4) <= 0) {
                         $matchedTier = $tier;
                         break;
                     }
@@ -171,6 +188,7 @@ final class FeeService
                     $tierType = $matchedTier['type'] ?? 'percentage';
                     $tierValue = (string) ($matchedTier['value'] ?? '0.00');
 
+                    /** @var numeric-string $tierValue */
                     if ($tierType === 'flat') {
                         $fee = $tierValue;
                     } else {
@@ -186,13 +204,24 @@ final class FeeService
         }
 
         // Apply min/max caps from rule
-        if ($rule['min_fee'] !== null && bccomp($fee, (string) $rule['min_fee'], 2) < 0) {
-            $fee = (string) $rule['min_fee'];
+        $minFeeVal = $rule['min_fee'] !== null ? (string) $rule['min_fee'] : null;
+        $maxFeeVal = $rule['max_fee'] !== null ? (string) $rule['max_fee'] : null;
+        
+        /** @var numeric-string $fee */
+        if ($minFeeVal !== null) {
+            /** @var numeric-string $minFeeVal */
+            if (bccomp($fee, $minFeeVal, 2) < 0) {
+                $fee = $minFeeVal;
+            }
         }
-        if ($rule['max_fee'] !== null && bccomp((string) $rule['max_fee'], '0.00', 2) > 0 && bccomp($fee, (string) $rule['max_fee'], 2) > 0) {
-            $fee = (string) $rule['max_fee'];
+        if ($maxFeeVal !== null) {
+            /** @var numeric-string $maxFeeVal */
+            if (bccomp($maxFeeVal, '0.00', 2) > 0 && bccomp($fee, $maxFeeVal, 2) > 0) {
+                $fee = $maxFeeVal;
+            }
         }
 
+        /** @var numeric-string $fee */
         return bcadd($fee, '0', 2);
     }
 

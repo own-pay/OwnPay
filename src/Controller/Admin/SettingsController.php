@@ -113,8 +113,8 @@ final class SettingsController
         $apiKeys = $this->c->get(\OwnPay\Service\Customer\ApiKeyService::class)->list($mid);
 
         // Retrieve or auto-generate Cron Secret
-        $cronSecret = $settings['cron_secret'] ?? '';
-        if (empty($cronSecret)) {
+        $cronSecret = is_string($settings['cron_secret'] ?? null) ? $settings['cron_secret'] : '';
+        if ($cronSecret === '') {
             $cronSecret = bin2hex(random_bytes(16));
             $this->settingsRepo->set('general', 'cron_secret', $cronSecret);
             $settings['cron_secret'] = $cronSecret;
@@ -123,7 +123,8 @@ final class SettingsController
         // Build Cron trigger URL white-labeled using DomainUrlService
         $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
         $baseUrl = $urlService->resolveBaseUrl($mid, $req);
-        $cronUrl = rtrim($baseUrl, '/') . '/cron/' . $cronSecret;
+        $baseUrlStr = is_array($baseUrl) ? ($baseUrl[0] ?? '') : (string) $baseUrl;
+        $cronUrl = rtrim($baseUrlStr, '/') . '/cron/' . $cronSecret;
 
         // Fetch all registered Cron Jobs and their execution logs
         $runner = $this->c->get(\OwnPay\Cron\CronJobRunner::class);
@@ -250,10 +251,12 @@ final class SettingsController
             }
 
             try {
-                $storedPath = $fs->storeUpload($file, 'uploads');
-                $path = '/assets/' . $storedPath;
-                $this->settingsRepo->set('branding', $field, $path);
-                $saved[$field] = $path;
+                if (isset($file['name'], $file['tmp_name']) && is_string($file['name']) && is_string($file['tmp_name'])) {
+                    $storedPath = $fs->storeUpload($file, 'uploads');
+                    $path = '/assets/' . $storedPath;
+                    $this->settingsRepo->set('branding', $field, $path);
+                    $saved[$field] = $path;
+                }
             } catch (\Throwable $e) {
                 $this->session->flashError("Invalid file for {$field}: " . $e->getMessage());
                 return Response::redirect('/admin/settings/branding');

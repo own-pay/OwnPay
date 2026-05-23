@@ -34,7 +34,7 @@ final class CronJobRunner
     /**
      * Cache array holding all registered cron tasks.
      *
-     * @var array<string, array{job: object, schedule: string, last_run?: int}>
+     * @var array<string, array{job: \OwnPay\Cron\CronJobInterface, schedule: string, last_run?: int}>
      */
     private array $jobs = [];
 
@@ -60,8 +60,10 @@ final class CronJobRunner
      */
     public function register(string $name, object $job, string $schedule): void
     {
+        /** @var \OwnPay\Cron\CronJobInterface $jobCast */
+        $jobCast = $job;
         $this->jobs[$name] = [
-            'job'      => $job,
+            'job'      => $jobCast,
             'schedule' => $schedule,
         ];
     }
@@ -69,7 +71,7 @@ final class CronJobRunner
     /**
      * Retrieves all registered cron jobs.
      *
-     * @return array<string, array{job: object, schedule: string}>
+     * @return array<string, array{job: \OwnPay\Cron\CronJobInterface, schedule: string}>
      */
     public function getJobs(): array
     {
@@ -137,10 +139,7 @@ final class CronJobRunner
     /**
      * Dispatches and executes all scheduled jobs that are currently due.
      *
-     * Iterates through the registered registry, verifies schedule eligibility, executes the task,
-     * logs results, and triggers hooks for system execution updates.
-     *
-     * @return array<string, array{status: string, duration: float, result?: mixed, error?: string}> Result matrix of cron execution statuses.
+     * @return array<string, array{status: string, duration?: float, result?: mixed, error?: string}> Result matrix of all tasks run in the current session.
      */
     public function run(): array
     {

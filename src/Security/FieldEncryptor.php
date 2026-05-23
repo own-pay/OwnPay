@@ -49,7 +49,11 @@ class FieldEncryptor
      */
     public function encrypt(string $plaintext): string
     {
-        $iv = random_bytes(openssl_cipher_iv_length(self::CIPHER));
+        $ivLen = openssl_cipher_iv_length(self::CIPHER);
+        if ($ivLen <= 0) {
+            throw new \RuntimeException('Failed to resolve IV length');
+        }
+        $iv = random_bytes($ivLen);
         $tag = '';
 
         $ciphertext = openssl_encrypt(

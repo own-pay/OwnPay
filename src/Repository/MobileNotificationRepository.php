@@ -58,7 +58,7 @@ final class MobileNotificationRepository extends BaseRepository
      * @param string $deviceUuid Unique identifier string of the device.
      * @param string|null $since Optional microsecond timestamp cutoff for filtering.
      * @param int $limit Maximum number of notifications to return.
-     * @return list<array<string, mixed>> List of matching notification records.
+     * @return array<int, array<string, mixed>> List of matching notification records.
      */
     public function pollSince(string $deviceUuid, ?string $since = null, int $limit = 50): array
     {
@@ -147,7 +147,7 @@ final class MobileNotificationRepository extends BaseRepository
      * @param int $merchantId The merchant brand ID.
      * @param string $deviceUuid Unique identifier string of the device.
      * @param int $limit Maximum number of notifications to return.
-     * @return list<array<string, mixed>> List of matching notification records.
+     * @return array<int, array<string, mixed>> List of matching notification records.
      */
     public function listForDevice(int $merchantId, string $deviceUuid, int $limit = 50): array
     {

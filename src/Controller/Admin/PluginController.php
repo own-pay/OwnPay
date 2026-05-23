@@ -195,7 +195,8 @@ final class PluginController
             return $this->redirectBack($request, $result['error'] ?? 'Installation failed');
         }
 
-        $this->session->flashSuccess("Plugin '{$result['slug']}' installed successfully!");
+        $slug = $result['slug'] ?? 'unknown';
+        $this->session->flashSuccess("Plugin '{$slug}' installed successfully!");
         return Response::redirect('/admin/plugins');
     }
 

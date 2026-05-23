@@ -80,6 +80,9 @@ final class WebhookDispatcher
 
         $payload = $this->buildPayload($event, $data);
         $jsonPayload = json_encode($payload, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+        if (!is_string($jsonPayload)) {
+            $jsonPayload = '';
+        }
 
         foreach ($webhooks as $webhook) {
             $subscribedEvents = json_decode($webhook['events'] ?? '[]', true) ?: [];
@@ -167,7 +170,10 @@ final class WebhookDispatcher
         ]);
 
         $json = json_encode($testPayload, JSON_UNESCAPED_SLASHES);
-        $signature = $this->sign($json, $webhook['secret'] ?? '');
+        if (!is_string($json)) {
+            $json = '';
+        }
+        $signature = $this->sign($json, (string) ($webhook['secret'] ?? ''));
 
         return $this->doSend($webhook['url'], $json, $signature, time());
     }

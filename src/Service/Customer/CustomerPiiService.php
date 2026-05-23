@@ -218,6 +218,7 @@ final class CustomerPiiService
             $customer['email_masked'] = PiiMasker::maskEmail($customer['email'] ?? '');
             $customer['phone_masked'] = PiiMasker::maskPhone($customer['phone'] ?? '');
         }
+        /** @var array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} $result */
         return $result;
     }
 

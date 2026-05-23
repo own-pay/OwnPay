@@ -136,6 +136,15 @@ final class AuthController
             ]);
         }
 
+        if (!isset($result['user'])) {
+            $loginSlug = $this->resolveLoginSlug();
+            return $this->renderAdminPage('page/login.twig', [
+                'login_url' => '/' . $loginSlug,
+                'error'     => 'Invalid user account',
+                'old_email' => $email,
+            ]);
+        }
+
         // Check 2FA
         if (!empty($result['requires_2fa'])) {
             $this->session->set('2fa_user_id', $result['user']['id']);

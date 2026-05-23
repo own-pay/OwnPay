@@ -1,0 +1,858 @@
+﻿ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Container.php                                                                                                  
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  256    Parameter #1 $objectOrClass of class ReflectionClass constructor expects class-string<T of object>|T of objec  
+         t, string given.                                                                                               
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\AuthController.php                                                                            
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  141    Offset 'user' might not exist on array{success: true, user?: array<string, mixed>, error?: string, requires_2  
+         fa: true}.                                                                                                     
+         🪪  offsetAccess.notFound                                                                                      
+  145    Offset 'user' might not exist on array{success: true, user?: array<string, mixed>, error?: string, requires_2  
+         fa?: bool}.                                                                                                    
+         🪪  offsetAccess.notFound                                                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\BrandController.php                                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  285    Parameter #1 $string of function strtolower expects string, string|false given.                                
+         🪪  argument.type                                                                                              
+  372    Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int,  
+         name: string, tmp_name: string}, non-empty-array<string, mixed> given.                                         
+         🪪  argument.type                                                                                              
+  383    Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int,  
+         name: string, tmp_name: string}, non-empty-array<string, mixed> given.                                         
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ---------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\DashboardController.php                                                                  
+ ------ ---------------------------------------------------------------------------------------------------------- 
+  380    Parameter #1 $stream of function fputcsv expects resource, resource|false given.                          
+         🪪  argument.type                                                                                         
+  382    Parameter #1 $stream of function fputcsv expects resource, resource|false given.                          
+         🪪  argument.type                                                                                         
+  387    Parameter #1 $stream of function fclose expects resource, resource|false given.                           
+         🪪  argument.type                                                                                         
+  661    Parameter #1 $plaintext of method OwnPay\Security\FieldEncryptor::encrypt() expects string, string|false  
+         given.                                                                                                    
+         🪪  argument.type                                                                                         
+ ------ ---------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\DeveloperController.php                                                                       
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  126    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 10015: array|string, 19913: bool,  
+         13: int, 10023: array<int, string>}, array{47: true, 10015: non-empty-string|false, 19913: true, 13: 10, 1002  
+         3: array{'Content-Type:…', non-falsy-string, 'X-OwnPay-Event:…'}} given.                                       
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ---------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\DeviceController.php                                                                     
+ ------ ---------------------------------------------------------------------------------------------------------- 
+  123    Offset 'otp' might not exist on array{error: string}|array{otp: string, expires_in: int}.                 
+         🪪  offsetAccess.notFound                                                                                 
+  132    Parameter #1 $data of method chillerlan\QRCode\QRCode::render() expects string|null, string|false given.  
+         🪪  argument.type                                                                                         
+  136    Offset 'otp' might not exist on array{error: string}|array{otp: string, expires_in: int}.                 
+         🪪  offsetAccess.notFound                                                                                 
+ ------ ---------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\FaqController.php                                                                             
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  88     Parameter #3 $value of method OwnPay\Repository\SettingsRepository::setScoped() expects string, string|false   
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  91     Parameter #3 $value of method OwnPay\Repository\SettingsRepository::set() expects string, string|false given.  
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  Line   Controller\Admin\GatewayController.php                                                                      
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  345    Method OwnPay\Controller\Admin\GatewayController::buildColorsJson() should return string but returns        
+         string|false.                                                                                               
+         🪪  return.type                                                                                             
+  364    Method OwnPay\Controller\Admin\GatewayController::buildInstructionsJson() should return string but returns  
+         string|false.                                                                                               
+         🪪  return.type                                                                                             
+  427    Method OwnPay\Controller\Admin\GatewayController::buildFieldsJson() should return string but returns        
+         string|false.                                                                                               
+         🪪  return.type                                                                                             
+ ------ ------------------------------------------------------------------------------------------------------------ 
+
+ ------ --------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\PluginController.php                                                  
+ ------ --------------------------------------------------------------------------------------- 
+  198    Offset 'slug' might not exist on array{success: true, slug?: string, error?: string}.  
+         🪪  offsetAccess.notFound                                                              
+ ------ --------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\RolesController.php                                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  181    Parameter #2 $permissionIds of method OwnPay\Repository\RoleRepository::syncPermissions() expects list<int>,   
+         array<int> given.                                                                                              
+         🪪  argument.type                                                                                              
+         💡  array<int> might not be a list.                                                                            
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\SettingsController.php                                                                        
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  126    Binary operation "." between non-falsy-string and non-empty-array<mixed>|non-empty-string results in an error  
+         .                                                                                                              
+         🪪  binaryOp.invalid                                                                                           
+  253    Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int,  
+         name: string, tmp_name: string}, non-empty-array<string, mixed> given.                                         
+         🪪  argument.type                                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\SystemUpdateController.php                                                             
+ ------ -------------------------------------------------------------------------------------------------------- 
+  87     Parameter #1 $json of function json_decode expects string, string|false given.                          
+         🪪  argument.type                                                                                       
+  123    Offset 'version' might not exist on array{available: true, version?: string, url?: string, changelog?:  
+         string, checksum?: string, error?: string, message?: string}.                                           
+         🪪  offsetAccess.notFound                                                                               
+  150    Offset 'error' might not exist on array{success: false, error?: string, rollback?: bool}.               
+         🪪  offsetAccess.notFound                                                                               
+ ------ -------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------- 
+  Line   Controller\Admin\ThemeController.php                                                   
+ ------ --------------------------------------------------------------------------------------- 
+  247    Offset 'slug' might not exist on array{success: true, slug?: string, error?: string}.  
+         🪪  offsetAccess.notFound                                                              
+ ------ --------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------- 
+  Line   Controller\Admin\TwoFactorSetupController.php                                  
+ ------ ------------------------------------------------------------------------------- 
+  155    Parameter #1 $length of function random_bytes expects int<1, max>, int given.  
+         🪪  argument.type                                                              
+  162    Offset float|int might not exist on 'ABCDEFGHIJKLMNOPQRS…'.                    
+         🪪  offsetAccess.notFound                                                      
+  205    Parameter #1 $codepoint of function chr expects int, float|int given.          
+         🪪  argument.type                                                              
+ ------ ------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Api\Mobile\NotificationController.php                                                               
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  77     Parameter #1 $ids of method OwnPay\Repository\MobileNotificationRepository::acknowledgeIds() expects list<int  
+         >, non-empty-array<int<min, -1>|int<1, max>> given.                                                            
+         🪪  argument.type                                                                                              
+         💡  non-empty-array<int<min, -1>|int<1, max>> might not be a list.                                             
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Api\PaymentController.php                                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  157    Parameter #2 $data of method OwnPay\Service\Payment\PaymentService::createIntent() expects array{amount:       
+         string, currency: string, description?: string, redirect_url?: string, cancel_url?: string, webhook_url?:      
+         string, metadata?: array<string, mixed>}, array{amount: string, currency: string, customer_id: int|null, desc  
+         ription: string|null, redirect_url: non-falsy-string|false|null, cancel_url: non-falsy-string|false|null,      
+         webhook_url: non-falsy-string|false|null, metadata: array{reference: mixed, customer_email: string|null,       
+         customer_name: string|null, customer_phone: string|null, gateway: mixed, custom_metadata: mixed}} given.       
+         🪪  argument.type                                                                                              
+         💡  Offset 'redirect_url' (string) does not accept type string|false.                                          
+         💡  Offset 'cancel_url' (string) does not accept type string|false.                                            
+         💡  Offset 'webhook_url' (string) does not accept type string|false.                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Checkout\PaymentLinkCheckoutController.php                                                      
+ ------ ----------------------------------------------------------------------------------------------------------- 
+  97     Parameter #1 $num1 of function bccomp expects numeric-string, string given.                                
+         🪪  argument.type                                                                                          
+  97     Parameter #2 $num2 of function bccomp expects numeric-string, string given.                                
+         🪪  argument.type                                                                                          
+  98     Parameter #1 $num1 of function bccomp expects numeric-string, string given.                                
+         🪪  argument.type                                                                                          
+  98     Parameter #2 $num2 of function bccomp expects numeric-string, string given.                                
+         🪪  argument.type                                                                                          
+  108    Parameter #1 $num1 of function bccomp expects numeric-string, float|int|(non-empty-string&numeric-string)  
+         given.                                                                                                     
+         🪪  argument.type                                                                                          
+  192    Parameter #1 $num1 of function bccomp expects numeric-string, string given.                                
+         🪪  argument.type                                                                                          
+  192    Parameter #2 $num2 of function bccomp expects numeric-string, string given.                                
+         🪪  argument.type                                                                                          
+  201    Parameter #1 $num1 of function bccomp expects numeric-string, string given.                                
+         🪪  argument.type                                                                                          
+  201    Parameter #2 $num2 of function bccomp expects numeric-string, string given.                                
+         🪪  argument.type                                                                                          
+ ------ ----------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------- 
+  Line   Controller\Install\InstallerController.php                                                               
+ ------ --------------------------------------------------------------------------------------------------------- 
+  110    Parameter #1 $string of function strlen expects string, string|false given.                              
+         🪪  argument.type                                                                                        
+  115    Parameter #3 $subject of function str_replace expects array<string>|string, string|false given.          
+         🪪  argument.type                                                                                        
+  120    Cannot call method fetchAll() on PDOStatement|false.                                                     
+         🪪  method.nonObject                                                                                     
+  125    Parameter #1 $sql of method OwnPay\Controller\Install\InstallerController::parseSqlStatements() expects  
+         string, string|false given.                                                                              
+         🪪  argument.type                                                                                        
+  188    Cannot access offset 'DB_HOST' on array|false.                                                           
+         🪪  offsetAccess.nonOffsetAccessible                                                                     
+  188    Cannot access offset 'DB_NAME' on array|false.                                                           
+         🪪  offsetAccess.nonOffsetAccessible                                                                     
+  188    Cannot access offset 'DB_PORT' on array|false.                                                           
+         🪪  offsetAccess.nonOffsetAccessible                                                                     
+  189    Cannot access offset 'DB_PASS' on array|false.                                                           
+         🪪  offsetAccess.nonOffsetAccessible                                                                     
+  189    Cannot access offset 'DB_USER' on array|false.                                                           
+         🪪  offsetAccess.nonOffsetAccessible                                                                     
+  192    Cannot access offset 'DB_PREFIX' on array|false.                                                         
+         🪪  offsetAccess.nonOffsetAccessible                                                                     
+  279    Cannot call method fetchAll() on PDOStatement|false.                                                     
+         🪪  method.nonObject                                                                                     
+ ------ --------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------- 
+  Line   Core\Database.php                                                                           
+ ------ -------------------------------------------------------------------------------------------- 
+  276    Method OwnPay\Core\Database::insert() should return string but returns string|false.        
+         🪪  return.type                                                                             
+  409    Method OwnPay\Core\Database::lastInsertId() should return string but returns string|false.  
+         🪪  return.type                                                                             
+ ------ -------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Core\FormattingHelper.php                                                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  128    Method OwnPay\Core\FormattingHelper::buildLangArray() should return array<string, string> but returns array<s  
+         tring, string|false>.                                                                                          
+         🪪  return.type                                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  Line   Core\RouteHelper.php                                                                                         
+ ------ ------------------------------------------------------------------------------------------------------------- 
+  127    Cannot access offset 'scheme' on array{scheme?: string, host?: string, port?: int<0, 65535>, user?: string,  
+         pass?: string, path?: string, query?: string, fragment?: string}|false.                                      
+         🪪  offsetAccess.nonOffsetAccessible                                                                         
+ ------ ------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Cron\CronJobRunner.php                                                                                         
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  107    Call to an undefined method object::run().                                                                     
+         🪪  method.notFound                                                                                            
+  159    Call to an undefined method object::run().                                                                     
+         🪪  method.notFound                                                                                            
+  190    Method OwnPay\Cron\CronJobRunner::run() should return array<string, array{status: string, duration: float, re  
+         sult?: mixed, error?: string}> but returns array<string, array{status: 'completed', duration: float, result:   
+         mixed}|array{status: 'failed', duration: float, error: string}|array{status: 'skipped'}>.                      
+         🪪  return.type                                                                                                
+         💡  Array does not have offset 'duration'.                                                                     
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------------------------------- 
+  Line   Cron\UpdateCheckJob.php                                                                                 
+ ------ -------------------------------------------------------------------------------------------------------- 
+  56     Offset 'version' might not exist on array{available: true, version?: string, url: non-falsy-string,     
+         changelog?: string, checksum?: string, error?: string, message?: string}.                               
+         🪪  offsetAccess.notFound                                                                               
+  59     Offset 'version' might not exist on array{available: true, version?: string, url: non-falsy-string,     
+         changelog?: string, checksum?: string, error?: string, message?: string}.                               
+         🪪  offsetAccess.notFound                                                                               
+  67     Offset 'version' might not exist on array{available: true, version?: string, url?: string, changelog?:  
+         string, checksum?: string, error?: string, message?: string}.                                           
+         🪪  offsetAccess.notFound                                                                               
+ ------ -------------------------------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------- 
+  Line   Kernel.php                                           
+ ------ ----------------------------------------------------- 
+  308    Cannot call method handle() on class-string|object.  
+         🪪  method.nonObject                                 
+ ------ ----------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Model\WebhookPayload.php                                                                                       
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  74     Method OwnPay\Model\WebhookPayload::formData() should return array<string, mixed> but returns array<int|strin  
+         g, array<mixed>|string>.                                                                                       
+         🪪  return.type                                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------- 
+  Line   Plugin\PluginManager.php                                                               
+ ------ --------------------------------------------------------------------------------------- 
+  109    Offset 'slug' might not exist on array{success: true, error?: string, slug?: string}.  
+         🪪  offsetAccess.notFound                                                              
+ ------ --------------------------------------------------------------------------------------- 
+
+ ------ -------------------------------------------------------------------------------- 
+  Line   Plugin\PluginManifest.php                                                       
+ ------ -------------------------------------------------------------------------------- 
+  302    Parameter #1 $json of function json_decode expects string, string|false given.  
+         🪪  argument.type                                                               
+ ------ -------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\ApiKeyRepository.php                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  73     Method OwnPay\Repository\ApiKeyRepository::listActiveKeys() should return list<array<string, mixed>> but retu  
+         rns array<int, array<string, mixed>>.                                                                          
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\AuditLogRepository.php                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  79     Method OwnPay\Repository\AuditLogRepository::listPaginated() should return list<array<string, mixed>> but ret  
+         urns array<int, array<string, mixed>>.                                                                         
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  113    Method OwnPay\Repository\AuditLogRepository::listForEntity() should return list<array<string, mixed>> but ret  
+         urns array<int, array<string, mixed>>.                                                                         
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\BaseRepository.php                                                                                  
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  118    Method OwnPay\Repository\BaseRepository::where() should return list<array<string, mixed>> but returns array<i  
+         nt, array<string, mixed>>.                                                                                     
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  166    Method OwnPay\Repository\BaseRepository::paginate() should return array{items: list<array<string, mixed>>, to  
+         tal: int, page: int, per_page: int, pages: int} but returns array{items: array<int, array<string, mixed>>, to  
+         tal: int, page: int<1, max>, per_page: int, pages: int}.                                                       
+         🪪  return.type                                                                                                
+         💡  Offset 'items' (list<array<string, mixed>>) does not accept type array<int, array<string, mixed>>: array<i  
+         nt, array<string, mixed>> might not be a list.                                                                 
+  202    Method OwnPay\Repository\BaseRepository::cursorPaginate() should return array{items: list<array<string, mixed  
+         >>, next_cursor: string|null} but returns array{items: array<int, array<string, mixed>>, next_cursor: string|  
+         null}.                                                                                                         
+         🪪  return.type                                                                                                
+         💡  Offset 'items' (list<array<string, mixed>>) does not accept type array<int, array<string, mixed>>: array<i  
+         nt, array<string, mixed>> might not be a list.                                                                 
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\CommLogRepository.php                                                                               
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  94     Method OwnPay\Repository\CommLogRepository::listSmsQueue() should return list<array<string, mixed>> but retur  
+         ns array<int, array<string, mixed>>.                                                                           
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  108    Method OwnPay\Repository\CommLogRepository::getSmsQueueStats() should return array{queued: int, sent: int,     
+         failed: int} but returns array<string, mixed>.                                                                 
+         🪪  return.type                                                                                                
+  127    Method OwnPay\Repository\CommLogRepository::listPendingSms() should return list<array{id: int, to: string, bo  
+         dy: string}> but returns array<int, array<string, mixed>>.                                                     
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\CustomerRepository.php                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  95     Method OwnPay\Repository\CustomerRepository::paginateWithStats() should return array{items: list<array<string  
+         , mixed>>, total: int, page: int, per_page: int, total_pages: int} but returns array{items: array<int, array<  
+         string, mixed>>, total: int, page: int, per_page: int, total_pages: int}.                                      
+         🪪  return.type                                                                                                
+         💡  Offset 'items' (list<array<string, mixed>>) does not accept type array<int, array<string, mixed>>: array<i  
+         nt, array<string, mixed>> might not be a list.                                                                 
+  114    Method OwnPay\Repository\CustomerRepository::getRecentTransactions() should return list<array<string, mixed>>  
+          but returns array<int, array<string, mixed>>.                                                                 
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\DisputeRepository.php                                                                               
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  29     Method OwnPay\Repository\DisputeRepository::findByMerchant() should return list<array<string, mixed>> but ret  
+         urns array<int, array<string, mixed>>.                                                                         
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\DomainRepository.php                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  56     Method OwnPay\Repository\DomainRepository::listAllScoped() should return list<array<string, mixed>> but retur  
+         ns array<int, array<string, mixed>>.                                                                           
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  71     Method OwnPay\Repository\DomainRepository::findPendingVerification() should return list<array<string, mixed>>  
+          but returns array<int, array<string, mixed>>.                                                                 
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\GatewayConfigRepository.php                                                                         
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  45     Method OwnPay\Repository\GatewayConfigRepository::listActive() should return list<array<string, mixed>> but r  
+         eturns array<int, array<string, mixed>>.                                                                       
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  91     Method OwnPay\Repository\GatewayConfigRepository::listActiveForCheckout() should return list<array<string, mi  
+         xed>> but returns array<int, array<string, mixed>>.                                                            
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\GatewayRepository.php                                                                               
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  35     Method OwnPay\Repository\GatewayRepository::listActive() should return list<array<string, mixed>> but returns  
+          array<int, array<string, mixed>>.                                                                             
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\InvoiceRepository.php                                                                               
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  112    Method OwnPay\Repository\InvoiceRepository::listItems() should return list<array<string, mixed>> but returns   
+         array<int, array<string, mixed>>.                                                                              
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\ManualGatewayRepository.php                                                                         
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  56     Method OwnPay\Repository\ManualGatewayRepository::listActive() should return list<array<string, mixed>> but r  
+         eturns array<int, array<string, mixed>>.                                                                       
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  69     Method OwnPay\Repository\ManualGatewayRepository::listAll() should return list<array<string, mixed>> but retu  
+         rns array<int, array<string, mixed>>.                                                                          
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\MerchantRepository.php                                                                              
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  76     Method OwnPay\Repository\MerchantRepository::listWithDomains() should return list<array<string, mixed>> but r  
+         eturns array<int, array<string, mixed>>.                                                                       
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\MerchantUserRepository.php                                                                          
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  202    Method OwnPay\Repository\MerchantUserRepository::listAllStaff() should return list<array<string, mixed>> but   
+         returns array<int, array<string, mixed>>.                                                                      
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  219    Method OwnPay\Repository\MerchantUserRepository::listStaffForMerchant() should return list<array<string, mixe  
+         d>> but returns array<int, array<string, mixed>>.                                                              
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\MobileNotificationRepository.php                                                                    
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  75     Method OwnPay\Repository\MobileNotificationRepository::pollSince() should return list<array<string, mixed>> b  
+         ut returns array<int, array<string, mixed>>.                                                                   
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  154    Method OwnPay\Repository\MobileNotificationRepository::listForDevice() should return list<array<string, mixed  
+         >> but returns array<int, array<string, mixed>>.                                                               
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\PairedDeviceRepository.php                                                                          
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  111    Method OwnPay\Repository\PairedDeviceRepository::listActive() should return list<array<string, mixed>> but re  
+         turns array<int, array<string, mixed>>.                                                                        
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  124    Method OwnPay\Repository\PairedDeviceRepository::listAllForMerchant() should return list<array<string, mixed>  
+         > but returns array<int, array<string, mixed>>.                                                                
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\PluginRepository.php                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  50     Method OwnPay\Repository\PluginRepository::listActive() should return list<array<string, mixed>> but returns   
+         array<int, array<string, mixed>>.                                                                              
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Repository\TransactionRepository.php                                                                           
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  56     Parameter #1 $num1 of function bcsub expects numeric-string, string given.                                     
+         🪪  argument.type                                                                                              
+  56     Parameter #2 $num2 of function bcsub expects numeric-string, string given.                                     
+         🪪  argument.type                                                                                              
+  212    Method OwnPay\Repository\TransactionRepository::listFiltered() should return list<array<string, mixed>> but r  
+         eturns array<int, array<string, mixed>>.                                                                       
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  234    Method OwnPay\Repository\TransactionRepository::getDashboardStats() should return array{total_revenue:         
+         string, completed_count: int, pending_count: int} but returns array<string, mixed>|null.                       
+         🪪  return.type                                                                                                
+  257    Method OwnPay\Repository\TransactionRepository::getRecentDashboardTransactions() should return list<array<str  
+         ing, mixed>> but returns array<int, array<string, mixed>>.                                                     
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  276    Method OwnPay\Repository\TransactionRepository::getGlobalBrandBreakdown() should return list<array{id: int, n  
+         ame: string, slug: string, revenue: string, txn_count: int}> but returns array<int, array<string, mixed>>.     
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  497    Method OwnPay\Repository\TransactionRepository::getReportData() should return list<array{date: string, gatewa  
+         y_slug: string, txn_count: int, revenue: string, refunds: string, failed_count: int}> but returns array<int,   
+         array<string, mixed>>.                                                                                         
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  523    Method OwnPay\Repository\TransactionRepository::getDistinctGateways() should return list<array{slug: string,   
+         name: string}> but returns array<int, array<string, mixed>>.                                                   
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  548    Method OwnPay\Repository\TransactionRepository::getExportData() should return list<array{id: int, gateway_slu  
+         g: string, currency: string, amount: string, status: string, created_at: string}> but returns array<int, arra  
+         y<string, mixed>>.                                                                                             
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  567    Method OwnPay\Repository\TransactionRepository::getDistinctCurrencies() should return list<array{currency: st  
+         ring}> but returns array<int, array<string, mixed>>.                                                           
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+  581    Method OwnPay\Repository\TransactionRepository::getTodayStats() should return array{revenue:                   
+         float|int|string, total: int, pending: int} but returns array<string, mixed>.                                  
+         🪪  return.type                                                                                                
+  599    Method OwnPay\Repository\TransactionRepository::getRecentTransactions() should return list<array{trx_id: stri  
+         ng, amount: string, currency: string, status: string, gateway: string, created_at: string}> but returns array  
+         <int, array<string, mixed>>.                                                                                   
+         🪪  return.type                                                                                                
+         💡  array<int, array<string, mixed>> might not be a list.                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------ 
+  Line   Security\Authenticator.php                                                    
+ ------ ------------------------------------------------------------------------------ 
+  170    Parameter #1 $name of function setcookie expects string, string|false given.  
+         🪪  argument.type                                                             
+ ------ ------------------------------------------------------------------------------ 
+
+ ------ ------------------------------------------------------------------------------- 
+  Line   Security\FieldEncryptor.php                                                    
+ ------ ------------------------------------------------------------------------------- 
+  52     Parameter #1 $length of function random_bytes expects int<1, max>, int given.  
+         🪪  argument.type                                                              
+ ------ ------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------- 
+  Line   Security\SecurityHelpers.php                                                   
+ ------ ------------------------------------------------------------------------------- 
+  52     Parameter #1 $length of function random_bytes expects int<1, max>, int given.  
+         🪪  argument.type                                                              
+ ------ ------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Auth\AuthSessionService.php                                                                            
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  90     Offset 'user' might not exist on array{success: true, user?: array<string, mixed>, error?: string, requires_2  
+         fa?: bool}.                                                                                                    
+         🪪  offsetAccess.notFound                                                                                      
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Auth\PermissionService.php                                                                             
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  147    Parameter #2 $permissionIds of method OwnPay\Repository\RoleRepository::syncPermissions() expects list<int>,   
+         non-empty-array<int> given.                                                                                    
+         🪪  argument.type                                                                                              
+         💡  non-empty-array<int> might not be a list.                                                                  
+  166    Parameter #2 $permissionIds of method OwnPay\Repository\RoleRepository::syncPermissions() expects list<int>,   
+         array<int> given.                                                                                              
+         🪪  argument.type                                                                                              
+         💡  array<int> might not be a list.                                                                            
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------ 
+  Line   Service\Auth\StatusGuard.php                                
+ ------ ------------------------------------------------------------ 
+  84     Offset 'status' might not exist on array{status?: string}.  
+         🪪  offsetAccess.notFound                                   
+ ------ ------------------------------------------------------------ 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Brand\BrandContext.php                                                                                 
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  162    Method OwnPay\Service\Brand\BrandContext::getAllBrands() should return array<int, array{id: int, name: string  
+         , slug: string, logo_path: string|null, status: string}> but returns array<int, array<string, mixed>>.         
+         🪪  return.type                                                                                                
+  169    Method OwnPay\Service\Brand\BrandContext::getAllBrands() should return array<int, array{id: int, name: string  
+         , slug: string, logo_path: string|null, status: string}> but returns array<int, array<string, mixed>>.         
+         🪪  return.type                                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Communication\CommunicationService.php                                                                 
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  122    Parameter #1 $message of method OwnPay\Service\Communication\MailProviderInterface::send() expects array{to:   
+         string, subject: string, body: string, html?: string, from?: string, reply_to?: string, attachments?:          
+         array<int, array<string, mixed>>}, array{to?: string, subject?: string, body?: string, html?: string, from?:   
+         string} given.                                                                                                 
+         🪪  argument.type                                                                                              
+         💡  Array might not have offset 'to'.                                                                          
+         💡  Array might not have offset 'subject'.                                                                     
+         💡  Array might not have offset 'body'.                                                                        
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Customer\CustomerPiiService.php                                                                        
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  221    Method OwnPay\Service\Customer\CustomerPiiService::list() should return array{items: array<int, array<string,  
+          mixed>>, total: int, page: int, per_page: int, total_pages: int} but returns non-empty-array<string, mixed>.  
+         🪪  return.type                                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------ 
+  Line   Service\Device\DevicePairingService.php                                                         
+ ------ ------------------------------------------------------------------------------------------------ 
+  211    Offset 'merchant_id' might not exist on array{valid: true, merchant_id?: int, error?: string}.  
+         🪪  offsetAccess.notFound                                                                       
+ ------ ------------------------------------------------------------------------------------------------ 
+
+ ------ ----------------------------------------------------------- 
+  Line   Service\Notification\MobileNotificationService.php         
+ ------ ----------------------------------------------------------- 
+  113    Cannot call method queue() on class-string|object.         
+         🪪  method.nonObject                                       
+  115    Cannot call method create() on class-string|object.        
+         🪪  method.nonObject                                       
+  156    Cannot call method countUnread() on class-string|object.   
+         🪪  method.nonObject                                       
+  158    Cannot call method countUnread() on class-string|object.   
+         🪪  method.nonObject                                       
+  180    Cannot call method markRead() on class-string|object.      
+         🪪  method.nonObject                                       
+  194    Cannot call method purgeOldRead() on class-string|object.  
+         🪪  method.nonObject                                       
+ ------ ----------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------- 
+  Line   Service\Notification\WebhookDispatcher.php                                                               
+ ------ --------------------------------------------------------------------------------------------------------- 
+  91     Parameter #2 $data of function hash_hmac expects string, string|false given.                             
+         🪪  argument.type                                                                                        
+  94     Parameter #2 $payload of method OwnPay\Service\Notification\WebhookDispatcher::sendWithRetry() expects   
+         string, string|false given.                                                                              
+         🪪  argument.type                                                                                        
+  170    Parameter #1 $payload of method OwnPay\Service\Notification\WebhookDispatcher::sign() expects string,    
+         string|false given.                                                                                      
+         🪪  argument.type                                                                                        
+  172    Parameter #2 $payload of method OwnPay\Service\Notification\WebhookDispatcher::doSend() expects string,  
+         string|false given.                                                                                      
+         🪪  argument.type                                                                                        
+ ------ --------------------------------------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Payment\CurrencyService.php                                                                            
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  67     Parameter #2 $num2 of function bcmul expects numeric-string, string given.                                     
+         🪪  argument.type                                                                                              
+  215    Method OwnPay\Service\Payment\CurrencyService::listAll() should return array<int, array{code: string, name: s  
+         tring}> but returns array<int, array<string, mixed>>.                                                          
+         🪪  return.type                                                                                                
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------- 
+  Line   Service\Payment\FeeService.php                                               
+ ------ ----------------------------------------------------------------------------- 
+  69     Parameter #1 $num1 of function bcmul expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  74     Parameter #2 $num2 of function bcadd expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  75     Parameter #2 $num2 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  76     Parameter #2 $num2 of function bcadd expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  80     Parameter #1 $num1 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  80     Parameter #2 $num2 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  83     Parameter #1 $num1 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  83     Parameter #2 $num2 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  132    Parameter #1 $num1 of function bcmul expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  157    Parameter #1 $num1 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  157    Parameter #2 $num2 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  164    Parameter #1 $num1 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  164    Parameter #2 $num2 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  178    Parameter #1 $num1 of function bcmul expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  189    Parameter #1 $num1 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  189    Parameter #2 $num2 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  192    Parameter #1 $num1 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  192    Parameter #1 $num1 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  192    Parameter #2 $num2 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  196    Parameter #1 $num1 of function bcadd expects numeric-string, string given.   
+         🪪  argument.type                                                            
+ ------ ----------------------------------------------------------------------------- 
+
+ ------ ---------------------------------------------------------------------------------------------------------- 
+  Line   Service\Payment\IdempotencyService.php                                                                    
+ ------ ---------------------------------------------------------------------------------------------------------- 
+  99     Parameter #2 $responseBody of method OwnPay\Repository\IdempotencyRepository::complete() expects string,  
+         string|false given.                                                                                       
+         🪪  argument.type                                                                                         
+ ------ ---------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  Line   Service\Payment\InvoiceService.php                                                                          
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  286    Method OwnPay\Service\Payment\InvoiceService::generatePdf() should return string but returns string|false.  
+         🪪  return.type                                                                                             
+ ------ ------------------------------------------------------------------------------------------------------------ 
+
+ ------ ----------------------------------------------------------------------------- 
+  Line   Service\Payment\LedgerService.php                                            
+ ------ ----------------------------------------------------------------------------- 
+  93     Parameter #2 $num2 of function bcadd expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  95     Parameter #2 $num2 of function bcadd expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  155    Parameter #1 $num1 of function bcsub expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  155    Parameter #2 $num2 of function bcsub expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  187    Parameter #1 $num1 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  189    Parameter #1 $num1 of function bcmul expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  194    Parameter #1 $num1 of function bcsub expects numeric-string, string given.   
+         🪪  argument.type                                                            
+ ------ ----------------------------------------------------------------------------- 
+
+ ------ ----------------------------------------------------------------------------- 
+  Line   Service\Payment\ReconciliationService.php                                    
+ ------ ----------------------------------------------------------------------------- 
+  52     Parameter #1 $num1 of function bccomp expects numeric-string, string given.  
+         🪪  argument.type                                                            
+  54     Parameter #1 $num1 of function bcmul expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  58     Parameter #1 $num1 of function bcsub expects numeric-string, string given.   
+         🪪  argument.type                                                            
+  71     Parameter #2 $num2 of function bcsub expects numeric-string, string given.   
+         🪪  argument.type                                                            
+ ------ ----------------------------------------------------------------------------- 
+
+ ------ ---------------------------------------------------------------------------- 
+  Line   Service\Payment\RefundService.php                                           
+ ------ ---------------------------------------------------------------------------- 
+  92     Parameter #2 $num2 of function bcsub expects numeric-string, string given.  
+         🪪  argument.type                                                           
+  99     Parameter #1 $num1 of function bcadd expects numeric-string, string given.  
+         🪪  argument.type                                                           
+ ------ ---------------------------------------------------------------------------- 
+
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  Line   Service\Payment\WebhookService.php                                                                             
+ ------ --------------------------------------------------------------------------------------------------------------- 
+  97     Parameter #2 $data of function hash_hmac expects string, string|false given.                                   
+         🪪  argument.type                                                                                              
+  104    Parameter #5 $body of method OwnPay\Repository\CommLogRepository::log() expects string|null, string|false      
+         given.                                                                                                         
+         🪪  argument.type                                                                                              
+  111    Parameter #2 $options of function curl_setopt_array expects array{47: bool, 10015: array|string, 19913: bool,  
+         13: int, 78: int, 10023: array<int, string>, 52: bool}, array{47: true, 10015: non-empty-string|false, 19913:  
+          true, 13: 10, 78: 5, 10023: array{'Content-Type:…', non-falsy-string, non-falsy-string, non-falsy-string,     
+         'User-Agent: OwnPay…'}, 52: false} given.                                                                      
+         🪪  argument.type                                                                                              
+         💡  Offset 10015 (array|string) does not accept type string|false.                                             
+ ------ --------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------- 
+  Line   Service\System\FilesystemService.php                                                                   
+ ------ ------------------------------------------------------------------------------------------------------- 
+  65     Parameter #1 $mime of method OwnPay\Service\System\FilesystemService::isMimeAllowed() expects string,  
+         string|false given.                                                                                    
+         🪪  argument.type                                                                                      
+ ------ ------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  Line   Service\System\HttpClient.php                                                                               
+ ------ ------------------------------------------------------------------------------------------------------------ 
+  280    Parameter #1 $string of function strtolower expects string, string|false given.                             
+         🪪  argument.type                                                                                           
+  280    Parameter #1 $string of function strtolower expects string, string|false given.                             
+         🪪  argument.type                                                                                           
+  294    Method OwnPay\Service\System\HttpClient::request() should return array{status: int, body: string, headers:  
+         array<string, string>} but returns array{status: int, body: string|true, headers: array<string, string>}.   
+         🪪  return.type                                                                                             
+         💡  Offset 'body' (string) does not accept type string|true.                                                
+ ------ ------------------------------------------------------------------------------------------------------------ 
+
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  Line   Service\System\ImageService.php                                                                               
+ ------ -------------------------------------------------------------------------------------------------------------- 
+  50     Parameter #1 $width of function imagecreatetruecolor expects int<1, max>, int given.                          
+         🪪  argument.type                                                                                             
+  50     Parameter #2 $height of function imagecreatetruecolor expects int<1, max>, int given.                         
+         🪪  argument.type                                                                                             
+  91     Method OwnPay\Service\System\ImageService::createFromFile() should return GdImage but returns GdImage|false.  
+         🪪  return.type                                                                                               
+ ------ -------------------------------------------------------------------------------------------------------------- 
+
+ ------ ------------------------------------------------------------------------------------------------------ 
+  Line   Update\MaintenanceMode.php                                                                            
+ ------ ------------------------------------------------------------------------------------------------------ 
+  89     Method OwnPay\Update\MaintenanceMode::info() should return array{reason: string, started_at: string,  
+         retry_after: int}|null but returns array<mixed, mixed>|null.                                          
+         🪪  return.type                                                                                       
+ ------ ------------------------------------------------------------------------------------------------------ 
+
+ ------ --------------------------------------------------------------------------------------- 
+  Line   Update\UpdateService.php                                                               
+ ------ --------------------------------------------------------------------------------------- 
+  144    Parameter #1 $json of function json_decode expects string, string|true given.          
+         🪪  argument.type                                                                      
+  270    Parameter #2 $user_string of function hash_equals expects string, string|false given.  
+         🪪  argument.type                                                                      
+  274    Parameter #1 $string of function substr expects string, string|false given.            
+         🪪  argument.type                                                                      
+  293    Parameter #1 $data of function openssl_verify expects string, string|false given.      
+         🪪  argument.type                                                                      
+  383    Parameter #1 $json of function json_decode expects string, string|true given.          
+         🪪  argument.type                                                                      
+ ------ --------------------------------------------------------------------------------------- 
+
+ [ERROR] Found 181 errors                                                                                              
+

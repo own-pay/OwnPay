@@ -114,6 +114,9 @@ final class RouteHelper
     public static function addQueryParams(string $url, array $params = []): string
     {
         $parsedUrl = parse_url($url);
+        if ($parsedUrl === false) {
+            return $url;
+        }
 
         $existingParams = [];
         if (!empty($parsedUrl['query'])) {
@@ -124,7 +127,7 @@ final class RouteHelper
         $queryString = http_build_query($finalParams);
 
         $baseUrl =
-            ($parsedUrl['scheme'] ?? '') . ($parsedUrl['scheme'] ? '://' : '') .
+            (!empty($parsedUrl['scheme']) ? $parsedUrl['scheme'] . '://' : '') .
             ($parsedUrl['host'] ?? '') .
             (!empty($parsedUrl['port']) ? ':' . $parsedUrl['port'] : '') .
             ($parsedUrl['path'] ?? '');

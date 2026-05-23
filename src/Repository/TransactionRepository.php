@@ -53,7 +53,13 @@ final class TransactionRepository extends BaseRepository
     {
         $data['uuid'] = Uuid::uuid4()->toString();
         $data['trx_id'] = $data['trx_id'] ?? $this->generateTrxId();
-        $data['net_amount'] = $data['net_amount'] ?? bcsub((string) $data['amount'], (string) ($data['fee'] ?? '0'), 2);
+        
+        $amtStr = is_numeric($data['amount'] ?? '') ? (string) $data['amount'] : '0.00';
+        $feeStr = is_numeric($data['fee'] ?? '') ? (string) $data['fee'] : '0.00';
+        /** @var numeric-string $amtStr */
+        /** @var numeric-string $feeStr */
+        $data['net_amount'] = $data['net_amount'] ?? bcsub($amtStr, $feeStr, 2);
+        
         return $this->createScoped($data);
     }
 
@@ -181,7 +187,7 @@ final class TransactionRepository extends BaseRepository
      * @param array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string} $filters Filtering criteria.
      * @param int $limit Maximum records to return.
      * @param int $offset Records offset.
-     * @return list<array<string, mixed>> List of matching transaction rows.
+     * @return array<int, array<string, mixed>> List of matching transaction rows.
      */
     public function listFiltered(array $filters, int $limit, int $offset): array
     {
@@ -231,7 +237,7 @@ final class TransactionRepository extends BaseRepository
         $merchantWhere = $isGlobal ? '' : 'AND merchant_id = :mid';
         $params = $isGlobal ? [] : ['mid' => $merchantId];
 
-        return $this->db->fetchOne(
+        $row = $this->db->fetchOne(
             "SELECT
                 COALESCE(SUM(CASE WHEN status='completed' THEN amount ELSE 0 END), 0) as total_revenue,
                 COUNT(CASE WHEN status='completed' THEN 1 END) as completed_count,
@@ -240,6 +246,12 @@ final class TransactionRepository extends BaseRepository
              WHERE 1=1 {$merchantWhere} {$dateFilterSQL}",
             $params
         );
+
+        return [
+            'total_revenue'   => (string) ($row['total_revenue'] ?? '0.00'),
+            'completed_count' => (int) ($row['completed_count'] ?? 0),
+            'pending_count'   => (int) ($row['pending_count'] ?? 0),
+        ];
     }
 
     /**
@@ -247,7 +259,7 @@ final class TransactionRepository extends BaseRepository
      *
      * @param bool $isGlobal True if retrieving global (superadmin) transactions, false otherwise.
      * @param int|null $merchantId Specific brand/store identifier (ignored if global).
-     * @return list<array<string, mixed>> List of recent transaction rows.
+     * @return array<int, array<string, mixed>> List of recent transaction rows.
      */
     public function getRecentDashboardTransactions(bool $isGlobal, ?int $merchantId): array
     {
@@ -269,7 +281,7 @@ final class TransactionRepository extends BaseRepository
      *
      * Used exclusively in superadmin dashboards.
      *
-     * @return list<array{id: int, name: string, slug: string, revenue: string, txn_count: int}> Breakdown array list.
+     * @return array<int, array<string, mixed>> Breakdown array list.
      */
     public function getGlobalBrandBreakdown(): array
     {
@@ -483,7 +495,7 @@ final class TransactionRepository extends BaseRepository
      * @param string $from Starting date boundary.
      * @param string $to Ending date boundary.
      * @param string|null $gateway Optional gateway slug filter.
-     * @return list<array{date: string, gateway_slug: string, txn_count: int, revenue: string, refunds: string, failed_count: int}> Report records list.
+     * @return array<int, array<string, mixed>> Report records list.
      */
     public function getReportData(int $merchantId, string $from, string $to, ?string $gateway = null): array
     {
@@ -516,7 +528,7 @@ final class TransactionRepository extends BaseRepository
      * Lists distinct gateway slug names used in transactions under a merchant.
      *
      * @param int $merchantId Active brand/store identifier context.
-     * @return list<array{slug: string, name: string}> List of used gateway descriptors.
+     * @return array<int, array<string, mixed>> List of used gateway descriptors.
      */
     public function getDistinctGateways(int $merchantId): array
     {
@@ -534,7 +546,7 @@ final class TransactionRepository extends BaseRepository
      * @param string $from Starting date boundary.
      * @param string $to Ending date boundary.
      * @param string|null $gateway Optional gateway slug filter.
-     * @return list<array{id: int, gateway_slug: string, currency: string, amount: string, status: string, created_at: string}> Export-ready rows.
+     * @return array<int, array<string, mixed>> Export-ready rows.
      */
     public function getExportData(int $merchantId, string $from, string $to, ?string $gateway = null): array
     {
@@ -560,7 +572,7 @@ final class TransactionRepository extends BaseRepository
      * Lists distinct currency ISO codes present in transactions under a merchant.
      *
      * @param int $merchantId Active brand/store identifier context.
-     * @return list<array{currency: string}> List of used currencies.
+     * @return array<int, array<string, mixed>> List of used currencies.
      */
     public function getDistinctCurrencies(int $merchantId): array
     {
@@ -578,13 +590,18 @@ final class TransactionRepository extends BaseRepository
      */
     public function getTodayStats(int $merchantId): array
     {
-        return $this->db->fetchOne(
+        $row = $this->db->fetchOne(
             "SELECT COALESCE(SUM(CASE WHEN status='completed' THEN amount ELSE 0 END),0) as revenue,
                     COUNT(*) as total,
                     COUNT(CASE WHEN status='pending' THEN 1 END) as pending
              FROM {$this->table} WHERE merchant_id = :mid AND DATE(created_at) = CURDATE()",
             ['mid' => $merchantId]
-        ) ?? ['revenue' => 0, 'total' => 0, 'pending' => 0];
+        );
+        return [
+            'revenue' => (string) ($row['revenue'] ?? '0.00'),
+            'total'   => (int) ($row['total'] ?? 0),
+            'pending' => (int) ($row['pending'] ?? 0),
+        ];
     }
 
     /**
@@ -592,7 +609,7 @@ final class TransactionRepository extends BaseRepository
      *
      * @param int $merchantId Active brand/store identifier context.
      * @param int $limit Maximum records to retrieve.
-     * @return list<array{trx_id: string, amount: string, currency: string, status: string, gateway: string, created_at: string}> Recent transaction rows.
+     * @return array<int, array<string, mixed>> Recent transaction rows.
      */
     public function getRecentTransactions(int $merchantId, int $limit = 5): array
     {

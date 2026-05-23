@@ -85,7 +85,15 @@ class MaintenanceMode
         if (!$this->isActive()) {
             return null;
         }
-        $data = json_decode(file_get_contents($this->lockFile) ?: '{}', true);
-        return is_array($data) ? $data : null;
+        $raw = file_get_contents($this->lockFile);
+        $data = json_decode(is_string($raw) ? $raw : '{}', true);
+        if (!is_array($data)) {
+            return null;
+        }
+        return [
+            'reason'      => (string) ($data['reason'] ?? 'System maintenance'),
+            'started_at'  => (string) ($data['started_at'] ?? DateHelper::now()),
+            'retry_after' => (int) ($data['retry_after'] ?? 300),
+        ];
     }
 }

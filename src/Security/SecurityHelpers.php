@@ -49,7 +49,8 @@ final class SecurityHelpers
      */
     public static function randomString(int $length = 32): string
     {
-        return bin2hex(random_bytes((int) ceil($length / 2)));
+        $byteLength = (int) ceil($length / 2);
+        return bin2hex(random_bytes($byteLength > 0 ? $byteLength : 1));
     }
 
     /**

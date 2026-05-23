@@ -106,7 +106,7 @@ abstract class BaseRepository
      * @param string $orderBy Column name to order by.
      * @param string $direction Sort direction ('ASC' or 'DESC').
      * @param int $limit Maximum records to return.
-     * @return list<array<string, mixed>> List of matching database rows.
+     * @return array<int, array<string, mixed>> List of matching database rows.
      * @throws \InvalidArgumentException If columns or sort parameters are malformed.
      */
     public function where(string $column, mixed $value, string $orderBy = 'id', string $direction = 'DESC', int $limit = 100): array
@@ -131,7 +131,7 @@ abstract class BaseRepository
      * @param string $where Additional SQL WHERE conditions.
      * @param array<string, mixed> $params Parameter binds for the WHERE query.
      * @param string $orderBy SQL ORDER BY clause.
-     * @return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int, pages: int} Pagination envelope.
+     * @return array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, pages: int} Pagination envelope.
      * @throws \InvalidArgumentException If the WHERE clause contains forbidden SQL structures or injection patterns.
      */
     public function paginate(int $page = 1, int $perPage = 20, string $where = '1=1', array $params = [], string $orderBy = 'id DESC'): array
@@ -181,7 +181,7 @@ abstract class BaseRepository
      * @param string|null $afterId Cursor value to start listing after (primary key value).
      * @param string $where Additional SQL WHERE conditions.
      * @param array<string, mixed> $params Parameter binds for the WHERE query.
-     * @return array{items: list<array<string, mixed>>, next_cursor: string|null} Pagination envelope with cursor pointer.
+     * @return array{items: array<int, array<string, mixed>>, next_cursor: string|null} Pagination envelope with cursor pointer.
      */
     public function cursorPaginate(int $perPage = 20, ?string $afterId = null, string $where = '1=1', array $params = []): array
     {

@@ -106,7 +106,10 @@ final class PluginManager
             return $result;
         }
 
-        $slug = $result['slug'];
+        $slug = $result['slug'] ?? '';
+        if ($slug === '') {
+            return ['success' => false, 'error' => 'Installation failed: missing slug.'];
+        }
 
         $loader = $this->container->get(PluginLoader::class);
         $manifests = $loader->discover();

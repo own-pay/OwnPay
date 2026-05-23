@@ -195,7 +195,7 @@ final class MerchantUserRepository extends BaseRepository
     /**
      * Retrieves all staff users across all brands for superadmin views.
      *
-     * @return list<array<string, mixed>> List of all staff records with brand and role names.
+     * @return array<int, array<string, mixed>> List of all staff records with brand and role names.
      */
     public function listAllStaff(): array
     {
@@ -212,7 +212,7 @@ final class MerchantUserRepository extends BaseRepository
      * Lists all staff members associated with a specific merchant.
      *
      * @param int $merchantId The merchant brand ID.
-     * @return list<array<string, mixed>> List of matching staff records.
+     * @return array<int, array<string, mixed>> List of matching staff records.
      */
     public function listStaffForMerchant(int $merchantId): array
     {

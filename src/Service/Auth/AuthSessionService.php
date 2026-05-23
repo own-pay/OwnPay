@@ -87,7 +87,9 @@ final class AuthSessionService
             return $result;
         }
 
-        $this->events->doAction('auth.login.success', $result['user'], $ip);
+        if (isset($result['user'])) {
+            $this->events->doAction('auth.login.success', $result['user'], $ip);
+        }
         return $result;
     }
 

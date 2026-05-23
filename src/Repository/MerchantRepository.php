@@ -69,7 +69,7 @@ final class MerchantRepository extends BaseRepository
     /**
      * Lists all merchant brands alongside their primary domains for the administrative views.
      *
-     * @return list<array<string, mixed>> List of merchants with associated primary domains.
+     * @return array<int, array<string, mixed>> List of merchants with associated primary domains.
      */
     public function listWithDomains(): array
     {

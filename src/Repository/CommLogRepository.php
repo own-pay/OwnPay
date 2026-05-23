@@ -87,7 +87,7 @@ final class CommLogRepository extends BaseRepository
      *
      * @param int $merchantId Active brand/store identifier context.
      * @param int $limit Maximum records to return.
-     * @return list<array<string, mixed>> List of matching communication log records.
+     * @return array<int, array<string, mixed>> List of matching communication log records.
      */
     public function listSmsQueue(int $merchantId, int $limit = 50): array
     {
@@ -105,14 +105,19 @@ final class CommLogRepository extends BaseRepository
      */
     public function getSmsQueueStats(int $merchantId): array
     {
-        return $this->db->fetchOne(
+        $row = $this->db->fetchOne(
             "SELECT
                 COUNT(CASE WHEN status='queued' THEN 1 END) as queued,
                 COUNT(CASE WHEN status='sent' THEN 1 END) as sent,
                 COUNT(CASE WHEN status='failed' THEN 1 END) as failed
              FROM {$this->table} WHERE channel='sms' AND merchant_id = :mid",
             ['mid' => $merchantId]
-        ) ?? ['queued' => 0, 'sent' => 0, 'failed' => 0];
+        );
+        return [
+            'queued' => (int) ($row['queued'] ?? 0),
+            'sent'   => (int) ($row['sent'] ?? 0),
+            'failed' => (int) ($row['failed'] ?? 0),
+        ];
     }
 
     /**
@@ -120,16 +125,18 @@ final class CommLogRepository extends BaseRepository
      *
      * @param int $merchantId Active brand/store identifier context.
      * @param int $limit Maximum records to return.
-     * @return list<array{id: int, to: string, body: string}> List of queued SMS records.
+     * @return array<int, array{id: int, to: string, body: string}> List of queued SMS records.
      */
     public function listPendingSms(int $merchantId, int $limit = 20): array
     {
-        return $this->db->fetchAll(
+        /** @var array<int, array{id: int, to: string, body: string}> $rows */
+        $rows = $this->db->fetchAll(
             "SELECT id, recipient as `to`, body FROM {$this->table}
              WHERE channel = 'sms' AND status = 'queued' AND merchant_id = :mid
              ORDER BY created_at ASC LIMIT :lim",
             ['mid' => $merchantId, 'lim' => $limit]
         );
+        return $rows;
     }
 
     /**

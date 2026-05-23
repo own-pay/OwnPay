@@ -62,8 +62,12 @@ final class CurrencyService
             throw new \RuntimeException("Exchange rate not available for {$from}/{$to}");
         }
 
+        /** @var numeric-string $amount */
+        /** @var numeric-string $fromRate */
+        /** @var numeric-string $toRate */
         // Convert to base, then to target
         $baseAmount = bcdiv($amount, $fromRate, 8);
+        /** @var numeric-string $baseAmount */
         return bcmul($baseAmount, $toRate, $this->getDecimals($to));
     }
 
@@ -137,6 +141,7 @@ final class CurrencyService
         if (!is_numeric($amount)) {
             return false;
         }
+        /** @var numeric-string $amount */
         if (bccomp($amount, '0', 8) <= 0) {
             return false;
         }
@@ -208,7 +213,7 @@ final class CurrencyService
     /**
      * Retrieves all currency codes and names registered in the system.
      *
-     * @return array<int, array{code: string, name: string}> List of currency metadata arrays.
+     * @return array<int, array<string, mixed>> List of currency metadata arrays.
      */
     public function listAll(): array
     {

@@ -152,14 +152,15 @@ final class TwoFactorSetupController
     private function generateBase32Secret(int $bytes = 20): string
     {
         $chars  = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
-        $binary = random_bytes($bytes);
+        $length = max(1, $bytes);
+        $binary = random_bytes($length);
         $bits   = '';
         foreach (str_split($binary) as $byte) {
             $bits .= str_pad(decbin(ord($byte)), 8, '0', STR_PAD_LEFT);
         }
         $result = '';
         foreach (str_split($bits, 5) as $chunk) {
-            $result .= $chars[bindec(str_pad($chunk, 5, '0'))];
+            $result .= $chars[(int) bindec(str_pad($chunk, 5, '0'))];
         }
         return $result;
     }
@@ -202,7 +203,7 @@ final class TwoFactorSetupController
         $key = '';
         foreach (str_split($bits, 8) as $chunk) {
             if (strlen($chunk) === 8) {
-                $key .= chr(bindec($chunk));
+                $key .= chr((int) bindec($chunk));
             }
         }
 

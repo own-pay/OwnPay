@@ -244,7 +244,8 @@ final class ThemeController
             return Response::redirect('/admin/themes');
         }
 
-        $this->session->flashSuccess("Theme '{$result['slug']}' installed successfully!");
+        $slug = $result['slug'] ?? 'unknown';
+        $this->session->flashSuccess("Theme '{$slug}' installed successfully!");
         return Response::redirect('/admin/themes');
     }
 

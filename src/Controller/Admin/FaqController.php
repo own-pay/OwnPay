@@ -84,11 +84,17 @@ final class FaqController
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
 
+        $faqJson = json_encode($clean);
+        if ($faqJson === false) {
+            $this->session->flashError('Failed to serialize FAQs.');
+            return Response::redirect('/admin/settings#tab-faq');
+        }
+
         if ($mid > 0) {
-            $this->settings->setScoped('general', 'faqs', json_encode($clean), $mid);
+            $this->settings->setScoped('general', 'faqs', $faqJson, $mid);
         } else {
             // Fallback to global (should only happen if no brands exist)
-            $this->settings->set('general', 'faqs', json_encode($clean));
+            $this->settings->set('general', 'faqs', $faqJson);
         }
 
         $this->session->flashSuccess('FAQs saved');
