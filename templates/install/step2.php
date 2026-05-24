@@ -69,7 +69,7 @@
 
 <div class="ins-footer">Own Pay · Secure Payment Gateway · v0.1.0</div>
 
-<script>
+<script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
 document.getElementById('dbForm').addEventListener('submit', async function(e) {
     e.preventDefault();
     var btn = document.getElementById('dbBtn');

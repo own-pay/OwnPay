@@ -768,8 +768,8 @@
 
 {% endblock %}
 {% block scripts %}
-<script src="/assets/js/pages/settings.js"></script>
-<script>
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/settings.js"></script>
+<script nonce="{{ csp_nonce }}">
     function toggleCronSecret() {
         const input = document.getElementById('cron-secret-input');
         const icon = document.getElementById('secret-eye-icon');

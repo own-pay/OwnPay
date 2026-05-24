@@ -125,7 +125,7 @@ final class DevicePairingService
      * concurrent token reuse or replay attacks.
      *
      * @param string $otp The plain pairing OTP code.
-     * @return array{valid: true, merchant_id: int}|array{valid: false, error: string} Validation outcome payload.
+     * @return array{valid: true, merchant_id: int, created_by?: int|null}|array{valid: false, error: string} Validation outcome payload.
      */
     public function validatePairingOtp(string $otp): array
     {
@@ -157,7 +157,12 @@ final class DevicePairingService
         }
 
         $midVal = $matchedRow['merchant_id'] ?? 0;
-        return ['valid' => true, 'merchant_id' => is_scalar($midVal) ? (int) $midVal : 0];
+        $createdByVal = $matchedRow['created_by'] ?? null;
+        return [
+            'valid' => true,
+            'merchant_id' => is_scalar($midVal) ? (int) $midVal : 0,
+            'created_by' => is_scalar($createdByVal) ? (int) $createdByVal : null,
+        ];
     }
 
     /**
@@ -215,16 +220,21 @@ final class DevicePairingService
         }
         $merchantId = $valid['merchant_id'];
 
-        $sUserId = $_SESSION['auth_user_id'] ?? 0;
-        $userId = is_scalar($sUserId) ? (int) $sUserId : 0;
-        if ($userId === 0) {
-            $db = $this->devices->getDatabase();
-            $admin = $db->fetchOne(
-                "SELECT id FROM op_merchant_users WHERE merchant_id = :mid AND is_superadmin = 1 AND status = 'active' ORDER BY id ASC LIMIT 1",
-                ['mid' => $merchantId]
-            );
-            $adminIdVal = $admin['id'] ?? 1;
-            $userId = is_scalar($adminIdVal) ? (int) $adminIdVal : 1;
+        $createdBy = $valid['created_by'] ?? null;
+        if ($createdBy !== null && $createdBy > 0) {
+            $userId = $createdBy;
+        } else {
+            $sUserId = $_SESSION['auth_user_id'] ?? 0;
+            $userId = is_scalar($sUserId) ? (int) $sUserId : 0;
+            if ($userId === 0) {
+                $db = $this->devices->getDatabase();
+                $admin = $db->fetchOne(
+                    "SELECT id FROM op_merchant_users WHERE merchant_id = :mid AND is_superadmin = 1 AND status = 'active' ORDER BY id ASC LIMIT 1",
+                    ['mid' => $merchantId]
+                );
+                $adminIdVal = $admin['id'] ?? 1;
+                $userId = is_scalar($adminIdVal) ? (int) $adminIdVal : 1;
+            }
         }
 
         $fpHash = hash('sha256', $fingerprint);

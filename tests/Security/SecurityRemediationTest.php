@@ -41,6 +41,7 @@ final class SecurityRemediationTest extends TestCase
 
     protected function tearDown(): void
     {
+        \OwnPay\Service\System\HttpClient::$mockResponses = null;
         if (is_dir($this->tempDir)) {
             $this->removeDirectory($this->tempDir);
         }
@@ -457,54 +458,52 @@ final class SecurityRemediationTest extends TestCase
     public function testHttpClientRedirectSsrfBlocked(): void
     {
         $client = new \OwnPay\Service\System\HttpClient(5);
+
+        \OwnPay\Service\System\HttpClient::$mockResponses = [
+            'https://httpbin.org/redirect-to?url=https://127.0.0.1/&status_code=302' => [
+                'status' => 302,
+                'body' => '',
+                'headers' => ['Location' => 'https://127.0.0.1/']
+            ]
+        ];
         
-        // Use httpbin.org to redirect to a local IP
-        try {
-            $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('URL blocked by SSRF protection');
-            $client->get('https://httpbin.org/redirect-to?url=https://127.0.0.1/&status_code=302');
-        } catch (\RuntimeException $e) {
-            if (str_contains($e->getMessage(), 'HTTP request failed')) {
-                $this->markTestSkipped('Network unavailable — cannot reach httpbin.org');
-            }
-            throw $e;
-        }
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('URL blocked by SSRF protection');
+        $client->get('https://httpbin.org/redirect-to?url=https://127.0.0.1/&status_code=302');
     }
 
     public function testHttpClientPatchMethod(): void
     {
         $client = new \OwnPay\Service\System\HttpClient(5);
-        
-        // Assert that the public patch method exists and executes (or fails with a network issue)
-        try {
-            $res = $client->patch('https://httpbin.org/patch', ['test' => 'data']);
-            if ($res['status'] !== 200) {
-                $this->markTestSkipped('External service httpbin.org is currently unavailable / returned status ' . $res['status']);
-            }
-            $this->assertSame(200, $res['status']);
-        } catch (\RuntimeException $e) {
-            if (str_contains($e->getMessage(), 'HTTP request failed')) {
-                $this->markTestSkipped('Network unavailable — cannot reach httpbin.org');
-            }
-            throw $e;
-        }
+
+        \OwnPay\Service\System\HttpClient::$mockResponses = [
+            'https://httpbin.org/patch' => [
+                'status' => 200,
+                'body' => (string) json_encode(['test' => 'data']),
+                'headers' => ['Content-Type' => 'application/json']
+            ]
+        ];
+
+        $res = $client->patch('https://httpbin.org/patch', ['test' => 'data']);
+        $this->assertSame(200, $res['status']);
+        $this->assertSame(json_encode(['test' => 'data']), $res['body']);
     }
 
     public function testHttpClientProtocolRelativeRedirectBlocked(): void
     {
         $client = new \OwnPay\Service\System\HttpClient(5);
-        
-        // Redirecting protocol-relative to a loopback address: //127.0.0.1/ should be blocked
-        try {
-            $this->expectException(\RuntimeException::class);
-            $this->expectExceptionMessage('URL blocked by SSRF protection');
-            $client->get('https://httpbin.org/redirect-to?url=//127.0.0.1/&status_code=302');
-        } catch (\RuntimeException $e) {
-            if (str_contains($e->getMessage(), 'HTTP request failed')) {
-                $this->markTestSkipped('Network unavailable — cannot reach httpbin.org');
-            }
-            throw $e;
-        }
+
+        \OwnPay\Service\System\HttpClient::$mockResponses = [
+            'https://httpbin.org/redirect-to?url=//127.0.0.1/&status_code=302' => [
+                'status' => 302,
+                'body' => '',
+                'headers' => ['Location' => '//127.0.0.1/']
+            ]
+        ];
+
+        $this->expectException(\RuntimeException::class);
+        $this->expectExceptionMessage('URL blocked by SSRF protection');
+        $client->get('https://httpbin.org/redirect-to?url=//127.0.0.1/&status_code=302');
     }
 
     // ─────────────────────────────────────────────────────────────────────────
@@ -600,45 +599,49 @@ final class SecurityRemediationTest extends TestCase
     {
         $client = new \OwnPay\Service\System\HttpClient(5);
 
-        try {
-            $headers = [
-                'Authorization' => 'Bearer secret-token',
-                'X-Api-Key' => 'key-value',
-                'X-Safe-Header' => 'should-remain'
-            ];
-            
-            $res = $client->get(
-                'https://httpbin.org/redirect-to?url=https://postman-echo.com/headers&status_code=302',
-                $headers
-            );
-
-            if ($res['status'] !== 200) {
-                $this->markTestSkipped('External service httpbin.org is currently unavailable / returned status ' . $res['status']);
+        \OwnPay\Service\System\HttpClient::$mockResponses = [
+            'https://httpbin.org/redirect-to?url=https://postman-echo.com/headers&status_code=302' => [
+                'status' => 302,
+                'body' => '',
+                'headers' => ['Location' => 'https://postman-echo.com/headers']
+            ],
+            'https://postman-echo.com/headers' => function (string $method, string $url, mixed $data, array $headers): array {
+                return [
+                    'status' => 200,
+                    'body' => (string) json_encode(['headers' => $headers]),
+                    'headers' => ['Content-Type' => 'application/json']
+                ];
             }
-            $this->assertSame(200, $res['status']);
-            $body = json_decode($res['body'], true);
-            $echoHeaders = $body['headers'] ?? [];
-            
-            // Normalize keys to lowercase for robust assertion
-            $normalized = [];
-            foreach ($echoHeaders as $k => $v) {
-                $normalized[strtolower($k)] = $v;
-            }
+        ];
 
-            // Authorization and X-Api-Key must be stripped on cross-origin redirects
-            $this->assertArrayNotHasKey('authorization', $normalized);
-            $this->assertArrayNotHasKey('x-api-key', $normalized);
-            
-            // X-Safe-Header should still be present
-            $this->assertArrayHasKey('x-safe-header', $normalized);
-            $this->assertSame('should-remain', $normalized['x-safe-header']);
+        $headers = [
+            'Authorization' => 'Bearer secret-token',
+            'X-Api-Key' => 'key-value',
+            'X-Safe-Header' => 'should-remain'
+        ];
+        
+        $res = $client->get(
+            'https://httpbin.org/redirect-to?url=https://postman-echo.com/headers&status_code=302',
+            $headers
+        );
 
-        } catch (\RuntimeException $e) {
-            if (str_contains($e->getMessage(), 'HTTP request failed')) {
-                $this->markTestSkipped('Network unavailable — cannot reach external endpoints');
-            }
-            throw $e;
+        $this->assertSame(200, $res['status']);
+        $body = json_decode($res['body'], true);
+        $echoHeaders = $body['headers'] ?? [];
+        
+        // Normalize keys to lowercase for robust assertion
+        $normalized = [];
+        foreach ($echoHeaders as $k => $v) {
+            $normalized[strtolower($k)] = $v;
         }
+
+        // Authorization and X-Api-Key must be stripped on cross-origin redirects
+        $this->assertArrayNotHasKey('authorization', $normalized);
+        $this->assertArrayNotHasKey('x-api-key', $normalized);
+        
+        // X-Safe-Header should still be present
+        $this->assertArrayHasKey('x-safe-header', $normalized);
+        $this->assertSame('should-remain', $normalized['x-safe-header']);
     }
 }
 

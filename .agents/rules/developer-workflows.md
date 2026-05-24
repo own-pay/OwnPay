@@ -33,7 +33,7 @@ Dashboard → Payments → Gateways → People → Mobile & SMS → Reports & Fi
 ### 1.4 Mandatory Automated Testing & Quality Verification
 AI Agents MUST execute the following verification commands after ANY code modifications to guarantee zero regressions before completing a task:
 * **PHP Backend Edits:**
-  * **Static Analysis:** Run `vendor/bin/phpstan analyse` to verify zero type-checking/structure errors.
+  * **Static Analysis:** Run `vendor/bin/phpstan analyse` to verify zero type-checking/structure errors at strict level 9.
   * **Unit/Integration Tests:** Run `vendor/bin/phpunit` to ensure all 390+ business logic and ledger test cases pass.
 * **Frontend, JSON, and Twig Template Edits:**
   * **Twig Templates:** Run `composer lint:twig` to verify Twig layout syntax using `twig-cs-fixer`.

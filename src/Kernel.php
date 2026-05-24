@@ -422,6 +422,10 @@ final class Kernel
             $e->getLine()
         ), 'critical');
 
+        if (!headers_sent()) {
+            header_remove('X-Powered-By');
+        }
+
         http_response_code(500);
 
         // API requests get JSON (no sensitive data)

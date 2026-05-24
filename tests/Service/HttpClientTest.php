@@ -9,26 +9,34 @@ use OwnPay\Service\System\HttpClient;
 
 class HttpClientTest extends TestCase
 {
+    protected function tearDown(): void
+    {
+        HttpClient::$mockResponses = null;
+        parent::tearDown();
+    }
+
     public function testGetReturnsNullForInvalidUrl(): void
     {
+        HttpClient::$mockResponses = [];
         $result = HttpClient::get('https://this-domain-does-not-exist-12345.invalid', 2);
         $this->assertNull($result);
     }
 
     public function testGetReturnsStringForValidUrl(): void
     {
-        // Use a reliable public URL
+        HttpClient::$mockResponses = [
+            'https://httpbin.org/get' => [
+                'status' => 200,
+                'body' => (string) json_encode(['url' => 'https://httpbin.org/get']),
+                'headers' => ['Content-Type' => 'application/json']
+            ]
+        ];
+
         $result = HttpClient::get('https://httpbin.org/get', 5);
 
-        if ($result === null) {
-            $this->markTestSkipped('Network unavailable â€” cannot reach httpbin.org');
-        }
-
+        $this->assertNotNull($result);
         $this->assertIsString($result);
         $decoded = json_decode($result, true);
-        if (!is_array($decoded)) {
-            $this->markTestSkipped('Network response blocked or invalid â€” cannot parse JSON from httpbin.org');
-        }
         $this->assertIsArray($decoded);
     }
 }

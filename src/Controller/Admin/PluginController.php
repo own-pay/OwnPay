@@ -104,8 +104,16 @@ final class PluginController
 
         $plugins = $this->repo->paginate(1, 200)['items'];
 
+        // Discover filesystem plugins
+        /** @var \OwnPay\Plugin\PluginLoader $loader */
+        $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
+        $discovered = $loader->discover();
+
         // Enrich DB rows with manifest name (DB may have slug as name)
         foreach ($plugins as &$p) {
+            $slugVal = $p['slug'] ?? '';
+            $slug = is_string($slugVal) ? $slugVal : '';
+
             $manifestVal = $p['manifest'] ?? '{}';
             $m = json_decode(is_string($manifestVal) ? $manifestVal : '{}', true);
             $m = is_array($m) ? $m : [];
@@ -114,20 +122,24 @@ final class PluginController
             }
             $p['description'] = $p['description'] ?? ($m['description'] ?? '');
 
+            // Second-pass: Align with discovered filesystem manifest attributes (prefer FS names)
+            if ($slug !== '' && isset($discovered[$slug])) {
+                $fsManifest = $discovered[$slug];
+                $p['name']        = $fsManifest->name;
+                $p['description'] = $p['description'] ?: ($fsManifest->description ?? '');
+                $p['author']      = $p['author'] ?? ($fsManifest->author ?? 'Unknown');
+                $p['version']     = $fsManifest->version;
+            }
+
             // Local active/inactive status override if brand context is active
             if ($brandId !== null && $brandId > 0 && !in_array($p['status'], ['uninstalled', 'trashed'], true)) {
-                $slugVal = $p['slug'] ?? '';
-                if (is_string($slugVal)) {
-                    $p['status'] = $this->repo->isPluginActiveForBrand($slugVal, $brandId) ? 'active' : 'inactive';
+                if ($slug !== '') {
+                    $p['status'] = $this->repo->isPluginActiveForBrand($slug, $brandId) ? 'active' : 'inactive';
                 }
             }
         }
         unset($p);
 
-        // Discover filesystem plugins
-        /** @var \OwnPay\Plugin\PluginLoader $loader */
-        $loader = $this->c->get(\OwnPay\Plugin\PluginLoader::class);
-        $discovered = $loader->discover();
         foreach ($discovered as $manifest) {
             if (in_array($manifest->type, ['addon', 'gateway', 'plugin'], true)) {
                 $found = false;

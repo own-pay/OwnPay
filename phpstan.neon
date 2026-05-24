@@ -1,8 +1,14 @@
 parameters:
-    level: 7
+    level: 9
+    
     paths:
+        - cli
+        - config
+        - modules
         - src
+        
     excludePaths:
+        analyse:
         - vendor
         - mobile_app (?)
         - cli
@@ -11,4 +17,5 @@ parameters:
         - node_modules (?)
     ignoreErrors:
         - '#Constant OWNPAY_INIT not found.#'
+        
     reportUnmatchedIgnoredErrors: false

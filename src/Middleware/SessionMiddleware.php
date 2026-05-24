@@ -55,6 +55,16 @@ final class SessionMiddleware
             }
         }
         $secure = $request->isSecure();
+        $sameSite = 'Lax';
+        if (is_array($config) && isset($config['session']) && is_array($config['session'])) {
+            $configuredSameSite = $config['session']['samesite'] ?? '';
+            $sameSite = match ($configuredSameSite) {
+                'Lax', 'lax' => 'Lax',
+                'None', 'none' => 'None',
+                'Strict', 'strict' => 'Strict',
+                default => 'Lax',
+            };
+        }
 
         ini_set('session.use_strict_mode', '1');
         ini_set('session.use_only_cookies', '1');
@@ -66,7 +76,7 @@ final class SessionMiddleware
             'domain'   => '',
             'secure'   => $secure,
             'httponly'  => true,
-            'samesite'  => 'Lax',
+            'samesite'  => $sameSite,
         ]);
 
         session_name('op_session');

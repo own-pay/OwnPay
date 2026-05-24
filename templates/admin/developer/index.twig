@@ -390,5 +390,5 @@ X-RateLimit-Remaining: 0
 
 
 {% endblock %}
-{% block scripts %}<script src="/assets/js/pages/developer.js"></script>{% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/developer.js"></script>{% endblock %}
 

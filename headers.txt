@@ -1,0 +1,20 @@
+HTTP/1.1 200 OK
+Date: Sun, 24 May 2026 10:30:33 GMT
+Server: Apache/2.4.66 (Win64) OpenSSL/3.0.18 mod_fcgid/2.3.10-dev
+Expires: Thu, 19 Nov 1981 08:52:00 GMT
+Cache-Control: no-store, no-cache, must-revalidate
+Pragma: no-cache
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=()
+Report-To: {"group":"csp-endpoint","max_age":10886400,"endpoints":[{"url":"https://ownpay.test/csp-report-api"}],"include_subdomains":true}
+Strict-Transport-Security: max-age=31536000; includeSubDomains
+Content-Security-Policy: default-src 'self'; script-src 'self' 'nonce-1oD/spRY2mBUbDE2QP+8gw=='; style-src 'self' 'nonce-1oD/spRY2mBUbDE2QP+8gw==' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: https:; connect-src 'self'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; report-uri /csp-report; report-to csp-endpoint
+Set-Cookie: op_session=e8ekknnfpd2s6atfkujj8ni6l8; expires=Sun, 24 May 2026 12:30:33 GMT; Max-Age=7200; path=/; secure; HttpOnly; SameSite=Lax
+X-Content-Type-Options: nosniff
+X-Frame-Options: DENY
+Referrer-Policy: strict-origin-when-cross-origin
+Transfer-Encoding: chunked
+Content-Type: text/html; charset=UTF-8
+

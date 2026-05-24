@@ -45,7 +45,7 @@
         <a href="?step=2" class="ins-btn">Continue to Database →</a>
         <?php else: ?>
         <div class="ins-warn">⚠ Some requirements are not met. Please fix them and refresh this page.</div>
-        <button onclick="location.reload()" class="ins-btn ins-btn-outline">Re-check Requirements</button>
+        <a href="/install?step=1" class="ins-btn ins-btn-outline">Re-check Requirements</a>
         <?php endif; ?>
     </div>
 </main>

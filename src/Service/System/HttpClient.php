@@ -15,6 +15,13 @@ namespace OwnPay\Service\System;
 final class HttpClient
 {
     /**
+     * Mock responses for unit testing.
+     *
+     * @var array<string, array{status: int, body: string, headers: array<string, string>}|\Closure>|null
+     */
+    public static ?array $mockResponses = null;
+
+    /**
      * Timeout in seconds for the overall transfer execution.
      *
      * @var int
@@ -197,6 +204,85 @@ final class HttpClient
             // Enforce SSRF protection: reject addresses targeting local or private ranges
             if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($currentUrl)) {
                 throw new \RuntimeException('URL blocked by SSRF protection');
+            }
+
+            // Intercept with mock responses if set
+            if (self::$mockResponses !== null) {
+                if (!isset(self::$mockResponses[$currentUrl])) {
+                    throw new \RuntimeException("No mock response configured for URL: " . $currentUrl);
+                }
+
+                $mock = self::$mockResponses[$currentUrl];
+                if ($mock instanceof \Closure) {
+                    $resTuple = $mock($method, $currentUrl, $data, $headers);
+                    $status = $resTuple['status'];
+                    $body = $resTuple['body'];
+                    $responseHeaders = $resTuple['headers'];
+                } else {
+                    $status = $mock['status'];
+                    $body = $mock['body'];
+                    $responseHeaders = $mock['headers'];
+                }
+
+                if ($status >= 300 && $status < 400) {
+                    $redirectUrl = '';
+                    foreach ($responseHeaders as $hName => $hVal) {
+                        if (strtolower($hName) === 'location') {
+                            $redirectUrl = $hVal;
+                            break;
+                        }
+                    }
+
+                    if ($redirectUrl !== '') {
+                        if ($redirects >= $this->maxRedirects) {
+                            throw new \RuntimeException('URL blocked by SSRF protection');
+                        }
+                        $redirects++;
+
+                        // Resolve relative or protocol-relative redirect if needed
+                        if (str_starts_with($redirectUrl, '//')) {
+                            $parsedCurrent = parse_url($currentUrl);
+                            $redirectUrl = ($parsedCurrent['scheme'] ?? 'https') . ':' . $redirectUrl;
+                        } elseif (!preg_match('#^https?://#i', $redirectUrl)) {
+                            $parsedCurrent = parse_url($currentUrl);
+                            $base = ($parsedCurrent['scheme'] ?? 'https') . '://' . ($parsedCurrent['host'] ?? 'localhost');
+                            if (isset($parsedCurrent['port'])) {
+                                $base .= ':' . $parsedCurrent['port'];
+                            }
+                            if (str_starts_with($redirectUrl, '/')) {
+                                $redirectUrl = $base . $redirectUrl;
+                            } else {
+                                $path = $parsedCurrent['path'] ?? '/';
+                                $dir = dirname($path);
+                                if ($dir === '\\' || $dir === '/') {
+                                    $dir = '';
+                                }
+                                $redirectUrl = $base . '/' . ltrim($dir . '/' . $redirectUrl, '/');
+                            }
+                        }
+
+                        // Enforce header safety for cross-origin redirects
+                        $origHost = parse_url($currentUrl, PHP_URL_HOST);
+                        $newHost = parse_url($redirectUrl, PHP_URL_HOST);
+                        if (is_string($origHost) && is_string($newHost) && strtolower($origHost) !== strtolower($newHost)) {
+                            $sensitive = ['authorization', 'cookie', 'x-api-key'];
+                            foreach ($headers as $key => $value) {
+                                if (in_array(strtolower($key), $sensitive, true)) {
+                                    unset($headers[$key]);
+                                }
+                            }
+                        }
+
+                        $currentUrl = $redirectUrl;
+                        continue;
+                    }
+                }
+
+                return [
+                    'status'  => $status,
+                    'body'    => $body,
+                    'headers' => $responseHeaders,
+                ];
             }
 
             $ch = curl_init($currentUrl);

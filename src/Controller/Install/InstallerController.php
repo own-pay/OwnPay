@@ -63,6 +63,8 @@ final class InstallerController
             default => [],
         };
         $data['step'] = $step;
+        $nonceVal = $req->getAttribute('csp_nonce');
+        $data['csp_nonce'] = is_string($nonceVal) ? $nonceVal : '';
         return Response::html($this->renderPhpTemplate("install/step{$step}.php", $data));
     }
 

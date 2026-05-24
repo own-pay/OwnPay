@@ -18,7 +18,7 @@ final class Theme implements PluginInterface
     {
         return [
             'name'        => 'Own Pay Theme',
-            'slug'        => 'own-pay-theme',
+            'slug'        => 'own-pay',
             'version'     => '1.0.0',
             'description' => 'Default OwnPay checkout and landing page theme.',
             'author'      => 'Own Pay',
@@ -56,9 +56,11 @@ final class Theme implements PluginInterface
             echo '<link rel="stylesheet" href="/assets/css/checkout.css">';
         });
 
-        $events->addAction('checkout.footer', function (): void {
-            echo '<script src="/assets/js/op-fetch.js"></script>';
-            echo '<script src="/assets/js/checkout.js"></script>';
+        $events->addAction('checkout.footer', function () use ($container): void {
+            $nonceVal = $container->has('csp_nonce') ? $container->get('csp_nonce') : '';
+            $nonceAttr = is_string($nonceVal) && $nonceVal !== '' ? ' nonce="' . htmlspecialchars($nonceVal, ENT_QUOTES, 'UTF-8') . '"' : '';
+            echo '<script' . $nonceAttr . ' src="/assets/js/op-fetch.js"></script>';
+            echo '<script' . $nonceAttr . ' src="/assets/js/checkout.js"></script>';
         });
     }
 

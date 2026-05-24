@@ -52,11 +52,28 @@ final class SecurityHeadersMiddleware
 
         $response->withHeader('X-Content-Type-Options', 'nosniff');
         $response->withHeader('X-Frame-Options', 'DENY');
-        $response->withHeader('X-XSS-Protection', '0'); // CSP replaces this in modern browsers
         $response->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
         // Keep payment=() — OwnPay uses gateway redirects, not Payment Request API.
         $response->withHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
+
+        // Enforce modern Report-To header (SSRF/CSP reporting compliance)
+        $scheme = $request->isSecure() ? 'https' : 'http';
+        $host = $request->host();
+        if ($host !== '') {
+            $reportUrl = $scheme . '://' . $host . '/csp-report-api';
+            $reportTo = json_encode([
+                'group' => 'csp-endpoint',
+                'max_age' => 10886400,
+                'endpoints' => [
+                    ['url' => $reportUrl]
+                ],
+                'include_subdomains' => true
+            ], JSON_UNESCAPED_SLASHES);
+            if (is_string($reportTo)) {
+                $response->withHeader('Report-To', $reportTo);
+            }
+        }
 
         // HSTS — only on HTTPS
         if ($request->isSecure()) {
@@ -97,6 +114,7 @@ final class SecurityHeadersMiddleware
                 "base-uri 'self'",
                 "form-action 'self' https:",
                 "report-uri /csp-report",
+                "report-to csp-endpoint",
             ]);
         } else {
             $csp = implode('; ', [
@@ -110,6 +128,7 @@ final class SecurityHeadersMiddleware
                 "base-uri 'self'",
                 "form-action 'self'",
                 "report-uri /csp-report",
+                "report-to csp-endpoint",
             ]);
         }
         $response->withHeader($cspHeader, $csp);

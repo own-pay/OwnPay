@@ -22,9 +22,15 @@ AddDefaultCharset UTF-8
 
 # Security headers for static assets
 <IfModule mod_headers.c>
-    Header set X-Content-Type-Options "nosniff"
-    Header set X-Frame-Options "DENY"
-    Header set Referrer-Policy "strict-origin-when-cross-origin"
+    # Strip engine/framework version disclosures globally
+    Header unset X-Powered-By
+
+    # Apply standard security headers ONLY to static assets to avoid duplication with PHP middleware headers
+    <FilesMatch "\.(css|js|gif|jpg|jpeg|png|svg|ico|webp|woff2|woff)$">
+        Header set X-Content-Type-Options "nosniff"
+        Header set X-Frame-Options "DENY"
+        Header set Referrer-Policy "strict-origin-when-cross-origin"
+    </FilesMatch>
 </IfModule>
 
 # Cache static assets (1 year)

@@ -245,6 +245,11 @@ final class Response
      */
     public function send(): void
     {
+        // Prevent PHP runtime version leak
+        if (!headers_sent()) {
+            header_remove('X-Powered-By');
+        }
+
         // Emit status response code.
         http_response_code($this->statusCode);
 

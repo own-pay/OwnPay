@@ -171,12 +171,15 @@ final class CashmaalGateway implements PluginInterface, GatewayAdapterInterface
             $amountStr = is_scalar($amount) ? (string) $amount : '';
             $currencyStr = (string) $currency;
 
+            $nonceVal = $this->container->has('csp_nonce') ? $this->container->get('csp_nonce') : '';
+            $nonceAttr = is_string($nonceVal) && $nonceVal !== '' ? ' nonce="' . htmlspecialchars($nonceVal, ENT_QUOTES, 'UTF-8') . '"' : '';
+
             echo '
             <!DOCTYPE html>
             <html>
             <head>
                 <title>Redirecting to CashMaal...</title>
-                <style>
+                <style' . $nonceAttr . '>
                     body { font-family: sans-serif; text-align: center; padding: 50px; background: #f8fafc; color: #1e293b; }
                     .loader { border: 4px solid #f3f3f3; border-top: 4px solid #1f95f4; border-radius: 50%; width: 40px; height: 40px; animation: spin 1s linear infinite; margin: 20px auto; }
                     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
@@ -196,7 +199,7 @@ final class CashmaalGateway implements PluginInterface, GatewayAdapterInterface
                     <input type="hidden" name="order_id" value="' . htmlspecialchars($trxIdStr) . '">
                     <input type="hidden" name="addi_info" value="Payment ' . htmlspecialchars($trxIdStr) . '">
                 </form>
-                <script>
+                <script' . $nonceAttr . '>
                     document.getElementById("cashmaalForm").submit();
                 </script>
             </body>

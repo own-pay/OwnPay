@@ -59,8 +59,8 @@
     window.OP_CHECKOUT_CONFIG={{ config|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }};
     window.OP_MANUAL_GATEWAYS={{ manual_gateways|default('{}')|e('js') }};
     </script>
-    <script src="/assets/js/op-fetch.js"></script>
-    <script src="/assets/js/checkout.js"></script>
+    <script nonce="{{ csp_nonce }}" src="/assets/js/op-fetch.js"></script>
+    <script nonce="{{ csp_nonce }}" src="/assets/js/checkout.js"></script>
     {{ hook('checkout.footer')|raw }}
     {% if brand.custom_js|default('') %}<script nonce="{{ csp_nonce }}">{{ brand.custom_js|raw }}</script>{% endif %}
 </body>

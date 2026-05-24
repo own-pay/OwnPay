@@ -52,11 +52,13 @@ To prevent context bloat and ensure consistency, all strict behavioral, architec
 | 10. **[web-performance.md](.agents/rules/web-performance.md)** | `always_on` | Defines general performance optimization practices. |
 | 11. **[web-security.md](.agents/rules/web-security.md)** | `always_on` | Declares general OWASP and web-security guidelines. |
 | 12. **[documentation-sync.md](.agents/rules/documentation-sync.md)** | `always_on` | Mandates rules requiring agents to synchronize code modifications with rule files and Markdown documentation. |
-| 13. **[api-design.md](.agents/rules/api-design.md)** | `model_decision` | Triggered when designing or refactoring REST/GraphQL APIs. |
-| 14. **[code-review.md](.agents/rules/code-review.md)** | `model_decision` | Triggered when asked to review code, provide feedback, or perform static analysis. |
-| 15. **[security-audit.md](.agents/rules/security-audit.md)** | `model_decision` | Triggered during security audits, pentesting, or threat modeling (Part 1/2). |
-| 16. **[security-audit-part2.md](.agents/rules/security-audit-part2.md)** | `model_decision` | Triggered during security audits, pentesting, or threat modeling (Part 2/2). |
-| 17. **[security-cryptography.md](.agents/rules/security-cryptography.md)** | `model_decision` | Triggered when reviewing cryptographic logic, TOTP window validation, JWT claims, webhook HMAC signatures, or the PluginSandbox blocklist. |
+| 13. **[agent-operating-rules.md](.agents/rules/agent-operating-rules.md)** | `always_on` | Enforces universal agent behavioral constraints, codebase comprehension standards, deep thinking procedures, task completeness quality, and communication standards. |
+| 14. **[api-design.md](.agents/rules/api-design.md)** | `model_decision` | Triggered when designing or refactoring REST/GraphQL APIs. |
+| 15. **[code-review.md](.agents/rules/code-review.md)** | `model_decision` | Triggered when asked to review code, provide feedback, or perform static analysis. |
+| 16. **[security-audit.md](.agents/rules/security-audit.md)** | `model_decision` | Triggered during security audits, pentesting, or threat modeling (Part 1/2). |
+| 17. **[security-audit-part2.md](.agents/rules/security-audit-part2.md)** | `model_decision` | Triggered during security audits, pentesting, or threat modeling (Part 2/2). |
+| 18. **[security-cryptography.md](.agents/rules/security-cryptography.md)** | `model_decision` | Triggered when reviewing cryptographic logic, TOTP window validation, JWT claims, webhook HMAC signatures, or the PluginSandbox blocklist. |
+
 
 
 ---

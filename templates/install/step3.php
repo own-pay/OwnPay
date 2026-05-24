@@ -60,7 +60,7 @@
 
 <div class="ins-footer">Own Pay · Secure Payment Gateway · v0.1.0</div>
 
-<script>
+<script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
 // Password strength meter
 document.getElementById('admin_password').addEventListener('input', function() {
     var meter = document.getElementById('pwMeter');

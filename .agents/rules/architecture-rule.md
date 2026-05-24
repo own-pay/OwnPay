@@ -21,6 +21,7 @@ The rules are divided by functional boundaries:
 9. **[powershell-syntax.md](.agents/rules/powershell-syntax.md)**: Standard syntax constraints and cmdlets for executing shell operations under Windows PowerShell to prevent syntax execution errors.
 10. **[developer-workflows.md](.agents/rules/developer-workflows.md)**: Guidelines for standard developer workflows, installer wizard structures, and highly specific codebase gotchas.
 11. **[documentation-sync.md](.agents/rules/documentation-sync.md)**: Mandatory rules requiring agents to synchronize code modifications with rule files and Markdown documentation.
+12. **[agent-operating-rules.md](.agents/rules/agent-operating-rules.md)**: Universal agent behavioral constraints, codebase comprehension, deep thinking steps, task completion quality, production-ready standards, and strict communication guidelines.
 
 
 
