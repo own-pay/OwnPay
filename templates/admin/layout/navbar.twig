@@ -15,7 +15,7 @@
         <div class="op-navbar-brand-selector">
             <form method="POST" action="/admin/brands/switch" id="brand-switcher-form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                <select name="brand_id" class="op-input op-input-sm" onchange="document.getElementById('brand-switcher-form').submit()">
+                <select name="brand_id" id="brand-switcher-select" class="op-input op-input-sm">
                     <option value="global" {% if active_brand_id is empty %}selected{% endif %}>Global View</option>
                     {% for b in brands %}
                         <option value="{{ b.id }}" {% if active_brand_id == b.id %}selected{% endif %}>{{ b.name }}</option>

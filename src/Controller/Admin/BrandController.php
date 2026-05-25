@@ -303,11 +303,6 @@ final class BrandController
             $this->brand->setActiveBrandId($brandId);
         }
 
-        // Regenerate session ID on brand switch (auth context change).
-        if (session_status() === PHP_SESSION_ACTIVE) {
-            session_regenerate_id(true);
-        }
-
         $ref = $req->header('referer', '/admin');
         $host = parse_url($ref, PHP_URL_HOST);
         $path = parse_url($ref, PHP_URL_PATH);

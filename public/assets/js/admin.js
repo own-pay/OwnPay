@@ -253,6 +253,15 @@
         themeToggleBtn.addEventListener("click", window.opToggleTheme);
     }
 
+    // ─── Brand Switcher ───────────────────────────────────────
+    var brandSelect = document.getElementById("brand-switcher-select");
+    var brandForm = document.getElementById("brand-switcher-form");
+    if (brandSelect && brandForm) {
+        brandSelect.addEventListener("change", function () {
+            brandForm.submit();
+        });
+    }
+
     // ─── Global Modal Functions ──────────────────────────────
     window.openDeleteModal = function (action, itemName) {
         document.getElementById("delete-form").action = action;
