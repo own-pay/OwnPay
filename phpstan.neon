@@ -11,7 +11,6 @@ parameters:
         analyse:
         - vendor
         - mobile_app (?)
-        - cli
         - update (?)
         - graphify-out (?)
         - node_modules (?)
