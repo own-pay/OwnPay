@@ -52,8 +52,11 @@
 - **Root Cause**:
   - Payment link and invoice link copy buttons used `location.origin`, which points to the admin master domain instead of the dynamic custom domain of the brand context resolved via `DomainUrlService`.
   - In addition, they called `navigator.clipboard.writeText()` directly, which throws an error and fails in non-secure HTTP contexts or older browsers.
+  - **Asynchronous User Gesture Token Loss (Deep Bug)**: If `navigator.clipboard` is supported in the browser (e.g. secure context) but fails or rejects for any reason (like permission settings or focus issues), the Promise rejection runs asynchronously in a microtask. Running the fallback `document.execCommand("copy")` inside the async catch block fails because the browser considers it outside the short-lived synchronous user-gesture window, blocking clipboard access completely.
 - **Solution**:
   - Retrieve the dynamic `base_url` for the brand context in `InvoiceController::index()` and `PaymentLinkController::index()` using `DomainUrlService` and pass it to the Twig template contexts.
-  - Implement a global `window.opCopyText(text, button, successCallback)` utility function in `public/assets/js/admin.js` that attempts `navigator.clipboard.writeText()` but seamlessly falls back to a temporary offscreen `<textarea>` copy command in non-secure HTTP contexts.
+  - Implement a global `window.opCopyText(text, button, successCallback)` utility function in `public/assets/js/admin.js` that attempts a synchronous `document.execCommand("copy")` copy first (guaranteed to be inside the user gesture event loop on both HTTP/HTTPS).
+  - If `execCommand` fails or returns `false`, fall back to the modern `navigator.clipboard.writeText(text)` asynchronous API. If that also fails, raise a user-friendly modal/prompt/alert with the text to copy manually (failsafe).
+  - Utilize document-wide event delegation for elements matching `[data-copy]:not(.op-copy-btn)` in `admin.js` to avoid timing or dynamic DOM rendering issues.
   - Refactor all data copy actions in `admin.js`, `developer.js`, and `domains.js` to utilize this global helper to ensure robust copy functionality everywhere in the application.
 

@@ -24,7 +24,9 @@
 ## Phase 8: Payment Link and Invoice Link Fix
 - [x] Resolve dynamic base URL using DomainUrlService in InvoiceController and PaymentLinkController
 - [x] Add global opCopyText helper with HTTP fallback in admin.js
-- [x] Update templates to copy resolved urls and refactor page scripts (developer.js, domains.js) to use helper
+- [x] Update templates to copy resolved urls using data-copy attribute (CSP-compliant) and refactor page scripts (developer.js, domains.js) to use helper
+- [x] Fix race condition double-triggering on `.op-copy-btn` class and add fallback-on-rejection to `opCopyText`
+- [x] Implement robust execCommand-first synchronous copying with async fallback to resolve async promise token loss and add event delegation
 - [x] Run PHPUnit, PHPStan, and linters to verify changes
 
 ## Phase 9: Documentation Synchronization

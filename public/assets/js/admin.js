@@ -161,37 +161,67 @@
             }
         };
 
-        if (!navigator.clipboard) {
+        // Try synchronous copy first (always works inside user gesture, HTTP/HTTPS safe)
+        var copyUsingExecCommand = function () {
             var textArea = document.createElement("textarea");
             textArea.value = text;
-            textArea.style.position = "fixed";
-            textArea.style.top = "0";
-            textArea.style.left = "0";
-            textArea.style.opacity = "0";
+            textArea.setAttribute("readonly", ""); // Prevent iOS keyboard popup
+            textArea.style.fontSize = "12pt";
+            textArea.style.position = "absolute";
+            textArea.style.left = "-9999px";
+            textArea.style.top = (window.pageYOffset || document.documentElement.scrollTop) + "px";
             document.body.appendChild(textArea);
+
             textArea.focus();
             textArea.select();
+            textArea.setSelectionRange(0, 999999);
+
+            var successful = false;
             try {
-                document.execCommand("copy");
-                onCopySuccess();
+                successful = document.execCommand("copy");
             } catch (err) {
-                console.error("Fallback copy failed", err);
+                console.warn("execCommand copy failed", err);
             }
+
             document.body.removeChild(textArea);
+            return successful;
+        };
+
+        if (copyUsingExecCommand()) {
+            onCopySuccess();
             return;
         }
 
-        navigator.clipboard.writeText(text).then(function () {
-            onCopySuccess();
-        }).catch(function (err) {
-            console.error("Async copy failed", err);
-        });
+        // Fall back to modern async Clipboard API if execCommand is unsupported/blocked
+        if (navigator.clipboard && typeof navigator.clipboard.writeText === "function") {
+            navigator.clipboard.writeText(text).then(function () {
+                onCopySuccess();
+            }).catch(function (err) {
+                console.error("Async copy failed completely", err);
+                alert("Could not copy link automatically. Here is the link:\n\n" + text);
+            });
+        } else {
+            console.error("No clipboard support available");
+            alert("Could not copy link automatically. Here is the link:\n\n" + text);
+        }
     };
 
-    document.querySelectorAll("[data-copy]").forEach(function (btn) {
-        btn.addEventListener("click", function () {
-            window.opCopyText(btn.dataset.copy, btn);
-        });
+    document.addEventListener("click", function (e) {
+        if (!e || !e.target) {
+            return;
+        }
+        var target = e.target;
+        if (target.nodeType === 3) { // Text Node
+            target = target.parentNode;
+        }
+        if (target && typeof target.closest === "function") {
+            var btn = target.closest("[data-copy]");
+            if (btn && !btn.classList.contains("op-copy-btn")) {
+                e.preventDefault();
+                var text = btn.getAttribute("data-copy") || btn.dataset.copy || "";
+                window.opCopyText(text, btn);
+            }
+        }
     });
 
     // ─── Theme Toggle (light/dark) ─────────────────────────────

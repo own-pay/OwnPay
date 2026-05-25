@@ -19,7 +19,7 @@
                     <td>{{ inv.due_date }}</td>
                     <td>
                         <a href="/admin/invoices/{{ inv.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
-                        <button onclick="opCopyText('{{ base_url }}/invoice/{{ inv.token }}', this)" class="op-btn op-btn-xs op-btn-outline">Copy Link</button>
+                        <button data-copy="{{ base_url }}/invoice/{{ inv.token }}" class="op-btn op-btn-xs op-btn-outline">Copy Link</button>
                     </td>
                 </tr>
                 {% endfor %}

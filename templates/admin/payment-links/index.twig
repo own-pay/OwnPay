@@ -19,7 +19,7 @@
                     <td><code class="op-text-sm">/pay/{{ pl.slug }}</code></td>
                     <td>
                         <a href="/admin/payment-links/{{ pl.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
-                        <button onclick="opCopyText('{{ base_url }}/pay/{{ pl.slug }}', this)" class="op-btn op-btn-xs op-btn-outline">Copy Link</button>
+                        <button data-copy="{{ base_url }}/pay/{{ pl.slug }}" class="op-btn op-btn-xs op-btn-outline">Copy Link</button>
                     </td>
                 </tr>
                 {% else %}
