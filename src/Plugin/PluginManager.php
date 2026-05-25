@@ -231,6 +231,37 @@ final class PluginManager
 
         if ($plugin['type'] === 'gateway') {
             $this->registerGatewayDefinition($slug, $plugin);
+
+            // Synchronize with op_gateway_configs if activated for a brand context
+            if ($brandId !== null && $brandId > 0) {
+                $gwRepo = $this->container->get(GatewayRepository::class);
+                if ($gwRepo instanceof GatewayRepository) {
+                    $gw = $gwRepo->findBySlug($slug);
+                    if ($gw !== null) {
+                        $gwId = is_numeric($gw['id'] ?? null) ? (int) $gw['id'] : 0;
+                        if ($gwId > 0) {
+                            $gwConfigRepo = $this->container->get(\OwnPay\Repository\GatewayConfigRepository::class);
+                            if ($gwConfigRepo instanceof \OwnPay\Repository\GatewayConfigRepository) {
+                                $scopedConfigRepo = $gwConfigRepo->forTenant($brandId);
+                                $existing = $scopedConfigRepo->findForGateway($gwId);
+                                if ($existing !== null) {
+                                    $configId = is_numeric($existing['id'] ?? null) ? (int) $existing['id'] : 0;
+                                    $scopedConfigRepo->updateScoped($configId, [
+                                        'status' => 'active',
+                                    ]);
+                                } else {
+                                    $scopedConfigRepo->createScoped([
+                                        'merchant_id' => $brandId,
+                                        'gateway_id'  => $gwId,
+                                        'status'      => 'active',
+                                        'mode'        => 'sandbox',
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         $this->events->doAction('plugin.activated', $slug, $ran, $brandId);
@@ -276,6 +307,30 @@ final class PluginManager
         } else {
             $this->repo->setBrandPluginStatus($slug, $brandId, 'inactive');
             $this->registry->clearBrandActiveCache($brandId);
+
+            // Synchronize with op_gateway_configs if this plugin is a gateway
+            if (($plugin['type'] ?? '') === 'gateway') {
+                $gwRepo = $this->container->get(GatewayRepository::class);
+                if ($gwRepo instanceof GatewayRepository) {
+                    $gw = $gwRepo->findBySlug($slug);
+                    if ($gw !== null) {
+                        $gwId = is_numeric($gw['id'] ?? null) ? (int) $gw['id'] : 0;
+                        if ($gwId > 0) {
+                            $gwConfigRepo = $this->container->get(\OwnPay\Repository\GatewayConfigRepository::class);
+                            if ($gwConfigRepo instanceof \OwnPay\Repository\GatewayConfigRepository) {
+                                $scopedConfigRepo = $gwConfigRepo->forTenant($brandId);
+                                $existing = $scopedConfigRepo->findForGateway($gwId);
+                                if ($existing !== null) {
+                                    $configId = is_numeric($existing['id'] ?? null) ? (int) $existing['id'] : 0;
+                                    $scopedConfigRepo->updateScoped($configId, [
+                                        'status' => 'inactive',
+                                    ]);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         $this->events->doAction('plugin.deactivated', $slug, $brandId);

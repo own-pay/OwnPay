@@ -110,6 +110,11 @@ final class CheckoutController
         $midVal = $txn['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
 
+        $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brandCtx->setActiveBrandId($mid);
+        }
+
         $txnTrxIdVal = $txn['trx_id'] ?? null;
         $txnTrxId = is_string($txnTrxIdVal) ? $txnTrxIdVal : '';
 
@@ -493,6 +498,11 @@ final class CheckoutController
         $midVal = $txn['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
 
+        $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brandCtx->setActiveBrandId($mid);
+        }
+
         $txnTrxIdVal = $txn['trx_id'] ?? '';
         $txnTrxId = is_string($txnTrxIdVal) ? $txnTrxIdVal : '';
 
@@ -703,6 +713,13 @@ final class CheckoutController
             return $this->renderStatus($token, 'cancelled');
         }
 
+        $midVal = $txn['merchant_id'] ?? 0;
+        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+        $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brandCtx->setActiveBrandId($mid);
+        }
+
         // Authenticate cancellation requests: verify HMAC token against registered keys.
         $submittedHashVal = $req->input('checkout_hash', '');
         $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
@@ -745,6 +762,15 @@ final class CheckoutController
         $status = 'expired';
         if (is_array($txn) && is_string($txn['status'] ?? null)) {
             $status = $txn['status'];
+        }
+
+        if (is_array($txn) && isset($txn['merchant_id'])) {
+            $midVal = $txn['merchant_id'];
+            $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+            $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandCtx->setActiveBrandId($mid);
+            }
         }
 
         // Redirect callback loop: execute final capture steps when external providers redirect.

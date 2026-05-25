@@ -163,6 +163,12 @@ final class PaymentIntentCheckoutController
         // Verify active brand status
         $midVal = $intent['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+
+        $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brandCtx->setActiveBrandId($mid);
+        }
+
         $merchant = $this->merchants->find($mid);
         if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
             return $this->renderStatus($token, 'expired');
@@ -472,6 +478,12 @@ final class PaymentIntentCheckoutController
         // Verify active brand status
         $midVal = $intent['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+
+        $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brandCtx->setActiveBrandId($mid);
+        }
+
         $merchant = $this->merchants->find($mid);
         if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
             if ($req->isAjax()) {
@@ -747,6 +759,12 @@ final class PaymentIntentCheckoutController
 
         $midVal = $intent['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
+
+        $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brandCtx->setActiveBrandId($mid);
+        }
+
         $intentIdVal = $intent['id'] ?? 0;
         $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
         $intentStatusVal = $intent['status'] ?? '';

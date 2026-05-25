@@ -19,31 +19,42 @@
     if (cfg.timeoutEnabled && tEl) {
         var storageKey = "op_timer_" + cfg.txnRef;
         var serverRemaining = Number(cfg.timeoutRemaining) || 0;
-        var sec;
+        var expiryTimestamp;
 
         // Check localStorage for persisted expiry timestamp
         var storedExpiry = localStorage.getItem(storageKey);
         if (storedExpiry) {
-            sec = Math.max(0, Math.round((Number(storedExpiry) - Date.now()) / 1000));
+            expiryTimestamp = Number(storedExpiry);
         } else {
             // First visit — use server-calculated remaining, store expiry
-            sec = serverRemaining;
-            if (sec > 0) {
-                localStorage.setItem(storageKey, String(Date.now() + sec * 1000));
+            expiryTimestamp = Date.now() + serverRemaining * 1000;
+            if (serverRemaining > 0) {
+                localStorage.setItem(storageKey, String(expiryTimestamp));
             }
         }
+
+        var getRemainingSec = function () {
+            return Math.max(0, Math.round((expiryTimestamp - Date.now()) / 1000));
+        };
+
+        var sec = getRemainingSec();
 
         // Render immediately (no 1s delay)
         var renderTimer = function () {
             var m = String(Math.floor(sec / 60)).padStart(2, "0");
             var s = String(sec % 60).padStart(2, "0");
             tEl.textContent = m + ":" + s;
-            if (sec <= 60) {tEl.style.color = "#EF4444";}
+            if (sec <= 60) {
+                tEl.style.color = "#EF4444";
+            }
         };
         renderTimer();
 
         if (sec > 0) {
             var iv = setInterval(function () {
+                sec = getRemainingSec();
+                renderTimer();
+
                 if (sec <= 0) {
                     tEl.textContent = "00:00";
                     clearInterval(iv);
@@ -71,10 +82,7 @@
                     }
                     document.body.appendChild(cancelForm);
                     cancelForm.submit();
-                    return;
                 }
-                sec--;
-                renderTimer();
             }, 1000);
         }
     }

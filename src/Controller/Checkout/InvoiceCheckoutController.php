@@ -84,6 +84,13 @@ final class InvoiceCheckoutController
             return $this->renderExpired($twig);
         }
 
+        $merchantIdVal = $invoice['merchant_id'] ?? 0;
+        $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
+        $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brandCtx->setActiveBrandId($merchantId);
+        }
+
         $status = is_string($invoice['status'] ?? null) ? $invoice['status'] : '';
 
         if (!in_array($status, $allowedStatuses, true)) {

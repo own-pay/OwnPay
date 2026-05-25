@@ -82,6 +82,13 @@ final class PaymentLinkCheckoutController
             return $this->renderExpired($twig);
         }
 
+        $merchantIdVal = $link['merchant_id'] ?? 0;
+        $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
+        $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brandCtx->setActiveBrandId($merchantId);
+        }
+
         // Verify usage limits: ensure the link has not exceeded its maximum allowed completions.
         $maxUsesVal = $link['max_uses'] ?? 0;
         $maxUses = (is_int($maxUsesVal) || is_string($maxUsesVal)) ? (int) $maxUsesVal : 0;
@@ -209,6 +216,13 @@ final class PaymentLinkCheckoutController
 
         if (!$link) {
             return $this->renderExpired($twig);
+        }
+
+        $merchantIdVal = $link['merchant_id'] ?? 0;
+        $merchantId = (is_int($merchantIdVal) || is_string($merchantIdVal)) ? (int) $merchantIdVal : 0;
+        $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brandCtx->setActiveBrandId($merchantId);
         }
 
         $amountRaw = $req->post('amount', '0');
