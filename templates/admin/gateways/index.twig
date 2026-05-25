@@ -13,142 +13,154 @@
     </div>
 </div>
 
-{# --- API Gateways (Plugin-based) --- #}
-<div class="op-card op-mb-4">
-    <div class="op-card-header">
-        <h3>API Gateways</h3>
-        <span class="op-badge op-badge-info">{{ api_gateways|length }} available</span>
+{# --- Tabs Navigation --- #}
+<div class="op-tabs op-mb-4">
+    <button class="op-tab active" data-tab="all">
+        All Gateways
+        <span class="op-tab-count" id="count-all">0</span>
+    </button>
+    <button class="op-tab" data-tab="api">
+        API Gateways
+        <span class="op-tab-count" id="count-api">0</span>
+    </button>
+    <button class="op-tab" data-tab="manual">
+        Manual Gateways
+        <span class="op-tab-count" id="count-manual">0</span>
+    </button>
+</div>
+
+{# --- Filtering & Search Toolbar --- #}
+<div class="op-filter-bar op-mb-4">
+    <div class="op-search-box">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="M21 21l-4.35-4.35"></path>
+        </svg>
+        <input type="text" id="gateway-search" placeholder="Search gateways..." class="op-input">
     </div>
-    <div class="op-card-body">
-        {% if api_gateways|length == 0 %}
-            <div class="op-empty-state">
-                <p>No API gateways found. Install gateway plugins from the <a href="/admin/plugins">Plugin Store</a>.</p>
-            </div>
-        {% else %}
-            <div class="op-gateway-grid">
-                {% for gw in api_gateways %}
-                <div class="op-gateway-card {% if gw.status == 'active' %}op-gateway-active{% elseif gw.status == 'installed' %}op-gateway-installed{% else %}op-gateway-inactive{% endif %}">
-                    <div class="op-gateway-logo">
-                        {% if gw.logo is defined and gw.logo %}
-                            <img src="{{ gw.logo }}" alt="{{ gw.name }}" loading="lazy">
-                        {% else %}
-                            <div class="op-gateway-icon">{{ gw.name[0:2]|upper }}</div>
-                        {% endif %}
-                    </div>
-                    <div class="op-gateway-info">
-                        <h4>{{ gw.name }}</h4>
-                        {% if gw.status == 'active' %}
-                            <span class="op-badge op-badge-success">active</span>
-                            {% if gw.mode %}<span class="op-badge op-badge-{{ gw.mode == 'live' ? 'primary' : 'warning' }}">{{ gw.mode }}</span>{% endif %}
-                        {% elseif gw.status == 'installed' %}
-                            <span class="op-badge op-badge-info">installed</span>
-                        {% elseif gw.status == 'inactive' %}
-                            <span class="op-badge op-badge-muted">inactive</span>
-                        {% elseif gw.status == 'error' %}
-                            <span class="op-badge op-badge-danger">error</span>
-                        {% else %}
-                            <span class="op-badge op-badge-muted">not installed</span>
-                        {% endif %}
-                    </div>
-                    <div class="op-gateway-actions">
-                        {% if gw.status == 'uninstalled' %}
-                            <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
-                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                <button type="submit" class="op-btn op-btn-sm op-btn-success">Install</button>
-                            </form>
-                        {% elseif gw.status == 'installed' %}
-                            <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
-                        {% elseif gw.status == 'active' %}
-                            <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
-                            <form method="POST" action="/admin/plugins/{{ gw.slug }}/deactivate" class="op-inline-form">
-                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
-                            </form>
-                        {% elseif gw.status == 'error' %}
-                            <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
-                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                <button type="submit" class="op-btn op-btn-sm op-btn-warning">Retry</button>
-                            </form>
-                        {% else %}
-                            <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
-                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
-                            </form>
-                        {% endif %}
-                    </div>
-                </div>
-                {% endfor %}
-            </div>
-        {% endif %}
+    <div class="op-filter-actions">
+        <select id="status-filter" class="op-input">
+            <option value="all">All Statuses</option>
+            <option value="active">Active Only</option>
+            <option value="inactive">Inactive Only</option>
+            <option value="uninstalled">Not Installed Only</option>
+        </select>
     </div>
 </div>
 
-{# --- Manual Gateways --- #}
-<div class="op-card">
-    <div class="op-card-header">
-        <h3>Manual Gateways</h3>
-        <span class="op-badge op-badge-info">{{ manual_gateways|length }} configured</span>
-    </div>
-    <div class="op-card-body">
-        {% if manual_gateways|length == 0 %}
-            <div class="op-empty-state">
-                <p>No manual gateways configured. <a href="/admin/gateways/create-manual">Create one</a>.</p>
+{# --- Unified Card Grid --- #}
+<div class="op-gateway-grid" id="gateway-list">
+    <!-- API Gateways -->
+    {% for gw in api_gateways %}
+    <div class="op-gateway-card op-card-item {% if gw.status == 'active' %}op-gateway-active{% elseif gw.status == 'installed' %}op-gateway-installed{% else %}op-gateway-inactive{% endif %}"
+         data-type="api"
+         data-status="{{ gw.status }}"
+         data-name="{{ gw.name|lower }}"
+         data-slug="{{ gw.slug|lower }}"
+         data-desc="{{ gw.description|lower }}">
+        <div class="op-gateway-logo">
+            {% if gw.logo is defined and gw.logo %}
+                <img src="{{ gw.logo }}" alt="{{ gw.name }}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+            {% endif %}
+            <div class="op-gateway-icon" style="{% if gw.logo is defined and gw.logo %}display:none;{% endif %}">{{ gw.name[0:2]|upper }}</div>
+        </div>
+        <div class="op-gateway-info">
+            <div class="op-flex op-items-center op-gap-2 op-mb-1">
+                <h4 class="op-m-0">{{ gw.name }}</h4>
+                <span class="op-badge op-badge-info">API</span>
             </div>
-        {% else %}
-            <div class="op-table-responsive"><table class="op-table">
-                <thead>
-                    <tr>
-                        <th>Gateway</th>
-                        <th>Slug</th>
-                        <th>SMS Verify</th>
-                        <th>Min/Max</th>
-                        <th>Status</th>
-                        <th>Actions</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    {% for mg in manual_gateways %}
-                    <tr>
-                        <td>
-                            <div class="op-flex op-items-center op-gap-2">
-                                {% if mg.logo_path is defined and mg.logo_path %}
-                                    <img src="/storage/{{ mg.logo_path }}" alt="" width="32" height="32" class="op-rounded">
-                                {% endif %}
-                                <strong>{{ mg.name }}</strong>
-                            </div>
-                        </td>
-                        <td><code>{{ mg.slug }}</code></td>
-                        <td>
-                            <span class="op-badge {{ mg.sms_verification ? 'op-badge-success' : 'op-badge-muted' }}">
-                                {{ mg.sms_verification ? 'ON' : 'OFF' }}
-                            </span>
-                        </td>
-                        <td>{{ mg.min_amount|default('0.00') }} / {{ mg.max_amount|default('0.00') }}</td>
-                        <td>
-                            <span class="op-badge {{ mg.status == 'active' ? 'op-badge-success' : 'op-badge-muted' }}">
-                                {{ mg.status }}
-                            </span>
-                        </td>
-                        <td>
-                            <div class="op-btn-group op-nowrap">
-                                <a href="/admin/gateways/{{ mg.id }}/edit" class="op-btn op-btn-sm op-btn-outline">Edit</a>
-                                <form method="POST" action="/admin/gateways/{{ mg.id }}/toggle" class="op-inline-form">
-                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                    <button type="submit" class="op-btn op-btn-sm {{ mg.status == 'active' ? 'op-btn-warning' : 'op-btn-success' }}">
-                                        {{ mg.status == 'active' ? 'Disable' : 'Enable' }}
-                                    </button>
-                                </form>
-                                <form method="POST" action="/admin/gateways/{{ mg.id }}/delete" class="op-inline-form" onsubmit="return confirm('Delete gateway {{ mg.name }}?')">
-                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                    <button type="submit" class="op-btn op-btn-sm op-btn-danger">Delete</button>
-                                </form>
-                            </div>
-                        </td>
-                    </tr>
-                    {% endfor %}
-                </tbody>
-            </table></div>
-        {% endif %}
+            <p class="op-text-muted op-text-xs op-mb-2">{{ gw.description }}</p>
+            <div class="op-flex op-items-center op-gap-1">
+                {% if gw.status == 'active' %}
+                    <span class="op-badge op-badge-success">active</span>
+                    {% if gw.mode %}<span class="op-badge op-badge-{{ gw.mode == 'live' ? 'primary' : 'warning' }}">{{ gw.mode }}</span>{% endif %}
+                {% elseif gw.status == 'installed' %}
+                    <span class="op-badge op-badge-info">installed</span>
+                {% elseif gw.status == 'inactive' %}
+                    <span class="op-badge op-badge-muted">inactive</span>
+                {% elseif gw.status == 'error' %}
+                    <span class="op-badge op-badge-danger">error</span>
+                {% else %}
+                    <span class="op-badge op-badge-muted">not installed</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="op-gateway-actions">
+            {% if gw.status == 'uninstalled' %}
+                <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-success">Install</button>
+                </form>
+            {% elseif gw.status == 'installed' %}
+                <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
+            {% elseif gw.status == 'active' %}
+                <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
+                <form method="POST" action="/admin/plugins/{{ gw.slug }}/deactivate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
+                </form>
+            {% elseif gw.status == 'error' %}
+                <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-warning">Retry</button>
+                </form>
+            {% else %}
+                <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
+                </form>
+            {% endif %}
+        </div>
     </div>
+    {% endfor %}
+
+    <!-- Manual Gateways -->
+    {% for mg in manual_gateways %}
+    <div class="op-gateway-card op-card-item {% if mg.status == 'active' %}op-gateway-active{% else %}op-gateway-inactive{% endif %}"
+         data-type="manual"
+         data-status="{{ mg.status }}"
+         data-name="{{ mg.name|lower }}"
+         data-slug="{{ mg.slug|lower }}"
+         data-desc="{{ mg.instructions|default('')|lower }}">
+        <div class="op-gateway-logo">
+            {% if mg.logo_path is defined and mg.logo_path %}
+                <img src="/storage/{{ mg.logo_path }}" alt="{{ mg.name }}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+            {% endif %}
+            <div class="op-gateway-icon" style="{% if mg.logo_path is defined and mg.logo_path %}display:none;{% endif %}">{{ mg.name[0:2]|upper }}</div>
+        </div>
+        <div class="op-gateway-info">
+            <div class="op-flex op-items-center op-gap-2 op-mb-1">
+                <h4 class="op-m-0">{{ mg.name }}</h4>
+                <span class="op-badge op-badge-secondary">Manual</span>
+            </div>
+            <p class="op-text-muted op-text-xs op-mb-2">Limits: {{ mg.min_amount|default('0.00') }} - {{ mg.max_amount|default('Unlimited') }} BDT</p>
+            <div class="op-flex op-items-center op-gap-1">
+                <span class="op-badge {% if mg.status == 'active' %}op-badge-success{% else %}op-badge-muted{% endif %}">{{ mg.status }}</span>
+                <span class="op-badge {{ mg.sms_verification ? 'op-badge-success' : 'op-badge-muted' }}">SMS: {{ mg.sms_verification ? 'ON' : 'OFF' }}</span>
+            </div>
+        </div>
+        <div class="op-gateway-actions">
+            <a href="/admin/gateways/{{ mg.id }}/edit" class="op-btn op-btn-sm op-btn-outline">Edit</a>
+            <form method="POST" action="/admin/gateways/{{ mg.id }}/toggle" class="op-inline-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="op-btn op-btn-sm {{ mg.status == 'active' ? 'op-btn-warning' : 'op-btn-success' }}">
+                    {{ mg.status == 'active' ? 'Disable' : 'Enable' }}
+                </button>
+            </form>
+            <form method="POST" action="/admin/gateways/{{ mg.id }}/delete" class="op-inline-form" onsubmit="return confirm('Delete gateway {{ mg.name }}?')">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="op-btn op-btn-sm op-btn-danger">Delete</button>
+            </form>
+        </div>
+    </div>
+    {% endfor %}
 </div>
+
+<div class="op-empty-state" id="gateway-empty" style="display:none;">
+    <p>No gateways match your search or filter criteria.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/gateways.js"></script>
 {% endblock %}

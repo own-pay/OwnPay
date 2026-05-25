@@ -41,7 +41,7 @@
             var target = document.getElementById(this.dataset.copy);
             if (!target) {return;}
             var self = this;
-            navigator.clipboard.writeText(target.textContent.trim()).then(function () {
+            window.opCopyText(target.textContent.trim(), self, function () {
                 var orig = self.textContent;
                 self.textContent = "✓ Copied";
                 setTimeout(function () { self.textContent = orig; }, 1500);
@@ -57,7 +57,7 @@
             if (!text) {return;}
             var self = this;
             var origHTML = self.innerHTML;
-            navigator.clipboard.writeText(text).then(function () {
+            window.opCopyText(text, self, function () {
                 self.innerHTML = "✓";
                 setTimeout(function () { self.innerHTML = origHTML; }, 1500);
             });

@@ -670,7 +670,7 @@ final class PluginManager
      * @param \OwnPay\Plugin\PluginManifest|null $manifest The plugin manifest schema wrapper.
      * @return string|null Path to the public-accessible asset, or null if no icon exists.
      */
-    private function resolveIconPath(string $slug, array $plugin, ?PluginManifest $manifest): ?string
+    public function resolveIconPath(string $slug, array $plugin, ?PluginManifest $manifest): ?string
     {
         $iconFile = $manifest ? $manifest->icon : '';
         if ($iconFile === '') {
@@ -685,6 +685,7 @@ final class PluginManager
         $type = is_string($plugin['type'] ?? null) ? $plugin['type'] : 'gateway';
         $typeDir = match ($type) {
             'gateway' => 'gateways',
+            'theme'   => 'themes',
             default   => 'addons',
         };
         $srcPath = $modulesPath . '/' . $typeDir . '/' . $slug . '/' . $iconFile;

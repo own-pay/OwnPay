@@ -294,3 +294,12 @@ modules/themes/modern-dark/
         ├── checkout-status.php                  # Pure PHP checkout status display
         └── payment-link-amount.php              # Pure PHP direct payment form
 ```
+
+---
+
+## 10. Plugin Logo Resolution & Caching
+
+To maintain a high-quality white-label experience, plugins should define an icon. The core engine dynamically handles copying these icons to the web root:
+* **Icon Definition**: Define the relative icon path in your `manifest.json` under `"icon": "assets/icon.png"` (or other formats such as `.svg`, `.png`, `.jpg`, `.webp`).
+* **Dynamic Copying**: During admin dashboard rendering, the system automatically calls `PluginManager::resolveIconPath()`. This copies the icon asset from the sandboxed module folder to `/public/assets/img/gateways/{slug}.{ext}` on the fly, enabling web browsers to render it directly.
+

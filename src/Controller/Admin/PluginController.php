@@ -129,6 +129,10 @@ final class PluginController
                 $p['description'] = $p['description'] ?: ($fsManifest->description ?? '');
                 $p['author']      = $p['author'] ?? ($fsManifest->author ?? 'Unknown');
                 $p['version']     = $fsManifest->version;
+                
+                $p['logo_path'] = $this->manager->resolveIconPath($slug, $p, $fsManifest);
+            } else {
+                $p['logo_path'] = null;
             }
 
             // Local active/inactive status override if brand context is active
@@ -141,7 +145,7 @@ final class PluginController
         unset($p);
 
         foreach ($discovered as $manifest) {
-            if (in_array($manifest->type, ['addon', 'gateway', 'plugin'], true)) {
+            if (in_array($manifest->type, ['addon', 'gateway', 'plugin', 'theme'], true)) {
                 $found = false;
                 foreach ($plugins as $p) {
                     if ($p['slug'] === $manifest->slug) {
@@ -158,7 +162,7 @@ final class PluginController
                         'status'      => 'uninstalled',
                         'author'      => $manifest->author,
                         'type'        => $manifest->type,
-                        'logo_path'   => null,
+                        'logo_path'   => $this->manager->resolveIconPath($manifest->slug, ['type' => $manifest->type], $manifest),
                     ];
                 }
             }

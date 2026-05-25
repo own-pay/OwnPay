@@ -234,6 +234,8 @@ The Settlement payout system has been completely decommissioned and its associat
 10. **BrandThemeService for loadBrand()**: Checkout controllers must resolve brand data via `BrandThemeService::getBrandTheme()` (with `$this->c->has()` fallback). Direct `$this->merchants->find()` bypasses brand-scoped theme settings and breaks per-brand custom CSS/JS under custom domains.
 11. **Eradication of Settlements**: Do not attempt to query or bind `op_settlements` or `op_settlement_items`. They do not exist. Decouple all ledger reconciliations by assuming standard payouts are handled offline or out-of-band.
 12. **Settings Registry Integration**: NEVER query or write to a table named `op_env`. Use the `EnvironmentService` (e.g. `EnvironmentService::get()`) or resolve `SettingsRepository` from the container, which persists configuration under `op_system_settings` (group: `runtime`).
+13. **Safe Clipboard Copying**: In administrative portals, all copy-to-clipboard buttons and scripts MUST utilize the global helper `window.opCopyText(text, button, successCallback)` to guarantee compatibility in both secure HTTPS contexts and non-secure HTTP local development setups.
+14. **Dynamic Gateway Logo Copying**: API gateway adapters and plugins MUST declare their icon path inside `manifest.json`. During dashboard rendering, these icons are dynamically copied to the public directory using the `PluginManager::resolveIconPath()` method so they display correctly regardless of their configuration or activation state.
 
 ---
 

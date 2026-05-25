@@ -92,5 +92,13 @@ All manual payment gateway logo paths (`logo_path`) and QR code paths (`qr_path`
 * **String Casting on UUIDs:** When retrieving `device_id` from request attributes in API/Mobile controllers (such as `NotificationController`), always cast it strictly to `(string)`. Casting a UUID string to an `(int)` results in `0`, bricking all device-specific query filters.
 
 ### 3.5 Plugin Management & Slug Enrichment
-* **Two-Pass Enrichment:** When listing plugins, the name must be resolved via a two-pass enrichment: first checking the database `op_plugins.manifest` JSON, and falling back to the filesystem using `PluginLoader::discover()`. Prefer filesystem names.
-* **Theme Slug Mismatch:** The default theme plugin `own-pay-theme` has a manifest slug of `own-pay`. The system settings `active_theme` and the database records must match `own-pay` exactly, not `own-pay-theme`.
+* **Two-Pass Enrichment**: When listing plugins, the name must be resolved via a two-pass enrichment: first checking the database `op_plugins.manifest` JSON, and falling back to the filesystem using `PluginLoader::discover()`. Prefer filesystem names.
+* **Theme Slug Mismatch**: The default theme plugin `own-pay-theme` has a manifest slug of `own-pay`. The system settings `active_theme` and the database records must match `own-pay` exactly, not `own-pay-theme`.
+
+### 3.6 Safe Clipboard Copying (HTTP/HTTPS Compatibility)
+* **Global Clipboard Helper**: Admin portals and scripts MUST never call `navigator.clipboard.writeText()` directly. They MUST instead invoke `window.opCopyText(text, button, successCallback)` defined in `admin.js`.
+* **HTTP Context Fallback**: This global function checks for `navigator.clipboard` availability and automatically falls back to an offscreen DOM `<textarea>` element selection copy command if the administrative context is accessed via non-secure HTTP (which blocks standard clipboard APIs).
+
+### 3.7 Dynamic Plugin Logo Resolution
+* **Public Directories Copying**: To render plugin and gateway logos before they are fully activated, uninstalled, or configured, controllers MUST call the `PluginManager::resolveIconPath($slug, $pluginArray, $manifest)` method.
+* **Asset Mapping**: This method automatically verifies filesystem presence inside the modules directory, copies the icon to `public/assets/img/gateways/{slug}.{ext}` on the fly, and returns the public Web path.

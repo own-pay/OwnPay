@@ -1,5 +1,5 @@
 /**
- * OwnPay Admin — Plugins Page JS
+ * OwnPay Admin — Gateways Page JS
  * Categorized tab filtering, status dropdown filtering, and real-time local search.
  */
 (function () {
@@ -9,44 +9,58 @@
     var activeStatus = "all";
     var searchQuery = "";
 
-    var searchInput = document.getElementById("pluginSearch");
-    var statusSelect = document.getElementById("statusFilter");
+    var searchInput = document.getElementById("gateway-search");
+    var statusSelect = document.getElementById("status-filter");
     var tabs = document.querySelectorAll(".op-tab");
-    var cards = document.querySelectorAll(".plugin-row");
+    var cards = document.querySelectorAll(".op-card-item");
+
+    // Compute and display counts on initial load
+    var countAllEl = document.getElementById("count-all");
+    var countApiEl = document.getElementById("count-api");
+    var countManualEl = document.getElementById("count-manual");
+
+    var allCount = cards.length;
+    var apiCount = 0;
+    var manualCount = 0;
+
+    cards.forEach(function (card) {
+        if (card.dataset.type === "api") {
+            apiCount++;
+        } else if (card.dataset.type === "manual") {
+            manualCount++;
+        }
+    });
+
+    if (countAllEl) {
+        countAllEl.textContent = String(allCount);
+    }
+    if (countApiEl) {
+        countApiEl.textContent = String(apiCount);
+    }
+    if (countManualEl) {
+        countManualEl.textContent = String(manualCount);
+    }
 
     function applyFilters() {
+        var visibleCount = 0;
         cards.forEach(function (card) {
-            var status = card.dataset.status;
             var type = card.dataset.type;
-            
-            var titleEl = card.querySelector(".op-plugin-card-title");
-            var slugEl = card.querySelector(".op-plugin-card-slug");
-            var descEl = card.querySelector(".op-plugin-card-desc");
-
-            var name = titleEl ? titleEl.textContent.toLowerCase() : "";
-            var slug = slugEl ? slugEl.textContent.toLowerCase() : "";
-            var desc = descEl ? descEl.textContent.toLowerCase() : "";
+            var status = card.dataset.status;
+            var name = card.dataset.name || "";
+            var slug = card.dataset.slug || "";
+            var desc = card.dataset.desc || "";
 
             // 1. Tab / Type Filter
             var matchesTab = false;
             if (activeTab === "all") {
-                matchesTab = (status !== "trashed");
-            } else if (activeTab === "trash") {
-                matchesTab = (status === "trashed");
+                matchesTab = true;
             } else {
-                // Type matches the tab name (gateway, addon/plugin, theme)
-                if (activeTab === "addon") {
-                    matchesTab = ((type === "addon" || type === "plugin") && status !== "trashed");
-                } else {
-                    matchesTab = (type === activeTab && status !== "trashed");
-                }
+                matchesTab = (type === activeTab);
             }
 
-            // 2. Status Filter (Only applicable if not viewing Trash tab)
+            // 2. Status Filter
             var matchesStatus = false;
-            if (activeTab === "trash") {
-                matchesStatus = true; // Always show all items in trash regardless of status filter
-            } else if (activeStatus === "all") {
+            if (activeStatus === "all") {
                 matchesStatus = true;
             } else if (activeStatus === "active") {
                 matchesStatus = (status === "active");
@@ -65,10 +79,17 @@
             // Toggle visibility
             if (matchesTab && matchesStatus && matchesSearch) {
                 card.style.display = "";
+                visibleCount++;
             } else {
                 card.style.display = "none";
             }
         });
+
+        // Toggle Empty State
+        var emptyEl = document.getElementById("gateway-empty");
+        if (emptyEl) {
+            emptyEl.style.display = (visibleCount === 0) ? "" : "none";
+        }
     }
 
     // Tab Event Listeners
@@ -77,17 +98,6 @@
             tabs.forEach(function (t) { t.classList.remove("active"); });
             tab.classList.add("active");
             activeTab = tab.dataset.tab;
-            
-            // If selecting Trash, we hide the status dropdown to avoid confusion
-            if (activeTab === "trash") {
-                if (statusSelect) {
-                    statusSelect.style.display = "none";
-                }
-            } else {
-                if (statusSelect) {
-                    statusSelect.style.display = "";
-                }
-            }
 
             applyFilters();
         });

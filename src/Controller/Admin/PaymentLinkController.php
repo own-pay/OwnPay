@@ -74,8 +74,13 @@ final class PaymentLinkController
         $mid = $this->resolveMerchant($req);
         $list = $this->links->listForMerchant($mid);
 
+        /** @var \OwnPay\Service\Domain\DomainUrlService $urlService */
+        $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+        $baseUrl = $urlService->resolveBaseUrl($mid, $req);
+
         return $this->renderAdminPage('admin/payment-links/index.twig', [
             'payment_links' => $list,
+            'base_url'      => $baseUrl,
             'active_page'   => 'payment-links',
         ]);
     }

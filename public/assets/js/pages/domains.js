@@ -10,7 +10,7 @@
             var el = document.getElementById(this.dataset.copy);
             if (!el) {return;}
             var self = this;
-            navigator.clipboard.writeText(el.textContent.trim()).then(function () {
+            window.opCopyText(el.textContent.trim(), self, function () {
                 var orig = self.textContent;
                 self.textContent = "✓ Copied!";
                 self.classList.add("op-btn-success");

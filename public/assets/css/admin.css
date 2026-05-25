@@ -603,17 +603,61 @@ label.op-toggle-label { display: flex !important; align-items: center; gap: 12px
 .op-btn-ghost-danger:hover { color:var(--op-danger); background:rgb(225 112 85 / 10%); border-color:rgb(225 112 85 / 20%); }
 
 /* Tab Count Badge */
-.op-tab-count { display:inline-flex; align-items:center; justify-content:center; min-width:20px; height:20px; padding:0 6px; border-radius:10px; font-size:0.7rem; font-weight:700; background:rgb(255 255 255 / 6%); margin-left:4px; }
-.op-tab.active .op-tab-count { background:rgb(108 92 231 / 20%); color:var(--op-primary); }
+.op-tab-count { 
+    display:inline-flex; 
+    align-items:center; 
+    justify-content:center; 
+    min-width:20px; height:20px; 
+    padding:0 6px; border-radius:10px; 
+    font-size:0.7rem; font-weight:700; 
+    background:rgb(255 255 255 / 6%); 
+    margin-left:4px; 
+}
+
+.op-tab.active .op-tab-count { 
+    background:rgb(108 92 231 / 20%); 
+    color:var(--op-primary); 
+}
 
 /* XS Button */
-.op-btn-xs { padding:4px 10px; font-size:0.75rem; border-radius:6px; }
+.op-btn-xs { 
+    padding:4px 10px; 
+    font-size:0.75rem; 
+    border-radius:6px; 
+}
 
 /* Utilities */
-.op-actions { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
-.op-inline-form { display:inline; }
+.op-actions { 
+    display:flex; 
+    gap:8px; 
+    align-items:center; 
+    flex-wrap:wrap; 
+}
+
+.op-inline-form { 
+    display:inline; 
+}
 
 /* Responsive */
 @media (max-width:768px) { .op-plugin-grid { grid-template-columns:1fr; } }
+
+/* Plugin Logo Styles */
+.op-plugin-logo-img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    border-radius: 12px;
+    padding: 2px;
+    background: var(--op-bg-input);
+}
+
+.op-plugin-fallback-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 100%;
+    height: 100%;
+}
+
 
 

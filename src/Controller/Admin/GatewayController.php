@@ -135,6 +135,9 @@ final class GatewayController
             }
         }
 
+        /** @var \OwnPay\Plugin\PluginManager $pm */
+        $pm = $this->c->get(\OwnPay\Plugin\PluginManager::class);
+
         $apiGateways = [];
         foreach ($discovered as $manifest) {
             if ($manifest->type !== 'gateway') {
@@ -155,13 +158,15 @@ final class GatewayController
                 $status = in_array($installed['status'], ['trashed', 'error'], true) ? $installed['status'] : 'inactive';
             }
 
+            $logoPath = $pm->resolveIconPath($manifest->slug, $installed ?? ['type' => 'gateway'], $manifest);
+
             $apiGateways[] = [
                 'slug'        => $manifest->slug,
                 'name'        => $manifest->name,
                 'description' => $manifest->description,
                 'version'     => $manifest->version,
                 'status'      => $status,
-                'logo'        => $configured['logo_path'] ?? '',
+                'logo'        => $logoPath ?? ($configured['logo_path'] ?? ''),
                 'mode'        => $configured['mode'] ?? '',
             ];
         }

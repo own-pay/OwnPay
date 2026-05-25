@@ -99,9 +99,14 @@ final class InvoiceController
 
         $pagination = $this->invoices->pagination($mid, $page);
 
+        /** @var \OwnPay\Service\Domain\DomainUrlService $urlService */
+        $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
+        $baseUrl = $urlService->resolveBaseUrl($mid, $req);
+
         return $this->renderAdminPage('admin/invoices/index.twig', [
             'invoices'    => $invoices,
             'pagination'  => $pagination,
+            'base_url'    => $baseUrl,
             'active_page' => 'invoices',
         ]);
     }

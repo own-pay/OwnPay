@@ -6,7 +6,7 @@
         {% for gw in gateways.global %}
         <div class="ck-gw" onclick="pickGW(this,'card','{{ gw.slug|e('js') }}','{{ gw.name|e('js') }}','{{ (gw.mode ?? 'api')|e('js') }}')">
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
-            <div class="ck-gw-ico" style="background:{{ (gw.color ?? '#ECEEF5')|e('css') }}0F">
+            <div class="ck-gw-ico" style="background: #{{ (gw.color ?? '#ECEEF5')|replace({'#': ''})|e('html_attr') }}0F;">
                 {% if gw.logo is defined and gw.logo %}
                     <img src="{{ gw.logo }}" alt="" class="ck-gw-logo" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
                     <span style="display:none">{{ gw.name[:2] }}</span>
@@ -30,7 +30,7 @@
         {% for gw in gateways.mfs %}
         <div class="ck-gw" onclick="pickGW(this,'mfs','{{ gw.slug|e('js') }}','{{ gw.name|e('js') }}','{{ (gw.mode ?? 'api')|e('js') }}')">
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
-            <div class="ck-gw-ico" style="background:{{ (gw.color ?? '#0D9488')|e('css') }}0F">
+            <div class="ck-gw-ico" style="background: #{{ (gw.color ?? '#0D9488')|replace({'#': ''})|e('html_attr') }}0F;">
                 {% if gw.logo is defined and gw.logo %}
                     <img src="{{ gw.logo }}" alt="" class="ck-gw-logo" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
                     <span style="display:none">{{ gw.name[:2] }}</span>
@@ -54,7 +54,7 @@
         {% for gw in gateways.bank %}
         <div class="ck-gw" onclick="pickGW(this,'bank','{{ gw.slug|e('js') }}','{{ gw.name|e('js') }}','{{ (gw.mode ?? 'api')|e('js') }}')">
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
-            <div class="ck-gw-ico" style="background:{{ (gw.color ?? '#ECEEF5')|e('css') }}1A">
+            <div class="ck-gw-ico" style="background: #{{ (gw.color ?? '#ECEEF5')|replace({'#': ''})|e('html_attr') }}1A;">
                 {% if gw.logo is defined and gw.logo %}
                     <img src="{{ gw.logo }}" alt="" class="ck-gw-logo" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
                     <span style="display:none">{{ gw.name[:2] }}</span>
