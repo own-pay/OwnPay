@@ -64,7 +64,14 @@
         </div>
         {% block content %}{% endblock %}
         <div class="checkout-footer">
-            {{ ownpay_footer()|raw }} &middot; <a href="/">Home</a>
+            {% if brand is not null and brand.show_powered_by is defined %}
+                {% if brand.show_powered_by %}
+                    {{ ownpay_footer()|raw }} &middot;
+                {% endif %}
+            {% else %}
+                {{ ownpay_footer()|raw }} &middot;
+            {% endif %}
+            <a href="/">Home</a>
         </div>
     </div>
 </body>
