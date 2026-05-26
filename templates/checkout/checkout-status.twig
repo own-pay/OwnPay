@@ -159,5 +159,19 @@
             </script>
         {% endif %}
     </div>
+
+    <script nonce="{{ csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function() {
+        var backBtns = document.querySelectorAll('.op-back-btn');
+        backBtns.forEach(function(btn) {
+            btn.addEventListener('click', function(e) {
+                if (window.history.length > 1) {
+                    e.preventDefault();
+                    window.history.back();
+                }
+            });
+        });
+    });
+    </script>
 </body>
 </html>

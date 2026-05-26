@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Settings · Own Pay Setup</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/installer.css?v=2">
+    <link rel="stylesheet" href="/assets/css/installer.css?v=3">
 </head>
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <span class="ins-mark">OP</span>
+        <img src="https://cdn.ownpay.org/assets/logo.png" alt="OwnPay Logo" class="ins-logo-img" onerror="this.src='/assets/img/logo-fallback.png';this.onerror=null;">
         <span class="ins-name">Own Pay <span>Setup</span></span>
     </div>
     <div class="ins-steps">
@@ -29,7 +28,7 @@
     <div class="ins-card">
         <form id="settingsForm" class="ins-form">
             <h1>Application Settings</h1>
-            <p class="ins-sub">Configure your payment gateway defaults. These can be changed later from the admin panel.</p>
+            <p class="ins-sub">Configure your system preferences. These represent base settings and defaults across all white-labeled merchant brands.</p>
 
             <div class="ins-field">
                 <label for="app_name">Application Name</label>
@@ -63,29 +62,29 @@
             </div>
             <div id="settingsMsg" class="ins-msg"></div>
             <button type="submit" class="ins-btn" id="settingsBtn">
-                <span id="settingsBtnText">Complete Installation</span>
+                <span id="settingsBtnText">Complete Platform Installation</span>
             </button>
         </form>
 
         <div id="donePanel" class="ins-done" style="display:none">
             <div class="ins-done-icon">✓</div>
             <h2>Installation Complete!</h2>
-            <p>Own Pay has been installed and configured successfully. Your secure payment gateway is ready to use.</p>
+            <p>Own Pay is fully initialized. Environment configurations and secure cryptographic key rings are successfully locked.</p>
             <div class="ins-done-actions">
-                <a href="/login" class="ins-btn">Open Admin Dashboard →</a>
-                <a href="/" class="ins-btn ins-btn-outline">Visit Homepage</a>
+                <a href="/admin/login" class="ins-btn">Open Master Admin Dashboard →</a>
+                <a href="/" class="ins-btn ins-btn-outline">Visit Portal Homepage</a>
             </div>
             <div class="ins-hint">
-                <strong>🔒 Security Notes:</strong><br>
-                • Your encryption keys have been automatically generated<br>
-                • <code>APP_DEBUG</code> is set to <code>false</code> by default<br>
-                • Set up HTTPS and configure your firewall before going live
+                <strong>🔒 Cryptography Hardening Summary:</strong><br>
+                • Distinct random secure session key, HMAC token key, and AES decryption key seeded.<br>
+                • Production isolation set up: <code>APP_DEBUG</code> set to <code>false</code> in your new <code>.env</code> file.<br>
+                • Re-runs are strictly blocked: The installer routing group is permanently locked down.
             </div>
         </div>
     </div>
 </main>
 
-<div class="ins-footer">Own Pay · Secure Payment Gateway · v0.1.0</div>
+<div class="ins-footer">Own Pay · High-Transaction Secured Payment Platform · v0.1.0</div>
 
 <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
 document.getElementById('settingsForm').addEventListener('submit', async function(e) {
@@ -95,7 +94,7 @@ document.getElementById('settingsForm').addEventListener('submit', async functio
     var msg = document.getElementById('settingsMsg');
 
     btn.disabled = true;
-    btnText.innerHTML = '<span class="ins-spinner"></span> Installing...';
+    btnText.innerHTML = '<span class="ins-spinner"></span> Finalizing setup...';
     msg.textContent = '';
     msg.className = 'ins-msg';
 
@@ -114,15 +113,15 @@ document.getElementById('settingsForm').addEventListener('submit', async functio
             document.getElementById('donePanel').style.display = 'block';
         } else {
             msg.className = 'ins-msg ins-msg-err';
-            msg.textContent = '✗ ' + (d.error || 'Installation failed');
+            msg.textContent = '✗ ' + (d.error || 'Finalization failed');
             btn.disabled = false;
-            btnText.textContent = 'Complete Installation';
+            btnText.textContent = 'Complete Platform Installation';
         }
     } catch (err) {
         msg.className = 'ins-msg ins-msg-err';
-        msg.textContent = '✗ Network error. Please check your server.';
+        msg.textContent = '✗ Network connection failed. Please check your PHP server logs.';
         btn.disabled = false;
-        btnText.textContent = 'Complete Installation';
+        btnText.textContent = 'Complete Platform Installation';
     }
 });
 </script>

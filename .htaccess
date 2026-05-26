@@ -22,7 +22,8 @@
     RewriteRule (^|/)\.(?!well-known/) - [F]
 </IfModule>
 
-# Deny access to sensitive directories
+# Deny access to sensitive directories, allowing public media assets under storage/gateways/ and storage/uploads/
 <IfModule mod_rewrite.c>
+    RewriteCond %{REQUEST_URI} !^/storage/(gateways|uploads)/
     RewriteRule ^(config|src|templates|database|storage|modules|tests|vendor)/ - [F,L]
 </IfModule>

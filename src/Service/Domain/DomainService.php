@@ -183,10 +183,12 @@ final class DomainService
      */
     public function merchantUrl(int $merchantId, string $path = '/'): string
     {
-        $activeDomain = $this->domains->forTenant($merchantId)->findActiveDomain();
-        if ($activeDomain !== null && isset($activeDomain['domain']) && is_string($activeDomain['domain'])) {
-            $scheme = (getenv('APP_HTTPS') === 'true') ? 'https' : 'http';
-            return $scheme . '://' . $activeDomain['domain'] . '/' . ltrim($path, '/');
+        if ($merchantId !== 1) {
+            $activeDomain = $this->domains->forTenant($merchantId)->findActiveDomain();
+            if ($activeDomain !== null && isset($activeDomain['domain']) && is_string($activeDomain['domain'])) {
+                $scheme = (getenv('APP_HTTPS') === 'true') ? 'https' : 'http';
+                return $scheme . '://' . $activeDomain['domain'] . '/' . ltrim($path, '/');
+            }
         }
 
         $appDomain = getenv('APP_DOMAIN') ?: 'localhost';

@@ -4,33 +4,27 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
-    <title>Already Installed · Own Pay</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/installer.css?v=2">
+    <title>Locked · Own Pay Setup</title>
+    <link rel="stylesheet" href="/assets/css/installer.css?v=3">
 </head>
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <span class="ins-mark">OP</span>
+        <img src="https://cdn.ownpay.org/assets/logo.png" alt="OwnPay Logo" class="ins-logo-img" onerror="this.src='/assets/img/logo-fallback.png';this.onerror=null;">
         <span class="ins-name">Own Pay <span>Setup</span></span>
     </div>
 </header>
 
 <main class="ins-main">
-    <div class="ins-card">
-        <div class="ins-locked">
-            <div class="ins-locked-icon">🔒</div>
-            <h1>Already Installed</h1>
-            <p class="ins-sub">Own Pay has already been installed and configured. The installer is locked for security.</p>
-            <a href="/login" class="ins-btn">Go to Admin Login →</a>
-            <div class="ins-hint">
-                To reinstall, remove the <code>storage/.installed</code> file and navigate to <code>/install</code> again.
-                <br><strong>Warning:</strong> This will require a full reconfiguration.
-            </div>
-        </div>
+    <div class="ins-card ins-locked">
+        <div class="ins-locked-icon">🔒</div>
+        <h2>Installation Locked</h2>
+        <p class="ins-sub" style="margin-bottom: 1.5rem;">OwnPay is already installed and fully operational on this system.</p>
+        <p class="ins-sub" style="font-size: 0.88rem; line-height: 1.6; margin-bottom: 2rem;">For security reasons, the installation wizard cannot be re-run while a master configuration is active. If you must rebuild the gateway environment, you must manually delete the active lockout key from your local server terminal: <code>storage/.installed</code></p>
+        <a href="/admin/login" class="ins-btn">Navigate to Login Dashboard</a>
     </div>
 </main>
 
-<div class="ins-footer">Own Pay · Secure Payment Gateway · v0.1.0</div>
+<div class="ins-footer">Own Pay · High-Transaction Secured Payment Platform · v0.1.0</div>
 </body>
 </html>

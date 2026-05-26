@@ -1,0 +1,2539 @@
+﻿SUMMARY FROM JSON:
+Total Errors: 0
+Total File Errors: 2131
+Total Files with Errors: 201
+
+File: src/Cache/FileCache.php (3 errors)
+  Line 92: Cannot call method getRealPath() on mixed.
+  Line 100: Cannot call method getFilename() on mixed.
+  Line 100: Cannot call method isFile() on mixed.
+
+File: src/Cache/RedisCache.php (1 errors)
+  Line 42: Parameter #1 $data of function unserialize expects string, mixed given.
+
+File: src/Container.php (1 errors)
+  Line 256: Parameter #1 $objectOrClass of class ReflectionClass constructor expects class-string<T of object>|T of object, string given.
+
+File: src/Controller/Admin/ActivitiesController.php (3 errors)
+  Line 73: Cannot call method resolveFromRequest() on mixed.
+  Line 74: Cannot call method getActiveBrandId() on mixed.
+  Line 77: Cannot cast mixed to int.
+
+File: src/Controller/Admin/AddonController.php (9 errors)
+  Line 79: Cannot call method resolveFromRequest() on mixed.
+  Line 80: Cannot call method getActiveBrandId() on mixed.
+  Line 87: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 88: Cannot access offset 'name' on mixed.
+  Line 91: Cannot access offset 'description' on mixed.
+  Line 92: Cannot access offset 'author' on mixed.
+  Line 96: Parameter #1 $slug of method OwnPay\Repository\PluginRepository::isPluginActiveForBrand() expects string, mixed given.
+  Line 115: Possibly invalid array key type mixed.
+  Line 116: Possibly invalid array key type mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ApiKeyController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AuthController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/BalanceVerificationController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/BrandController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/CurrencyController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/CustomerController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DashboardController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DeveloperController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DeviceController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DomainController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/FaqController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/GatewayController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/InvoiceController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/LedgerController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/PaymentLinkController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/PluginController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/RolesController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/SettingsController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/SmsDataController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/SmsTemplateAdminController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/StaffController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/SystemUpdateController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ThemeController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/TransactionController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/TwoFactorSetupController) (10 errors)
+  Line 32: Cannot access offset 'name' on mixed.
+  Line 33: Cannot access offset 'version' on mixed.
+  Line 45: Cannot call method getAllBrands() on mixed.
+  Line 46: Cannot call method getActiveBrand() on mixed.
+  Line 47: Cannot call method getActiveBrandId() on mixed.
+  Line 53: Cannot call method get() on mixed.
+  Line 54: Cannot call method get() on mixed.
+  Line 55: Cannot call method get() on mixed.
+  Line 62: Cannot call method getBrandTheme() on mixed.
+  Line 85: Cannot call method render() on mixed.
+
+File: src/Controller/Admin/ApiKeyController.php (6 errors)
+  Line 74: Cannot call method resolveFromRequest() on mixed.
+  Line 75: Cannot call method getActiveBrandId() on mixed.
+  Line 77: Parameter #2 $label of method OwnPay\Service\Customer\ApiKeyService::generate() expects string, mixed given.
+  Line 84: Part $label (mixed) of encapsed string cannot be cast to string.
+  Line 99: Cannot call method resolveFromRequest() on mixed.
+  Line 100: Cannot call method getActiveBrandId() on mixed.
+
+File: src/Controller/Admin/AuthController.php (15 errors)
+  Line 128: Parameter #1 $email of method OwnPay\Service\Auth\AuthSessionService::login() expects string, mixed given.
+  Line 128: Parameter #2 $password of method OwnPay\Service\Auth\AuthSessionService::login() expects string, mixed given.
+  Line 141: Offset 'user' might not exist on array{success: true, user?: array<string, mixed>, error?: string, requires_2fa: true}.
+  Line 145: Cannot cast mixed to int.
+  Line 145: Offset 'user' might not exist on array{success: true, user?: array<string, mixed>, error?: string, requires_2fa?: bool}.
+  Line 183: Cannot cast mixed to int.
+  Line 183: Parameter #1 $email of method OwnPay\Repository\MerchantUserRepository::findActiveByEmail() expects string, mixed given.
+  Line 193: Cannot cast mixed to int.
+  Line 198: Parameter #2 $code of static method OwnPay\Middleware\TwoFactorMiddleware::verifyTotp() expects string, string|null given.
+  Line 204: Cannot call method startSession() on mixed.
+  Line 205: Cannot cast mixed to int.
+  Line 213: Cannot cast mixed to int.
+  Line 244: Parameter #1 $string of function trim expects string, mixed given.
+  Line 271: Parameter #3 $entityId of method OwnPay\Service\System\AuditService::log() expects int|null, mixed given.
+  Line 305: Method OwnPay\Controller\Admin\AuthController::resolveLoginSlug() should return string but returns string|null.
+
+File: src/Controller/Admin/BalanceVerificationController.php (6 errors)
+  Line 70: Cannot call method resolveFromRequest() on mixed.
+  Line 71: Cannot call method getActiveBrandId() on mixed.
+  Line 98: Cannot call method resolveFromRequest() on mixed.
+  Line 99: Cannot call method getActiveBrandId() on mixed.
+  Line 103: Parameter #2 $currency of method OwnPay\Service\Payment\ReconciliationService::reconcile() expects string, mixed given.
+  Line 106: Parameter #2 ...$values of function sprintf expects bool|float|int|string|null, mixed given.
+
+File: src/Controller/Admin/BrandController.php (42 errors)
+  Line 112: Cannot access offset 'name' on mixed.
+  Line 112: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 113: Cannot access offset 'email' on mixed.
+  Line 113: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::email() expects string, mixed given.
+  Line 125: Cannot access offset 'email' on mixed.
+  Line 126: Cannot access offset 'phone' on mixed.
+  Line 127: Cannot access offset 'timezone' on mixed.
+  Line 128: Cannot access offset 'default_currency' on mixed.
+  Line 129: Cannot access offset 'status' on mixed.
+  Line 133: Parameter #3 $data of method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects array<string, mixed>, mixed given.
+  Line 136: Cannot access offset 'email' on mixed.
+  Line 137: Cannot access offset 'phone' on mixed.
+  Line 138: Cannot access offset 'timezone' on mixed.
+  Line 139: Cannot access offset 'default_currency' on mixed.
+  Line 140: Cannot access offset 'status' on mixed.
+  Line 143: Parameter #1 $string of function trim expects string, mixed given.
+  Line 146: Cannot call method map() on mixed.
+  Line 156: Cannot access offset 'default_currency' on mixed.
+  Line 157: Cannot call method ensureDefault() on mixed.
+  Line 182: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 205: Cannot access offset 'name' on mixed.
+  Line 205: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 206: Cannot access offset 'email' on mixed.
+  Line 217: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 221: Parameter #3 $data of method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects array<string, mixed>, mixed given.
+  Line 221: Parameter #4 $existingLogoPath of method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects string|null, mixed given.
+  Line 221: Parameter #5 $existingSettings of method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects array<string, mixed>, mixed given.
+  Line 223: Parameter #1 ...$arrays of function array_merge expects array, mixed given.
+  Line 223: Parameter #2 $data of method OwnPay\Repository\MerchantRepository::updateBrand() expects array<string, mixed>, array<mixed, mixed> given.
+  Line 225: Parameter #1 $string of function trim expects string, mixed given.
+  Line 228: Cannot call method map() on mixed.
+  Line 251: Cannot cast mixed to int.
+  Line 285: Parameter #1 $string of function strtolower expects string, string|false given.
+  Line 337: Cannot call method execute() on mixed.
+  Line 340: Part $brand['name'] (mixed) of encapsed string cannot be cast to string.
+  Line 372: Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int, name: string, tmp_name: string}, non-empty-array<string, mixed> given.
+  Line 383: Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int, name: string, tmp_name: string}, non-empty-array<string, mixed> given.
+  Line 394: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 395: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 396: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::email() expects string, mixed given.
+  Line 397: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 405: Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, mixed given.
+
+File: src/Controller/Admin/CurrencyController.php (8 errors)
+  Line 67: Cannot access offset 'code' on mixed.
+  Line 67: Cannot access offset 'name' on mixed.
+  Line 69: Cannot call method upsert() on mixed.
+  Line 70: Parameter #1 $string of function strtoupper expects string, mixed given.
+  Line 72: Cannot access offset 'symbol' on mixed.
+  Line 73: Cannot access offset 'status' on mixed.
+  Line 74: Cannot access offset 'decimal_places' on mixed.
+  Line 74: Cannot cast mixed to int.
+
+File: src/Controller/Admin/CustomerController.php (26 errors)
+  Line 64: Cannot call method resolveFromRequest() on mixed.
+  Line 65: Cannot call method getActiveBrandId() on mixed.
+  Line 67: Cannot cast mixed to int.
+  Line 70: Parameter #2 $query of method OwnPay\Repository\CustomerRepository::paginateWithStats() expects string, mixed given.
+  Line 76: Cannot call method decrypt() on mixed.
+  Line 77: Cannot call method decrypt() on mixed.
+  Line 78: Cannot call method decrypt() on mixed.
+  Line 115: Cannot call method resolveFromRequest() on mixed.
+  Line 116: Cannot call method getActiveBrandId() on mixed.
+  Line 129: Cannot call method decrypt() on mixed.
+  Line 130: Cannot call method decrypt() on mixed.
+  Line 131: Cannot call method decrypt() on mixed.
+  Line 172: Cannot call method resolveFromRequest() on mixed.
+  Line 173: Cannot call method getActiveBrandId() on mixed.
+  Line 175: Parameter #1 $string of function trim expects string, mixed given.
+  Line 176: Parameter #1 $string of function trim expects string, mixed given.
+  Line 177: Parameter #1 $string of function trim expects string, mixed given.
+  Line 189: Cannot call method insert() on mixed.
+  Line 195: Cannot call method encrypt() on mixed.
+  Line 196: Cannot call method encrypt() on mixed.
+  Line 197: Cannot call method hash() on mixed.
+  Line 198: Cannot call method encrypt() on mixed.
+  Line 199: Cannot call method hash() on mixed.
+  Line 220: Cannot call method resolveFromRequest() on mixed.
+  Line 221: Cannot call method getActiveBrandId() on mixed.
+  Line 232: Cannot call method execute() on mixed.
+
+File: src/Controller/Admin/DashboardController.php (73 errors)
+  Line 153: Cannot call method decrypt() on mixed.
+  Line 171: Cannot call method get() on mixed.
+  Line 176: Cannot call method listAll() on mixed.
+  Line 237: Parameter #1 $merchantId of method OwnPay\Repository\TransactionRepository::getReportData() expects int, int|null given.
+  Line 237: Parameter #2 $from of method OwnPay\Repository\TransactionRepository::getReportData() expects string, mixed given.
+  Line 237: Parameter #3 $to of method OwnPay\Repository\TransactionRepository::getReportData() expects string, mixed given.
+  Line 237: Parameter #4 $gateway of method OwnPay\Repository\TransactionRepository::getReportData() expects string|null, mixed given.
+  Line 238: Parameter #1 $merchantId of method OwnPay\Repository\TransactionRepository::getDistinctGateways() expects int, int|null given.
+  Line 263: Cannot cast mixed to int.
+  Line 323: Cannot access offset 'type' on mixed.
+  Line 324: Cannot access offset 'name' on mixed.
+  Line 324: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 325: Cannot access offset 'email' on mixed.
+  Line 325: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::email() expects string, mixed given.
+  Line 333: Cannot access offset 'type' on mixed.
+  Line 334: Cannot access offset 'current_password' on mixed.
+  Line 335: Cannot access offset 'new_password' on mixed.
+  Line 336: Cannot access offset 'confirm_password' on mixed.
+  Line 339: Parameter #1 $password of function password_verify expects string, mixed given.
+  Line 341: Parameter #1 $string of function strlen expects string, mixed given.
+  Line 344: Parameter #1 $password of function password_hash expects string, mixed given.
+  Line 371: Parameter #1 $merchantId of method OwnPay\Repository\TransactionRepository::getExportData() expects int, int|null given.
+  Line 371: Parameter #2 $from of method OwnPay\Repository\TransactionRepository::getExportData() expects string, mixed given.
+  Line 371: Parameter #3 $to of method OwnPay\Repository\TransactionRepository::getExportData() expects string, mixed given.
+  Line 371: Parameter #4 $gateway of method OwnPay\Repository\TransactionRepository::getExportData() expects string|null, mixed given.
+  Line 380: Parameter #1 $stream of function fputcsv expects resource, resource|false given.
+  Line 382: Parameter #1 $stream of function fputcsv expects resource, resource|false given.
+  Line 382: Parameter #2 $fields of function fputcsv expects array<int|string, bool|float|int|string|null>, array<int, mixed> given.
+  Line 383: Cannot access offset 'currency' on mixed.
+  Line 383: Cannot access offset 'gateway_slug' on mixed.
+  Line 383: Cannot access offset 'id' on mixed.
+  Line 384: Cannot access offset 'amount' on mixed.
+  Line 384: Cannot access offset 'created_at' on mixed.
+  Line 384: Cannot access offset 'status' on mixed.
+  Line 387: Parameter #1 $stream of function fclose expects resource, resource|false given.
+  Line 390: Part $from (mixed) of encapsed string cannot be cast to string.
+  Line 390: Part $to (mixed) of encapsed string cannot be cast to string.
+  Line 405: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 406: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 407: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 408: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 410: Cannot cast mixed to int.
+  Line 453: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 454: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::email() expects string, mixed given.
+  Line 455: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 456: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 457: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 465: Parameter #1 $string of function trim expects string, string|null given.
+  Line 516: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 517: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::email() expects string, mixed given.
+  Line 518: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 543: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 544: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 545: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 546: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 547: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 553: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 554: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 560: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 580: Cannot cast mixed to int.
+  Line 610: Cannot cast mixed to int.
+  Line 611: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 633: Cannot cast mixed to int.
+  Line 638: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 639: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 648: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 649: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 661: Parameter #1 $plaintext of method OwnPay\Security\FieldEncryptor::encrypt() expects string, string|false given.
+  Line 669: Cannot cast mixed to int.
+  Line 689: Cannot cast mixed to int.
+  Line 702: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 703: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 782: Cannot call method get() on mixed.
+
+File: src/Controller/Admin/DeveloperController.php (21 errors)
+  Line 59: Cannot call method resolveFromRequest() on mixed.
+  Line 60: Cannot call method getActiveBrandId() on mixed.
+  Line 62: Cannot call method list() on mixed.
+  Line 64: Cannot call method get() on mixed.
+  Line 65: Cannot call method get() on mixed.
+  Line 66: Cannot call method get() on mixed.
+  Line 67: Cannot call method get() on mixed.
+  Line 103: Cannot call method resolveFromRequest() on mixed.
+  Line 106: Cannot call method get() on mixed.
+  Line 122: Cannot call method get() on mixed.
+  Line 126: Parameter #2 $options of function curl_setopt_array expects array{47: bool, 10015: array|string, 19913: bool, 13: int, 10023: array<int, string>}, array{47: true, 10015: non-empty-string|false, 19913: true, 13: 10, 10023: array{'Content-Type:…', non-falsy-string, 'X-OwnPay-Event:…'}} given.
+  Line 216: Cannot cast mixed to int.
+  Line 217: Parameter #1 $string of function trim expects string, mixed given.
+  Line 218: Parameter #1 $string of function trim expects string, mixed given.
+  Line 229: Cannot call method set() on mixed.
+  Line 231: Cannot call method set() on mixed.
+  Line 234: Cannot call method set() on mixed.
+  Line 251: Cannot call method resolveFromRequest() on mixed.
+  Line 252: Cannot call method getActiveBrandId() on mixed.
+  Line 254: Parameter #1 $string of function trim expects string, mixed given.
+  Line 256: Cannot call method generate() on mixed.
+
+File: src/Controller/Admin/DeviceController.php (16 errors)
+  Line 52: Method OwnPay\Controller\Admin\DeviceController::getService() should return OwnPay\Service\Device\DevicePairingService|null but returns mixed.
+  Line 78: Cannot call method resolveFromRequest() on mixed.
+  Line 79: Cannot call method getActiveBrandId() on mixed.
+  Line 111: Cannot call method resolveFromRequest() on mixed.
+  Line 112: Cannot call method getActiveBrandId() on mixed.
+  Line 119: Cannot call method resolveBaseUrl() on mixed.
+  Line 123: Offset 'otp' might not exist on array{error: string}|array{otp: string, expires_in: int}.
+  Line 132: Parameter #1 $data of method chillerlan\QRCode\QRCode::render() expects string|null, string|false given.
+  Line 136: Offset 'otp' might not exist on array{error: string}|array{otp: string, expires_in: int}.
+  Line 163: Cannot call method resolveFromRequest() on mixed.
+  Line 164: Cannot call method getActiveBrandId() on mixed.
+  Line 187: Cannot call method resolveFromRequest() on mixed.
+  Line 188: Cannot call method getActiveBrandId() on mixed.
+  Line 193: Cannot cast mixed to string.
+  Line 217: Cannot call method resolveFromRequest() on mixed.
+  Line 218: Cannot call method getActiveBrandId() on mixed.
+
+File: src/Controller/Admin/DomainController.php (11 errors)
+  Line 62: Cannot call method resolveFromRequest() on mixed.
+  Line 63: Cannot call method getActiveBrandId() on mixed.
+  Line 66: Cannot call method forTenant() on mixed.
+  Line 69: Cannot call method find() on mixed.
+  Line 100: Cannot call method resolveFromRequest() on mixed.
+  Line 101: Cannot call method getActiveBrandId() on mixed.
+  Line 109: Parameter #2 $domain of method OwnPay\Service\Domain\DomainService::map() expects string, mixed given.
+  Line 129: Cannot call method resolveFromRequest() on mixed.
+  Line 130: Cannot call method getActiveBrandId() on mixed.
+  Line 156: Cannot call method resolveFromRequest() on mixed.
+  Line 157: Cannot call method getActiveBrandId() on mixed.
+
+File: src/Controller/Admin/FaqController.php (7 errors)
+  Line 75: Argument of an invalid type mixed supplied for foreach, only iterables are supported.
+  Line 76: Cannot access offset 'question' on mixed.
+  Line 77: Cannot access offset 'answer' on mixed.
+  Line 84: Cannot call method resolveFromRequest() on mixed.
+  Line 85: Cannot call method getActiveBrandId() on mixed.
+  Line 88: Parameter #3 $value of method OwnPay\Repository\SettingsRepository::setScoped() expects string, string|false given.
+  Line 91: Parameter #3 $value of method OwnPay\Repository\SettingsRepository::set() expects string, string|false given.
+
+File: src/Controller/Admin/GatewayController.php (30 errors)
+  Line 94: Cannot call method resolveFromRequest() on mixed.
+  Line 95: Cannot call method getActiveBrandId() on mixed.
+  Line 100: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 101: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 116: Possibly invalid array key type mixed.
+  Line 122: Possibly invalid array key type mixed.
+  Line 178: Parameter #1 $data of method OwnPay\Controller\Admin\GatewayController::validateManualGateway() expects array<string, mixed>, mixed given.
+  Line 184: Parameter #1 $data of method OwnPay\Controller\Admin\GatewayController::buildGatewayRecord() expects array<string, mixed>, mixed given.
+  Line 185: Cannot access offset 'slug' on mixed.
+  Line 185: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::slug() expects string, mixed given.
+  Line 213: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 214: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 221: Parameter #1 $data of method OwnPay\Controller\Admin\GatewayController::validateManualGateway() expects array<string, mixed>, mixed given.
+  Line 223: Parameter #2 ...$arrays of function array_merge expects array, mixed given.
+  Line 226: Parameter #1 $data of method OwnPay\Controller\Admin\GatewayController::buildGatewayRecord() expects array<string, mixed>, mixed given.
+  Line 312: Cannot call method resolveFromRequest() on mixed.
+  Line 313: Cannot call method getActiveBrandId() on mixed.
+  Line 326: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 327: Parameter #1 $raw of method OwnPay\Controller\Admin\GatewayController::buildInstructionsJson() expects string, mixed given.
+  Line 329: Parameter #1 $fields of method OwnPay\Controller\Admin\GatewayController::buildFieldsJson() expects array<int, array<string, mixed>>, mixed given.
+  Line 345: Method OwnPay\Controller\Admin\GatewayController::buildColorsJson() should return string but returns string|false.
+  Line 364: Method OwnPay\Controller\Admin\GatewayController::buildInstructionsJson() should return string but returns string|false.
+  Line 376: Cannot access offset 'tmp_name' on mixed.
+  Line 377: Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int, name: string, tmp_name: string}, mixed given.
+  Line 379: Cannot access offset 'tmp_name' on mixed.
+  Line 380: Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int, name: string, tmp_name: string}, mixed given.
+  Line 401: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 420: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::slug() expects string, mixed given.
+  Line 421: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 427: Method OwnPay\Controller\Admin\GatewayController::buildFieldsJson() should return string but returns string|false.
+
+File: src/Controller/Admin/InvoiceController.php (15 errors)
+  Line 76: Cannot call method resolveFromRequest() on mixed.
+  Line 77: Cannot call method getActiveBrandId() on mixed.
+  Line 78: Cannot cast mixed to int.
+  Line 86: Cannot call method decrypt() on mixed.
+  Line 110: Cannot call method resolveFromRequest() on mixed.
+  Line 111: Cannot call method getActiveBrandId() on mixed.
+  Line 123: Parameter #2 $data of method OwnPay\Service\Payment\InvoiceService::create() expects array{invoice_number?: string, customer_id?: int|string, due_date?: string|null, notes?: string|null, currency?: string, tax?: float|int|string, discount?: float|int|string, items?: array<int, array{description?: string, quantity?: int|string, unit_price?: float|int|string, amount?: float|int|string}>}, mixed given.
+  Line 140: Cannot call method resolveFromRequest() on mixed.
+  Line 141: Cannot call method getActiveBrandId() on mixed.
+  Line 160: Parameter #3 $data of method OwnPay\Service\Payment\InvoiceService::update() expects array{customer_id?: int|string, due_date?: string|null, notes?: string|null, currency?: string, tax?: float|int|string, discount?: float|int|string, status?: string, items?: array<int, array{description?: string, quantity?: int|string, unit_price?: float|int|string, amount?: float|int|string}>}, mixed given.
+  Line 213: Cannot call method resolveFromRequest() on mixed.
+  Line 214: Cannot call method getActiveBrandId() on mixed.
+  Line 229: Cannot call method forTenant() on mixed.
+  Line 234: Cannot call method decrypt() on mixed.
+  Line 247: Cannot call method listAll() on mixed.
+
+File: src/Controller/Admin/LedgerController.php (6 errors)
+  Line 55: Cannot call method resolveFromRequest() on mixed.
+  Line 56: Cannot call method getActiveBrandId() on mixed.
+  Line 59: Cannot cast mixed to int.
+  Line 61: Cannot call method entries() on mixed.
+  Line 66: Cannot call method fetchOne() on mixed.
+  Line 69: Cannot call method calculateBalance() on mixed.
+
+File: src/Controller/Admin/PaymentLinkController.php (9 errors)
+  Line 75: Cannot call method resolveFromRequest() on mixed.
+  Line 76: Cannot call method getActiveBrandId() on mixed.
+  Line 95: Cannot call method resolveFromRequest() on mixed.
+  Line 96: Cannot call method getActiveBrandId() on mixed.
+  Line 106: Parameter #2 $data of method OwnPay\Service\Payment\PaymentLinkService::create() expects array{title?: string, slug?: string, description?: string|null, amount?: float|int|string|null, currency?: string, is_amount_fixed?: bool|int, min_amount?: float|int|string|null, max_amount?: float|int|string|null, ...}, mixed given.
+  Line 122: Cannot call method resolveFromRequest() on mixed.
+  Line 123: Cannot call method getActiveBrandId() on mixed.
+  Line 140: Parameter #3 $data of method OwnPay\Service\Payment\PaymentLinkService::update() expects array{title?: string, description?: string|null, amount?: float|int|string|null, currency?: string, status?: string}, mixed given.
+  Line 189: Cannot call method listAll() on mixed.
+
+File: src/Controller/Admin/PluginController.php (23 errors)
+  Line 99: Cannot call method resolveFromRequest() on mixed.
+  Line 100: Cannot call method getActiveBrandId() on mixed.
+  Line 107: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 108: Cannot access offset 'name' on mixed.
+  Line 111: Cannot access offset 'description' on mixed.
+  Line 115: Parameter #1 $slug of method OwnPay\Repository\PluginRepository::isPluginActiveForBrand() expects string, mixed given.
+  Line 188: Parameter #1 $string of function strtolower expects string, mixed given.
+  Line 192: Parameter #1 $zipPath of method OwnPay\Plugin\PluginManager::install() expects string, mixed given.
+  Line 198: Offset 'slug' might not exist on array{success: true, slug?: string, error?: string}.
+  Line 215: Cannot call method resolveFromRequest() on mixed.
+  Line 216: Cannot call method getActiveBrandId() on mixed.
+  Line 245: Cannot call method resolveFromRequest() on mixed.
+  Line 246: Cannot call method getActiveBrandId() on mixed.
+  Line 344: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 345: Cannot access offset 'author' on mixed.
+  Line 346: Cannot access offset 'description' on mixed.
+  Line 354: Cannot call method discover() on mixed.
+  Line 361: Cannot access offset 'namespace' on mixed.
+  Line 362: Parameter #1 $string of function rtrim expects string, mixed given.
+  Line 382: Cannot call method getActiveBrandId() on mixed.
+  Line 386: Cannot call method getGroupScoped() on mixed.
+  Line 388: Cannot call method getGroup() on mixed.
+  Line 431: Cannot call method getActiveBrandId() on mixed.
+
+File: src/Controller/Admin/RolesController.php (24 errors)
+  Line 66: Cannot call method resolveFromRequest() on mixed.
+  Line 67: Cannot call method getActiveBrandId() on mixed.
+  Line 73: Argument of an invalid type mixed supplied for foreach, only iterables are supported.
+  Line 74: Cannot access offset 'id' on mixed.
+  Line 74: Cannot cast mixed to int.
+  Line 75: Cannot access offset 'permission_count' on mixed.
+  Line 76: Cannot access offset 'permissions' on mixed.
+  Line 100: Cannot call method resolveFromRequest() on mixed.
+  Line 101: Cannot call method getActiveBrandId() on mixed.
+  Line 103: Parameter #1 $string of function trim expects string, mixed given.
+  Line 104: Parameter #1 $string of function trim expects string, mixed given.
+  Line 143: Cannot call method resolveFromRequest() on mixed.
+  Line 144: Cannot call method getActiveBrandId() on mixed.
+  Line 153: Parameter #1 $string of function trim expects string, mixed given.
+  Line 154: Parameter #1 $string of function trim expects string, mixed given.
+  Line 161: Parameter #1 $callback of function array_map expects (callable(mixed): mixed)|null, 'intval' given.
+  Line 161: Parameter #2 $array of function array_map expects array, mixed given.
+  Line 167: Cannot cast mixed to int.
+  Line 169: Cannot call method fetchAll() on mixed.
+  Line 181: Parameter #2 $permissionIds of method OwnPay\Repository\RoleRepository::syncPermissions() expects list<int>, array<int> given.
+  Line 198: Cannot call method resolveFromRequest() on mixed.
+  Line 199: Cannot call method getActiveBrandId() on mixed.
+  Line 213: Part $role['name'] (mixed) of encapsed string cannot be cast to string.
+  Line 228: Possibly invalid array key type mixed.
+
+File: src/Controller/Admin/SettingsController.php (30 errors)
+  Line 107: Cannot call method listAll() on mixed.
+  Line 111: Cannot call method resolveFromRequest() on mixed.
+  Line 112: Cannot call method getActiveBrandId() on mixed.
+  Line 113: Cannot call method list() on mixed.
+  Line 125: Cannot call method resolveBaseUrl() on mixed.
+  Line 126: Binary operation "." between non-falsy-string and non-empty-array<mixed>|non-empty-string results in an error.
+  Line 130: Cannot call method getJobs() on mixed.
+  Line 144: Cannot call method getLastRunTime() on mixed.
+  Line 200: Cannot access offset '_csrf_token' on mixed.
+  Line 200: Cannot access offset '_tab' on mixed.
+  Line 204: Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::saveBranding() expects array<string, mixed>, mixed given.
+  Line 208: Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::saveLanding() expects array<string, mixed>, mixed given.
+  Line 212: Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::savePayment() expects array<string, mixed>, mixed given.
+  Line 216: Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::saveCheckout() expects array<string, mixed>, mixed given.
+  Line 220: Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::saveTheme() expects array<string, mixed>, mixed given.
+  Line 224: Parameter #1 $data of method OwnPay\Controller\Admin\SettingsController::saveGeneral() expects array<string, mixed>, mixed given.
+  Line 231: Binary operation "." between '/admin/settings/' and mixed results in an error.
+  Line 253: Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int, name: string, tmp_name: string}, non-empty-array<string, mixed> given.
+  Line 309: Parameter #1 $array of function array_values expects array<T>, mixed given.
+  Line 327: Cannot cast mixed to string.
+  Line 366: Cannot cast mixed to string.
+  Line 388: Parameter #1 $array of function array_values expects array<T>, mixed given.
+  Line 406: Cannot cast mixed to string.
+  Line 439: Cannot access offset 'rate' on mixed.
+  Line 440: Cannot call method updateExchangeRate() on mixed.
+  Line 440: Cannot cast mixed to string.
+  Line 456: Cannot cast mixed to string.
+  Line 491: Cannot cast mixed to string.
+  Line 514: Cannot cast mixed to string.
+  Line 553: Cannot call method runJob() on mixed.
+
+File: src/Controller/Admin/SmsDataController.php (4 errors)
+  Line 60: Cannot call method resolveFromRequest() on mixed.
+  Line 61: Cannot call method getActiveBrandId() on mixed.
+  Line 63: Cannot cast mixed to int.
+  Line 69: Parameter #3 $status of method OwnPay\Repository\SmsDataRepository::listPaginated() expects string|null, mixed given.
+
+File: src/Controller/Admin/SmsTemplateAdminController.php (39 errors)
+  Line 80: Cannot call method resolveFromRequest() on mixed.
+  Line 81: Cannot call method getActiveBrandId() on mixed.
+  Line 89: Cannot call method fetchAll() on mixed.
+  Line 93: Cannot call method fetchAll() on mixed.
+  Line 119: Cannot call method resolveFromRequest() on mixed.
+  Line 120: Cannot call method getActiveBrandId() on mixed.
+  Line 147: Cannot call method resolveFromRequest() on mixed.
+  Line 148: Cannot call method getActiveBrandId() on mixed.
+  Line 172: Cannot call method fetchAll() on mixed.
+  Line 175: Cannot call method fetchAll() on mixed.
+  Line 198: Cannot call method resolveFromRequest() on mixed.
+  Line 199: Cannot call method getActiveBrandId() on mixed.
+  Line 223: Binary operation "." between '/' and mixed results in an error.
+  Line 228: Binary operation "." between '/' and mixed results in an error.
+  Line 228: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 250: Cannot access offset 'raw_sms' on mixed.
+  Line 250: Parameter #1 $string of function trim expects string, mixed given.
+  Line 251: Cannot access offset 'sender' on mixed.
+  Line 251: Parameter #1 $string of function trim expects string, mixed given.
+  Line 262: Cannot call method resolveFromRequest() on mixed.
+  Line 263: Cannot call method getActiveBrandId() on mixed.
+  Line 285: Cannot access offset 'raw_sms' on mixed.
+  Line 285: Parameter #1 $string of function trim expects string, mixed given.
+  Line 286: Cannot access offset 'sender' on mixed.
+  Line 286: Parameter #1 $string of function trim expects string, mixed given.
+  Line 313: Cannot call method resolveFromRequest() on mixed.
+  Line 314: Cannot call method getActiveBrandId() on mixed.
+  Line 317: Cannot access offset 'gateway_slug' on mixed.
+  Line 317: Parameter #1 $string of function trim expects string, mixed given.
+  Line 318: Cannot access offset 'sender_pattern' on mixed.
+  Line 318: Parameter #1 $string of function trim expects string, mixed given.
+  Line 319: Cannot access offset 'amount_regex' on mixed.
+  Line 319: Parameter #1 $string of function trim expects string, mixed given.
+  Line 320: Cannot access offset 'trx_id_regex' on mixed.
+  Line 320: Parameter #1 $string of function trim expects string, mixed given.
+  Line 321: Cannot access offset 'sender_regex' on mixed.
+  Line 321: Parameter #1 $string of function trim expects string, mixed given.
+  Line 334: Cannot access offset 'priority' on mixed.
+  Line 334: Cannot cast mixed to int.
+
+File: src/Controller/Admin/StaffController.php (22 errors)
+  Line 76: Parameter #1 $merchantId of method OwnPay\Repository\MerchantUserRepository::listStaffForMerchant() expects int, int|null given.
+  Line 110: Cannot access offset 'role_id' on mixed.
+  Line 110: Cannot cast mixed to int.
+  Line 116: Cannot cast mixed to int.
+  Line 131: Cannot cast mixed to int.
+  Line 138: Cannot access offset 'name' on mixed.
+  Line 138: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 139: Cannot access offset 'email' on mixed.
+  Line 139: Parameter #1 $string of function trim expects string, mixed given.
+  Line 140: Cannot access offset 'password' on mixed.
+  Line 146: Parameter #1 $string of function strlen expects string, mixed given.
+  Line 156: Parameter #1 $password of function password_hash expects string, mixed given.
+  Line 185: Parameter #1 $merchantId of method OwnPay\Controller\Admin\StaffController::getRolesForMerchant() expects int, mixed given.
+  Line 197: Cannot access offset 'email' on mixed.
+  Line 197: Cannot access offset 'name' on mixed.
+  Line 197: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 198: Cannot access offset 'password' on mixed.
+  Line 199: Parameter #1 $password of function password_hash expects string, mixed given.
+  Line 201: Cannot access offset 'role_id' on mixed.
+  Line 203: Cannot cast mixed to int.
+  Line 206: Cannot cast mixed to int.
+  Line 278: Cannot call method fetchAll() on mixed.
+
+File: src/Controller/Admin/SystemUpdateController.php (10 errors)
+  Line 79: Cannot cast mixed to int.
+  Line 87: Parameter #1 $json of function json_decode expects string, string|false given.
+  Line 91: Cannot access offset 'version' on mixed.
+  Line 92: Cannot access offset 'version' on mixed.
+  Line 97: Parameter #1 $version1 of function version_compare expects string, mixed given.
+  Line 97: Parameter #2 $version2 of function version_compare expects string, mixed given.
+  Line 123: Offset 'version' might not exist on array{available: true, version?: string, url?: string, changelog?: string, checksum?: string, error?: string, message?: string}.
+  Line 146: Parameter #1 $version of method OwnPay\Update\UpdateService::execute() expects string, mixed given.
+  Line 148: Part $version (mixed) of encapsed string cannot be cast to string.
+  Line 150: Offset 'error' might not exist on array{success: false, error?: string, rollback?: bool}.
+
+File: src/Controller/Admin/ThemeController.php (14 errors)
+  Line 80: Cannot call method resolveFromRequest() on mixed.
+  Line 81: Cannot call method getActiveBrandId() on mixed.
+  Line 89: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 90: Cannot access offset 'name' on mixed.
+  Line 93: Cannot access offset 'description' on mixed.
+  Line 94: Cannot access offset 'author' on mixed.
+  Line 98: Parameter #1 $slug of method OwnPay\Repository\PluginRepository::isPluginActiveForBrand() expects string, mixed given.
+  Line 118: Possibly invalid array key type mixed.
+  Line 119: Possibly invalid array key type mixed.
+  Line 212: Offset 'status' might not exist on array<string, mixed>|null.
+  Line 217: Part $plugin['name'] (mixed) of encapsed string cannot be cast to string.
+  Line 235: Parameter #1 $string of function strtolower expects string, mixed given.
+  Line 240: Parameter #1 $zipPath of method OwnPay\Plugin\PluginManager::install() expects string, mixed given.
+  Line 247: Offset 'slug' might not exist on array{success: true, slug?: string, error?: string}.
+
+File: src/Controller/Admin/TransactionController.php (24 errors)
+  Line 99: Cannot call method resolveFromRequest() on mixed.
+  Line 100: Cannot call method getActiveBrandId() on mixed.
+  Line 102: Cannot cast mixed to int.
+  Line 112: Parameter #1 $filters of method OwnPay\Repository\TransactionRepository::countFiltered() expects array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string}, array{q: mixed, status: mixed, gateway: mixed, date_from: mixed, date_to: mixed} given.
+  Line 114: Parameter #1 $filters of method OwnPay\Repository\TransactionRepository::listFiltered() expects array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string}, array{q: mixed, status: mixed, gateway: mixed, date_from: mixed, date_to: mixed} given.
+  Line 120: Cannot call method decrypt() on mixed.
+  Line 152: Cannot call method resolveFromRequest() on mixed.
+  Line 153: Cannot call method getActiveBrandId() on mixed.
+  Line 164: Cannot call method forTenant() on mixed.
+  Line 164: Cannot cast mixed to int.
+  Line 168: Cannot call method decrypt() on mixed.
+  Line 169: Cannot call method decrypt() on mixed.
+  Line 170: Cannot call method decrypt() on mixed.
+  Line 201: Cannot call method resolveFromRequest() on mixed.
+  Line 202: Cannot call method getActiveBrandId() on mixed.
+  Line 227: Cannot call method complete() on mixed.
+  Line 230: Cannot call method recordPaymentReceived() on mixed.
+  Line 233: Cannot cast mixed to string.
+  Line 234: Cannot cast mixed to string.
+  Line 235: Cannot cast mixed to string.
+  Line 240: Cannot call method recordRefund() on mixed.
+  Line 243: Cannot cast mixed to string.
+  Line 244: Cannot cast mixed to string.
+  Line 247: Cannot call method cancel() on mixed.
+
+File: src/Controller/Admin/TwoFactorSetupController.php (15 errors)
+  Line 60: Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::findById() expects int, int|null given.
+  Line 68: Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::getTotpSecret() expects int, int|null given.
+  Line 75: Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::setTotpSecret() expects int, int|null given.
+  Line 77: Cannot access offset 'name' on mixed.
+  Line 77: Parameter #1 $string of function rawurlencode expects string, mixed given.
+  Line 78: Parameter #1 $string of function rawurlencode expects string, mixed given.
+  Line 103: Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::getTotpSecret() expects int, int|null given.
+  Line 110: Parameter #2 $code of method OwnPay\Controller\Admin\TwoFactorSetupController::verifyTotp() expects string, string|null given.
+  Line 115: Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::enableTotp() expects int, int|null given.
+  Line 133: Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::getPasswordHash() expects int, int|null given.
+  Line 134: Parameter #1 $password of function password_verify expects string, mixed given.
+  Line 139: Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::disableTotp() expects int, int|null given.
+  Line 155: Parameter #1 $length of function random_bytes expects int<1, max>, int given.
+  Line 162: Offset float|int might not exist on 'ABCDEFGHIJKLMNOPQRS…'.
+  Line 205: Parameter #1 $codepoint of function chr expects int, float|int given.
+
+File: src/Controller/Api/Admin/DeviceController.php (2 errors)
+  Line 49: Cannot cast mixed to int.
+  Line 65: Cannot cast mixed to int.
+
+File: src/Controller/Api/Admin/DomainController.php (3 errors)
+  Line 51: Cannot cast mixed to int.
+  Line 53: Cannot access offset 'domain_id' on mixed.
+  Line 53: Cannot cast mixed to int.
+
+File: src/Controller/Api/Admin/SmsQueueController.php (2 errors)
+  Line 42: Cannot cast mixed to int.
+  Line 56: Cannot cast mixed to int.
+
+File: src/Controller/Api/Admin/SmsTemplateController.php (4 errors)
+  Line 42: Cannot cast mixed to int.
+  Line 56: Cannot cast mixed to int.
+  Line 62: Parameter #2 $array of function array_key_exists expects array, mixed given.
+  Line 64: Cannot cast mixed to int.
+
+File: src/Controller/Api/ApiKeyController.php (6 errors)
+  Line 49: Cannot cast mixed to int.
+  Line 75: Cannot cast mixed to int.
+  Line 77: Cannot access offset 'label' on mixed.
+  Line 77: Cannot access offset 'name' on mixed.
+  Line 78: Parameter #2 $label of method OwnPay\Service\Customer\ApiKeyService::generate() expects string, mixed given.
+  Line 99: Cannot cast mixed to int.
+
+File: src/Controller/Api/CustomerController.php (11 errors)
+  Line 51: Cannot cast mixed to int.
+  Line 52: Cannot cast mixed to int.
+  Line 53: Cannot cast mixed to int.
+  Line 83: Cannot cast mixed to int.
+  Line 114: Cannot cast mixed to int.
+  Line 117: Cannot access offset 'name' on mixed.
+  Line 123: Cannot access offset 'email' on mixed.
+  Line 124: Parameter #2 $email of method OwnPay\Service\Customer\CustomerPiiService::findByEmail() expects string, mixed given.
+  Line 135: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 136: Cannot access offset 'email' on mixed.
+  Line 137: Cannot access offset 'phone' on mixed.
+
+File: src/Controller/Api/HealthController.php (8 errors)
+  Line 39: Cannot cast mixed to int.
+  Line 45: Cannot call method fetchOne() on mixed.
+  Line 49: Cannot call method warning() on mixed.
+  Line 59: Cannot call method fetchAll() on mixed.
+  Line 80: Cannot call method fetchOne() on mixed.
+  Line 91: Cannot call method fetchOne() on mixed.
+  Line 101: Cannot access offset 'version' on mixed.
+  Line 114: Parameter #3 $headers of static method OwnPay\Http\Response::json() expects array<string, string>, array<string, mixed> given.
+
+File: src/Controller/Api/Mobile/ConfigController.php (4 errors)
+  Line 63: Cannot cast mixed to int.
+  Line 69: Parameter #1 $string of function trim expects string, mixed given.
+  Line 79: Parameter #1 $raw of method OwnPay\Controller\Api\Mobile\ConfigController::parseKeywords() expects string, string|null given.
+  Line 82: Parameter #1 $raw of method OwnPay\Controller\Api\Mobile\ConfigController::parseKeywords() expects string, string|null given.
+
+File: src/Controller/Api/Mobile/DashboardController.php (4 errors)
+  Line 61: Cannot cast mixed to int.
+  Line 63: Cannot cast mixed to string.
+  Line 76: Cannot access offset 'version' on mixed.
+  Line 76: Parameter #3 $headers of static method OwnPay\Http\Response::json() expects array<string, string>, array<string, mixed> given.
+
+File: src/Controller/Api/Mobile/DeviceController.php (22 errors)
+  Line 66: Cannot access offset 'device_id' on mixed.
+  Line 66: Cannot access offset 'pairing_code' on mixed.
+  Line 72: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 73: Cannot access offset 'device_name' on mixed.
+  Line 73: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 74: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 75: Cannot access offset 'app_version' on mixed.
+  Line 75: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 76: Cannot access offset 'platform' on mixed.
+  Line 76: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 107: Cannot cast mixed to string.
+  Line 121: Cannot cast mixed to string.
+  Line 122: Cannot cast mixed to int.
+  Line 127: Cannot cast mixed to string.
+  Line 149: Cannot cast mixed to int.
+  Line 152: Cannot access offset 'device_ids' on mixed.
+  Line 158: Cannot cast mixed to string.
+  Line 189: Cannot access offset 'refresh_token' on mixed.
+  Line 189: Parameter #1 $string of function trim expects string, mixed given.
+  Line 200: Parameter #2 $fingerprint of method OwnPay\Service\Device\DevicePairingService::refreshAccessToken() expects string, mixed given.
+  Line 230: Cannot cast mixed to string.
+  Line 231: Cannot cast mixed to int.
+
+File: src/Controller/Api/Mobile/NotificationController.php (8 errors)
+  Line 48: Cannot cast mixed to int.
+  Line 50: Cannot cast mixed to string.
+  Line 70: Cannot access offset 'ids' on mixed.
+  Line 70: Parameter #1 $callback of function array_map expects (callable(mixed): mixed)|null, 'intval' given.
+  Line 70: Parameter #2 $array of function array_map expects array, mixed given.
+  Line 75: Cannot cast mixed to int.
+  Line 76: Cannot cast mixed to string.
+  Line 77: Parameter #1 $ids of method OwnPay\Repository\MobileNotificationRepository::acknowledgeIds() expects list<int>, non-empty-array<int<min, -1>|int<1, max>> given.
+
+File: src/Controller/Api/Mobile/SmsController.php (13 errors)
+  Line 71: Cannot cast mixed to int.
+  Line 72: Cannot cast mixed to string.
+  Line 79: Cannot access offset 'messages' on mixed.
+  Line 95: Cannot access offset 'body' on mixed.
+  Line 95: Cannot access offset 'encrypted_payload' on mixed.
+  Line 95: Cannot access offset 'sender' on mixed.
+  Line 105: Cannot access offset 'local_id' on mixed.
+  Line 105: Cannot cast mixed to int.
+  Line 106: Cannot access offset 'sender' on mixed.
+  Line 107: Cannot access offset 'body' on mixed.
+  Line 107: Cannot access offset 'encrypted_payload' on mixed.
+  Line 108: Cannot access offset 'received_at' on mixed.
+  Line 147: Cannot cast mixed to int.
+
+File: src/Controller/Api/PaymentController.php (33 errors)
+  Line 64: Cannot cast mixed to int.
+  Line 69: Cannot access offset 'amount' on mixed.
+  Line 72: Cannot access offset 'currency' on mixed.
+  Line 77: Cannot access offset 'currency' on mixed.
+  Line 78: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 83: Cannot call method supported() on mixed.
+  Line 91: Cannot access offset 'callback_url'|'cancel_url'|'redirect_url' on mixed.
+  Line 109: Cannot access offset 'customer_email' on mixed.
+  Line 109: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::email() expects string, mixed given.
+  Line 110: Cannot access offset 'customer_name' on mixed.
+  Line 110: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 111: Cannot access offset 'customer_phone' on mixed.
+  Line 111: Cannot cast mixed to string.
+  Line 122: Cannot call method findByEmail() on mixed.
+  Line 126: Cannot call method create() on mixed.
+  Line 140: Cannot access offset 'currency' on mixed.
+  Line 140: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 142: Cannot access offset 'reference' on mixed.
+  Line 142: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 143: Cannot access offset 'callback_url' on mixed.
+  Line 143: Cannot access offset 'redirect_url' on mixed.
+  Line 144: Cannot access offset 'callback_url' on mixed.
+  Line 144: Cannot access offset 'cancel_url' on mixed.
+  Line 145: Cannot access offset 'callback_url' on mixed.
+  Line 147: Cannot access offset 'reference' on mixed.
+  Line 151: Cannot access offset 'gateway' on mixed.
+  Line 152: Cannot access offset 'metadata' on mixed.
+  Line 157: Parameter #2 $data of method OwnPay\Service\Payment\PaymentService::createIntent() expects array{amount: string, currency: string, description?: string, redirect_url?: string, cancel_url?: string, webhook_url?: string, metadata?: array<string, mixed>}, array{amount: string, currency: string, customer_id: int|null, description: string|null, redirect_url: non-falsy-string|false|null, cancel_url: non-falsy-string|false|null, webhook_url: non-falsy-string|false|null, metadata: array{reference: mixed, customer_email: string|null, customer_name: string|null, customer_phone: string|null, gateway: mixed, custom_metadata: mixed}} given.
+  Line 161: Cannot call method buildCheckoutUrl() on mixed.
+  Line 171: Cannot call method error() on mixed.
+  Line 187: Cannot cast mixed to int.
+  Line 217: Cannot call method get() on mixed.
+  Line 217: Cannot cast mixed to int.
+
+File: src/Controller/Api/RefundController.php (9 errors)
+  Line 60: Cannot cast mixed to int.
+  Line 63: Cannot access offset 'transaction_id' on mixed.
+  Line 69: Cannot cast mixed to int.
+  Line 70: Cannot access offset 'amount' on mixed.
+  Line 71: Cannot access offset 'reason' on mixed.
+  Line 71: Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  Line 78: Cannot call method error() on mixed.
+  Line 94: Cannot cast mixed to int.
+  Line 102: Cannot call method fetchOne() on mixed.
+
+File: src/Controller/Api/TransactionController.php (5 errors)
+  Line 53: Cannot cast mixed to int.
+  Line 54: Cannot cast mixed to int.
+  Line 55: Cannot cast mixed to int.
+  Line 64: Parameter #1 $filters of method OwnPay\Repository\TransactionRepository::countFiltered() expects array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string}, array{status: mixed, gateway: mixed, from: mixed, to: mixed} given.
+  Line 95: Cannot cast mixed to int.
+
+File: src/Controller/Api/WebhookController.php (2 errors)
+  Line 50: Cannot cast mixed to int.
+  Line 71: Cannot cast mixed to int.
+
+File: src/Controller/BaseController.php (17 errors)
+  Line 49: Cannot access offset 'name' on mixed.
+  Line 50: Cannot access offset 'version' on mixed.
+  Line 57: Cannot call method userId() on mixed.
+  Line 58: Cannot call method userName() on mixed.
+  Line 59: Cannot call method userEmail() on mixed.
+  Line 61: Cannot call method isSuperadmin() on mixed.
+  Line 65: Cannot call method getAllBrands() on mixed.
+  Line 66: Cannot call method getActiveBrand() on mixed.
+  Line 67: Cannot call method getActiveBrandId() on mixed.
+  Line 70: Cannot call method consumeFlash() on mixed.
+  Line 77: Parameter #2 $context of method Twig\Environment::render() expects array, mixed given.
+  Line 82: Parameter #1 $html of static method OwnPay\Http\Response::html() expects string, mixed given.
+  Line 170: Cannot call method flash() on mixed.
+  Line 183: Cannot call method consumeFlash() on mixed.
+  Line 193: Method OwnPay\Controller\BaseController::events() should return OwnPay\Event\EventManager but returns mixed.
+  Line 211: Method OwnPay\Controller\BaseController::user() should return array<string, mixed>|null but returns mixed.
+  Line 221: Method OwnPay\Controller\BaseController::merchant() should return array<string, mixed>|null but returns mixed.
+
+File: src/Controller/Checkout/CheckoutController.php (102 errors)
+  Line 111: Cannot cast mixed to int.
+  Line 118: Parameter #1 $datetime of static method OwnPay\Support\DateHelper::isPast() expects string, mixed given.
+  Line 123: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 124: Cannot access offset 'payment_link_id' on mixed.
+  Line 127: Cannot call method forTenant() on mixed.
+  Line 127: Cannot cast mixed to int.
+  Line 127: Cannot cast mixed to int.
+  Line 130: Parameter #1 $trxId of method OwnPay\Repository\TransactionRepository::cancelByTrxId() expects string, mixed given.
+  Line 135: Cannot cast mixed to int.
+  Line 140: Cannot call method getSymbol() on mixed.
+  Line 151: Cannot call method discover() on mixed.
+  Line 167: Possibly invalid array key type mixed.
+  Line 169: Cannot access offset 'primary' on mixed.
+  Line 169: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 173: Possibly invalid array key type mixed.
+  Line 176: Possibly invalid array key type mixed.
+  Line 182: Parameter #1 $json of function json_decode expects string, string|null given.
+  Line 186: Cannot access offset 'invoice_id' on mixed.
+  Line 189: Cannot call method listItems() on mixed.
+  Line 189: Cannot cast mixed to int.
+  Line 199: Parameter #3 $key of function hash_hmac expects string, mixed given.
+  Line 205: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 206: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 217: Argument of an invalid type mixed supplied for foreach, only iterables are supported.
+  Line 218: Cannot access offset 'name' on mixed.
+  Line 218: Cannot access offset 'type' on mixed.
+  Line 219: Cannot access offset 'default' on mixed.
+  Line 219: Cannot access offset 'value' on mixed.
+  Line 224: Possibly invalid array key type mixed.
+  Line 228: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 250: Cannot call method render() on mixed.
+  Line 266: Cannot cast mixed to int.
+  Line 282: Cannot call method getSymbol() on mixed.
+  Line 286: Cannot call method render() on mixed.
+  Line 312: Cannot call method getBrandTheme() on mixed.
+  Line 357: Parameter #1 $datetime of function strtotime expects string, mixed given.
+  Line 397: Cannot cast mixed to int.
+  Line 411: Parameter #2 $status of method OwnPay\Controller\Checkout\CheckoutController::renderStatus() expects string, mixed given.
+  Line 415: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 416: Cannot access offset 'payment_link_id' on mixed.
+  Line 419: Cannot call method forTenant() on mixed.
+  Line 419: Cannot cast mixed to int.
+  Line 419: Cannot cast mixed to int.
+  Line 422: Parameter #1 $trxId of method OwnPay\Repository\TransactionRepository::cancelByTrxId() expects string, mixed given.
+  Line 436: Binary operation "." between mixed and '|' results in an error.
+  Line 436: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 436: Parameter #3 $key of function hash_hmac expects string, mixed given.
+  Line 437: Parameter #2 $user_string of function hash_equals expects string, mixed given.
+  Line 450: Cannot cast mixed to int.
+  Line 450: Cannot cast mixed to int.
+  Line 450: Parameter #2 $gateway of method OwnPay\Repository\TransactionRepository::setGatewayAndStatus() expects string, mixed given.
+  Line 454: Cannot cast mixed to int.
+  Line 457: Cannot cast mixed to int.
+  Line 469: Cannot call method buildLegacyCallbackUrl() on mixed.
+  Line 469: Cannot cast mixed to int.
+  Line 471: Cannot call method initiatePayment() on mixed.
+  Line 471: Cannot cast mixed to int.
+  Line 482: Cannot cast mixed to int.
+  Line 482: Cannot cast mixed to int.
+  Line 482: Parameter #2 $gateway of method OwnPay\Repository\TransactionRepository::setGatewayAndStatus() expects string, mixed given.
+  Line 495: Cannot cast mixed to int.
+  Line 495: Cannot cast mixed to int.
+  Line 495: Parameter #2 $gateway of method OwnPay\Repository\TransactionRepository::setGatewayAndStatus() expects string, mixed given.
+  Line 508: Cannot call method warning() on mixed.
+  Line 509: Part $gateway (mixed) of encapsed string cannot be cast to string.
+  Line 509: Part $txn['trx_id'] (mixed) of encapsed string cannot be cast to string.
+  Line 519: Cannot call method error() on mixed.
+  Line 520: Part $gateway (mixed) of encapsed string cannot be cast to string.
+  Line 569: Binary operation "." between mixed and '|' results in an error.
+  Line 569: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 569: Parameter #3 $key of function hash_hmac expects string, mixed given.
+  Line 570: Parameter #2 $user_string of function hash_equals expects string, mixed given.
+  Line 602: Cannot cast mixed to int.
+  Line 604: Parameter #1 ...$arrays of function array_merge expects array, mixed given.
+  Line 610: Cannot call method handleCallback() on mixed.
+  Line 614: Cannot cast mixed to int.
+  Line 614: Parameter #2 $gateway of method OwnPay\Repository\TransactionRepository::setGatewayAndStatus() expects string, mixed given.
+  Line 620: Cannot call method error() on mixed.
+  Line 628: Parameter #2 $status of method OwnPay\Controller\Checkout\CheckoutController::renderStatus() expects string, mixed given.
+  Line 654: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 655: Cannot access offset 'verification' on mixed.
+  Line 657: Cannot cast mixed to int.
+  Line 657: Cannot cast mixed to int.
+  Line 657: Parameter #3 $metadata of method OwnPay\Repository\TransactionRepository::setStatusWithMeta() expects array<string, mixed>, mixed given.
+  Line 684: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 685: Cannot access offset 'payment_link_id' on mixed.
+  Line 688: Cannot call method forTenant() on mixed.
+  Line 688: Cannot cast mixed to int.
+  Line 688: Cannot cast mixed to int.
+  Line 691: Parameter #1 $trxId of method OwnPay\Repository\TransactionRepository::cancelByTrxId() expects string, mixed given.
+  Line 702: Binary operation "." between mixed and '|' results in an error.
+  Line 702: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 702: Parameter #3 $key of function hash_hmac expects string, mixed given.
+  Line 703: Parameter #2 $user_string of function hash_equals expects string, mixed given.
+  Line 707: Cannot cast mixed to string.
+  Line 717: Cannot cast mixed to int.
+  Line 737: Cannot call method buildLegacyCallbackUrl() on mixed.
+  Line 739: Cannot call method initiatePayment() on mixed.
+  Line 750: Cannot cast mixed to int.
+  Line 760: Cannot call method warning() on mixed.
+  Line 761: Part $txn['trx_id'] (mixed) of encapsed string cannot be cast to string.
+  Line 770: Cannot call method error() on mixed.
+
+File: src/Controller/Checkout/InvoiceCheckoutController.php (10 errors)
+  Line 81: Parameter #1 $twig of method OwnPay\Controller\Checkout\InvoiceCheckoutController::renderExpired() expects Twig\Environment, mixed given.
+  Line 91: Possibly invalid array key type mixed.
+  Line 92: Parameter #1 $twig of method OwnPay\Controller\Checkout\InvoiceCheckoutController::renderExpired() expects Twig\Environment, mixed given.
+  Line 97: Parameter #1 $datetime of function strtotime expects string, mixed given.
+  Line 101: Cannot cast mixed to int.
+  Line 102: Cannot cast mixed to int.
+  Line 109: Cannot cast mixed to int.
+  Line 111: Part $existingTxn['trx_id'] (mixed) of encapsed string cannot be cast to string.
+  Line 116: Cannot cast mixed to string.
+  Line 145: Parameter #1 $name of method Twig\Environment::render() expects string|Twig\TemplateWrapper, mixed given.
+
+File: src/Controller/Checkout/PaymentIntentCheckoutController.php (132 errors)
+  Line 153: Parameter #2 $status of method OwnPay\Controller\Checkout\PaymentIntentCheckoutController::renderStatus() expects string, mixed given.
+  Line 157: Cannot cast mixed to int.
+  Line 168: Parameter #1 $currency of method OwnPay\Service\Payment\CurrencyService::getSymbol() expects string, mixed given.
+  Line 172: Cannot call method discover() on mixed.
+  Line 197: Cannot cast mixed to string.
+  Line 198: Parameter #2 $from of method OwnPay\Service\Payment\CurrencyService::convert() expects string, mixed given.
+  Line 213: Possibly invalid array key type mixed.
+  Line 215: Cannot access offset 'primary' on mixed.
+  Line 215: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 219: Parameter #1 $string of function strtolower expects string, mixed given.
+  Line 229: Possibly invalid array key type mixed.
+  Line 232: Possibly invalid array key type mixed.
+  Line 236: Parameter #2 $slug of closure expects string, mixed given.
+  Line 242: Parameter #1 $json of function json_decode expects string, string|null given.
+  Line 250: Binary operation "." between mixed and '|' results in an error.
+  Line 250: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 250: Parameter #3 $key of function hash_hmac expects string, mixed given.
+  Line 256: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 257: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 267: Argument of an invalid type mixed supplied for foreach, only iterables are supported.
+  Line 268: Cannot access offset 'name' on mixed.
+  Line 268: Cannot access offset 'type' on mixed.
+  Line 269: Cannot access offset 'default' on mixed.
+  Line 269: Cannot access offset 'value' on mixed.
+  Line 275: Parameter #1 $string of function strtolower expects string, mixed given.
+  Line 281: Cannot cast mixed to string.
+  Line 281: Parameter #2 $from of method OwnPay\Service\Payment\CurrencyService::convert() expects string, mixed given.
+  Line 287: Possibly invalid array key type mixed.
+  Line 291: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 303: Parameter #1 $datetime of function strtotime expects string, mixed given.
+  Line 323: Binary operation "." between '/checkout/intent/' and mixed results in an error.
+  Line 335: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 336: Cannot access offset 'items' on mixed.
+  Line 346: Cannot access offset 'customer_name' on mixed.
+  Line 347: Cannot access offset 'customer_email' on mixed.
+  Line 348: Cannot access offset 'customer_phone' on mixed.
+  Line 349: Cannot access offset 'reference' on mixed.
+  Line 370: Cannot call method render() on mixed.
+  Line 398: Parameter #2 $status of method OwnPay\Controller\Checkout\PaymentIntentCheckoutController::renderStatus() expects string, mixed given.
+  Line 402: Cannot cast mixed to int.
+  Line 418: Binary operation "." between mixed and '|' results in an error.
+  Line 418: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 418: Parameter #3 $key of function hash_hmac expects string, mixed given.
+  Line 419: Parameter #2 $user_string of function hash_equals expects string, mixed given.
+  Line 428: Cannot cast mixed to int.
+  Line 434: Parameter #1 $string of function strtolower expects string, mixed given.
+  Line 434: Parameter #1 $string of function strtolower expects string, mixed given.
+  Line 437: Cannot cast mixed to string.
+  Line 437: Parameter #2 $from of method OwnPay\Service\Payment\CurrencyService::convert() expects string, mixed given.
+  Line 463: Cannot cast mixed to int.
+  Line 465: Parameter #1 $value of static method OwnPay\Enum\TransactionStatus::tryFrom() expects int|string, mixed given.
+  Line 468: Cannot cast mixed to int.
+  Line 476: Cannot cast mixed to int.
+  Line 478: Cannot call method error() on mixed.
+  Line 492: Cannot call method error() on mixed.
+  Line 501: Cannot cast mixed to int.
+  Line 501: Parameter #2 $gateway of method OwnPay\Repository\TransactionRepository::setGatewayAndStatus() expects string, mixed given.
+  Line 504: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 505: Cannot access offset 'payment_details' on mixed.
+  Line 506: Cannot access offset 'submitted_at' on mixed.
+  Line 507: Cannot cast mixed to int.
+  Line 507: Parameter #2 $metadata of method OwnPay\Repository\TransactionRepository::updateMetadata() expects array<string, mixed>, mixed given.
+  Line 511: Cannot cast mixed to int.
+  Line 529: Cannot call method buildCallbackUrl() on mixed.
+  Line 536: Cannot call method getSupportedCurrencies() on mixed.
+  Line 542: Cannot call method convert() on mixed.
+  Line 545: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 546: Cannot access offset 'original_amount' on mixed.
+  Line 547: Cannot access offset 'original_currency' on mixed.
+  Line 548: Cannot access offset 'exchange_rate' on mixed.
+  Line 548: Cannot call method getRate() on mixed.
+  Line 549: Cannot access offset 'converted_amount' on mixed.
+  Line 550: Cannot access offset 'converted_currency' on mixed.
+  Line 562: Cannot call method initiatePayment() on mixed.
+  Line 573: Cannot cast mixed to int.
+  Line 573: Parameter #2 $gateway of method OwnPay\Repository\TransactionRepository::setGatewayAndStatus() expects string, mixed given.
+  Line 574: Cannot cast mixed to int.
+  Line 585: Cannot cast mixed to int.
+  Line 585: Parameter #2 $gateway of method OwnPay\Repository\TransactionRepository::setGatewayAndStatus() expects string, mixed given.
+  Line 586: Cannot cast mixed to int.
+  Line 602: Cannot call method error() on mixed.
+  Line 603: Part $gateway (mixed) of encapsed string cannot be cast to string.
+  Line 636: Cannot cast mixed to int.
+  Line 663: Parameter #1 ...$arrays of function array_merge expects array, mixed given.
+  Line 670: Cannot call method handleCallback() on mixed.
+  Line 673: Cannot cast mixed to int.
+  Line 678: Cannot cast mixed to int.
+  Line 678: Parameter #2 $gateway of method OwnPay\Repository\TransactionRepository::setGatewayAndStatus() expects string, mixed given.
+  Line 679: Cannot cast mixed to int.
+  Line 683: Cannot cast mixed to int.
+  Line 683: Parameter #2 $gateway of method OwnPay\Repository\TransactionRepository::setGatewayAndStatus() expects string, mixed given.
+  Line 689: Cannot cast mixed to int.
+  Line 689: Parameter #2 $gateway of method OwnPay\Repository\TransactionRepository::setGatewayAndStatus() expects string, mixed given.
+  Line 692: Cannot call method error() on mixed.
+  Line 700: Parameter #2 $status of method OwnPay\Controller\Checkout\PaymentIntentCheckoutController::renderStatus() expects string, mixed given.
+  Line 730: Binary operation "." between mixed and '|' results in an error.
+  Line 730: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 730: Parameter #3 $key of function hash_hmac expects string, mixed given.
+  Line 731: Parameter #2 $user_string of function hash_equals expects string, mixed given.
+  Line 735: Cannot cast mixed to int.
+  Line 736: Cannot cast mixed to int.
+  Line 746: Parameter #1 $haystack of function str_contains expects string, mixed given.
+  Line 747: Binary operation "." between mixed and '&'|'?' results in an error.
+  Line 771: Cannot cast mixed to int.
+  Line 787: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 788: Cannot access offset 'verification' on mixed.
+  Line 790: Cannot cast mixed to int.
+  Line 790: Parameter #3 $metadata of method OwnPay\Repository\TransactionRepository::setStatusWithMeta() expects array<string, mixed>, mixed given.
+  Line 793: Cannot cast mixed to int.
+  Line 813: Cannot cast mixed to int.
+  Line 817: Cannot cast mixed to int.
+  Line 843: Cannot cast mixed to int.
+  Line 846: Cannot cast mixed to int.
+  Line 853: Parameter #1 $currency of method OwnPay\Service\Payment\CurrencyService::getSymbol() expects string, mixed given.
+  Line 859: Parameter #1 $currency of method OwnPay\Service\Payment\CurrencyService::getSymbol() expects string, mixed given.
+  Line 874: Cannot call method render() on mixed.
+  Line 901: Cannot call method getBrandTheme() on mixed.
+  Line 936: Cannot cast mixed to int.
+  Line 948: Binary operation "." between mixed and '|' results in an error.
+  Line 948: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 948: Parameter #3 $key of function hash_hmac expects string, mixed given.
+  Line 949: Parameter #2 $user_string of function hash_equals expects string, mixed given.
+  Line 953: Cannot cast mixed to string.
+  Line 963: Cannot cast mixed to int.
+  Line 995: Cannot call method error() on mixed.
+  Line 1004: Cannot call method buildCallbackUrl() on mixed.
+  Line 1006: Cannot call method initiatePayment() on mixed.
+  Line 1016: Cannot cast mixed to int.
+  Line 1017: Cannot cast mixed to int.
+  Line 1026: Cannot call method warning() on mixed.
+  Line 1027: Part $intent['id'] (mixed) of encapsed string cannot be cast to string.
+  Line 1033: Cannot call method error() on mixed.
+
+File: src/Controller/Checkout/PaymentLinkCheckoutController.php (33 errors)
+  Line 79: Parameter #1 $twig of method OwnPay\Controller\Checkout\PaymentLinkCheckoutController::renderExpired() expects Twig\Environment, mixed given.
+  Line 84: Parameter #1 $twig of method OwnPay\Controller\Checkout\PaymentLinkCheckoutController::renderExpired() expects Twig\Environment, mixed given.
+  Line 86: Parameter #1 $datetime of static method OwnPay\Support\DateHelper::isPast() expects string, mixed given.
+  Line 87: Parameter #1 $twig of method OwnPay\Controller\Checkout\PaymentLinkCheckoutController::renderExpired() expects Twig\Environment, mixed given.
+  Line 90: Cannot cast mixed to string.
+  Line 95: Cannot cast mixed to string.
+  Line 96: Cannot cast mixed to string.
+  Line 97: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 97: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 98: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 98: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 108: Parameter #1 $num1 of function bccomp expects numeric-string, float|int|(non-empty-string&numeric-string) given.
+  Line 111: Cannot call method render() on mixed.
+  Line 119: Binary operation "." between 'pay_link_txn_' and mixed results in an error.
+  Line 121: Parameter #1 $trxId of method OwnPay\Repository\TransactionRepository::findActiveForCheckout() expects string, mixed given.
+  Line 123: Part $existingTxn['trx_id'] (mixed) of encapsed string cannot be cast to string.
+  Line 171: Parameter #1 $twig of method OwnPay\Controller\Checkout\PaymentLinkCheckoutController::renderExpired() expects Twig\Environment, mixed given.
+  Line 174: Cannot cast mixed to string.
+  Line 181: Cannot call method render() on mixed.
+  Line 189: Cannot cast mixed to string.
+  Line 190: Cannot cast mixed to string.
+  Line 192: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 192: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 195: Cannot call method render() on mixed.
+  Line 197: Part $currency (mixed) of encapsed string cannot be cast to string.
+  Line 201: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 201: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 204: Cannot call method render() on mixed.
+  Line 206: Part $currency (mixed) of encapsed string cannot be cast to string.
+  Line 212: Binary operation "." between 'pay_link_txn_' and mixed results in an error.
+  Line 214: Parameter #1 $trxId of method OwnPay\Repository\TransactionRepository::findActiveForCheckout() expects string, mixed given.
+  Line 216: Part $existingTxn['trx_id'] (mixed) of encapsed string cannot be cast to string.
+  Line 251: Parameter #1 $name of method Twig\Environment::render() expects string|Twig\TemplateWrapper, mixed given.
+
+File: src/Controller/Install/InstallerController.php (44 errors)
+  Line 51: Cannot cast mixed to int.
+  Line 79: Cannot access offset 'host' on mixed.
+  Line 79: Parameter #1 $string of function trim expects string, mixed given.
+  Line 80: Cannot access offset 'port' on mixed.
+  Line 80: Cannot cast mixed to int.
+  Line 81: Cannot access offset 'name' on mixed.
+  Line 81: Parameter #1 $string of function trim expects string, mixed given.
+  Line 82: Cannot access offset 'user' on mixed.
+  Line 82: Parameter #1 $string of function trim expects string, mixed given.
+  Line 83: Cannot access offset 'pass' on mixed.
+  Line 84: Cannot access offset 'prefix' on mixed.
+  Line 84: Parameter #1 $string of function trim expects string, mixed given.
+  Line 99: Parameter #3 $password of class PDO constructor expects string|null, mixed given.
+  Line 110: Parameter #1 $string of function strlen expects string, string|false given.
+  Line 115: Parameter #3 $subject of function str_replace expects array<string>|string, string|false given.
+  Line 120: Cannot call method fetchAll() on PDOStatement|false.
+  Line 125: Parameter #1 $sql of method OwnPay\Controller\Install\InstallerController::parseSqlStatements() expects string, string|false given.
+  Line 132: Part $pass (mixed) of encapsed string cannot be cast to string.
+  Line 165: Cannot access offset 'name' on mixed.
+  Line 165: Parameter #1 $string of function trim expects string, mixed given.
+  Line 166: Cannot access offset 'email' on mixed.
+  Line 166: Parameter #1 $string of function trim expects string, mixed given.
+  Line 167: Cannot access offset 'username' on mixed.
+  Line 167: Parameter #1 $string of function trim expects string, mixed given.
+  Line 168: Cannot access offset 'password' on mixed.
+  Line 176: Parameter #1 $string of function strlen expects string, mixed given.
+  Line 188: Cannot access offset 'DB_HOST' on array|false.
+  Line 188: Cannot access offset 'DB_NAME' on array|false.
+  Line 188: Cannot access offset 'DB_PORT' on array|false.
+  Line 189: Cannot access offset 'DB_PASS' on array|false.
+  Line 189: Cannot access offset 'DB_USER' on array|false.
+  Line 192: Cannot access offset 'DB_PREFIX' on array|false.
+  Line 201: Parameter #1 $password of function password_hash expects string, mixed given.
+  Line 279: Cannot call method fetchAll() on PDOStatement|false.
+  Line 311: Cannot access offset 'app_name' on mixed.
+  Line 311: Parameter #1 $string of function trim expects string, mixed given.
+  Line 312: Cannot access offset 'currency' on mixed.
+  Line 312: Parameter #1 $string of function trim expects string, mixed given.
+  Line 313: Cannot access offset 'timezone' on mixed.
+  Line 313: Parameter #1 $string of function trim expects string, mixed given.
+  Line 475: Parameter #1 $string of function trim expects string, string|null given.
+  Line 480: Parameter #1 $string of function strlen expects string, string|null given.
+  Line 482: Offset int<0, max> might not exist on string|null.
+  Line 486: Offset int<1, max> might not exist on string|null.
+
+File: src/Controller/Page/CronController.php (3 errors)
+  Line 47: Cannot call method get() on mixed.
+  Line 48: Cannot access offset 'cron_secret' on mixed.
+  Line 56: Cannot call method run() on mixed.
+
+File: src/Controller/Page/LandingController.php (2 errors)
+  Line 95: Parameter #1 $value of function count expects array|Countable, mixed given.
+  Line 98: Cannot call method render() on mixed.
+
+File: src/Controller/Page/LoginController.php (2 errors)
+  Line 46: Cannot call method loginForm() on mixed.
+  Line 60: Cannot call method login() on mixed.
+
+File: src/Controller/Webhook/CspReportController.php (7 errors)
+  Line 46: Cannot access offset 'csp-report' on mixed.
+  Line 48: Cannot call method warning() on mixed.
+  Line 49: Cannot access offset 'document-uri' on mixed.
+  Line 50: Cannot access offset 'violated-directive' on mixed.
+  Line 51: Cannot access offset 'blocked-uri' on mixed.
+  Line 52: Cannot access offset 'source-file' on mixed.
+  Line 53: Cannot access offset 'line-number' on mixed.
+
+File: src/Controller/Webhook/UnifiedWebhookController.php (14 errors)
+  Line 79: Cannot cast mixed to int.
+  Line 88: Cannot call method verifyWebhookSignature() on mixed.
+  Line 88: Cannot cast mixed to int.
+  Line 104: Cannot cast mixed to int.
+  Line 105: Parameter $rawBody of class OwnPay\Model\WebhookPayload constructor expects string, string|null given.
+  Line 112: Parameter #2 $merchantId of method OwnPay\Controller\Webhook\UnifiedWebhookController::logDelivery() expects int, mixed given.
+  Line 134: Cannot call method handleCallback() on mixed.
+  Line 134: Cannot cast mixed to int.
+  Line 136: Parameter #2 $data of function hash expects string, string|null given.
+  Line 137: Parameter #2 $merchantId of method OwnPay\Controller\Webhook\UnifiedWebhookController::logDelivery() expects int, mixed given.
+  Line 150: Cannot call method error() on mixed.
+  Line 186: Cannot call method fetchOne() on mixed.
+  Line 213: Cannot call method warning() on mixed.
+  Line 233: Cannot call method insert() on mixed.
+
+File: src/Core/Database.php (4 errors)
+  Line 168: Method OwnPay\Core\Database::fetchOne() should return array<string, mixed>|null but returns mixed.
+  Line 276: Method OwnPay\Core\Database::insert() should return string but returns string|false.
+  Line 399: Cannot cast mixed to int.
+  Line 409: Method OwnPay\Core\Database::lastInsertId() should return string but returns string|false.
+
+File: src/Core/FormattingHelper.php (1 errors)
+  Line 128: Method OwnPay\Core\FormattingHelper::buildLangArray() should return array<string, string> but returns array<string, string|false>.
+
+File: src/Core/RequestHelper.php (15 errors)
+  Line 31: Parameter #1 $string of function trim expects string, mixed given.
+  Line 50: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 51: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 56: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 57: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 58: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 59: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 60: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 65: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 66: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 67: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 68: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 69: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 70: Parameter #2 $subject of function preg_match expects string, mixed given.
+  Line 74: Method OwnPay\Core\RequestHelper::getUserDeviceInfo() should return array{ip_address: string, device: string, os: string, browser: string} but returns array{ip_address: mixed, device: 'Desktop'|'Mobile'|'Tablet', os: 'Android'|'iOS'|'Linux'|'Mac OS'|'Unknown OS'|'Windows', browser: 'Chrome'|'Edge'|'Firefox'|'Internet Explorer'|'Opera'|'Safari'|'Unknown Browser'}.
+
+File: src/Core/RouteHelper.php (7 errors)
+  Line 41: Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, mixed given.
+  Line 49: Binary operation "." between 'http://'|'https://' and mixed results in an error.
+  Line 51: Binary operation "." between 'http://'|'https://' and mixed results in an error.
+  Line 51: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 100: Parameter #2 $subject of function preg_match expects string, string|null given.
+  Line 104: Parameter #1 $string of function strtolower expects string, string|null given.
+  Line 127: Cannot access offset 'scheme' on array{scheme?: string, host?: string, port?: int<0, 65535>, user?: string, pass?: string, path?: string, query?: string, fragment?: string}|false.
+
+File: src/Cron/BalanceVerificationJob.php (3 errors)
+  Line 70: Cannot cast mixed to int.
+  Line 79: Parameter #2 $currency of method OwnPay\Service\Payment\ReconciliationService::reconcile() expects string, mixed given.
+  Line 87: Part $cur['currency'] (mixed) of encapsed string cannot be cast to string.
+
+File: src/Cron/CronJobRunner.php (3 errors)
+  Line 107: Call to an undefined method object::run().
+  Line 159: Call to an undefined method object::run().
+  Line 190: Method OwnPay\Cron\CronJobRunner::run() should return array<string, array{status: string, duration: float, result?: mixed, error?: string}> but returns array<string, array{status: 'completed', duration: float, result: mixed}|array{status: 'failed', duration: float, error: string}|array{status: 'skipped'}>.
+
+File: src/Cron/CurrencyUpdateJob.php (4 errors)
+  Line 60: Cannot access offset 'rates' on mixed.
+  Line 63: Argument of an invalid type mixed supplied for foreach, only iterables are supported.
+  Line 73: Cannot cast mixed to string.
+  Line 79: Cannot cast mixed to string.
+
+File: src/Cron/DnsVerificationJob.php (5 errors)
+  Line 37: Parameter #1 $domain of method OwnPay\Service\Domain\DnsVerifier::verifyTxt() expects string, mixed given.
+  Line 38: Parameter #2 $expectedValue of method OwnPay\Service\Domain\DnsVerifier::verifyTxt() expects string, mixed given.
+  Line 42: Cannot cast mixed to int.
+  Line 51: Parameter #1 $datetime of class DateTimeImmutable constructor expects string, mixed given.
+  Line 54: Cannot cast mixed to int.
+
+File: src/Cron/QueueWorkerJob.php (6 errors)
+  Line 101: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 103: Possibly invalid array key type mixed.
+  Line 104: Part $type (mixed) of encapsed string cannot be cast to string.
+  Line 114: Possibly invalid array key type mixed.
+  Line 123: Cannot cast mixed to int.
+  Line 141: Part $type (mixed) of encapsed string cannot be cast to string.
+
+File: src/Cron/SmsVerificationJob.php (14 errors)
+  Line 93: Cannot cast mixed to int.
+  Line 98: Cannot cast mixed to int.
+  Line 110: Parameter #1 $trxId of method OwnPay\Repository\TransactionRepository::findByTrxId() expects string, mixed given.
+  Line 117: Cannot cast mixed to string.
+  Line 117: Cannot cast mixed to string.
+  Line 124: Cannot cast mixed to int.
+  Line 124: Cannot cast mixed to int.
+  Line 127: Cannot cast mixed to int.
+  Line 130: Cannot cast mixed to int.
+  Line 131: Parameter #3 $amount of method OwnPay\Service\Payment\LedgerService::recordPaymentReceived() expects string, mixed given.
+  Line 132: Parameter #4 $fee of method OwnPay\Service\Payment\LedgerService::recordPaymentReceived() expects string, mixed given.
+  Line 133: Parameter #5 $currency of method OwnPay\Service\Payment\LedgerService::recordPaymentReceived() expects string, mixed given.
+  Line 142: Part $sms['id'] (mixed) of encapsed string cannot be cast to string.
+  Line 142: Part $transaction['id'] (mixed) of encapsed string cannot be cast to string.
+
+File: src/Cron/SystemUpdateJob.php (5 errors)
+  Line 109: Cannot access offset 'beta'|'stable' on mixed.
+  Line 116: Cannot access offset 'latest_version_name' on mixed.
+  Line 117: Cannot access offset 'latest_version_code' on mixed.
+  Line 119: Cannot cast mixed to string.
+  Line 131: Cannot cast mixed to string.
+
+File: src/Cron/UpdateCheckJob.php (3 errors)
+  Line 56: Offset 'version' might not exist on array{available: true, version?: string, url: non-falsy-string, changelog?: string, checksum?: string, error?: string, message?: string}.
+  Line 59: Offset 'version' might not exist on array{available: true, version?: string, url: non-falsy-string, changelog?: string, checksum?: string, error?: string, message?: string}.
+  Line 67: Offset 'version' might not exist on array{available: true, version?: string, url?: string, changelog?: string, checksum?: string, error?: string, message?: string}.
+
+File: src/Cron/WebhookRetryJob.php (4 errors)
+  Line 79: Cannot cast mixed to int.
+  Line 87: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 88: Parameter #2 $eventType of method OwnPay\Service\Payment\WebhookService::deliver() expects string, mixed given.
+  Line 88: Parameter #3 $payload of method OwnPay\Service\Payment\WebhookService::deliver() expects array<string, mixed>, mixed given.
+
+File: src/Event/EventManager.php (1 errors)
+  Line 322: Cannot call method getSandbox() on mixed.
+
+File: src/Gateway/GatewayBridge.php (2 errors)
+  Line 84: Parameter #1 $params of method OwnPay\Gateway\GatewayAdapterInterface::initiate() expects array{amount: string, currency: string, trx_id: string, redirect_url: string, cancel_url: string, metadata?: array<string, mixed>}, mixed given.
+  Line 224: Method OwnPay\Gateway\GatewayBridge::decryptCredentials() should return array<string, string> but returns mixed.
+
+File: src/Gateway/WebhookInboundProcessor.php (27 errors)
+  Line 135: Parameter #2 $payload of method OwnPay\Gateway\WebhookInboundProcessor::executeEvent() expects array<string, mixed>, mixed given.
+  Line 308: Cannot cast mixed to int.
+  Line 309: Cannot cast mixed to int.
+  Line 313: Cannot cast mixed to int.
+  Line 314: Cannot cast mixed to string.
+  Line 315: Cannot cast mixed to string.
+  Line 316: Cannot cast mixed to string.
+  Line 332: Cannot access offset 'reference' on mixed.
+  Line 332: Cannot access offset 'transaction_id' on mixed.
+  Line 335: Parameter #1 $reference of method OwnPay\Gateway\WebhookInboundProcessor::findTransaction() expects string, mixed given.
+  Line 339: Cannot cast mixed to int.
+  Line 340: Cannot cast mixed to int.
+  Line 341: Cannot cast mixed to int.
+  Line 354: Cannot access offset 'reference' on mixed.
+  Line 354: Cannot access offset 'transaction_id' on mixed.
+  Line 357: Parameter #1 $reference of method OwnPay\Gateway\WebhookInboundProcessor::findTransaction() expects string, mixed given.
+  Line 359: Cannot cast mixed to int.
+  Line 360: Cannot access offset 'amount' on mixed.
+  Line 360: Cannot access offset 'refund_amount' on mixed.
+  Line 360: Cannot cast mixed to string.
+  Line 363: Cannot cast mixed to int.
+  Line 365: Parameter #4 $currency of method OwnPay\Service\Payment\LedgerService::recordRefund() expects string, mixed given.
+  Line 393: Cannot access offset 'reference' on mixed.
+  Line 393: Cannot access offset 'transaction_id' on mixed.
+  Line 395: Parameter #1 $reference of method OwnPay\Gateway\WebhookInboundProcessor::findTransaction() expects string, mixed given.
+  Line 396: Part $reference (mixed) of encapsed string cannot be cast to string.
+  Line 428: Method OwnPay\Gateway\WebhookInboundProcessor::extractHeaders() should return array<string, string> but returns array<string, mixed>.
+
+File: src/Http/Request.php (20 errors)
+  Line 106: Parameter #1 $string of function strtoupper expects string, mixed given.
+  Line 107: Property OwnPay\Http\Request::$uri (string) does not accept mixed.
+  Line 123: Parameter #4 $files of class OwnPay\Http\Request constructor expects array<string, array<string, mixed>>, array<mixed> given.
+  Line 124: Parameter #5 $cookies of class OwnPay\Http\Request constructor expects array<string, string>, array<mixed> given.
+  Line 276: Method OwnPay\Http\Request::all() should return array<string, mixed> but returns array<mixed, mixed>.
+  Line 276: Parameter #2 ...$arrays of function array_merge expects array, mixed given.
+  Line 288: Parameter #2 $array of function array_key_exists expects array, mixed given.
+  Line 373: Method OwnPay\Http\Request::server() should return string but returns mixed.
+  Line 388: Parameter #1 $ip of method OwnPay\Http\Request::isTrustedProxy() expects string, mixed given.
+  Line 392: Parameter #2 $string of function explode expects string, mixed given.
+  Line 403: Method OwnPay\Http\Request::ip() should return string but returns mixed.
+  Line 407: Method OwnPay\Http\Request::ip() should return string but returns mixed.
+  Line 417: Method OwnPay\Http\Request::userAgent() should return string but returns mixed.
+  Line 427: Method OwnPay\Http\Request::host() should return string but returns mixed.
+  Line 444: Parameter #1 $ip of method OwnPay\Http\Request::isTrustedProxy() expects string, mixed given.
+  Line 446: Parameter #1 $string of function strtolower expects string, mixed given.
+  Line 602: Cannot cast mixed to string.
+  Line 606: Cannot cast mixed to string.
+  Line 609: Cannot cast mixed to string.
+  Line 617: Cannot cast mixed to string.
+
+File: src/Http/Router.php (6 errors)
+  Line 176: Cannot access offset 'config' on mixed.
+  Line 176: Cannot access offset 'paths' on mixed.
+  Line 179: Binary operation "." between mixed and '/routes/web.php' results in an error.
+  Line 188: Binary operation "." between mixed and '/routes/api.php' results in an error.
+  Line 285: Parameter #1 $object_or_class of function method_exists expects object|string, mixed given.
+  Line 298: Parameter #1 $data of static method OwnPay\Http\Response::json() expects array<string, mixed>|object, array<mixed, mixed> given.
+
+File: src/Kernel.php (24 errors)
+  Line 53: Parameter #1 $request of method OwnPay\Kernel::processRequest() expects OwnPay\Http\Request, mixed given.
+  Line 58: Cannot call method send() on mixed.
+  Line 92: Parameter #1 $repo of static method OwnPay\Service\System\EnvironmentService::boot() expects OwnPay\Repository\SettingsRepository, mixed given.
+  Line 104: Cannot call method setEventManager() on mixed.
+  Line 107: Cannot call method setPluginRegistry() on mixed.
+  Line 116: Cannot access offset 'timezone' on mixed.
+  Line 116: Parameter #1 $timezoneId of function date_default_timezone_set expects string, mixed given.
+  Line 139: Property OwnPay\Kernel::$middlewareConfig (array<string, array<int, string>>) does not accept mixed.
+  Line 166: Parameter #1 $string of function strlen expects string, mixed given.
+  Line 176: Parameter #1 $string of function strlen expects string, mixed given.
+  Line 183: Parameter #1 $string of function strlen expects string, mixed given.
+  Line 223: Cannot access offset 'retry_after' on mixed.
+  Line 223: Cannot cast mixed to int.
+  Line 224: Cannot access offset 'reason' on mixed.
+  Line 226: Parameter #1 $message of static method OwnPay\Http\Response::maintenance() expects string, mixed given.
+  Line 234: Cannot call method render() on mixed.
+  Line 238: Part $reason (mixed) of encapsed string cannot be cast to string.
+  Line 254: Cannot call method doAction() on mixed.
+  Line 304: Parameter #1 $object_or_class of function method_exists expects object|string, mixed given.
+  Line 308: Cannot call method handle() on class-string|object.
+  Line 374: Parameter #1 $haystack of function str_contains expects string, mixed given.
+  Line 375: Parameter #1 $haystack of function str_contains expects string, mixed given.
+  Line 394: Cannot call method render() on mixed.
+  Line 568: Parameter #1 $string of function htmlspecialchars expects string, mixed given.
+
+File: src/Middleware/BearerAuthMiddleware.php (6 errors)
+  Line 78: Parameter #1 $known_string of function hash_equals expects string, mixed given.
+  Line 88: Parameter #1 $datetime of static method OwnPay\Support\DateHelper::isPast() expects string, mixed given.
+  Line 94: Cannot cast mixed to int.
+  Line 98: Cannot call method find() on mixed.
+  Line 98: Cannot cast mixed to int.
+  Line 107: Cannot cast mixed to int.
+
+File: src/Middleware/CsrfMiddleware.php (1 errors)
+  Line 180: Parameter #3 $key of function hash_hmac expects string, mixed given.
+
+File: src/Middleware/DomainMiddleware.php (5 errors)
+  Line 107: Cannot call method find() on mixed.
+  Line 107: Cannot cast mixed to int.
+  Line 114: Cannot cast mixed to int.
+  Line 134: Method OwnPay\Middleware\DomainMiddleware::resolveMasterDomain() should return string but returns mixed.
+  Line 140: Parameter #1 $url of function parse_url expects string, mixed given.
+
+File: src/Middleware/IdempotencyMiddleware.php (5 errors)
+  Line 64: Cannot cast mixed to int.
+  Line 74: Cannot call method check() on mixed.
+  Line 105: Cannot call method storeResponse() on mixed.
+  Line 108: Cannot call method deleteLock() on mixed.
+  Line 114: Cannot call method deleteLock() on mixed.
+
+File: src/Middleware/JwtAuthMiddleware.php (2 errors)
+  Line 66: Parameter #1 $keyMaterial of class Firebase\JWT\Key constructor expects OpenSSLAsymmetricKey|OpenSSLCertificate|string, mixed given.
+  Line 97: Cannot call method forTenant() on mixed.
+
+File: src/Middleware/MaintenanceMiddleware.php (2 errors)
+  Line 73: Cannot access offset 'retry_after' on mixed.
+  Line 76: Cannot cast mixed to string.
+
+File: src/Middleware/PermissionMiddleware.php (4 errors)
+  Line 57: Cannot call method fetchOne() on mixed.
+  Line 91: Parameter #2 $haystack of function in_array expects array, mixed given.
+  Line 117: Cannot call method fetchAll() on mixed.
+  Line 227: Cannot call method get() on mixed.
+
+File: src/Middleware/RateLimiterMiddleware.php (18 errors)
+  Line 51: Binary operation "." between mixed and '/storage/cache…' results in an error.
+  Line 51: Cannot access offset 'paths' on mixed.
+  Line 51: Cannot access offset 'root' on mixed.
+  Line 69: Cannot access offset 'login' on mixed.
+  Line 69: Cannot access offset 'rate_limit' on mixed.
+  Line 71: Cannot access offset 'api' on mixed.
+  Line 71: Cannot access offset 'rate_limit' on mixed.
+  Line 73: Cannot access offset 'global' on mixed.
+  Line 73: Cannot access offset 'rate_limit' on mixed.
+  Line 76: Cannot access offset 'max' on mixed.
+  Line 76: Cannot cast mixed to int.
+  Line 77: Cannot access offset 'window' on mixed.
+  Line 77: Cannot cast mixed to int.
+  Line 144: Cannot cast mixed to int.
+  Line 152: Cannot call method fetchOne() on mixed.
+  Line 201: Cannot call method execute() on mixed.
+  Line 217: Cannot call method delete() on mixed.
+  Line 231: Cannot call method warning() on mixed.
+
+File: src/Middleware/RequestSignatureMiddleware.php (6 errors)
+  Line 75: Parameter #1 $haystack of function str_contains expects string, mixed given.
+  Line 76: Parameter #2 $string of function explode expects string, mixed given.
+  Line 87: Parameter #2 $data of function hash_hmac expects string, string|null given.
+  Line 90: Parameter #2 $user_string of function hash_equals expects string, mixed given.
+  Line 129: Cannot call method find() on mixed.
+  Line 135: Cannot call method warning() on mixed.
+
+File: src/Middleware/SecurityHeadersMiddleware.php (6 errors)
+  Line 67: Cannot access offset 'debug' on mixed.
+  Line 136: Cannot access offset 'modules' on mixed.
+  Line 136: Cannot access offset 'paths' on mixed.
+  Line 137: Binary operation "." between mixed and '/gateways' results in an error.
+  Line 153: Cannot access offset 'connect_src'|'frame_src'|'script_src'|'style_src' on mixed.
+  Line 173: Cannot call method applyFilter() on mixed.
+
+File: src/Middleware/SessionMiddleware.php (8 errors)
+  Line 58: Cannot access offset 'lifetime' on mixed.
+  Line 58: Cannot access offset 'session' on mixed.
+  Line 58: Cannot cast mixed to int.
+  Line 69: Cannot access offset 'lifetime' on mixed.
+  Line 69: Cannot access offset 'session' on mixed.
+  Line 69: Cannot cast mixed to int.
+  Line 73: Binary operation "-" between int<1, max> and mixed results in an error.
+  Line 86: Binary operation "-" between int<1, max> and mixed results in an error.
+
+File: src/Middleware/TwoFactorMiddleware.php (3 errors)
+  Line 55: Cannot call method fetchOne() on mixed.
+  Line 121: Cannot cast mixed to int.
+  Line 230: Cannot call method get() on mixed.
+
+File: src/Model/WebhookPayload.php (1 errors)
+  Line 74: Method OwnPay\Model\WebhookPayload::formData() should return array<string, mixed> but returns array<int|string, array<mixed>|string>.
+
+File: src/Plugin/PluginInstaller.php (5 errors)
+  Line 285: Cannot call method getPathname() on mixed.
+  Line 285: Cannot call method getPathname() on mixed.
+  Line 285: Cannot call method isDir() on mixed.
+  Line 308: Cannot call method getPathname() on mixed.
+  Line 308: Cannot call method isDir() on mixed.
+
+File: src/Plugin/PluginLoader.php (34 errors)
+  Line 40: Cannot access offset 'paths' on mixed.
+  Line 42: Binary operation "." between mixed and '/gateways' results in an error.
+  Line 42: Cannot access offset 'modules' on mixed.
+  Line 43: Binary operation "." between mixed and '/themes' results in an error.
+  Line 43: Cannot access offset 'modules' on mixed.
+  Line 44: Binary operation "." between mixed and '/addons' results in an error.
+  Line 44: Cannot access offset 'modules' on mixed.
+  Line 100: Cannot call method fetchOne() on mixed.
+  Line 102: Cannot call method execute() on mixed.
+  Line 129: Parameter #1 $slug of method OwnPay\Plugin\PluginRegistry::markError() expects string, mixed given.
+  Line 151: Cannot call method registerAdapter() on mixed.
+  Line 175: Part $slug (mixed) of encapsed string cannot be cast to string.
+  Line 180: Part $slug (mixed) of encapsed string cannot be cast to string.
+  Line 184: Cannot access offset 'version' on mixed.
+  Line 185: Parameter #1 $coreVersion of method OwnPay\Plugin\PluginManifest::isCompatible() expects string, mixed given.
+  Line 186: Part $coreVersion (mixed) of encapsed string cannot be cast to string.
+  Line 186: Part $slug (mixed) of encapsed string cannot be cast to string.
+  Line 212: Part $slug (mixed) of encapsed string cannot be cast to string.
+  Line 247: Part $slug (mixed) of encapsed string cannot be cast to string.
+  Line 262: Part $slug (mixed) of encapsed string cannot be cast to string.
+  Line 286: Part $slug (mixed) of encapsed string cannot be cast to string.
+  Line 302: Part $slug (mixed) of encapsed string cannot be cast to string.
+  Line 318: Part $slug (mixed) of encapsed string cannot be cast to string.
+  Line 327: Parameter #1 $owner of method OwnPay\Event\EventManager::pushOwner() expects string, mixed given.
+  Line 334: Parameter #1 $slug of method OwnPay\Plugin\PluginRegistry::registerLoaded() expects string, mixed given.
+  Line 345: Cannot access offset 'paths' on mixed.
+  Line 354: Binary operation "." between mixed and '/' results in an error.
+  Line 354: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 354: Cannot access offset 'modules' on mixed.
+  Line 371: Cannot access offset 'namespace' on mixed.
+  Line 374: Parameter #1 $string of function rtrim expects string, mixed given.
+  Line 401: Cannot call method getExtension() on mixed.
+  Line 401: Cannot call method isFile() on mixed.
+  Line 402: Cannot call method getPathname() on mixed.
+
+File: src/Plugin/PluginManager.php (52 errors)
+  Line 109: Offset 'slug' might not exist on array{success: true, error?: string, slug?: string}.
+  Line 112: Cannot call method discover() on mixed.
+  Line 148: Cannot call method discover() on mixed.
+  Line 174: Offset 'status' might not exist on array<string, mixed>|null.
+  Line 181: Parameter #1 $plugin of method OwnPay\Plugin\PluginManager::resolveDir() expects array<string, mixed>, array<string, mixed>|null given.
+  Line 197: Cannot call method discover() on mixed.
+  Line 217: Offset 'type' might not exist on array<string, mixed>|null.
+  Line 253: Cannot call method findBySlug() on mixed.
+  Line 255: Cannot call method update() on mixed.
+  Line 306: Parameter #2 $type of method OwnPay\Plugin\PluginInstaller::uninstall() expects string, mixed given.
+  Line 308: Cannot cast mixed to int.
+  Line 323: Cannot call method discover() on mixed.
+  Line 328: Possibly invalid array key type mixed.
+  Line 345: Cannot access offset 'paths' on mixed.
+  Line 352: Binary operation "." between mixed and '/trash/plugins/' results in an error.
+  Line 352: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 352: Cannot access offset 'storage' on mixed.
+  Line 354: Binary operation "." between mixed and '/' results in an error.
+  Line 354: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 354: Cannot access offset 'modules' on mixed.
+  Line 381: Cannot access offset 'paths' on mixed.
+  Line 382: Offset 'type' might not exist on array<string, mixed>|null.
+  Line 388: Binary operation "." between mixed and '/' results in an error.
+  Line 388: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 388: Cannot access offset 'modules' on mixed.
+  Line 389: Binary operation "." between mixed and '/trash/plugins/' results in an error.
+  Line 389: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 389: Cannot access offset 'storage' on mixed.
+  Line 408: Cannot cast mixed to int.
+  Line 432: Cannot access offset 'paths' on mixed.
+  Line 439: Binary operation "." between mixed and '/trash/plugins/' results in an error.
+  Line 439: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 439: Cannot access offset 'storage' on mixed.
+  Line 440: Binary operation "." between mixed and '/' results in an error.
+  Line 440: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 440: Cannot access offset 'modules' on mixed.
+  Line 463: Cannot cast mixed to int.
+  Line 484: Cannot call method getPathname() on mixed.
+  Line 484: Cannot call method getPathname() on mixed.
+  Line 484: Cannot call method isDir() on mixed.
+  Line 505: Cannot call method getPathname() on mixed.
+  Line 505: Cannot call method isDir() on mixed.
+  Line 521: Cannot call method findBySlug() on mixed.
+  Line 525: Cannot call method discover() on mixed.
+  Line 527: Cannot call method update() on mixed.
+  Line 533: Cannot call method discover() on mixed.
+  Line 537: Cannot call method create() on mixed.
+  Line 566: Cannot access offset 'paths' on mixed.
+  Line 571: Binary operation "." between mixed and '/' results in an error.
+  Line 571: Cannot access offset 'modules' on mixed.
+  Line 576: Binary operation "." between mixed and '/assets/img/gateways' results in an error.
+  Line 576: Cannot access offset 'public' on mixed.
+
+File: src/Plugin/PluginManifest.php (28 errors)
+  Line 201: Property OwnPay\Plugin\PluginManifest::$name (string) does not accept mixed.
+  Line 202: Property OwnPay\Plugin\PluginManifest::$slug (string) does not accept mixed.
+  Line 203: Property OwnPay\Plugin\PluginManifest::$version (string) does not accept mixed.
+  Line 204: Property OwnPay\Plugin\PluginManifest::$type (string) does not accept mixed.
+  Line 205: Property OwnPay\Plugin\PluginManifest::$description (string) does not accept mixed.
+  Line 206: Property OwnPay\Plugin\PluginManifest::$author (string) does not accept mixed.
+  Line 207: Property OwnPay\Plugin\PluginManifest::$authorUrl (string) does not accept mixed.
+  Line 208: Property OwnPay\Plugin\PluginManifest::$license (string) does not accept mixed.
+  Line 209: Property OwnPay\Plugin\PluginManifest::$entrypoint (string) does not accept mixed.
+  Line 210: Property OwnPay\Plugin\PluginManifest::$namespace (string) does not accept mixed.
+  Line 212: Cannot access offset 'php' on mixed.
+  Line 213: Parameter #1 $string of function ltrim expects string, mixed given.
+  Line 215: Cannot access offset 'core' on mixed.
+  Line 216: Parameter #1 $string of function ltrim expects string, mixed given.
+  Line 218: Property OwnPay\Plugin\PluginManifest::$capabilities (array<int, string>) does not accept mixed.
+  Line 232: Property OwnPay\Plugin\PluginManifest::$hooks (array{actions: array<string, mixed>, filters: array<string, mixed>}) does not accept array{actions: mixed, filters: mixed}.
+  Line 233: Cannot access offset 'actions' on mixed.
+  Line 234: Cannot access offset 'filters' on mixed.
+  Line 237: Property OwnPay\Plugin\PluginManifest::$adminMenu (array<string, mixed>) does not accept mixed.
+  Line 238: Property OwnPay\Plugin\PluginManifest::$cron (array<int, array{name: string, schedule: string, class?: string}>) does not accept mixed.
+  Line 239: Property OwnPay\Plugin\PluginManifest::$migrations (array<int, string>) does not accept mixed.
+  Line 243: Property OwnPay\Plugin\PluginManifest::$permissions (array<int, string>) does not accept mixed.
+  Line 244: Property OwnPay\Plugin\PluginManifest::$category (string) does not accept mixed.
+  Line 245: Property OwnPay\Plugin\PluginManifest::$icon (string) does not accept mixed.
+  Line 246: Property OwnPay\Plugin\PluginManifest::$color (string) does not accept mixed.
+  Line 248: Property OwnPay\Plugin\PluginManifest::$requires (array{php: string, core: string}) does not accept mixed.
+  Line 302: Parameter #1 $json of function json_decode expects string, string|false given.
+  Line 308: Parameter #1 $data of class OwnPay\Plugin\PluginManifest constructor expects array<string, mixed>, array<mixed, mixed> given.
+
+File: src/Plugin/PluginMigrator.php (4 errors)
+  Line 110: Parameter #3 $subject of function str_replace expects array<string>|string, mixed given.
+  Line 129: Method OwnPay\Plugin\PluginMigrator::rollback() should return array<int, string> but returns list<mixed>.
+  Line 144: Method OwnPay\Plugin\PluginMigrator::getExecuted() should return array<int, string> but returns list<mixed>.
+  Line 196: Cannot cast mixed to int.
+
+File: src/Plugin/PluginRegistry.php (3 errors)
+  Line 114: Possibly invalid array key type mixed.
+  Line 115: Possibly invalid array key type mixed.
+  Line 255: Cannot cast mixed to int.
+
+File: src/Queue/FileQueue.php (4 errors)
+  Line 133: Binary operation "+" between mixed and 1 results in an error.
+  Line 219: Parameter #1 $queue of method OwnPay\Queue\FileQueue::push() expects string, mixed given.
+  Line 220: Parameter #2 $handler of method OwnPay\Queue\FileQueue::push() expects string, mixed given.
+  Line 221: Parameter #3 $payload of method OwnPay\Queue\FileQueue::push() expects array<string, mixed>, mixed given.
+
+File: src/Queue/RedisQueue.php (5 errors)
+  Line 111: Binary operation "+" between mixed and 1 results in an error.
+  Line 115: Parameter #2 $fields_and_vals of method Redis::hSet() expects string, mixed given.
+  Line 185: Parameter #1 $queue of method OwnPay\Queue\RedisQueue::push() expects string, mixed given.
+  Line 186: Parameter #2 $handler of method OwnPay\Queue\RedisQueue::push() expects string, mixed given.
+  Line 187: Parameter #3 $payload of method OwnPay\Queue\RedisQueue::push() expects array<string, mixed>, mixed given.
+
+File: src/Repository/ApiKeyRepository.php (1 errors)
+  Line 73: Method OwnPay\Repository\ApiKeyRepository::listActiveKeys() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/AuditLogRepository.php (2 errors)
+  Line 79: Method OwnPay\Repository\AuditLogRepository::listPaginated() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 113: Method OwnPay\Repository\AuditLogRepository::listForEntity() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/BaseRepository.php (6 errors)
+  Line 118: Method OwnPay\Repository\BaseRepository::where() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 144: Parameter #1 $string of function strtolower expects string, string|null given.
+  Line 156: Cannot cast mixed to int.
+  Line 166: Method OwnPay\Repository\BaseRepository::paginate() should return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int, pages: int} but returns array{items: array<int, array<string, mixed>>, total: int, page: int<1, max>, per_page: int, pages: int}.
+  Line 202: Method OwnPay\Repository\BaseRepository::cursorPaginate() should return array{items: list<array<string, mixed>>, next_cursor: string|null} but returns array{items: array<int, array<string, mixed>>, next_cursor: string|null}.
+  Line 205: Cannot cast mixed to string.
+
+File: src/Repository/CommLogRepository.php (3 errors)
+  Line 94: Method OwnPay\Repository\CommLogRepository::listSmsQueue() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 108: Method OwnPay\Repository\CommLogRepository::getSmsQueueStats() should return array{queued: int, sent: int, failed: int} but returns array<string, mixed>.
+  Line 127: Method OwnPay\Repository\CommLogRepository::listPendingSms() should return list<array{id: int, to: string, body: string}> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/CustomerRepository.php (3 errors)
+  Line 78: Cannot cast mixed to int.
+  Line 95: Method OwnPay\Repository\CustomerRepository::paginateWithStats() should return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} but returns array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int}.
+  Line 114: Method OwnPay\Repository\CustomerRepository::getRecentTransactions() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/DevicePairingTokenRepository.php (2 errors)
+  Line 72: Cannot cast mixed to int.
+  Line 98: Cannot cast mixed to int.
+
+File: src/Repository/DisputeRepository.php (1 errors)
+  Line 29: Method OwnPay\Repository\DisputeRepository::findByMerchant() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/DomainRepository.php (2 errors)
+  Line 56: Method OwnPay\Repository\DomainRepository::listAllScoped() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 71: Method OwnPay\Repository\DomainRepository::findPendingVerification() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/GatewayConfigRepository.php (3 errors)
+  Line 45: Method OwnPay\Repository\GatewayConfigRepository::listActive() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 69: Method OwnPay\Repository\GatewayConfigRepository::findCredentialsBySlug() should return string|null but returns mixed.
+  Line 91: Method OwnPay\Repository\GatewayConfigRepository::listActiveForCheckout() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/GatewayRepository.php (1 errors)
+  Line 35: Method OwnPay\Repository\GatewayRepository::listActive() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/InvoiceRepository.php (1 errors)
+  Line 112: Method OwnPay\Repository\InvoiceRepository::listItems() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/LedgerRepository.php (7 errors)
+  Line 79: Method OwnPay\Repository\LedgerRepository::findOrCreateAccount() should return array<string, mixed> but returns array<string, mixed>|null.
+  Line 91: Method OwnPay\Repository\LedgerRepository::getBalance() should return string but returns mixed.
+  Line 113: Parameter #1 $string of function strtolower expects string, mixed given.
+  Line 255: Parameter #1 $num1 of function bccomp expects numeric-string, mixed given.
+  Line 255: Parameter #2 $num2 of function bccomp expects numeric-string, mixed given.
+  Line 270: Cannot cast mixed to int.
+  Line 305: Method OwnPay\Repository\LedgerRepository::merchantBalance() should return string but returns mixed.
+
+File: src/Repository/LoginAttemptRepository.php (1 errors)
+  Line 41: Cannot cast mixed to int.
+
+File: src/Repository/ManualGatewayRepository.php (2 errors)
+  Line 56: Method OwnPay\Repository\ManualGatewayRepository::listActive() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 69: Method OwnPay\Repository\ManualGatewayRepository::listAll() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/MerchantRepository.php (1 errors)
+  Line 76: Method OwnPay\Repository\MerchantRepository::listWithDomains() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/MerchantUserRepository.php (6 errors)
+  Line 169: Method OwnPay\Repository\MerchantUserRepository::getPasswordHash() should return string|null but returns mixed.
+  Line 202: Method OwnPay\Repository\MerchantUserRepository::listAllStaff() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 219: Method OwnPay\Repository\MerchantUserRepository::listStaffForMerchant() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 265: Cannot cast mixed to int.
+  Line 349: Method OwnPay\Repository\MerchantUserRepository::getTotpSecret() should return string|null but returns mixed.
+  Line 349: Parameter #1 $encoded of method OwnPay\Security\FieldEncryptor::decrypt() expects string, mixed given.
+
+File: src/Repository/MobileNotificationRepository.php (2 errors)
+  Line 75: Method OwnPay\Repository\MobileNotificationRepository::pollSince() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 154: Method OwnPay\Repository\MobileNotificationRepository::listForDevice() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/PairedDeviceRepository.php (2 errors)
+  Line 111: Method OwnPay\Repository\PairedDeviceRepository::listActive() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 124: Method OwnPay\Repository\PairedDeviceRepository::listAllForMerchant() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/PluginRepository.php (7 errors)
+  Line 50: Method OwnPay\Repository\PluginRepository::listActive() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 155: Possibly invalid array key type mixed.
+  Line 158: Method OwnPay\Repository\PluginRepository::getBrandPluginStatuses() should return array<string, string> but returns array<mixed>.
+  Line 181: Parameter #1 $slug of method OwnPay\Repository\PluginRepository::findBySlug() expects string, mixed given.
+  Line 200: Cannot cast mixed to int.
+  Line 219: Parameter #1 $slug of method OwnPay\Repository\PluginRepository::countActiveBrandInstances() expects string, mixed given.
+  Line 225: Part $slug (mixed) of encapsed string cannot be cast to string.
+
+File: src/Repository/RateLimitRepository.php (2 errors)
+  Line 53: Cannot cast mixed to int.
+  Line 75: Cannot cast mixed to int.
+
+File: src/Repository/RefundRepository.php (1 errors)
+  Line 62: Method OwnPay\Repository\RefundRepository::getTotalRefundedAmount() should return string but returns mixed.
+
+File: src/Repository/RoleRepository.php (1 errors)
+  Line 57: Method OwnPay\Repository\RoleRepository::getPermissions() should return list<string> but returns list<mixed>.
+
+File: src/Repository/SettingsRepository.php (8 errors)
+  Line 42: Method OwnPay\Repository\SettingsRepository::get() should return string|null but returns mixed.
+  Line 81: Possibly invalid array key type mixed.
+  Line 83: Method OwnPay\Repository\SettingsRepository::getGroup() should return array<string, string> but returns array<mixed>.
+  Line 99: Cannot cast mixed to string.
+  Line 139: Method OwnPay\Repository\SettingsRepository::getScoped() should return string|null but returns mixed.
+  Line 190: Cannot cast mixed to string.
+  Line 212: Possibly invalid array key type mixed.
+  Line 214: Method OwnPay\Repository\SettingsRepository::getGroupScoped() should return array<string, string> but returns array<mixed>.
+
+File: src/Repository/SmsDataRepository.php (1 errors)
+  Line 67: Cannot cast mixed to int.
+
+File: src/Repository/SmsTemplateRepository.php (3 errors)
+  Line 90: Method OwnPay\Repository\SmsTemplateRepository::getSenderWhitelist() should return array<string> but returns list<mixed>.
+  Line 142: Cannot cast mixed to int.
+  Line 203: Cannot cast mixed to int.
+
+File: src/Repository/TransactionRepository.php (18 errors)
+  Line 56: Cannot cast mixed to string.
+  Line 56: Cannot cast mixed to string.
+  Line 56: Parameter #1 $num1 of function bcsub expects numeric-string, string given.
+  Line 56: Parameter #2 $num2 of function bcsub expects numeric-string, string given.
+  Line 212: Method OwnPay\Repository\TransactionRepository::listFiltered() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 234: Method OwnPay\Repository\TransactionRepository::getDashboardStats() should return array{total_revenue: string, completed_count: int, pending_count: int} but returns array<string, mixed>|null.
+  Line 257: Method OwnPay\Repository\TransactionRepository::getRecentDashboardTransactions() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  Line 276: Method OwnPay\Repository\TransactionRepository::getGlobalBrandBreakdown() should return list<array{id: int, name: string, slug: string, revenue: string, txn_count: int}> but returns array<int, array<string, mixed>>.
+  Line 412: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 415: Parameter #1 ...$arrays of function array_merge expects array, mixed given.
+  Line 459: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 462: Parameter #1 ...$arrays of function array_merge expects array, mixed given.
+  Line 497: Method OwnPay\Repository\TransactionRepository::getReportData() should return list<array{date: string, gateway_slug: string, txn_count: int, revenue: string, refunds: string, failed_count: int}> but returns array<int, array<string, mixed>>.
+  Line 523: Method OwnPay\Repository\TransactionRepository::getDistinctGateways() should return list<array{slug: string, name: string}> but returns array<int, array<string, mixed>>.
+  Line 548: Method OwnPay\Repository\TransactionRepository::getExportData() should return list<array{id: int, gateway_slug: string, currency: string, amount: string, status: string, created_at: string}> but returns array<int, array<string, mixed>>.
+  Line 567: Method OwnPay\Repository\TransactionRepository::getDistinctCurrencies() should return list<array{currency: string}> but returns array<int, array<string, mixed>>.
+  Line 581: Method OwnPay\Repository\TransactionRepository::getTodayStats() should return array{revenue: float|int|string, total: int, pending: int} but returns array<string, mixed>.
+  Line 599: Method OwnPay\Repository\TransactionRepository::getRecentTransactions() should return list<array{trx_id: string, amount: string, currency: string, status: string, gateway: string, created_at: string}> but returns array<int, array<string, mixed>>.
+
+File: src/Repository/WebhookEventRepository.php (1 errors)
+  Line 106: Cannot cast mixed to int.
+
+File: src/Security/Authenticator.php (10 errors)
+  Line 73: Cannot call method recentFailedCount() on OwnPay\Repository\LoginAttemptRepository|null.
+  Line 76: Cannot call method doAction() on OwnPay\Event\EventManager|null.
+  Line 80: Cannot call method findActiveByLogin() on OwnPay\Repository\MerchantUserRepository|null.
+  Line 86: Cannot call method doAction() on OwnPay\Event\EventManager|null.
+  Line 90: Parameter #2 $hash of function password_verify expects string, mixed given.
+  Line 92: Cannot call method doAction() on OwnPay\Event\EventManager|null.
+  Line 110: Cannot call method updateLastLogin() on OwnPay\Repository\MerchantUserRepository|null.
+  Line 110: Cannot cast mixed to int.
+  Line 112: Cannot call method doAction() on OwnPay\Event\EventManager|null.
+  Line 170: Parameter #1 $name of function setcookie expects string, string|false given.
+
+File: src/Security/FieldEncryptor.php (3 errors)
+  Line 35: Property OwnPay\Security\FieldEncryptor::$key (string) does not accept mixed.
+  Line 52: Parameter #1 $length of function random_bytes expects int<1, max>, int given.
+  Line 113: Parameter #2 $data of function hash expects string, mixed given.
+
+File: src/Security/LogSanitizer.php (3 errors)
+  Line 87: Parameter #1 $data of static method OwnPay\Security\LogSanitizer::sanitize() expects array<string, mixed>, array<mixed, mixed> given.
+  Line 144: Parameter #1 $number of static method OwnPay\Security\LogSanitizer::passesLuhn() expects string, string|null given.
+  Line 166: Parameter #1 $data of method OwnPay\Security\LogSanitizer::sanitizeArray() expects array<string, mixed>, array<mixed, mixed> given.
+
+File: src/Security/PiiMasker.php (1 errors)
+  Line 117: Parameter #1 $value of static method OwnPay\Security\PiiMasker::mask() expects array<string, mixed>|string, array<mixed, mixed> given.
+
+File: src/Security/RequestValidator.php (6 errors)
+  Line 44: Argument of an invalid type mixed supplied for foreach, only iterables are supported.
+  Line 47: Parameter #1 $string of function strtolower expects string, mixed given.
+  Line 56: Cannot access offset mixed on mixed.
+  Line 58: Cannot access offset mixed on mixed.
+  Line 60: Cannot access offset mixed on mixed.
+  Line 65: Parameter #1 $data of static method OwnPay\Http\Dto\BaseDto::fromArray() expects array, mixed given.
+
+File: src/Security/SecurityHelpers.php (2 errors)
+  Line 30: Method OwnPay\Security\SecurityHelpers::csrfToken() should return string but returns mixed.
+  Line 52: Parameter #1 $length of function random_bytes expects int<1, max>, int given.
+
+File: src/Service/Admin/AdminSession.php (6 errors)
+  Line 23: Cannot cast mixed to int.
+  Line 33: Cannot cast mixed to string.
+  Line 43: Cannot cast mixed to string.
+  Line 64: Cannot cast mixed to int.
+  Line 77: Cannot cast mixed to int.
+  Line 126: Method OwnPay\Service\Admin\AdminSession::consumeFlash() should return array{success: string|null, error: string|null} but returns array{success: mixed, error: mixed}.
+
+File: src/Service/Auth/AuthSessionService.php (3 errors)
+  Line 90: Offset 'user' might not exist on array{success: true, user?: array<string, mixed>, error?: string, requires_2fa?: bool}.
+  Line 120: Parameter #1 $id of method OwnPay\Repository\BaseRepository::find() expects int|string, mixed given.
+  Line 134: Cannot cast mixed to int.
+
+File: src/Service/Auth/PermissionService.php (2 errors)
+  Line 147: Parameter #2 $permissionIds of method OwnPay\Repository\RoleRepository::syncPermissions() expects list<int>, non-empty-array<int> given.
+  Line 166: Parameter #2 $permissionIds of method OwnPay\Repository\RoleRepository::syncPermissions() expects list<int>, array<int> given.
+
+File: src/Service/Auth/StatusGuard.php (1 errors)
+  Line 84: Offset 'status' might not exist on array{status?: string}.
+
+File: src/Service/Brand/BrandContext.php (8 errors)
+  Line 62: Cannot cast mixed to int.
+  Line 69: Cannot cast mixed to int.
+  Line 74: Cannot cast mixed to int.
+  Line 82: Cannot cast mixed to int.
+  Line 101: Cannot cast mixed to int.
+  Line 104: Cannot cast mixed to int.
+  Line 162: Method OwnPay\Service\Brand\BrandContext::getAllBrands() should return array<int, array{id: int, name: string, slug: string, logo_path: string|null, status: string}> but returns array<int, array<string, mixed>>.
+  Line 169: Method OwnPay\Service\Brand\BrandContext::getAllBrands() should return array<int, array{id: int, name: string, slug: string, logo_path: string|null, status: string}> but returns array<int, array<string, mixed>>.
+
+File: src/Service/Brand/BrandThemeService.php (16 errors)
+  Line 98: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 102: Method OwnPay\Service\Brand\BrandThemeService::getBrandTheme() should return array{name: string, logo: string, favicon: string, color: string, accent_color: string, support_email: string, custom_css: string, custom_js: string, ...} but returns array{name: mixed, logo: string, favicon: string, color: string, accent_color: string, support_email: string, custom_css: mixed, custom_js: mixed, ...}.
+  Line 104: Parameter #2 $merchantSettings of method OwnPay\Service\Brand\BrandThemeService::resolveVal() expects array<string, mixed>, mixed given.
+  Line 104: Parameter #4 $fallback of method OwnPay\Service\Brand\BrandThemeService::resolveVal() expects string, mixed given.
+  Line 105: Parameter #2 $merchantSettings of method OwnPay\Service\Brand\BrandThemeService::resolveVal() expects array<string, mixed>, mixed given.
+  Line 106: Parameter #2 $merchantSettings of method OwnPay\Service\Brand\BrandThemeService::resolveVal() expects array<string, mixed>, mixed given.
+  Line 107: Parameter #2 $merchantSettings of method OwnPay\Service\Brand\BrandThemeService::resolveVal() expects array<string, mixed>, mixed given.
+  Line 108: Parameter #2 $merchantSettings of method OwnPay\Service\Brand\BrandThemeService::resolveVal() expects array<string, mixed>, mixed given.
+  Line 109: Cannot access offset 'custom_css' on mixed.
+  Line 110: Cannot access offset 'custom_js' on mixed.
+  Line 111: Binary operation "." between 'Secured by ' and mixed results in an error.
+  Line 111: Parameter #2 $merchantSettings of method OwnPay\Service\Brand\BrandThemeService::resolveVal() expects array<string, mixed>, mixed given.
+  Line 112: Cannot access offset 'show_powered_by' on mixed.
+  Line 131: Possibly invalid array key type mixed.
+  Line 133: Method OwnPay\Service\Brand\BrandThemeService::getBrandSettings() should return array<string, string> but returns array<mixed>.
+  Line 156: Method OwnPay\Service\Brand\BrandThemeService::resolveVal() should return string but returns mixed.
+
+File: src/Service/Communication/CommunicationService.php (4 errors)
+  Line 122: Parameter #1 $message of method OwnPay\Service\Communication\MailProviderInterface::send() expects array{to: string, subject: string, body: string, html?: string, from?: string, reply_to?: string, attachments?: array<int, array<string, mixed>>}, array{to?: string, subject?: string, body?: string, html?: string, from?: string} given.
+  Line 152: Cannot cast mixed to string.
+  Line 154: Method OwnPay\Service\Communication\CommunicationService::renderTemplate() should return string but returns mixed.
+  Line 171: Method OwnPay\Service\Communication\CommunicationService::availableChannels() should return array<string> but returns mixed.
+
+File: src/Service/Customer/CustomerPiiService.php (16 errors)
+  Line 73: Parameter #1 $value of method OwnPay\Security\FieldEncryptor::deterministicHash() expects string, mixed given.
+  Line 76: Parameter #1 $value of method OwnPay\Security\FieldEncryptor::deterministicHash() expects string, mixed given.
+  Line 83: Parameter #1 $customer of method OwnPay\Service\Customer\CustomerPiiService::maskForEvent() expects array<string, mixed>, array<string, mixed>|null given.
+  Line 85: Method OwnPay\Service\Customer\CustomerPiiService::create() should return array<string, mixed> but returns array<string, mixed>|null.
+  Line 172: Parameter #1 $value of method OwnPay\Security\FieldEncryptor::deterministicHash() expects string, mixed given.
+  Line 179: Parameter #1 $customer of method OwnPay\Service\Customer\CustomerPiiService::maskForEvent() expects array<string, mixed>, array<string, mixed>|null given.
+  Line 181: Method OwnPay\Service\Customer\CustomerPiiService::update() should return array<string, mixed> but returns array<string, mixed>|null.
+  Line 216: Argument of an invalid type mixed supplied for foreach, only iterables are supported.
+  Line 217: Parameter #1 $customer of method OwnPay\Service\Customer\CustomerPiiService::decryptPii() expects array<string, mixed>, mixed given.
+  Line 218: Parameter #1 $email of static method OwnPay\Security\PiiMasker::maskEmail() expects string, mixed given.
+  Line 219: Parameter #1 $phone of static method OwnPay\Security\PiiMasker::maskPhone() expects string, mixed given.
+  Line 221: Method OwnPay\Service\Customer\CustomerPiiService::list() should return array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} but returns non-empty-array<string, mixed>.
+  Line 234: Parameter #1 $plaintext of method OwnPay\Security\FieldEncryptor::encrypt() expects string, mixed given.
+  Line 252: Parameter #1 $encoded of method OwnPay\Security\FieldEncryptor::decrypt() expects string, mixed given.
+  Line 269: Parameter #1 $email of static method OwnPay\Security\PiiMasker::maskEmail() expects string, mixed given.
+  Line 270: Parameter #1 $phone of static method OwnPay\Security\PiiMasker::maskPhone() expects string, mixed given.
+
+File: src/Service/Device/DevicePairingService.php (17 errors)
+  Line 94: Cannot cast mixed to int.
+  Line 152: Cannot cast mixed to int.
+  Line 155: Method OwnPay\Service\Device\DevicePairingService::validatePairingOtp() should return array{valid: bool, merchant_id?: int, error?: string} but returns array{valid: false, error: 'Invalid or expired…'}|array{valid: true, merchant_id: int}|null.
+  Line 211: Offset 'merchant_id' might not exist on array{valid: true, merchant_id?: int, error?: string}.
+  Line 213: Cannot cast mixed to int.
+  Line 220: Cannot cast mixed to int.
+  Line 228: Cannot cast mixed to int.
+  Line 288: Cannot cast mixed to int.
+  Line 290: Cannot cast mixed to int.
+  Line 292: Parameter #1 $deviceId of method OwnPay\Repository\PairedDeviceRepository::findByDeviceId() expects string, mixed given.
+  Line 299: Binary operation "." between 'blacklist_jti_' and mixed results in an error.
+  Line 344: Binary operation "." between 'blacklist_jti_' and mixed results in an error.
+  Line 380: Cannot cast mixed to string.
+  Line 386: Cannot cast mixed to string.
+  Line 410: Method OwnPay\Service\Device\DevicePairingService::validateRequest() should return array{valid: false, error: string}|array{valid: true, device: array{device_uuid: string, brand_id: int}, error: null} but returns array{valid: true, device: array{device_uuid: mixed, brand_id: int}, error: null}.
+  Line 414: Cannot cast mixed to int.
+  Line 435: Cannot cast mixed to int.
+
+File: src/Service/Domain/DomainService.php (9 errors)
+  Line 85: Part $httpHost (mixed) of encapsed string cannot be cast to string.
+  Line 86: Parameter #1 $hostname of function gethostbyname expects string, mixed given.
+  Line 114: Parameter #1 $domain of method OwnPay\Service\Domain\DnsVerifier::verifyTxt() expects string, mixed given.
+  Line 115: Parameter #2 $expectedValue of method OwnPay\Service\Domain\DnsVerifier::verifyTxt() expects string, mixed given.
+  Line 121: Binary operation "." between 'TXT record not…' and mixed results in an error.
+  Line 126: Part $httpHost (mixed) of encapsed string cannot be cast to string.
+  Line 127: Parameter #1 $hostname of function gethostbyname expects string, mixed given.
+  Line 128: Parameter #1 $domain of method OwnPay\Service\Domain\DnsVerifier::verifyARecord() expects string, mixed given.
+  Line 178: Binary operation "." between 'http://'|'https://' and mixed results in an error.
+
+File: src/Service/Domain/DomainUrlService.php (3 errors)
+  Line 129: Property OwnPay\Service\Domain\DomainUrlService::$domainCache (array<int, string|null>) does not accept array<int, mixed>.
+  Line 134: Method OwnPay\Service\Domain\DomainUrlService::getBrandDomain() should return string|null but returns mixed.
+  Line 145: Cannot cast mixed to string.
+
+File: src/Service/Notification/MobileNotificationService.php (13 errors)
+  Line 112: Parameter #1 $object_or_class of function method_exists expects object|string, mixed given.
+  Line 113: Cannot call method queue() on class-string|object.
+  Line 114: Parameter #1 $object_or_class of function method_exists expects object|string, mixed given.
+  Line 115: Cannot call method create() on class-string|object.
+  Line 147: Cannot call method pollSince() on mixed.
+  Line 153: Parameter #1 $object_or_class of function method_exists expects object|string, mixed given.
+  Line 156: Cannot call method countUnread() on class-string|object.
+  Line 158: Cannot call method countUnread() on class-string|object.
+  Line 179: Parameter #1 $object_or_class of function method_exists expects object|string, mixed given.
+  Line 180: Cannot call method markRead() on class-string|object.
+  Line 193: Parameter #1 $object_or_class of function method_exists expects object|string, mixed given.
+  Line 194: Cannot call method purgeOldRead() on class-string|object.
+  Line 233: Cannot access an offset on mixed.
+
+File: src/Service/Notification/NotificationService.php (6 errors)
+  Line 89: Parameter #3 $title of method OwnPay\Service\Notification\AlertService::create() expects string, mixed given.
+  Line 89: Parameter #4 $message of method OwnPay\Service\Notification\AlertService::create() expects string, mixed given.
+  Line 89: Parameter #5 $severity of method OwnPay\Service\Notification\AlertService::create() expects string, mixed given.
+  Line 106: Parameter #1 $deviceUuid of method OwnPay\Service\Notification\MobileNotificationService::send() expects string, mixed given.
+  Line 106: Parameter #2 $title of method OwnPay\Service\Notification\MobileNotificationService::send() expects string, mixed given.
+  Line 106: Parameter #3 $body of method OwnPay\Service\Notification\MobileNotificationService::send() expects string, mixed given.
+
+File: src/Service/Notification/WebhookDispatcher.php (11 errors)
+  Line 85: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 86: Parameter #2 $haystack of function in_array expects array, mixed given.
+  Line 86: Parameter #2 $haystack of function in_array expects array, mixed given.
+  Line 91: Parameter #2 $data of function hash_hmac expects string, string|false given.
+  Line 91: Parameter #3 $key of function hash_hmac expects string, mixed given.
+  Line 94: Parameter #1 $url of method OwnPay\Service\Notification\WebhookDispatcher::sendWithRetry() expects string, mixed given.
+  Line 94: Parameter #2 $payload of method OwnPay\Service\Notification\WebhookDispatcher::sendWithRetry() expects string, string|false given.
+  Line 170: Parameter #1 $payload of method OwnPay\Service\Notification\WebhookDispatcher::sign() expects string, string|false given.
+  Line 170: Parameter #2 $secret of method OwnPay\Service\Notification\WebhookDispatcher::sign() expects string, mixed given.
+  Line 172: Parameter #1 $url of method OwnPay\Service\Notification\WebhookDispatcher::doSend() expects string, mixed given.
+  Line 172: Parameter #2 $payload of method OwnPay\Service\Notification\WebhookDispatcher::doSend() expects string, string|false given.
+
+File: src/Service/Payment/CurrencyService.php (9 errors)
+  Line 39: Property OwnPay\Service\Payment\CurrencyService::$baseCurrency (string) does not accept mixed.
+  Line 67: Parameter #2 $num2 of function bcmul expects numeric-string, string given.
+  Line 162: Possibly invalid array key type mixed.
+  Line 162: Property OwnPay\Service\Payment\CurrencyService::$currencies (array<string, array{rate: string, symbol: string, decimals: int}>) does not accept non-empty-array<array{rate: string, symbol: mixed, decimals: int}>.
+  Line 165: Cannot cast mixed to int.
+  Line 171: Possibly invalid array key type mixed.
+  Line 172: Possibly invalid array key type mixed.
+  Line 172: Property OwnPay\Service\Payment\CurrencyService::$currencies (array<string, array{rate: string, symbol: string, decimals: int}>) does not accept non-empty-array<array{rate: mixed, symbol: string, decimals: int}>.
+  Line 215: Method OwnPay\Service\Payment\CurrencyService::listAll() should return array<int, array{code: string, name: string}> but returns array<int, array<string, mixed>>.
+
+File: src/Service/Payment/FeeService.php (34 errors)
+  Line 69: Parameter #1 $num1 of function bcmul expects numeric-string, string given.
+  Line 74: Parameter #2 $num2 of function bcadd expects numeric-string, string given.
+  Line 75: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 76: Parameter #2 $num2 of function bcadd expects numeric-string, string given.
+  Line 80: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 80: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 83: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 83: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 96: Method OwnPay\Service\Payment\FeeService::calculate() should return string but returns mixed.
+  Line 127: Cannot cast mixed to string.
+  Line 132: Parameter #1 $num1 of function bcmul expects numeric-string, string given.
+  Line 145: Parameter #2 $callback of function usort expects callable(mixed, mixed): int, Closure(array, array): (-1|0|1) given.
+  Line 157: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 157: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 163: Cannot access offset 'limit' on mixed.
+  Line 164: Cannot cast mixed to string.
+  Line 164: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 164: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 171: Cannot access offset 'type' on mixed.
+  Line 172: Cannot access offset 'value' on mixed.
+  Line 172: Cannot cast mixed to string.
+  Line 178: Parameter #1 $num1 of function bcmul expects numeric-string, string given.
+  Line 189: Cannot cast mixed to string.
+  Line 189: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 189: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 190: Cannot cast mixed to string.
+  Line 192: Cannot cast mixed to string.
+  Line 192: Cannot cast mixed to string.
+  Line 192: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 192: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 192: Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+  Line 193: Cannot cast mixed to string.
+  Line 196: Parameter #1 $num1 of function bcadd expects numeric-string, string given.
+  Line 207: Method OwnPay\Service\Payment\FeeService::getFeeConfig() should return array{percentage: string, fixed: string, min: string, max: string, mode: string} but returns array{percentage: string|null, fixed: string|null, min: string|null, max: string|null, mode: string|null}.
+
+File: src/Service/Payment/GatewayApiService.php (16 errors)
+  Line 88: Parameter #1 $amount of method OwnPay\Service\Payment\FeeService::calculate() expects string, mixed given.
+  Line 89: Parameter #2 $currency of method OwnPay\Service\Payment\FeeService::calculate() expects string, mixed given.
+  Line 130: Parameter #1 $html of static method OwnPay\Service\Payment\GatewayApiService::sanitizeFormHtml() expects string|null, mixed given.
+  Line 133: Method OwnPay\Service\Payment\GatewayApiService::initiatePayment() should return array{success: bool, error?: string, transaction?: array<string, mixed>, redirect_url?: string|null, form_html?: string|null} but returns array{success: true, transaction: array<string, mixed>, redirect_url: mixed, form_html: string|null}.
+  Line 139: Cannot cast mixed to int.
+  Line 144: Cannot cast mixed to int.
+  Line 176: Cannot cast mixed to string.
+  Line 191: Parameter #2 $gatewayTrxId of method OwnPay\Service\Payment\TransactionService::findByGatewayTrxId() expects string, mixed given.
+  Line 197: Cannot cast mixed to int.
+  Line 202: Cannot cast mixed to int.
+  Line 203: Parameter #3 $amount of method OwnPay\Service\Payment\LedgerService::recordPaymentReceived() expects string, mixed given.
+  Line 204: Parameter #4 $fee of method OwnPay\Service\Payment\LedgerService::recordPaymentReceived() expects string, mixed given.
+  Line 205: Parameter #5 $currency of method OwnPay\Service\Payment\LedgerService::recordPaymentReceived() expects string, mixed given.
+  Line 232: Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.
+  Line 238: Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.
+  Line 242: Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.
+
+File: src/Service/Payment/GatewayRendererService.php (2 errors)
+  Line 62: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 79: Parameter #1 $json of function json_decode expects string, mixed given.
+
+File: src/Service/Payment/IdempotencyService.php (5 errors)
+  Line 66: Method OwnPay\Service\Payment\IdempotencyService::check() should return array{is_duplicate: bool, cached_response?: array<string, mixed>, status?: string, http_status?: int, error?: string} but returns array{is_duplicate: true, status: 'completed', cached_response: mixed, http_status: int}.
+  Line 69: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 70: Cannot cast mixed to int.
+  Line 99: Cannot cast mixed to int.
+  Line 99: Parameter #2 $responseBody of method OwnPay\Repository\IdempotencyRepository::complete() expects string, string|false given.
+
+File: src/Service/Payment/InvoiceService.php (2 errors)
+  Line 62: Cannot cast mixed to int.
+  Line 286: Method OwnPay\Service\Payment\InvoiceService::generatePdf() should return string but returns string|false.
+
+File: src/Service/Payment/LedgerService.php (10 errors)
+  Line 87: Cannot cast mixed to int.
+  Line 93: Parameter #2 $num2 of function bcadd expects numeric-string, string given.
+  Line 95: Parameter #2 $num2 of function bcadd expects numeric-string, string given.
+  Line 155: Parameter #1 $num1 of function bcsub expects numeric-string, string given.
+  Line 155: Parameter #2 $num2 of function bcsub expects numeric-string, string given.
+  Line 184: Cannot cast mixed to string.
+  Line 185: Cannot cast mixed to string.
+  Line 187: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 189: Parameter #1 $num1 of function bcmul expects numeric-string, string given.
+  Line 194: Parameter #1 $num1 of function bcsub expects numeric-string, string given.
+
+File: src/Service/Payment/ManualGatewayService.php (11 errors)
+  Line 59: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 60: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 67: Method OwnPay\Service\Payment\ManualGatewayService::getFormData() should return array<string, mixed>|null but returns mixed.
+  Line 88: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 92: Argument of an invalid type mixed supplied for foreach, only iterables are supported.
+  Line 93: Cannot access offset 'name' on mixed.
+  Line 94: Cannot access offset 'required' on mixed.
+  Line 95: Possibly invalid array key type mixed.
+  Line 96: Cannot access offset 'label' on mixed.
+  Line 96: Part $field['label'] (mixed) of encapsed string cannot be cast to string.
+  Line 107: Method OwnPay\Service\Payment\ManualGatewayService::verify() should return array{valid: bool, error?: string, errors?: array<int, string>} but returns mixed.
+
+File: src/Service/Payment/MfsService.php (4 errors)
+  Line 82: Parameter #2 $trxId of method OwnPay\Service\Payment\TransactionService::findByTrxId() expects string, mixed given.
+  Line 84: Cannot cast mixed to int.
+  Line 85: Method OwnPay\Service\Payment\MfsService::processIncomingSms() should return array{matched: bool, transaction_id?: int|string, sms_id: int|string, parsed?: array<string, mixed>} but returns array{matched: true, transaction_id: mixed, sms_id: string}.
+  Line 89: Method OwnPay\Service\Payment\MfsService::processIncomingSms() should return array{matched: bool, transaction_id?: int|string, sms_id: int|string, parsed?: array<string, mixed>} but returns array{matched: false, sms_id: string, parsed: array<string, mixed>|null}.
+
+File: src/Service/Payment/PaymentCompletionListener.php (8 errors)
+  Line 52: Parameter #1 $json of function json_decode expects string, mixed given.
+  Line 53: Cannot cast mixed to int.
+  Line 60: Cannot access offset 'invoice_id' on mixed.
+  Line 62: Cannot cast mixed to int.
+  Line 69: Cannot access offset 'payment_link_id' on mixed.
+  Line 72: Cannot cast mixed to int.
+  Line 75: Cannot cast mixed to int.
+  Line 77: Cannot cast mixed to int.
+
+File: src/Service/Payment/PaymentService.php (4 errors)
+  Line 78: Method OwnPay\Service\Payment\PaymentService::createIntent() should return array<string, mixed> but returns array<string, mixed>|null.
+  Line 98: Parameter #1 $datetime of static method OwnPay\Support\DateHelper::isPast() expects string, mixed given.
+  Line 99: Cannot cast mixed to int.
+  Line 100: Cannot cast mixed to int.
+
+File: src/Service/Payment/ReconciliationService.php (9 errors)
+  Line 48: Cannot cast mixed to string.
+  Line 49: Cannot cast mixed to string.
+  Line 50: Cannot cast mixed to string.
+  Line 52: Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+  Line 54: Parameter #1 $num1 of function bcmul expects numeric-string, string given.
+  Line 58: Parameter #1 $num1 of function bcsub expects numeric-string, string given.
+  Line 66: Parameter #1 $num1 of function bcsub expects numeric-string, mixed given.
+  Line 71: Parameter #2 $num2 of function bcsub expects numeric-string, string given.
+  Line 73: Method OwnPay\Service\Payment\ReconciliationService::reconcile() should return array{balanced: bool, transaction_total: string, refund_total: string, settlement_total: string, expected_balance: string, ledger_balance: string, difference: string} but returns array{balanced: bool, transaction_total: mixed, refund_total: numeric-string, settlement_total: '0.00', expected_balance: numeric-string, ledger_balance: string, difference: numeric-string}.
+
+File: src/Service/Payment/RefundService.php (11 errors)
+  Line 89: Parameter #1 $transactionId of method OwnPay\Repository\RefundRepository::getTotalRefundedAmount() expects int, mixed given.
+  Line 92: Parameter #1 $num1 of function bcsub expects numeric-string, mixed given.
+  Line 92: Parameter #2 $num2 of function bcsub expects numeric-string, string given.
+  Line 99: Parameter #1 $num1 of function bcadd expects numeric-string, string given.
+  Line 100: Parameter #2 $num2 of function bccomp expects numeric-string, mixed given.
+  Line 119: Parameter #1 $gatewaySlug of method OwnPay\Gateway\GatewayBridge::refund() expects string, mixed given.
+  Line 121: Parameter #3 $gatewayTrxId of method OwnPay\Gateway\GatewayBridge::refund() expects string, mixed given.
+  Line 132: Parameter #2 $transactionId of method OwnPay\Service\Payment\LedgerService::recordRefund() expects int, mixed given.
+  Line 132: Parameter #4 $currency of method OwnPay\Service\Payment\LedgerService::recordRefund() expects string, mixed given.
+  Line 134: Parameter #2 $num2 of function bccomp expects numeric-string, mixed given.
+  Line 135: Parameter #1 $id of method OwnPay\Repository\TransactionRepository::updateScoped() expects int|string, mixed given.
+
+File: src/Service/Payment/TransactionService.php (7 errors)
+  Line 65: Parameter #1 $data of method OwnPay\Repository\TransactionRepository::createTransaction() expects array<string, mixed>, mixed given.
+  Line 77: Offset 'amount' might not exist on array<string, mixed>|null.
+  Line 77: Offset 'trx_id' might not exist on array<string, mixed>|null.
+  Line 80: Method OwnPay\Service\Payment\TransactionService::create() should return array<string, mixed> but returns array<string, mixed>|null.
+  Line 110: Method OwnPay\Service\Payment\TransactionService::complete() should return array<string, mixed> but returns array<string, mixed>|null.
+  Line 133: Method OwnPay\Service\Payment\TransactionService::fail() should return array<string, mixed> but returns array<string, mixed>|null.
+  Line 151: Method OwnPay\Service\Payment\TransactionService::cancel() should return array<string, mixed> but returns array<string, mixed>|null.
+
+File: src/Service/Payment/WebhookService.php (8 errors)
+  Line 86: Parameter #1 $url of method OwnPay\Service\Payment\WebhookService::isUrlSafe() expects string, mixed given.
+  Line 97: Parameter #2 $data of function hash_hmac expects string, string|false given.
+  Line 97: Parameter #3 $key of function hash_hmac expects string, mixed given.
+  Line 100: Parameter #1 $merchantId of method OwnPay\Repository\CommLogRepository::log() expects int|null, mixed given.
+  Line 102: Parameter #3 $recipient of method OwnPay\Repository\CommLogRepository::log() expects string, mixed given.
+  Line 104: Parameter #5 $body of method OwnPay\Repository\CommLogRepository::log() expects string|null, string|false given.
+  Line 110: Parameter #1 $url of function curl_init expects string|null, mixed given.
+  Line 111: Parameter #2 $options of function curl_setopt_array expects array{47: bool, 10015: array|string, 19913: bool, 13: int, 78: int, 10023: array<int, string>, 52: bool}, array{47: true, 10015: non-empty-string|false, 19913: true, 13: 10, 78: 5, 10023: array{'Content-Type:…', non-falsy-string, non-falsy-string, non-falsy-string, 'User-Agent: OwnPay…'}, 52: false} given.
+
+File: src/Service/Sms/SmsParserService.php (19 errors)
+  Line 147: Parameter #1 $encoded of method OwnPay\Security\FieldEncryptor::decrypt() expects string, mixed given.
+  Line 174: Parameter #1 $string of function trim expects string, mixed given.
+  Line 175: Parameter #1 $ts of method OwnPay\Service\Sms\SmsParserService::normalizeTimestamp() expects string, mixed given.
+  Line 178: Parameter #1 $localId of method OwnPay\Service\Sms\SmsParserService::makeResult() expects int|null, mixed given.
+  Line 182: Parameter #1 $localId of method OwnPay\Service\Sms\SmsParserService::makeResult() expects int|null, mixed given.
+  Line 185: Parameter #1 $encryptedB64 of method OwnPay\Service\Sms\SmsParserService::tryDecrypt() expects string, mixed given.
+  Line 187: Parameter #3 $localId of method OwnPay\Service\Sms\SmsParserService::storeFailedDecryption() expects int|null, mixed given.
+  Line 187: Parameter #6 $encrypted of method OwnPay\Service\Sms\SmsParserService::storeFailedDecryption() expects string, mixed given.
+  Line 188: Parameter #1 $localId of method OwnPay\Service\Sms\SmsParserService::makeResult() expects int|null, mixed given.
+  Line 193: Parameter #3 $localId of method OwnPay\Service\Sms\SmsParserService::buildRecord() expects int|null, mixed given.
+  Line 193: Parameter #6 $encrypted of method OwnPay\Service\Sms\SmsParserService::buildRecord() expects string, mixed given.
+  Line 198: Parameter #1 $localId of method OwnPay\Service\Sms\SmsParserService::makeResult() expects int|null, mixed given.
+  Line 210: Parameter #1 $localId of method OwnPay\Service\Sms\SmsParserService::makeResult() expects int|null, mixed given.
+  Line 308: Parameter #2 $templates of method OwnPay\Service\Sms\SmsRegexParser::parse() expects array<int, array<string, mixed>>, mixed given.
+  Line 310: Method OwnPay\Service\Sms\SmsParserService::attemptParse() should return array{parsed_amount: float, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: string, parse_method: string, template_id: int|null, parse_confidence: string}|null but returns array{parsed_amount: float|null, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: string, parse_method: string, template_id: int|null, parse_confidence: string}|null.
+  Line 364: Parameter #2 $type of method OwnPay\Service\Notification\MobileNotificationService::queuePaymentNotification() expects string, mixed given.
+  Line 365: Parameter #3 $amount of method OwnPay\Service\Notification\MobileNotificationService::queuePaymentNotification() expects float|int|string|null, mixed given.
+  Line 366: Parameter #4 $senderName of method OwnPay\Service\Notification\MobileNotificationService::queuePaymentNotification() expects string|null, mixed given.
+  Line 367: Parameter #5 $trxId of method OwnPay\Service\Notification\MobileNotificationService::queuePaymentNotification() expects string|null, mixed given.
+
+File: src/Service/Sms/SmsRegexParser.php (9 errors)
+  Line 44: Parameter #1 $pattern of function preg_match expects string, mixed given.
+  Line 48: Parameter #1 $pattern of function preg_match expects string, mixed given.
+  Line 54: Method OwnPay\Service\Sms\SmsRegexParser::parse() should return array{parsed_amount: float, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: string, parse_method: string, template_id: int, parse_confidence: string}|null but returns array{parsed_amount: float, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: mixed, parse_method: 'regex', template_id: int, parse_confidence: 'high'}.
+  Line 61: Cannot cast mixed to int.
+  Line 72: Parameter #1 $regex of method OwnPay\Service\Sms\SmsRegexParser::ensureDelimiters() expects string, mixed given.
+  Line 86: Parameter #1 $regex of method OwnPay\Service\Sms\SmsRegexParser::ensureDelimiters() expects string, mixed given.
+  Line 97: Parameter #1 $regex of method OwnPay\Service\Sms\SmsRegexParser::ensureDelimiters() expects string, mixed given.
+  Line 105: Method OwnPay\Service\Sms\SmsRegexParser::parse() should return array{parsed_amount: float, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: string, parse_method: string, template_id: int, parse_confidence: string}|null but returns array{parsed_amount: float, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: null, parsed_type: mixed, parse_method: 'regex', template_id: int, parse_confidence: 'high'}.
+  Line 112: Cannot cast mixed to int.
+
+File: src/Service/System/AuditService.php (2 errors)
+  Line 66: Parameter #8 $ip of method OwnPay\Repository\AuditLogRepository::record() expects string|null, mixed given.
+  Line 67: Parameter #9 $userAgent of method OwnPay\Repository\AuditLogRepository::record() expects string|null, mixed given.
+
+File: src/Service/System/FilesystemService.php (1 errors)
+  Line 65: Parameter #1 $mime of method OwnPay\Service\System\FilesystemService::isMimeAllowed() expects string, string|false given.
+
+File: src/Service/System/HttpClient.php (8 errors)
+  Line 67: Parameter #2 $url of method OwnPay\Service\System\HttpClient::request() expects string, mixed given.
+  Line 67: Parameter #4 $headers of method OwnPay\Service\System\HttpClient::request() expects array<string, string>, mixed given.
+  Line 88: Parameter #1 $timeout of class OwnPay\Service\System\HttpClient constructor expects int, mixed given.
+  Line 89: Parameter #2 $url of method OwnPay\Service\System\HttpClient::request() expects string, mixed given.
+  Line 224: Parameter #1 $data of function http_build_query expects array|object, mixed given.
+  Line 280: Parameter #1 $string of function strtolower expects string, string|false given.
+  Line 280: Parameter #1 $string of function strtolower expects string, string|false given.
+  Line 294: Method OwnPay\Service\System\HttpClient::request() should return array{status: int, body: string, headers: array<string, string>} but returns array{status: int, body: string|true, headers: array<string, string>}.
+
+File: src/Service/System/ImageService.php (3 errors)
+  Line 50: Parameter #1 $width of function imagecreatetruecolor expects int<1, max>, int given.
+  Line 50: Parameter #2 $height of function imagecreatetruecolor expects int<1, max>, int given.
+  Line 91: Method OwnPay\Service\System\ImageService::createFromFile() should return GdImage but returns GdImage|false.
+
+File: src/Service/System/InputSanitizer.php (3 errors)
+  Line 94: Cannot cast mixed to string.
+  Line 121: Method OwnPay\Service\System\InputSanitizer::slug() should return string but returns string|null.
+  Line 121: Parameter #1 $string of function trim expects string, string|null given.
+
+File: src/Service/System/PdfService.php (7 errors)
+  Line 74: Cannot access offset 'description' on mixed.
+  Line 74: Parameter #1 $string of function htmlspecialchars expects string, mixed given.
+  Line 75: Cannot access offset 'quantity' on mixed.
+  Line 75: Cannot cast mixed to string.
+  Line 76: Cannot access offset 'amount' on mixed.
+  Line 76: Cannot cast mixed to string.
+  Line 82: Binary operation "." between 'invoice_' and mixed results in an error.
+
+File: src/Update/BackupService.php (10 errors)
+  Line 190: Part $tableName (mixed) of encapsed string cannot be cast to string.
+  Line 191: Binary operation "." between mixed and ";\n\n" results in an error.
+  Line 193: Part $tableName (mixed) of encapsed string cannot be cast to string.
+  Line 196: Cannot cast mixed to string.
+  Line 198: Part $tableName (mixed) of encapsed string cannot be cast to string.
+  Line 309: Cannot call method isFile() on mixed.
+  Line 311: Cannot call method getPathname() on mixed.
+  Line 332: Cannot call method getPathname() on mixed.
+  Line 332: Cannot call method getPathname() on mixed.
+  Line 332: Cannot call method isDir() on mixed.
+
+File: src/Update/MaintenanceMode.php (1 errors)
+  Line 89: Method OwnPay\Update\MaintenanceMode::info() should return array{reason: string, started_at: string, retry_after: int}|null but returns array<mixed, mixed>|null.
+
+File: src/Update/UpdateService.php (25 errors)
+  Line 144: Parameter #1 $json of function json_decode expects string, string|true given.
+  Line 154: Cannot access offset 'stable' on mixed.
+  Line 156: Cannot access offset 'latest_version_name' on mixed.
+  Line 157: Cannot access offset 'download_url' on mixed.
+  Line 158: Cannot access offset 'changelog' on mixed.
+  Line 159: Cannot access offset 'checksum_sha256' on mixed.
+  Line 170: Parameter #1 $version1 of function version_compare expects string, mixed given.
+  Line 175: Method OwnPay\Update\UpdateService::check() should return array{available: bool, version?: string, url?: string, changelog?: string, checksum?: string, error?: string, message?: string} but returns array{available: bool, version: mixed, url: mixed, changelog: mixed, checksum: mixed}.
+  Line 217: Cannot access offset 'version' on mixed.
+  Line 228: Cannot access offset 'download_url' on mixed.
+  Line 229: Cannot access offset 'checksum_sha256' on mixed.
+  Line 230: Cannot access offset 'signature' on mixed.
+  Line 248: Parameter #1 $url of function parse_url expects string, mixed given.
+  Line 263: Parameter #1 $url of method OwnPay\Update\UpdateService::downloadPackage() expects string, mixed given.
+  Line 270: Parameter #1 $known_string of function hash_equals expects string, mixed given.
+  Line 270: Parameter #2 $user_string of function hash_equals expects string, string|false given.
+  Line 273: Parameter #1 $string of function substr expects string, mixed given.
+  Line 274: Parameter #1 $string of function substr expects string, string|false given.
+  Line 280: Parameter #1 $string of function base64_decode expects string, mixed given.
+  Line 293: Parameter #1 $data of function openssl_verify expects string, string|false given.
+  Line 383: Parameter #1 $json of function json_decode expects string, string|true given.
+  Line 388: Method OwnPay\Update\UpdateService::fetchManifest() should return array<string, mixed> but returns array<mixed, mixed>.
+  Line 635: Cannot call method getPathname() on mixed.
+  Line 635: Cannot call method getPathname() on mixed.
+  Line 635: Cannot call method isDir() on mixed.
+
+File: src/View/SettingsRenderer.php (1 errors)
+  Line 68: Cannot cast mixed to string.
+
+File: src/View/TwigExtension/CoreExtension.php (1 errors)
+  Line 68: Parameter #1 $string of function rtrim expects string, mixed given.
+
+File: src/View/TwigExtensions.php (8 errors)
+  Line 101: Method OwnPay\View\TwigExtensions::csrfToken() should return string but returns mixed.
+  Line 123: Cannot access offset 'version' on mixed.
+  Line 125: Binary operation "." between non-falsy-string and mixed results in an error.
+  Line 213: Cannot access offset 'name' on mixed.
+  Line 213: Method OwnPay\View\TwigExtensions::appName() should return string but returns mixed.
+  Line 223: Cannot access offset 'version' on mixed.
+  Line 223: Method OwnPay\View\TwigExtensions::appVersion() should return string but returns mixed.
+  Line 249: Method OwnPay\View\TwigExtensions::flashMessages() should return array<string, array<string>> but returns mixed.
+
+File: src/View/TwigFactory.php (24 errors)
+  Line 35: Cannot access offset 'paths' on mixed.
+  Line 39: Cannot access offset 'templates' on mixed.
+  Line 40: Parameter #1 $filename of function is_dir expects string, mixed given.
+  Line 41: Parameter #1 $path of method Twig\Loader\FilesystemLoader::addPath() expects string, mixed given.
+  Line 46: Binary operation "." between mixed and '/themes/' results in an error.
+  Line 46: Cannot access offset 'modules' on mixed.
+  Line 53: Binary operation "." between mixed and '/themes' results in an error.
+  Line 53: Cannot access offset 'modules' on mixed.
+  Line 64: Binary operation "." between mixed and '/addons' results in an error.
+  Line 64: Cannot access offset 'modules' on mixed.
+  Line 75: Binary operation "." between mixed and '/gateways' results in an error.
+  Line 75: Cannot access offset 'modules' on mixed.
+  Line 87: Binary operation "." between mixed and '/twig' results in an error.
+  Line 87: Cannot access offset 'cache' on mixed.
+  Line 88: Cannot access offset 'debug' on mixed.
+  Line 95: Cannot access offset 'name' on mixed.
+  Line 96: Cannot access offset 'version' on mixed.
+  Line 97: Cannot access offset 'debug' on mixed.
+  Line 120: Cannot call method get() on mixed.
+  Line 133: Cannot access offset 'paths' on mixed.
+  Line 134: Binary operation "." between mixed and '/themes/' results in an error.
+  Line 134: Cannot access offset 'modules' on mixed.
+  Line 139: Binary operation "." between mixed and '/themes/own-pay' results in an error.
+  Line 139: Cannot access offset 'modules' on mixed.
+
+TOTAL REPORTED ERRORS: 2131

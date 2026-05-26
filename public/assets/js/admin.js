@@ -287,4 +287,11 @@
         }
     });
 
+    // Centralized capturing-phase error listener for admin gateway logos
+    document.addEventListener("error", function (e) {
+        if (e.target && e.target.classList.contains("op-gateway-logo-img")) {
+            e.target.classList.add("op-img-error");
+        }
+    }, true);
+
 })();

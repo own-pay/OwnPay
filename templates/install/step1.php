@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Server Requirements · Own Pay Setup</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/installer.css?v=2">
+    <link rel="stylesheet" href="/assets/css/installer.css?v=3">
 </head>
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <span class="ins-mark">OP</span>
+        <img src="https://cdn.ownpay.org/assets/logo.png" alt="OwnPay Logo" class="ins-logo-img" onerror="this.src='/assets/img/logo-fallback.png';this.onerror=null;">
         <span class="ins-name">Own Pay <span>Setup</span></span>
     </div>
     <div class="ins-steps">
@@ -28,7 +27,7 @@
 <main class="ins-main">
     <div class="ins-card">
         <h1>Server Requirements</h1>
-        <p class="ins-sub">Checking your server meets the minimum requirements to run Own Pay.</p>
+        <p class="ins-sub">Checking that your local system matches the strict, production-ready environment specifications required for secure Fintech payment processing.</p>
 
         <div class="ins-req-list">
             <?php $allOk = true; foreach ($requirements as $r): $allOk = $allOk && $r['ok']; ?>
@@ -42,14 +41,14 @@
         </div>
 
         <?php if ($allOk): ?>
-        <a href="?step=2" class="ins-btn">Continue to Database →</a>
+        <a href="?step=2" class="ins-btn">Continue to Database Setup →</a>
         <?php else: ?>
-        <div class="ins-warn">⚠ Some requirements are not met. Please fix them and refresh this page.</div>
-        <a href="/install?step=1" class="ins-btn ins-btn-outline">Re-check Requirements</a>
+        <div class="ins-warn">⚠ One or more critical system parameters are invalid. Please check your PHP configurations and directories, then try again.</div>
+        <a href="/install?step=1" class="ins-btn ins-btn-outline">Re-check Server Parameters</a>
         <?php endif; ?>
     </div>
 </main>
 
-<div class="ins-footer">Own Pay · Secure Payment Gateway · v0.1.0</div>
+<div class="ins-footer">Own Pay · High-Transaction Secured Payment Platform · v0.1.0</div>
 </body>
 </html>

@@ -120,6 +120,10 @@ final class DomainUrlService
      */
     public function getBrandDomain(int $merchantId): ?string
     {
+        if ($merchantId === 1) {
+            return null;
+        }
+
         if (array_key_exists($merchantId, $this->domainCache)) {
             return $this->domainCache[$merchantId];
         }

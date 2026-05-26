@@ -139,8 +139,9 @@
 .ck-modal-dialog h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
 .ck-modal-dialog p { font-size: 14px; color: var(--ink-4); line-height: 1.6; }
 .ck-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
+.ck-modal-actions form { flex: 1; }
 .ck-modal-btn-outline { flex: 1; padding: 12px; border: 1.5px solid var(--cloud); border-radius: 12px; background: none; font-weight: 600; font-size: 13px; cursor: pointer; text-align: center; color: var(--ink); text-decoration: none; }
-.ck-modal-btn-danger { flex: 1; padding: 12px; background: var(--red); color: #fff; border: none; border-radius: 12px; font-weight: 600; font-size: 13px; cursor: pointer; text-align: center; text-decoration: none; }
+.ck-modal-btn-danger { flex: 1; width: 100%; padding: 12px; background: var(--red); color: #fff; border: none; border-radius: 12px; font-weight: 600; font-size: 13px; cursor: pointer; text-align: center; text-decoration: none; }
 .ck-modal-full { width: 100%; margin-top: 16px; }
 .ck-info-list { margin: 16px 0; }
 .ck-info-list > div { display: flex; justify-content: space-between; padding: 10px 0; border-bottom: 1px solid var(--cloud); font-size: 13px; }
@@ -180,3 +181,112 @@
 @media (max-width: 768px) { .ck-mobile-summary { display: block; } .ck-gw-grid { grid-template-columns: repeat(2, 1fr); } }
 
 @media (max-width: 480px) { .ck-gw { min-height: 80px; padding: 14px 6px; } .ck-gw-ico { width: 36px; height: 36px; } .ck-gw-name { font-size: 10.5px; } .ck-scroll { padding: 16px; } }
+
+.ck-popup-back-link { background: none; border: none; color: var(--teal); cursor: pointer; font-size: 0.85rem; margin-bottom: 0.75rem; padding: 0; display: inline-block; font-family: var(--font); font-weight: 600; }
+
+.ck-express-single { grid-template-columns: 1fr !important; }
+
+.ck-gw-ico .ck-gw-fallback { display: none; }
+.ck-gw-ico .ck-gw-fallback.op-show-fallback { display: block; }
+.ck-gw-logo.op-img-error { display: none; }
+
+/* ========================= CSP COMPLIANT DYNAMIC COMPONENTS ========================= */
+.ck-loading-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.7);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 9999;
+    backdrop-filter: blur(4px);
+}
+.ck-loading-content {
+    text-align: center;
+    color: #fff;
+}
+.ck-loading-spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #5EEAD4;
+    border-radius: 50%;
+    animation: ck-spin 0.8s linear infinite;
+    margin: 0 auto 1rem;
+}
+.ck-loading-text {
+    font-family: Outfit, sans-serif;
+    font-size: 0.9rem;
+}
+.ck-timer-urgent {
+    color: var(--red) !important;
+}
+.ck-error-toast {
+    position: fixed;
+    top: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    max-width: 480px;
+    width: calc(100% - 2rem);
+    padding: 1rem 1.25rem;
+    background: #1E293B;
+    color: #F8FAFC;
+    border-radius: 12px;
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+    font-family: Outfit, sans-serif;
+    font-size: 0.9rem;
+    display: flex;
+    align-items: flex-start;
+    gap: 0.75rem;
+    animation: ck-slideDown 0.3s ease;
+    border-left: 4px solid #EF4444;
+    transition: opacity 0.3s ease;
+}
+.ck-error-toast-fade {
+    opacity: 0 !important;
+}
+.ck-error-toast-icon {
+    flex-shrink: 0;
+    font-size: 1.2rem;
+    line-height: 1;
+}
+.ck-error-toast-msg {
+    flex: 1;
+    line-height: 1.4;
+}
+.ck-error-toast-close {
+    flex-shrink: 0;
+    background: none;
+    border: none;
+    color: #94A3B8;
+    cursor: pointer;
+    font-size: 1.1rem;
+    padding: 0;
+    line-height: 1;
+}
+.ck-popup-conv-note {
+    font-size: 11px;
+    color: #7A84A0;
+    margin-top: 4px;
+    text-align: center;
+}
+.ck-clipboard-textarea {
+    position: fixed;
+    opacity: 0;
+    pointer-events: none;
+}
+@keyframes ck-spin {
+    to { transform: rotate(360deg); }
+}
+@keyframes ck-slideDown {
+    from {
+        opacity: 0;
+        transform: translateX(-50%) translateY(-20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateX(-50%) translateY(0);
+    }
+}
+

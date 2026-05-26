@@ -5,13 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
     <title>Admin Account · Own Pay Setup</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/installer.css?v=2">
+    <link rel="stylesheet" href="/assets/css/installer.css?v=3">
 </head>
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <span class="ins-mark">OP</span>
+        <img src="https://cdn.ownpay.org/assets/logo.png" alt="OwnPay Logo" class="ins-logo-img" onerror="this.src='/assets/img/logo-fallback.png';this.onerror=null;">
         <span class="ins-name">Own Pay <span>Setup</span></span>
     </div>
     <div class="ins-steps">
@@ -28,7 +27,7 @@
 <main class="ins-main">
     <div class="ins-card">
         <h1>Create Admin Account</h1>
-        <p class="ins-sub">Set up your superadmin account. This will be the primary login for managing your payment gateway.</p>
+        <p class="ins-sub">Establish your master credentials. This superadmin account will hold global privileges across the entire gateway, brands, and systems.</p>
 
         <form id="adminForm" class="ins-form" autocomplete="off">
             <div class="ins-field">
@@ -52,13 +51,13 @@
             </div>
             <div id="adminMsg" class="ins-msg"></div>
             <button type="submit" class="ins-btn" id="adminBtn">
-                <span id="adminBtnText">Create Admin Account</span>
+                <span id="adminBtnText">Create Admin Account →</span>
             </button>
         </form>
     </div>
 </main>
 
-<div class="ins-footer">Own Pay · Secure Payment Gateway · v0.1.0</div>
+<div class="ins-footer">Own Pay · High-Transaction Secured Payment Platform · v0.1.0</div>
 
 <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
 // Password strength meter
@@ -107,13 +106,13 @@ document.getElementById('adminForm').addEventListener('submit', async function(e
             msg.className = 'ins-msg ins-msg-err';
             msg.textContent = '✗ ' + (d.error || 'Failed to create account');
             btn.disabled = false;
-            btnText.textContent = 'Create Admin Account';
+            btnText.textContent = 'Create Admin Account →';
         }
     } catch (err) {
         msg.className = 'ins-msg ins-msg-err';
-        msg.textContent = '✗ Network error. Please check your server.';
+        msg.textContent = '✗ Network connection failed. Please check your PHP server logs.';
         btn.disabled = false;
-        btnText.textContent = 'Create Admin Account';
+        btnText.textContent = 'Create Admin Account →';
     }
 });
 </script>

@@ -274,6 +274,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // L-03: Uses 'install' middleware group (rate-limited)
     $router->get('/install', 'Install\\InstallerController@show', 'install');
     $router->post('/install/test-db', 'Install\\InstallerController@testDatabase', 'install');
+    $router->post('/install/import-schema', 'Install\\InstallerController@importSchema', 'install');
     $router->post('/install/create-admin', 'Install\\InstallerController@createAdmin', 'install');
     $router->post('/install/finalize', 'Install\\InstallerController@finalize', 'install');
 };

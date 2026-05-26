@@ -45,13 +45,13 @@
     </div>
 
     <div class="st-actions">
-        <a href="javascript:history.back()" class="st-btn">
+        <a href="{{ merchant_redirect_url ?? '/' }}" class="st-btn op-back-btn">
             <div class="st-btn-icon" style="background:rgba(100,116,139,.08)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </div>
             <span class="st-btn-label">Start<br>New Payment</span>
         </a>
-        <a href="/" class="st-btn">
+        <a href="{{ merchant_redirect_url ?? '/' }}" class="st-btn">
             <div class="st-btn-icon" style="background:rgba(13,148,136,.08)">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </div>

@@ -60,9 +60,11 @@
          data-desc="{{ gw.description|lower }}">
         <div class="op-gateway-logo">
             {% if gw.logo is defined and gw.logo %}
-                <img src="{{ gw.logo }}" alt="{{ gw.name }}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+                <img src="{{ gw.logo }}" alt="{{ gw.name }}" loading="lazy" class="op-gateway-logo-img">
+                <div class="op-gateway-icon op-gateway-fallback">{{ gw.name[0:2]|upper }}</div>
+            {% else %}
+                <div class="op-gateway-icon">{{ gw.name[0:2]|upper }}</div>
             {% endif %}
-            <div class="op-gateway-icon" style="{% if gw.logo is defined and gw.logo %}display:none;{% endif %}">{{ gw.name[0:2]|upper }}</div>
         </div>
         <div class="op-gateway-info">
             <div class="op-flex op-items-center op-gap-2 op-mb-1">
@@ -124,9 +126,11 @@
          data-desc="{{ mg.instructions|default('')|lower }}">
         <div class="op-gateway-logo">
             {% if mg.logo_path is defined and mg.logo_path %}
-                <img src="/storage/{{ mg.logo_path }}" alt="{{ mg.name }}" loading="lazy" onerror="this.style.display='none';this.nextElementSibling.style.display=''">
+                <img src="/storage/{{ mg.logo_path }}" alt="{{ mg.name }}" loading="lazy" class="op-gateway-logo-img">
+                <div class="op-gateway-icon op-gateway-fallback">{{ mg.name[0:2]|upper }}</div>
+            {% else %}
+                <div class="op-gateway-icon">{{ mg.name[0:2]|upper }}</div>
             {% endif %}
-            <div class="op-gateway-icon" style="{% if mg.logo_path is defined and mg.logo_path %}display:none;{% endif %}">{{ mg.name[0:2]|upper }}</div>
         </div>
         <div class="op-gateway-info">
             <div class="op-flex op-items-center op-gap-2 op-mb-1">

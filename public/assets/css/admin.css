@@ -659,5 +659,18 @@ label.op-toggle-label { display: flex !important; align-items: center; gap: 12px
     height: 100%;
 }
 
+/* ========================= GATEWAY LOGO AUTO-HIDE ON LOAD FAILURE ========================= */
+.op-gateway-logo-img + .op-gateway-fallback {
+    display: none;
+}
+
+.op-gateway-logo-img.op-img-error {
+    display: none;
+}
+
+.op-gateway-logo-img.op-img-error + .op-gateway-fallback {
+    display: flex;
+}
+
 
 

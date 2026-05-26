@@ -45,7 +45,9 @@
             var s = String(sec % 60).padStart(2, "0");
             tEl.textContent = m + ":" + s;
             if (sec <= 60) {
-                tEl.style.color = "#EF4444";
+                tEl.classList.add("ck-timer-urgent");
+            } else {
+                tEl.classList.remove("ck-timer-urgent");
             }
         };
         renderTimer();
@@ -170,11 +172,21 @@
         if (existing) {return;}
         var overlay = document.createElement("div");
         overlay.id = "ck-loading";
-        overlay.style.cssText = "position:fixed;inset:0;background:rgba(15,23,42,0.7);display:flex;align-items:center;justify-content:center;z-index:9999;backdrop-filter:blur(4px);";
-        overlay.innerHTML = '<div style="text-align:center;color:#fff;"><div style="width:40px;height:40px;border:3px solid rgba(255,255,255,0.2);border-top-color:#5EEAD4;border-radius:50%;animation:ck-spin 0.8s linear infinite;margin:0 auto 1rem;"></div><p style="font-family:Outfit,sans-serif;font-size:0.9rem;">Connecting to payment gateway…</p></div>';
-        var style = document.createElement("style");
-        style.textContent = "@keyframes ck-spin{to{transform:rotate(360deg)}}";
-        document.head.appendChild(style);
+        overlay.className = "ck-loading-overlay";
+        
+        var content = document.createElement("div");
+        content.className = "ck-loading-content";
+        
+        var spinner = document.createElement("div");
+        spinner.className = "ck-loading-spinner";
+        
+        var text = document.createElement("p");
+        text.className = "ck-loading-text";
+        text.textContent = "Connecting to payment gateway…";
+        
+        content.appendChild(spinner);
+        content.appendChild(text);
+        overlay.appendChild(content);
         document.body.appendChild(overlay);
     }
 
@@ -191,40 +203,30 @@
 
         var toast = document.createElement("div");
         toast.id = "ck-error-toast";
-        toast.style.cssText = "position:fixed;top:1.5rem;left:50%;transform:translateX(-50%);z-index:10000;max-width:480px;width:calc(100% - 2rem);padding:1rem 1.25rem;background:#1E293B;color:#F8FAFC;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,0.3);font-family:Outfit,sans-serif;font-size:0.9rem;display:flex;align-items:flex-start;gap:0.75rem;animation:ck-slideDown 0.3s ease;border-left:4px solid #EF4444;";
+        toast.className = "ck-error-toast";
 
         var iconSpan = document.createElement("span");
-        iconSpan.style.cssText = "flex-shrink:0;font-size:1.2rem;line-height:1;";
+        iconSpan.className = "ck-error-toast-icon";
         iconSpan.textContent = "⚠";
         toast.appendChild(iconSpan);
 
         var msgSpan = document.createElement("span");
-        msgSpan.style.cssText = "flex:1;line-height:1.4;";
+        msgSpan.className = "ck-error-toast-msg";
         msgSpan.textContent = msg;
         toast.appendChild(msgSpan);
 
         var closeBtn = document.createElement("button");
-        closeBtn.style.cssText = "flex-shrink:0;background:none;border:none;color:#94A3B8;cursor:pointer;font-size:1.1rem;padding:0;line-height:1;";
+        closeBtn.className = "ck-error-toast-close";
         closeBtn.textContent = "✕";
         closeBtn.onclick = function () { toast.remove(); };
         toast.appendChild(closeBtn);
-
-        // Add animation keyframes
-        var animStyle = document.getElementById("ck-error-anim");
-        if (!animStyle) {
-            animStyle = document.createElement("style");
-            animStyle.id = "ck-error-anim";
-            animStyle.textContent = "@keyframes ck-slideDown{from{opacity:0;transform:translateX(-50%) translateY(-20px);}to{opacity:1;transform:translateX(-50%) translateY(0);}}";
-            document.head.appendChild(animStyle);
-        }
 
         document.body.appendChild(toast);
 
         // Auto-dismiss after 8 seconds
         setTimeout(function () {
             if (toast.parentNode) {
-                toast.style.opacity = "0";
-                toast.style.transition = "opacity 0.3s ease";
+                toast.classList.add("ck-error-toast-fade");
                 setTimeout(function () { toast.remove(); }, 300);
             }
         }, 8000);
@@ -239,7 +241,7 @@
         if (typeEl) {typeEl.textContent = meta.type || "Send Money";}
         var iconEl = document.getElementById("mpIcon");
         if (iconEl) {
-            iconEl.style.background = meta.color;
+            iconEl.className = "ck-popup-gw-icon ck-gw-bg-" + slug;
             iconEl.textContent = meta.logoText || name.slice(0, 2).toUpperCase();
         }
 
@@ -292,7 +294,7 @@
             if (!noteEl) {
                 noteEl = document.createElement("p");
                 noteEl.id = "mpConvNote";
-                noteEl.style.cssText = "font-size:11px;color:#7A84A0;margin-top:4px;text-align:center;";
+                noteEl.className = "ck-popup-conv-note";
                 amountEl.parentElement.appendChild(noteEl);
             }
             noteEl.textContent = "Converted from " + (cfg.originalCurrency || "USD") + " at current exchange rate";
@@ -339,7 +341,7 @@
         var payForm = document.createElement("form");
         payForm.method = "POST";
         payForm.action = basePath + "/pay";
-        payForm.style.display = "none";
+        payForm.className = "ck-hidden";
 
         var fields = {
             "gateway": activeGw,
@@ -384,11 +386,30 @@
     // ---------- COPY ----------
     window.copyNum = function () {
         var num = document.getElementById("mpNumber");
-        if (num && navigator.clipboard) {
-            navigator.clipboard.writeText(num.textContent).then(function () {
-                var t = document.getElementById("cToast");
-                if (t) { t.classList.add("vis"); setTimeout(function () { t.classList.remove("vis"); }, 1800); }
-            });
+        if (!num) { return; }
+        var text = num.textContent;
+        if (navigator.clipboard) {
+            navigator.clipboard.writeText(text).then(showToast);
+        } else {
+            // Fallback for non-HTTPS or legacy browsers
+            var textarea = document.createElement("textarea");
+            textarea.value = text;
+            textarea.className = "ck-clipboard-textarea";
+            document.body.appendChild(textarea);
+            textarea.focus();
+            textarea.select();
+            try {
+                document.execCommand("copy");
+                showToast();
+            } catch (err) {
+                console.error("Fallback copy failed", err);
+            }
+            document.body.removeChild(textarea);
+        }
+
+        function showToast() {
+            var t = document.getElementById("cToast");
+            if (t) { t.classList.add("vis"); setTimeout(function () { t.classList.remove("vis"); }, 1800); }
         }
     };
 
@@ -422,4 +443,54 @@
                 alert("Express checkout is temporarily unavailable. Please try another method.");
             });
     };
+
+    // ---------- CSP-SAFE EVENT DELEGATION ----------
+    document.addEventListener("click", function (e) {
+        var target = e.target.closest("[data-action]");
+        if (!target) { return; }
+        var action = target.getAttribute("data-action");
+
+        if (action === "open-modal") {
+            window.openMdl(target.getAttribute("data-target"));
+        } else if (action === "close-modal") {
+            window.closeMdl(target.getAttribute("data-target"));
+        } else if (action === "go-tab") {
+            window.goT(target.getAttribute("data-tab-name"));
+        } else if (action === "pick-gw") {
+            window.pickGW(
+                target,
+                target.getAttribute("data-tab"),
+                target.getAttribute("data-slug"),
+                target.getAttribute("data-name"),
+                target.getAttribute("data-mode")
+            );
+        } else if (action === "do-qp") {
+            window.doQP(target.getAttribute("data-provider"));
+        } else if (action === "close-manual") {
+            window.closeManual();
+        } else if (action === "copy-num") {
+            window.copyNum();
+        } else if (action === "go-mp-step") {
+            window.goMpStep(Number(target.getAttribute("data-step")));
+        }
+    });
+
+    // Programmatically bind submit event on the manual verification form
+    var verifyForm = document.getElementById("mpVerifyForm");
+    if (verifyForm) {
+        verifyForm.addEventListener("submit", function (e) {
+            window.submitManual(e);
+        });
+    }
+
+    // Centralized capturing-phase error listener for gateway logos
+    document.addEventListener("error", function (e) {
+        if (e.target && e.target.classList.contains("ck-gw-logo")) {
+            e.target.classList.add("op-img-error");
+            var sibling = e.target.nextElementSibling;
+            if (sibling && sibling.classList.contains("ck-gw-fallback")) {
+                sibling.classList.add("op-show-fallback");
+            }
+        }
+    }, true);
 })();

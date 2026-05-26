@@ -74,6 +74,12 @@ final class InstallerController
      * @param Request $req The incoming HTTP request.
      * @return Response The JSON response indicating success or failure.
      */
+    /**
+     * Tests DB connection and retrieves schema diagnostics without altering database structures.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response indicating success or failure.
+     */
     public function testDatabase(Request $req): Response
     {
         if ($this->isInstalled()) {
@@ -83,24 +89,111 @@ final class InstallerController
         if (!is_array($body)) {
             $body = [];
         }
-        $hostVal   = $body['host']   ?? 'localhost';
-        $host      = trim(is_string($hostVal) ? $hostVal : 'localhost');
-        $portVal   = $body['port'] ?? 3306;
-        $port      = (is_int($portVal) || is_string($portVal) || is_numeric($portVal)) ? (int) $portVal : 3306;
-        $nameVal   = $body['name']   ?? '';
-        $name      = trim(is_string($nameVal) ? $nameVal : '');
-        $userVal   = $body['user']   ?? '';
-        $user      = trim(is_string($userVal) ? $userVal : '');
-        $passVal   = $body['pass']        ?? '';
+        $hostVal   = $body['host']   ?? null;
+        $host      = is_string($hostVal) ? trim($hostVal) : 'localhost';
+        $portVal   = $body['port'] ?? null;
+        $port      = (is_int($portVal) || is_string($portVal) || is_numeric($portVal)) ? (int)$portVal : 3306;
+        $nameVal   = $body['name']   ?? null;
+        $name      = is_string($nameVal) ? trim($nameVal) : '';
+        $userVal   = $body['user']   ?? null;
+        $user      = is_string($userVal) ? trim($userVal) : '';
+        $passVal   = $body['pass']   ?? null;
         $pass      = is_string($passVal) ? $passVal : '';
-        $prefixVal = $body['prefix'] ?? 'op_';
-        $prefix    = trim(is_string($prefixVal) ? $prefixVal : 'op_');
+        $prefixVal = $body['prefix'] ?? null;
+        $prefix    = is_string($prefixVal) ? trim($prefixVal) : 'op_';
 
         if (!$name || !$user) {
             return Response::json(['success' => false, 'error' => 'DB name and user required'], 422);
         }
-        // Strict validation for DB name — prevents SQL injection in CREATE DATABASE / USE.
-        // Only alphanumeric + underscore allowed, max 64 chars (MySQL limit).
+        if (!preg_match('/^[a-zA-Z0-9_]{1,64}$/', $name)) {
+            return Response::json(['success' => false, 'error' => 'Invalid database name — alphanumeric and underscores only'], 422);
+        }
+        if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
+            return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
+        }
+
+        try {
+            $pdo = new \PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_TIMEOUT => 5,
+            ]);
+            
+            $mysqlVersion = $pdo->getAttribute(\PDO::ATTR_SERVER_VERSION);
+            $collationStmt = $pdo->query("SELECT @@collation_connection");
+            $collation = $collationStmt ? $collationStmt->fetchColumn() : 'utf8mb4_unicode_ci';
+            if ($collation === false) {
+                $collation = 'utf8mb4_unicode_ci';
+            }
+
+            $dbExists = false;
+            $tableCount = 0;
+            
+            $dbCheck = $pdo->prepare("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?");
+            $dbCheck->execute([$name]);
+            if ($dbCheck->fetch()) {
+                $dbExists = true;
+                $pdo->exec("USE `{$name}`");
+                $tablesStmt = $pdo->query("SHOW TABLES");
+                if ($tablesStmt !== false) {
+                    $tableCount = count($tablesStmt->fetchAll(\PDO::FETCH_COLUMN));
+                }
+            }
+
+            return Response::json([
+                'success' => true,
+                'details' => [
+                    'mysql_version' => $mysqlVersion,
+                    'collation' => $collation,
+                    'table_count' => $tableCount,
+                    'exists' => $dbExists
+                ]
+            ]);
+        } catch (\Throwable $e) {
+            $msg = $e->getMessage();
+            if (str_contains($msg, 'Access denied')) {
+                $error = 'Access denied. Check your database username and password.';
+            } elseif (str_contains($msg, 'Connection refused') || str_contains($msg, 'No such file')) {
+                $error = 'Could not connect to database server. Check host and port.';
+            } else {
+                $error = 'Database connection failed. Verify your credentials and try again.';
+            }
+            return Response::json(['success' => false, 'error' => $error], 500);
+        }
+    }
+
+    /**
+     * Decoupled schema import - drops/overwrites table and executes DDL.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response indicating success or failure.
+     */
+    public function importSchema(Request $req): Response
+    {
+        if ($this->isInstalled()) {
+            return Response::json(['success' => false, 'error' => 'Already installed'], 403);
+        }
+        $body = $req->json();
+        if (!is_array($body)) {
+            $body = [];
+        }
+        $hostVal      = $body['host']   ?? null;
+        $host         = is_string($hostVal) ? trim($hostVal) : 'localhost';
+        $portVal      = $body['port'] ?? null;
+        $port         = (is_int($portVal) || is_string($portVal) || is_numeric($portVal)) ? (int)$portVal : 3306;
+        $nameVal      = $body['name']   ?? null;
+        $name         = is_string($nameVal) ? trim($nameVal) : '';
+        $userVal      = $body['user']   ?? null;
+        $user         = is_string($userVal) ? trim($userVal) : '';
+        $passVal      = $body['pass']   ?? null;
+        $pass         = is_string($passVal) ? $passVal : '';
+        $prefixVal    = $body['prefix'] ?? null;
+        $prefix       = is_string($prefixVal) ? trim($prefixVal) : 'op_';
+        $overwriteVal = $body['confirm_overwrite'] ?? null;
+        $overwrite    = (is_int($overwriteVal) || is_string($overwriteVal) || is_numeric($overwriteVal)) ? (bool)$overwriteVal : false;
+
+        if (!$name || !$user) {
+            return Response::json(['success' => false, 'error' => 'DB name and user required'], 422);
+        }
         if (!preg_match('/^[a-zA-Z0-9_]{1,64}$/', $name)) {
             return Response::json(['success' => false, 'error' => 'Invalid database name — alphanumeric and underscores only'], 422);
         }
@@ -112,6 +205,20 @@ final class InstallerController
             $pdo = new \PDO("mysql:host={$host};port={$port};charset=utf8mb4", $user, $pass, [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
             ]);
+            
+            $dbCheck = $pdo->prepare("SELECT SCHEMA_NAME FROM INFORMATION_SCHEMA.SCHEMATA WHERE SCHEMA_NAME = ?");
+            $dbCheck->execute([$name]);
+            if ($dbCheck->fetch()) {
+                $pdo->exec("USE `{$name}`");
+                $tablesStmt = $pdo->query("SHOW TABLES");
+                if ($tablesStmt !== false) {
+                    $existingTables = $tablesStmt->fetchAll(\PDO::FETCH_COLUMN);
+                    if (count($existingTables) > 0 && !$overwrite) {
+                        return Response::json(['success' => false, 'error' => 'Database contains existing tables. Overwrite not confirmed.'], 422);
+                    }
+                }
+            }
+
             $pdo->exec("CREATE DATABASE IF NOT EXISTS `{$name}` CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci");
             $pdo->exec("USE `{$name}`");
 
@@ -128,7 +235,6 @@ final class InstallerController
                 $sql = str_replace('`op_', "`{$prefix}", $sql);
             }
 
-            // Drop existing tables so a re-install works cleanly
             $pdo->exec("SET FOREIGN_KEY_CHECKS = 0");
             $existing = [];
             $showTablesStmt = $pdo->query("SHOW TABLES");
@@ -152,19 +258,45 @@ final class InstallerController
 
             return Response::json(['success' => true, 'message' => 'Schema imported successfully']);
         } catch (\Throwable $e) {
-            $msg = $e->getMessage();
-            // Sanitize — never expose raw SQL state, hostnames, or credentials
-            if (str_contains($msg, 'Access denied')) {
-                $error = 'Access denied. Check your database username and password.';
-            } elseif (str_contains($msg, 'Connection refused') || str_contains($msg, 'No such file')) {
-                $error = 'Could not connect to database server. Check host and port.';
-            } elseif (str_contains($msg, 'Unknown database')) {
-                $error = 'Database will be created automatically. Check user has CREATE privilege.';
-            } else {
-                $error = 'Database connection failed. Verify your credentials and try again.';
-            }
-            return Response::json(['success' => false, 'error' => $error], 500);
+            return Response::json(['success' => false, 'error' => 'Import failed: ' . $this->sanitizeErrorMessage($e->getMessage())], 500);
         }
+    }
+
+    /**
+     * Parses simple temp env file line by line without parse_ini_file limitations.
+     *
+     * @param string $path The path to the temp env file.
+     * @return array<string, string> The parsed environment keys and values.
+     */
+    private function parseTempEnv(string $path): array
+    {
+        $vars = [];
+        if (!file_exists($path)) {
+            return $vars;
+        }
+        $lines = file($path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if ($lines === false) {
+            return $vars;
+        }
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#')) {
+                continue;
+            }
+            $parts = explode('=', $line, 2);
+            if (count($parts) === 2) {
+                $key = trim($parts[0]);
+                $val = trim($parts[1]);
+                if (
+                    (str_starts_with($val, '"') && str_ends_with($val, '"')) ||
+                    (str_starts_with($val, "'") && str_ends_with($val, "'"))
+                ) {
+                    $val = substr($val, 1, -1);
+                }
+                $vars[$key] = $val;
+            }
+        }
+        return $vars;
     }
 
     /**
@@ -207,22 +339,16 @@ final class InstallerController
         }
 
         try {
-            $env = parse_ini_file($envFile);
-            if ($env === false) {
+            $env = $this->parseTempEnv($envFile);
+            if (empty($env)) {
                 return Response::json(['success' => false, 'error' => 'Failed to parse database environment configuration.'], 500);
             }
-            $dbHostVal = $env['DB_HOST'] ?? 'localhost';
-            $dbHost = is_string($dbHostVal) ? $dbHostVal : 'localhost';
-            $dbPortVal = $env['DB_PORT'] ?? '3306';
-            $dbPort = is_string($dbPortVal) || is_int($dbPortVal) || is_numeric($dbPortVal) ? (string) $dbPortVal : '3306';
-            $dbNameVal = $env['DB_NAME'] ?? 'ownpay';
-            $dbName = is_string($dbNameVal) ? $dbNameVal : 'ownpay';
-            $dbUserVal = $env['DB_USER'] ?? 'root';
-            $dbUser = is_string($dbUserVal) ? $dbUserVal : 'root';
-            $dbPassVal = $env['DB_PASS'] ?? '';
-            $dbPass = is_string($dbPassVal) ? $dbPassVal : '';
-            $pVal      = $env['DB_PREFIX'] ?? 'op_';
-            $p         = is_string($pVal) ? $pVal : 'op_';
+            $dbHost = $env['DB_HOST'] ?? 'localhost';
+            $dbPort = $env['DB_PORT'] ?? '3306';
+            $dbName = $env['DB_NAME'] ?? 'ownpay';
+            $dbUser = $env['DB_USER'] ?? 'root';
+            $dbPass = $env['DB_PASS'] ?? '';
+            $p      = $env['DB_PREFIX'] ?? 'op_';
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
@@ -231,7 +357,6 @@ final class InstallerController
             $pdo->setAttribute(\PDO::ATTR_ERRMODE, \PDO::ERRMODE_EXCEPTION);
             $now = DateHelper::now();
 
-            // Use CSPRNG random_int() instead of weak mt_rand() for UUID.
             $merchantUuid = sprintf('%04x%04x-%04x-%04x-%04x-%04x%04x%04x',
                 random_int(0, 0xffff), random_int(0, 0xffff), random_int(0, 0xffff),
                 random_int(0, 0x0fff) | 0x4000, random_int(0, 0x3fff) | 0x8000,
@@ -249,12 +374,12 @@ final class InstallerController
 
             // 2. Insert the owner role
             $stmt = $pdo->prepare(
-                "INSERT INTO {$p}roles (merchant_id, name, slug, description, is_system, created_at, updated_at) VALUES (?,?,?,?,1,?,?)"
+                "INSERT INTO {$p}roles (merchant_id, name, slug, description, is_system, created_at) VALUES (?,?,?,?,1,?)"
             );
-            $stmt->execute([$merchantId, 'Owner', 'owner', 'System owner role', $now, $now]);
+            $stmt->execute([$merchantId, 'Owner', 'owner', 'System owner role', $now]);
             $roleId = (int) $pdo->lastInsertId();
 
-            // 3. Insert the superadmin user (DS-11 FIX: include username column)
+            // 3. Insert the superadmin user
             $stmt = $pdo->prepare(
                 "INSERT INTO {$p}merchant_users (merchant_id, role_id, name, username, email, password_hash, is_superadmin, status, created_at, updated_at)
                  VALUES (?,?,?,?,?,?,1,'active',?,?)"
@@ -274,9 +399,8 @@ final class InstallerController
                 $cs->execute($c);
             }
 
-            // 5. DS-15 FIX: Seed default permissions
+            // 5. Seed default permissions
             $permissions = [
-                // [slug, name, group_name]
                 ['admin.access',          'Admin Access',             'system'],
                 ['transactions.view',     'View Transactions',        'payments'],
                 ['transactions.manage',   'Manage Transactions',      'payments'],
@@ -350,17 +474,16 @@ final class InstallerController
         if ($this->isInstalled()) {
             return Response::json(['success' => false, 'error' => 'Already installed'], 403);
         }
-        $body     = $req->json();
         $body = $req->json();
         if (!is_array($body)) {
             $body = [];
         }
-        $appNameVal  = $body['app_name']  ?? 'Own Pay';
-        $appName     = trim(is_string($appNameVal) ? $appNameVal : 'Own Pay');
-        $currencyVal = $body['currency']  ?? 'BDT';
-        $currency    = trim(is_string($currencyVal) ? $currencyVal : 'BDT');
-        $timezoneVal = $body['timezone']  ?? 'Asia/Dhaka';
-        $timezone    = trim(is_string($timezoneVal) ? $timezoneVal : 'Asia/Dhaka');
+        $appNameVal  = $body['app_name']  ?? null;
+        $appName     = is_string($appNameVal) ? trim($appNameVal) : 'Own Pay';
+        $currencyVal = $body['currency']  ?? null;
+        $currency    = is_string($currencyVal) ? trim($currencyVal) : 'BDT';
+        $timezoneVal = $body['timezone']  ?? null;
+        $timezone    = is_string($timezoneVal) ? trim($timezoneVal) : 'Asia/Dhaka';
 
         $tempEnv  = $this->rootDir . '/storage/.env.temp';
         $finalEnv = $this->rootDir . '/.env';
@@ -370,46 +493,88 @@ final class InstallerController
         }
 
         try {
-            // Generate independent keys — PCI-DSS 3.6 requires separate keys per purpose.
-            $appKey        = base64_encode(random_bytes(32)); // Session/framework key
-            $encryptionKey = base64_encode(random_bytes(32)); // AES-256-GCM for PII
-            $hmacKey       = bin2hex(random_bytes(32));        // HMAC signing key
-            $jwtSecret     = bin2hex(random_bytes(32));        // JWT signing key for mobile
+            $appKey        = base64_encode(random_bytes(32));
+            $encryptionKey = base64_encode(random_bytes(32));
+            $hmacKey       = bin2hex(random_bytes(32));
+            $jwtSecret     = bin2hex(random_bytes(32));
 
-            $envContent  = file_get_contents($tempEnv);
-            $envContent .= "APP_NAME=\"{$appName}\"\n";
-            $envContent .= "APP_TIMEZONE={$timezone}\n";
-            $envContent .= "APP_CURRENCY={$currency}\n";
-            $envContent .= "APP_ENV=production\n";
-            $envContent .= "APP_DEBUG=false\n";
-            $envContent .= "APP_KEY={$appKey}\n";
-            $envContent .= "ENCRYPTION_KEY={$encryptionKey}\n";
-            $envContent .= "HMAC_KEY={$hmacKey}\n";
-            $envContent .= "JWT_SECRET={$jwtSecret}\n";
-            $envContent .= "CACHE_DRIVER=file\n";
-            $envContent .= "QUEUE_DRIVER=file\n";
-
-            file_put_contents($finalEnv, $envContent, LOCK_EX);
-            @chmod($finalEnv, 0640);
-
-            // Connect using the temp env we already have in memory
-            // NOTE: parse_ini_file() cannot parse base64 values containing '='
-            $dbEnv = parse_ini_file($tempEnv);
-            if ($dbEnv === false) {
+            $dbEnv = $this->parseTempEnv($tempEnv);
+            if (empty($dbEnv)) {
                 return Response::json(['success' => false, 'error' => 'Database config corrupted. Please go back to Step 2.'], 500);
             }
-            $dbHostVal = $dbEnv['DB_HOST'] ?? 'localhost';
-            $dbHost = is_string($dbHostVal) ? $dbHostVal : 'localhost';
-            $dbPortVal = $dbEnv['DB_PORT'] ?? '3306';
-            $dbPort = is_string($dbPortVal) || is_int($dbPortVal) || is_numeric($dbPortVal) ? (string) $dbPortVal : '3306';
-            $dbNameVal = $dbEnv['DB_NAME'] ?? 'ownpay';
-            $dbName = is_string($dbNameVal) ? $dbNameVal : 'ownpay';
-            $dbUserVal = $dbEnv['DB_USER'] ?? 'root';
-            $dbUser = is_string($dbUserVal) ? $dbUserVal : 'root';
-            $dbPassVal = $dbEnv['DB_PASS'] ?? '';
-            $dbPass = is_string($dbPassVal) ? $dbPassVal : '';
-            $pVal      = $dbEnv['DB_PREFIX'] ?? 'op_';
-            $p         = is_string($pVal) ? $pVal : 'op_';
+
+            // Resolve APP_URL and APP_DOMAIN dynamically from request host
+            $httpHost = $req->server('HTTP_HOST') ?: 'localhost';
+            $scheme = ($req->server('HTTPS') === 'on' || $req->server('HTTP_X_FORWARDED_PROTO') === 'https') ? 'https' : 'http';
+            $appUrl = "{$scheme}://{$httpHost}";
+            $appDomain = parse_url($appUrl, PHP_URL_HOST) ?: $httpHost;
+
+            $examplePath = $this->rootDir . '/.env.example';
+            if (!file_exists($examplePath)) {
+                return Response::json(['success' => false, 'error' => '.env.example file missing'], 500);
+            }
+            $exampleContent = file_get_contents($examplePath);
+            if ($exampleContent === false) {
+                return Response::json(['success' => false, 'error' => 'Failed to read .env.example'], 500);
+            }
+
+            $replacements = [
+                'APP_NAME' => "\"{$appName}\"",
+                'APP_ENV' => 'production',
+                'APP_DEBUG' => 'false',
+                'APP_URL' => $appUrl,
+                'APP_DOMAIN' => $appDomain,
+                'APP_TIMEZONE' => $timezone,
+                'APP_CURRENCY' => $currency,
+                
+                'DB_HOST' => $dbEnv['DB_HOST'] ?? 'localhost',
+                'DB_PORT' => $dbEnv['DB_PORT'] ?? '3306',
+                'DB_NAME' => $dbEnv['DB_NAME'] ?? 'ownpay',
+                'DB_USER' => $dbEnv['DB_USER'] ?? 'root',
+                'DB_PASS' => $dbEnv['DB_PASS'] ?? '',
+                'DB_PREFIX' => $dbEnv['DB_PREFIX'] ?? 'op_',
+                
+                'APP_KEY' => $appKey,
+                'ENCRYPTION_KEY' => $encryptionKey,
+                'HMAC_KEY' => $hmacKey,
+                'JWT_SECRET' => $jwtSecret,
+                
+                'CACHE_DRIVER' => 'file',
+                'QUEUE_DRIVER' => 'file',
+            ];
+
+            $lines = explode("\n", str_replace("\r\n", "\n", $exampleContent));
+            foreach ($lines as $idx => $line) {
+                $trimmed = trim($line);
+                if ($trimmed === '' || str_starts_with($trimmed, '#')) {
+                    continue;
+                }
+                
+                if (preg_match('/^([A-Z0-9_]+)\s*=\s*(.*)$/', $line, $matches)) {
+                    $key = $matches[1];
+                    $valAndComment = $matches[2];
+                    
+                    if (array_key_exists($key, $replacements)) {
+                        $newValue = $replacements[$key];
+                        $comment = '';
+                        if (preg_match('/\s*(#.*)$/', $valAndComment, $commentMatches)) {
+                            $comment = ' ' . $commentMatches[1];
+                        }
+                        $lines[$idx] = "{$key}={$newValue}{$comment}";
+                    }
+                }
+            }
+            $finalContent = implode("\n", $lines);
+            
+            file_put_contents($finalEnv, $finalContent, LOCK_EX);
+            @chmod($finalEnv, 0640);
+
+            $dbHost = $dbEnv['DB_HOST'] ?? 'localhost';
+            $dbPort = $dbEnv['DB_PORT'] ?? '3306';
+            $dbName = $dbEnv['DB_NAME'] ?? 'ownpay';
+            $dbUser = $dbEnv['DB_USER'] ?? 'root';
+            $dbPass = $dbEnv['DB_PASS'] ?? '';
+            $p      = $dbEnv['DB_PREFIX'] ?? 'op_';
 
             $pdo = new \PDO(
                 "mysql:host={$dbHost};port={$dbPort};dbname={$dbName};charset=utf8mb4",
@@ -426,7 +591,7 @@ final class InstallerController
                 ['branding', 'site_name',       $appName,                  'string'],
                 ['branding', 'site_logo',       '',                        'string'],
                 ['branding', 'site_favicon',    '',                        'string'],
-                ['branding', 'primary_color',   '#6366f1',               'string'],
+                ['branding', 'primary_color',   '#6366f1',                 'string'],
                 ['branding', 'footer_text',     "\u00a9 2025 {$appName}",  'string'],
                 ['mail',     'driver',          'smtp',                    'string'],
                 ['mail',     'from_address',    '',                        'string'],
@@ -441,7 +606,6 @@ final class InstallerController
                 $stmt->execute($s);
             }
 
-            // Write .installed marker
             file_put_contents($this->markerFile, "Installed: " . DateHelper::iso() . "\nVersion: 0.1.0\n", LOCK_EX);
             @chmod($this->markerFile, 0640);
             @unlink($tempEnv);
@@ -456,6 +620,20 @@ final class InstallerController
             }
             return Response::json(['success' => false, 'error' => $error], 500);
         }
+    }
+
+    /**
+     * Sanitize error message — strip file paths and credentials.
+     *
+     * @param string $message The raw error message.
+     * @return string The sanitized error message.
+     */
+    private function sanitizeErrorMessage(string $message): string
+    {
+        $message = preg_replace('#[A-Z]:\\\\[^\s:]+#', '[path]', $message) ?? $message;
+        $message = preg_replace('#/[^\s:]+\.php#', '[path]', $message) ?? $message;
+        $message = preg_replace('#using password: (?:YES|NO)#i', 'using password: ***', $message) ?? $message;
+        return $message;
     }
 
     /**

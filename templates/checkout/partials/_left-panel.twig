@@ -36,9 +36,9 @@
                         <p class="ck-item-name">{{ item.name ?? item.description ?? 'Payment' }}</p>
                         {% if item.description is defined and item.description %}<p class="ck-item-desc">{{ item.description }}</p>{% endif %}
                     </div>
-                    <p class="ck-item-price">{{ txn.currency_symbol ?? '৳' }}{{ item.price|default(item.amount)|number_format(2) }}</p>
+                    <p class="ck-item-price">{{ txn.currency_symbol ?? '৳' }}{{ (item.total ?? item.unit_price ?? 0)|number_format(2) }}</p>
                 </div>
-                {% set subtotal = subtotal + (item.price|default(item.amount)|default(0)) %}
+                {% set subtotal = subtotal + (item.total ?? item.unit_price ?? 0) %}
                 {% endfor %}
             {% endif %}
             <div class="ck-divider"></div>
