@@ -147,7 +147,7 @@ final class RefundService
                 // Ledger recording
                 $currencyVal = $txn['currency'] ?? 'BDT';
                 $currency = is_scalar($currencyVal) ? (string)$currencyVal : 'BDT';
-                $this->ledger->recordRefund($merchantId, $txnId, (string)$amount, $currency);
+                $this->ledger->recordRefund($merchantId, (int)$id, $txnId, (string)$amount, $currency);
 
                 if (bccomp($newTotal, $origAmount, 2) === 0) {
                     $this->transactions->forTenant($merchantId)->updateScoped($txnId, [

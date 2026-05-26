@@ -58,6 +58,11 @@ final class TransactionController
     private AuditService $audit;
 
     /**
+     * The database wrapper.
+     */
+    private \OwnPay\Core\Database $db;
+
+    /**
      * TransactionController constructor.
      *
      * @param Container $c The dependency injection container.
@@ -75,7 +80,8 @@ final class TransactionController
         SmsParsedRepository $smsRepo,
         AuditLogRepository $auditRepo,
         EventManager $events,
-        AuditService $audit
+        AuditService $audit,
+        \OwnPay\Core\Database $db
     ) {
         $this->c         = $c;
         $this->session   = $session;
@@ -84,6 +90,7 @@ final class TransactionController
         $this->auditRepo = $auditRepo;
         $this->events    = $events;
         $this->audit     = $audit;
+        $this->db        = $db;
     }
 
     /**
@@ -259,10 +266,36 @@ final class TransactionController
             $this->txns->forTenant($mid)->updateScoped($id, ['status' => 'refunded', 'updated_at' => DateHelper::now()]);
             $amountVal = $txn['amount'] ?? '0.00';
             $currencyVal = $txn['currency'] ?? 'BDT';
+            $amount = is_string($amountVal) ? $amountVal : '0.00';
+
+            // Find or create a refund record in op_refunds to get a unique refund ID for the ledger
+            $refundRepo = $this->db->fetchOne(
+                "SELECT id FROM op_refunds WHERE transaction_id = :txid AND merchant_id = :mid AND amount = :amt LIMIT 1",
+                ['txid' => $id, 'mid' => $mid, 'amt' => $amount]
+            );
+
+            if ($refundRepo !== null && isset($refundRepo['id'])) {
+                $idVal = $refundRepo['id'];
+                $refundId = is_scalar($idVal) ? (int) $idVal : 0;
+                $this->db->execute(
+                    "UPDATE op_refunds SET status = 'completed', processed_at = NOW() WHERE id = :id",
+                    ['id' => $refundId]
+                );
+            } else {
+                $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
+                $this->db->execute(
+                    "INSERT INTO op_refunds (merchant_id, transaction_id, uuid, amount, reason, status, processed_at)
+                     VALUES (:mid, :txid, :uuid, :amt, 'Refund processed by administrator', 'completed', NOW())",
+                    ['mid' => $mid, 'txid' => $id, 'uuid' => $uuid, 'amt' => $amount]
+                );
+                $refundId = (int) $this->db->lastInsertId();
+            }
+
             $ledgerService->recordRefund(
                 $mid,
+                $refundId,
                 $id,
-                is_string($amountVal) ? $amountVal : '0.00',
+                $amount,
                 is_string($currencyVal) ? $currencyVal : 'BDT'
             );
         } elseif ($newStatus === 'canceled') {

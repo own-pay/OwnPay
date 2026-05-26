@@ -277,6 +277,7 @@ final class SmsParserServiceTest extends TestCase
         $deviceRepo = new class($deviceExists) {
             private bool $exists;
             public function __construct(bool $exists) { $this->exists = $exists; }
+            public function forTenant(int $merchantId): self { return $this; }
             public function findByUuid(string $uuid): ?array {
                 if (!$this->exists) return null;
                 return [

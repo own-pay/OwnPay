@@ -1,0 +1,792 @@
+﻿TOTAL SEVERE ERRORS (excluding 'on mixed'): 790
+
+[src/Container.php:256] Parameter #1 $objectOrClass of class ReflectionClass constructor expects class-string<T of object>|T of object, string given.
+[src/Controller/Admin/ActivitiesController.php:77] Cannot cast mixed to int.
+[src/Controller/Admin/AddonController.php:115] Possibly invalid array key type mixed.
+[src/Controller/Admin/AddonController.php:116] Possibly invalid array key type mixed.
+[src/Controller/Admin/ApiKeyController.php:84] Part $label (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Admin/AuthController.php:141] Offset 'user' might not exist on array{success: true, user?: array<string, mixed>, error?: string, requires_2fa: true}.
+[src/Controller/Admin/AuthController.php:145] Cannot cast mixed to int.
+[src/Controller/Admin/AuthController.php:145] Offset 'user' might not exist on array{success: true, user?: array<string, mixed>, error?: string, requires_2fa?: bool}.
+[src/Controller/Admin/AuthController.php:183] Cannot cast mixed to int.
+[src/Controller/Admin/AuthController.php:193] Cannot cast mixed to int.
+[src/Controller/Admin/AuthController.php:198] Parameter #2 $code of static method OwnPay\Middleware\TwoFactorMiddleware::verifyTotp() expects string, string|null given.
+[src/Controller/Admin/AuthController.php:205] Cannot cast mixed to int.
+[src/Controller/Admin/AuthController.php:213] Cannot cast mixed to int.
+[src/Controller/Admin/AuthController.php:305] Method OwnPay\Controller\Admin\AuthController::resolveLoginSlug() should return string but returns string|null.
+[src/Controller/Admin/BrandController.php:223] Parameter #2 $data of method OwnPay\Repository\MerchantRepository::updateBrand() expects array<string, mixed>, array<mixed, mixed> given.
+[src/Controller/Admin/BrandController.php:251] Cannot cast mixed to int.
+[src/Controller/Admin/BrandController.php:285] Parameter #1 $string of function strtolower expects string, string|false given.
+[src/Controller/Admin/BrandController.php:340] Part $brand['name'] (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Admin/BrandController.php:372] Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int, name: string, tmp_name: string}, non-empty-array<string, mixed> given.
+[src/Controller/Admin/BrandController.php:383] Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int, name: string, tmp_name: string}, non-empty-array<string, mixed> given.
+[src/Controller/Admin/CurrencyController.php:74] Cannot cast mixed to int.
+[src/Controller/Admin/CustomerController.php:67] Cannot cast mixed to int.
+[src/Controller/Admin/DashboardController.php:237] Parameter #1 $merchantId of method OwnPay\Repository\TransactionRepository::getReportData() expects int, int|null given.
+[src/Controller/Admin/DashboardController.php:238] Parameter #1 $merchantId of method OwnPay\Repository\TransactionRepository::getDistinctGateways() expects int, int|null given.
+[src/Controller/Admin/DashboardController.php:263] Cannot cast mixed to int.
+[src/Controller/Admin/DashboardController.php:371] Parameter #1 $merchantId of method OwnPay\Repository\TransactionRepository::getExportData() expects int, int|null given.
+[src/Controller/Admin/DashboardController.php:380] Parameter #1 $stream of function fputcsv expects resource, resource|false given.
+[src/Controller/Admin/DashboardController.php:382] Parameter #1 $stream of function fputcsv expects resource, resource|false given.
+[src/Controller/Admin/DashboardController.php:382] Parameter #2 $fields of function fputcsv expects array<int|string, bool|float|int|string|null>, array<int, mixed> given.
+[src/Controller/Admin/DashboardController.php:387] Parameter #1 $stream of function fclose expects resource, resource|false given.
+[src/Controller/Admin/DashboardController.php:390] Part $from (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Admin/DashboardController.php:390] Part $to (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Admin/DashboardController.php:410] Cannot cast mixed to int.
+[src/Controller/Admin/DashboardController.php:465] Parameter #1 $string of function trim expects string, string|null given.
+[src/Controller/Admin/DashboardController.php:580] Cannot cast mixed to int.
+[src/Controller/Admin/DashboardController.php:610] Cannot cast mixed to int.
+[src/Controller/Admin/DashboardController.php:633] Cannot cast mixed to int.
+[src/Controller/Admin/DashboardController.php:661] Parameter #1 $plaintext of method OwnPay\Security\FieldEncryptor::encrypt() expects string, string|false given.
+[src/Controller/Admin/DashboardController.php:669] Cannot cast mixed to int.
+[src/Controller/Admin/DashboardController.php:689] Cannot cast mixed to int.
+[src/Controller/Admin/DeveloperController.php:126] Parameter #2 $options of function curl_setopt_array expects array{47: bool, 10015: array|string, 19913: bool, 13: int, 10023: array<int, string>}, array{47: true, 10015: non-empty-string|false, 19913: true, 13: 10, 10023: array{'Content-Type:…', non-falsy-string, 'X-OwnPay-Event:…'}} given.
+[src/Controller/Admin/DeveloperController.php:216] Cannot cast mixed to int.
+[src/Controller/Admin/DeviceController.php:52] Method OwnPay\Controller\Admin\DeviceController::getService() should return OwnPay\Service\Device\DevicePairingService|null but returns mixed.
+[src/Controller/Admin/DeviceController.php:123] Offset 'otp' might not exist on array{error: string}|array{otp: string, expires_in: int}.
+[src/Controller/Admin/DeviceController.php:132] Parameter #1 $data of method chillerlan\QRCode\QRCode::render() expects string|null, string|false given.
+[src/Controller/Admin/DeviceController.php:136] Offset 'otp' might not exist on array{error: string}|array{otp: string, expires_in: int}.
+[src/Controller/Admin/DeviceController.php:193] Cannot cast mixed to string.
+[src/Controller/Admin/FaqController.php:88] Parameter #3 $value of method OwnPay\Repository\SettingsRepository::setScoped() expects string, string|false given.
+[src/Controller/Admin/FaqController.php:91] Parameter #3 $value of method OwnPay\Repository\SettingsRepository::set() expects string, string|false given.
+[src/Controller/Admin/GatewayController.php:116] Possibly invalid array key type mixed.
+[src/Controller/Admin/GatewayController.php:122] Possibly invalid array key type mixed.
+[src/Controller/Admin/GatewayController.php:345] Method OwnPay\Controller\Admin\GatewayController::buildColorsJson() should return string but returns string|false.
+[src/Controller/Admin/GatewayController.php:364] Method OwnPay\Controller\Admin\GatewayController::buildInstructionsJson() should return string but returns string|false.
+[src/Controller/Admin/GatewayController.php:427] Method OwnPay\Controller\Admin\GatewayController::buildFieldsJson() should return string but returns string|false.
+[src/Controller/Admin/InvoiceController.php:78] Cannot cast mixed to int.
+[src/Controller/Admin/LedgerController.php:59] Cannot cast mixed to int.
+[src/Controller/Admin/PluginController.php:198] Offset 'slug' might not exist on array{success: true, slug?: string, error?: string}.
+[src/Controller/Admin/RolesController.php:74] Cannot cast mixed to int.
+[src/Controller/Admin/RolesController.php:161] Parameter #1 $callback of function array_map expects (callable(mixed): mixed)|null, 'intval' given.
+[src/Controller/Admin/RolesController.php:167] Cannot cast mixed to int.
+[src/Controller/Admin/RolesController.php:181] Parameter #2 $permissionIds of method OwnPay\Repository\RoleRepository::syncPermissions() expects list<int>, array<int> given.
+[src/Controller/Admin/RolesController.php:213] Part $role['name'] (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Admin/RolesController.php:228] Possibly invalid array key type mixed.
+[src/Controller/Admin/SettingsController.php:126] Binary operation "." between non-falsy-string and non-empty-array<mixed>|non-empty-string results in an error.
+[src/Controller/Admin/SettingsController.php:231] Binary operation "." between '/admin/settings/' and mixed results in an error.
+[src/Controller/Admin/SettingsController.php:253] Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int, name: string, tmp_name: string}, non-empty-array<string, mixed> given.
+[src/Controller/Admin/SettingsController.php:327] Cannot cast mixed to string.
+[src/Controller/Admin/SettingsController.php:366] Cannot cast mixed to string.
+[src/Controller/Admin/SettingsController.php:406] Cannot cast mixed to string.
+[src/Controller/Admin/SettingsController.php:440] Cannot cast mixed to string.
+[src/Controller/Admin/SettingsController.php:456] Cannot cast mixed to string.
+[src/Controller/Admin/SettingsController.php:491] Cannot cast mixed to string.
+[src/Controller/Admin/SettingsController.php:514] Cannot cast mixed to string.
+[src/Controller/Admin/SmsDataController.php:63] Cannot cast mixed to int.
+[src/Controller/Admin/SmsTemplateAdminController.php:223] Binary operation "." between '/' and mixed results in an error.
+[src/Controller/Admin/SmsTemplateAdminController.php:228] Binary operation "." between '/' and mixed results in an error.
+[src/Controller/Admin/SmsTemplateAdminController.php:334] Cannot cast mixed to int.
+[src/Controller/Admin/StaffController.php:76] Parameter #1 $merchantId of method OwnPay\Repository\MerchantUserRepository::listStaffForMerchant() expects int, int|null given.
+[src/Controller/Admin/StaffController.php:110] Cannot cast mixed to int.
+[src/Controller/Admin/StaffController.php:116] Cannot cast mixed to int.
+[src/Controller/Admin/StaffController.php:131] Cannot cast mixed to int.
+[src/Controller/Admin/StaffController.php:203] Cannot cast mixed to int.
+[src/Controller/Admin/StaffController.php:206] Cannot cast mixed to int.
+[src/Controller/Admin/SystemUpdateController.php:79] Cannot cast mixed to int.
+[src/Controller/Admin/SystemUpdateController.php:87] Parameter #1 $json of function json_decode expects string, string|false given.
+[src/Controller/Admin/SystemUpdateController.php:123] Offset 'version' might not exist on array{available: true, version?: string, url?: string, changelog?: string, checksum?: string, error?: string, message?: string}.
+[src/Controller/Admin/SystemUpdateController.php:148] Part $version (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Admin/SystemUpdateController.php:150] Offset 'error' might not exist on array{success: false, error?: string, rollback?: bool}.
+[src/Controller/Admin/ThemeController.php:118] Possibly invalid array key type mixed.
+[src/Controller/Admin/ThemeController.php:119] Possibly invalid array key type mixed.
+[src/Controller/Admin/ThemeController.php:212] Offset 'status' might not exist on array<string, mixed>|null.
+[src/Controller/Admin/ThemeController.php:217] Part $plugin['name'] (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Admin/ThemeController.php:247] Offset 'slug' might not exist on array{success: true, slug?: string, error?: string}.
+[src/Controller/Admin/TransactionController.php:102] Cannot cast mixed to int.
+[src/Controller/Admin/TransactionController.php:112] Parameter #1 $filters of method OwnPay\Repository\TransactionRepository::countFiltered() expects array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string}, array{q: mixed, status: mixed, gateway: mixed, date_from: mixed, date_to: mixed} given.
+[src/Controller/Admin/TransactionController.php:114] Parameter #1 $filters of method OwnPay\Repository\TransactionRepository::listFiltered() expects array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string}, array{q: mixed, status: mixed, gateway: mixed, date_from: mixed, date_to: mixed} given.
+[src/Controller/Admin/TransactionController.php:164] Cannot cast mixed to int.
+[src/Controller/Admin/TransactionController.php:233] Cannot cast mixed to string.
+[src/Controller/Admin/TransactionController.php:234] Cannot cast mixed to string.
+[src/Controller/Admin/TransactionController.php:235] Cannot cast mixed to string.
+[src/Controller/Admin/TransactionController.php:243] Cannot cast mixed to string.
+[src/Controller/Admin/TransactionController.php:244] Cannot cast mixed to string.
+[src/Controller/Admin/TwoFactorSetupController.php:60] Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::findById() expects int, int|null given.
+[src/Controller/Admin/TwoFactorSetupController.php:68] Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::getTotpSecret() expects int, int|null given.
+[src/Controller/Admin/TwoFactorSetupController.php:75] Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::setTotpSecret() expects int, int|null given.
+[src/Controller/Admin/TwoFactorSetupController.php:103] Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::getTotpSecret() expects int, int|null given.
+[src/Controller/Admin/TwoFactorSetupController.php:110] Parameter #2 $code of method OwnPay\Controller\Admin\TwoFactorSetupController::verifyTotp() expects string, string|null given.
+[src/Controller/Admin/TwoFactorSetupController.php:115] Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::enableTotp() expects int, int|null given.
+[src/Controller/Admin/TwoFactorSetupController.php:133] Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::getPasswordHash() expects int, int|null given.
+[src/Controller/Admin/TwoFactorSetupController.php:139] Parameter #1 $id of method OwnPay\Repository\MerchantUserRepository::disableTotp() expects int, int|null given.
+[src/Controller/Admin/TwoFactorSetupController.php:155] Parameter #1 $length of function random_bytes expects int<1, max>, int given.
+[src/Controller/Admin/TwoFactorSetupController.php:162] Offset float|int might not exist on 'ABCDEFGHIJKLMNOPQRS…'.
+[src/Controller/Admin/TwoFactorSetupController.php:205] Parameter #1 $codepoint of function chr expects int, float|int given.
+[src/Controller/Api/Admin/DeviceController.php:49] Cannot cast mixed to int.
+[src/Controller/Api/Admin/DeviceController.php:65] Cannot cast mixed to int.
+[src/Controller/Api/Admin/DomainController.php:51] Cannot cast mixed to int.
+[src/Controller/Api/Admin/DomainController.php:53] Cannot cast mixed to int.
+[src/Controller/Api/Admin/SmsQueueController.php:42] Cannot cast mixed to int.
+[src/Controller/Api/Admin/SmsQueueController.php:56] Cannot cast mixed to int.
+[src/Controller/Api/Admin/SmsTemplateController.php:42] Cannot cast mixed to int.
+[src/Controller/Api/Admin/SmsTemplateController.php:56] Cannot cast mixed to int.
+[src/Controller/Api/Admin/SmsTemplateController.php:64] Cannot cast mixed to int.
+[src/Controller/Api/ApiKeyController.php:49] Cannot cast mixed to int.
+[src/Controller/Api/ApiKeyController.php:75] Cannot cast mixed to int.
+[src/Controller/Api/ApiKeyController.php:99] Cannot cast mixed to int.
+[src/Controller/Api/CustomerController.php:51] Cannot cast mixed to int.
+[src/Controller/Api/CustomerController.php:52] Cannot cast mixed to int.
+[src/Controller/Api/CustomerController.php:53] Cannot cast mixed to int.
+[src/Controller/Api/CustomerController.php:83] Cannot cast mixed to int.
+[src/Controller/Api/CustomerController.php:114] Cannot cast mixed to int.
+[src/Controller/Api/HealthController.php:39] Cannot cast mixed to int.
+[src/Controller/Api/HealthController.php:114] Parameter #3 $headers of static method OwnPay\Http\Response::json() expects array<string, string>, array<string, mixed> given.
+[src/Controller/Api/Mobile/ConfigController.php:63] Cannot cast mixed to int.
+[src/Controller/Api/Mobile/ConfigController.php:79] Parameter #1 $raw of method OwnPay\Controller\Api\Mobile\ConfigController::parseKeywords() expects string, string|null given.
+[src/Controller/Api/Mobile/ConfigController.php:82] Parameter #1 $raw of method OwnPay\Controller\Api\Mobile\ConfigController::parseKeywords() expects string, string|null given.
+[src/Controller/Api/Mobile/DashboardController.php:61] Cannot cast mixed to int.
+[src/Controller/Api/Mobile/DashboardController.php:63] Cannot cast mixed to string.
+[src/Controller/Api/Mobile/DashboardController.php:76] Parameter #3 $headers of static method OwnPay\Http\Response::json() expects array<string, string>, array<string, mixed> given.
+[src/Controller/Api/Mobile/DeviceController.php:107] Cannot cast mixed to string.
+[src/Controller/Api/Mobile/DeviceController.php:121] Cannot cast mixed to string.
+[src/Controller/Api/Mobile/DeviceController.php:122] Cannot cast mixed to int.
+[src/Controller/Api/Mobile/DeviceController.php:127] Cannot cast mixed to string.
+[src/Controller/Api/Mobile/DeviceController.php:149] Cannot cast mixed to int.
+[src/Controller/Api/Mobile/DeviceController.php:158] Cannot cast mixed to string.
+[src/Controller/Api/Mobile/DeviceController.php:230] Cannot cast mixed to string.
+[src/Controller/Api/Mobile/DeviceController.php:231] Cannot cast mixed to int.
+[src/Controller/Api/Mobile/NotificationController.php:48] Cannot cast mixed to int.
+[src/Controller/Api/Mobile/NotificationController.php:50] Cannot cast mixed to string.
+[src/Controller/Api/Mobile/NotificationController.php:70] Parameter #1 $callback of function array_map expects (callable(mixed): mixed)|null, 'intval' given.
+[src/Controller/Api/Mobile/NotificationController.php:75] Cannot cast mixed to int.
+[src/Controller/Api/Mobile/NotificationController.php:76] Cannot cast mixed to string.
+[src/Controller/Api/Mobile/NotificationController.php:77] Parameter #1 $ids of method OwnPay\Repository\MobileNotificationRepository::acknowledgeIds() expects list<int>, non-empty-array<int<min, -1>|int<1, max>> given.
+[src/Controller/Api/Mobile/SmsController.php:71] Cannot cast mixed to int.
+[src/Controller/Api/Mobile/SmsController.php:72] Cannot cast mixed to string.
+[src/Controller/Api/Mobile/SmsController.php:105] Cannot cast mixed to int.
+[src/Controller/Api/Mobile/SmsController.php:147] Cannot cast mixed to int.
+[src/Controller/Api/PaymentController.php:64] Cannot cast mixed to int.
+[src/Controller/Api/PaymentController.php:111] Cannot cast mixed to string.
+[src/Controller/Api/PaymentController.php:157] Parameter #2 $data of method OwnPay\Service\Payment\PaymentService::createIntent() expects array{amount: string, currency: string, description?: string, redirect_url?: string, cancel_url?: string, webhook_url?: string, metadata?: array<string, mixed>}, array{amount: string, currency: string, customer_id: int|null, description: string|null, redirect_url: non-falsy-string|false|null, cancel_url: non-falsy-string|false|null, webhook_url: non-falsy-string|false|null, metadata: array{reference: mixed, customer_email: string|null, customer_name: string|null, customer_phone: string|null, gateway: mixed, custom_metadata: mixed}} given.
+[src/Controller/Api/PaymentController.php:187] Cannot cast mixed to int.
+[src/Controller/Api/PaymentController.php:217] Cannot cast mixed to int.
+[src/Controller/Api/RefundController.php:60] Cannot cast mixed to int.
+[src/Controller/Api/RefundController.php:69] Cannot cast mixed to int.
+[src/Controller/Api/RefundController.php:94] Cannot cast mixed to int.
+[src/Controller/Api/TransactionController.php:53] Cannot cast mixed to int.
+[src/Controller/Api/TransactionController.php:54] Cannot cast mixed to int.
+[src/Controller/Api/TransactionController.php:55] Cannot cast mixed to int.
+[src/Controller/Api/TransactionController.php:64] Parameter #1 $filters of method OwnPay\Repository\TransactionRepository::countFiltered() expects array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string}, array{status: mixed, gateway: mixed, from: mixed, to: mixed} given.
+[src/Controller/Api/TransactionController.php:95] Cannot cast mixed to int.
+[src/Controller/Api/WebhookController.php:50] Cannot cast mixed to int.
+[src/Controller/Api/WebhookController.php:71] Cannot cast mixed to int.
+[src/Controller/BaseController.php:193] Method OwnPay\Controller\BaseController::events() should return OwnPay\Event\EventManager but returns mixed.
+[src/Controller/BaseController.php:211] Method OwnPay\Controller\BaseController::user() should return array<string, mixed>|null but returns mixed.
+[src/Controller/BaseController.php:221] Method OwnPay\Controller\BaseController::merchant() should return array<string, mixed>|null but returns mixed.
+[src/Controller/Checkout/CheckoutController.php:111] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:127] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:127] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:135] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:167] Possibly invalid array key type mixed.
+[src/Controller/Checkout/CheckoutController.php:173] Possibly invalid array key type mixed.
+[src/Controller/Checkout/CheckoutController.php:176] Possibly invalid array key type mixed.
+[src/Controller/Checkout/CheckoutController.php:182] Parameter #1 $json of function json_decode expects string, string|null given.
+[src/Controller/Checkout/CheckoutController.php:189] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:224] Possibly invalid array key type mixed.
+[src/Controller/Checkout/CheckoutController.php:266] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:397] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:419] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:419] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:436] Binary operation "." between mixed and '|' results in an error.
+[src/Controller/Checkout/CheckoutController.php:436] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Controller/Checkout/CheckoutController.php:450] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:450] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:454] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:457] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:469] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:471] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:482] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:482] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:495] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:495] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:509] Part $gateway (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Checkout/CheckoutController.php:509] Part $txn['trx_id'] (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Checkout/CheckoutController.php:520] Part $gateway (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Checkout/CheckoutController.php:569] Binary operation "." between mixed and '|' results in an error.
+[src/Controller/Checkout/CheckoutController.php:569] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Controller/Checkout/CheckoutController.php:602] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:614] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:657] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:657] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:688] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:688] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:702] Binary operation "." between mixed and '|' results in an error.
+[src/Controller/Checkout/CheckoutController.php:702] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Controller/Checkout/CheckoutController.php:707] Cannot cast mixed to string.
+[src/Controller/Checkout/CheckoutController.php:717] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:750] Cannot cast mixed to int.
+[src/Controller/Checkout/CheckoutController.php:761] Part $txn['trx_id'] (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Checkout/InvoiceCheckoutController.php:91] Possibly invalid array key type mixed.
+[src/Controller/Checkout/InvoiceCheckoutController.php:101] Cannot cast mixed to int.
+[src/Controller/Checkout/InvoiceCheckoutController.php:102] Cannot cast mixed to int.
+[src/Controller/Checkout/InvoiceCheckoutController.php:109] Cannot cast mixed to int.
+[src/Controller/Checkout/InvoiceCheckoutController.php:111] Part $existingTxn['trx_id'] (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Checkout/InvoiceCheckoutController.php:116] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:157] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:197] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:213] Possibly invalid array key type mixed.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:229] Possibly invalid array key type mixed.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:232] Possibly invalid array key type mixed.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:242] Parameter #1 $json of function json_decode expects string, string|null given.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:250] Binary operation "." between mixed and '|' results in an error.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:250] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:281] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:287] Possibly invalid array key type mixed.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:323] Binary operation "." between '/checkout/intent/' and mixed results in an error.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:402] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:418] Binary operation "." between mixed and '|' results in an error.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:418] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:428] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:437] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:463] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:468] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:476] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:501] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:507] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:511] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:573] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:574] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:585] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:586] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:603] Part $gateway (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:636] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:673] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:678] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:679] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:683] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:689] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:730] Binary operation "." between mixed and '|' results in an error.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:730] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:735] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:736] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:747] Binary operation "." between mixed and '&'|'?' results in an error.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:771] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:790] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:793] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:813] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:817] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:843] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:846] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:936] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:948] Binary operation "." between mixed and '|' results in an error.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:948] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:953] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:963] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:1016] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:1017] Cannot cast mixed to int.
+[src/Controller/Checkout/PaymentIntentCheckoutController.php:1027] Part $intent['id'] (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:90] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:95] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:96] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:97] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:97] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:98] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:98] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:108] Parameter #1 $num1 of function bccomp expects numeric-string, float|int|(non-empty-string&numeric-string) given.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:119] Binary operation "." between 'pay_link_txn_' and mixed results in an error.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:123] Part $existingTxn['trx_id'] (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:174] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:189] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:190] Cannot cast mixed to string.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:192] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:192] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:197] Part $currency (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:201] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:201] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:206] Part $currency (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:212] Binary operation "." between 'pay_link_txn_' and mixed results in an error.
+[src/Controller/Checkout/PaymentLinkCheckoutController.php:216] Part $existingTxn['trx_id'] (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Install/InstallerController.php:51] Cannot cast mixed to int.
+[src/Controller/Install/InstallerController.php:80] Cannot cast mixed to int.
+[src/Controller/Install/InstallerController.php:110] Parameter #1 $string of function strlen expects string, string|false given.
+[src/Controller/Install/InstallerController.php:115] Parameter #3 $subject of function str_replace expects array<string>|string, string|false given.
+[src/Controller/Install/InstallerController.php:120] Cannot call method fetchAll() on PDOStatement|false.
+[src/Controller/Install/InstallerController.php:125] Parameter #1 $sql of method OwnPay\Controller\Install\InstallerController::parseSqlStatements() expects string, string|false given.
+[src/Controller/Install/InstallerController.php:132] Part $pass (mixed) of encapsed string cannot be cast to string.
+[src/Controller/Install/InstallerController.php:188] Cannot access offset 'DB_HOST' on array|false.
+[src/Controller/Install/InstallerController.php:188] Cannot access offset 'DB_NAME' on array|false.
+[src/Controller/Install/InstallerController.php:188] Cannot access offset 'DB_PORT' on array|false.
+[src/Controller/Install/InstallerController.php:189] Cannot access offset 'DB_PASS' on array|false.
+[src/Controller/Install/InstallerController.php:189] Cannot access offset 'DB_USER' on array|false.
+[src/Controller/Install/InstallerController.php:192] Cannot access offset 'DB_PREFIX' on array|false.
+[src/Controller/Install/InstallerController.php:279] Cannot call method fetchAll() on PDOStatement|false.
+[src/Controller/Install/InstallerController.php:475] Parameter #1 $string of function trim expects string, string|null given.
+[src/Controller/Install/InstallerController.php:480] Parameter #1 $string of function strlen expects string, string|null given.
+[src/Controller/Install/InstallerController.php:482] Offset int<0, max> might not exist on string|null.
+[src/Controller/Install/InstallerController.php:486] Offset int<1, max> might not exist on string|null.
+[src/Controller/Webhook/UnifiedWebhookController.php:79] Cannot cast mixed to int.
+[src/Controller/Webhook/UnifiedWebhookController.php:88] Cannot cast mixed to int.
+[src/Controller/Webhook/UnifiedWebhookController.php:104] Cannot cast mixed to int.
+[src/Controller/Webhook/UnifiedWebhookController.php:105] Parameter $rawBody of class OwnPay\Model\WebhookPayload constructor expects string, string|null given.
+[src/Controller/Webhook/UnifiedWebhookController.php:134] Cannot cast mixed to int.
+[src/Controller/Webhook/UnifiedWebhookController.php:136] Parameter #2 $data of function hash expects string, string|null given.
+[src/Core/Database.php:168] Method OwnPay\Core\Database::fetchOne() should return array<string, mixed>|null but returns mixed.
+[src/Core/Database.php:276] Method OwnPay\Core\Database::insert() should return string but returns string|false.
+[src/Core/Database.php:399] Cannot cast mixed to int.
+[src/Core/Database.php:409] Method OwnPay\Core\Database::lastInsertId() should return string but returns string|false.
+[src/Core/FormattingHelper.php:128] Method OwnPay\Core\FormattingHelper::buildLangArray() should return array<string, string> but returns array<string, string|false>.
+[src/Core/RequestHelper.php:74] Method OwnPay\Core\RequestHelper::getUserDeviceInfo() should return array{ip_address: string, device: string, os: string, browser: string} but returns array{ip_address: mixed, device: 'Desktop'|'Mobile'|'Tablet', os: 'Android'|'iOS'|'Linux'|'Mac OS'|'Unknown OS'|'Windows', browser: 'Chrome'|'Edge'|'Firefox'|'Internet Explorer'|'Opera'|'Safari'|'Unknown Browser'}.
+[src/Core/RouteHelper.php:49] Binary operation "." between 'http://'|'https://' and mixed results in an error.
+[src/Core/RouteHelper.php:51] Binary operation "." between 'http://'|'https://' and mixed results in an error.
+[src/Core/RouteHelper.php:51] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Core/RouteHelper.php:100] Parameter #2 $subject of function preg_match expects string, string|null given.
+[src/Core/RouteHelper.php:104] Parameter #1 $string of function strtolower expects string, string|null given.
+[src/Core/RouteHelper.php:127] Cannot access offset 'scheme' on array{scheme?: string, host?: string, port?: int<0, 65535>, user?: string, pass?: string, path?: string, query?: string, fragment?: string}|false.
+[src/Cron/BalanceVerificationJob.php:70] Cannot cast mixed to int.
+[src/Cron/BalanceVerificationJob.php:87] Part $cur['currency'] (mixed) of encapsed string cannot be cast to string.
+[src/Cron/CronJobRunner.php:107] Call to an undefined method object::run().
+[src/Cron/CronJobRunner.php:159] Call to an undefined method object::run().
+[src/Cron/CronJobRunner.php:190] Method OwnPay\Cron\CronJobRunner::run() should return array<string, array{status: string, duration: float, result?: mixed, error?: string}> but returns array<string, array{status: 'completed', duration: float, result: mixed}|array{status: 'failed', duration: float, error: string}|array{status: 'skipped'}>.
+[src/Cron/CurrencyUpdateJob.php:73] Cannot cast mixed to string.
+[src/Cron/CurrencyUpdateJob.php:79] Cannot cast mixed to string.
+[src/Cron/DnsVerificationJob.php:42] Cannot cast mixed to int.
+[src/Cron/DnsVerificationJob.php:54] Cannot cast mixed to int.
+[src/Cron/QueueWorkerJob.php:103] Possibly invalid array key type mixed.
+[src/Cron/QueueWorkerJob.php:104] Part $type (mixed) of encapsed string cannot be cast to string.
+[src/Cron/QueueWorkerJob.php:114] Possibly invalid array key type mixed.
+[src/Cron/QueueWorkerJob.php:123] Cannot cast mixed to int.
+[src/Cron/QueueWorkerJob.php:141] Part $type (mixed) of encapsed string cannot be cast to string.
+[src/Cron/SmsVerificationJob.php:93] Cannot cast mixed to int.
+[src/Cron/SmsVerificationJob.php:98] Cannot cast mixed to int.
+[src/Cron/SmsVerificationJob.php:117] Cannot cast mixed to string.
+[src/Cron/SmsVerificationJob.php:117] Cannot cast mixed to string.
+[src/Cron/SmsVerificationJob.php:124] Cannot cast mixed to int.
+[src/Cron/SmsVerificationJob.php:124] Cannot cast mixed to int.
+[src/Cron/SmsVerificationJob.php:127] Cannot cast mixed to int.
+[src/Cron/SmsVerificationJob.php:130] Cannot cast mixed to int.
+[src/Cron/SmsVerificationJob.php:142] Part $sms['id'] (mixed) of encapsed string cannot be cast to string.
+[src/Cron/SmsVerificationJob.php:142] Part $transaction['id'] (mixed) of encapsed string cannot be cast to string.
+[src/Cron/SystemUpdateJob.php:119] Cannot cast mixed to string.
+[src/Cron/SystemUpdateJob.php:131] Cannot cast mixed to string.
+[src/Cron/UpdateCheckJob.php:56] Offset 'version' might not exist on array{available: true, version?: string, url: non-falsy-string, changelog?: string, checksum?: string, error?: string, message?: string}.
+[src/Cron/UpdateCheckJob.php:59] Offset 'version' might not exist on array{available: true, version?: string, url: non-falsy-string, changelog?: string, checksum?: string, error?: string, message?: string}.
+[src/Cron/UpdateCheckJob.php:67] Offset 'version' might not exist on array{available: true, version?: string, url?: string, changelog?: string, checksum?: string, error?: string, message?: string}.
+[src/Cron/WebhookRetryJob.php:79] Cannot cast mixed to int.
+[src/Gateway/GatewayBridge.php:224] Method OwnPay\Gateway\GatewayBridge::decryptCredentials() should return array<string, string> but returns mixed.
+[src/Gateway/WebhookInboundProcessor.php:308] Cannot cast mixed to int.
+[src/Gateway/WebhookInboundProcessor.php:309] Cannot cast mixed to int.
+[src/Gateway/WebhookInboundProcessor.php:313] Cannot cast mixed to int.
+[src/Gateway/WebhookInboundProcessor.php:314] Cannot cast mixed to string.
+[src/Gateway/WebhookInboundProcessor.php:315] Cannot cast mixed to string.
+[src/Gateway/WebhookInboundProcessor.php:316] Cannot cast mixed to string.
+[src/Gateway/WebhookInboundProcessor.php:339] Cannot cast mixed to int.
+[src/Gateway/WebhookInboundProcessor.php:340] Cannot cast mixed to int.
+[src/Gateway/WebhookInboundProcessor.php:341] Cannot cast mixed to int.
+[src/Gateway/WebhookInboundProcessor.php:359] Cannot cast mixed to int.
+[src/Gateway/WebhookInboundProcessor.php:360] Cannot cast mixed to string.
+[src/Gateway/WebhookInboundProcessor.php:363] Cannot cast mixed to int.
+[src/Gateway/WebhookInboundProcessor.php:396] Part $reference (mixed) of encapsed string cannot be cast to string.
+[src/Gateway/WebhookInboundProcessor.php:428] Method OwnPay\Gateway\WebhookInboundProcessor::extractHeaders() should return array<string, string> but returns array<string, mixed>.
+[src/Http/Request.php:107] Property OwnPay\Http\Request::$uri (string) does not accept mixed.
+[src/Http/Request.php:123] Parameter #4 $files of class OwnPay\Http\Request constructor expects array<string, array<string, mixed>>, array<mixed> given.
+[src/Http/Request.php:124] Parameter #5 $cookies of class OwnPay\Http\Request constructor expects array<string, string>, array<mixed> given.
+[src/Http/Request.php:276] Method OwnPay\Http\Request::all() should return array<string, mixed> but returns array<mixed, mixed>.
+[src/Http/Request.php:373] Method OwnPay\Http\Request::server() should return string but returns mixed.
+[src/Http/Request.php:403] Method OwnPay\Http\Request::ip() should return string but returns mixed.
+[src/Http/Request.php:407] Method OwnPay\Http\Request::ip() should return string but returns mixed.
+[src/Http/Request.php:417] Method OwnPay\Http\Request::userAgent() should return string but returns mixed.
+[src/Http/Request.php:427] Method OwnPay\Http\Request::host() should return string but returns mixed.
+[src/Http/Request.php:602] Cannot cast mixed to string.
+[src/Http/Request.php:606] Cannot cast mixed to string.
+[src/Http/Request.php:609] Cannot cast mixed to string.
+[src/Http/Request.php:617] Cannot cast mixed to string.
+[src/Http/Router.php:179] Binary operation "." between mixed and '/routes/web.php' results in an error.
+[src/Http/Router.php:188] Binary operation "." between mixed and '/routes/api.php' results in an error.
+[src/Http/Router.php:298] Parameter #1 $data of static method OwnPay\Http\Response::json() expects array<string, mixed>|object, array<mixed, mixed> given.
+[src/Kernel.php:139] Property OwnPay\Kernel::$middlewareConfig (array<string, array<int, string>>) does not accept mixed.
+[src/Kernel.php:223] Cannot cast mixed to int.
+[src/Kernel.php:238] Part $reason (mixed) of encapsed string cannot be cast to string.
+[src/Kernel.php:308] Cannot call method handle() on class-string|object.
+[src/Middleware/BearerAuthMiddleware.php:94] Cannot cast mixed to int.
+[src/Middleware/BearerAuthMiddleware.php:98] Cannot cast mixed to int.
+[src/Middleware/BearerAuthMiddleware.php:107] Cannot cast mixed to int.
+[src/Middleware/DomainMiddleware.php:107] Cannot cast mixed to int.
+[src/Middleware/DomainMiddleware.php:114] Cannot cast mixed to int.
+[src/Middleware/DomainMiddleware.php:134] Method OwnPay\Middleware\DomainMiddleware::resolveMasterDomain() should return string but returns mixed.
+[src/Middleware/IdempotencyMiddleware.php:64] Cannot cast mixed to int.
+[src/Middleware/MaintenanceMiddleware.php:76] Cannot cast mixed to string.
+[src/Middleware/RateLimiterMiddleware.php:51] Binary operation "." between mixed and '/storage/cache…' results in an error.
+[src/Middleware/RateLimiterMiddleware.php:76] Cannot cast mixed to int.
+[src/Middleware/RateLimiterMiddleware.php:77] Cannot cast mixed to int.
+[src/Middleware/RateLimiterMiddleware.php:144] Cannot cast mixed to int.
+[src/Middleware/RequestSignatureMiddleware.php:87] Parameter #2 $data of function hash_hmac expects string, string|null given.
+[src/Middleware/SecurityHeadersMiddleware.php:137] Binary operation "." between mixed and '/gateways' results in an error.
+[src/Middleware/SessionMiddleware.php:58] Cannot cast mixed to int.
+[src/Middleware/SessionMiddleware.php:69] Cannot cast mixed to int.
+[src/Middleware/SessionMiddleware.php:73] Binary operation "-" between int<1, max> and mixed results in an error.
+[src/Middleware/SessionMiddleware.php:86] Binary operation "-" between int<1, max> and mixed results in an error.
+[src/Middleware/TwoFactorMiddleware.php:121] Cannot cast mixed to int.
+[src/Model/WebhookPayload.php:74] Method OwnPay\Model\WebhookPayload::formData() should return array<string, mixed> but returns array<int|string, array<mixed>|string>.
+[src/Plugin/PluginLoader.php:42] Binary operation "." between mixed and '/gateways' results in an error.
+[src/Plugin/PluginLoader.php:43] Binary operation "." between mixed and '/themes' results in an error.
+[src/Plugin/PluginLoader.php:44] Binary operation "." between mixed and '/addons' results in an error.
+[src/Plugin/PluginLoader.php:175] Part $slug (mixed) of encapsed string cannot be cast to string.
+[src/Plugin/PluginLoader.php:180] Part $slug (mixed) of encapsed string cannot be cast to string.
+[src/Plugin/PluginLoader.php:186] Part $coreVersion (mixed) of encapsed string cannot be cast to string.
+[src/Plugin/PluginLoader.php:186] Part $slug (mixed) of encapsed string cannot be cast to string.
+[src/Plugin/PluginLoader.php:212] Part $slug (mixed) of encapsed string cannot be cast to string.
+[src/Plugin/PluginLoader.php:247] Part $slug (mixed) of encapsed string cannot be cast to string.
+[src/Plugin/PluginLoader.php:262] Part $slug (mixed) of encapsed string cannot be cast to string.
+[src/Plugin/PluginLoader.php:286] Part $slug (mixed) of encapsed string cannot be cast to string.
+[src/Plugin/PluginLoader.php:302] Part $slug (mixed) of encapsed string cannot be cast to string.
+[src/Plugin/PluginLoader.php:318] Part $slug (mixed) of encapsed string cannot be cast to string.
+[src/Plugin/PluginLoader.php:354] Binary operation "." between mixed and '/' results in an error.
+[src/Plugin/PluginLoader.php:354] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Plugin/PluginManager.php:109] Offset 'slug' might not exist on array{success: true, error?: string, slug?: string}.
+[src/Plugin/PluginManager.php:174] Offset 'status' might not exist on array<string, mixed>|null.
+[src/Plugin/PluginManager.php:181] Parameter #1 $plugin of method OwnPay\Plugin\PluginManager::resolveDir() expects array<string, mixed>, array<string, mixed>|null given.
+[src/Plugin/PluginManager.php:217] Offset 'type' might not exist on array<string, mixed>|null.
+[src/Plugin/PluginManager.php:308] Cannot cast mixed to int.
+[src/Plugin/PluginManager.php:328] Possibly invalid array key type mixed.
+[src/Plugin/PluginManager.php:352] Binary operation "." between mixed and '/trash/plugins/' results in an error.
+[src/Plugin/PluginManager.php:352] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Plugin/PluginManager.php:354] Binary operation "." between mixed and '/' results in an error.
+[src/Plugin/PluginManager.php:354] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Plugin/PluginManager.php:382] Offset 'type' might not exist on array<string, mixed>|null.
+[src/Plugin/PluginManager.php:388] Binary operation "." between mixed and '/' results in an error.
+[src/Plugin/PluginManager.php:388] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Plugin/PluginManager.php:389] Binary operation "." between mixed and '/trash/plugins/' results in an error.
+[src/Plugin/PluginManager.php:389] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Plugin/PluginManager.php:408] Cannot cast mixed to int.
+[src/Plugin/PluginManager.php:439] Binary operation "." between mixed and '/trash/plugins/' results in an error.
+[src/Plugin/PluginManager.php:439] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Plugin/PluginManager.php:440] Binary operation "." between mixed and '/' results in an error.
+[src/Plugin/PluginManager.php:440] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/Plugin/PluginManager.php:463] Cannot cast mixed to int.
+[src/Plugin/PluginManager.php:571] Binary operation "." between mixed and '/' results in an error.
+[src/Plugin/PluginManager.php:576] Binary operation "." between mixed and '/assets/img/gateways' results in an error.
+[src/Plugin/PluginManifest.php:201] Property OwnPay\Plugin\PluginManifest::$name (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:202] Property OwnPay\Plugin\PluginManifest::$slug (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:203] Property OwnPay\Plugin\PluginManifest::$version (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:204] Property OwnPay\Plugin\PluginManifest::$type (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:205] Property OwnPay\Plugin\PluginManifest::$description (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:206] Property OwnPay\Plugin\PluginManifest::$author (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:207] Property OwnPay\Plugin\PluginManifest::$authorUrl (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:208] Property OwnPay\Plugin\PluginManifest::$license (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:209] Property OwnPay\Plugin\PluginManifest::$entrypoint (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:210] Property OwnPay\Plugin\PluginManifest::$namespace (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:218] Property OwnPay\Plugin\PluginManifest::$capabilities (array<int, string>) does not accept mixed.
+[src/Plugin/PluginManifest.php:232] Property OwnPay\Plugin\PluginManifest::$hooks (array{actions: array<string, mixed>, filters: array<string, mixed>}) does not accept array{actions: mixed, filters: mixed}.
+[src/Plugin/PluginManifest.php:237] Property OwnPay\Plugin\PluginManifest::$adminMenu (array<string, mixed>) does not accept mixed.
+[src/Plugin/PluginManifest.php:238] Property OwnPay\Plugin\PluginManifest::$cron (array<int, array{name: string, schedule: string, class?: string}>) does not accept mixed.
+[src/Plugin/PluginManifest.php:239] Property OwnPay\Plugin\PluginManifest::$migrations (array<int, string>) does not accept mixed.
+[src/Plugin/PluginManifest.php:243] Property OwnPay\Plugin\PluginManifest::$permissions (array<int, string>) does not accept mixed.
+[src/Plugin/PluginManifest.php:244] Property OwnPay\Plugin\PluginManifest::$category (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:245] Property OwnPay\Plugin\PluginManifest::$icon (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:246] Property OwnPay\Plugin\PluginManifest::$color (string) does not accept mixed.
+[src/Plugin/PluginManifest.php:248] Property OwnPay\Plugin\PluginManifest::$requires (array{php: string, core: string}) does not accept mixed.
+[src/Plugin/PluginManifest.php:302] Parameter #1 $json of function json_decode expects string, string|false given.
+[src/Plugin/PluginManifest.php:308] Parameter #1 $data of class OwnPay\Plugin\PluginManifest constructor expects array<string, mixed>, array<mixed, mixed> given.
+[src/Plugin/PluginMigrator.php:129] Method OwnPay\Plugin\PluginMigrator::rollback() should return array<int, string> but returns list<mixed>.
+[src/Plugin/PluginMigrator.php:144] Method OwnPay\Plugin\PluginMigrator::getExecuted() should return array<int, string> but returns list<mixed>.
+[src/Plugin/PluginMigrator.php:196] Cannot cast mixed to int.
+[src/Plugin/PluginRegistry.php:114] Possibly invalid array key type mixed.
+[src/Plugin/PluginRegistry.php:115] Possibly invalid array key type mixed.
+[src/Plugin/PluginRegistry.php:255] Cannot cast mixed to int.
+[src/Queue/FileQueue.php:133] Binary operation "+" between mixed and 1 results in an error.
+[src/Queue/RedisQueue.php:111] Binary operation "+" between mixed and 1 results in an error.
+[src/Repository/ApiKeyRepository.php:73] Method OwnPay\Repository\ApiKeyRepository::listActiveKeys() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/AuditLogRepository.php:79] Method OwnPay\Repository\AuditLogRepository::listPaginated() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/AuditLogRepository.php:113] Method OwnPay\Repository\AuditLogRepository::listForEntity() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/BaseRepository.php:118] Method OwnPay\Repository\BaseRepository::where() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/BaseRepository.php:144] Parameter #1 $string of function strtolower expects string, string|null given.
+[src/Repository/BaseRepository.php:156] Cannot cast mixed to int.
+[src/Repository/BaseRepository.php:166] Method OwnPay\Repository\BaseRepository::paginate() should return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int, pages: int} but returns array{items: array<int, array<string, mixed>>, total: int, page: int<1, max>, per_page: int, pages: int}.
+[src/Repository/BaseRepository.php:202] Method OwnPay\Repository\BaseRepository::cursorPaginate() should return array{items: list<array<string, mixed>>, next_cursor: string|null} but returns array{items: array<int, array<string, mixed>>, next_cursor: string|null}.
+[src/Repository/BaseRepository.php:205] Cannot cast mixed to string.
+[src/Repository/CommLogRepository.php:94] Method OwnPay\Repository\CommLogRepository::listSmsQueue() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/CommLogRepository.php:108] Method OwnPay\Repository\CommLogRepository::getSmsQueueStats() should return array{queued: int, sent: int, failed: int} but returns array<string, mixed>.
+[src/Repository/CommLogRepository.php:127] Method OwnPay\Repository\CommLogRepository::listPendingSms() should return list<array{id: int, to: string, body: string}> but returns array<int, array<string, mixed>>.
+[src/Repository/CustomerRepository.php:78] Cannot cast mixed to int.
+[src/Repository/CustomerRepository.php:95] Method OwnPay\Repository\CustomerRepository::paginateWithStats() should return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} but returns array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int}.
+[src/Repository/CustomerRepository.php:114] Method OwnPay\Repository\CustomerRepository::getRecentTransactions() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/DevicePairingTokenRepository.php:72] Cannot cast mixed to int.
+[src/Repository/DevicePairingTokenRepository.php:98] Cannot cast mixed to int.
+[src/Repository/DisputeRepository.php:29] Method OwnPay\Repository\DisputeRepository::findByMerchant() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/DomainRepository.php:56] Method OwnPay\Repository\DomainRepository::listAllScoped() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/DomainRepository.php:71] Method OwnPay\Repository\DomainRepository::findPendingVerification() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/GatewayConfigRepository.php:45] Method OwnPay\Repository\GatewayConfigRepository::listActive() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/GatewayConfigRepository.php:69] Method OwnPay\Repository\GatewayConfigRepository::findCredentialsBySlug() should return string|null but returns mixed.
+[src/Repository/GatewayConfigRepository.php:91] Method OwnPay\Repository\GatewayConfigRepository::listActiveForCheckout() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/GatewayRepository.php:35] Method OwnPay\Repository\GatewayRepository::listActive() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/InvoiceRepository.php:112] Method OwnPay\Repository\InvoiceRepository::listItems() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/LedgerRepository.php:79] Method OwnPay\Repository\LedgerRepository::findOrCreateAccount() should return array<string, mixed> but returns array<string, mixed>|null.
+[src/Repository/LedgerRepository.php:91] Method OwnPay\Repository\LedgerRepository::getBalance() should return string but returns mixed.
+[src/Repository/LedgerRepository.php:270] Cannot cast mixed to int.
+[src/Repository/LedgerRepository.php:305] Method OwnPay\Repository\LedgerRepository::merchantBalance() should return string but returns mixed.
+[src/Repository/LoginAttemptRepository.php:41] Cannot cast mixed to int.
+[src/Repository/ManualGatewayRepository.php:56] Method OwnPay\Repository\ManualGatewayRepository::listActive() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/ManualGatewayRepository.php:69] Method OwnPay\Repository\ManualGatewayRepository::listAll() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/MerchantRepository.php:76] Method OwnPay\Repository\MerchantRepository::listWithDomains() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/MerchantUserRepository.php:169] Method OwnPay\Repository\MerchantUserRepository::getPasswordHash() should return string|null but returns mixed.
+[src/Repository/MerchantUserRepository.php:202] Method OwnPay\Repository\MerchantUserRepository::listAllStaff() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/MerchantUserRepository.php:219] Method OwnPay\Repository\MerchantUserRepository::listStaffForMerchant() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/MerchantUserRepository.php:265] Cannot cast mixed to int.
+[src/Repository/MerchantUserRepository.php:349] Method OwnPay\Repository\MerchantUserRepository::getTotpSecret() should return string|null but returns mixed.
+[src/Repository/MobileNotificationRepository.php:75] Method OwnPay\Repository\MobileNotificationRepository::pollSince() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/MobileNotificationRepository.php:154] Method OwnPay\Repository\MobileNotificationRepository::listForDevice() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/PairedDeviceRepository.php:111] Method OwnPay\Repository\PairedDeviceRepository::listActive() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/PairedDeviceRepository.php:124] Method OwnPay\Repository\PairedDeviceRepository::listAllForMerchant() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/PluginRepository.php:50] Method OwnPay\Repository\PluginRepository::listActive() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/PluginRepository.php:155] Possibly invalid array key type mixed.
+[src/Repository/PluginRepository.php:158] Method OwnPay\Repository\PluginRepository::getBrandPluginStatuses() should return array<string, string> but returns array<mixed>.
+[src/Repository/PluginRepository.php:200] Cannot cast mixed to int.
+[src/Repository/PluginRepository.php:225] Part $slug (mixed) of encapsed string cannot be cast to string.
+[src/Repository/RateLimitRepository.php:53] Cannot cast mixed to int.
+[src/Repository/RateLimitRepository.php:75] Cannot cast mixed to int.
+[src/Repository/RefundRepository.php:62] Method OwnPay\Repository\RefundRepository::getTotalRefundedAmount() should return string but returns mixed.
+[src/Repository/RoleRepository.php:57] Method OwnPay\Repository\RoleRepository::getPermissions() should return list<string> but returns list<mixed>.
+[src/Repository/SettingsRepository.php:42] Method OwnPay\Repository\SettingsRepository::get() should return string|null but returns mixed.
+[src/Repository/SettingsRepository.php:81] Possibly invalid array key type mixed.
+[src/Repository/SettingsRepository.php:83] Method OwnPay\Repository\SettingsRepository::getGroup() should return array<string, string> but returns array<mixed>.
+[src/Repository/SettingsRepository.php:99] Cannot cast mixed to string.
+[src/Repository/SettingsRepository.php:139] Method OwnPay\Repository\SettingsRepository::getScoped() should return string|null but returns mixed.
+[src/Repository/SettingsRepository.php:190] Cannot cast mixed to string.
+[src/Repository/SettingsRepository.php:212] Possibly invalid array key type mixed.
+[src/Repository/SettingsRepository.php:214] Method OwnPay\Repository\SettingsRepository::getGroupScoped() should return array<string, string> but returns array<mixed>.
+[src/Repository/SmsDataRepository.php:67] Cannot cast mixed to int.
+[src/Repository/SmsTemplateRepository.php:90] Method OwnPay\Repository\SmsTemplateRepository::getSenderWhitelist() should return array<string> but returns list<mixed>.
+[src/Repository/SmsTemplateRepository.php:142] Cannot cast mixed to int.
+[src/Repository/SmsTemplateRepository.php:203] Cannot cast mixed to int.
+[src/Repository/TransactionRepository.php:56] Cannot cast mixed to string.
+[src/Repository/TransactionRepository.php:56] Cannot cast mixed to string.
+[src/Repository/TransactionRepository.php:56] Parameter #1 $num1 of function bcsub expects numeric-string, string given.
+[src/Repository/TransactionRepository.php:56] Parameter #2 $num2 of function bcsub expects numeric-string, string given.
+[src/Repository/TransactionRepository.php:212] Method OwnPay\Repository\TransactionRepository::listFiltered() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/TransactionRepository.php:234] Method OwnPay\Repository\TransactionRepository::getDashboardStats() should return array{total_revenue: string, completed_count: int, pending_count: int} but returns array<string, mixed>|null.
+[src/Repository/TransactionRepository.php:257] Method OwnPay\Repository\TransactionRepository::getRecentDashboardTransactions() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+[src/Repository/TransactionRepository.php:276] Method OwnPay\Repository\TransactionRepository::getGlobalBrandBreakdown() should return list<array{id: int, name: string, slug: string, revenue: string, txn_count: int}> but returns array<int, array<string, mixed>>.
+[src/Repository/TransactionRepository.php:497] Method OwnPay\Repository\TransactionRepository::getReportData() should return list<array{date: string, gateway_slug: string, txn_count: int, revenue: string, refunds: string, failed_count: int}> but returns array<int, array<string, mixed>>.
+[src/Repository/TransactionRepository.php:523] Method OwnPay\Repository\TransactionRepository::getDistinctGateways() should return list<array{slug: string, name: string}> but returns array<int, array<string, mixed>>.
+[src/Repository/TransactionRepository.php:548] Method OwnPay\Repository\TransactionRepository::getExportData() should return list<array{id: int, gateway_slug: string, currency: string, amount: string, status: string, created_at: string}> but returns array<int, array<string, mixed>>.
+[src/Repository/TransactionRepository.php:567] Method OwnPay\Repository\TransactionRepository::getDistinctCurrencies() should return list<array{currency: string}> but returns array<int, array<string, mixed>>.
+[src/Repository/TransactionRepository.php:581] Method OwnPay\Repository\TransactionRepository::getTodayStats() should return array{revenue: float|int|string, total: int, pending: int} but returns array<string, mixed>.
+[src/Repository/TransactionRepository.php:599] Method OwnPay\Repository\TransactionRepository::getRecentTransactions() should return list<array{trx_id: string, amount: string, currency: string, status: string, gateway: string, created_at: string}> but returns array<int, array<string, mixed>>.
+[src/Repository/WebhookEventRepository.php:106] Cannot cast mixed to int.
+[src/Security/Authenticator.php:73] Cannot call method recentFailedCount() on OwnPay\Repository\LoginAttemptRepository|null.
+[src/Security/Authenticator.php:76] Cannot call method doAction() on OwnPay\Event\EventManager|null.
+[src/Security/Authenticator.php:80] Cannot call method findActiveByLogin() on OwnPay\Repository\MerchantUserRepository|null.
+[src/Security/Authenticator.php:86] Cannot call method doAction() on OwnPay\Event\EventManager|null.
+[src/Security/Authenticator.php:92] Cannot call method doAction() on OwnPay\Event\EventManager|null.
+[src/Security/Authenticator.php:110] Cannot call method updateLastLogin() on OwnPay\Repository\MerchantUserRepository|null.
+[src/Security/Authenticator.php:110] Cannot cast mixed to int.
+[src/Security/Authenticator.php:112] Cannot call method doAction() on OwnPay\Event\EventManager|null.
+[src/Security/Authenticator.php:170] Parameter #1 $name of function setcookie expects string, string|false given.
+[src/Security/FieldEncryptor.php:35] Property OwnPay\Security\FieldEncryptor::$key (string) does not accept mixed.
+[src/Security/FieldEncryptor.php:52] Parameter #1 $length of function random_bytes expects int<1, max>, int given.
+[src/Security/LogSanitizer.php:87] Parameter #1 $data of static method OwnPay\Security\LogSanitizer::sanitize() expects array<string, mixed>, array<mixed, mixed> given.
+[src/Security/LogSanitizer.php:144] Parameter #1 $number of static method OwnPay\Security\LogSanitizer::passesLuhn() expects string, string|null given.
+[src/Security/LogSanitizer.php:166] Parameter #1 $data of method OwnPay\Security\LogSanitizer::sanitizeArray() expects array<string, mixed>, array<mixed, mixed> given.
+[src/Security/PiiMasker.php:117] Parameter #1 $value of static method OwnPay\Security\PiiMasker::mask() expects array<string, mixed>|string, array<mixed, mixed> given.
+[src/Security/SecurityHelpers.php:30] Method OwnPay\Security\SecurityHelpers::csrfToken() should return string but returns mixed.
+[src/Security/SecurityHelpers.php:52] Parameter #1 $length of function random_bytes expects int<1, max>, int given.
+[src/Service/Admin/AdminSession.php:23] Cannot cast mixed to int.
+[src/Service/Admin/AdminSession.php:33] Cannot cast mixed to string.
+[src/Service/Admin/AdminSession.php:43] Cannot cast mixed to string.
+[src/Service/Admin/AdminSession.php:64] Cannot cast mixed to int.
+[src/Service/Admin/AdminSession.php:77] Cannot cast mixed to int.
+[src/Service/Admin/AdminSession.php:126] Method OwnPay\Service\Admin\AdminSession::consumeFlash() should return array{success: string|null, error: string|null} but returns array{success: mixed, error: mixed}.
+[src/Service/Auth/AuthSessionService.php:90] Offset 'user' might not exist on array{success: true, user?: array<string, mixed>, error?: string, requires_2fa?: bool}.
+[src/Service/Auth/AuthSessionService.php:134] Cannot cast mixed to int.
+[src/Service/Auth/PermissionService.php:147] Parameter #2 $permissionIds of method OwnPay\Repository\RoleRepository::syncPermissions() expects list<int>, non-empty-array<int> given.
+[src/Service/Auth/PermissionService.php:166] Parameter #2 $permissionIds of method OwnPay\Repository\RoleRepository::syncPermissions() expects list<int>, array<int> given.
+[src/Service/Auth/StatusGuard.php:84] Offset 'status' might not exist on array{status?: string}.
+[src/Service/Brand/BrandContext.php:62] Cannot cast mixed to int.
+[src/Service/Brand/BrandContext.php:69] Cannot cast mixed to int.
+[src/Service/Brand/BrandContext.php:74] Cannot cast mixed to int.
+[src/Service/Brand/BrandContext.php:82] Cannot cast mixed to int.
+[src/Service/Brand/BrandContext.php:101] Cannot cast mixed to int.
+[src/Service/Brand/BrandContext.php:104] Cannot cast mixed to int.
+[src/Service/Brand/BrandContext.php:162] Method OwnPay\Service\Brand\BrandContext::getAllBrands() should return array<int, array{id: int, name: string, slug: string, logo_path: string|null, status: string}> but returns array<int, array<string, mixed>>.
+[src/Service/Brand/BrandContext.php:169] Method OwnPay\Service\Brand\BrandContext::getAllBrands() should return array<int, array{id: int, name: string, slug: string, logo_path: string|null, status: string}> but returns array<int, array<string, mixed>>.
+[src/Service/Brand/BrandThemeService.php:102] Method OwnPay\Service\Brand\BrandThemeService::getBrandTheme() should return array{name: string, logo: string, favicon: string, color: string, accent_color: string, support_email: string, custom_css: string, custom_js: string, ...} but returns array{name: mixed, logo: string, favicon: string, color: string, accent_color: string, support_email: string, custom_css: mixed, custom_js: mixed, ...}.
+[src/Service/Brand/BrandThemeService.php:111] Binary operation "." between 'Secured by ' and mixed results in an error.
+[src/Service/Brand/BrandThemeService.php:131] Possibly invalid array key type mixed.
+[src/Service/Brand/BrandThemeService.php:133] Method OwnPay\Service\Brand\BrandThemeService::getBrandSettings() should return array<string, string> but returns array<mixed>.
+[src/Service/Brand/BrandThemeService.php:156] Method OwnPay\Service\Brand\BrandThemeService::resolveVal() should return string but returns mixed.
+[src/Service/Communication/CommunicationService.php:122] Parameter #1 $message of method OwnPay\Service\Communication\MailProviderInterface::send() expects array{to: string, subject: string, body: string, html?: string, from?: string, reply_to?: string, attachments?: array<int, array<string, mixed>>}, array{to?: string, subject?: string, body?: string, html?: string, from?: string} given.
+[src/Service/Communication/CommunicationService.php:152] Cannot cast mixed to string.
+[src/Service/Communication/CommunicationService.php:154] Method OwnPay\Service\Communication\CommunicationService::renderTemplate() should return string but returns mixed.
+[src/Service/Communication/CommunicationService.php:171] Method OwnPay\Service\Communication\CommunicationService::availableChannels() should return array<string> but returns mixed.
+[src/Service/Customer/CustomerPiiService.php:83] Parameter #1 $customer of method OwnPay\Service\Customer\CustomerPiiService::maskForEvent() expects array<string, mixed>, array<string, mixed>|null given.
+[src/Service/Customer/CustomerPiiService.php:85] Method OwnPay\Service\Customer\CustomerPiiService::create() should return array<string, mixed> but returns array<string, mixed>|null.
+[src/Service/Customer/CustomerPiiService.php:179] Parameter #1 $customer of method OwnPay\Service\Customer\CustomerPiiService::maskForEvent() expects array<string, mixed>, array<string, mixed>|null given.
+[src/Service/Customer/CustomerPiiService.php:181] Method OwnPay\Service\Customer\CustomerPiiService::update() should return array<string, mixed> but returns array<string, mixed>|null.
+[src/Service/Customer/CustomerPiiService.php:221] Method OwnPay\Service\Customer\CustomerPiiService::list() should return array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} but returns non-empty-array<string, mixed>.
+[src/Service/Device/DevicePairingService.php:94] Cannot cast mixed to int.
+[src/Service/Device/DevicePairingService.php:152] Cannot cast mixed to int.
+[src/Service/Device/DevicePairingService.php:155] Method OwnPay\Service\Device\DevicePairingService::validatePairingOtp() should return array{valid: bool, merchant_id?: int, error?: string} but returns array{valid: false, error: 'Invalid or expired…'}|array{valid: true, merchant_id: int}|null.
+[src/Service/Device/DevicePairingService.php:211] Offset 'merchant_id' might not exist on array{valid: true, merchant_id?: int, error?: string}.
+[src/Service/Device/DevicePairingService.php:213] Cannot cast mixed to int.
+[src/Service/Device/DevicePairingService.php:220] Cannot cast mixed to int.
+[src/Service/Device/DevicePairingService.php:228] Cannot cast mixed to int.
+[src/Service/Device/DevicePairingService.php:288] Cannot cast mixed to int.
+[src/Service/Device/DevicePairingService.php:290] Cannot cast mixed to int.
+[src/Service/Device/DevicePairingService.php:299] Binary operation "." between 'blacklist_jti_' and mixed results in an error.
+[src/Service/Device/DevicePairingService.php:344] Binary operation "." between 'blacklist_jti_' and mixed results in an error.
+[src/Service/Device/DevicePairingService.php:380] Cannot cast mixed to string.
+[src/Service/Device/DevicePairingService.php:386] Cannot cast mixed to string.
+[src/Service/Device/DevicePairingService.php:410] Method OwnPay\Service\Device\DevicePairingService::validateRequest() should return array{valid: false, error: string}|array{valid: true, device: array{device_uuid: string, brand_id: int}, error: null} but returns array{valid: true, device: array{device_uuid: mixed, brand_id: int}, error: null}.
+[src/Service/Device/DevicePairingService.php:414] Cannot cast mixed to int.
+[src/Service/Device/DevicePairingService.php:435] Cannot cast mixed to int.
+[src/Service/Domain/DomainService.php:85] Part $httpHost (mixed) of encapsed string cannot be cast to string.
+[src/Service/Domain/DomainService.php:121] Binary operation "." between 'TXT record not…' and mixed results in an error.
+[src/Service/Domain/DomainService.php:126] Part $httpHost (mixed) of encapsed string cannot be cast to string.
+[src/Service/Domain/DomainService.php:178] Binary operation "." between 'http://'|'https://' and mixed results in an error.
+[src/Service/Domain/DomainUrlService.php:129] Property OwnPay\Service\Domain\DomainUrlService::$domainCache (array<int, string|null>) does not accept array<int, mixed>.
+[src/Service/Domain/DomainUrlService.php:134] Method OwnPay\Service\Domain\DomainUrlService::getBrandDomain() should return string|null but returns mixed.
+[src/Service/Domain/DomainUrlService.php:145] Cannot cast mixed to string.
+[src/Service/Notification/MobileNotificationService.php:113] Cannot call method queue() on class-string|object.
+[src/Service/Notification/MobileNotificationService.php:115] Cannot call method create() on class-string|object.
+[src/Service/Notification/MobileNotificationService.php:156] Cannot call method countUnread() on class-string|object.
+[src/Service/Notification/MobileNotificationService.php:158] Cannot call method countUnread() on class-string|object.
+[src/Service/Notification/MobileNotificationService.php:180] Cannot call method markRead() on class-string|object.
+[src/Service/Notification/MobileNotificationService.php:194] Cannot call method purgeOldRead() on class-string|object.
+[src/Service/Notification/WebhookDispatcher.php:91] Parameter #2 $data of function hash_hmac expects string, string|false given.
+[src/Service/Notification/WebhookDispatcher.php:94] Parameter #2 $payload of method OwnPay\Service\Notification\WebhookDispatcher::sendWithRetry() expects string, string|false given.
+[src/Service/Notification/WebhookDispatcher.php:170] Parameter #1 $payload of method OwnPay\Service\Notification\WebhookDispatcher::sign() expects string, string|false given.
+[src/Service/Notification/WebhookDispatcher.php:172] Parameter #2 $payload of method OwnPay\Service\Notification\WebhookDispatcher::doSend() expects string, string|false given.
+[src/Service/Payment/CurrencyService.php:39] Property OwnPay\Service\Payment\CurrencyService::$baseCurrency (string) does not accept mixed.
+[src/Service/Payment/CurrencyService.php:67] Parameter #2 $num2 of function bcmul expects numeric-string, string given.
+[src/Service/Payment/CurrencyService.php:162] Possibly invalid array key type mixed.
+[src/Service/Payment/CurrencyService.php:162] Property OwnPay\Service\Payment\CurrencyService::$currencies (array<string, array{rate: string, symbol: string, decimals: int}>) does not accept non-empty-array<array{rate: string, symbol: mixed, decimals: int}>.
+[src/Service/Payment/CurrencyService.php:165] Cannot cast mixed to int.
+[src/Service/Payment/CurrencyService.php:171] Possibly invalid array key type mixed.
+[src/Service/Payment/CurrencyService.php:172] Possibly invalid array key type mixed.
+[src/Service/Payment/CurrencyService.php:172] Property OwnPay\Service\Payment\CurrencyService::$currencies (array<string, array{rate: string, symbol: string, decimals: int}>) does not accept non-empty-array<array{rate: mixed, symbol: string, decimals: int}>.
+[src/Service/Payment/CurrencyService.php:215] Method OwnPay\Service\Payment\CurrencyService::listAll() should return array<int, array{code: string, name: string}> but returns array<int, array<string, mixed>>.
+[src/Service/Payment/FeeService.php:69] Parameter #1 $num1 of function bcmul expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:74] Parameter #2 $num2 of function bcadd expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:75] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:76] Parameter #2 $num2 of function bcadd expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:80] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:80] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:83] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:83] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:96] Method OwnPay\Service\Payment\FeeService::calculate() should return string but returns mixed.
+[src/Service/Payment/FeeService.php:127] Cannot cast mixed to string.
+[src/Service/Payment/FeeService.php:132] Parameter #1 $num1 of function bcmul expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:145] Parameter #2 $callback of function usort expects callable(mixed, mixed): int, Closure(array, array): (-1|0|1) given.
+[src/Service/Payment/FeeService.php:157] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:157] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:164] Cannot cast mixed to string.
+[src/Service/Payment/FeeService.php:164] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:164] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:172] Cannot cast mixed to string.
+[src/Service/Payment/FeeService.php:178] Parameter #1 $num1 of function bcmul expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:189] Cannot cast mixed to string.
+[src/Service/Payment/FeeService.php:189] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:189] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:190] Cannot cast mixed to string.
+[src/Service/Payment/FeeService.php:192] Cannot cast mixed to string.
+[src/Service/Payment/FeeService.php:192] Cannot cast mixed to string.
+[src/Service/Payment/FeeService.php:192] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:192] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:192] Parameter #2 $num2 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:193] Cannot cast mixed to string.
+[src/Service/Payment/FeeService.php:196] Parameter #1 $num1 of function bcadd expects numeric-string, string given.
+[src/Service/Payment/FeeService.php:207] Method OwnPay\Service\Payment\FeeService::getFeeConfig() should return array{percentage: string, fixed: string, min: string, max: string, mode: string} but returns array{percentage: string|null, fixed: string|null, min: string|null, max: string|null, mode: string|null}.
+[src/Service/Payment/GatewayApiService.php:133] Method OwnPay\Service\Payment\GatewayApiService::initiatePayment() should return array{success: bool, error?: string, transaction?: array<string, mixed>, redirect_url?: string|null, form_html?: string|null} but returns array{success: true, transaction: array<string, mixed>, redirect_url: mixed, form_html: string|null}.
+[src/Service/Payment/GatewayApiService.php:139] Cannot cast mixed to int.
+[src/Service/Payment/GatewayApiService.php:144] Cannot cast mixed to int.
+[src/Service/Payment/GatewayApiService.php:176] Cannot cast mixed to string.
+[src/Service/Payment/GatewayApiService.php:197] Cannot cast mixed to int.
+[src/Service/Payment/GatewayApiService.php:202] Cannot cast mixed to int.
+[src/Service/Payment/GatewayApiService.php:232] Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.
+[src/Service/Payment/GatewayApiService.php:238] Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.
+[src/Service/Payment/GatewayApiService.php:242] Parameter #3 $subject of function preg_replace expects array<float|int|string>|string, string|null given.
+[src/Service/Payment/IdempotencyService.php:66] Method OwnPay\Service\Payment\IdempotencyService::check() should return array{is_duplicate: bool, cached_response?: array<string, mixed>, status?: string, http_status?: int, error?: string} but returns array{is_duplicate: true, status: 'completed', cached_response: mixed, http_status: int}.
+[src/Service/Payment/IdempotencyService.php:70] Cannot cast mixed to int.
+[src/Service/Payment/IdempotencyService.php:99] Cannot cast mixed to int.
+[src/Service/Payment/IdempotencyService.php:99] Parameter #2 $responseBody of method OwnPay\Repository\IdempotencyRepository::complete() expects string, string|false given.
+[src/Service/Payment/InvoiceService.php:62] Cannot cast mixed to int.
+[src/Service/Payment/InvoiceService.php:286] Method OwnPay\Service\Payment\InvoiceService::generatePdf() should return string but returns string|false.
+[src/Service/Payment/LedgerService.php:87] Cannot cast mixed to int.
+[src/Service/Payment/LedgerService.php:93] Parameter #2 $num2 of function bcadd expects numeric-string, string given.
+[src/Service/Payment/LedgerService.php:95] Parameter #2 $num2 of function bcadd expects numeric-string, string given.
+[src/Service/Payment/LedgerService.php:155] Parameter #1 $num1 of function bcsub expects numeric-string, string given.
+[src/Service/Payment/LedgerService.php:155] Parameter #2 $num2 of function bcsub expects numeric-string, string given.
+[src/Service/Payment/LedgerService.php:184] Cannot cast mixed to string.
+[src/Service/Payment/LedgerService.php:185] Cannot cast mixed to string.
+[src/Service/Payment/LedgerService.php:187] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/LedgerService.php:189] Parameter #1 $num1 of function bcmul expects numeric-string, string given.
+[src/Service/Payment/LedgerService.php:194] Parameter #1 $num1 of function bcsub expects numeric-string, string given.
+[src/Service/Payment/ManualGatewayService.php:67] Method OwnPay\Service\Payment\ManualGatewayService::getFormData() should return array<string, mixed>|null but returns mixed.
+[src/Service/Payment/ManualGatewayService.php:95] Possibly invalid array key type mixed.
+[src/Service/Payment/ManualGatewayService.php:96] Part $field['label'] (mixed) of encapsed string cannot be cast to string.
+[src/Service/Payment/ManualGatewayService.php:107] Method OwnPay\Service\Payment\ManualGatewayService::verify() should return array{valid: bool, error?: string, errors?: array<int, string>} but returns mixed.
+[src/Service/Payment/MfsService.php:84] Cannot cast mixed to int.
+[src/Service/Payment/MfsService.php:85] Method OwnPay\Service\Payment\MfsService::processIncomingSms() should return array{matched: bool, transaction_id?: int|string, sms_id: int|string, parsed?: array<string, mixed>} but returns array{matched: true, transaction_id: mixed, sms_id: string}.
+[src/Service/Payment/MfsService.php:89] Method OwnPay\Service\Payment\MfsService::processIncomingSms() should return array{matched: bool, transaction_id?: int|string, sms_id: int|string, parsed?: array<string, mixed>} but returns array{matched: false, sms_id: string, parsed: array<string, mixed>|null}.
+[src/Service/Payment/PaymentCompletionListener.php:53] Cannot cast mixed to int.
+[src/Service/Payment/PaymentCompletionListener.php:62] Cannot cast mixed to int.
+[src/Service/Payment/PaymentCompletionListener.php:72] Cannot cast mixed to int.
+[src/Service/Payment/PaymentCompletionListener.php:75] Cannot cast mixed to int.
+[src/Service/Payment/PaymentCompletionListener.php:77] Cannot cast mixed to int.
+[src/Service/Payment/PaymentService.php:78] Method OwnPay\Service\Payment\PaymentService::createIntent() should return array<string, mixed> but returns array<string, mixed>|null.
+[src/Service/Payment/PaymentService.php:99] Cannot cast mixed to int.
+[src/Service/Payment/PaymentService.php:100] Cannot cast mixed to int.
+[src/Service/Payment/ReconciliationService.php:48] Cannot cast mixed to string.
+[src/Service/Payment/ReconciliationService.php:49] Cannot cast mixed to string.
+[src/Service/Payment/ReconciliationService.php:50] Cannot cast mixed to string.
+[src/Service/Payment/ReconciliationService.php:52] Parameter #1 $num1 of function bccomp expects numeric-string, string given.
+[src/Service/Payment/ReconciliationService.php:54] Parameter #1 $num1 of function bcmul expects numeric-string, string given.
+[src/Service/Payment/ReconciliationService.php:58] Parameter #1 $num1 of function bcsub expects numeric-string, string given.
+[src/Service/Payment/ReconciliationService.php:71] Parameter #2 $num2 of function bcsub expects numeric-string, string given.
+[src/Service/Payment/ReconciliationService.php:73] Method OwnPay\Service\Payment\ReconciliationService::reconcile() should return array{balanced: bool, transaction_total: string, refund_total: string, settlement_total: string, expected_balance: string, ledger_balance: string, difference: string} but returns array{balanced: bool, transaction_total: mixed, refund_total: numeric-string, settlement_total: '0.00', expected_balance: numeric-string, ledger_balance: string, difference: numeric-string}.
+[src/Service/Payment/RefundService.php:92] Parameter #2 $num2 of function bcsub expects numeric-string, string given.
+[src/Service/Payment/RefundService.php:99] Parameter #1 $num1 of function bcadd expects numeric-string, string given.
+[src/Service/Payment/TransactionService.php:77] Offset 'amount' might not exist on array<string, mixed>|null.
+[src/Service/Payment/TransactionService.php:77] Offset 'trx_id' might not exist on array<string, mixed>|null.
+[src/Service/Payment/TransactionService.php:80] Method OwnPay\Service\Payment\TransactionService::create() should return array<string, mixed> but returns array<string, mixed>|null.
+[src/Service/Payment/TransactionService.php:110] Method OwnPay\Service\Payment\TransactionService::complete() should return array<string, mixed> but returns array<string, mixed>|null.
+[src/Service/Payment/TransactionService.php:133] Method OwnPay\Service\Payment\TransactionService::fail() should return array<string, mixed> but returns array<string, mixed>|null.
+[src/Service/Payment/TransactionService.php:151] Method OwnPay\Service\Payment\TransactionService::cancel() should return array<string, mixed> but returns array<string, mixed>|null.
+[src/Service/Payment/WebhookService.php:97] Parameter #2 $data of function hash_hmac expects string, string|false given.
+[src/Service/Payment/WebhookService.php:104] Parameter #5 $body of method OwnPay\Repository\CommLogRepository::log() expects string|null, string|false given.
+[src/Service/Payment/WebhookService.php:111] Parameter #2 $options of function curl_setopt_array expects array{47: bool, 10015: array|string, 19913: bool, 13: int, 78: int, 10023: array<int, string>, 52: bool}, array{47: true, 10015: non-empty-string|false, 19913: true, 13: 10, 78: 5, 10023: array{'Content-Type:…', non-falsy-string, non-falsy-string, non-falsy-string, 'User-Agent: OwnPay…'}, 52: false} given.
+[src/Service/Sms/SmsParserService.php:310] Method OwnPay\Service\Sms\SmsParserService::attemptParse() should return array{parsed_amount: float, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: string, parse_method: string, template_id: int|null, parse_confidence: string}|null but returns array{parsed_amount: float|null, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: string, parse_method: string, template_id: int|null, parse_confidence: string}|null.
+[src/Service/Sms/SmsRegexParser.php:54] Method OwnPay\Service\Sms\SmsRegexParser::parse() should return array{parsed_amount: float, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: string, parse_method: string, template_id: int, parse_confidence: string}|null but returns array{parsed_amount: float, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: mixed, parse_method: 'regex', template_id: int, parse_confidence: 'high'}.
+[src/Service/Sms/SmsRegexParser.php:61] Cannot cast mixed to int.
+[src/Service/Sms/SmsRegexParser.php:105] Method OwnPay\Service\Sms\SmsRegexParser::parse() should return array{parsed_amount: float, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: float|null, parsed_type: string, parse_method: string, template_id: int, parse_confidence: string}|null but returns array{parsed_amount: float, parsed_trx_id: string|null, parsed_sender: string|null, parsed_balance: null, parsed_type: mixed, parse_method: 'regex', template_id: int, parse_confidence: 'high'}.
+[src/Service/Sms/SmsRegexParser.php:112] Cannot cast mixed to int.
+[src/Service/System/FilesystemService.php:65] Parameter #1 $mime of method OwnPay\Service\System\FilesystemService::isMimeAllowed() expects string, string|false given.
+[src/Service/System/HttpClient.php:280] Parameter #1 $string of function strtolower expects string, string|false given.
+[src/Service/System/HttpClient.php:280] Parameter #1 $string of function strtolower expects string, string|false given.
+[src/Service/System/HttpClient.php:294] Method OwnPay\Service\System\HttpClient::request() should return array{status: int, body: string, headers: array<string, string>} but returns array{status: int, body: string|true, headers: array<string, string>}.
+[src/Service/System/ImageService.php:50] Parameter #1 $width of function imagecreatetruecolor expects int<1, max>, int given.
+[src/Service/System/ImageService.php:50] Parameter #2 $height of function imagecreatetruecolor expects int<1, max>, int given.
+[src/Service/System/ImageService.php:91] Method OwnPay\Service\System\ImageService::createFromFile() should return GdImage but returns GdImage|false.
+[src/Service/System/InputSanitizer.php:94] Cannot cast mixed to string.
+[src/Service/System/InputSanitizer.php:121] Method OwnPay\Service\System\InputSanitizer::slug() should return string but returns string|null.
+[src/Service/System/InputSanitizer.php:121] Parameter #1 $string of function trim expects string, string|null given.
+[src/Service/System/PdfService.php:75] Cannot cast mixed to string.
+[src/Service/System/PdfService.php:76] Cannot cast mixed to string.
+[src/Service/System/PdfService.php:82] Binary operation "." between 'invoice_' and mixed results in an error.
+[src/Update/BackupService.php:190] Part $tableName (mixed) of encapsed string cannot be cast to string.
+[src/Update/BackupService.php:191] Binary operation "." between mixed and ";\n\n" results in an error.
+[src/Update/BackupService.php:193] Part $tableName (mixed) of encapsed string cannot be cast to string.
+[src/Update/BackupService.php:196] Cannot cast mixed to string.
+[src/Update/BackupService.php:198] Part $tableName (mixed) of encapsed string cannot be cast to string.
+[src/Update/MaintenanceMode.php:89] Method OwnPay\Update\MaintenanceMode::info() should return array{reason: string, started_at: string, retry_after: int}|null but returns array<mixed, mixed>|null.
+[src/Update/UpdateService.php:144] Parameter #1 $json of function json_decode expects string, string|true given.
+[src/Update/UpdateService.php:175] Method OwnPay\Update\UpdateService::check() should return array{available: bool, version?: string, url?: string, changelog?: string, checksum?: string, error?: string, message?: string} but returns array{available: bool, version: mixed, url: mixed, changelog: mixed, checksum: mixed}.
+[src/Update/UpdateService.php:270] Parameter #2 $user_string of function hash_equals expects string, string|false given.
+[src/Update/UpdateService.php:274] Parameter #1 $string of function substr expects string, string|false given.
+[src/Update/UpdateService.php:293] Parameter #1 $data of function openssl_verify expects string, string|false given.
+[src/Update/UpdateService.php:383] Parameter #1 $json of function json_decode expects string, string|true given.
+[src/Update/UpdateService.php:388] Method OwnPay\Update\UpdateService::fetchManifest() should return array<string, mixed> but returns array<mixed, mixed>.
+[src/View/SettingsRenderer.php:68] Cannot cast mixed to string.
+[src/View/TwigExtensions.php:101] Method OwnPay\View\TwigExtensions::csrfToken() should return string but returns mixed.
+[src/View/TwigExtensions.php:125] Binary operation "." between non-falsy-string and mixed results in an error.
+[src/View/TwigExtensions.php:213] Method OwnPay\View\TwigExtensions::appName() should return string but returns mixed.
+[src/View/TwigExtensions.php:223] Method OwnPay\View\TwigExtensions::appVersion() should return string but returns mixed.
+[src/View/TwigExtensions.php:249] Method OwnPay\View\TwigExtensions::flashMessages() should return array<string, array<string>> but returns mixed.
+[src/View/TwigFactory.php:46] Binary operation "." between mixed and '/themes/' results in an error.
+[src/View/TwigFactory.php:53] Binary operation "." between mixed and '/themes' results in an error.
+[src/View/TwigFactory.php:64] Binary operation "." between mixed and '/addons' results in an error.
+[src/View/TwigFactory.php:75] Binary operation "." between mixed and '/gateways' results in an error.
+[src/View/TwigFactory.php:87] Binary operation "." between mixed and '/twig' results in an error.
+[src/View/TwigFactory.php:134] Binary operation "." between mixed and '/themes/' results in an error.
+[src/View/TwigFactory.php:139] Binary operation "." between mixed and '/themes/own-pay' results in an error.

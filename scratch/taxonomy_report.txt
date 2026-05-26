@@ -1,0 +1,185 @@
+PHPSTAN LEVEL 9 ERROR TAXONOMY REPORT
+====================================
+
+Total Errors: 2131
+
+=== T1: Null safety — possible null dereference, null passed to non-null param (630 errors) ===
+  [src/Cache/FileCache.php:92] Cannot call method getRealPath() on mixed.
+  [src/Cache/FileCache.php:100] Cannot call method getFilename() on mixed.
+  [src/Cache/FileCache.php:100] Cannot call method isFile() on mixed.
+  [src/Controller/Admin/ActivitiesController.php:73] Cannot call method resolveFromRequest() on mixed.
+  [src/Controller/Admin/ActivitiesController.php:74] Cannot call method getActiveBrandId() on mixed.
+  [src/Controller/Admin/AddonController.php:79] Cannot call method resolveFromRequest() on mixed.
+  [src/Controller/Admin/AddonController.php:80] Cannot call method getActiveBrandId() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController):45] Cannot call method getAllBrands() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController):46] Cannot call method getActiveBrand() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController):47] Cannot call method getActiveBrandId() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController):53] Cannot call method get() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController):54] Cannot call method get() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController):55] Cannot call method get() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController):62] Cannot call method getBrandTheme() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController):85] Cannot call method render() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController):45] Cannot call method getAllBrands() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController):46] Cannot call method getActiveBrand() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController):47] Cannot call method getActiveBrandId() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController):53] Cannot call method get() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController):54] Cannot call method get() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController):55] Cannot call method get() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController):62] Cannot call method getBrandTheme() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController):85] Cannot call method render() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ApiKeyController):45] Cannot call method getAllBrands() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ApiKeyController):46] Cannot call method getActiveBrand() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ApiKeyController):47] Cannot call method getActiveBrandId() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ApiKeyController):53] Cannot call method get() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ApiKeyController):54] Cannot call method get() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ApiKeyController):55] Cannot call method get() on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ApiKeyController):62] Cannot call method getBrandTheme() on mixed.
+  ... and 600 more errors in this category.
+
+=== T2: Return type violation — declared return type doesn't match actual return (101 errors) ===
+  [src/Controller/Admin/GatewayController.php:345] Method OwnPay\Controller\Admin\GatewayController::buildColorsJson() should return string but returns string|false.
+  [src/Controller/Admin/GatewayController.php:364] Method OwnPay\Controller\Admin\GatewayController::buildInstructionsJson() should return string but returns string|false.
+  [src/Controller/Admin/GatewayController.php:427] Method OwnPay\Controller\Admin\GatewayController::buildFieldsJson() should return string but returns string|false.
+  [src/Controller/BaseController.php:193] Method OwnPay\Controller\BaseController::events() should return OwnPay\Event\EventManager but returns mixed.
+  [src/Core/Database.php:276] Method OwnPay\Core\Database::insert() should return string but returns string|false.
+  [src/Core/Database.php:409] Method OwnPay\Core\Database::lastInsertId() should return string but returns string|false.
+  [src/Core/FormattingHelper.php:128] Method OwnPay\Core\FormattingHelper::buildLangArray() should return array<string, string> but returns array<string, string|false>.
+  [src/Core/RequestHelper.php:74] Method OwnPay\Core\RequestHelper::getUserDeviceInfo() should return array{ip_address: string, device: string, os: string, browser: string} but returns array{ip_address: mixed, device: 'Desktop'|'Mobile'|'Tablet', os: 'Android'|'iOS'|'Linux'|'Mac OS'|'Unknown OS'|'Windows', browser: 'Chrome'|'Edge'|'Firefox'|'Internet Explorer'|'Opera'|'Safari'|'Unknown Browser'}.
+  [src/Cron/CronJobRunner.php:190] Method OwnPay\Cron\CronJobRunner::run() should return array<string, array{status: string, duration: float, result?: mixed, error?: string}> but returns array<string, array{status: 'completed', duration: float, result: mixed}|array{status: 'failed', duration: float, error: string}|array{status: 'skipped'}>.
+  [src/Gateway/GatewayBridge.php:224] Method OwnPay\Gateway\GatewayBridge::decryptCredentials() should return array<string, string> but returns mixed.
+  [src/Gateway/WebhookInboundProcessor.php:428] Method OwnPay\Gateway\WebhookInboundProcessor::extractHeaders() should return array<string, string> but returns array<string, mixed>.
+  [src/Http/Request.php:276] Method OwnPay\Http\Request::all() should return array<string, mixed> but returns array<mixed, mixed>.
+  [src/Http/Request.php:373] Method OwnPay\Http\Request::server() should return string but returns mixed.
+  [src/Http/Request.php:403] Method OwnPay\Http\Request::ip() should return string but returns mixed.
+  [src/Http/Request.php:407] Method OwnPay\Http\Request::ip() should return string but returns mixed.
+  [src/Http/Request.php:417] Method OwnPay\Http\Request::userAgent() should return string but returns mixed.
+  [src/Http/Request.php:427] Method OwnPay\Http\Request::host() should return string but returns mixed.
+  [src/Middleware/DomainMiddleware.php:134] Method OwnPay\Middleware\DomainMiddleware::resolveMasterDomain() should return string but returns mixed.
+  [src/Model/WebhookPayload.php:74] Method OwnPay\Model\WebhookPayload::formData() should return array<string, mixed> but returns array<int|string, array<mixed>|string>.
+  [src/Plugin/PluginMigrator.php:129] Method OwnPay\Plugin\PluginMigrator::rollback() should return array<int, string> but returns list<mixed>.
+  [src/Plugin/PluginMigrator.php:144] Method OwnPay\Plugin\PluginMigrator::getExecuted() should return array<int, string> but returns list<mixed>.
+  [src/Repository/ApiKeyRepository.php:73] Method OwnPay\Repository\ApiKeyRepository::listActiveKeys() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  [src/Repository/AuditLogRepository.php:79] Method OwnPay\Repository\AuditLogRepository::listPaginated() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  [src/Repository/AuditLogRepository.php:113] Method OwnPay\Repository\AuditLogRepository::listForEntity() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  [src/Repository/BaseRepository.php:118] Method OwnPay\Repository\BaseRepository::where() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  [src/Repository/BaseRepository.php:166] Method OwnPay\Repository\BaseRepository::paginate() should return array{items: list<array<string, mixed>>, total: int, page: int, per_page: int, pages: int} but returns array{items: array<int, array<string, mixed>>, total: int, page: int<1, max>, per_page: int, pages: int}.
+  [src/Repository/BaseRepository.php:202] Method OwnPay\Repository\BaseRepository::cursorPaginate() should return array{items: list<array<string, mixed>>, next_cursor: string|null} but returns array{items: array<int, array<string, mixed>>, next_cursor: string|null}.
+  [src/Repository/CommLogRepository.php:94] Method OwnPay\Repository\CommLogRepository::listSmsQueue() should return list<array<string, mixed>> but returns array<int, array<string, mixed>>.
+  [src/Repository/CommLogRepository.php:108] Method OwnPay\Repository\CommLogRepository::getSmsQueueStats() should return array{queued: int, sent: int, failed: int} but returns array<string, mixed>.
+  [src/Repository/CommLogRepository.php:127] Method OwnPay\Repository\CommLogRepository::listPendingSms() should return list<array{id: int, to: string, body: string}> but returns array<int, array<string, mixed>>.
+  ... and 71 more errors in this category.
+
+=== T3: Parameter type mismatch — wrong type passed to method/function (561 errors) ===
+  [src/Cache/RedisCache.php:42] Parameter #1 $data of function unserialize expects string, mixed given.
+  [src/Container.php:256] Parameter #1 $objectOrClass of class ReflectionClass constructor expects class-string<T of object>|T of object, string given.
+  [src/Controller/Admin/AddonController.php:87] Parameter #1 $json of function json_decode expects string, mixed given.
+  [src/Controller/Admin/AddonController.php:96] Parameter #1 $slug of method OwnPay\Repository\PluginRepository::isPluginActiveForBrand() expects string, mixed given.
+  [src/Controller/Admin/ApiKeyController.php:77] Parameter #2 $label of method OwnPay\Service\Customer\ApiKeyService::generate() expects string, mixed given.
+  [src/Controller/Admin/AuthController.php:128] Parameter #1 $email of method OwnPay\Service\Auth\AuthSessionService::login() expects string, mixed given.
+  [src/Controller/Admin/AuthController.php:128] Parameter #2 $password of method OwnPay\Service\Auth\AuthSessionService::login() expects string, mixed given.
+  [src/Controller/Admin/AuthController.php:183] Parameter #1 $email of method OwnPay\Repository\MerchantUserRepository::findActiveByEmail() expects string, mixed given.
+  [src/Controller/Admin/AuthController.php:244] Parameter #1 $string of function trim expects string, mixed given.
+  [src/Controller/Admin/AuthController.php:271] Parameter #3 $entityId of method OwnPay\Service\System\AuditService::log() expects int|null, mixed given.
+  [src/Controller/Admin/BalanceVerificationController.php:103] Parameter #2 $currency of method OwnPay\Service\Payment\ReconciliationService::reconcile() expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:112] Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:113] Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::email() expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:133] Parameter #3 $data of method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects array<string, mixed>, mixed given.
+  [src/Controller/Admin/BrandController.php:143] Parameter #1 $string of function trim expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:182] Parameter #1 $json of function json_decode expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:205] Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:217] Parameter #1 $json of function json_decode expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:221] Parameter #3 $data of method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects array<string, mixed>, mixed given.
+  [src/Controller/Admin/BrandController.php:221] Parameter #5 $existingSettings of method OwnPay\Controller\Admin\BrandController::handleBrandUploadsAndSettings() expects array<string, mixed>, mixed given.
+  [src/Controller/Admin/BrandController.php:223] Parameter #1 ...$arrays of function array_merge expects array, mixed given.
+  [src/Controller/Admin/BrandController.php:223] Parameter #2 $data of method OwnPay\Repository\MerchantRepository::updateBrand() expects array<string, mixed>, array<mixed, mixed> given.
+  [src/Controller/Admin/BrandController.php:225] Parameter #1 $string of function trim expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:285] Parameter #1 $string of function strtolower expects string, string|false given.
+  [src/Controller/Admin/BrandController.php:372] Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int, name: string, tmp_name: string}, non-empty-array<string, mixed> given.
+  [src/Controller/Admin/BrandController.php:383] Parameter #1 $file of method OwnPay\Service\System\FilesystemService::storeUpload() expects array{error: int, name: string, tmp_name: string}, non-empty-array<string, mixed> given.
+  [src/Controller/Admin/BrandController.php:394] Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:395] Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:396] Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::email() expects string, mixed given.
+  [src/Controller/Admin/BrandController.php:397] Parameter #1 $input of static method OwnPay\Service\System\InputSanitizer::string() expects string, mixed given.
+  ... and 531 more errors in this category.
+
+=== T4: Property type violation — assignment violates declared property type (1 errors) ===
+  [src/Plugin/PluginManifest.php:204] Property OwnPay\Plugin\PluginManifest::$type (string) does not accept mixed.
+
+=== T5: Undefined symbol — method, property, class, constant does not exist (2 errors) ===
+  [src/Cron/CronJobRunner.php:107] Call to an undefined method object::run().
+  [src/Cron/CronJobRunner.php:159] Call to an undefined method object::run().
+
+=== T6: Dead code / unreachable — branch that can never execute (0 errors) ===
+
+=== T7: Array type violation — wrong key type, missing key, invalid shape (383 errors) ===
+  [src/Controller/Admin/AddonController.php:88] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AddonController.php:91] Cannot access offset 'description' on mixed.
+  [src/Controller/Admin/AddonController.php:92] Cannot access offset 'author' on mixed.
+  [src/Controller/Admin/AddonController.php:115] Possibly invalid array key type mixed.
+  [src/Controller/Admin/AddonController.php:116] Possibly invalid array key type mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ActivitiesController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AddonController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ApiKeyController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/ApiKeyController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AuthController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/AuthController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/BalanceVerificationController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/BalanceVerificationController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/BrandController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/BrandController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/CurrencyController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/CurrencyController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/CustomerController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/CustomerController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DashboardController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DashboardController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DeveloperController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DeveloperController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DeviceController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DeviceController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DomainController):32] Cannot access offset 'name' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/DomainController):33] Cannot access offset 'version' on mixed.
+  [src/Controller/Admin/AdminPageTrait.php (in context of class OwnPay/Controller/Admin/FaqController):32] Cannot access offset 'name' on mixed.
+  ... and 353 more errors in this category.
+
+=== T8: Union type narrowing failure — unresolved union used in incompatible context (0 errors) ===
+
+=== T9: PHPDoc annotation conflict — docblock contradicts actual signature (0 errors) ===
+
+=== T10: Logic error — type-provable business logic violation (0 errors) ===
+
+=== T11: Other — classify with a short label (453 errors) ===
+  [src/Controller/Admin/ActivitiesController.php:77] Cannot cast mixed to int.
+  [src/Controller/Admin/ApiKeyController.php:84] Part $label (mixed) of encapsed string cannot be cast to string.
+  [src/Controller/Admin/AuthController.php:145] Cannot cast mixed to int.
+  [src/Controller/Admin/AuthController.php:183] Cannot cast mixed to int.
+  [src/Controller/Admin/AuthController.php:193] Cannot cast mixed to int.
+  [src/Controller/Admin/AuthController.php:205] Cannot cast mixed to int.
+  [src/Controller/Admin/AuthController.php:213] Cannot cast mixed to int.
+  [src/Controller/Admin/BrandController.php:251] Cannot cast mixed to int.
+  [src/Controller/Admin/BrandController.php:340] Part $brand['name'] (mixed) of encapsed string cannot be cast to string.
+  [src/Controller/Admin/CurrencyController.php:74] Cannot cast mixed to int.
+  [src/Controller/Admin/CustomerController.php:67] Cannot cast mixed to int.
+  [src/Controller/Admin/DashboardController.php:263] Cannot cast mixed to int.
+  [src/Controller/Admin/DashboardController.php:390] Part $from (mixed) of encapsed string cannot be cast to string.
+  [src/Controller/Admin/DashboardController.php:390] Part $to (mixed) of encapsed string cannot be cast to string.
+  [src/Controller/Admin/DashboardController.php:410] Cannot cast mixed to int.
+  [src/Controller/Admin/DashboardController.php:580] Cannot cast mixed to int.
+  [src/Controller/Admin/DashboardController.php:610] Cannot cast mixed to int.
+  [src/Controller/Admin/DashboardController.php:633] Cannot cast mixed to int.
+  [src/Controller/Admin/DashboardController.php:669] Cannot cast mixed to int.
+  [src/Controller/Admin/DashboardController.php:689] Cannot cast mixed to int.
+  [src/Controller/Admin/DeveloperController.php:216] Cannot cast mixed to int.
+  [src/Controller/Admin/DeviceController.php:193] Cannot cast mixed to string.
+  [src/Controller/Admin/FaqController.php:75] Argument of an invalid type mixed supplied for foreach, only iterables are supported.
+  [src/Controller/Admin/InvoiceController.php:78] Cannot cast mixed to int.
+  [src/Controller/Admin/LedgerController.php:59] Cannot cast mixed to int.
+  [src/Controller/Admin/RolesController.php:73] Argument of an invalid type mixed supplied for foreach, only iterables are supported.
+  [src/Controller/Admin/RolesController.php:74] Cannot cast mixed to int.
+  [src/Controller/Admin/RolesController.php:167] Cannot cast mixed to int.
+  [src/Controller/Admin/RolesController.php:213] Part $role['name'] (mixed) of encapsed string cannot be cast to string.
+  [src/Controller/Admin/SettingsController.php:126] Binary operation "." between non-falsy-string and non-empty-array<mixed>|non-empty-string results in an error.
+  ... and 423 more errors in this category.
+

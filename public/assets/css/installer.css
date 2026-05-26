@@ -8,8 +8,8 @@
 
 :root {
     --bg: #F8FAFC;
-    --surface: rgba(255, 255, 255, 0.75);
-    --surface-solid: #FFFFFF;
+    --surface: rgb(255 255 255 / 75%);
+    --surface-solid: #FFF;
     --border: #E2E8F0;
     --border-dark: #CBD5E1;
     --border-focus: #2596be;
@@ -18,14 +18,14 @@
     --text-light: #64748B;
     --accent: #2596be;
     --accent-alt: #0f96ee;
-    --accent-glow: rgba(37, 150, 190, 0.15);
+    --accent-glow: rgb(37 150 190 / 15%);
     --accent-hover: #1d7fa2;
     --success: #10B981;
-    --success-bg: rgba(16, 185, 129, 0.08);
-    --success-border: rgba(16, 185, 129, 0.25);
+    --success-bg: rgb(16 185 129 / 8%);
+    --success-border: rgb(16 185 129 / 25%);
     --danger: #EF4444;
-    --danger-bg: rgba(239, 68, 68, 0.08);
-    --danger-border: rgba(239, 68, 68, 0.25);
+    --danger-bg: rgb(239 68 68 / 8%);
+    --danger-border: rgb(239 68 68 / 25%);
     --warn: #F59E0B;
     --mono: 'JetBrains Mono', monospace;
     --ui: 'Outfit', sans-serif;
@@ -57,9 +57,9 @@ body::before {
     position: fixed;
     inset: 0;
     background:
-        radial-gradient(ellipse 80% 60% at 10% -10%, rgba(37, 150, 190, 0.08) 0%, transparent 60%),
-        radial-gradient(ellipse 60% 50% at 90% 110%, rgba(15, 150, 238, 0.06) 0%, transparent 50%),
-        radial-gradient(ellipse 40% 40% at 50% 50%, rgba(248, 250, 252, 0.5) 0%, transparent 100%);
+        radial-gradient(ellipse 80% 60% at 10% -10%, rgb(37 150 190 / 8%) 0%, transparent 60%),
+        radial-gradient(ellipse 60% 50% at 90% 110%, rgb(15 150 238 / 6%) 0%, transparent 50%),
+        radial-gradient(ellipse 40% 40% at 50% 50%, rgb(248 250 252 / 50%) 0%, transparent 100%);
     pointer-events: none;
     z-index: 0;
 }
@@ -75,10 +75,10 @@ body::before {
     align-items: center;
     justify-content: space-between;
     gap: 1.5rem;
-    background: rgba(255, 255, 255, 0.8);
+    background: rgb(255 255 255 / 80%);
     backdrop-filter: blur(20px);
     border-bottom: 1px solid var(--border);
-    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
+    box-shadow: 0 1px 3px rgb(0 0 0 / 2%);
 }
 
 .ins-brand {
@@ -146,7 +146,7 @@ body::before {
 .ins-step.active .ins-step-num {
     background: var(--accent);
     border-color: var(--accent);
-    color: #FFFFFF;
+    color: #FFF;
     box-shadow: 0 0 10px var(--accent-glow);
 }
 
@@ -157,7 +157,7 @@ body::before {
 .ins-step.done .ins-step-num {
     background: var(--success);
     border-color: var(--success);
-    color: #FFFFFF;
+    color: #FFF;
 }
 
 .ins-step.done {
@@ -193,9 +193,9 @@ body::before {
     border: 1.5px solid var(--border);
     border-radius: 20px;
     box-shadow:
-        0 4px 6px -1px rgba(0, 0, 0, 0.05),
-        0 20px 40px -15px rgba(15, 23, 42, 0.08),
-        inset 0 1px 0 rgba(255, 255, 255, 0.5);
+        0 4px 6px -1px rgb(0 0 0 / 5%),
+        0 20px 40px -15px rgb(15 23 42 / 8%),
+        inset 0 1px 0 rgb(255 255 255 / 50%);
     max-width: 600px;
     width: 100%;
     padding: 3rem;
@@ -279,7 +279,7 @@ body::before {
 .ins-field select:focus {
     border-color: var(--border-focus);
     box-shadow: 0 0 0 3px var(--accent-glow);
-    background: #FFFFFF;
+    background: #FFF;
 }
 
 .ins-field select {
@@ -292,7 +292,7 @@ body::before {
 }
 
 .ins-field select option {
-    background: #FFFFFF;
+    background: #FFF;
     color: var(--text);
 }
 
@@ -310,7 +310,7 @@ body::before {
     cursor: pointer;
     border: none;
     background: linear-gradient(135deg, var(--accent), var(--accent-alt));
-    color: #FFFFFF;
+    color: #FFF;
     transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
     text-decoration: none;
     margin-top: 0.5rem;
@@ -320,7 +320,7 @@ body::before {
 
 .ins-btn:hover {
     transform: translateY(-1px);
-    box-shadow: 0 6px 20px rgba(37, 150, 190, 0.3);
+    box-shadow: 0 6px 20px rgb(37 150 190 / 30%);
 }
 
 .ins-btn:active {
@@ -336,11 +336,11 @@ body::before {
 
 .ins-btn-success {
     background: linear-gradient(135deg, var(--success), #059669);
-    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.2);
+    box-shadow: 0 4px 12px rgb(16 185 129 / 20%);
 }
 
 .ins-btn-success:hover {
-    box-shadow: 0 6px 20px rgba(16, 185, 129, 0.35);
+    box-shadow: 0 6px 20px rgb(16 185 129 / 35%);
 }
 
 .ins-btn-outline {
@@ -351,7 +351,7 @@ body::before {
 }
 
 .ins-btn-outline:hover {
-    background: rgba(15, 23, 42, 0.03);
+    background: rgb(15 23 42 / 3%);
     color: var(--text);
     border-color: var(--text-muted);
     box-shadow: none;
@@ -482,7 +482,7 @@ body::before {
     background: #0F172A;
     border: 1.5px solid #1E293B;
     overflow: hidden;
-    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.15);
+    box-shadow: 0 8px 24px rgb(15 23 42 / 15%);
 }
 
 .ins-terminal-header {
@@ -589,8 +589,8 @@ body::before {
 .ins-spinner {
     width: 18px;
     height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    border-top-color: #FFFFFF;
+    border: 2px solid rgb(255 255 255 / 20%);
+    border-top-color: #FFF;
     border-radius: 50%;
     animation: spin 0.6s linear infinite;
     display: inline-block;
@@ -618,7 +618,7 @@ body::before {
     font-size: 2rem;
     margin-bottom: 1.5rem;
     border: 1.5px solid var(--success-border);
-    box-shadow: 0 0 20px rgba(16, 185, 129, 0.15);
+    box-shadow: 0 0 20px rgb(16 185 129 / 15%);
 }
 
 .ins-done h2 {
@@ -657,13 +657,13 @@ body::before {
 }
 
 .ins-hint code {
-    background: rgba(37, 150, 190, 0.08);
+    background: rgb(37 150 190 / 8%);
     padding: 2px 6px;
     border-radius: 4px;
     color: var(--accent);
     font-family: var(--mono);
     font-size: 0.85em;
-    border: 1px solid rgba(37, 150, 190, 0.15);
+    border: 1px solid rgb(37 150 190 / 15%);
 }
 
 /* ─── Password Strength Meter ─── */
@@ -695,14 +695,14 @@ body::before {
     width: 64px;
     height: 64px;
     border-radius: 50%;
-    background: rgba(37, 150, 190, 0.08);
+    background: rgb(37 150 190 / 8%);
     color: var(--accent);
     display: inline-flex;
     align-items: center;
     justify-content: center;
     font-size: 1.75rem;
     margin-bottom: 1.5rem;
-    border: 1.5px solid rgba(37, 150, 190, 0.15);
+    border: 1.5px solid rgb(37 150 190 / 15%);
 }
 
 /* ─── Footer ─── */
@@ -714,7 +714,7 @@ body::before {
     position: relative;
     z-index: 1;
     border-top: 1px solid var(--border);
-    background: rgba(255, 255, 255, 0.4);
+    background: rgb(255 255 255 / 40%);
     backdrop-filter: blur(10px);
 }
 

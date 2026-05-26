@@ -280,7 +280,10 @@ return static function (\OwnPay\Container $c): void {
 
     // ─── Payment Services ──────────────────────────────────────
     $c->singleton(\OwnPay\Service\Payment\InvoiceService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\InvoiceService {
-        return new \OwnPay\Service\Payment\InvoiceService(ensureType($c->get(\OwnPay\Core\Database::class), \OwnPay\Core\Database::class));
+        return new \OwnPay\Service\Payment\InvoiceService(
+            ensureType($c->get(\OwnPay\Core\Database::class), \OwnPay\Core\Database::class),
+            ensureType($c->get(\OwnPay\Service\System\PdfService::class), \OwnPay\Service\System\PdfService::class)
+        );
     });
 
     $c->singleton(\OwnPay\Service\Payment\PaymentLinkService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentLinkService {
@@ -512,6 +515,13 @@ return static function (\OwnPay\Container $c): void {
         return new \OwnPay\Service\System\AuditLogger(
             ensureType($c->get(\OwnPay\Repository\AuditLogRepository::class), \OwnPay\Repository\AuditLogRepository::class)
         );
+    });
+
+    $c->singleton(\OwnPay\Service\System\PdfService::class, static function (\OwnPay\Container $c): \OwnPay\Service\System\PdfService {
+        $appCfg = ensureArray($c->get('config.app'));
+        $paths = ensureArray($appCfg['paths'] ?? null);
+        $outputDir = is_string($paths['storage'] ?? null) ? $paths['storage'] . '/pdf' : null;
+        return new \OwnPay\Service\System\PdfService($outputDir);
     });
 
     $c->singleton(\OwnPay\Service\System\PaginationService::class, static function (): \OwnPay\Service\System\PaginationService {

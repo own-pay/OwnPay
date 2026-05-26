@@ -325,7 +325,12 @@ final class PaymentIntentCheckoutController
                     try {
                         $convAmount = $this->currencyService->convert($intentAmount, $intentCurrency, 'BDT');
                         $convCurrency = 'BDT';
-                    } catch (\Throwable $e) {}
+                    } catch (\Throwable $e) {
+                        $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+                        if ($logger instanceof \OwnPay\Service\System\Logger) {
+                            $logger->error('Manual gateway BDT currency conversion failed for intent: ' . $e->getMessage());
+                        }
+                    }
                 }
             }
 

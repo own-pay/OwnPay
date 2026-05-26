@@ -41,6 +41,12 @@ class PairedDeviceRepository extends BaseRepository
      */
     public function findByUuid(string $uuid): ?array
     {
+        if ($this->tenantId !== null) {
+            return $this->db->fetchOne(
+                "SELECT * FROM {$this->table} WHERE device_id = :did AND merchant_id = :mid LIMIT 1",
+                ['did' => $uuid, 'mid' => $this->tenantId]
+            );
+        }
         return $this->db->fetchOne(
             "SELECT * FROM {$this->table} WHERE device_id = :did LIMIT 1",
             ['did' => $uuid]

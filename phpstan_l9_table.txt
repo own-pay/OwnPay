@@ -1,0 +1,4 @@
+﻿Note: Using configuration file C:\laragon\www\ownpay\phpstan.neon.
+
+ [OK] No errors                                                                                                        
+

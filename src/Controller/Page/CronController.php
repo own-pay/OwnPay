@@ -56,7 +56,8 @@ final class CronController
         $dbSecretStr = is_string($dbSecret) ? $dbSecret : '';
         $expected = (is_string($envSecret) && $envSecret !== '') ? $envSecret : ($dbSecretStr !== '' ? $dbSecretStr : $configCronSecret);
  
-        if ($secret !== $expected || empty($secret)) {
+        $secretStr = $secret;
+        if ($secretStr === '' || !hash_equals($expected, $secretStr)) {
             return Response::json(['error' => 'Invalid secret'], 401);
         }
  

@@ -115,7 +115,7 @@ class LedgerServiceTest extends IntegrationTestCase
              VALUES (2001, 1, 'refund-uuid-1', 1002, 40.00, 'completed')"
         );
 
-        $this->ledgerService->recordRefund(1, 1002, '40.00', 'BDT');
+        $this->ledgerService->recordRefund(1, 2001, 1002, '40.00', 'BDT');
 
         $cashAcc = $this->ledgerRepo->findOrCreateAccount('CASH', 'asset', 'BDT', 1);
         $payableAcc = $this->ledgerRepo->findOrCreateAccount('MERCHANT_PAYABLE', 'liability', 'BDT', 1);
@@ -190,7 +190,7 @@ class LedgerServiceTest extends IntegrationTestCase
             "INSERT INTO op_refunds (id, merchant_id, uuid, transaction_id, amount, status)
              VALUES (2002, 1, 'refund-uuid-2', 1005, 40.00, 'completed')"
         );
-        $this->ledgerService->recordRefund(1, 1005, '40.00', 'BDT');
+        $this->ledgerService->recordRefund(1, 2002, 1005, '40.00', 'BDT');
 
         // expected_balance = net transactions (95.00) - proportional net refunds (38.00) = 57.00
         // ledger_balance = MERCHANT_PAYABLE = credit 95.00 - debit 38.00 = 57.00

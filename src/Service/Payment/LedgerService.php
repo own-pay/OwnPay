@@ -178,7 +178,7 @@ final class LedgerService
     /**
      * Record refund (debit merchant).
      */
-    public function recordRefund(int $merchantId, int $transactionId, string $amount, string $currency): void
+    public function recordRefund(int $merchantId, int $refundId, int $transactionId, string $amount, string $currency): void
     {
         $txn = $this->transactions->forTenant($merchantId)->findScoped($transactionId);
         if ($txn === null) {
@@ -215,9 +215,9 @@ final class LedgerService
             'refund',
             $currency,
             $entries,
-            'transaction',
-            (string) $transactionId,
-            "Refund issued"
+            'refund',
+            (string) $refundId,
+            "Refund issued for txn #{$transactionId}"
         );
     }
 

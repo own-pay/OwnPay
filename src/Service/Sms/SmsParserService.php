@@ -138,7 +138,7 @@ final class SmsParserService
      */
     public function processBatch(string $deviceUuid, int $brandId, array $messages): array
     {
-        $device = $this->deviceRepo->findByUuid($deviceUuid);
+        $device = $this->deviceRepo->forTenant($brandId)->findByUuid($deviceUuid);
         if ($device === null) {
             return $this->rejectAll($messages, 'DEVICE_NOT_FOUND');
         }

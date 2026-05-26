@@ -247,6 +247,24 @@ final class TwigExtensions extends AbstractExtension
      */
     public function setting(string $key, string $default = ''): string
     {
+        $settings = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
+        if ($settings instanceof \OwnPay\Repository\SettingsRepository) {
+            $parts = explode('.', $key);
+            $group = $parts[0] !== '' ? $parts[0] : 'general';
+            $name = $parts[1] ?? '';
+
+            $brandCtx = $this->container->get(\OwnPay\Service\Brand\BrandContext::class);
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandId = $brandCtx->getActiveBrandId();
+                if ($brandId !== null && $brandId > 0) {
+                    $val = $settings->getScoped($group, $name, $brandId, $default);
+                    return is_string($val) ? $val : $default;
+                }
+            }
+
+            $val = $settings->get($group, $name, $default);
+            return is_string($val) ? $val : $default;
+        }
         return $default;
     }
 

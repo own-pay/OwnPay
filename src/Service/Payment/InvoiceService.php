@@ -5,6 +5,8 @@ namespace OwnPay\Service\Payment;
 
 use OwnPay\Core\Database;
 
+use OwnPay\Service\System\PdfService;
+
 /**
  * Manages the lifecycle of merchant invoices and their associated items.
  *
@@ -19,13 +21,20 @@ final class InvoiceService
     private Database $db;
 
     /**
+     * @var PdfService The PDF generation service.
+     */
+    private PdfService $pdf;
+
+    /**
      * InvoiceService constructor.
      *
      * @param Database $db Direct database service.
+     * @param PdfService $pdf PDF generation service.
      */
-    public function __construct(Database $db)
+    public function __construct(Database $db, PdfService $pdf)
     {
         $this->db = $db;
+        $this->pdf = $pdf;
     }
 
     /**
@@ -282,11 +291,40 @@ final class InvoiceService
      */
     public function generatePdf(int $merchantId, int $id): string
     {
-        // Stub — return HTML as PDF placeholder
         $invoice = $this->find($merchantId, $id);
         if (!$invoice) {
             return '';
         }
+
+        $template = <<<HTML
+        <h2>Invoice #{{invoice_number}}</h2>
+        <p><strong>Merchant:</strong> {{merchant_name}}</p>
+        <p><strong>Date:</strong> {{created_at}}</p>
+        <p><strong>Status:</strong> {{status}}</p>
+        <p><strong>Amount:</strong> {{amount}} {{currency}}</p>
+        
+        <h3>Line Items</h3>
+        <table>
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th>Qty</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                {{items_rows}}
+            </tbody>
+        </table>
+        HTML;
+
+        // Generate printable invoice using PdfService
+        $filePath = $this->pdf->generateInvoice($invoice, $template);
+        if (file_exists($filePath)) {
+            $content = @file_get_contents($filePath);
+            return is_string($content) ? $content : '';
+        }
+
         $json = json_encode($invoice);
         return is_string($json) ? $json : '';
     }

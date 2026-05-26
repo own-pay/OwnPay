@@ -389,9 +389,33 @@ final class WebhookInboundProcessor
                 return;
             }
             $amount = (string) $refundAmountVal;
+
+            // Find or create a refund record in op_refunds to get a unique refund ID for the ledger
+            $refundRepo = $this->db->fetchOne(
+                "SELECT id FROM op_refunds WHERE transaction_id = :txid AND merchant_id = :mid AND amount = :amt LIMIT 1",
+                ['txid' => $txnId, 'mid' => $merchantId, 'amt' => $amount]
+            );
+
+            if ($refundRepo !== null && isset($refundRepo['id'])) {
+                $idVal = $refundRepo['id'];
+                $refundId = is_scalar($idVal) ? (int) $idVal : 0;
+                $this->db->execute(
+                    "UPDATE op_refunds SET status = 'completed', processed_at = NOW() WHERE id = :id",
+                    ['id' => $refundId]
+                );
+            } else {
+                $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
+                $this->db->execute(
+                    "INSERT INTO op_refunds (merchant_id, transaction_id, uuid, amount, reason, status, processed_at)
+                     VALUES (:mid, :txid, :uuid, :amt, 'Refund completed via webhook', 'completed', NOW())",
+                    ['mid' => $merchantId, 'txid' => $txnId, 'uuid' => $uuid, 'amt' => $amount]
+                );
+                $refundId = (int) $this->db->lastInsertId();
+            }
             
             $this->ledgerService->recordRefund(
                 $merchantId,
+                $refundId,
                 $txnId,
                 $amount,
                 $txnCurrency
