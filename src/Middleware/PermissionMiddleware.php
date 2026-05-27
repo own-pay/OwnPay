@@ -170,6 +170,7 @@ final class PermissionMiddleware
             '/admin/transactions'         => 'transactions.view',
             '/admin/invoices'             => 'invoices.view',
             '/admin/payment-links'        => 'payment_links.view',
+            '/admin/disputes'             => 'disputes.view',
             '/admin/customers'            => 'customers.view',
             '/admin/gateways'             => 'gateways.view',
             '/admin/staff'                => 'staff.view',
