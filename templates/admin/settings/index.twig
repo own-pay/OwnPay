@@ -60,11 +60,11 @@
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
-                        <input type="checkbox" name="maintenance_mode" value="1" {{ (settings.maintenance_mode ?? 0)|raw ? 'checked' : '' }} id="maintenance-toggle">
+                        <input type="checkbox" name="maintenance_mode" value="1" {{ (settings.maintenance_mode ?? 0) ? 'checked' : '' }} id="maintenance-toggle">
                         <span class="op-toggle-switch"></span>
                         <span>Maintenance Mode</span>
                     </label>
-                    <small class="op-text-muted op-text-warning" id="maintenance-warning" style="display:{{ (settings.maintenance_mode ?? 0)|raw ? 'block' : 'none' }}">
+                    <small class="op-text-muted op-text-warning" id="maintenance-warning" style="display:{{ (settings.maintenance_mode ?? 0) ? 'block' : 'none' }}">
                         ⚠ Site is in maintenance mode. Public users see a 503 page. Admin panel stays accessible.
                     </small>
                 </div>
@@ -274,7 +274,7 @@
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
-                        <input type="checkbox" name="auto_approve_payments" value="1" {{ (settings.auto_approve_payments ?? 0)|raw ? 'checked' : '' }}>
+                        <input type="checkbox" name="auto_approve_payments" value="1" {{ (settings.auto_approve_payments ?? 0) ? 'checked' : '' }}>
                         <span class="op-toggle-switch"></span>
                         <span>Auto-approve verified payments</span>
                     </label>
@@ -404,14 +404,14 @@
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
-                        <input type="checkbox" name="force_https" value="1" {{ (settings.force_https ?? 1)|raw ? 'checked' : '' }}>
+                        <input type="checkbox" name="force_https" value="1" {{ (settings.force_https ?? 1) ? 'checked' : '' }}>
                         <span class="op-toggle-switch"></span>
                         <span>Force HTTPS</span>
                     </label>
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
-                        <input type="checkbox" name="require_2fa" value="1" {{ (settings.require_2fa ?? 0)|raw ? 'checked' : '' }}>
+                        <input type="checkbox" name="require_2fa" value="1" {{ (settings.require_2fa ?? 0) ? 'checked' : '' }}>
                         <span class="op-toggle-switch"></span>
                         <span>Require 2FA for all staff</span>
                     </label>
@@ -490,14 +490,14 @@
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
-                        <input type="checkbox" name="email_on_payment" value="1" {{ (settings.email_on_payment ?? 0)|raw ? 'checked' : '' }}>
+                        <input type="checkbox" name="email_on_payment" value="1" {{ (settings.email_on_payment ?? 0) ? 'checked' : '' }}>
                         <span class="op-toggle-switch"></span>
                         <span>Email on new payment</span>
                     </label>
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
-                        <input type="checkbox" name="email_on_refund" value="1" {{ (settings.email_on_refund ?? 0)|raw ? 'checked' : '' }}>
+                        <input type="checkbox" name="email_on_refund" value="1" {{ (settings.email_on_refund ?? 0) ? 'checked' : '' }}>
                         <span class="op-toggle-switch"></span>
                         <span>Email on refund</span>
                     </label>

@@ -1,5 +1,6 @@
 ---
-trigger: always_on
+trigger: model_decision
+description: Apply when preparing, formatting, or executing system commands, scripts, or build tasks in Windows PowerShell.
 ---
 
 # Windows PowerShell Syntax & Execution Rules
