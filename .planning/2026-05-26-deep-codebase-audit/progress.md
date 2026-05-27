@@ -19,6 +19,8 @@
 - Documented findings in `findings.md`.
 - Generated final deep audit report artifact.
 - Completed Phase 5 remediation implementation: timing-safe cron checks, partial refund unique ledger mapping, brand-scoped device constraints, Twig settings cascading overrides, PDF invoice generation, and currency converter log integration.
+- Default enabled 'Powered by OwnPay' inside checkout layout & footer views, with fully functional `show_powered_by` brand setting overrides.
+- Fixed the settings page visual bug where two background file upload forms for AJAX site logo/favicon updates rendered as visible file inputs at the bottom of the page, by styling them with explicit `display:none !important;` rules.
 - Resolved SMS parser unit test stubs by adding missing `forTenant` mocking methods.
 - Resolved and fixed 8 PHPStan level 9 static analysis errors:
   - Registered and injected `PdfService` constructor argument in `config/services.php`.
@@ -43,3 +45,4 @@
 |-------|------------|
 | PHPUnit mock failure | Added missing `forTenant` mock method to the anonymous repository class in `SmsParserServiceTest`. |
 | PHPStan type-check failures | Added proper injection, parameter assertions, and removed redundant offset/type assertions. |
+| Settings page visual bug | Added `style="display:none !important;"` to both AJAX forms and their inner `<input type="file">` elements to hide them from the settings panel. |

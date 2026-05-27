@@ -756,14 +756,20 @@
 </form>
 {% endfor %}
 
-<form id="logo-upload-form" method="POST" action="/admin/settings/upload" enctype="multipart/form-data" style="display:none !important;">
+<style nonce="{{ csp_nonce }}">
+    #logo-upload-form, #favicon-upload-form, #logo-file-input, #favicon-file-input {
+        display: none !important;
+    }
+</style>
+
+<form id="logo-upload-form" method="POST" action="/admin/settings/upload" enctype="multipart/form-data" class="op-hidden">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-    <input type="file" name="site_logo" accept="image/*" id="logo-file-input" style="display:none !important;" onchange="document.getElementById('logo-upload-form').submit()">
+    <input type="file" name="site_logo" accept="image/*" id="logo-file-input" class="op-hidden" onchange="document.getElementById('logo-upload-form').submit()">
 </form>
 
-<form id="favicon-upload-form" method="POST" action="/admin/settings/upload" enctype="multipart/form-data" style="display:none !important;">
+<form id="favicon-upload-form" method="POST" action="/admin/settings/upload" enctype="multipart/form-data" class="op-hidden">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-    <input type="file" name="site_favicon" accept="image/*,.ico" id="favicon-file-input" style="display:none !important;" onchange="document.getElementById('favicon-upload-form').submit()">
+    <input type="file" name="site_favicon" accept="image/*,.ico" id="favicon-file-input" class="op-hidden" onchange="document.getElementById('favicon-upload-form').submit()">
 </form>
 
 {% endblock %}

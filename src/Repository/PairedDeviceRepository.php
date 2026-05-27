@@ -54,21 +54,32 @@ class PairedDeviceRepository extends BaseRepository
     }
 
     /**
-     * Finds a device record by device ID under the active tenant context.
+     * Finds a device record by device ID under the active tenant context,
+     * falling back to the global pool if not found.
      *
      * @param string $deviceId Unique device ID.
      * @return array<string, mixed>|null The device record, or null if not found.
      */
     public function findByDeviceId(string $deviceId): ?array
     {
+        if ($this->tenantId !== null) {
+            $device = $this->db->fetchOne(
+                "SELECT * FROM {$this->table} WHERE device_id = :did AND merchant_id = :mid LIMIT 1",
+                ['did' => $deviceId, 'mid' => $this->tenantId]
+            );
+            if ($device !== null) {
+                return $device;
+            }
+        }
         return $this->db->fetchOne(
-            "SELECT * FROM {$this->table} WHERE device_id = :did AND merchant_id = :mid LIMIT 1",
-            ['did' => $deviceId, 'mid' => $this->requireTenant()]
+            "SELECT * FROM {$this->table} WHERE device_id = :did AND merchant_id IS NULL LIMIT 1",
+            ['did' => $deviceId]
         );
     }
 
     /**
-     * Finds a device record by its JWT fingerprint hash.
+     * Finds a device record by its JWT fingerprint hash,
+     * falling back to the global pool if not found.
      *
      * @param string $hash The JWT fingerprint hash.
      * @param int $merchantId The merchant ID.
@@ -76,9 +87,16 @@ class PairedDeviceRepository extends BaseRepository
      */
     public function findByFingerprintHash(string $hash, int $merchantId): ?array
     {
-        return $this->db->fetchOne(
+        $device = $this->db->fetchOne(
             "SELECT * FROM {$this->table} WHERE jwt_fingerprint = :hash AND merchant_id = :mid LIMIT 1",
             ['hash' => $hash, 'mid' => $merchantId]
+        );
+        if ($device !== null) {
+            return $device;
+        }
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE jwt_fingerprint = :hash AND merchant_id IS NULL LIMIT 1",
+            ['hash' => $hash]
         );
     }
 

@@ -175,7 +175,9 @@ final class AuthController
             $loginSlug = $this->resolveLoginSlug();
             return Response::redirect('/' . $loginSlug);
         }
-        return $this->renderAdminPage('page/2fa.twig');
+        return $this->renderAdminPage('page/2fa.twig', [
+            'error' => null,
+        ]);
     }
 
     /**

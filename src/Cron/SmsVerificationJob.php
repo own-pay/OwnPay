@@ -115,6 +115,20 @@ final class SmsVerificationJob
                 $transaction = null;
                 if ($trxId !== null) {
                     $transaction = $this->transactions->forTenant($merchantId)->findByTrxId($trxId);
+                    if ($transaction === null) {
+                        // Global fallback: Search across all merchants (bypassing tenant boundaries)
+                        $transaction = $this->transactions->forAllTenants()->findByTrxId($trxId);
+                        if ($transaction !== null) {
+                            // Update the parsed SMS merchant_id to the transaction's merchant_id so they match!
+                            $newMidVal = $transaction['merchant_id'] ?? null;
+                            $newMerchantId = is_scalar($newMidVal) ? (int) $newMidVal : 0;
+                            $this->db->execute(
+                                "UPDATE op_sms_parsed SET merchant_id = :newMid WHERE id = :smsId",
+                                ['newMid' => $newMerchantId, 'smsId' => $sms['id']]
+                            );
+                            $merchantId = $newMerchantId;
+                        }
+                    }
                 }
 
                 // Fallback: Resolve transaction record matching by exact transacted amount and gateway provider.
@@ -122,6 +136,19 @@ final class SmsVerificationJob
                     $gatewaySlug = isset($sms['gateway_slug']) && is_scalar($sms['gateway_slug']) ? (string) $sms['gateway_slug'] : null;
                     // Lookup pending transaction matching merchant context parameters without specific tenant repository scoping.
                     $transaction = $this->transactions->findPendingMatch($merchantId, $amount, $gatewaySlug ?? '');
+                    if ($transaction === null) {
+                        // Global fallback: find pending match across all tenants
+                        $transaction = $this->transactions->forAllTenants()->findPendingMatchGlobal($amount, $gatewaySlug ?? '');
+                        if ($transaction !== null) {
+                            $newMidVal = $transaction['merchant_id'] ?? null;
+                            $newMerchantId = is_scalar($newMidVal) ? (int) $newMidVal : 0;
+                            $this->db->execute(
+                                "UPDATE op_sms_parsed SET merchant_id = :newMid WHERE id = :smsId",
+                                ['newMid' => $newMerchantId, 'smsId' => $sms['id']]
+                            );
+                            $merchantId = $newMerchantId;
+                        }
+                    }
                 }
 
                 if ($transaction !== null && isset($transaction['status']) && $transaction['status'] === 'pending') {

@@ -31,22 +31,51 @@
     {% set pending_msg = 'Your payment is pending confirmation. You will receive a notification once processed.' %}
 {% endif %}
 
+<style nonce="{{ csp_nonce }}">
+    .st-header-pending-dynamic { background: {{ gradient }} !important; }
+    .st-icon-ring1-pending-dynamic { background: {{ accent_bg1 }} !important; }
+    .st-icon-ring2-pending-dynamic { background: {{ accent_bg2 }} !important; }
+    .st-icon-circle-pending-dynamic { background: {{ accent_bg3 }} !important; }
+    .st-badge-pending-dynamic { background: {{ badge_bg }} !important; color: {{ accent }} !important; }
+    .st-spinner-border-dynamic {
+        width: 28px;
+        height: 28px;
+        border: 3px solid {{ accent }}30;
+        border-top-color: {{ accent }} !important;
+        border-radius: 50%;
+        animation: st-spin .7s linear infinite;
+        margin: 0 auto;
+    }
+    .st-pulse-spinner-dynamic {
+        width: 8px;
+        height: 8px;
+        border: 1.5px solid {{ accent }}40;
+        border-top-color: {{ accent }} !important;
+        border-radius: 50%;
+        animation: st-spin .7s linear infinite;
+    }
+    .st-row-value-pending-dynamic { color: {{ accent }} !important; }
+    .st-btn-icon-refresh-dynamic { background: {{ accent }}14 !important; }
+    .st-btn-icon-merchant-dynamic { background: rgba(13, 148, 136, .08) !important; }
+    .st-refresh-tip { text-align: center !important; font-size: 11px !important; color: #94A3B8 !important; margin-top: 16px !important; }
+</style>
+
 <div class="st-card">
-    <div class="st-header" style="background:{{ gradient }}">
+    <div class="st-header st-header-pending-dynamic">
         <div class="st-icon-wrap">
-            <div class="st-icon-ring1" style="background:{{ accent_bg1 }}"></div>
-            <div class="st-icon-ring2" style="background:{{ accent_bg2 }}"></div>
-            <div class="st-icon-circle" style="background:{{ accent_bg3 }}">
+            <div class="st-icon-ring1 st-icon-ring1-pending-dynamic"></div>
+            <div class="st-icon-ring2 st-icon-ring2-pending-dynamic"></div>
+            <div class="st-icon-circle st-icon-circle-pending-dynamic">
                 {% if is_processing %}
-                    <div style="width:28px;height:28px;border:3px solid {{ accent }}30;border-top-color:{{ accent }};border-radius:50%;animation:st-spin .7s linear infinite"></div>
+                    <div class="st-spinner-border-dynamic"></div>
                 {% else %}
                     <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="{{ accent }}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 {% endif %}
             </div>
         </div>
-        <span class="st-badge st-pulse" style="background:{{ badge_bg }};color:{{ accent }}">
+        <span class="st-badge st-pulse st-badge-pending-dynamic">
             {% if is_processing %}
-                <div style="width:8px;height:8px;border:1.5px solid {{ accent }}40;border-top-color:{{ accent }};border-radius:50%;animation:st-spin .7s linear infinite"></div>
+                <div class="st-pulse-spinner-dynamic"></div>
             {% else %}
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             {% endif %}
@@ -80,23 +109,23 @@
             <div class="st-row-divider"></div>
             <div class="st-row">
                 <span class="st-row-label">Status</span>
-                <span class="st-row-value" style="color:{{ accent }}">{{ badge_text }}</span>
+                <span class="st-row-value st-row-value-pending-dynamic">{{ badge_text }}</span>
             </div>
         </div>
-        <p style="text-align:center;font-size:11px;color:#94A3B8;margin-top:16px">
+        <p class="st-refresh-tip">
             This page refreshes automatically…
         </p>
     </div>
 
     <div class="st-actions">
         <a href="javascript:location.reload()" class="st-btn">
-            <div class="st-btn-icon" style="background:{{ accent }}14">
+            <div class="st-btn-icon st-btn-icon-refresh-dynamic">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ accent }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </div>
             <span class="st-btn-label">Refresh<br>Status</span>
         </a>
         <a href="/" class="st-btn">
-            <div class="st-btn-icon" style="background:rgba(13,148,136,.08)">
+            <div class="st-btn-icon st-btn-icon-merchant-dynamic">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </div>
             <span class="st-btn-label">Return to<br>Merchant</span>

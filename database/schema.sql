@@ -142,7 +142,7 @@ CREATE TABLE `op_gateways` (
 
 CREATE TABLE `op_gateway_configs` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `merchant_id` BIGINT UNSIGNED NOT NULL,
+  `merchant_id` BIGINT UNSIGNED DEFAULT NULL,
   `gateway_id` BIGINT UNSIGNED NOT NULL,
   `credentials_enc` TEXT DEFAULT NULL,
   `settings` JSON DEFAULT NULL,
@@ -599,7 +599,7 @@ CREATE TABLE `op_login_attempts` (
 
 CREATE TABLE `op_device_pairing_tokens` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `merchant_id` BIGINT UNSIGNED NOT NULL,
+  `merchant_id` BIGINT UNSIGNED DEFAULT NULL,
   `created_by` BIGINT UNSIGNED DEFAULT NULL,
   `otp_hash` VARCHAR(255) NOT NULL,
   `expires_at` DATETIME(6) NOT NULL,
@@ -614,7 +614,7 @@ CREATE TABLE `op_device_pairing_tokens` (
 
 CREATE TABLE `op_paired_devices` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `merchant_id` BIGINT UNSIGNED NOT NULL,
+  `merchant_id` BIGINT UNSIGNED DEFAULT NULL,
   `device_id` VARCHAR(64) NOT NULL,
   `device_name` VARCHAR(150) DEFAULT NULL,
   `platform` VARCHAR(30) DEFAULT NULL,
@@ -667,7 +667,7 @@ CREATE TABLE `op_sms_templates` (
 
 CREATE TABLE `op_sms_parsed` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
-  `merchant_id` BIGINT UNSIGNED NOT NULL,
+  `merchant_id` BIGINT UNSIGNED DEFAULT NULL,
   `device_id` VARCHAR(64) NOT NULL,
   `local_id` INT DEFAULT NULL,
   `sender` VARCHAR(100) NOT NULL,

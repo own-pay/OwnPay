@@ -26,13 +26,20 @@ final class LedgerController
     private Container $c;
 
     /**
+     * @var AdminSession The administrative session service.
+     */
+    private AdminSession $session;
+
+    /**
      * LedgerController constructor.
      *
      * @param Container    $c       The dependency injection container.
+     * @param AdminSession $session The administrative session service.
      */
-    public function __construct(Container $c)
+    public function __construct(Container $c, AdminSession $session)
     {
         $this->c = $c;
+        $this->session = $session;
     }
 
     /**

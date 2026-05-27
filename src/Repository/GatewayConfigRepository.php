@@ -27,9 +27,18 @@ final class GatewayConfigRepository extends BaseRepository
      */
     public function findForGateway(int $gatewayId): ?array
     {
+        if ($this->tenantId !== null) {
+            $row = $this->db->fetchOne(
+                "SELECT * FROM {$this->table} WHERE gateway_id = :gid AND merchant_id = :mid LIMIT 1",
+                ['gid' => $gatewayId, 'mid' => $this->tenantId]
+            );
+            if ($row !== null) {
+                return $row;
+            }
+        }
         return $this->db->fetchOne(
-            "SELECT * FROM {$this->table} WHERE gateway_id = :gid AND merchant_id = :mid LIMIT 1",
-            ['gid' => $gatewayId, 'mid' => $this->requireTenant()]
+            "SELECT * FROM {$this->table} WHERE gateway_id = :gid AND merchant_id IS NULL LIMIT 1",
+            ['gid' => $gatewayId]
         );
     }
 
@@ -42,14 +51,35 @@ final class GatewayConfigRepository extends BaseRepository
      */
     public function listActive(): array
     {
-        return $this->db->fetchAll(
+        $mid = $this->tenantId;
+        if ($mid === null) {
+            return $this->db->fetchAll(
+                "SELECT gc.*, g.slug, g.name, g.type, g.logo_path
+                 FROM {$this->table} gc
+                 JOIN op_gateways g ON g.id = gc.gateway_id
+                 WHERE gc.status = 'active'
+                 ORDER BY g.sort_order ASC",
+                []
+            );
+        }
+
+        $rows = $this->db->fetchAll(
             "SELECT gc.*, g.slug, g.name, g.type, g.logo_path
              FROM {$this->table} gc
              JOIN op_gateways g ON g.id = gc.gateway_id
-             WHERE gc.merchant_id = :mid AND gc.status = 'active'
-             ORDER BY g.sort_order ASC",
-            ['mid' => $this->requireTenant()]
+             WHERE (gc.merchant_id = :mid OR gc.merchant_id IS NULL) AND gc.status = 'active'
+             ORDER BY g.sort_order ASC, gc.merchant_id DESC",
+            ['mid' => $mid]
         );
+
+        $unique = [];
+        foreach ($rows as $row) {
+            $slug = isset($row['slug']) && is_scalar($row['slug']) ? (string)$row['slug'] : '';
+            if ($slug !== '' && !isset($unique[$slug])) {
+                $unique[$slug] = $row;
+            }
+        }
+        return array_values($unique);
     }
 
     /**
@@ -60,11 +90,24 @@ final class GatewayConfigRepository extends BaseRepository
      */
     public function findCredentialsBySlug(string $slug): ?string
     {
+        if ($this->tenantId !== null) {
+            $row = $this->db->fetchOne(
+                "SELECT gc.credentials_enc FROM {$this->table} gc
+                 JOIN op_gateways g ON g.id = gc.gateway_id
+                 WHERE g.slug = :slug AND gc.merchant_id = :mid AND gc.status = 'active' LIMIT 1",
+                ['slug' => $slug, 'mid' => $this->tenantId]
+            );
+            $enc = is_array($row) ? ($row['credentials_enc'] ?? null) : null;
+            if (is_scalar($enc) && $enc !== '') {
+                return (string) $enc;
+            }
+        }
+
         $row = $this->db->fetchOne(
             "SELECT gc.credentials_enc FROM {$this->table} gc
              JOIN op_gateways g ON g.id = gc.gateway_id
-             WHERE g.slug = :slug AND gc.merchant_id = :mid AND gc.status = 'active' LIMIT 1",
-            ['slug' => $slug, 'mid' => $this->requireTenant()]
+             WHERE g.slug = :slug AND gc.merchant_id IS NULL AND gc.status = 'active' LIMIT 1",
+            ['slug' => $slug]
         );
         $enc = is_array($row) ? ($row['credentials_enc'] ?? null) : null;
         return is_scalar($enc) ? (string) $enc : null;
@@ -89,13 +132,23 @@ final class GatewayConfigRepository extends BaseRepository
      */
     public function listActiveForCheckout(): array
     {
-        return $this->db->fetchAll(
+        $mid = $this->requireTenant();
+        $rows = $this->db->fetchAll(
             "SELECT gc.id, gc.merchant_id, gc.mode, gc.status, g.slug, g.name, g.type, g.logo_path
              FROM {$this->table} gc
              JOIN op_gateways g ON g.id = gc.gateway_id
-             WHERE gc.merchant_id = :mid AND gc.status = 'active'
-             ORDER BY g.sort_order ASC",
-            ['mid' => $this->requireTenant()]
+             WHERE (gc.merchant_id = :mid OR gc.merchant_id IS NULL) AND gc.status = 'active'
+             ORDER BY g.sort_order ASC, gc.merchant_id DESC",
+            ['mid' => $mid]
         );
+
+        $unique = [];
+        foreach ($rows as $row) {
+            $slug = isset($row['slug']) && is_scalar($row['slug']) ? (string)$row['slug'] : '';
+            if ($slug !== '' && !isset($unique[$slug])) {
+                $unique[$slug] = $row;
+            }
+        }
+        return array_values($unique);
     }
 }

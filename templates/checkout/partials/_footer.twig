@@ -1,11 +1,32 @@
 {# CHECKOUT FOOTER #}
-<div class="ck-footer ck-fi" style="display: flex; flex-direction: column; align-items: center; gap: 4px; justify-content: center;">
-    <div style="display: flex; align-items: center; gap: 6px; justify-content: center;">
+<style nonce="{{ csp_nonce }}">
+    .ck-footer-container {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        gap: 4px !important;
+        justify-content: center !important;
+    }
+    .ck-footer-row {
+        display: flex !important;
+        align-items: center !important;
+        gap: 6px !important;
+        justify-content: center !important;
+    }
+    .ck-footer-attribution-style {
+        font-size: 11px !important;
+        opacity: 0.8 !important;
+        margin-top: 2px !important;
+    }
+</style>
+
+<div class="ck-footer ck-fi ck-footer-container">
+    <div class="ck-footer-row">
         <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
         <span>{{ brand.footer_text ?? 'Secured by Own Pay · 256-bit encryption' }}</span>
     </div>
-    {% if brand.show_powered_by|default(true) %}
-        <div class="ck-footer-attribution" style="font-size: 11px; opacity: 0.8; margin-top: 2px;">
+    {% if brand.show_powered_by|default('1') != '0' %}
+        <div class="ck-footer-attribution ck-footer-attribution-style">
             {{ ownpay_footer()|raw }}
         </div>
     {% endif %}

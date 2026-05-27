@@ -318,13 +318,20 @@ class Database
      */
     public function transaction(callable $callback): mixed
     {
-        $this->pdo->beginTransaction();
+        $hasActive = $this->pdo->inTransaction();
+        if (!$hasActive) {
+            $this->pdo->beginTransaction();
+        }
         try {
             $result = $callback();
-            $this->pdo->commit();
+            if (!$hasActive) {
+                $this->pdo->commit();
+            }
             return $result;
         } catch (\Throwable $e) {
-            $this->pdo->rollBack();
+            if (!$hasActive) {
+                $this->pdo->rollBack();
+            }
             throw $e;
         }
     }

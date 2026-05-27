@@ -69,6 +69,14 @@
         .st-row-label{font-size:11px}
         .st-row-value{font-size:12px}
     }
+    .st-countdown-wrapper{margin-top: 16px; background: var(--white); border-radius: 18px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(0,0,0,.03); border: 1.5px solid var(--cloud); display: flex; align-items: center; gap: 14px; animation: st-up .6s cubic-bezier(.16,1,.3,1) forwards;}
+    .st-countdown-container{position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;}
+    .st-countdown-svg{transform: rotate(-90deg);}
+    .st-countdown-number{position: absolute; font-size: 11px; font-weight: 800; color: var(--teal); line-height: 1;}
+    .st-countdown-info{flex-grow: 1;}
+    .st-countdown-title{font-size: 12.5px; font-weight: 800; color: var(--ink); line-height: 1.2;}
+    .st-countdown-desc{font-size: 11.5px; color: var(--mute); margin-top: 2px; line-height: 1.2;}
+    .st-countdown-btn{font-size: 11.5px; font-weight: 700; color: var(--teal); text-decoration: none; padding: 8px 16px; border-radius: 12px; background: var(--teal-pale); transition: all 0.2s; white-space: nowrap;}
     </style>
 </head>
 <body>
@@ -86,19 +94,19 @@
         {% endif %}
 
         {% if is_intent is defined and is_intent and merchant_redirect_url is defined and merchant_redirect_url %}
-            <div id="countdown-wrapper" style="margin-top: 16px; background: var(--white); border-radius: 18px; padding: 16px 20px; box-shadow: 0 4px 12px rgba(0,0,0,.03); border: 1.5px solid var(--cloud); display: flex; align-items: center; gap: 14px; animation: st-up .6s cubic-bezier(.16,1,.3,1) forwards;">
-                <div style="position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
-                    <svg width="28" height="28" viewBox="0 0 36 36" style="transform: rotate(-90deg);">
+            <div id="countdown-wrapper" class="st-countdown-wrapper">
+                <div class="st-countdown-container">
+                    <svg width="28" height="28" viewBox="0 0 36 36" class="st-countdown-svg">
                         <circle cx="18" cy="18" r="16" fill="none" stroke="var(--cloud)" stroke-width="3.5"></circle>
                         <circle id="countdown-circle" cx="18" cy="18" r="16" fill="none" stroke="var(--teal)" stroke-width="3.5" stroke-dasharray="100.53" stroke-dashoffset="0" style="transition: stroke-dashoffset 1s linear;"></circle>
                     </svg>
-                    <span id="countdown-number" style="position: absolute; font-size: 11px; font-weight: 800; color: var(--teal); line-height: 1;">5</span>
+                    <span id="countdown-number" class="st-countdown-number">5</span>
                 </div>
-                <div style="flex-grow: 1;">
-                    <h4 style="font-size: 12.5px; font-weight: 800; color: var(--ink); line-height: 1.2;">Autonomous Handoff Active</h4>
-                    <p style="font-size: 11.5px; color: var(--mute); margin-top: 2px; line-height: 1.2;">Redirecting back to Merchant Website in <span id="countdown-text">5</span> seconds...</p>
+                <div class="st-countdown-info">
+                    <h4 class="st-countdown-title">Autonomous Handoff Active</h4>
+                    <p class="st-countdown-desc">Redirecting back to Merchant Website in <span id="countdown-text">5</span> seconds...</p>
                 </div>
-                <a id="countdown-instant" href="#" style="font-size: 11.5px; font-weight: 700; color: var(--teal); text-decoration: none; padding: 8px 16px; border-radius: 12px; background: var(--teal-pale); transition: all 0.2s; white-space: nowrap;">Redirect Now</a>
+                <a id="countdown-instant" href="#" class="st-countdown-btn">Redirect Now</a>
             </div>
 
             <script nonce="{{ csp_nonce }}">

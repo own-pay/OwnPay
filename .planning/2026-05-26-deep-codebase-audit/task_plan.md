@@ -44,6 +44,8 @@ Phase 5: Remediation Implementation
 - [x] Clean up stubs in `InvoiceService.generatePdf()`
 - [x] Log manual currency conversion errors in `PaymentIntentCheckoutController.php`
 - [x] Run full test suite and verify clean, green PHPUnit & PHPStan execution
+- [x] Default enable 'Powered by OwnPay' inside checkout view footer and respect brand.show_powered_by overrides
+- [x] Explicitly hide background settings page file upload forms using display:none !important
 - **Status:** complete
 
 ## Decisions Made

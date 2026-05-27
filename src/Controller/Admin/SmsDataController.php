@@ -29,15 +29,22 @@ final class SmsDataController
     private SmsDataRepository $smsRepo;
 
     /**
+     * The administrative session service.
+     */
+    private AdminSession $session;
+
+    /**
      * SmsDataController constructor.
      *
      * @param Container $c The dependency injection container.
      * @param SmsDataRepository $smsRepo The SMS data repository instance.
+     * @param AdminSession $session The administrative session service.
      */
-    public function __construct(Container $c, SmsDataRepository $smsRepo)
+    public function __construct(Container $c, SmsDataRepository $smsRepo, AdminSession $session)
     {
         $this->c       = $c;
         $this->smsRepo = $smsRepo;
+        $this->session = $session;
     }
 
     /**

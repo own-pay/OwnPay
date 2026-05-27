@@ -65,7 +65,7 @@
         {% block content %}{% endblock %}
         <div class="checkout-footer">
             {% if brand is not null and brand.show_powered_by is defined %}
-                {% if brand.show_powered_by %}
+                {% if brand.show_powered_by|default('1') != '0' %}
                     {{ ownpay_footer()|raw }} &middot;
                 {% endif %}
             {% else %}

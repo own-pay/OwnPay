@@ -64,16 +64,22 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
-     * Finds a transaction by its transaction ID code, scoped by active tenant.
+     * Finds a transaction by its transaction ID code, scoped by active tenant if configured.
      *
      * @param string $trxId Transaction identifier.
      * @return array<string, mixed>|null Database row array, or null if not found.
      */
     public function findByTrxId(string $trxId): ?array
     {
+        if ($this->tenantId !== null) {
+            return $this->db->fetchOne(
+                "SELECT * FROM {$this->table} WHERE trx_id = :t AND merchant_id = :mid LIMIT 1",
+                ['t' => $trxId, 'mid' => $this->tenantId]
+            );
+        }
         return $this->db->fetchOne(
-            "SELECT * FROM {$this->table} WHERE trx_id = :t AND merchant_id = :mid LIMIT 1",
-            ['t' => $trxId, 'mid' => $this->requireTenant()]
+            "SELECT * FROM {$this->table} WHERE trx_id = :t LIMIT 1",
+            ['t' => $trxId]
         );
     }
 
@@ -652,5 +658,24 @@ final class TransactionRepository extends BaseRepository
             ['mid' => $merchantId, 'amt' => $amount, 'gw' => $gatewaySlug]
         );
     }
-}
 
+    /**
+     * Searches for a pending transaction matching amount and gateway globally (across all brands) for SMS verification.
+     *
+     * Used by cron-based SmsVerificationJob.
+     *
+     * @param string $amount Matching payment amount string.
+     * @param string $gatewaySlug Matching gateway adapter slug.
+     * @return array<string, mixed>|null Pending transaction row data, or null if no match found.
+     */
+    public function findPendingMatchGlobal(string $amount, string $gatewaySlug): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table}
+             WHERE status = 'pending'
+               AND amount = :amt AND gateway_slug = :gw
+             ORDER BY created_at DESC LIMIT 1",
+            ['amt' => $amount, 'gw' => $gatewaySlug]
+        );
+    }
+}
