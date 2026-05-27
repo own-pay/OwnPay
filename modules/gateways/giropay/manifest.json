@@ -1,0 +1,39 @@
+{
+  "name": "Giropay",
+  "slug": "giropay",
+  "version": "1.0.0",
+  "description": "Giropay payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "GiropayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Giropay",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "europe",
+  "color": "#002F6C",
+  "csp": {
+    "script_src": [
+      "https://*.giropay.de"
+    ],
+    "style_src": [
+      "https://*.giropay.de"
+    ],
+    "frame_src": [
+      "https://*.giropay.de"
+    ],
+    "connect_src": [
+      "https://*.giropay.de"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

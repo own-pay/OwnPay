@@ -102,5 +102,56 @@ trait GatewayDefaults
     {
         return [];
     }
+
+    /**
+     * Safely cast a mixed value to string.
+     */
+    protected function getString(mixed $value, string $default = ''): string
+    {
+        return is_scalar($value) ? (string) $value : $default;
+    }
+
+    /**
+     * Safely cast a mixed value to int.
+     */
+    protected function getInt(mixed $value, int $default = 0): int
+    {
+        return is_scalar($value) ? (int) $value : $default;
+    }
+
+    /**
+     * Safely cast a mixed value to float.
+     */
+    protected function getFloat(mixed $value, float $default = 0.0): float
+    {
+        return is_scalar($value) ? (float) $value : $default;
+    }
+
+    /**
+     * Safely cast a mixed value to bool.
+     */
+    protected function getBool(mixed $value, bool $default = false): bool
+    {
+        return is_scalar($value) ? (bool) $value : $default;
+    }
+
+    /**
+     * Safely get a nested array value or return an empty array.
+     *
+     * @param mixed $array
+     * @param string|int ...$keys
+     * @return array<mixed>
+     */
+    protected function getArray(mixed $array, string|int ...$keys): array
+    {
+        $current = $array;
+        foreach ($keys as $key) {
+            if (!is_array($current) || !isset($current[$key])) {
+                return [];
+            }
+            $current = $current[$key];
+        }
+        return is_array($current) ? $current : [];
+    }
 }
 

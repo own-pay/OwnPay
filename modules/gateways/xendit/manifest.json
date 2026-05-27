@@ -1,0 +1,39 @@
+{
+  "name": "Xendit",
+  "slug": "xendit",
+  "version": "1.0.0",
+  "description": "Xendit payment gateway integration for Southeast Asia",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "XenditGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Xendit",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "apac",
+  "color": "#1572E8",
+  "csp": {
+    "script_src": [
+      "https://*.xendit.co"
+    ],
+    "style_src": [
+      "https://*.xendit.co"
+    ],
+    "frame_src": [
+      "https://*.xendit.co"
+    ],
+    "connect_src": [
+      "https://*.xendit.co"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

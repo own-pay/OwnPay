@@ -60,11 +60,20 @@ To prevent context bloat and ensure consistency, all strict behavioral, architec
 
 
 
----
-
 ## 4. Global Workflow Constraints
 
 1. **No SQL Concatenation:** Do NOT use raw string interpolation for values in SQL queries under any circumstances.
 2. **Strict Scoping:** Never retrieve brand data without explicitly checking the active `merchant_id` context.
 3. **No Legacy Settings:** Never access `op_env` or SQLite references.
 4. **Mandatory Planning:** Execute `powershell -ExecutionPolicy Bypass -File .agents/skills/planning-with-files/scripts/init-session.ps1 "<task name>"` before any implementation.
+
+---
+
+## 5. Developer Handbooks & Integration References
+To quickly implement payment gateways or handle cross-border settlement routes, always reference the **OwnPay Payment Gateway Integration Handbooks**:
+* **[Global Card Processors & Wallets](docs/v2/plugins/gateways/volume-1-global.md)** (Stripe, PayPal, Adyen, Square, Wise)
+* **[South Asia & Local MFS](docs/v2/plugins/gateways/volume-2-south-asia.md)** (Razorpay, PhonePe, CCAvenue, SSLCommerz, bKash, Nagad, Rocket, Upay)
+* **[Southeast Asia & Wallets](docs/v2/plugins/gateways/volume-3-southeast-asia.md)** (PromptPay, GCash, OVO, DANA, Maya, GrabPay, Alipay, WeChat Pay)
+* **[Europe & APMs](docs/v2/plugins/gateways/volume-4-europe.md)** (Klarna, Mollie, Bancontact, iDEAL, Worldline)
+* **[Latin America, Middle East & Africa](docs/v2/plugins/gateways/volume-5-latam-africa.md)** (Paystack, Flutterwave, Mercado Pago, PagSeguro, MercadoLibre Wallet, M-Pesa, Airtel Money, JazzCash, Easypaisa)
+* **[East Asia, LatAm Pix, & Crypto](docs/v2/plugins/gateways/volume-6-eastasia-crypto.md)** (KakaoPay, Toss, PayMe, Pix, Coinbase Commerce, BTCPay Server, OpenNode, NOWPayments, Binance Merchant, Binance Personal)
