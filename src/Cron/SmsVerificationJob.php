@@ -134,11 +134,13 @@ final class SmsVerificationJob
                 // Fallback: Resolve transaction record matching by exact transacted amount and gateway provider.
                 if ($transaction === null && $amount !== null) {
                     $gatewaySlug = isset($sms['gateway_slug']) && is_scalar($sms['gateway_slug']) ? (string) $sms['gateway_slug'] : null;
+                    $receivedAt = isset($sms['received_at']) && is_scalar($sms['received_at']) ? (string) $sms['received_at'] : null;
+                    
                     // Lookup pending transaction matching merchant context parameters without specific tenant repository scoping.
-                    $transaction = $this->transactions->findPendingMatch($merchantId, $amount, $gatewaySlug ?? '');
+                    $transaction = $this->transactions->findPendingMatch($merchantId, $amount, $gatewaySlug ?? '', $receivedAt);
                     if ($transaction === null) {
                         // Global fallback: find pending match across all tenants
-                        $transaction = $this->transactions->forAllTenants()->findPendingMatchGlobal($amount, $gatewaySlug ?? '');
+                        $transaction = $this->transactions->forAllTenants()->findPendingMatchGlobal($amount, $gatewaySlug ?? '', $receivedAt);
                         if ($transaction !== null) {
                             $newMidVal = $transaction['merchant_id'] ?? null;
                             $newMerchantId = is_scalar($newMidVal) ? (int) $newMidVal : 0;

@@ -646,10 +646,38 @@ final class TransactionRepository extends BaseRepository
      * @param int $merchantId Active brand/store identifier context.
      * @param string $amount Matching payment amount string.
      * @param string $gatewaySlug Matching gateway adapter slug.
+     * @param string|null $receivedAt Optional timestamp when the SMS was received.
      * @return array<string, mixed>|null Pending transaction row data, or null if no match found.
      */
-    public function findPendingMatch(int $merchantId, string $amount, string $gatewaySlug): ?array
+    public function findPendingMatch(int $merchantId, string $amount, string $gatewaySlug, ?string $receivedAt = null): ?array
     {
+        if ($receivedAt !== null) {
+            $sqlCount = "SELECT COUNT(*) FROM {$this->table}
+                         WHERE merchant_id = :mid AND status = 'pending'
+                           AND amount = :amt AND gateway_slug = :gw
+                           AND created_at BETWEEN DATE_SUB(:received_at, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at, INTERVAL 5 MINUTE)";
+            $countVal = $this->db->fetchColumn($sqlCount, [
+                'mid' => $merchantId,
+                'amt' => $amount,
+                'gw'  => $gatewaySlug,
+                'received_at' => $receivedAt
+            ]);
+            $count = is_scalar($countVal) ? (int) $countVal : 0;
+
+            if ($count !== 1) {
+                return null;
+            }
+
+            return $this->db->fetchOne(
+                "SELECT * FROM {$this->table}
+                 WHERE merchant_id = :mid AND status = 'pending'
+                   AND amount = :amt AND gateway_slug = :gw
+                   AND created_at BETWEEN DATE_SUB(:received_at, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at, INTERVAL 5 MINUTE)
+                 LIMIT 1",
+                ['mid' => $merchantId, 'amt' => $amount, 'gw' => $gatewaySlug, 'received_at' => $receivedAt]
+            );
+        }
+
         return $this->db->fetchOne(
             "SELECT * FROM {$this->table}
              WHERE merchant_id = :mid AND status = 'pending'
@@ -666,10 +694,37 @@ final class TransactionRepository extends BaseRepository
      *
      * @param string $amount Matching payment amount string.
      * @param string $gatewaySlug Matching gateway adapter slug.
+     * @param string|null $receivedAt Optional timestamp when the SMS was received.
      * @return array<string, mixed>|null Pending transaction row data, or null if no match found.
      */
-    public function findPendingMatchGlobal(string $amount, string $gatewaySlug): ?array
+    public function findPendingMatchGlobal(string $amount, string $gatewaySlug, ?string $receivedAt = null): ?array
     {
+        if ($receivedAt !== null) {
+            $sqlCount = "SELECT COUNT(*) FROM {$this->table}
+                         WHERE status = 'pending'
+                           AND amount = :amt AND gateway_slug = :gw
+                           AND created_at BETWEEN DATE_SUB(:received_at, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at, INTERVAL 5 MINUTE)";
+            $countVal = $this->db->fetchColumn($sqlCount, [
+                'amt' => $amount,
+                'gw'  => $gatewaySlug,
+                'received_at' => $receivedAt
+            ]);
+            $count = is_scalar($countVal) ? (int) $countVal : 0;
+
+            if ($count !== 1) {
+                return null;
+            }
+
+            return $this->db->fetchOne(
+                "SELECT * FROM {$this->table}
+                 WHERE status = 'pending'
+                   AND amount = :amt AND gateway_slug = :gw
+                   AND created_at BETWEEN DATE_SUB(:received_at, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at, INTERVAL 5 MINUTE)
+                 LIMIT 1",
+                ['amt' => $amount, 'gw' => $gatewaySlug, 'received_at' => $receivedAt]
+            );
+        }
+
         return $this->db->fetchOne(
             "SELECT * FROM {$this->table}
              WHERE status = 'pending'
