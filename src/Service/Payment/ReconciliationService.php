@@ -74,11 +74,7 @@ final class ReconciliationService
         $refundTotal = bcadd('0.00', $refundNetTotal, 2);
 
         // Expected balance = transactions - refunds
-        $settlementTotal = '0.00';
-
-        /** @var numeric-string $refundTotal */
-        /** @var numeric-string $settlementTotal */
-        $expectedBalance = bcsub(bcsub($txnTotal, $refundTotal, 2), $settlementTotal, 2);
+        $expectedBalance = bcsub($txnTotal, $refundTotal, 2);
 
         // Ledger balance
         $ledgerBalance = $this->ledger->calculateBalance($merchantId, $currency);
@@ -92,7 +88,7 @@ final class ReconciliationService
             'balanced'          => bccomp($difference, '0.00', 2) === 0,
             'transaction_total' => $txnTotal,
             'refund_total'      => $refundTotal,
-            'settlement_total'  => $settlementTotal,
+            'settlement_total'  => '0.00',
             'expected_balance'  => $expectedBalance,
             'ledger_balance'    => $ledgerBalance,
             'difference'        => $difference,

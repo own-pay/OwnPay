@@ -66,7 +66,9 @@ final class PluginTrashTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        $this->cleanupDummyPlugin();
+        if (static::$dbAvailable) {
+            $this->cleanupDummyPlugin();
+        }
         parent::tearDown();
     }
 

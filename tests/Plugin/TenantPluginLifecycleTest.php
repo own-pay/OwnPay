@@ -66,7 +66,9 @@ final class TenantPluginLifecycleTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        $this->cleanupTestData();
+        if (static::$dbAvailable) {
+            $this->cleanupTestData();
+        }
         parent::tearDown();
     }
 

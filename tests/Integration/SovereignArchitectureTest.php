@@ -62,7 +62,9 @@ final class SovereignArchitectureTest extends IntegrationTestCase
 
     protected function tearDown(): void
     {
-        $this->cleanupData();
+        if (static::$dbAvailable) {
+            $this->cleanupData();
+        }
         parent::tearDown();
     }
 

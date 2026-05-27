@@ -69,18 +69,19 @@ final class DisputeService
     }
 
     /**
-     * Resolves an active dispute by recording a resolution description.
+     * Resolves an active dispute by recording a status and resolution evidence.
      *
      * Updates the dispute status and fires the `dispute.resolved` action hook.
      *
      * @param int $merchantId The unique ID of the merchant/brand owning the dispute.
      * @param int $disputeId The unique ID of the dispute to resolve.
-     * @param string $resolution Description of the resolution details.
+     * @param string $status The final dispute status ('won', 'lost', 'closed').
+     * @param string|null $resolution Optional description of the resolution details.
      * @return void
      */
-    public function resolve(int $merchantId, int $disputeId, string $resolution): void
+    public function resolve(int $merchantId, int $disputeId, string $status, ?string $resolution = null): void
     {
-        $this->disputes->forTenant($merchantId)->resolve($disputeId, 'resolved', $resolution);
-        $this->events->doAction('dispute.resolved', ['id' => $disputeId, 'resolution' => $resolution]);
+        $this->disputes->forTenant($merchantId)->resolve($disputeId, $status, $resolution);
+        $this->events->doAction('dispute.resolved', ['id' => $disputeId, 'status' => $status, 'resolution' => $resolution]);
     }
 }

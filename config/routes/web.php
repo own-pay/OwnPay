@@ -112,6 +112,11 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/invoices/{id}', 'Admin\\InvoiceController@show', 'admin');
     $router->post('/admin/invoices/{id}/update', 'Admin\\InvoiceController@update', 'admin');
 
+    // Disputes
+    $router->get('/admin/disputes', 'Admin\\DisputeController@index', 'admin');
+    $router->get('/admin/disputes/{id}', 'Admin\\DisputeController@show', 'admin');
+    $router->post('/admin/disputes/{id}/resolve', 'Admin\\DisputeController@resolve', 'admin');
+
     // Payment Links
     $router->get('/admin/payment-links', 'Admin\\PaymentLinkController@index', 'admin');
     $router->get('/admin/payment-links/create', 'Admin\\PaymentLinkController@create', 'admin');
