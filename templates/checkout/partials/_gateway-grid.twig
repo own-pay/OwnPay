@@ -1,22 +1,10 @@
 {# GATEWAY GRIDS — dynamically populated from DB #}
 
-<style nonce="{{ csp_nonce }}">
-{% for gw in gateways.global|default([]) %}
-.ck-gw-ico-{{ gw.slug }} { background: #{{ (gw.color ?? 'ECEEF5')|replace({'#': ''}) }}0F !important; }
-{% endfor %}
-{% for gw in gateways.mfs|default([]) %}
-.ck-gw-ico-{{ gw.slug }} { background: #{{ (gw.color ?? '0D9488')|replace({'#': ''}) }}0F !important; }
-{% endfor %}
-{% for gw in gateways.bank|default([]) %}
-.ck-gw-ico-{{ gw.slug }} { background: #{{ (gw.color ?? 'ECEEF5')|replace({'#': ''}) }}1A !important; }
-{% endfor %}
-</style>
-
 {# TAB: CARDS (global gateways) #}
 <div id="t-cards" class="ck-tc">
     <div class="ck-gw-grid" id="cardG">
         {% for gw in gateways.global %}
-        <div class="ck-gw" data-action="pick-gw" data-tab="card" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}">
+        <div class="ck-gw" data-action="pick-gw" data-tab="card" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
             <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
                 {% if gw.logo is defined and gw.logo %}
@@ -40,7 +28,7 @@
 <div id="t-mfs" class="ck-tc ck-hidden">
     <div class="ck-gw-grid" id="mfsG">
         {% for gw in gateways.mfs %}
-        <div class="ck-gw" data-action="pick-gw" data-tab="mfs" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}">
+        <div class="ck-gw" data-action="pick-gw" data-tab="mfs" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
             <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
                 {% if gw.logo is defined and gw.logo %}
@@ -64,7 +52,7 @@
 <div id="t-bank" class="ck-tc ck-hidden">
     <div class="ck-gw-grid" id="bankG">
         {% for gw in gateways.bank %}
-        <div class="ck-gw" data-action="pick-gw" data-tab="bank" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}">
+        <div class="ck-gw" data-action="pick-gw" data-tab="bank" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
             {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
             <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
                 {% if gw.logo is defined and gw.logo %}

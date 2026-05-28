@@ -1,0 +1,49 @@
+#logo-upload-form, #favicon-upload-form, #logo-file-input, #favicon-file-input {
+    display: none !important;
+}
+
+.op-currency-table-container {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.op-currency-rate-input {
+    max-width: 150px;
+}
+
+.op-currency-code-input {
+    text-transform: uppercase;
+}
+
+.op-tooltip {
+    position: absolute;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    background: #2d3748;
+    color: #fff;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    white-space: nowrap;
+    opacity: 0;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    pointer-events: none;
+    box-shadow: 0 4px 6px -1px rgb(0 0 0 / 10%), 0 2px 4px -1px rgb(0 0 0 / 6%);
+    z-index: 100;
+    border: 1px solid rgb(255 255 255 / 8%);
+}
+
+.op-tooltip-arrow {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    border-width: 5px;
+    border-style: solid;
+    border-color: #2d3748 transparent transparent;
+}
+
+.op-relative {
+    position: relative !important;
+}

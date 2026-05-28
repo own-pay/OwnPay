@@ -1,14 +1,14 @@
 {# ═══════ EXPIRED STATUS ═══════ #}
 <div class="st-card">
-    <div class="st-header" style="background:linear-gradient(180deg,#F1F5F9 0%,#F6F8FA 40%,#F5F6FA 100%)">
+    <div class="st-header st-header-expired">
         <div class="st-icon-wrap">
-            <div class="st-icon-ring1" style="background:rgba(100,116,139,.06)"></div>
-            <div class="st-icon-ring2" style="background:rgba(100,116,139,.12)"></div>
-            <div class="st-icon-circle" style="background:rgba(100,116,139,.15)">
+            <div class="st-icon-ring1 st-icon-ring1-expired"></div>
+            <div class="st-icon-ring2 st-icon-ring2-expired"></div>
+            <div class="st-icon-circle st-icon-circle-expired">
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             </div>
         </div>
-        <span class="st-badge" style="background:rgba(100,116,139,.1);color:#475569">
+        <span class="st-badge st-badge-expired">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Expired
         </span>
@@ -28,7 +28,7 @@
             {% if txn.amount is defined and txn.amount %}
             <div class="st-row st-amount-row">
                 <span class="st-row-label">Amount</span>
-                <span class="st-row-value" style="color:#94A3B8;text-decoration:line-through">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }} {{ txn.currency ?? 'BDT' }}</span>
+                <span class="st-row-value st-text-expired-crossed">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }} {{ txn.currency ?? 'BDT' }}</span>
             </div>
             <div class="st-row-divider"></div>
             {% endif %}
@@ -39,20 +39,20 @@
             <div class="st-row-divider"></div>
             <div class="st-row">
                 <span class="st-row-label">Status</span>
-                <span class="st-row-value" style="color:#94A3B8">Session expired</span>
+                <span class="st-row-value st-text-expired">Session expired</span>
             </div>
         </div>
     </div>
 
     <div class="st-actions">
         <a href="{{ merchant_redirect_url ?? '/' }}" class="st-btn op-back-btn">
-            <div class="st-btn-icon" style="background:rgba(100,116,139,.08)">
+            <div class="st-btn-icon st-btn-icon-expired">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </div>
             <span class="st-btn-label">Start<br>New Payment</span>
         </a>
         <a href="{{ merchant_redirect_url ?? '/' }}" class="st-btn">
-            <div class="st-btn-icon" style="background:rgba(13,148,136,.08)">
+            <div class="st-btn-icon st-btn-icon-return">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </div>
             <span class="st-btn-label">Return to<br>Merchant</span>

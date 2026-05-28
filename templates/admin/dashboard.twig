@@ -2,11 +2,17 @@
 
 {% block title %}Dashboard — {{ app_name }}{% endblock %}
 
+{% block head %}
+    {% if onboarding_completed == 0 %}
+        <link rel="stylesheet" href="/assets/css/pages/setup-wizard.css?v=013">
+    {% endif %}
+{% endblock %}
+
 {% block content %}
 <div class="op-page-header">
     <h1>Dashboard</h1>
     <div class="op-header-actions">
-        <select class="op-input op-input-sm" id="date-range" onchange="location.href='?range='+this.value">
+        <select class="op-input op-input-sm" id="date-range">
             <option value="today" {{ range == 'today' ? 'selected' : '' }}>Today</option>
             <option value="7d" {{ range == '7d' ? 'selected' : '' }}>Last 7 Days</option>
             <option value="30d" {{ range == '30d' ? 'selected' : '' }}>Last 30 Days</option>
@@ -98,4 +104,8 @@
 </div>
 
 {{ hook('admin.dashboard.bottom')|raw }}
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/dashboard.js?v=013"></script>
 {% endblock %}

@@ -1,0 +1,26 @@
+.op-align-v2-mr6 {
+    vertical-align: -2px;
+    margin-right: 6px;
+}
+
+.op-align-v3-mr6 {
+    vertical-align: -3px;
+    margin-right: 6px;
+}
+
+.op-align-v2-mr4 {
+    vertical-align: -2px;
+    margin-right: 4px;
+}
+
+.op-stat-grad-primary {
+    background: linear-gradient(135deg,#6366f1,#8b5cf6) !important;
+}
+
+.op-stat-grad-success {
+    background: linear-gradient(135deg,#22c55e,#16a34a) !important;
+}
+
+.op-stat-grad-danger {
+    background: linear-gradient(135deg,#ef4444,#dc2626) !important;
+}

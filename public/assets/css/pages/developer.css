@@ -1,0 +1,63 @@
+.op-new-key-reveal {
+    border: 2px solid var(--op-primary) !important;
+    background: linear-gradient(135deg, rgb(108 92 231 / 8%) 0%, rgb(108 92 231 / 2%) 100%) !important;
+}
+
+.op-new-key-reveal-header {
+    border-bottom: 1px solid rgb(108 92 231 / 20%) !important;
+}
+
+.op-flex-gap-8 {
+    display: flex !important;
+    gap: 8px !important;
+}
+
+.op-flex-align-center {
+    align-items: center !important;
+}
+
+.op-flex-align-stretch {
+    align-items: stretch !important;
+}
+
+.op-input-monospace {
+    font-family: 'Fira Code', 'Cascadia Code', monospace !important;
+    font-size: 15px !important;
+    letter-spacing: 0.5px !important;
+    padding-right: 44px !important;
+}
+
+.op-btn-eye-toggle {
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background: none !important;
+    border: none !important;
+    cursor: pointer !important;
+    color: var(--op-text-muted) !important;
+    padding: 4px !important;
+}
+
+.op-copy-btn-large {
+    white-space: nowrap !important;
+    min-width: 130px !important;
+    font-weight: 600 !important;
+}
+
+.op-feedback-text {
+    margin-top: 8px !important;
+    font-size: 13px !important;
+    color: var(--op-primary) !important;
+    font-weight: 500 !important;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.op-line-height-1-6 {
+    line-height: 1.6 !important;
+}
+
+.op-display-block {
+    display: block !important;
+}

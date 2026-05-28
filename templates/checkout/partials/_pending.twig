@@ -3,79 +3,32 @@
 {% set is_review = (status == 'pending_review' or status == 'awaiting_verification') %}
 
 {% if is_processing %}
-    {% set gradient = 'linear-gradient(180deg,#EFF6FF 0%,#F6F8FA 40%,#F5F6FA 100%)' %}
-    {% set accent = '#2563EB' %}
-    {% set accent_bg1 = 'rgba(37,99,235,.06)' %}
-    {% set accent_bg2 = 'rgba(37,99,235,.12)' %}
-    {% set accent_bg3 = 'rgba(37,99,235,.15)' %}
-    {% set badge_bg = 'rgba(37,99,235,.1)' %}
     {% set badge_text = 'Processing' %}
     {% set pending_msg = 'Your payment is being processed by the gateway. This usually takes a few moments.' %}
 {% elseif is_review %}
-    {% set gradient = 'linear-gradient(180deg,#FFFBEB 0%,#F6F8FA 40%,#F5F6FA 100%)' %}
-    {% set accent = '#D97706' %}
-    {% set accent_bg1 = 'rgba(217,119,6,.06)' %}
-    {% set accent_bg2 = 'rgba(217,119,6,.12)' %}
-    {% set accent_bg3 = 'rgba(217,119,6,.15)' %}
-    {% set badge_bg = 'rgba(217,119,6,.1)' %}
     {% set badge_text = 'Under Review' %}
     {% set pending_msg = 'Your payment details have been submitted and are being verified by the merchant.' %}
 {% else %}
-    {% set gradient = 'linear-gradient(180deg,#FFF7ED 0%,#F6F8FA 40%,#F5F6FA 100%)' %}
-    {% set accent = '#EA580C' %}
-    {% set accent_bg1 = 'rgba(234,88,12,.06)' %}
-    {% set accent_bg2 = 'rgba(234,88,12,.12)' %}
-    {% set accent_bg3 = 'rgba(234,88,12,.15)' %}
-    {% set badge_bg = 'rgba(234,88,12,.1)' %}
     {% set badge_text = 'Pending' %}
     {% set pending_msg = 'Your payment is pending confirmation. You will receive a notification once processed.' %}
 {% endif %}
 
-<style nonce="{{ csp_nonce }}">
-    .st-header-pending-dynamic { background: {{ gradient }} !important; }
-    .st-icon-ring1-pending-dynamic { background: {{ accent_bg1 }} !important; }
-    .st-icon-ring2-pending-dynamic { background: {{ accent_bg2 }} !important; }
-    .st-icon-circle-pending-dynamic { background: {{ accent_bg3 }} !important; }
-    .st-badge-pending-dynamic { background: {{ badge_bg }} !important; color: {{ accent }} !important; }
-    .st-spinner-border-dynamic {
-        width: 28px;
-        height: 28px;
-        border: 3px solid {{ accent }}30;
-        border-top-color: {{ accent }} !important;
-        border-radius: 50%;
-        animation: st-spin .7s linear infinite;
-        margin: 0 auto;
-    }
-    .st-pulse-spinner-dynamic {
-        width: 8px;
-        height: 8px;
-        border: 1.5px solid {{ accent }}40;
-        border-top-color: {{ accent }} !important;
-        border-radius: 50%;
-        animation: st-spin .7s linear infinite;
-    }
-    .st-row-value-pending-dynamic { color: {{ accent }} !important; }
-    .st-btn-icon-refresh-dynamic { background: {{ accent }}14 !important; }
-    .st-btn-icon-merchant-dynamic { background: rgba(13, 148, 136, .08) !important; }
-    .st-refresh-tip { text-align: center !important; font-size: 11px !important; color: #94A3B8 !important; margin-top: 16px !important; }
-</style>
-
 <div class="st-card">
-    <div class="st-header st-header-pending-dynamic">
+    <div class="st-header {% if is_processing %}st-header-processing{% elseif is_review %}st-header-review{% else %}st-header-pending{% endif %}">
         <div class="st-icon-wrap">
-            <div class="st-icon-ring1 st-icon-ring1-pending-dynamic"></div>
-            <div class="st-icon-ring2 st-icon-ring2-pending-dynamic"></div>
-            <div class="st-icon-circle st-icon-circle-pending-dynamic">
+            <div class="st-icon-ring1 {% if is_processing %}st-icon-ring1-processing{% elseif is_review %}st-icon-ring1-review{% else %}st-icon-ring1-pending{% endif %}"></div>
+            <div class="st-icon-ring2 {% if is_processing %}st-icon-ring2-processing{% elseif is_review %}st-icon-ring2-review{% else %}st-icon-ring2-pending{% endif %}"></div>
+            <div class="st-icon-circle {% if is_processing %}st-icon-circle-processing{% elseif is_review %}st-icon-circle-review{% else %}st-icon-circle-pending{% endif %}">
                 {% if is_processing %}
-                    <div class="st-spinner-border-dynamic"></div>
+                    <div class="st-spinner-border-processing"></div>
                 {% else %}
-                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="{{ accent }}" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                    <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
                 {% endif %}
             </div>
         </div>
-        <span class="st-badge st-pulse st-badge-pending-dynamic">
+        <span class="st-badge st-pulse {% if is_processing %}st-badge-processing{% elseif is_review %}st-badge-review{% else %}st-badge-pending{% endif %}">
             {% if is_processing %}
-                <div class="st-pulse-spinner-dynamic"></div>
+                <div class="st-pulse-spinner-processing"></div>
             {% else %}
                 <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             {% endif %}
@@ -109,7 +62,7 @@
             <div class="st-row-divider"></div>
             <div class="st-row">
                 <span class="st-row-label">Status</span>
-                <span class="st-row-value st-row-value-pending-dynamic">{{ badge_text }}</span>
+                <span class="st-row-value {% if is_processing %}st-row-value-processing{% elseif is_review %}st-row-value-review{% else %}st-row-value-pending{% endif %}">{{ badge_text }}</span>
             </div>
         </div>
         <p class="st-refresh-tip">
@@ -119,14 +72,14 @@
 
     <div class="st-actions">
         <a href="javascript:location.reload()" class="st-btn">
-            <div class="st-btn-icon st-btn-icon-refresh-dynamic">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{ accent }}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <div class="st-btn-icon {% if is_processing %}st-btn-icon-refresh-processing{% elseif is_review %}st-btn-icon-refresh-review{% else %}st-btn-icon-refresh-pending{% endif %}">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </div>
             <span class="st-btn-label">Refresh<br>Status</span>
         </a>
         <a href="/" class="st-btn">
-            <div class="st-btn-icon st-btn-icon-merchant-dynamic">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            <div class="st-btn-icon st-btn-icon-return">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </div>
             <span class="st-btn-label">Return to<br>Merchant</span>
         </a>
@@ -137,6 +90,3 @@
     <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
     Secured by <a href="/">{{ brand.name ?? 'OwnPay' }}</a> · 256-bit encryption
 </div>
-
-{# Auto-refresh every 15 seconds for pending/processing states #}
-<script nonce="{{ csp_nonce }}">setTimeout(function(){location.reload()},15000);</script>

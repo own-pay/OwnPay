@@ -18,4 +18,14 @@
             });
         });
     });
+
+    var toggleGuideBtn = document.getElementById("toggle-dns-guide-btn");
+    if (toggleGuideBtn) {
+        toggleGuideBtn.addEventListener("click", function () {
+            var guide = document.querySelector(".op-dns-guide");
+            if (guide) {
+                guide.classList.toggle("op-hidden");
+            }
+        });
+    }
 }());

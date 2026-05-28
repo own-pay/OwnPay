@@ -1,14 +1,74 @@
 /**
  * OwnPay Checkout JS
  * REQUIRES: window.opFetch (op-fetch.js loaded BEFORE)
- * REQUIRES: window.OP_CHECKOUT_CONFIG (injected by template)
- * REQUIRES: window.OP_MANUAL_GATEWAYS (injected by template)
  * CSP-safe: no eval/innerHTML
  */
 (function () {
     "use strict";
-    var cfg = window.OP_CHECKOUT_CONFIG || {};
-    var manualGateways = window.OP_MANUAL_GATEWAYS || {};
+
+    var dataEl = document.getElementById("op-checkout-data");
+    var cfg = {};
+    var manualGateways = {};
+    if (dataEl) {
+        try {
+            cfg = JSON.parse(dataEl.getAttribute("data-config") || "{}");
+            manualGateways = JSON.parse(dataEl.getAttribute("data-manual-gateways") || "{}");
+        } catch (e) {
+            console.error("Failed to parse checkout config", e);
+        }
+    }
+
+    // Set globally for backward compatibility
+    window.OP_CHECKOUT_CONFIG = cfg;
+    window.OP_MANUAL_GATEWAYS = manualGateways;
+
+    // ---------- INITIALIZE THEME AND CUSTOM STYLES ----------
+    if (dataEl) {
+        var brandColor = dataEl.getAttribute("data-brand-color") || "#0D9488";
+        var brandAccentColor = dataEl.getAttribute("data-brand-accent-color") || brandColor;
+
+        // Apply brand color variables dynamically
+        document.documentElement.style.setProperty("--teal", brandColor);
+        document.documentElement.style.setProperty("--teal-deep", brandAccentColor + "cc");
+        document.documentElement.style.setProperty("--teal-glow", brandColor + "1a");
+
+        // Apply gateway icon opacity backgrounds dynamically
+        document.querySelectorAll(".ck-gw").forEach(function (el) {
+            var tab = el.getAttribute("data-tab");
+            var color = el.getAttribute("data-color") || "#ECEEF5";
+            var cleanColor = color.replace("#", "");
+            var ico = el.querySelector(".ck-gw-ico");
+            if (ico) {
+                var opacity = tab === "bank" ? "1A" : "0F";
+                ico.style.setProperty("background", "#" + cleanColor + opacity, "important");
+            }
+        });
+
+        var nonceEl = document.querySelector('meta[name="csp-nonce"]');
+        var nonce = nonceEl ? nonceEl.getAttribute("content") : "";
+
+        // Inject Custom CSS if present
+        var customCss = dataEl.getAttribute("data-custom-css");
+        if (customCss) {
+            var style = document.createElement("style");
+            if (nonce) {
+                style.setAttribute("nonce", nonce);
+            }
+            style.textContent = customCss;
+            document.head.appendChild(style);
+        }
+
+        // Inject Custom JS if present
+        var customJs = dataEl.getAttribute("data-custom-js");
+        if (customJs) {
+            var script = document.createElement("script");
+            if (nonce) {
+                script.setAttribute("nonce", nonce);
+            }
+            script.textContent = customJs;
+            document.body.appendChild(script);
+        }
+    }
     // Resolve the base path for all checkout XHR/form actions.
     // PaymentIntentCheckoutController sets checkoutBasePath = '/checkout/intent/{token}'
     // Legacy CheckoutController leaves it unset, so fallback to '/checkout/{token}'
@@ -235,13 +295,16 @@
     // ---------- MANUAL POPUP ----------
     function openManualPopup(slug, name) {
         var meta = (cfg.gatewayMeta && cfg.gatewayMeta[slug]) || { color: "#0D9488", type: "Send Money", logoText: "" };
+        var gwData = manualGateways[slug] || {};
         var nameEl = document.getElementById("mpName");
         if (nameEl) {nameEl.textContent = name;}
         var typeEl = document.getElementById("mpType");
         if (typeEl) {typeEl.textContent = meta.type || "Send Money";}
         var iconEl = document.getElementById("mpIcon");
         if (iconEl) {
-            iconEl.className = "ck-popup-gw-icon ck-gw-bg-" + slug;
+            iconEl.className = "ck-popup-gw-icon";
+            var gwColor = meta.color || (gwData.colors && gwData.colors.primary) || "#0D9488";
+            iconEl.style.setProperty("background", gwColor, "important");
             iconEl.textContent = meta.logoText || name.slice(0, 2).toUpperCase();
         }
 

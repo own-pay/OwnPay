@@ -1,14 +1,14 @@
 {# ═══════ FAILED STATUS ═══════ #}
 <div class="st-card">
-    <div class="st-header" style="background:linear-gradient(180deg,#FEF2F2 0%,#F6F8FA 40%,#F5F6FA 100%)">
+    <div class="st-header st-header-failed">
         <div class="st-icon-wrap">
-            <div class="st-icon-ring1" style="background:rgba(220,38,38,.06)"></div>
-            <div class="st-icon-ring2" style="background:rgba(220,38,38,.12)"></div>
-            <div class="st-icon-circle" style="background:rgba(220,38,38,.15)">
+            <div class="st-icon-ring1 st-icon-ring1-failed"></div>
+            <div class="st-icon-ring2 st-icon-ring2-failed"></div>
+            <div class="st-icon-circle st-icon-circle-failed">
                 <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
             </div>
         </div>
-        <span class="st-badge" style="background:rgba(220,38,38,.1);color:#DC2626">
+        <span class="st-badge st-badge-failed">
             <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             Declined
         </span>
@@ -35,20 +35,20 @@
             <div class="st-row-divider"></div>
             <div class="st-row">
                 <span class="st-row-label">Reason</span>
-                <span class="st-row-value" style="color:#DC2626">Transaction declined</span>
+                <span class="st-row-value st-text-failed">Transaction declined</span>
             </div>
         </div>
     </div>
 
     <div class="st-actions">
         <a href="{% if is_intent is defined and is_intent %}/checkout/intent/{{ txn.trx_id }}{% else %}/checkout/{{ txn.trx_id }}{% endif %}" class="st-btn op-back-btn">
-            <div class="st-btn-icon" style="background:rgba(220,38,38,.08)">
+            <div class="st-btn-icon st-btn-icon-failed">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
             </div>
             <span class="st-btn-label">Try<br>Again</span>
         </a>
         <a href="{{ merchant_redirect_url ?? '/' }}" class="st-btn">
-            <div class="st-btn-icon" style="background:rgba(13,148,136,.08)">
+            <div class="st-btn-icon st-btn-icon-return">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
             </div>
             <span class="st-btn-label">Return to<br>Merchant</span>

@@ -26,10 +26,10 @@
                     <span class="op-stat-label">Update Available!</span>
                 </div>
             </div>
-            <form method="POST" action="/admin/system-update/apply">
+            <form method="POST" action="/admin/system-update/apply" data-confirm="This will backup your system, apply the update, and run migrations. Continue?">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <input type="hidden" name="version" value="{{ latest_version }}">
-                <button type="submit" class="op-btn op-btn-success op-btn-lg op-btn-block" onclick="return confirm('This will backup your system, apply the update, and run migrations. Continue?')">
+                <button type="submit" class="op-btn op-btn-success op-btn-lg op-btn-block">
                     Update to v{{ latest_version }}
                 </button>
             </form>

@@ -11,17 +11,7 @@
     <link rel="stylesheet" href="/assets/css/checkout.css">
     <meta name="csrf-token" content="{{ csrf_token }}">
     {{ hook('checkout.head')|raw }}
-    <style nonce="{{ csp_nonce }}">
-    :root{--teal:{{ brand.color ?? '#0D9488' }};--teal-deep:{{ brand.accent_color ?? brand.color ?? '#0D9488' }}cc;--teal-glow:{{ brand.color ?? '#0D9488' }}1A;}
-    {% for cat, list in gateways %}
-        {% for gw in list %}
-            {% if gw.slug|default('') is not empty %}
-                .ck-gw-bg-{{ gw.slug }}{background:{{ gw.color|default('#0D9488') }} !important;}
-            {% endif %}
-        {% endfor %}
-    {% endfor %}
-    </style>
-    {% if brand.custom_css|default('') %}<style nonce="{{ csp_nonce }}">{{ brand.custom_css|raw }}</style>{% endif %}
+    <meta name="csp-nonce" content="{{ csp_nonce }}">
 </head>
 <body class="ck-body">
     <div class="ck-toast" id="cToast">{{ lang.copied ?? 'Copied!' }}</div>
@@ -62,15 +52,18 @@
 
     <input type="hidden" id="op-csrf" value="{{ csrf_token }}">
     <input type="hidden" id="op-checkout-hash" value="{{ checkout_hash }}">
+    <div id="op-checkout-data"
+         class="ck-hidden"
+         data-config="{{ config|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|escape('html_attr') }}"
+         data-manual-gateways="{{ manual_gateways|default('{}')|escape('html_attr') }}"
+         data-brand-color="{{ brand.color ?? '#0D9488' }}"
+         data-brand-accent-color="{{ brand.accent_color ?? brand.color ?? '#0D9488' }}"
+         data-custom-css="{{ brand.custom_css|default('') }}"
+         data-custom-js="{{ brand.custom_js|default('') }}">
+    </div>
 
-    <script nonce="{{ csp_nonce }}">
-    {# BUG-55 FIX: Use json_encode with safe flags to prevent XSS via </script> in data. #}
-    window.OP_CHECKOUT_CONFIG={{ config|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|raw }};
-    window.OP_MANUAL_GATEWAYS={{ manual_gateways|default('{}')|raw }};
-    </script>
     <script nonce="{{ csp_nonce }}" src="/assets/js/op-fetch.js"></script>
     <script nonce="{{ csp_nonce }}" src="/assets/js/checkout.js"></script>
     {{ hook('checkout.footer')|raw }}
-    {% if brand.custom_js|default('') %}<script nonce="{{ csp_nonce }}">{{ brand.custom_js|raw }}</script>{% endif %}
 </body>
 </html>

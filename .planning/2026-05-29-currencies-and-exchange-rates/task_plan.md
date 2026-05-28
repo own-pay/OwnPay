@@ -42,6 +42,12 @@ Phase 1: Research & Planning
 - [x] Re-run PHPUnit to verify that all 443 tests pass with 0 notices, 0 deprecations, and 0 warnings
 - **Status:** complete
 
+### Phase 7: Fix CSP Violations and Inline JS in payment settings tab
+- [x] Remove inline `style` attributes from currency elements and move them to the nonced `<style>` block or use utility classes (e.g. `op-hidden`).
+- [x] Remove inline event handlers (`onclick`, `onkeyup`, etc.) from currency controls and bind them dynamically using `addEventListener` in the nonced `<script>` block.
+- [x] Verify that Sync Rates, Toggle status, Search, and Add Currency Modal work perfectly without console errors.
+- **Status:** complete
+
 ## Decisions Made
 | Decision | Rationale |
 |----------|-----------|

@@ -98,4 +98,52 @@
         if (field) {field.value = result;}
     };
 
+    var genSecretBtn = document.getElementById("btn-generate-secret");
+    if (genSecretBtn) {
+        genSecretBtn.addEventListener("click", function () {
+            window.generateSecret();
+        });
+    }
+
+    // ─── Generated Key Visibility & Copying ───────────────────
+    var toggleKeyBtn = document.getElementById("toggle-key-vis");
+    var generatedKeyInput = document.getElementById("generated-key-input");
+    if (toggleKeyBtn && generatedKeyInput) {
+        toggleKeyBtn.addEventListener("click", function () {
+            if (generatedKeyInput.type === "password") {
+                generatedKeyInput.type = "text";
+            } else {
+                generatedKeyInput.type = "password";
+            }
+        });
+    }
+
+    var copyKeyBtn = document.getElementById("copy-key-btn");
+    if (copyKeyBtn && generatedKeyInput) {
+        copyKeyBtn.addEventListener("click", function () {
+            navigator.clipboard.writeText(generatedKeyInput.value).then(function () {
+                var btn = copyKeyBtn;
+                var origHTML = btn.innerHTML;
+                btn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:4px;"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
+                btn.classList.add("op-btn-success");
+                var fb = document.getElementById("copy-feedback");
+                if (fb) {
+                    fb.textContent = "✓ Key copied to clipboard";
+                    fb.style.opacity = "1";
+                }
+                setTimeout(function () {
+                    btn.innerHTML = origHTML;
+                    btn.classList.remove("op-btn-success");
+                    if (fb) { fb.style.opacity = "0"; }
+                }, 3000);
+            });
+        });
+    }
+
+    // Scroll reveal new key if exists
+    var newKeyReveal = document.getElementById("new-key-reveal");
+    if (newKeyReveal) {
+        newKeyReveal.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+
 }());

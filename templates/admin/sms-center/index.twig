@@ -19,11 +19,11 @@
     <div class="op-card op-mb-4">
         <div class="op-card-header">
             <h3>SMS Parsing Templates</h3>
-            <button class="op-btn op-btn-primary op-btn-sm" onclick="document.getElementById('create-template-panel').style.display = document.getElementById('create-template-panel').style.display === 'none' ? 'block' : 'none'">+ New Template</button>
+            <button class="op-btn op-btn-primary op-btn-sm" id="btn-toggle-create-template">+ New Template</button>
         </div>
 
         {# Create Form (hidden) #}
-        <div id="create-template-panel" style="display:none" class="op-card-body op-bg-subtle op-border-bottom">
+        <div id="create-template-panel" class="op-card-body op-bg-subtle op-border-bottom op-d-none">
             <form method="POST" action="/admin/sms-center/create" class="op-form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <h4 class="op-mb-3">Create Parsing Template</h4>
@@ -76,7 +76,7 @@
                 </div>
                 <div class="op-form-actions">
                     <button type="submit" class="op-btn op-btn-primary">Create Template</button>
-                    <button type="button" class="op-btn op-btn-ghost" onclick="document.getElementById('create-template-panel').style.display='none'">Cancel</button>
+                    <button type="button" class="op-btn op-btn-ghost" id="btn-cancel-create-template">Cancel</button>
                 </div>
             </form>
         </div>
@@ -103,7 +103,7 @@
                         <td><span class="op-badge op-badge-{{ tpl.status == 'active' ? 'success' : 'muted' }}">{{ tpl.status|capitalize }}</span></td>
                         <td>
                             <a href="/admin/sms-center/{{ tpl.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a>
-                            <form method="POST" action="/admin/sms-center/{{ tpl.id }}/delete" class="op-inline-form" onsubmit="return confirm('Delete this template?')">
+                            <form method="POST" action="/admin/sms-center/{{ tpl.id }}/delete" class="op-inline-form delete-template-form" data-confirm="Delete this template?">
                                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                 <button type="submit" class="op-btn op-btn-xs op-btn-danger">Delete</button>
                             </form>
@@ -120,7 +120,7 @@
     {# ── Method B: Smart Auto-Parse ─────────────────────────────── #}
     <div class="op-card op-mb-4" id="smart-parse-card">
         <div class="op-card-header">
-            <div class="op-flex op-align-center" style="gap:10px">
+            <div class="op-flex op-align-center op-gap-2">
                 <h3>🤖 Smart SMS Parser</h3>
                 <span class="op-badge op-badge-primary op-badge-sm">Method B</span>
             </div>
@@ -149,7 +149,7 @@
                         <button class="op-btn op-btn-outline op-btn-sm op-ml-2" type="button" id="clear-analyze-btn">Clear</button>
                     </div>
                 </div>
-                <div class="op-col-6" id="analyze-results" style="display:none">
+                <div class="op-col-6 op-d-none" id="analyze-results">
                     <div class="op-analyze-result-card">
                         <div class="op-analyze-header">
                             <strong>📊 Extracted Fields</strong>
@@ -183,7 +183,7 @@
     {# ── Method C: AI Prompt Generator ──────────────────────────────── #}
     <div class="op-card op-mb-4" id="ai-prompt-card">
         <div class="op-card-header">
-            <div class="op-flex op-align-center" style="gap:10px">
+            <div class="op-flex op-align-center op-gap-2">
                 <h3>✨ AI Prompt Generator</h3>
                 <span class="op-badge op-badge-info op-badge-sm">Method C</span>
             </div>
@@ -212,7 +212,7 @@
                         <button class="op-btn op-btn-ghost op-btn-sm op-ml-2" type="button" id="clear-ai-btn">Clear</button>
                     </div>
                 </div>
-                <div class="op-col-7" id="ai-prompt-result" style="display:none">
+                <div class="op-col-7 op-d-none" id="ai-prompt-result">
                     <div class="op-ai-prompt-box">
                         <div class="op-ai-prompt-header">
                             <strong>🤖 Generated AI Prompt</strong>
@@ -260,7 +260,7 @@
                     </div>
                 </div>
             </div>
-            <div id="test-result" class="op-mt-3" style="display:none">
+            <div id="test-result" class="op-mt-3 op-d-none">
                 <div class="op-alert" id="test-result-box"></div>
             </div>
         </div>
@@ -339,4 +339,4 @@
 </div>
 
 {% endblock %}
-{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/sms-center.js"></script>{% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/sms-center.js?v=013"></script>{% endblock %}

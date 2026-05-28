@@ -1,6 +1,11 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}2FA Setup — {{ app_name }}{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/assets/css/pages/my-account-2fa.css?v=013">
+{% endblock %}
 {% block content %}
+
+
 <div class="op-page-header">
     <h1>Two-Factor Authentication</h1>
     <a href="/admin/my-account" class="op-btn op-btn-outline">← Back to Account</a>
@@ -13,13 +18,13 @@
         <p class="op-text-muted">Your account is protected with TOTP-based two-factor authentication.</p>
         <hr class="op-divider">
         <p><strong>To disable 2FA,</strong> enter your current password below:</p>
-        <form method="POST" action="/admin/my-account/2fa/disable" class="op-form" style="max-width:400px;">
+        <form method="POST" action="/admin/my-account/2fa/disable" class="op-form op-form-2fa" data-confirm="Disable 2FA? Your account will be less secure.">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <div class="op-form-group">
                 <label>Current Password</label>
                 <input type="password" name="password" class="op-input" required autocomplete="current-password">
             </div>
-            <button type="submit" class="op-btn op-btn-danger" onclick="return confirm('Disable 2FA? Your account will be less secure.')">Disable 2FA</button>
+            <button type="submit" class="op-btn op-btn-danger">Disable 2FA</button>
         </form>
     </div>
 </div>
@@ -32,13 +37,13 @@
             <div class="op-form-group op-col-6">
                 <h4>Step 1 — Scan QR Code</h4>
                 <p class="op-text-muted">Open your authenticator app (Google Authenticator, Authy, etc.) and scan this QR code.</p>
-                <div class="op-2fa-qr" style="margin:1.5rem 0;">
+                <div class="op-2fa-qr op-2fa-qr-container">
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ qr_uri|url_encode }}"
-                         alt="2FA QR Code" width="200" height="200" style="border:8px solid white;border-radius:8px;">
+                          alt="2FA QR Code" width="200" height="200" class="op-qr-img">
                 </div>
                 <details class="op-mt-2">
-                    <summary class="op-text-muted op-cursor-pointer" style="cursor:pointer;">Can't scan? Enter this code manually</summary>
-                    <code class="op-code-block op-mt-2" style="display:block;padding:0.75rem;letter-spacing:3px;font-size:1.1rem;">{{ totp_secret }}</code>
+                    <summary class="op-text-muted op-cursor-pointer op-details-summary">Can't scan? Enter this code manually</summary>
+                    <code class="op-code-block op-mt-2 op-secret-code">{{ totp_secret }}</code>
                 </details>
             </div>
             <div class="op-form-group op-col-6">
@@ -48,9 +53,9 @@
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                     <div class="op-form-group">
                         <label>Verification Code</label>
-                        <input type="text" name="code" class="op-input" placeholder="000000"
+                        <input type="text" name="code" class="op-input op-verify-input" placeholder="000000"
                                maxlength="6" pattern="[0-9]{6}" autocomplete="one-time-code"
-                               inputmode="numeric" required autofocus style="font-size:1.5rem;letter-spacing:6px;text-align:center;">
+                               inputmode="numeric" required autofocus>
                     </div>
                     <button type="submit" class="op-btn op-btn-primary op-btn-lg op-mt-2">Activate 2FA</button>
                 </form>

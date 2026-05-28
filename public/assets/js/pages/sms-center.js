@@ -23,6 +23,32 @@
         });
     });
 
+    // ─── Create Template Panel Toggling ──────────────────────────────────────
+    var btnToggleCreate = document.getElementById("btn-toggle-create-template");
+    var btnCancelCreate = document.getElementById("btn-cancel-create-template");
+    var createPanel = document.getElementById("create-template-panel");
+
+    if (btnToggleCreate && createPanel) {
+        btnToggleCreate.addEventListener("click", function () {
+            createPanel.classList.toggle("op-d-none");
+        });
+    }
+    if (btnCancelCreate && createPanel) {
+        btnCancelCreate.addEventListener("click", function () {
+            createPanel.classList.add("op-d-none");
+        });
+    }
+
+    // ─── Confirm Delete Template Form Submissions ─────────────────────────────
+    document.querySelectorAll(".delete-template-form").forEach(function (form) {
+        form.addEventListener("submit", function (e) {
+            var confirmMsg = this.getAttribute("data-confirm") || "Are you sure?";
+            if (!confirm(confirmMsg)) {
+                e.preventDefault();
+            }
+        });
+    });
+
     // ─── Live Regex Tester ────────────────────────────────────────────────────
     var testBtn = document.getElementById("test-regex-btn");
     if (testBtn) {
@@ -36,7 +62,7 @@
             if (!body || !regex) {
                 box.className = "op-alert op-alert-warning";
                 box.textContent = "Enter both SMS body and regex.";
-                wrap.style.display = "block";
+                if (wrap) { wrap.classList.remove("op-d-none"); }
                 return;
             }
 
@@ -47,7 +73,7 @@
             })
             .then(function (r) { return r.json(); })
             .then(function (data) {
-                wrap.style.display = "block";
+                if (wrap) { wrap.classList.remove("op-d-none"); }
                 if (!data.success) {
                     box.className = "op-alert op-alert-danger";
                     box.textContent = "Error: " + data.error;
@@ -62,7 +88,7 @@
             .catch(function () {
                 box.className = "op-alert op-alert-danger";
                 box.textContent = "Network error.";
-                wrap.style.display = "block";
+                if (wrap) { wrap.classList.remove("op-d-none"); }
             });
         });
     }
@@ -91,7 +117,8 @@
             .then(function (res) {
                 if (!res.success) { alert("Error: " + (res.error || "Unknown")); return; }
                 var d = res.data;
-                document.getElementById("analyze-results").style.display = "block";
+                var analyzeResultsPanel = document.getElementById("analyze-results");
+                if (analyzeResultsPanel) { analyzeResultsPanel.classList.remove("op-d-none"); }
 
                 var badge = document.getElementById("confidence-badge");
                 if (d.sender_whitelisted) {
@@ -135,7 +162,8 @@
         clearAnalyzeBtn.addEventListener("click", function () {
             document.getElementById("sms-sender-input").value = "";
             document.getElementById("raw-sms-input").value = "";
-            document.getElementById("analyze-results").style.display = "none";
+            var analyzeResultsPanel = document.getElementById("analyze-results");
+            if (analyzeResultsPanel) { analyzeResultsPanel.classList.add("op-d-none"); }
         });
     }
 
@@ -163,7 +191,8 @@
             .then(function (res) {
                 if (!res.success) { alert("Error: " + (res.error || "Unknown")); return; }
                 document.getElementById("ai-prompt-text").textContent = res.prompt;
-                document.getElementById("ai-prompt-result").style.display = "block";
+                var promptResultPanel = document.getElementById("ai-prompt-result");
+                if (promptResultPanel) { promptResultPanel.classList.remove("op-d-none"); }
             })
             .catch(function () { alert("Network error — could not generate prompt"); })
             .finally(function () { btnText.textContent = "✨ Generate AI Prompt"; btn.disabled = false; });
@@ -181,7 +210,9 @@
             }).catch(function () {
                 var ta = document.createElement("textarea");
                 ta.value = text;
-                ta.style.cssText = "position:fixed;opacity:0;";
+                ta.style.fontSize = "12pt";
+                ta.style.position = "absolute";
+                ta.style.left = "-9999px";
                 document.body.appendChild(ta);
                 ta.select();
                 document.execCommand("copy");
@@ -192,12 +223,14 @@
         });
     }
 
+
     var clearAiBtn = document.getElementById("clear-ai-btn");
     if (clearAiBtn) {
         clearAiBtn.addEventListener("click", function () {
             document.getElementById("ai-sender-input").value = "";
             document.getElementById("ai-sms-input").value = "";
-            document.getElementById("ai-prompt-result").style.display = "none";
+            var promptResultPanel = document.getElementById("ai-prompt-result");
+            if (promptResultPanel) { promptResultPanel.classList.add("op-d-none"); }
         });
     }
 

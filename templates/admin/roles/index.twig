@@ -6,7 +6,7 @@
         <h1>Roles & Permissions</h1>
         <p class="op-text-muted op-mt-1">Manage staff roles and assign granular permissions per brand.</p>
     </div>
-    <button class="op-btn op-btn-primary" onclick="document.getElementById('add-role-modal').style.display='flex'">
+    <button class="op-btn op-btn-primary" data-open-modal="add-role-modal">
         + Create Role
     </button>
 </div>
@@ -43,13 +43,13 @@
                         {% endif %}
                     </td>
                     <td class="op-actions">
-                        <button class="op-btn op-btn-sm op-btn-outline"
-                                onclick="openEditModal({{ role|json_encode|e('html_attr') }})">
+                        <button class="op-btn op-btn-sm op-btn-outline btn-edit-role"
+                                data-role="{{ role|json_encode|e('html_attr') }}">
                             Edit
                         </button>
                         {% if not role.is_system %}
                         <form method="POST" action="/admin/roles/{{ role.id }}/delete" class="op-inline-form"
-                              onsubmit="return confirm('Delete role \'{{ role.name }}\'? Staff members with this role will lose access.')">
+                              data-confirm="Delete role '{{ role.name }}'? Staff members with this role will lose access.">
                             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                             <button type="submit" class="op-btn op-btn-sm op-btn-danger">Delete</button>
                         </form>
@@ -87,11 +87,12 @@
 {% endif %}
 
 {# ── Create Role Modal ──────────────────────────────────── #}
-<div class="op-modal-overlay" id="add-role-modal" style="display:none">
-    <div class="op-modal">
+<div class="op-modal" id="add-role-modal" hidden>
+    <div class="op-modal-backdrop" data-close-modal="add-role-modal"></div>
+    <div class="op-modal-dialog">
         <div class="op-modal-header">
             <h3>Create Role</h3>
-            <button class="op-modal-close" onclick="document.getElementById('add-role-modal').style.display='none'">×</button>
+            <button class="op-modal-close" type="button" data-close-modal="add-role-modal">×</button>
         </div>
         <form method="POST" action="/admin/roles/store">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
@@ -106,7 +107,7 @@
                 </div>
             </div>
             <div class="op-modal-footer">
-                <button type="button" class="op-btn op-btn-outline" onclick="document.getElementById('add-role-modal').style.display='none'">Cancel</button>
+                <button type="button" class="op-btn op-btn-outline" data-close-modal="add-role-modal">Cancel</button>
                 <button type="submit" class="op-btn op-btn-primary">Create Role</button>
             </div>
         </form>
@@ -114,11 +115,12 @@
 </div>
 
 {# ── Edit Role Modal ────────────────────────────────────── #}
-<div class="op-modal-overlay" id="edit-role-modal" style="display:none">
-    <div class="op-modal op-modal-lg">
+<div class="op-modal" id="edit-role-modal" hidden>
+    <div class="op-modal-backdrop" data-close-modal="edit-role-modal"></div>
+    <div class="op-modal-dialog op-modal-lg">
         <div class="op-modal-header">
             <h3>Edit Role: <span id="edit-role-name-display"></span></h3>
-            <button class="op-modal-close" onclick="document.getElementById('edit-role-modal').style.display='none'">×</button>
+            <button class="op-modal-close" type="button" data-close-modal="edit-role-modal">×</button>
         </div>
         <form method="POST" id="edit-role-form">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
@@ -156,7 +158,7 @@
                 {% endfor %}
             </div>
             <div class="op-modal-footer">
-                <button type="button" class="op-btn op-btn-outline" onclick="document.getElementById('edit-role-modal').style.display='none'">Cancel</button>
+                <button type="button" class="op-btn op-btn-outline" data-close-modal="edit-role-modal">Cancel</button>
                 <button type="submit" class="op-btn op-btn-primary">Save Permissions</button>
             </div>
         </form>

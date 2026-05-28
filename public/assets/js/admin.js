@@ -6,6 +6,10 @@
 (function () {
     "use strict";
 
+    // ─── CSRF Token ───────────────────────────────────────────
+    var meta = document.querySelector('meta[name="csrf-token"]');
+    window.OP_CSRF = meta ? meta.getAttribute("content") : "";
+
     var isMobile = function () { return window.innerWidth < 768; };
 
     // ─── Sidebar Toggle ───────────────────────────────────────
@@ -17,7 +21,6 @@
         if (backdrop) {return;}
         backdrop = document.createElement("div");
         backdrop.id = "op-sidebar-backdrop";
-        backdrop.style.cssText = "position:fixed;inset:0;background:rgba(0,0,0,0.6);z-index:999;display:none;";
         document.body.appendChild(backdrop);
         backdrop.addEventListener("click", closeMobileSidebar);
     }
@@ -108,13 +111,24 @@
         });
     }
 
-    // ─── Flash Alert Auto-dismiss ─────────────────────────────
+    // ─── Flash Alert Dismissal ─────────────────────────────
+    function dismissAlert(alert) {
+        alert.style.opacity = "0";
+        alert.style.transform = "translateY(-10px)";
+        setTimeout(function () { alert.remove(); }, 300);
+    }
     document.querySelectorAll(".op-alert-dismissible").forEach(function (alert) {
         setTimeout(function () {
-            alert.style.opacity = "0";
-            alert.style.transform = "translateY(-10px)";
-            setTimeout(function () { alert.remove(); }, 300);
+            dismissAlert(alert);
         }, 5000);
+    });
+    document.addEventListener("click", function (e) {
+        if (e.target && e.target.classList.contains("op-alert-close")) {
+            var alert = e.target.closest(".op-alert");
+            if (alert) {
+                dismissAlert(alert);
+            }
+        }
     });
 
     // ─── Global Search ────────────────────────────────────────
@@ -140,13 +154,14 @@
         });
     });
 
-    // ─── Confirm dangerous forms ──────────────────────────────
-    document.querySelectorAll("form[data-confirm]").forEach(function (form) {
-        form.addEventListener("submit", function (e) {
-            if (!confirm(form.dataset.confirm)) {
+    // ─── Confirm dangerous forms (Delegated to support dynamic forms & CSP safety) ──────────────────────────────
+    document.addEventListener("submit", function (e) {
+        if (e.target && e.target.tagName === "FORM") {
+            var msg = e.target.getAttribute("data-confirm") || e.target.dataset.confirm;
+            if (msg && !confirm(msg)) {
                 e.preventDefault();
             }
-        });
+        }
     });
 
     // ─── Copy to clipboard ────────────────────────────────────
@@ -262,24 +277,88 @@
         });
     }
 
-    // ─── Global Modal Functions ──────────────────────────────
+    // ─── Global Modal Functions & CSP Delegated Handlers ──────────────────────────────
     window.openDeleteModal = function (action, itemName) {
-        document.getElementById("delete-form").action = action;
-        document.getElementById("delete-item-name").textContent = itemName;
-        document.getElementById("confirm-delete-modal").hidden = false;
+        var form = document.getElementById("delete-form");
+        var nameEl = document.getElementById("delete-item-name");
+        var modal = document.getElementById("confirm-delete-modal");
+        if (form && nameEl && modal) {
+            form.action = action;
+            nameEl.textContent = itemName;
+            modal.hidden = false;
+        }
     };
 
     window.closeModal = function (id) {
-        document.getElementById(id).hidden = true;
+        var modal = document.getElementById(id);
+        if (modal) {
+            modal.hidden = true;
+        }
     };
 
     window.openDetailModal = function (title, url) {
-        document.getElementById("detail-modal-title").textContent = title;
-        document.getElementById("detail-modal").hidden = false;
+        var titleEl = document.getElementById("detail-modal-title");
+        var modal = document.getElementById("detail-modal");
         var content = document.getElementById("detail-modal-content");
-        content.innerHTML = '<div class="op-loading">Loading...</div>';
-        fetch(url).then(function (r) { return r.text(); }).then(function (html) { content.innerHTML = html; });
+        if (titleEl && modal && content) {
+            titleEl.textContent = title;
+            modal.hidden = false;
+            content.innerHTML = '<div class="op-loading">Loading...</div>';
+            fetch(url).then(function (r) { return r.text(); }).then(function (html) { content.innerHTML = html; });
+        }
     };
+
+    // Global click listener for CSP-compliant delegated handlers
+    document.addEventListener("click", function (e) {
+        if (!e || !e.target) {
+            return;
+        }
+        var target = e.target;
+        if (target.nodeType === 3) {
+            target = target.parentNode;
+        }
+
+        // 1. Delegated Modal Close
+        var closeBtn = target.closest("[data-close-modal]");
+        if (closeBtn) {
+            var modalId = closeBtn.getAttribute("data-close-modal") || closeBtn.dataset.closeModal;
+            window.closeModal(modalId);
+            return;
+        }
+
+        // 1b. Delegated Modal Open
+        var openBtn = target.closest("[data-open-modal]");
+        if (openBtn) {
+            var modalId = openBtn.getAttribute("data-open-modal") || openBtn.dataset.openModal;
+            var modal = document.getElementById(modalId);
+            if (modal) {
+                modal.hidden = false;
+                var focusEl = modal.querySelector("[autofocus]");
+                if (focusEl) {
+                    focusEl.focus();
+                }
+            }
+            return;
+        }
+
+        // 2. Delegated Open Delete Modal
+        var deleteBtn = target.closest("[data-open-delete-modal]");
+        if (deleteBtn) {
+            var action = deleteBtn.getAttribute("data-open-delete-modal") || deleteBtn.dataset.openDeleteModal;
+            var itemName = deleteBtn.getAttribute("data-item-name") || deleteBtn.dataset.itemName || "";
+            window.openDeleteModal(action, itemName);
+            return;
+        }
+
+        // 3. Delegated Open Detail Modal
+        var detailBtn = target.closest("[data-open-detail-modal]");
+        if (detailBtn) {
+            var url = detailBtn.getAttribute("data-open-detail-modal") || detailBtn.dataset.openDetailModal;
+            var title = detailBtn.getAttribute("data-modal-title") || detailBtn.dataset.modalTitle || "";
+            window.openDetailModal(title, url);
+            return;
+        }
+    });
 
     document.addEventListener("keydown", function (e) {
         if (e.key === "Escape") {

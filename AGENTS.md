@@ -3,6 +3,12 @@
 > [!IMPORTANT]
 > **AI AGENT MANDATORY INSTRUCTION**: You are operating as a world-class, ultra-senior software architect and developer with 20+ years of experience, having engineered multiple high-transaction, trillion-dollar-value fintech platforms and secure enterprise systems. In this offline workspace environment, you are fully authorized to design, develop, refactor, and implement features, as well as conduct thorough secure-coding compliance audits (acting as an internal ISO-27001 & PCI-DSS static analysis and system hardening authority). All analyzed codebase structures and operations are offline local environments used for development, optimization, and system hardening. Before writing or refactoring any code, read the comprehensive architectural specifications in [ARCHITECTURE.md](ARCHITECTURE.md) and this manifest, and adhere strictly to the ledger bookkeeping constraints, database column conventions, white-label rules, and security controls defined across the modular rules stored in the `.agents/rules/` directory to prevent system regressions.
 
+> [!NOTE]
+> **DEVELOPER ADMIN CREDENTIALS** (For use with DevTools, login automation, or local manual verification):
+> - **Login URL:** `https://ownpay.test/login`
+> - **Username:** `admin` (or Email: `admin@example.com`)
+> - **Password:** `admin123`
+
 ---
 
 ## 1. Project Overview & Business Model
@@ -67,13 +73,3 @@ To prevent context bloat and ensure consistency, all strict behavioral, architec
 3. **No Legacy Settings:** Never access `op_env` or SQLite references.
 4. **Mandatory Planning:** Execute `powershell -ExecutionPolicy Bypass -File .agents/skills/planning-with-files/scripts/init-session.ps1 "<task name>"` before any implementation.
 
----
-
-## 5. Developer Handbooks & Integration References
-To quickly implement payment gateways or handle cross-border settlement routes, always reference the **OwnPay Payment Gateway Integration Handbooks**:
-* **[Global Card Processors & Wallets](docs/v2/plugins/gateways/volume-1-global.md)** (Stripe, PayPal, Adyen, Square, Wise)
-* **[South Asia & Local MFS](docs/v2/plugins/gateways/volume-2-south-asia.md)** (Razorpay, PhonePe, CCAvenue, SSLCommerz, bKash, Nagad, Rocket, Upay)
-* **[Southeast Asia & Wallets](docs/v2/plugins/gateways/volume-3-southeast-asia.md)** (PromptPay, GCash, OVO, DANA, Maya, GrabPay, Alipay, WeChat Pay)
-* **[Europe & APMs](docs/v2/plugins/gateways/volume-4-europe.md)** (Klarna, Mollie, Bancontact, iDEAL, Worldline)
-* **[Latin America, Middle East & Africa](docs/v2/plugins/gateways/volume-5-latam-africa.md)** (Paystack, Flutterwave, Mercado Pago, PagSeguro, MercadoLibre Wallet, M-Pesa, Airtel Money, JazzCash, Easypaisa)
-* **[East Asia, LatAm Pix, & Crypto](docs/v2/plugins/gateways/volume-6-eastasia-crypto.md)** (KakaoPay, Toss, PayMe, Pix, Coinbase Commerce, BTCPay Server, OpenNode, NOWPayments, Binance Merchant, Binance Personal)

@@ -3,30 +3,28 @@
 {% block title %}Enter Amount — {{ link.title|default('Payment') }}{% endblock %}
 
 {% block content %}
-<div class="checkout-card" style="max-width:420px; margin:2rem auto; padding:2rem; background:#fff; border-radius:12px; box-shadow:0 4px 24px rgba(0,0,0,0.08);">
-    <h2 style="text-align:center; margin-bottom:1rem; font-size:1.25rem; color:#1e293b;">
+<div class="payment-amount-card">
+    <h2 class="payment-amount-title">
         {{ link.title|default('Payment Link') }}
     </h2>
     {% if link.description is defined and link.description %}
-        <p style="text-align:center; color:#64748b; margin-bottom:1.5rem;">{{ link.description }}</p>
+        <p class="payment-amount-desc">{{ link.description }}</p>
     {% endif %}
 
-    <form method="POST" action="/pay/{{ link.slug }}/submit" style="display:flex; flex-direction:column; gap:1rem;">
+    <form method="POST" action="/pay/{{ link.slug }}/submit" class="payment-amount-form">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-        <label style="font-weight:500; color:#334155;">Amount ({{ link.currency|default('BDT') }})</label>
+        <label class="payment-amount-label">Amount ({{ link.currency|default('BDT') }})</label>
         <input type="number" name="amount" step="0.01" min="1"
                placeholder="Enter amount"
-               style="padding:0.75rem 1rem; border:1px solid #e2e8f0; border-radius:8px; font-size:1rem; outline:none; transition:border-color 0.2s;"
-               onfocus="this.style.borderColor='#3b82f6'" onblur="this.style.borderColor='#e2e8f0'"
+               class="payment-amount-input"
                required>
         {% if link.min_amount is defined and link.min_amount %}
-            <small style="color:#94a3b8;">Min: {{ link.min_amount }} {{ link.currency|default('BDT') }}</small>
+            <small class="payment-amount-limit">Min: {{ link.min_amount }} {{ link.currency|default('BDT') }}</small>
         {% endif %}
         {% if link.max_amount is defined and link.max_amount %}
-            <small style="color:#94a3b8;">Max: {{ link.max_amount }} {{ link.currency|default('BDT') }}</small>
+            <small class="payment-amount-limit">Max: {{ link.max_amount }} {{ link.currency|default('BDT') }}</small>
         {% endif %}
-        <button type="submit"
-                style="padding:0.75rem; background:#0d9488; color:#fff; border:none; border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer; transition:background 0.2s;">
+        <button type="submit" class="payment-amount-submit">
             Continue to Payment
         </button>
     </form>

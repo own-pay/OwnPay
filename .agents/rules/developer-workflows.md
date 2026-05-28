@@ -1,5 +1,5 @@
 ---
-trigger: model_decision
+trigger: always_on
 description: Apply when implementing new features, controllers, templates, route handlers, running PHPUnit or static analysis, working with manual gateways, or creating/managing plugin components.
 ---
 

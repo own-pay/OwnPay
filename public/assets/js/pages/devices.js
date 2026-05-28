@@ -14,9 +14,20 @@
         pairBtn.addEventListener("click", function () {
             var panel = document.getElementById("pairing-panel");
             if (!panel) {return;}
-            var isHidden = panel.style.display === "none" || panel.style.display === "";
-            panel.style.display = isHidden ? "block" : "none";
-            if (isHidden) {panel.scrollIntoView({ behavior: "smooth", block: "start" });}
+            panel.classList.toggle("op-d-none");
+            if (!panel.classList.contains("op-d-none")) {
+                panel.scrollIntoView({ behavior: "smooth", block: "start" });
+            }
+        });
+    }
+
+    var closePairPanelBtn = document.getElementById("close-pairing-panel");
+    if (closePairPanelBtn) {
+        closePairPanelBtn.addEventListener("click", function () {
+            var panel = document.getElementById("pairing-panel");
+            if (panel) {
+                panel.classList.add("op-d-none");
+            }
         });
     }
 
@@ -44,7 +55,9 @@
                     var otpEl   = document.getElementById("otp-value");
                     var timerEl = document.getElementById("otp-timer");
 
-                    display.style.display = "block";
+                    if (display) {
+                        display.classList.remove("op-d-none");
+                    }
                     otpEl.textContent = data.otp;
 
                     if (timerInterval) {clearInterval(timerInterval);}
@@ -91,6 +104,16 @@
 
         document.querySelectorAll(".device-checkbox").forEach(function (cb) {
             cb.addEventListener("change", updateBulkBtn);
+        });
+    }
+
+    var pairFirstDeviceBtn = document.getElementById("pair-first-device-btn");
+    if (pairFirstDeviceBtn) {
+        pairFirstDeviceBtn.addEventListener("click", function () {
+            var mainPairBtn = document.getElementById("pair-device-btn");
+            if (mainPairBtn) {
+                mainPairBtn.click();
+            }
         });
     }
 

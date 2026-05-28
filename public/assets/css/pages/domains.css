@@ -1,0 +1,14 @@
+.op-list-none-p0 {
+    list-style: none !important;
+    padding: 0 !important;
+    margin: 0 !important;
+}
+
+.op-cursor-pointer-fw600 {
+    cursor: pointer !important;
+    font-weight: 600 !important;
+}
+
+.op-fs-88 {
+    font-size: 0.88rem !important;
+}

@@ -1,584 +1,6 @@
 {# Onboarding Setup Wizard Component #}
 <div id="op-setup-wizard" class="op-setup-wizard-card">
-    <style nonce="{{ csp_nonce }}">
-        .op-setup-wizard-card {
-            background: linear-gradient(135deg, rgba(17, 24, 39, 0.85) 0%, rgba(31, 41, 55, 0.9) 100%);
-            backdrop-filter: blur(20px);
-            -webkit-backdrop-filter: blur(20px);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            border-radius: 20px;
-            padding: 3rem;
-            margin-bottom: 3rem;
-            box-shadow: 0 20px 50px -12px rgba(0, 0, 0, 0.5), 
-                        inset 0 1px 1px 0 rgba(255, 255, 255, 0.05);
-            color: #f3f4f6;
-            position: relative;
-            overflow: hidden;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-            animation: slideInDown 0.6s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        @keyframes slideInDown {
-            from {
-                transform: translateY(-30px);
-                opacity: 0;
-            }
-            to {
-                transform: translateY(0);
-                opacity: 1;
-            }
-        }
-
-        .op-wizard-dismiss {
-            position: absolute;
-            top: 1.5rem;
-            right: 1.5rem;
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            color: #9ca3af;
-            font-size: 1.25rem;
-            cursor: pointer;
-            width: 2.25rem;
-            height: 2.25rem;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border-radius: 50%;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .op-wizard-dismiss:hover {
-            background: rgba(239, 68, 68, 0.15);
-            border-color: rgba(239, 68, 68, 0.3);
-            color: #ef4444;
-            transform: rotate(90deg);
-        }
-
-        .op-wizard-header {
-            margin-bottom: 2.5rem;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-            padding-bottom: 1.5rem;
-        }
-
-        .op-wizard-title {
-            font-size: 2rem;
-            font-weight: 800;
-            background: linear-gradient(135deg, #cbd5e1 0%, #6366f1 50%, #a5b4fc 100%);
-            -webkit-background-clip: text;
-            -webkit-text-fill-color: transparent;
-            margin-bottom: 0.5rem;
-            letter-spacing: -0.02em;
-        }
-
-        .op-wizard-subtitle {
-            color: #9ca3af;
-            font-size: 1rem;
-            line-height: 1.5;
-        }
-
-        /* Progress Steps Stepper */
-        .op-wizard-steps {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            position: relative;
-            margin-bottom: 3.5rem;
-            padding: 0 1.5rem;
-        }
-
-        .op-wizard-steps::before {
-            content: '';
-            position: absolute;
-            top: 50%;
-            left: 0;
-            right: 0;
-            height: 2px;
-            background: rgba(255, 255, 255, 0.06);
-            transform: translateY(-50%);
-            z-index: 1;
-        }
-
-        .op-wizard-progress-bar {
-            position: absolute;
-            top: 50%;
-            left: 0;
-            width: 0%;
-            height: 2px;
-            background: linear-gradient(90deg, #6366f1, #818cf8, #a5b4fc);
-            transform: translateY(-50%);
-            z-index: 2;
-            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .op-wizard-step {
-            position: relative;
-            z-index: 3;
-            background: #111827;
-            border: 2px solid rgba(255, 255, 255, 0.08);
-            color: #9ca3af;
-            width: 3rem;
-            height: 3rem;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 1rem;
-            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-
-        .op-wizard-step.active {
-            border-color: #6366f1;
-            color: #ffffff;
-            background: #6366f1;
-            box-shadow: 0 0 25px rgba(99, 102, 241, 0.45);
-            transform: scale(1.1);
-        }
-
-        .op-wizard-step.completed {
-            border-color: #10b981;
-            color: #ffffff;
-            background: #10b981;
-            box-shadow: 0 0 20px rgba(16, 185, 129, 0.3);
-        }
-
-        .op-wizard-step-label {
-            position: absolute;
-            top: 3.5rem;
-            white-space: nowrap;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #6b7280;
-            transform: translateX(-50%);
-            left: 50%;
-            transition: all 0.3s ease;
-        }
-
-        .op-wizard-step.active .op-wizard-step-label {
-            color: #a5b4fc;
-            font-weight: 700;
-        }
-
-        .op-wizard-step.completed .op-wizard-step-label {
-            color: #10b981;
-        }
-
-        /* Step Panels */
-        .op-wizard-panel {
-            display: none;
-            animation: panelFadeIn 0.5s cubic-bezier(0.16, 1, 0.3, 1);
-        }
-
-        .op-wizard-panel.active {
-            display: block;
-        }
-
-        @keyframes panelFadeIn {
-            from { opacity: 0; transform: translateY(15px); }
-            to { opacity: 1; transform: translateY(0); }
-        }
-
-        /* Form Controls */
-        .op-wizard-form-grid {
-            display: grid;
-            grid-template-columns: repeat(2, 1fr);
-            gap: 1.75rem;
-            margin-bottom: 2.5rem;
-        }
-
-        @media (max-width: 768px) {
-            .op-wizard-form-grid {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .op-wizard-field {
-            display: flex;
-            flex-direction: column;
-            gap: 0.6rem;
-        }
-
-        .op-wizard-field-full {
-            grid-column: 1 / -1;
-            display: flex;
-            flex-direction: column;
-            gap: 0.6rem;
-        }
-
-        .op-wizard-label {
-            font-size: 0.8rem;
-            font-weight: 700;
-            color: #d1d5db;
-            text-transform: uppercase;
-            letter-spacing: 0.06em;
-        }
-
-        .op-wizard-input, .op-wizard-select, .op-wizard-textarea {
-            background: rgba(255, 255, 255, 0.03);
-            border: 1px solid rgba(255, 255, 255, 0.08);
-            color: #f3f4f6;
-            padding: 0.85rem 1.1rem;
-            border-radius: 10px;
-            font-size: 0.95rem;
-            outline: none;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            width: 100%;
-        }
-
-        .op-wizard-input:focus, .op-wizard-select:focus, .op-wizard-textarea:focus {
-            border-color: #6366f1;
-            background: rgba(255, 255, 255, 0.05);
-            box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
-        }
-
-        .op-wizard-select option {
-            background: #111827;
-            color: #f3f4f6;
-        }
-
-        .op-wizard-hint {
-            font-size: 0.8rem;
-            color: #9ca3af;
-            line-height: 1.4;
-        }
-
-        /* Toggle Switches */
-        .op-wizard-toggle-wrapper {
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            background: rgba(255, 255, 255, 0.02);
-            border: 1px solid rgba(255, 255, 255, 0.05);
-            padding: 1rem;
-            border-radius: 10px;
-            transition: all 0.3s ease;
-        }
-
-        .op-wizard-toggle-wrapper:hover {
-            background: rgba(255, 255, 255, 0.04);
-            border-color: rgba(255, 255, 255, 0.08);
-        }
-
-        .op-wizard-switch {
-            position: relative;
-            display: inline-block;
-            width: 2.75rem;
-            height: 1.5rem;
-            flex-shrink: 0;
-        }
-
-        .op-wizard-switch input {
-            opacity: 0;
-            width: 0;
-            height: 0;
-        }
-
-        .op-wizard-slider {
-            position: absolute;
-            cursor: pointer;
-            top: 0;
-            left: 0;
-            right: 0;
-            bottom: 0;
-            background-color: rgba(255, 255, 255, 0.1);
-            transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 34px;
-            border: 1px solid rgba(255, 255, 255, 0.05);
-        }
-
-        .op-wizard-slider:before {
-            position: absolute;
-            content: "";
-            height: 1.1rem;
-            width: 1.1rem;
-            left: 2px;
-            bottom: 1.5px;
-            background-color: #cbd5e1;
-            transition: .3s cubic-bezier(0.4, 0, 0.2, 1);
-            border-radius: 50%;
-        }
-
-        input:checked + .op-wizard-slider {
-            background-color: #6366f1;
-            border-color: rgba(99, 102, 241, 0.3);
-        }
-
-        input:checked + .op-wizard-slider:before {
-            transform: translateX(1.15rem);
-            background-color: #ffffff;
-        }
-
-        /* Action Buttons */
-        .op-wizard-actions {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.05);
-            padding-top: 2rem;
-            margin-top: 2.5rem;
-        }
-
-        .op-wizard-btn {
-            padding: 0.85rem 1.75rem;
-            border-radius: 10px;
-            font-weight: 700;
-            font-size: 0.95rem;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            display: flex;
-            align-items: center;
-            gap: 0.6rem;
-            border: none;
-        }
-
-        .op-wizard-btn-prev {
-            background: rgba(255, 255, 255, 0.04);
-            color: #d1d5db;
-            border: 1px solid rgba(255, 255, 255, 0.08);
-        }
-
-        .op-wizard-btn-prev:hover {
-            background: rgba(255, 255, 255, 0.08);
-            color: #ffffff;
-            border-color: rgba(255, 255, 255, 0.15);
-        }
-
-        .op-wizard-btn-next {
-            background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
-            color: #ffffff;
-            box-shadow: 0 4px 15px rgba(99, 102, 241, 0.35);
-        }
-
-        .op-wizard-btn-next:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(99, 102, 241, 0.45);
-        }
-
-        .op-wizard-btn-finish {
-            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-            color: #ffffff;
-            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.35);
-        }
-
-        .op-wizard-btn-finish:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 25px rgba(16, 185, 129, 0.45);
-        }
-
-        .op-wizard-btn:disabled {
-            opacity: 0.4;
-            cursor: not-allowed;
-            transform: none !important;
-            box-shadow: none !important;
-        }
-
-        /* Choice Cards for Gateways and Outgoing Mail */
-        .op-choice-cards {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 1.25rem;
-            margin-bottom: 2.5rem;
-        }
-
-        @media (max-width: 768px) {
-            .op-choice-cards {
-                grid-template-columns: 1fr;
-            }
-        }
-
-        .op-choice-card {
-            background: rgba(255, 255, 255, 0.02);
-            border: 2px solid rgba(255, 255, 255, 0.05);
-            border-radius: 14px;
-            padding: 1.75rem;
-            text-align: center;
-            cursor: pointer;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            position: relative;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .op-choice-card:hover {
-            background: rgba(255, 255, 255, 0.05);
-            border-color: rgba(99, 102, 241, 0.3);
-            transform: translateY(-2px);
-        }
-
-        .op-choice-card.selected {
-            background: rgba(99, 102, 241, 0.08);
-            border-color: #6366f1;
-            box-shadow: 0 0 20px rgba(99, 102, 241, 0.2);
-        }
-
-        .op-choice-icon {
-            font-size: 2.25rem;
-            margin-bottom: 0.75rem;
-            filter: drop-shadow(0 2px 8px rgba(99, 102, 241, 0.3));
-        }
-
-        .op-choice-label {
-            font-weight: 700;
-            font-size: 1.05rem;
-            color: #f9fafb;
-            margin-bottom: 0.25rem;
-        }
-
-        .op-choice-desc {
-            font-size: 0.8rem;
-            color: #9ca3af;
-        }
-
-        .op-choice-check {
-            position: absolute;
-            top: 0.75rem;
-            right: 0.75rem;
-            width: 1.35rem;
-            height: 1.35rem;
-            border-radius: 50%;
-            background: #6366f1;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            opacity: 0;
-            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-            transform: scale(0.8);
-        }
-
-        .op-choice-card.selected .op-choice-check {
-            opacity: 1;
-            transform: scale(1);
-        }
-
-        .op-choice-check svg {
-            width: 0.8rem;
-            height: 0.8rem;
-            fill: none;
-            stroke: #ffffff;
-            stroke-width: 3.5;
-        }
-
-        /* Device step QR and details */
-        .op-pairing-container {
-            display: flex;
-            gap: 2.5rem;
-            align-items: center;
-            background: rgba(255, 255, 255, 0.01);
-            border-radius: 16px;
-            padding: 2rem;
-            border: 1px solid rgba(255, 255, 255, 0.04);
-        }
-
-        @media (max-width: 640px) {
-            .op-pairing-container {
-                flex-direction: column;
-                text-align: center;
-            }
-        }
-
-        .op-qr-mock {
-            background: #ffffff;
-            padding: 1rem;
-            border-radius: 16px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.4);
-            flex-shrink: 0;
-            transition: all 0.3s ease;
-        }
-
-        .op-qr-mock:hover {
-            transform: scale(1.03);
-        }
-
-        .op-qr-svg {
-            width: 150px;
-            height: 150px;
-        }
-
-        .op-pairing-text h4 {
-            font-size: 1.25rem;
-            font-weight: 700;
-            margin-bottom: 0.75rem;
-            color: #ffffff;
-            letter-spacing: -0.01em;
-        }
-
-        .op-pairing-text p {
-            color: #9ca3af;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin-bottom: 1.5rem;
-        }
-
-        .op-pairing-steps {
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            text-align: left;
-        }
-
-        .op-pairing-step-item {
-            display: flex;
-            gap: 0.9rem;
-            font-size: 0.9rem;
-            color: #d1d5db;
-            align-items: center;
-        }
-
-        .op-pairing-step-num {
-            background: rgba(99, 102, 241, 0.25);
-            color: #a5b4fc;
-            width: 1.5rem;
-            height: 1.5rem;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: 700;
-            font-size: 0.8rem;
-            flex-shrink: 0;
-            border: 1px solid rgba(99, 102, 241, 0.15);
-        }
-
-        .op-wizard-error {
-            background: rgba(239, 68, 68, 0.1);
-            border: 1px solid rgba(239, 68, 68, 0.25);
-            border-radius: 10px;
-            padding: 1rem 1.25rem;
-            color: #fca5a5;
-            font-size: 0.95rem;
-            margin-bottom: 2rem;
-            display: none;
-            align-items: center;
-            gap: 0.75rem;
-            animation: shake 0.5s ease-in-out;
-        }
-
-        @keyframes shake {
-            0%, 100% { transform: translateX(0); }
-            20%, 60% { transform: translateX(-6px); }
-            40%, 80% { transform: translateX(6px); }
-        }
-
-        .op-wizard-success {
-            background: rgba(16, 185, 129, 0.1);
-            border: 1px solid rgba(16, 185, 129, 0.25);
-            border-radius: 10px;
-            padding: 1rem 1.25rem;
-            color: #a7f3d0;
-            font-size: 0.95rem;
-            margin-bottom: 2rem;
-            display: none;
-            align-items: center;
-            gap: 0.75rem;
-        }
-    </style>
-
-    <button type="button" class="op-wizard-dismiss" onclick="dismissWizard()" title="Dismiss Wizard">×</button>
+    <button type="button" class="op-wizard-dismiss" title="Dismiss Wizard">×</button>
 
     <div class="op-wizard-header">
         <div class="op-wizard-title" id="wizard-title">System Setup Wizard</div>
@@ -622,7 +44,7 @@
 
     <!-- STEP 1 PANEL: Expanded Platform Settings -->
     <div class="op-wizard-panel active" id="panel-1">
-        <form id="form-step-1" onsubmit="event.preventDefault(); submitStep1();">
+        <form id="form-step-1">
             <div class="op-wizard-form-grid">
                 <div class="op-wizard-field">
                     <label class="op-wizard-label" for="site_name">System Name</label>
@@ -664,7 +86,7 @@
                             <input type="checkbox" id="require_customer_phone" name="require_customer_phone" value="1">
                             <span class="op-wizard-slider"></span>
                         </label>
-                        <span class="op-wizard-hint" style="margin-top: 0;">Enforce typing a valid phone number during payments.</span>
+                        <span class="op-wizard-hint op-wizard-hint-mt-0">Enforce typing a valid phone number during payments.</span>
                     </div>
                 </div>
                 <div class="op-wizard-field-full">
@@ -674,7 +96,7 @@
                             <input type="checkbox" id="landing_page_enabled" name="landing_page_enabled" value="1" checked>
                             <span class="op-wizard-slider"></span>
                         </label>
-                        <span class="op-wizard-hint" style="margin-top: 0;">Enable the default public-facing home page instead of routing directly to the login portal.</span>
+                        <span class="op-wizard-hint op-wizard-hint-mt-0">Enable the default public-facing home page instead of routing directly to the login portal.</span>
                     </div>
                 </div>
             </div>
@@ -690,7 +112,7 @@
 
     <!-- STEP 2 PANEL: Create First Brand -->
     <div class="op-wizard-panel" id="panel-2">
-        <form id="form-step-2" onsubmit="event.preventDefault(); submitStep2();">
+        <form id="form-step-2">
             <div class="op-wizard-form-grid">
                 <div class="op-wizard-field">
                     <label class="op-wizard-label" for="brand_name">Brand Name</label>
@@ -727,7 +149,7 @@
                 </div>
             </div>
             <div class="op-wizard-actions">
-                <button type="button" class="op-wizard-btn op-wizard-btn-prev" onclick="prevStep(1)">
+                <button type="button" class="op-wizard-btn op-wizard-btn-prev" data-prev-step="1">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     Back
                 </button>
@@ -741,9 +163,9 @@
 
     <!-- STEP 3 PANEL: Dedicated Outgoing Mail Configuration -->
     <div class="op-wizard-panel" id="panel-3">
-        <form id="form-step-3" onsubmit="event.preventDefault(); submitStep3();">
+        <form id="form-step-3">
             <div class="op-choice-cards">
-                <div class="op-choice-card selected" id="choice-mail-smtp" onclick="selectMailProvider('smtp')">
+                <div class="op-choice-card selected" id="choice-mail-smtp" data-provider="smtp">
                     <div class="op-choice-check">
                         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                     </div>
@@ -751,7 +173,7 @@
                     <div class="op-choice-label">SMTP</div>
                     <div class="op-choice-desc">Custom SMTP Mail Server</div>
                 </div>
-                <div class="op-choice-card" id="choice-mail-mailgun" onclick="selectMailProvider('mailgun')">
+                <div class="op-choice-card" id="choice-mail-mailgun" data-provider="mailgun">
                     <div class="op-choice-check">
                         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                     </div>
@@ -759,7 +181,7 @@
                     <div class="op-choice-label">Mailgun</div>
                     <div class="op-choice-desc">HTTP Transactional API</div>
                 </div>
-                <div class="op-choice-card" id="choice-mail-sendgrid" onclick="selectMailProvider('sendgrid')">
+                <div class="op-choice-card" id="choice-mail-sendgrid" data-provider="sendgrid">
                     <div class="op-choice-check">
                         <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                     </div>
@@ -770,7 +192,7 @@
             </div>
 
             <!-- Global Sender Fields -->
-            <div class="op-wizard-form-grid" style="border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem; margin-bottom: 1.5rem;">
+            <div class="op-wizard-form-grid op-wizard-form-grid-border">
                 <div class="op-wizard-field">
                     <label class="op-wizard-label" for="mail_from_name">From Sender Name</label>
                     <input type="text" id="mail_from_name" class="op-wizard-input" value="Own Pay" required placeholder="e.g. Own Pay Billing">
@@ -784,8 +206,8 @@
             </div>
 
             <!-- Dynamic SMTP Fields -->
-            <div id="mail-smtp-fields" style="display: block; margin-bottom: 2rem;">
-                <h4 style="font-size: 1.1rem; font-weight:700; margin-bottom: 1.25rem; color: #a5b4fc;">SMTP Server Details</h4>
+            <div id="mail-smtp-fields" class="op-mail-smtp-fields-class">
+                <h4 class="op-wizard-subheading">SMTP Server Details</h4>
                 <div class="op-wizard-form-grid">
                     <div class="op-wizard-field">
                         <label class="op-wizard-label" for="mail_smtp_host">SMTP Host</label>
@@ -815,8 +237,8 @@
             </div>
 
             <!-- Dynamic Mailgun Fields -->
-            <div id="mail-mailgun-fields" style="display: none; margin-bottom: 2rem;">
-                <h4 style="font-size: 1.1rem; font-weight:700; margin-bottom: 1.25rem; color: #a5b4fc;">Mailgun API Credentials</h4>
+            <div id="mail-mailgun-fields" class="op-mail-other-fields-class">
+                <h4 class="op-wizard-subheading">Mailgun API Credentials</h4>
                 <div class="op-wizard-form-grid">
                     <div class="op-wizard-field">
                         <label class="op-wizard-label" for="mail_mailgun_domain">Sending Domain</label>
@@ -830,8 +252,8 @@
             </div>
 
             <!-- Dynamic SendGrid Fields -->
-            <div id="mail-sendgrid-fields" style="display: none; margin-bottom: 2rem;">
-                <h4 style="font-size: 1.1rem; font-weight:700; margin-bottom: 1.25rem; color: #a5b4fc;">SendGrid API Credentials</h4>
+            <div id="mail-sendgrid-fields" class="op-mail-other-fields-class">
+                <h4 class="op-wizard-subheading">SendGrid API Credentials</h4>
                 <div class="op-wizard-form-grid">
                     <div class="op-wizard-field-full">
                         <label class="op-wizard-label" for="mail_sendgrid_key">SendGrid API Key</label>
@@ -841,12 +263,12 @@
             </div>
 
             <div class="op-wizard-actions">
-                <button type="button" class="op-wizard-btn op-wizard-btn-prev" onclick="prevStep(2)">
+                <button type="button" class="op-wizard-btn op-wizard-btn-prev" data-prev-step="2">
                     <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     Back
                 </button>
-                <div style="display: flex; gap: 1rem;">
-                    <button type="button" class="op-wizard-btn op-wizard-btn-prev" onclick="skipMailStep()">
+                <div class="op-flex-gap-1rem">
+                    <button type="button" class="op-wizard-btn op-wizard-btn-prev" id="btn-skip-mail">
                         Skip Mail Setup
                     </button>
                     <button type="submit" class="op-wizard-btn op-wizard-btn-next" id="btn-save-mail">
@@ -861,7 +283,7 @@
     <!-- STEP 4 PANEL: Gateway Configuration -->
     <div class="op-wizard-panel" id="panel-4">
         <div class="op-choice-cards">
-            <div class="op-choice-card" id="choice-stripe" onclick="selectGateway('stripe')">
+            <div class="op-choice-card" id="choice-stripe" data-gateway="stripe">
                 <div class="op-choice-check">
                     <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                 </div>
@@ -869,7 +291,7 @@
                 <div class="op-choice-label">Stripe API</div>
                 <div class="op-choice-desc">Credit & Debit Cards</div>
             </div>
-            <div class="op-choice-card" id="choice-paypal" onclick="selectGateway('paypal')">
+            <div class="op-choice-card" id="choice-paypal" data-gateway="paypal">
                 <div class="op-choice-check">
                     <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                 </div>
@@ -877,7 +299,7 @@
                 <div class="op-choice-label">PayPal Checkout</div>
                 <div class="op-choice-desc">Express Checkout & Wallet</div>
             </div>
-            <div class="op-choice-card" id="choice-manual" onclick="selectGateway('manual')">
+            <div class="op-choice-card" id="choice-manual" data-gateway="manual">
                 <div class="op-choice-check">
                     <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                 </div>
@@ -888,8 +310,8 @@
         </div>
 
         <!-- Dynamic configuration sub-forms -->
-        <div id="stripe-fields" style="display: none; margin-bottom: 2rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
-            <h4 style="font-size: 1.1rem; font-weight:700; margin-bottom: 1.25rem; color: #a5b4fc;">Configure Stripe (sandbox mode default)</h4>
+        <div id="stripe-fields" class="op-gateway-fields-class">
+            <h4 class="op-wizard-subheading">Configure Stripe (sandbox mode default)</h4>
             <div class="op-wizard-form-grid">
                 <div class="op-wizard-field">
                     <label class="op-wizard-label" for="stripe_key">Publishable Key</label>
@@ -902,8 +324,8 @@
             </div>
         </div>
 
-        <div id="paypal-fields" style="display: none; margin-bottom: 2rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
-            <h4 style="font-size: 1.1rem; font-weight:700; margin-bottom: 1.25rem; color: #a5b4fc;">Configure PayPal Sandbox</h4>
+        <div id="paypal-fields" class="op-gateway-fields-class">
+            <h4 class="op-wizard-subheading">Configure PayPal Sandbox</h4>
             <div class="op-wizard-form-grid">
                 <div class="op-wizard-field">
                     <label class="op-wizard-label" for="paypal_client_id">Client ID</label>
@@ -916,8 +338,8 @@
             </div>
         </div>
 
-        <div id="manual-fields" style="display: none; margin-bottom: 2rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 1.5rem;">
-            <h4 style="font-size: 1.1rem; font-weight:700; margin-bottom: 1.25rem; color: #a5b4fc;">Configure Manual/Bank Transfer</h4>
+        <div id="manual-fields" class="op-gateway-fields-class">
+            <h4 class="op-wizard-subheading">Configure Manual/Bank Transfer</h4>
             <div class="op-wizard-form-grid">
                 <div class="op-wizard-field">
                     <label class="op-wizard-label" for="manual_name">Payment Option Name</label>
@@ -931,11 +353,11 @@
         </div>
 
         <div class="op-wizard-actions">
-            <button type="button" class="op-wizard-btn op-wizard-btn-prev" onclick="prevStep(3)">
+            <button type="button" class="op-wizard-btn op-wizard-btn-prev" data-prev-step="3">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                 Back
             </button>
-            <button type="button" class="op-wizard-btn op-wizard-btn-next" id="btn-save-gateway" onclick="submitStep4()">
+            <button type="button" class="op-wizard-btn op-wizard-btn-next" id="btn-save-gateway">
                 Save & Continue
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
             </button>
@@ -945,7 +367,7 @@
     <!-- STEP 5 PANEL: Device Pairing / Complete -->
     <div class="op-wizard-panel" id="panel-5">
         <div class="op-pairing-container">
-            <div class="op-qr-mock" style="position: relative; transition: all 0.5s ease;">
+            <div class="op-qr-mock">
                 <!-- Placeholder SVG first, replaced dynamically by loaded QR Code IMG -->
                 <svg id="op-wizard-qr-placeholder" class="op-qr-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
                     <rect width="100" height="100" fill="#ffffff"/>
@@ -961,7 +383,7 @@
                     <rect x="5" y="75" width="20" height="20" fill="#111827" />
                     <rect x="8" y="78" width="14" height="14" fill="#ffffff" />
                     <rect x="11" y="81" width="8" height="8" fill="#6366f1" />
-
+ 
                     <rect x="75" y="75" width="20" height="20" fill="#111827" />
                     <rect x="78" y="78" width="14" height="14" fill="#ffffff" />
                     
@@ -971,7 +393,7 @@
                     <rect x="42" y="42" width="16" height="16" rx="4" fill="#6366f1" />
                     <circle cx="50" cy="50" r="4" fill="#ffffff" />
                 </svg>
-                <img id="op-wizard-qr-img" class="op-qr-svg" style="display: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" alt="Dynamic QR Code" />
+                <img id="op-wizard-qr-img" class="op-qr-svg op-qr-svg-img" alt="Dynamic QR Code" />
             </div>
             <div class="op-pairing-text">
                 <h4>Pair Mobile Companion Device</h4>
@@ -990,578 +412,31 @@
                         <div>Scan the QR code on the left to securely couple this environment.</div>
                     </div>
                     <!-- OTP Fallback display -->
-                    <div id="op-wizard-otp-wrapper" style="display: none; margin-top: 1.5rem; background: #0f172a !important; border: 1px dashed rgba(99, 102, 241, 0.5) !important; border-radius: 12px; padding: 1rem 1.25rem; flex-direction: column; gap: 0.5rem; box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.4) !important;">
-                        <span style="font-size: 0.8rem; font-weight: 700; color: #a5b4fc !important; text-transform: uppercase; letter-spacing: 0.05em; display: flex; justify-content: space-between; align-items: center;">
-                            <span style="color: #a5b4fc !important;">Manual OTP Fallback Code</span>
-                            <span id="op-wizard-otp-copied" style="color: #34d399 !important; font-weight: 800; display: none; text-transform: none;">Copied!</span>
+                    <div id="op-wizard-otp-wrapper" class="op-otp-wrapper">
+                        <span class="op-otp-label-header">
+                            <span>Manual OTP Fallback Code</span>
+                            <span id="op-wizard-otp-copied" class="op-otp-copied-text">Copied!</span>
                         </span>
-                        <div style="display: flex; align-items: center; justify-content: space-between; gap: 1rem;">
-                            <span id="op-wizard-otp-display" style="font-size: 1.75rem; font-weight: 900; color: #38bdf8 !important; letter-spacing: 0.2em; font-family: 'JetBrains Mono', monospace !important; cursor: pointer; transition: color 0.2s;" title="Click to Copy" onclick="copyOtpToClipboard()">------</span>
-                            <span id="op-wizard-otp-timer" style="font-size: 0.8rem; color: #94a3b8 !important;">Expires in 5:00</span>
+                        <div class="op-otp-flex-row">
+                            <span id="op-wizard-otp-display" class="op-otp-display-span" title="Click to Copy">------</span>
+                            <span id="op-wizard-otp-timer" class="op-otp-timer-span">Expires in 5:00</span>
                         </div>
                     </div>
                 </div>
             </div>
         </div>
-
+ 
         <div class="op-wizard-actions">
-            <button type="button" class="op-wizard-btn op-wizard-btn-prev" onclick="prevStep(4)">
+            <button type="button" class="op-wizard-btn op-wizard-btn-prev" data-prev-step="4">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                 Back
             </button>
-            <button type="button" class="op-wizard-btn op-wizard-btn-finish" id="btn-finish-wizard" onclick="completeWizard()">
+            <button type="button" class="op-wizard-btn op-wizard-btn-finish" id="btn-finish-wizard">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
                 Finish Setup & Launch
             </button>
         </div>
     </div>
 </div>
-
-<script nonce="{{ csp_nonce }}">
-    let wizardCurrentStep = 1;
-    let onboardingBrandId = 0;
-    let selectedGatewayType = '';
-    let selectedMailProvider = 'smtp';
-
-    let pairingPollInterval = null;
-    let pairingTimerInterval = null;
-
-    function copyOtpToClipboard() {
-        const otpText = document.getElementById('op-wizard-otp-display').textContent;
-        if (otpText && otpText !== '------') {
-            navigator.clipboard.writeText(otpText).then(() => {
-                const copiedEl = document.getElementById('op-wizard-otp-copied');
-                copiedEl.style.display = 'inline';
-                setTimeout(() => {
-                    copiedEl.style.display = 'none';
-                }, 2000);
-            });
-        }
-    }
-
-    function startPairingPoll() {
-        if (pairingPollInterval) clearInterval(pairingPollInterval);
-        
-        pairingPollInterval = setInterval(() => {
-            fetch('/admin/devices/check-status', {
-                method: 'GET',
-                headers: {
-                    'X-Requested-With': 'XMLHttpRequest'
-                }
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.success && data.paired) {
-                    stopPairingPoll();
-                    // Visual confirmation of successful pairing!
-                    showWizardSuccess("🎉 Device paired successfully! Click Finish to launch your platform.");
-                    // Animate QR container
-                    const qrMock = document.querySelector('.op-qr-mock');
-                    qrMock.style.background = 'rgba(16, 185, 129, 0.1)';
-                    qrMock.style.borderColor = '#10b981';
-                    qrMock.innerHTML = `
-                        <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; width:150px; height:150px; color:#10b981;">
-                            <svg width="64" height="64" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="animation: bounce 1s infinite alternate;">
-                                <path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/>
-                            </svg>
-                            <span style="font-weight:800; font-size:0.95rem; margin-top:0.75rem;">CONNECTED</span>
-                        </div>
-                    `;
-                }
-            })
-            .catch(err => console.error('Error checking pairing status:', err));
-        }, 1500);
-    }
-
-    function stopPairingPoll() {
-        if (pairingPollInterval) {
-            clearInterval(pairingPollInterval);
-            pairingPollInterval = null;
-        }
-        if (pairingTimerInterval) {
-            clearInterval(pairingTimerInterval);
-            pairingTimerInterval = null;
-        }
-    }
-
-    function loadPairingDetails() {
-        stopPairingPoll();
-        
-        const qrImg = document.getElementById('op-wizard-qr-img');
-        const qrPlaceholder = document.getElementById('op-wizard-qr-placeholder');
-        const otpDisplay = document.getElementById('op-wizard-otp-display');
-        const otpWrapper = document.getElementById('op-wizard-otp-wrapper');
-        const timerSpan = document.getElementById('op-wizard-otp-timer');
-        
-        // Hide QR image and show placeholder while loading
-        qrImg.style.display = 'none';
-        qrPlaceholder.style.display = 'block';
-        otpWrapper.style.display = 'none';
-
-        fetch('/admin/devices/generate-otp', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': window.OP_CSRF || ''
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                // Show QR image
-                qrPlaceholder.style.display = 'none';
-                qrImg.src = data.qr_svg;
-                qrImg.style.display = 'block';
-                
-                // Show OTP details
-                otpDisplay.textContent = data.otp;
-                otpWrapper.style.display = 'flex';
-                
-                // Start OTP countdown timer
-                let timeLeft = data.expires_in || 300;
-                if (pairingTimerInterval) clearInterval(pairingTimerInterval);
-                pairingTimerInterval = setInterval(() => {
-                    timeLeft--;
-                    if (timeLeft <= 0) {
-                        clearInterval(pairingTimerInterval);
-                        timerSpan.textContent = "Expired";
-                        timerSpan.style.color = "#ef4444";
-                        otpDisplay.style.opacity = "0.5";
-                    } else {
-                        const mins = Math.floor(timeLeft / 60);
-                        const secs = timeLeft % 60;
-                        timerSpan.textContent = `Expires in ${mins}:${secs.toString().padStart(2, '0')}`;
-                    }
-                }, 1000);
-                
-                // Start Polling for active brand
-                startPairingPoll();
-            } else {
-                showWizardError(data.error || 'Failed to generate device pairing OTP.');
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            showWizardError('Network error while generating device pairing OTP.');
-        });
-    }
-
-    function showStep(step) {
-        // Update 5-step stepper progress bar percentage: ((step - 1) / 4) * 100
-        const progressBar = document.getElementById('wizard-progress-bar');
-        const percentage = ((step - 1) / 4) * 100;
-        progressBar.style.width = percentage + '%';
-
-        // Update step bullet states
-        document.querySelectorAll('.op-wizard-step').forEach(el => {
-            const stepNum = parseInt(el.getAttribute('data-step'));
-            el.classList.remove('active', 'completed');
-            if (stepNum === step) {
-                el.classList.add('active');
-            } else if (stepNum < step) {
-                el.classList.add('completed');
-            }
-        });
-
-        // Hide/Show panels
-        document.querySelectorAll('.op-wizard-panel').forEach(panel => {
-            panel.classList.remove('active');
-        });
-        document.getElementById('panel-' + step).classList.add('active');
-
-        // Update headers/titles contextually
-        const titleEl = document.getElementById('wizard-title');
-        const subtitleEl = document.getElementById('wizard-subtitle');
-        if (step === 1) {
-            titleEl.textContent = "1. General Platform Settings";
-            subtitleEl.textContent = "Configure baseline system attributes, core branding, and system timezone.";
-        } else if (step === 2) {
-            titleEl.textContent = "2. Create First Brand / Store";
-            subtitleEl.textContent = "OwnPay supports white-labeled brands. Create your first store dashboard details.";
-        } else if (step === 3) {
-            titleEl.textContent = "3. Outgoing Mail Configuration";
-            subtitleEl.textContent = "Configure your transactional email server (SMTP, Mailgun, or SendGrid) to send receipts.";
-        } else if (step === 4) {
-            titleEl.textContent = "4. Gateway Configuration";
-            subtitleEl.textContent = "Connect to common credit card or wallet gateways. Choose one below to quick start.";
-        } else if (step === 5) {
-            titleEl.textContent = "5. Secure Native Device Pairing";
-            subtitleEl.textContent = "Pair native devices to securely audit double-entry ledgers and intercept payments.";
-            loadPairingDetails();
-        }
-
-        if (step !== 5) {
-            stopPairingPoll();
-        }
-
-        wizardCurrentStep = step;
-        clearWizardMessages();
-    }
-
-    function prevStep(step) {
-        showStep(step);
-    }
-
-    function showWizardError(msg) {
-        const errorEl = document.getElementById('wizard-error');
-        const errorTextEl = document.getElementById('wizard-error-text');
-        errorTextEl.textContent = msg;
-        errorEl.style.display = 'flex';
-        errorEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-
-    function showWizardSuccess(msg) {
-        const successEl = document.getElementById('wizard-success');
-        const successTextEl = document.getElementById('wizard-success-text');
-        successTextEl.textContent = msg;
-        successEl.style.display = 'flex';
-        successEl.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-    }
-
-    function clearWizardMessages() {
-        document.getElementById('wizard-error').style.display = 'none';
-        document.getElementById('wizard-success').style.display = 'none';
-    }
-
-    // Dynamic mail provider select handler
-    function selectMailProvider(provider) {
-        selectedMailProvider = provider;
-        document.querySelectorAll('#panel-3 .op-choice-card').forEach(el => {
-            el.classList.remove('selected');
-        });
-        document.getElementById('choice-mail-' + provider).classList.add('selected');
-
-        // Show/hide specific sub-fields
-        document.getElementById('mail-smtp-fields').style.display = (provider === 'smtp') ? 'block' : 'none';
-        document.getElementById('mail-mailgun-fields').style.display = (provider === 'mailgun') ? 'block' : 'none';
-        document.getElementById('mail-sendgrid-fields').style.display = (provider === 'sendgrid') ? 'block' : 'none';
-        
-        clearWizardMessages();
-    }
-
-    // Dynamic gateway select handler
-    function selectGateway(type) {
-        selectedGatewayType = type;
-        document.querySelectorAll('#panel-4 .op-choice-card').forEach(el => {
-            el.classList.remove('selected');
-        });
-        document.getElementById('choice-' + type).classList.add('selected');
-
-        // Show fields sub-sections
-        document.getElementById('stripe-fields').style.display = (type === 'stripe') ? 'block' : 'none';
-        document.getElementById('paypal-fields').style.display = (type === 'paypal') ? 'block' : 'none';
-        document.getElementById('manual-fields').style.display = (type === 'manual') ? 'block' : 'none';
-        
-        clearWizardMessages();
-    }
-
-    // Step 1: Submit Platform settings
-    function submitStep1() {
-        clearWizardMessages();
-        const siteName = document.getElementById('site_name').value;
-        const siteTagline = document.getElementById('site_tagline').value;
-        const baseCurrency = document.getElementById('base_currency').value;
-        const timezone = document.getElementById('timezone').value;
-        const timerMinutes = document.getElementById('timer_minutes').value;
-        const requirePhone = document.getElementById('require_customer_phone').checked ? '1' : '0';
-        const landingPage = document.getElementById('landing_page_enabled').checked ? '1' : '0';
-
-        fetch('/admin/setup-wizard/save-settings', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': window.OP_CSRF || ''
-            },
-            body: JSON.stringify({
-                site_name: siteName,
-                site_tagline: siteTagline,
-                currency: baseCurrency,
-                timezone: timezone,
-                timer_minutes: timerMinutes,
-                require_customer_phone: requirePhone,
-                landing_page_enabled: landingPage
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                // Seed values to step 2 to simplify user onboarding
-                document.getElementById('brand_currency').value = baseCurrency;
-                document.getElementById('brand_timezone').value = timezone;
-                showStep(2);
-            } else {
-                showWizardError(data.error || 'Failed to save settings.');
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            showWizardError('Network error while saving platform settings.');
-        });
-    }
-
-    // Step 2: Submit Brand Creation
-    function submitStep2() {
-        clearWizardMessages();
-        const brandName = document.getElementById('brand_name').value;
-        const brandEmail = document.getElementById('brand_email').value;
-        const brandPhone = document.getElementById('brand_phone').value;
-        const brandCurrency = document.getElementById('brand_currency').value;
-        const brandTimezone = document.getElementById('brand_timezone').value;
-
-        fetch('/admin/setup-wizard/create-brand', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': window.OP_CSRF || ''
-            },
-            body: JSON.stringify({
-                brand_name: brandName,
-                brand_email: brandEmail,
-                brand_phone: brandPhone,
-                brand_currency: brandCurrency,
-                brand_timezone: brandTimezone
-            })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                onboardingBrandId = data.brand_id;
-                showStep(3);
-            } else {
-                showWizardError(data.error || 'Failed to create brand.');
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            showWizardError('Network error while creating brand.');
-        });
-    }
-
-    // Step 3: Outgoing Mail Configuration
-    function submitStep3() {
-        clearWizardMessages();
-        const fromName = document.getElementById('mail_from_name').value;
-        const fromEmail = document.getElementById('mail_from_email').value;
-
-        const payload = {
-            provider: selectedMailProvider,
-            from_name: fromName,
-            from_email: fromEmail,
-            skip: '0'
-        };
-
-        if (selectedMailProvider === 'smtp') {
-            payload.smtp_host = document.getElementById('mail_smtp_host').value;
-            payload.smtp_port = document.getElementById('mail_smtp_port').value;
-            payload.smtp_user = document.getElementById('mail_smtp_user').value;
-            payload.smtp_password = document.getElementById('mail_smtp_password').value;
-            payload.smtp_encryption = document.getElementById('mail_smtp_encryption').value;
-
-            if (!payload.smtp_host || !payload.smtp_user || !payload.smtp_password) {
-                showWizardError('Please enter SMTP Host, Username, and Password.');
-                return;
-            }
-        } else if (selectedMailProvider === 'mailgun') {
-            payload.mailgun_domain = document.getElementById('mail_mailgun_domain').value;
-            payload.mailgun_key = document.getElementById('mail_mailgun_key').value;
-
-            if (!payload.mailgun_domain || !payload.mailgun_key) {
-                showWizardError('Please enter Mailgun Sending Domain and API Key.');
-                return;
-            }
-        } else if (selectedMailProvider === 'sendgrid') {
-            payload.sendgrid_key = document.getElementById('mail_sendgrid_key').value;
-
-            if (!payload.sendgrid_key) {
-                showWizardError('Please enter SendGrid API Key.');
-                return;
-            }
-        }
-
-        const btn = document.getElementById('btn-save-mail');
-        btn.disabled = true;
-        btn.textContent = 'Saving...';
-
-        fetch('/admin/setup-wizard/setup-mail', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': window.OP_CSRF || ''
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(res => res.json())
-        .then(data => {
-            btn.disabled = false;
-            btn.innerHTML = 'Save & Continue <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
-            if (data.success) {
-                showStep(4);
-            } else {
-                showWizardError(data.error || 'Failed to save email configuration.');
-            }
-        })
-        .catch(err => {
-            btn.disabled = false;
-            btn.innerHTML = 'Save & Continue <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
-            console.error(err);
-            showWizardError('Network error while saving mail configuration.');
-        });
-    }
-
-    // Outgoing Mail configuration skip handler
-    function skipMailStep() {
-        clearWizardMessages();
-        fetch('/admin/setup-wizard/setup-mail', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': window.OP_CSRF || ''
-            },
-            body: JSON.stringify({ skip: '1' })
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                showStep(4);
-            } else {
-                showWizardError('Failed to skip email setup.');
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            showWizardError('Network error while skipping mail configuration.');
-        });
-    }
-
-    // Step 4: Submit Gateway Config
-    function submitStep4() {
-        clearWizardMessages();
-        if (!selectedGatewayType) {
-            showWizardError('Please select a payment gateway choice.');
-            return;
-        }
-
-        const payload = {
-            brand_id: onboardingBrandId,
-            gateway_type: selectedGatewayType
-        };
-
-        if (selectedGatewayType === 'stripe') {
-            payload.stripe_key = document.getElementById('stripe_key').value;
-            payload.stripe_secret = document.getElementById('stripe_secret').value;
-            if (!payload.stripe_key || !payload.stripe_secret) {
-                showWizardError('Please enter Stripe publishable key and secret key.');
-                return;
-            }
-        } else if (selectedGatewayType === 'paypal') {
-            payload.paypal_client_id = document.getElementById('paypal_client_id').value;
-            payload.paypal_secret = document.getElementById('paypal_secret').value;
-            if (!payload.paypal_client_id || !payload.paypal_secret) {
-                showWizardError('Please enter PayPal Client ID and Client Secret.');
-                return;
-            }
-        } else if (selectedGatewayType === 'manual') {
-            payload.manual_name = document.getElementById('manual_name').value;
-            payload.manual_details = document.getElementById('manual_details').value;
-            if (!payload.manual_name || !payload.manual_details) {
-                showWizardError('Please enter manual gateway name and bank/payment instructions.');
-                return;
-            }
-        }
-
-        const btn = document.getElementById('btn-save-gateway');
-        btn.disabled = true;
-        btn.textContent = 'Saving...';
-
-        fetch('/admin/setup-wizard/setup-gateway', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': window.OP_CSRF || ''
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(res => res.json())
-        .then(data => {
-            btn.disabled = false;
-            btn.innerHTML = 'Save & Continue <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
-            if (data.success) {
-                showStep(5);
-            } else {
-                showWizardError(data.error || 'Failed to save gateway config.');
-            }
-        })
-        .catch(err => {
-            btn.disabled = false;
-            btn.innerHTML = 'Save & Continue <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>';
-            console.error(err);
-            showWizardError('Network error while saving gateway.');
-        });
-    }
-
-    // Step 5: Finish Wizard
-    function completeWizard() {
-        clearWizardMessages();
-        stopPairingPoll();
-        fetch('/admin/setup-wizard/complete', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': window.OP_CSRF || ''
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                const card = document.getElementById('op-setup-wizard');
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(-30px)';
-                setTimeout(() => {
-                    card.remove();
-                    // Reload dashboard to update site name, dashboard branding and settings variables contextually
-                    location.reload();
-                }, 500);
-            } else {
-                showWizardError('Failed to complete onboarding.');
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            showWizardError('Network error while completing setup wizard.');
-        });
-    }
-
-    // Dismiss Wizard Handler
-    function dismissWizard() {
-        if (!confirm('Are you sure you want to dismiss the setup wizard? You can configure settings, email, and brands manually later.')) {
-            return;
-        }
-        clearWizardMessages();
-        stopPairingPoll();
-        fetch('/admin/setup-wizard/dismiss', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-Token': window.OP_CSRF || ''
-            }
-        })
-        .then(res => res.json())
-        .then(data => {
-            if (data.success) {
-                const card = document.getElementById('op-setup-wizard');
-                card.style.opacity = '0';
-                card.style.transform = 'translateY(-30px)';
-                setTimeout(() => {
-                    card.remove();
-                    location.reload();
-                }, 500);
-            } else {
-                showWizardError('Failed to dismiss onboarding.');
-            }
-        })
-        .catch(err => {
-            console.error(err);
-            showWizardError('Network error while dismissing setup wizard.');
-        });
-    }
-</script>
+ 
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/setup-wizard.js"></script>
