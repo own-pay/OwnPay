@@ -32,6 +32,7 @@
     "sort-packages": true
   },
   "require-dev": {
+    "php-parallel-lint/php-parallel-lint": "^1.4",
     "phpstan/phpstan": "^2.1",
     "phpunit/phpunit": "^12.5",
     "vincentlanglet/twig-cs-fixer": "^3.14"
