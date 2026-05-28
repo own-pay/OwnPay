@@ -32,13 +32,32 @@ jobs:
           extensions: pdo, bcmath, json, curl
           tools: composer:v2, phpstan
 
+      - name: Cache Composer packages
+        id: composer-cache
+        uses: actions/cache@v3
+        with:
+          path: vendor
+          key: ${{ runner.os }}-php-${{ hashFiles('**/composer.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-php-
+
+      - name: Install Dependencies
+        run: composer install --prefer-dist --no-progress --dev --optimize-autoloader
+
+      - name: 🛡️ SCA - Composer Audit
+        run: composer audit
+
+      - name: 🧪 Static Analysis - PHPStan
+        run: vendor/bin/phpstan analyse --level=9 --error-format=github
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: "24.x"
+          cache: "npm"
 
-      - name: 🛡️ SCA - Composer Audit
-        run: composer audit
+      - name: Install Node Dependencies
+        run: npm ci
 
       - name: 🔑 Secret Scanning - Gitleaks
         uses: gitleaks/gitleaks-action@v2.3.9
@@ -49,12 +68,7 @@ jobs:
       - name: 🔍 SAST - Semgrep
         run: docker run --rm -v "${{ github.workspace }}:/src" -w /src semgrep/semgrep:1.76.0 semgrep scan --config p/security-audit --config p/secrets
 
-      - name: 🧪 Static Analysis - PHPStan
-        run: |
-          composer install --no-progress --prefer-dist --optimize-autoloader
-          vendor/bin/phpstan analyse --level=9 --error-format=github
-
-      - name: 🏛️ Filesystem Vulnerability Scan - Trivy
+      - name: 🏛️ Filesystem Vulnerability Scan - Trivy (Excluding vendor & node_modules)
         uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: "fs"
@@ -63,6 +77,8 @@ jobs:
           format: "sarif"
           output: "trivy-results.sarif"
           severity: "CRITICAL,HIGH,MEDIUM"
+          # Exclude vendor and node_modules directories to avoid scanning external third-party dependencies twice
+          skip-dirs: "vendor,node_modules"
 
       - name: Upload Trivy scan results as artifact
         uses: actions/upload-artifact@v4
