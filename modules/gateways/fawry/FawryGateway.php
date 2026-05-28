@@ -161,6 +161,10 @@ final class FawryGateway implements PluginInterface, GatewayAdapterInterface
         curl_close($ch);
 
         if ($httpCode !== 200 || !$response) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                throw new \RuntimeException('Fawry payment initiation failed.');
+            }
             // Emulate fallback visual window for simulated checkout
             return [
                 'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
@@ -175,6 +179,10 @@ final class FawryGateway implements PluginInterface, GatewayAdapterInterface
             ];
         }
 
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        if ($mode === 'live') {
+            throw new \RuntimeException('Payment initiation failed');
+        }
         return [
             'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
         ];
@@ -186,6 +194,14 @@ final class FawryGateway implements PluginInterface, GatewayAdapterInterface
         $fawryRefNum = $this->getString($callbackData['fawryRefNumber'] ?? $callbackData['gateway_trx_id'] ?? '');
 
         if ($fawryRefNum === '' || str_starts_with($fawryRefNum, 'SIM_')) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                return [
+                    'success'        => false,
+                    'gateway_trx_id' => '',
+                    'status'         => 'failed',
+                ];
+            }
             // Simulation Mode
             return [
                 'success'        => true,

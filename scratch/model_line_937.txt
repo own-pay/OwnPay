@@ -1,0 +1,1 @@
+{"step_index":714,"source":"MODEL","type":"RUN_COMMAND","status":"DONE","created_at":"2026-05-27T19:13:06Z","content":"Created At: 2026-05-27T19:13:06Z\nCompleted At: 2026-05-27T19:13:07Z\n\n\t\t\t\tThe command failed with exit code: 1\n\t\t\t\tOutput:\n\t\t\t\tfatal: path 'modules/gateways/btcpay/BTCPayGateway.php' exists on disk, but not in 'origin/fixing'\n\n"}

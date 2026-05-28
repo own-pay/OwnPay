@@ -59,13 +59,32 @@ final class EasypaisaGateway implements PluginInterface, GatewayAdapterInterface
             : 'https://easypaysandbox.easypaisa.com.pk/easypay/Index.js';
 
         $storeId = $this->getString($credentials['store_id'] ?? null);
+        $hashKey = $this->getString($credentials['hash_key'] ?? null);
+        $amountStr = number_format((float)$params['amount'], 2, '.', '');
+
+        $hashData = [
+            'storeId' => $storeId,
+            'amount' => $amountStr,
+            'postBackURL' => $params['redirect_url'],
+            'orderRefNum' => $params['trx_id'],
+        ];
+
+        ksort($hashData);
+        $signatureString = "";
+        foreach ($hashData as $k => $v) {
+            $signatureString .= $k . '=' . $v . '&';
+        }
+        $signatureString = rtrim($signatureString, '&');
+
+        $secureHash = hash_hmac('sha256', $signatureString, $hashKey);
 
         $formHtml = '
         <form action="' . htmlspecialchars($url) . '" method="POST" id="easypaisa-form">
             <input type="hidden" name="storeId" value="' . htmlspecialchars($storeId) . '">
-            <input type="hidden" name="amount" value="' . htmlspecialchars(number_format((float)$params['amount'], 2, '.', '')) . '">
+            <input type="hidden" name="amount" value="' . htmlspecialchars($amountStr) . '">
             <input type="hidden" name="postBackURL" value="' . htmlspecialchars($params['redirect_url']) . '">
             <input type="hidden" name="orderRefNum" value="' . htmlspecialchars($params['trx_id']) . '">
+            <input type="hidden" name="secureHash" value="' . htmlspecialchars($secureHash) . '">
         </form>
         <script>document.getElementById("easypaisa-form").submit();</script>';
 
@@ -78,17 +97,60 @@ final class EasypaisaGateway implements PluginInterface, GatewayAdapterInterface
     public function verify(array $callbackData, array $credentials): array
     {
         $orderRef = $this->getString($callbackData['orderRefNum'] ?? null);
-        $success = $orderRef !== '';
-        return [
+        $responseCode = $this->getString($callbackData['responseCode'] ?? null);
+        $secureHash = $this->getString($callbackData['secureHash'] ?? null);
+        $hashKey = $this->getString($credentials['hash_key'] ?? null);
+        $amount = $this->getString($callbackData['amount'] ?? null);
+
+        if ($orderRef === '') {
+            return [
+                'success'        => false,
+                'gateway_trx_id' => '',
+                'status'         => 'failed',
+            ];
+        }
+
+        $hashValid = false;
+        if ($secureHash !== '' && $hashKey !== '') {
+            $paramsToVerify = [];
+            foreach ($callbackData as $k => $v) {
+                if ($k !== 'secureHash' && $v !== '') {
+                    $paramsToVerify[$k] = $v;
+                }
+            }
+            ksort($paramsToVerify);
+
+            $signatureString = "";
+            foreach ($paramsToVerify as $k => $v) {
+                $vStr = is_scalar($v) ? (string)$v : '';
+                $signatureString .= $k . '=' . $vStr . '&';
+            }
+            $signatureString = rtrim($signatureString, '&');
+
+            $generatedHash = hash_hmac('sha256', $signatureString, $hashKey);
+            $hashValid = hash_equals(strtolower($generatedHash), strtolower($secureHash));
+        } else {
+            // Fallback for sandbox / testing when hash key is not configured and mode is sandbox
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            $hashValid = ($mode === 'sandbox');
+        }
+
+        $success = $hashValid && ($responseCode === '0000' || $responseCode === '000' || $responseCode === '');
+
+        $res = [
             'success'        => $success,
             'gateway_trx_id' => $orderRef,
             'status'         => $success ? 'completed' : 'failed',
             'trx_id'         => $orderRef,
         ];
+        if ($amount !== '') {
+            $res['amount'] = $amount;
+        }
+        return $res;
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-return true;
+        return true;
     }
 }

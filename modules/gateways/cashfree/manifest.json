@@ -1,0 +1,22 @@
+{
+  "name": "Cashfree",
+  "slug": "cashfree",
+  "version": "1.0.0",
+  "description": "Cashfree PG hosted checkout integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "mfs",
+  "icon": "icon.svg",
+  "color": "#2d62e6",
+  "entrypoint": "CashfreeGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Cashfree",
+  "capabilities": ["gateway"],
+  "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+  "csp": {
+    "script_src": ["https://*.cashfree.com"],
+    "style_src": ["https://*.cashfree.com"],
+    "frame_src": ["https://*.cashfree.com"],
+    "connect_src": ["https://*.cashfree.com"]
+  },
+  "permissions": ["gateway.process"]
+}

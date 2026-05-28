@@ -141,7 +141,6 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_USERPWD        => $secretKey . ':',
             CURLOPT_POSTFIELDS     => http_build_query([
-                'payment_method_types[]' => 'card',
                 'line_items[0][price_data][currency]' => $currency,
                 'line_items[0][price_data][product_data][name]' => 'Payment ' . $params['trx_id'],
                 'line_items[0][price_data][unit_amount]' => $amount,

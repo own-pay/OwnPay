@@ -106,19 +106,56 @@ final class JazzCashGateway implements PluginInterface, GatewayAdapterInterface
     public function verify(array $callbackData, array $credentials): array
     {
         $responseCode = $this->getString($callbackData['pp_ResponseCode'] ?? null);
-        $success = $responseCode === '000';
         $gatewayTrxId = $this->getString($callbackData['pp_TxnRefNo'] ?? null);
+        $secureHash = $this->getString($callbackData['pp_SecureHash'] ?? null);
+        $salt = $this->getString($credentials['integrity_salt'] ?? null);
+        $amountRaw = $this->getString($callbackData['pp_Amount'] ?? null);
 
-        return [
+        $hashValid = false;
+        if ($secureHash !== '' && $salt !== '') {
+            $paramsToVerify = [];
+            foreach ($callbackData as $k => $v) {
+                if ($k !== 'pp_SecureHash' && $v !== '') {
+                    $paramsToVerify[$k] = $v;
+                }
+            }
+            ksort($paramsToVerify);
+
+            $sortedString = $salt;
+            foreach ($paramsToVerify as $k => $v) {
+                $vStr = is_scalar($v) ? (string)$v : '';
+                $sortedString .= '&' . $vStr;
+            }
+
+            $generatedHash = hash_hmac('sha256', $sortedString, $salt);
+            $hashValid = hash_equals(strtolower($generatedHash), strtolower($secureHash));
+        } else {
+            // Fallback for testing when salt is not configured and mode is sandbox
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            $hashValid = ($mode === 'sandbox');
+        }
+
+        $success = $hashValid && $responseCode === '000';
+
+        $amount = null;
+        if ($amountRaw !== '') {
+            $amount = bcdiv($amountRaw, '100', 2);
+        }
+
+        $res = [
             'success'        => $success,
             'gateway_trx_id' => $gatewayTrxId,
             'status'         => $success ? 'completed' : 'failed',
             'trx_id'         => $gatewayTrxId,
         ];
+        if ($amount !== null) {
+            $res['amount'] = $amount;
+        }
+        return $res;
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-return true;
+        return true;
     }
 }

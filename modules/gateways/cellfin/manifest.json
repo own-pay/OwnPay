@@ -1,0 +1,22 @@
+{
+  "name": "CellFin",
+  "slug": "cellfin",
+  "version": "1.0.0",
+  "description": "Islami Bank Bangladesh PLC (IBBL) CellFin MFS and digital wallet payment integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "icon.svg",
+  "color": "#4CAF50",
+  "entrypoint": "CellFinGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\CellFin",
+  "capabilities": ["gateway"],
+  "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+  "csp": {
+    "script_src": ["https://*.islamibankbd.com"],
+    "style_src": ["https://*.islamibankbd.com"],
+    "frame_src": ["https://*.islamibankbd.com"],
+    "connect_src": ["https://*.islamibankbd.com"]
+  },
+  "permissions": ["gateway.process"]
+}

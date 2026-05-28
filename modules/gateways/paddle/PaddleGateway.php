@@ -141,6 +141,10 @@ final class PaddleGateway implements PluginInterface, GatewayAdapterInterface
 
         // Fallback simulation for local/testing
         if ($httpCode !== 200 && $httpCode !== 201) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                throw new \RuntimeException('Paddle payment initiation failed.');
+            }
             return [
                 'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
             ];
@@ -156,6 +160,10 @@ final class PaddleGateway implements PluginInterface, GatewayAdapterInterface
             ];
         }
 
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        if ($mode === 'live') {
+            throw new \RuntimeException('Payment initiation failed');
+        }
         return [
             'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
         ];
@@ -167,6 +175,14 @@ final class PaddleGateway implements PluginInterface, GatewayAdapterInterface
         $apiKey = $this->getString($credentials['api_key'] ?? '');
 
         if ($transactionId === '' || str_starts_with($transactionId, 'SIM_')) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                return [
+                    'success'        => false,
+                    'gateway_trx_id' => '',
+                    'status'         => 'failed',
+                ];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),

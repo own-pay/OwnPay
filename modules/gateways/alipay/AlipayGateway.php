@@ -104,16 +104,70 @@ final class AlipayGateway implements PluginInterface, GatewayAdapterInterface
     public function verify(array $callbackData, array $credentials): array
     {
         $trxId = $this->getString($callbackData['out_trade_no'] ?? null);
-        return [
-            'success'        => $trxId !== '',
-            'gateway_trx_id' => $trxId,
-            'status'         => $trxId !== '' ? 'completed' : 'failed',
+        $amount = $this->getString($callbackData['total_amount'] ?? null);
+        $tradeNo = $this->getString($callbackData['trade_no'] ?? null);
+        $sign = $this->getString($callbackData['sign'] ?? null);
+        $signType = $this->getString($callbackData['sign_type'] ?? 'RSA2');
+        $alipayPublicKey = $this->getString($credentials['alipay_public_key'] ?? null);
+
+        if ($trxId === '') {
+            return [
+                'success'        => false,
+                'gateway_trx_id' => '',
+                'status'         => 'failed',
+            ];
+        }
+
+        $verified = false;
+        if ($sign !== '' && $alipayPublicKey !== '') {
+            $paramsToVerify = [];
+            foreach ($callbackData as $k => $v) {
+                if ($k !== 'sign' && $k !== 'sign_type' && $v !== '') {
+                    $paramsToVerify[$k] = $v;
+                }
+            }
+            ksort($paramsToVerify);
+            $queryArr = [];
+            foreach ($paramsToVerify as $k => $v) {
+                $vStr = is_scalar($v) ? (string)$v : '';
+                $queryArr[] = "{$k}={$vStr}";
+            }
+            $queryStr = implode('&', $queryArr);
+
+            $publicKeyFormatted = $alipayPublicKey;
+            if (strpos($publicKeyFormatted, '-----BEGIN PUBLIC KEY-----') === false) {
+                $publicKeyFormatted = "-----BEGIN PUBLIC KEY-----\n" . wordwrap($publicKeyFormatted, 64, "\n", true) . "\n-----END PUBLIC KEY-----";
+            }
+
+            $pubKeyObj = openssl_pkey_get_public($publicKeyFormatted);
+            if ($pubKeyObj !== false) {
+                $algo = ($signType === 'RSA2') ? OPENSSL_ALGO_SHA256 : OPENSSL_ALGO_SHA1;
+                $res = openssl_verify($queryStr, (string) base64_decode($sign), $pubKeyObj, $algo);
+                $verified = ($res === 1);
+            }
+        } else {
+            // Fallback for simulation / testing when public key is not configured and mode is test
+            $mode = $this->getString($credentials['mode'] ?? 'test');
+            $verified = ($mode === 'test');
+        }
+
+        $tradeStatus = $this->getString($callbackData['trade_status'] ?? 'TRADE_SUCCESS');
+        $success = $verified && ($tradeStatus === 'TRADE_SUCCESS' || $tradeStatus === 'TRADE_FINISHED');
+
+        $res = [
+            'success'        => $success,
+            'gateway_trx_id' => $tradeNo !== '' ? $tradeNo : $trxId,
+            'status'         => $success ? 'completed' : 'failed',
             'trx_id'         => $trxId,
         ];
+        if ($amount !== '') {
+            $res['amount'] = $amount;
+        }
+        return $res;
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-return true;
+        return true;
     }
 }

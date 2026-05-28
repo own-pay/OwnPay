@@ -1,0 +1,1136 @@
+{
+    "2checkout": {
+        "name": "2Checkout",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/2checkout\/TwoCheckoutGateway.php",
+        "endpoints": {
+            "0": "https:\/\/api.2checkout.com\/rest\/6.0\/orders",
+            "2": "https:\/\/api.2checkout.com\/rest\/6.0\/orders\/"
+        },
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9452
+    },
+    "aamarpay": {
+        "name": "Aamarpay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/aamarpay\/AamarpayGateway.php",
+        "endpoints": [
+            "https:\/\/sandbox.aamarpay.com",
+            "https:\/\/secure.aamarpay.com"
+        ],
+        "webhook_verification": "none",
+        "api_version": "\/v1",
+        "file_size": 7192
+    },
+    "adyen": {
+        "name": "Adyen",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/adyen\/AdyenGateway.php",
+        "endpoints": [
+            "https:\/\/checkout-live.adyenpayments.com\/checkout\/v71\/sessions",
+            "https:\/\/checkout-test.adyen.com\/checkout\/v71\/sessions"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v71",
+        "file_size": 6469
+    },
+    "airtel-money": {
+        "name": "Airtel Money",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/airtel-money\/AirtelMoneyGateway.php",
+        "endpoints": [
+            "https:\/\/api.airtel.com\/auth\/v1\/token",
+            "https:\/\/openapiuat.airtel.africa\/auth\/oauth2\/token"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 3773
+    },
+    "alipay": {
+        "name": "Alipay Global",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/alipay\/AlipayGateway.php",
+        "endpoints": [
+            "https:\/\/openapi.alipay.com\/gateway.do"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 6514
+    },
+    "apple-pay": {
+        "name": "Apple Pay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/apple-pay\/ApplePayGateway.php",
+        "endpoints": [
+            "https:\/\/api.stripe.com\/v1\/checkout\/sessions",
+            "https:\/\/api.stripe.com\/v1\/checkout\/sessions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 10836
+    },
+    "authorize-net": {
+        "name": "Authorize.Net",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/authorize-net\/AuthorizeNetGateway.php",
+        "endpoints": [
+            "https:\/\/api.authorize.net\/xml\/v1\/request.api",
+            "https:\/\/apitest.authorize.net\/xml\/v1\/request.api",
+            "https:\/\/checkout.authorize.net\/payment\/payment",
+            "https:\/\/test.authorize.net\/payment\/payment"
+        ],
+        "webhook_verification": "hash_hmac",
+        "api_version": "\/v1",
+        "file_size": 11406
+    },
+    "bancontact": {
+        "name": "Bancontact",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/bancontact\/BancontactGateway.php",
+        "endpoints": [
+            "https:\/\/api.mollie.com\/v2\/payments",
+            "https:\/\/api.mollie.com\/v2\/payments\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 5164
+    },
+    "biller-genie": {
+        "name": "Biller Genie",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/biller-genie\/BillerGenieGateway.php",
+        "endpoints": [
+            "https:\/\/api.billergenieapi.com\/v1\/invoices\/pay",
+            "https:\/\/sandbox.billergenieapi.com\/v1\/invoices\/pay",
+            "https:\/\/api.billergenieapi.com\/v1\/payments\/",
+            "https:\/\/sandbox.billergenieapi.com\/v1\/payments\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 9393
+    },
+    "binance-merchant-api": {
+        "name": "Binance Pay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/binance-merchant-api\/BinanceMerchantApiGateway.php",
+        "endpoints": [
+            "https:\/\/bpay.binanceapi.com\/binancepay\/openapi\/order",
+            "https:\/\/bpay.binanceapi.com\/binancepay\/openapi\/order\/query"
+        ],
+        "webhook_verification": "none",
+        "api_version": "unknown",
+        "file_size": 9351
+    },
+    "binance-personal": {
+        "name": "Binance Personal Address",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/binance-personal\/BinancePersonalGateway.php",
+        "endpoints": [
+            "https:\/\/api.bscscan.com\/api",
+            "https:\/\/api-testnet.bscscan.com\/api"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 11612
+    },
+    "bkash-api": {
+        "name": "bKash API",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/bkash-api\/BkashApiGateway.php",
+        "endpoints": [
+            "https:\/\/tokenized.sandbox.bka.sh\/v1.2.0-beta",
+            "https:\/\/tokenized.pay.bka.sh\/v1.2.0-beta"
+        ],
+        "webhook_verification": "none",
+        "api_version": "\/v1.2",
+        "file_size": 14452
+    },
+    "blik": {
+        "name": "BLIK",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/blik\/BlikGateway.php",
+        "endpoints": [
+            "https:\/\/secure.przelewy24.pl",
+            "https:\/\/sandbox.przelewy24.pl"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 13726
+    },
+    "bluesnap": {
+        "name": "BlueSnap",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/bluesnap\/BlueSnapGateway.php",
+        "endpoints": [
+            "https:\/\/ws.bluesnap.com\/services\/2\/payment-fields",
+            "https:\/\/sandbox.bluesnap.com\/services\/2\/payment-fields",
+            "https:\/\/ws.bluesnap.com\/services\/2\/transactions\/",
+            "https:\/\/sandbox.bluesnap.com\/services\/2\/transactions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9478
+    },
+    "braintree": {
+        "name": "Braintree",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/braintree\/BraintreeGateway.php",
+        "endpoints": [
+            "https:\/\/api.braintreegateway.com\/merchants\/",
+            "https:\/\/api.sandbox.braintreegateway.com\/merchants\/",
+            "https:\/\/api.sandbox.braintreegateway.com",
+            "https:\/\/js.braintreegateway.com\/web\/dropin\/1.42.0\/js\/dropin.min.js"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 13077
+    },
+    "btcpay": {
+        "name": "BTCPay Server",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/btcpay\/BTCPayGateway.php",
+        "endpoints": [],
+        "webhook_verification": "hash_hmac",
+        "api_version": "\/v1",
+        "file_size": 5797
+    },
+    "cashmaal": {
+        "name": "CashMaal",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/cashmaal\/CashmaalGateway.php",
+        "endpoints": [
+            "https:\/\/api.cmaal.com\/verify_v2?CM_TID=",
+            "https:\/\/cmaal.com\/Pay\/"
+        ],
+        "webhook_verification": "none",
+        "api_version": "unknown",
+        "file_size": 9601
+    },
+    "ccavenue": {
+        "name": "CCAvenue",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/ccavenue\/CCAvenueGateway.php",
+        "endpoints": [
+            "https:\/\/secure.ccavenue.com\/transaction\/transaction.do?command=initiateTransaction",
+            "https:\/\/test.ccavenue.com\/transaction\/transaction.do?command=initiateTransaction"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 5511
+    },
+    "chase-paymentech": {
+        "name": "Chase Paymentech",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/chase-paymentech\/ChasePaymentechGateway.php",
+        "endpoints": [
+            "https:\/\/ws.paymentech.net\/PaymentechGateway\/process",
+            "https:\/\/wsvar.paymentech.net\/PaymentechGateway\/process",
+            "https:\/\/ws.paymentech.net\/PaymentechGateway\/verify",
+            "https:\/\/wsvar.paymentech.net\/PaymentechGateway\/verify"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9641
+    },
+    "checkout-com": {
+        "name": "Checkout.com",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/checkout-com\/CheckoutComGateway.php",
+        "endpoints": [
+            "https:\/\/api.checkout.com\/payments",
+            "https:\/\/api.sandbox.checkout.com\/payments",
+            "https:\/\/api.checkout.com\/payments\/",
+            "https:\/\/api.sandbox.checkout.com\/payments\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9577
+    },
+    "coinbase-commerce": {
+        "name": "Coinbase Commerce",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/coinbase-commerce\/CoinbaseGateway.php",
+        "endpoints": [
+            "https:\/\/api.commerce.coinbase.com\/charges",
+            "https:\/\/api.commerce.coinbase.com\/charges\/"
+        ],
+        "webhook_verification": "hash_hmac",
+        "api_version": "unknown",
+        "file_size": 5881
+    },
+    "cybersource": {
+        "name": "Cybersource",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/cybersource\/CybersourceGateway.php",
+        "endpoints": [
+            "https:\/\/api.cybersource.com\/pts\/v2\/payments",
+            "https:\/\/apitest.cybersource.com\/pts\/v2\/payments",
+            "https:\/\/api.cybersource.com\/pts\/v2\/payments\/",
+            "https:\/\/apitest.cybersource.com\/pts\/v2\/payments\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 9583
+    },
+    "dana": {
+        "name": "DANA Wallet",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/dana\/DanaGateway.php",
+        "endpoints": [
+            "https:\/\/api.xendit.co\/ewallets\/charges",
+            "https:\/\/api.xendit.co\/ewallets\/charges\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 5005
+    },
+    "dlocal": {
+        "name": "dLocal",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/dlocal\/DLocalGateway.php",
+        "endpoints": [
+            "https:\/\/api.dlocal.com\/api_v1\/payments",
+            "https:\/\/sandbox.dlocal.com\/api_v1\/payments",
+            "https:\/\/api.dlocal.com\/api_v1\/payments\/",
+            "https:\/\/sandbox.dlocal.com\/api_v1\/payments\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9552
+    },
+    "easypaisa": {
+        "name": "Easypaisa",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/easypaisa\/EasypaisaGateway.php",
+        "endpoints": [
+            "https:\/\/easypay.easypaisa.com.pk\/easypay\/Index.js",
+            "https:\/\/easypaysandbox.easypaisa.com.pk\/easypay\/Index.js"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 6026
+    },
+    "ebanx": {
+        "name": "Ebanx",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/ebanx\/EbanxGateway.php",
+        "endpoints": [
+            "https:\/\/api.ebanxpay.com",
+            "https:\/\/sandbox.ebanxpay.com"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9512
+    },
+    "elavon": {
+        "name": "Elavon",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/elavon\/ElavonGateway.php",
+        "endpoints": [
+            "https:\/\/www.convergepay.com\/hostedpayments\/transaction",
+            "https:\/\/demo.convergepay.com\/hostedpayments\/transaction",
+            "https:\/\/www.convergepay.com\/hostedpayments\/verify",
+            "https:\/\/demo.convergepay.com\/hostedpayments\/verify"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9551
+    },
+    "eps": {
+        "name": "EPS",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/eps\/EpsGateway.php",
+        "endpoints": [
+            "https:\/\/sandboxpgapi.eps.com.bd",
+            "https:\/\/pgapi.eps.com.bd"
+        ],
+        "webhook_verification": "none",
+        "api_version": "\/v1",
+        "file_size": 11378
+    },
+    "fastspring": {
+        "name": "FastSpring",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/fastspring\/FastSpringGateway.php",
+        "endpoints": {
+            "0": "https:\/\/api.fastspring.com\/sessions",
+            "2": "https:\/\/api.fastspring.com\/orders\/"
+        },
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9548
+    },
+    "fattmerchant": {
+        "name": "Fattmerchant",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/fattmerchant\/FattmerchantGateway.php",
+        "endpoints": [
+            "https:\/\/stax.fattmerchant.com\/api\/charge",
+            "https:\/\/sandbox.fattmerchant.com\/api\/charge",
+            "https:\/\/stax.fattmerchant.com\/api\/transactions\/",
+            "https:\/\/sandbox.fattmerchant.com\/api\/transactions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9390
+    },
+    "fawry": {
+        "name": "Fawry Pay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/fawry\/FawryGateway.php",
+        "endpoints": [
+            "https:\/\/www.fawrypay.com",
+            "https:\/\/atfawry.fawryreadypay.com"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 11322
+    },
+    "first-data": {
+        "name": "First Data",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/first-data\/FirstDataGateway.php",
+        "endpoints": [
+            "https:\/\/api.payeezy.com\/v1\/transactions",
+            "https:\/\/api-uat.payeezy.com\/v1\/transactions",
+            "https:\/\/api.payeezy.com\/v1\/transactions\/",
+            "https:\/\/api-uat.payeezy.com\/v1\/transactions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 9556
+    },
+    "fiserv": {
+        "name": "Fiserv",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/fiserv\/FiservGateway.php",
+        "endpoints": [
+            "https:\/\/www.ipg-online.com\/ipgapi\/services\/order",
+            "https:\/\/test.ipg-online.com\/ipgapi\/services\/order",
+            "https:\/\/www.ipg-online.com\/ipgapi\/services\/order\/",
+            "https:\/\/test.ipg-online.com\/ipgapi\/services\/order\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9453
+    },
+    "flutterwave": {
+        "name": "Flutterwave",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/flutterwave\/FlutterwaveGateway.php",
+        "endpoints": [
+            "https:\/\/api.flutterwave.com\/v3\/payments",
+            "https:\/\/api.flutterwave.com\/v3\/transactions\/"
+        ],
+        "webhook_verification": "hash_equals",
+        "api_version": "\/v3",
+        "file_size": 5551
+    },
+    "gcash": {
+        "name": "GCash Wallet",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/gcash\/GCashGateway.php",
+        "endpoints": [
+            "https:\/\/pg.maya.ph\/checkout\/v1\/checkouts",
+            "https:\/\/pg-sandbox.paymaya.com\/checkout\/v1\/checkouts",
+            "https:\/\/pg.maya.ph\/checkout\/v1\/checkouts\/",
+            "https:\/\/pg-sandbox.paymaya.com\/checkout\/v1\/checkouts\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 5856
+    },
+    "giropay": {
+        "name": "Giropay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/giropay\/GiropayGateway.php",
+        "endpoints": [
+            "https:\/\/api.giropay.de\/v1\/transaction\/start",
+            "https:\/\/api.giropay.de\/v1\/transaction\/status"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 9602
+    },
+    "global-payments": {
+        "name": "Global Payments",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/global-payments\/GlobalPaymentsGateway.php",
+        "endpoints": [
+            "https:\/\/api.globalpay.com\/v2\/transactions",
+            "https:\/\/api.sandbox.globalpay.com\/v2\/transactions",
+            "https:\/\/api.globalpay.com\/v2\/transactions\/",
+            "https:\/\/api.sandbox.globalpay.com\/v2\/transactions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 9600
+    },
+    "google-pay": {
+        "name": "Google Pay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/google-pay\/GooglePayGateway.php",
+        "endpoints": [
+            "https:\/\/api.stripe.com\/v1\/checkout\/sessions",
+            "https:\/\/api.stripe.com\/v1\/checkout\/sessions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 10848
+    },
+    "grabpay": {
+        "name": "GrabPay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/grabpay\/GrabPayGateway.php",
+        "endpoints": [
+            "https:\/\/api.grab.com\/grabpay\/partner\/v2\/charge\/init",
+            "https:\/\/partner.stg-myteksi.com\/grabpay\/partner\/v2\/charge\/init"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 4118
+    },
+    "heartland": {
+        "name": "Heartland",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/heartland\/HeartlandGateway.php",
+        "endpoints": [
+            "https:\/\/api2.heartlandportico.com\/v2\/charges",
+            "https:\/\/cert.api2.heartlandportico.com\/v2\/charges",
+            "https:\/\/api2.heartlandportico.com\/v2\/charges\/",
+            "https:\/\/cert.api2.heartlandportico.com\/v2\/charges\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 9380
+    },
+    "helcim": {
+        "name": "Helcim",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/helcim\/HelcimGateway.php",
+        "endpoints": [
+            "https:\/\/api.helcim.com\/api\/v2\/payment-intents",
+            "https:\/\/sandbox.helcim.com\/api\/v2\/payment-intents",
+            "https:\/\/api.helcim.com\/api\/v2\/transactions\/",
+            "https:\/\/sandbox.helcim.com\/api\/v2\/transactions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 9444
+    },
+    "ideal": {
+        "name": "iDEAL",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/ideal\/IdealGateway.php",
+        "endpoints": [
+            "https:\/\/api.mollie.com\/v2\/payments",
+            "https:\/\/api.mollie.com\/v2\/payments\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 5114
+    },
+    "jazzcash": {
+        "name": "JazzCash",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/jazzcash\/JazzCashGateway.php",
+        "endpoints": [
+            "https:\/\/jazzcash.com.pk\/CustomerPortal\/transactionPage",
+            "https:\/\/sandbox.jazzcash.com.pk\/CustomerPortal\/transactionPage"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 6153
+    },
+    "kakaopay": {
+        "name": "KakaoPay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/kakaopay\/KakaopayGateway.php",
+        "endpoints": [
+            "https:\/\/kapi.kakao.com\/v1\/payment\/ready"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 3953
+    },
+    "klarna": {
+        "name": "Klarna",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/klarna\/KlarnaGateway.php",
+        "endpoints": {
+            "0": "https:\/\/api.klarna.com",
+            "2": "https:\/\/api.playground.klarna.com",
+            "4": "https:\/\/x.klarnacdn.net\/kp\/lib\/v1\/api.js"
+        },
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 6091
+    },
+    "kushki": {
+        "name": "Kushki",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/kushki\/KushkiGateway.php",
+        "endpoints": [
+            "https:\/\/api.kushkipagos.com",
+            "https:\/\/sandbox-api.kushkipagos.com"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 9193
+    },
+    "maya": {
+        "name": "Maya Wallet",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/maya\/MayaGateway.php",
+        "endpoints": [
+            "https:\/\/pg.maya.ph\/checkout\/v1\/checkouts",
+            "https:\/\/pg-sandbox.paymaya.com\/checkout\/v1\/checkouts",
+            "https:\/\/pg.maya.ph\/checkout\/v1\/checkouts\/",
+            "https:\/\/pg-sandbox.paymaya.com\/checkout\/v1\/checkouts\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 5275
+    },
+    "mercadolibre-wallet": {
+        "name": "MercadoLibre Wallet",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/mercadolibre-wallet\/MercadoLibreWalletGateway.php",
+        "endpoints": [
+            "https:\/\/api.mercadopago.com\/checkout\/preferences"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 4366
+    },
+    "mercadopago": {
+        "name": "Mercado Pago",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/mercadopago\/MercadoPagoGateway.php",
+        "endpoints": [
+            "https:\/\/api.mercadopago.com\/checkout\/preferences"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 4487
+    },
+    "midtrans": {
+        "name": "Midtrans",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/midtrans\/MidtransGateway.php",
+        "endpoints": [
+            "https:\/\/app.midtrans.com\/snap\/v1\/transactions",
+            "https:\/\/app.sandbox.midtrans.com\/snap\/v1\/transactions",
+            "https:\/\/api.midtrans.com\/v2\/",
+            "https:\/\/api.sandbox.midtrans.com\/v2\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 8886
+    },
+    "mollie": {
+        "name": "Mollie Payments",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/mollie\/MollieGateway.php",
+        "endpoints": [
+            "https:\/\/api.mollie.com\/v2\/payments",
+            "https:\/\/api.mollie.com\/v2\/payments\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 5492
+    },
+    "moneris": {
+        "name": "Moneris",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/moneris\/MonerisGateway.php",
+        "endpoints": [
+            "https:\/\/www3.moneris.com\/gateway2\/servlet\/MpgRequest\/preload",
+            "https:\/\/esqa.moneris.com\/gateway2\/servlet\/MpgRequest\/preload",
+            "https:\/\/www3.moneris.com\/gateway2\/servlet\/MpgRequest\/verify",
+            "https:\/\/esqa.moneris.com\/gateway2\/servlet\/MpgRequest\/verify"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9496
+    },
+    "mpesa": {
+        "name": "M-Pesa Safaricom",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/mpesa\/MpesaGateway.php",
+        "endpoints": [
+            "https:\/\/api.safaricom.co.ke\/oauth\/v1\/generate?grant_type=client_credentials",
+            "https:\/\/sandbox.safaricom.co.ke\/oauth\/v1\/generate?grant_type=client_credentials",
+            "https:\/\/api.safaricom.co.ke\/mpesa\/stkpush\/v1\/processrequest",
+            "https:\/\/sandbox.safaricom.co.ke\/mpesa\/stkpush\/v1\/processrequest"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 5850
+    },
+    "nagad-merchant-api": {
+        "name": "Nagad Merchant API",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/nagad-merchant-api\/NagadMerchantApiGateway.php",
+        "endpoints": [
+            "http:\/\/sandbox.mynagad.com",
+            "https:\/\/api.mynagad.com\/api\/dfs\/"
+        ],
+        "webhook_verification": "none",
+        "api_version": "unknown",
+        "file_size": 20025
+    },
+    "neteller": {
+        "name": "Neteller",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/neteller\/NetellerGateway.php",
+        "endpoints": [
+            "https:\/\/api.neteller.com\/v1\/orders",
+            "https:\/\/api.sandbox.neteller.com\/v1\/orders",
+            "https:\/\/api.neteller.com\/v1\/orders\/",
+            "https:\/\/api.sandbox.neteller.com\/v1\/orders\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 9442
+    },
+    "nmi": {
+        "name": "NMI",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/nmi\/NmiGateway.php",
+        "endpoints": {
+            "0": "https:\/\/secure.nmi.com\/api\/v2\/three-step\/transaction",
+            "2": "https:\/\/secure.nmi.com\/api\/v2\/three-step\/query"
+        },
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 9345
+    },
+    "now-payments": {
+        "name": "NowPayments Crypto",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/now-payments\/NowPaymentsGateway.php",
+        "endpoints": [
+            "https:\/\/api.nowpayments.io\/v1\/",
+            "https:\/\/api-sandbox.nowpayments.io\/v1\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 8047
+    },
+    "opennode": {
+        "name": "OpenNode",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/opennode\/OpenNodeGateway.php",
+        "endpoints": [
+            "https:\/\/api.opennode.com\/v1\/charges",
+            "https:\/\/dev-api.opennode.com\/v1\/charges",
+            "https:\/\/api.opennode.com\/v1\/charge\/",
+            "https:\/\/dev-api.opennode.com\/v1\/charge\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 4912
+    },
+    "ovo": {
+        "name": "OVO Wallet",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/ovo\/OvoGateway.php",
+        "endpoints": [
+            "https:\/\/api.xendit.co\/ewallets\/charges",
+            "https:\/\/api.xendit.co\/ewallets\/charges\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 5052
+    },
+    "oxapay": {
+        "name": "OxaPay Crypto",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/oxapay\/OxapayGateway.php",
+        "endpoints": [
+            "https:\/\/api.oxapay.com\/merchants\/request"
+        ],
+        "webhook_verification": "hash_hmac",
+        "api_version": "unknown",
+        "file_size": 6350
+    },
+    "paddle": {
+        "name": "Paddle",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/paddle\/PaddleGateway.php",
+        "endpoints": [
+            "https:\/\/api.paddle.com",
+            "https:\/\/sandbox-api.paddle.com"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 12266
+    },
+    "pagseguro": {
+        "name": "PagSeguro",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/pagseguro\/PagSeguroGateway.php",
+        "endpoints": [
+            "https:\/\/ws.pagseguro.uol.com.br\/v2\/checkouts",
+            "https:\/\/ws.sandbox.pagseguro.uol.com.br\/v2\/checkouts",
+            "https:\/\/pagseguro.uol.com.br\/v2\/checkout\/payment.html?code=",
+            "https:\/\/sandbox.pagseguro.uol.com.br\/v2\/checkout\/payment.html?code="
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 4715
+    },
+    "payfast": {
+        "name": "Payfast",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/payfast\/PayfastGateway.php",
+        "endpoints": [
+            "https:\/\/www.payfast.co.za\/eng\/process",
+            "https:\/\/sandbox.payfast.co.za\/eng\/process"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9461
+    },
+    "payline-data": {
+        "name": "Payline Data",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/payline-data\/PaylineDataGateway.php",
+        "endpoints": [
+            "https:\/\/api.payline.com\/api\/transactions",
+            "https:\/\/sandbox.payline.com\/api\/transactions",
+            "https:\/\/api.payline.com\/api\/transactions\/",
+            "https:\/\/sandbox.payline.com\/api\/transactions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9475
+    },
+    "payme": {
+        "name": "PayMe by HSBC",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/payme\/PayMeGateway.php",
+        "endpoints": [
+            "https:\/\/api.payme.hsbc.com.hk\/v1\/oauth2\/token",
+            "https:\/\/sandbox.api.payme.hsbc.com.hk\/v1\/oauth2\/token",
+            "https:\/\/api.payme.hsbc.com.hk\/v1\/paymentrequests",
+            "https:\/\/sandbox.api.payme.hsbc.com.hk\/v1\/paymentrequests"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 5282
+    },
+    "payment-depot": {
+        "name": "Payment Depot",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/payment-depot\/PaymentDepotGateway.php",
+        "endpoints": [
+            "https:\/\/depot.fattmerchant.com\/api\/charge",
+            "https:\/\/sandbox.fattmerchant.com\/api\/charge",
+            "https:\/\/depot.fattmerchant.com\/api\/transactions\/",
+            "https:\/\/sandbox.fattmerchant.com\/api\/transactions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9397
+    },
+    "payoneer": {
+        "name": "Payoneer",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/payoneer\/PayoneerGateway.php",
+        "endpoints": [
+            "https:\/\/api.payoneer.com\/v1\/checkouts",
+            "https:\/\/api.sandbox.payoneer.com\/v1\/checkouts",
+            "https:\/\/api.payoneer.com\/v1\/charges\/",
+            "https:\/\/api.sandbox.payoneer.com\/v1\/charges\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 9457
+    },
+    "paypal-checkout": {
+        "name": "PayPal Checkout",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/paypal-checkout\/PaypalCheckoutGateway.php",
+        "endpoints": [
+            "https:\/\/api-m.paypal.com",
+            "https:\/\/api-m.sandbox.paypal.com"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 12223
+    },
+    "paystack": {
+        "name": "Paystack",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/paystack\/PaystackGateway.php",
+        "endpoints": [
+            "https:\/\/api.paystack.co\/transaction\/initialize",
+            "https:\/\/api.paystack.co\/transaction\/verify\/"
+        ],
+        "webhook_verification": "hash_hmac",
+        "api_version": "unknown",
+        "file_size": 5491
+    },
+    "paystation": {
+        "name": "PayStation",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/paystation\/PaystationGateway.php",
+        "endpoints": [
+            "https:\/\/api.paystation.com.bd",
+            "https:\/\/sandbox.paystation.com.bd"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9081
+    },
+    "paytabs": {
+        "name": "PayTabs",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/paytabs\/PayTabsGateway.php",
+        "endpoints": [
+            "https:\/\/secure-egypt.paytabs.com",
+            "https:\/\/secure-ksa.paytabs.com",
+            "https:\/\/secure-global.paytabs.com"
+        ],
+        "webhook_verification": "hash_hmac",
+        "api_version": "unknown",
+        "file_size": 9860
+    },
+    "paytrace": {
+        "name": "Paytrace",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/paytrace\/PaytraceGateway.php",
+        "endpoints": [
+            "https:\/\/api.paytrace.com\/v1\/transactions\/sale",
+            "https:\/\/api.sandbox.paytrace.com\/v1\/transactions\/sale",
+            "https:\/\/api.paytrace.com\/v1\/transactions\/query",
+            "https:\/\/api.sandbox.paytrace.com\/v1\/transactions\/query"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 9481
+    },
+    "phonepe": {
+        "name": "PhonePe",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/phonepe\/PhonePeGateway.php",
+        "endpoints": [
+            "https:\/\/api.phonepe.com\/apis\/hermes\/pg\/v1\/pay",
+            "https:\/\/api-preprod.phonepe.com\/apis\/pg-sandbox\/pg\/v1\/pay",
+            "https:\/\/api.phonepe.com\/apis\/hermes",
+            "https:\/\/api-preprod.phonepe.com\/apis\/pg-sandbox"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 6581
+    },
+    "pix": {
+        "name": "Pix Dynamic",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/pix\/PixGateway.php",
+        "endpoints": [
+            "https:\/\/api.mercadopago.com\/v1\/payments"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 4713
+    },
+    "promptpay": {
+        "name": "PromptPay QR",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/promptpay\/PromptPayGateway.php",
+        "endpoints": [
+            "https:\/\/api.omise.co\/sources",
+            "https:\/\/api.omise.co\/charges",
+            "https:\/\/api.omise.co\/charges\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 5690
+    },
+    "przelewy24": {
+        "name": "Przelewy24",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/przelewy24\/Przelewy24Gateway.php",
+        "endpoints": [
+            "https:\/\/secure.przelewy24.pl",
+            "https:\/\/sandbox.przelewy24.pl"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 11256
+    },
+    "rapyd": {
+        "name": "Rapyd",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/rapyd\/RapydGateway.php",
+        "endpoints": [
+            "https:\/\/api.rapyd.net\/v1\/checkout",
+            "https:\/\/sandboxapi.rapyd.net\/v1\/checkout",
+            "https:\/\/api.rapyd.net\/v1\/payments\/",
+            "https:\/\/sandboxapi.rapyd.net\/v1\/payments\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 9398
+    },
+    "razorpay": {
+        "name": "Razorpay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/razorpay\/RazorpayGateway.php",
+        "endpoints": [
+            "https:\/\/api.razorpay.com\/v1\/orders",
+            "https:\/\/checkout.razorpay.com\/v1\/checkout.js"
+        ],
+        "webhook_verification": "hash_hmac",
+        "api_version": "\/v1",
+        "file_size": 5429
+    },
+    "rocket": {
+        "name": "DBBL Rocket",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/rocket\/RocketGateway.php",
+        "endpoints": [
+            "https:\/\/rocket.dutchbanglabank.com\/rocket\/checkout\/process",
+            "https:\/\/sandbox.dutchbanglabank.com\/rocket\/checkout\/process"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 4505
+    },
+    "shift4": {
+        "name": "Shift4",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/shift4\/Shift4Gateway.php",
+        "endpoints": {
+            "0": "https:\/\/api.shift4.com\/charges",
+            "2": "https:\/\/api.shift4.com\/charges\/"
+        },
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9388
+    },
+    "shurjopay": {
+        "name": "shurjoPay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/shurjopay\/ShurjopayGateway.php",
+        "endpoints": [
+            "https:\/\/engine.shurjopayment.com",
+            "https:\/\/sandbox.shurjopayment.com"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 12121
+    },
+    "skrill": {
+        "name": "Skrill",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/skrill\/SkrillGateway.php",
+        "endpoints": {
+            "0": "https:\/\/www.moneybookers.com\/app\/payment.pl\/initiate",
+            "2": "https:\/\/www.moneybookers.com\/app\/payment.pl\/verify"
+        },
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9480
+    },
+    "sofort": {
+        "name": "Sofort",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/sofort\/SofortGateway.php",
+        "endpoints": [
+            "https:\/\/api.sofort.com\/api\/xml"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9700
+    },
+    "square": {
+        "name": "Square Payments",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/square\/SquareGateway.php",
+        "endpoints": [
+            "https:\/\/connect.squareup.com\/v2\/online-checkout\/payment-links",
+            "https:\/\/connect.squareupsandbox.com\/v2\/online-checkout\/payment-links"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v2",
+        "file_size": 4673
+    },
+    "sslcommerz": {
+        "name": "SSLCommerz",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/sslcommerz\/SslCommerzGateway.php",
+        "endpoints": [
+            "https:\/\/sandbox.sslcommerz.com",
+            "https:\/\/securepay.sslcommerz.com"
+        ],
+        "webhook_verification": "none",
+        "api_version": "\/v4",
+        "file_size": 9463
+    },
+    "stax": {
+        "name": "Stax",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/stax\/StaxGateway.php",
+        "endpoints": [
+            "https:\/\/stax.fattmerchant.com\/api\/charge",
+            "https:\/\/sandbox.fattmerchant.com\/api\/charge",
+            "https:\/\/stax.fattmerchant.com\/api\/transactions\/",
+            "https:\/\/sandbox.fattmerchant.com\/api\/transactions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9322
+    },
+    "stripe": {
+        "name": "Stripe",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/stripe\/StripeGateway.php",
+        "endpoints": [
+            "https:\/\/api.stripe.com\/v1\/checkout\/sessions",
+            "https:\/\/api.stripe.com\/v1\/checkout\/sessions\/",
+            "https:\/\/api.stripe.com\/v1\/refunds"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 14898
+    },
+    "toss": {
+        "name": "Toss Payments",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/toss\/TossGateway.php",
+        "endpoints": [
+            "https:\/\/js.tosspayments.com\/v1\/payment",
+            "https:\/\/api.tosspayments.com\/v1\/payments\/confirm"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 4306
+    },
+    "trustcommerce": {
+        "name": "TrustCommerce",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/trustcommerce\/TrustCommerceGateway.php",
+        "endpoints": [
+            "https:\/\/tclink.trustcommerce.com\/tcLink.php\/charge",
+            "https:\/\/tclinktest.trustcommerce.com\/tcLink.php\/charge",
+            "https:\/\/tclink.trustcommerce.com\/tcLink.php\/query",
+            "https:\/\/tclinktest.trustcommerce.com\/tcLink.php\/query"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9506
+    },
+    "trustly": {
+        "name": "Trustly",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/trustly\/TrustlyGateway.php",
+        "endpoints": [
+            "https:\/\/api.trustly.com\/api\/1",
+            "https:\/\/test.trustly.com\/api\/1"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "unknown",
+        "file_size": 9775
+    },
+    "tsys": {
+        "name": "TSYS",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/tsys\/TsysGateway.php",
+        "endpoints": [
+            "https:\/\/api.transfirst.com\/api\/v1\/transactions",
+            "https:\/\/stage.transfirst.com\/api\/v1\/transactions",
+            "https:\/\/api.transfirst.com\/api\/v1\/transactions\/",
+            "https:\/\/stage.transfirst.com\/api\/v1\/transactions\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 9423
+    },
+    "upay": {
+        "name": "Upay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/upay\/UpayGateway.php",
+        "endpoints": {
+            "0": "https:\/\/api.upay.com.bd\/v1\/auth\/login",
+            "1": "https:\/\/sandbox.upay.com.bd\/v1\/auth\/login",
+            "2": "https:\/\/api.upay.com.bd\/v1\/checkout\/create",
+            "3": "https:\/\/sandbox.upay.com.bd\/v1\/checkout\/create",
+            "6": "https:\/\/api.upay.com.bd\/v1\/checkout\/verify\/",
+            "7": "https:\/\/sandbox.upay.com.bd\/v1\/checkout\/verify\/"
+        },
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 7847
+    },
+    "wechat-pay": {
+        "name": "WeChat Pay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/wechat-pay\/WechatPayGateway.php",
+        "endpoints": [
+            "https:\/\/api.mch.weixin.qq.com\/v3\/pay\/transactions\/native"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v3",
+        "file_size": 5132
+    },
+    "wise": {
+        "name": "Wise",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/wise\/WiseGateway.php",
+        "endpoints": [
+            "https:\/\/api.wise.com",
+            "https:\/\/api.sandbox.transferwise.tech"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v3",
+        "file_size": 3890
+    },
+    "worldline": {
+        "name": "Worldline Connect",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/worldline\/WorldlineGateway.php",
+        "endpoints": [
+            "https:\/\/payment.worldline-solutions.com",
+            "https:\/\/payment.sandbox.worldline-solutions.com",
+            "https:\/\/payment.worldline-solutions.com\/",
+            "https:\/\/payment.sandbox.worldline-solutions.com\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 7434
+    },
+    "worldpay": {
+        "name": "Worldpay",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/worldpay\/WorldpayGateway.php",
+        "endpoints": [
+            "https:\/\/api.worldpay.com\/v1\/orders",
+            "https:\/\/api.sandbox.worldpay.com\/v1\/orders",
+            "https:\/\/api.worldpay.com\/v1\/orders\/",
+            "https:\/\/api.sandbox.worldpay.com\/v1\/orders\/"
+        ],
+        "webhook_verification": "custom\/basic",
+        "api_version": "\/v1",
+        "file_size": 9429
+    },
+    "xendit": {
+        "name": "Xendit",
+        "file": "C:\\laragon\\www\\ownpay\\scratch\/..\/modules\/gateways\/xendit\/XenditGateway.php",
+        "endpoints": [
+            "https:\/\/api.xendit.co\/v2\/invoices",
+            "https:\/\/api.xendit.co\/v2\/invoices\/"
+        ],
+        "webhook_verification": "hash_equals",
+        "api_version": "\/v2",
+        "file_size": 8865
+    }
+}

@@ -139,6 +139,9 @@ final class MidtransGateway implements PluginInterface, GatewayAdapterInterface
             ];
         }
 
+        if ($mode === 'live') {
+            throw new \RuntimeException('Payment initiation failed');
+        }
         return [
             'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
         ];
@@ -151,6 +154,13 @@ final class MidtransGateway implements PluginInterface, GatewayAdapterInterface
         $serverKey = $this->getString($credentials['server_key'] ?? '');
 
         if ($orderId === '' || str_starts_with($orderId, 'SIM_')) {
+            if ($mode === 'live') {
+                return [
+                    'success'        => false,
+                    'gateway_trx_id' => '',
+                    'status'         => 'failed',
+                ];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),

@@ -1,0 +1,22 @@
+{
+  "name": "OK Wallet",
+  "slug": "ok-wallet",
+  "version": "1.0.0",
+  "description": "ONE Bank OK Wallet mobile financial services payment integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "icon.svg",
+  "color": "#3F51B5",
+  "entrypoint": "OkWalletGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\OkWallet",
+  "capabilities": ["gateway"],
+  "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+  "csp": {
+    "script_src": ["https://*.okwallet.com.bd"],
+    "style_src": ["https://*.okwallet.com.bd"],
+    "frame_src": ["https://*.okwallet.com.bd"],
+    "connect_src": ["https://*.okwallet.com.bd"]
+  },
+  "permissions": ["gateway.process"]
+}

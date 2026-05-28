@@ -117,15 +117,18 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
     public function initiate(array $params, array $credentials): array
     {
         $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        $secretKey = $this->getString($credentials['secret_key'] ?? '');
         $endpoint = $mode === 'live'
-            ? 'https://api.checkout.com/payments'
-            : 'https://api.sandbox.checkout.com/payments';
+            ? 'https://api.checkout.com/hosted-payments'
+            : 'https://api.sandbox.checkout.com/hosted-payments';
 
+        $amountCents = (int) bcmul((string) (float) $params['amount'], '100', 0);
         $payload = [
+            'amount'       => $amountCents,
+            'currency'     => strtoupper($params['currency']),
             'reference'    => $params['trx_id'],
-            'amount'       => $params['amount'],
-            'currency'     => $params['currency'],
-            'redirect_url' => $params['redirect_url'],
+            'success_url'  => $params['redirect_url'],
+            'failure_url'  => $params['cancel_url'],
             'cancel_url'   => $params['cancel_url'],
         ];
 
@@ -140,6 +143,7 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
             CURLOPT_TIMEOUT        => 15,
             CURLOPT_POSTFIELDS     => (string) json_encode($payload),
             CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $secretKey,
                 'Content-Type: application/json',
                 'User-Agent: OwnPay Gateway Client/1.0.0',
             ],
@@ -149,7 +153,10 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
         $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if ($httpCode !== 200 || !$response) {
+        if ($httpCode !== 200 && $httpCode !== 201 || !$response) {
+            if ($mode === 'live') {
+                throw new \RuntimeException('Checkout.com API error: HTTP ' . $httpCode);
+            }
             // Emulate fallback visual window for simulated checkout
             return [
                 'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
@@ -157,10 +164,29 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
         }
 
         $data = json_decode((string)$response, true);
-        if (is_array($data) && !empty($data['payment_url'])) {
-            return [
-                'redirect_url' => $this->getString($data['payment_url']),
-            ];
+        $redirectUrl = '';
+        $sessionId = '';
+        if (is_array($data)) {
+            if (!empty($data['url'])) {
+                $redirectUrl = $this->getString($data['url']);
+            } else {
+                $links = $this->getArray($data, '_links');
+                $redirect = $this->getArray($links, 'redirect');
+                $redirectUrl = $this->getString($redirect['href'] ?? '');
+            }
+            $sessionId = $this->getString($data['id'] ?? '');
+        }
+
+        if ($redirectUrl !== '') {
+            $res = ['redirect_url' => $redirectUrl];
+            if ($sessionId !== '') {
+                $res['session_id'] = $sessionId;
+            }
+            return $res;
+        }
+
+        if ($mode === 'live') {
+            throw new \RuntimeException('Checkout.com payment session creation failed');
         }
 
         return [
@@ -174,15 +200,28 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
     public function verify(array $callbackData, array $credentials): array
     {
         $mode = $this->getString($credentials['mode'] ?? 'sandbox');
-        $reference = $this->getString($callbackData['reference'] ?? null);
+        $secretKey = $this->getString($credentials['secret_key'] ?? '');
+        $sessionId = $this->getString($callbackData['cko-session-id'] ?? $callbackData['reference'] ?? $callbackData['gateway_trx_id'] ?? '');
 
-        if (!$reference) {
-            return ['success' => false];
+        if ($sessionId === '' || str_starts_with($sessionId, 'SIM_')) {
+            if ($mode === 'live') {
+                return [
+                    'success'        => false,
+                    'gateway_trx_id' => '',
+                    'status'         => 'failed',
+                ];
+            }
+            return [
+                'success'        => true,
+                'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),
+                'amount'         => $this->getString($callbackData['amount'] ?? '0.00'),
+                'status'         => 'completed',
+            ];
         }
 
         $endpoint = $mode === 'live'
-            ? 'https://api.checkout.com/payments/' . $reference
-            : 'https://api.sandbox.checkout.com/payments/' . $reference;
+            ? 'https://api.checkout.com/payments/' . urlencode($sessionId)
+            : 'https://api.sandbox.checkout.com/payments/' . urlencode($sessionId);
 
         $ch = curl_init($endpoint);
         if ($ch === false) {
@@ -193,31 +232,38 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 10,
             CURLOPT_HTTPHEADER     => [
+                'Authorization: Bearer ' . $secretKey,
                 'User-Agent: OwnPay Gateway Client/1.0.0',
             ],
         ]);
 
         $response = curl_exec($ch);
+        $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
         curl_close($ch);
 
-        if (!$response) {
-            // Simulation Mode: Accept callbacks as valid
-            return [
-                'success'        => true,
-                'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),
-                'amount'         => $this->getString($callbackData['amount'] ?? '0.00'),
-                'status'         => 'completed',
-            ];
+        if ($httpCode !== 200 || !$response) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
         }
 
         $data = json_decode((string)$response, true);
-        if (is_array($data) && ($data['status'] ?? '') === 'PAID') {
-            return [
-                'success'        => true,
-                'gateway_trx_id' => $this->getString($data['gateway_trx_id'] ?? null),
-                'amount'         => $this->getString($data['amount'] ?? null),
-                'status'         => 'completed',
+        if (is_array($data)) {
+            $approved = ($data['approved'] ?? null) === true;
+            $status = strtolower($this->getString($data['status'] ?? ''));
+            $success = $approved || in_array($status, ['captured', 'authorized', 'approved']);
+            
+            $amountVal = $data['amount'] ?? null;
+            $amountValStr = is_scalar($amountVal) ? (string) $amountVal : '';
+            $amount = $amountValStr !== '' ? bcdiv($amountValStr, '100', 2) : null;
+            
+            $res = [
+                'success'        => $success,
+                'gateway_trx_id' => $this->getString($data['id'] ?? $sessionId),
+                'status'         => $success ? 'completed' : 'failed',
             ];
+            if ($amount !== null) {
+                $res['amount'] = $amount;
+            }
+            return $res;
         }
 
         return ['success' => false];
@@ -228,22 +274,18 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
      */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        $webhookHeader = 'Authorization';
-        $signature = '';
-
-        foreach ($headers as $key => $val) {
-            if (strtolower($key) === strtolower($webhookHeader)) {
-                $signature = $val;
-                break;
-            }
-        }
-
-        if ($signature === '') {
+        $sigHeader = $headers['Cko-Signature'] ?? $headers['cko-signature'] ?? '';
+        if ($sigHeader === '') {
             return false;
         }
 
-        // Webhook timing-safe validation check simulation
-        return true;
+        $secret = $this->getString($credentials['webhook_secret'] ?? '');
+        if ($secret === '') {
+            return true; // Backward compatibility
+        }
+
+        $computed = hash_hmac('sha256', $rawBody, $secret);
+        return hash_equals(strtolower($computed), strtolower($sigHeader));
     }
 
     /**

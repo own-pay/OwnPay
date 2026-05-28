@@ -149,6 +149,9 @@ final class PayoneerGateway implements PluginInterface, GatewayAdapterInterface
         curl_close($ch);
 
         if ($httpCode !== 200 || !$response) {
+            if ($mode === 'live') {
+                throw new \RuntimeException('Payment initiation failed');
+            }
             // Emulate fallback visual window for simulated checkout
             return [
                 'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
@@ -162,6 +165,9 @@ final class PayoneerGateway implements PluginInterface, GatewayAdapterInterface
             ];
         }
 
+        if ($mode === 'live') {
+            throw new \RuntimeException('Payment initiation failed');
+        }
         return [
             'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
         ];
@@ -200,6 +206,13 @@ final class PayoneerGateway implements PluginInterface, GatewayAdapterInterface
         curl_close($ch);
 
         if (!$response) {
+            if ($mode === 'live') {
+                return [
+                    'success'        => false,
+                    'gateway_trx_id' => '',
+                    'status'         => 'failed',
+                ];
+            }
             // Simulation Mode: Accept callbacks as valid
             return [
                 'success'        => true,

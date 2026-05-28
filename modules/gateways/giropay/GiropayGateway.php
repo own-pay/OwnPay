@@ -90,7 +90,7 @@ final class GiropayGateway implements PluginInterface, GatewayAdapterInterface
         $projectPassword = $this->getString($credentials['project_password'] ?? '');
 
         // Amount in cents for Giropay
-        $amountCents = (int) round(((float) $params['amount']) * 100);
+        $amountCents = (int) bcmul((string) (float) $params['amount'], '100', 0);
 
         $payload = [
             'merchantId'  => $merchantId,
@@ -128,6 +128,10 @@ final class GiropayGateway implements PluginInterface, GatewayAdapterInterface
         curl_close($ch);
 
         if ($httpCode !== 200 || !$response) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                throw new \RuntimeException('Giropay payment initiation failed.');
+            }
             // Emulate fallback visual window for simulated checkout
             return [
                 'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
@@ -142,6 +146,10 @@ final class GiropayGateway implements PluginInterface, GatewayAdapterInterface
             ];
         }
 
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        if ($mode === 'live') {
+            throw new \RuntimeException('Payment initiation failed');
+        }
         return [
             'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
         ];
@@ -157,6 +165,14 @@ final class GiropayGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         if (str_starts_with($gatewayTrxId, 'SIM_')) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                return [
+                    'success'        => false,
+                    'gateway_trx_id' => '',
+                    'status'         => 'failed',
+                ];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $gatewayTrxId,
@@ -206,7 +222,7 @@ final class GiropayGateway implements PluginInterface, GatewayAdapterInterface
         $data = json_decode((string) $response, true);
         if (is_array($data) && ($data['status'] ?? '') === 'SUCCESS') {
             $amountCents = $this->getInt($data['amount'] ?? 0);
-            $amountFloat = $amountCents / 100.0;
+            $amountFloat = (float) bcdiv((string) $amountCents, '100', 2);
             return [
                 'success'        => true,
                 'gateway_trx_id' => $gatewayTrxId,

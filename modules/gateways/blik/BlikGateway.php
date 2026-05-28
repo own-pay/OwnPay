@@ -114,7 +114,7 @@ final class BlikGateway implements PluginInterface, GatewayAdapterInterface
         $crcKey = $this->getString($credentials['crc_key'] ?? '');
         $apiKey = $this->getString($credentials['api_key'] ?? '');
 
-        $amountGrosz = (int) round(((float) $params['amount']) * 100);
+        $amountGrosz = (int) bcmul((string) (float) $params['amount'], '100', 0);
         $currency = 'PLN';
         $sessionId = $params['trx_id'];
 
@@ -204,6 +204,10 @@ final class BlikGateway implements PluginInterface, GatewayAdapterInterface
             }
         }
 
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        if ($mode === 'live') {
+            throw new \RuntimeException('Payment initiation failed');
+        }
         return [
             'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
         ];
@@ -220,6 +224,14 @@ final class BlikGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         if (str_starts_with($gatewayTrxId, 'SIM_')) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                return [
+                    'success'        => false,
+                    'gateway_trx_id' => '',
+                    'status'         => 'failed',
+                ];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $gatewayTrxId,
@@ -238,7 +250,7 @@ final class BlikGateway implements PluginInterface, GatewayAdapterInterface
             : 'https://sandbox.przelewy24.pl';
 
         $amountFloat = $this->getFloat($callbackData['amount'] ?? 0.0);
-        $amountGrosz = (int) round($amountFloat * 100.0);
+        $amountGrosz = (int) bcmul((string) $amountFloat, '100', 0);
         $currency = 'PLN';
 
         $signString = $sessionId . $gatewayTrxId . $amountGrosz . $currency . $crcKey;

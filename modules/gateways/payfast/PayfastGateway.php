@@ -155,6 +155,14 @@ final class PayfastGateway implements PluginInterface, GatewayAdapterInterface
         $pfPaymentId = $this->getString($callbackData['pf_payment_id'] ?? $callbackData['gateway_trx_id'] ?? '');
 
         if ($pfPaymentId === '' || str_starts_with($pfPaymentId, 'SIM_')) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                return [
+                    'success'        => false,
+                    'gateway_trx_id' => '',
+                    'status'         => 'failed',
+                ];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),

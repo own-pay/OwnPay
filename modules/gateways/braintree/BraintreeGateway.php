@@ -199,6 +199,14 @@ final class BraintreeGateway implements PluginInterface, GatewayAdapterInterface
         $amount = $this->getString($callbackData['amount'] ?? '0.00');
 
         if ($nonce === '') {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                return [
+                    'success'        => false,
+                    'gateway_trx_id' => '',
+                    'status'         => 'failed',
+                ];
+            }
             // Simulated transaction redirect fallback
             return [
                 'success'        => true,

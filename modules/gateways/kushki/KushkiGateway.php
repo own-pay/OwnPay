@@ -144,6 +144,10 @@ final class KushkiGateway implements PluginInterface, GatewayAdapterInterface
         curl_close($ch);
 
         if ($httpCode !== 200 || !$response) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                throw new \RuntimeException('Kushki payment initiation failed.');
+            }
             return [
                 'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
             ];
@@ -157,6 +161,10 @@ final class KushkiGateway implements PluginInterface, GatewayAdapterInterface
             ];
         }
 
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        if ($mode === 'live') {
+            throw new \RuntimeException('Payment initiation failed');
+        }
         return [
             'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
         ];
@@ -168,6 +176,14 @@ final class KushkiGateway implements PluginInterface, GatewayAdapterInterface
         $privateId = $this->getString($credentials['private_merchant_id'] ?? '');
 
         if ($token === '' || str_starts_with($token, 'SIM_')) {
+            $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+            if ($mode === 'live') {
+                return [
+                    'success'        => false,
+                    'gateway_trx_id' => '',
+                    'status'         => 'failed',
+                ];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),
