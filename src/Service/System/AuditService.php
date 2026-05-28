@@ -72,4 +72,24 @@ final class AuditService
             $ua
         );
     }
+
+    /**
+     * Checks all logged events for database tampering.
+     *
+     * @return array<int, array<string, mixed>> List of corrupted audit log rows.
+     */
+    public function verifyIntegrity(): array
+    {
+        return $this->repo->verifyIntegrity();
+    }
+
+    /**
+     * Backports HMAC signatures to old pre-existing logs.
+     *
+     * @return int Count of signed pre-existing logs.
+     */
+    public function signExistingLogs(): int
+    {
+        return $this->repo->signExistingLogs();
+    }
 }

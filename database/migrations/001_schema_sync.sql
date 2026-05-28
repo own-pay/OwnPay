@@ -9,14 +9,13 @@ SET FOREIGN_KEY_CHECKS = 0;
 -- ──────────────────────────────────────────────────────────────
 -- 1. op_device_pairing_tokens
 --    Rename: token → otp_hash, used → is_used
---    Add: brand_id, created_by, used_at
+--    Add: created_by, used_at
 -- ──────────────────────────────────────────────────────────────
 
 ALTER TABLE `op_device_pairing_tokens`
   CHANGE COLUMN `token` `otp_hash` VARCHAR(255) NOT NULL,
   CHANGE COLUMN `used` `is_used` TINYINT(1) NOT NULL DEFAULT 0,
-  ADD COLUMN `brand_id` BIGINT UNSIGNED DEFAULT NULL AFTER `merchant_id`,
-  ADD COLUMN `created_by` BIGINT UNSIGNED DEFAULT NULL AFTER `brand_id`,
+  ADD COLUMN `created_by` BIGINT UNSIGNED DEFAULT NULL AFTER `merchant_id`,
   ADD COLUMN `used_at` DATETIME(6) DEFAULT NULL AFTER `is_used`;
 
 -- ──────────────────────────────────────────────────────────────

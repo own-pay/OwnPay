@@ -6,6 +6,7 @@ namespace OwnPay\Service\Payment;
 use OwnPay\Event\EventManager;
 use OwnPay\Repository\WebhookRepository;
 use OwnPay\Repository\CommLogRepository;
+use OwnPay\Repository\WebhookEventRepository;
 
 /**
  * Service managing outbound webhook notifications dispatched to merchant API endpoints.
@@ -31,20 +32,28 @@ final class WebhookService
     private EventManager $events;
 
     /**
+     * @var WebhookEventRepository The repository storing webhook events.
+     */
+    private WebhookEventRepository $webhookEvents;
+
+    /**
      * WebhookService constructor.
      *
      * @param WebhookRepository $webhooks Webhook endpoints lookup repository.
      * @param CommLogRepository $commLog Communication logs repository.
      * @param EventManager $events System event dispatcher.
+     * @param WebhookEventRepository $webhookEvents Webhook events persistence layer.
      */
     public function __construct(
         WebhookRepository $webhooks,
         CommLogRepository $commLog,
-        EventManager $events
+        EventManager $events,
+        WebhookEventRepository $webhookEvents
     ) {
         $this->webhooks = $webhooks;
         $this->commLog = $commLog;
         $this->events = $events;
+        $this->webhookEvents = $webhookEvents;
     }
 
     /**
@@ -62,7 +71,16 @@ final class WebhookService
         $hooks = $this->webhooks->forTenant($merchantId)->listActiveForEvent($eventType);
 
         foreach ($hooks as $hook) {
-            $this->deliver($hook, $eventType, $payload);
+            $webhookId = isset($hook['id']) && is_scalar($hook['id']) ? (int)$hook['id'] : 0;
+            $eventId = (int) $this->webhookEvents->create([
+                'webhook_id' => $webhookId,
+                'event_type' => $eventType,
+                'payload'    => (string) json_encode($payload),
+                'status'     => 'pending',
+                'attempts'   => 0,
+            ]);
+
+            $this->deliver($hook, $eventType, $payload, $eventId);
         }
     }
 
@@ -76,16 +94,23 @@ final class WebhookService
      * @param array<string, mixed> $webhook The configuration fields of the target webhook endpoint.
      * @param string $eventType The triggered event name.
      * @param array<string, mixed> $payload The payload body parameters.
+     * @param int|null $eventId Optional webhook event ID for database tracking and retries.
      * @return bool True if the delivery was successful (HTTP status 200-299), false otherwise.
      */
-    public function deliver(array $webhook, string $eventType, array $payload): bool
+    public function deliver(array $webhook, string $eventType, array $payload, ?int $eventId = null): bool
     {
         $urlVal = $webhook['url'] ?? '';
         $url = is_scalar($urlVal) ? (string) $urlVal : '';
 
+        $start = microtime(true);
+
         // SSRF check
         if ($url === '' || !$this->isUrlSafe($url)) {
             $this->events->doAction('webhook.delivery.failed', $webhook, 'SSRF blocked');
+            if ($eventId !== null) {
+                $this->webhookEvents->logDelivery($eventId, null, null, 0, 'SSRF blocked');
+                $this->webhookEvents->updateRetryState($eventId, 'failed', 1, null); // SSRF block is immediately dead-lettered/quarantined
+            }
             return false;
         }
 
@@ -116,6 +141,10 @@ final class WebhookService
             'queued'
         );
 
+        $httpCode = null;
+        $response = null;
+        $error = null;
+
         try {
             $ch = curl_init($url);
             curl_setopt_array($ch, [
@@ -127,7 +156,7 @@ final class WebhookService
                 CURLOPT_HTTPHEADER     => [
                     'Content-Type: application/json',
                     'X-Signature: sha256=' . $signature,
-                    'X-Timestamp: ' . time(),
+                    'X-Timestamp: ' . (string) time(),
                     'X-Event: ' . $eventType,
                     'User-Agent: OwnPay-Webhook/0.1.0',
                 ],
@@ -139,19 +168,94 @@ final class WebhookService
             $error = curl_error($ch);
             curl_close($ch);
 
+            $durationMs = (int)round((microtime(true) - $start) * 1000);
+
             if ($httpCode >= 200 && $httpCode < 300) {
                 $this->commLog->markSent((int) $logId);
                 $this->events->doAction('webhook.delivery.success', $webhook, $httpCode);
+                
+                if ($eventId !== null) {
+                    $event = $this->webhookEvents->find($eventId);
+                    $attempts = is_array($event) && isset($event['attempts']) && is_scalar($event['attempts']) ? (int) $event['attempts'] : 0;
+                    
+                    $this->webhookEvents->logDelivery($eventId, $httpCode, is_string($response) ? $response : null, $durationMs, null);
+                    $this->webhookEvents->updateRetryState($eventId, 'delivered', $attempts + 1, null);
+                }
+                
                 return true;
             }
 
-            $this->commLog->markFailed((int) $logId, "HTTP {$httpCode}: {$error}");
+            $errorMsg = $error !== '' ? $error : "HTTP status {$httpCode}";
+            $this->commLog->markFailed((int) $logId, "HTTP {$httpCode}: {$errorMsg}");
             $this->events->doAction('webhook.delivery.failed', $webhook, "HTTP {$httpCode}");
+
+            if ($eventId !== null) {
+                $event = $this->webhookEvents->find($eventId);
+                $attempts = is_array($event) && isset($event['attempts']) && is_scalar($event['attempts']) ? (int) $event['attempts'] : 0;
+                $newAttempts = $attempts + 1;
+
+                $this->webhookEvents->logDelivery(
+                    $eventId,
+                    $httpCode,
+                    is_string($response) ? $response : null,
+                    $durationMs,
+                    "HTTP {$httpCode}: {$errorMsg}"
+                );
+
+                $intervals = [
+                    1 => 300,      // 5 mins
+                    2 => 900,      // 15 mins
+                    3 => 3600,     // 1 hour
+                    4 => 21600,    // 6 hours
+                    5 => 43200,    // 12 hours
+                    6 => 86400,    // 24 hours
+                ];
+                $seconds = $intervals[$newAttempts] ?? null;
+                $nextRetry = null;
+                if ($seconds !== null) {
+                    $nextRetry = date('Y-m-d H:i:s', time() + $seconds);
+                }
+
+                $this->webhookEvents->updateRetryState($eventId, 'failed', $newAttempts, $nextRetry);
+            }
+
             return false;
 
         } catch (\Throwable $e) {
+            $durationMs = (int)round((microtime(true) - $start) * 1000);
             $this->commLog->markFailed((int) $logId, $e->getMessage());
             $this->events->doAction('webhook.delivery.failed', $webhook, $e->getMessage());
+
+            if ($eventId !== null) {
+                $event = $this->webhookEvents->find($eventId);
+                $attempts = is_array($event) && isset($event['attempts']) && is_scalar($event['attempts']) ? (int) $event['attempts'] : 0;
+                $newAttempts = $attempts + 1;
+
+                $this->webhookEvents->logDelivery(
+                    $eventId,
+                    null,
+                    null,
+                    $durationMs,
+                    $e->getMessage()
+                );
+
+                $intervals = [
+                    1 => 300,
+                    2 => 900,
+                    3 => 3600,
+                    4 => 21600,
+                    5 => 43200,
+                    6 => 86400,
+                ];
+                $seconds = $intervals[$newAttempts] ?? null;
+                $nextRetry = null;
+                if ($seconds !== null) {
+                    $nextRetry = date('Y-m-d H:i:s', time() + $seconds);
+                }
+
+                $this->webhookEvents->updateRetryState($eventId, 'failed', $newAttempts, $nextRetry);
+            }
+
             return false;
         }
     }

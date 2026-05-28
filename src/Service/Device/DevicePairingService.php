@@ -348,7 +348,7 @@ final class DevicePairingService
             return ['success' => false, 'error' => 'FINGERPRINT_MISMATCH'];
         }
 
-        $brandId = (int) ($device['brand_id'] ?? $device['merchant_id'] ?? 1);
+        $brandId = (int) ($device['merchant_id'] ?? 1);
         // BUG-003 FIX: Use extracted userId, fallback to resolving from device
         if ($userId === 0) {
             $userId = 1;

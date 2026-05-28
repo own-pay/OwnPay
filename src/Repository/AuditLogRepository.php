@@ -15,7 +15,7 @@ final class AuditLogRepository extends BaseRepository
     protected string $table = 'op_audit_logs';
     protected array $fillable = [
         'merchant_id', 'user_id', 'action', 'entity_type', 'entity_id',
-        'old_values', 'new_values', 'ip_address', 'user_agent',
+        'old_values', 'new_values', 'ip_address', 'user_agent', 'signature',
     ];
 
     /**
@@ -46,6 +46,22 @@ final class AuditLogRepository extends BaseRepository
         ?string $ip = null,
         ?string $userAgent = null
     ): string {
+        $oldJson = $oldValues !== null ? (string)json_encode($oldValues) : null;
+        $newJson = $newValues !== null ? (string)json_encode($newValues) : null;
+        $ua = $userAgent ? mb_substr($userAgent, 0, 500) : null;
+
+        $signature = $this->calculateSignature(
+            $merchantId,
+            $userId,
+            $action,
+            $entityType,
+            $entityId,
+            $oldJson,
+            $newJson,
+            $ip,
+            $ua
+        );
+
         return $this->create([
             'merchant_id' => $merchantId,
             'user_id'     => $userId,
@@ -55,9 +71,137 @@ final class AuditLogRepository extends BaseRepository
             'old_values'  => $oldValues !== null ? json_encode($oldValues) : null,
             'new_values'  => $newValues !== null ? json_encode($newValues) : null,
             'ip_address'  => $ip,
-            'user_agent'  => $userAgent ? mb_substr($userAgent, 0, 500) : null,
+            'user_agent'  => $ua,
+            'signature'   => $signature,
         ]);
     }
+
+    /**
+     * Calculates the SHA-256 HMAC signature for a log entry row context.
+     */
+    public function calculateSignature(
+        ?int $merchantId,
+        ?int $userId,
+        string $action,
+        ?string $entityType,
+        ?int $entityId,
+        ?string $oldValuesJson,
+        ?string $newValuesJson,
+        ?string $ip,
+        ?string $userAgent
+    ): string {
+        $secret = \OwnPay\Service\System\EnvironmentService::get('AUDIT_HMAC_SECRET');
+        if ($secret === '') {
+            $secret = 'default_audit_hmac_secret_key_2026';
+        }
+
+        $payload = sprintf(
+            '%s|%s|%s|%s|%s|%s|%s|%s|%s',
+            $merchantId !== null ? (string)$merchantId : '',
+            $userId !== null ? (string)$userId : '',
+            $action,
+            $entityType !== null ? $entityType : '',
+            $entityId !== null ? (string)$entityId : '',
+            $oldValuesJson !== null ? $oldValuesJson : '',
+            $newValuesJson !== null ? $newValuesJson : '',
+            $ip !== null ? $ip : '',
+            $userAgent !== null ? $userAgent : ''
+        );
+
+        return hash_hmac('sha256', $payload, $secret);
+    }
+
+    /**
+     * Verifies the integrity of all logged events and returns any compromised entries.
+     *
+     * @return array<int, array<string, mixed>> List of corrupted audit log rows.
+     */
+    public function verifyIntegrity(): array
+    {
+        $rows = $this->db->fetchAll("SELECT * FROM {$this->table} ORDER BY id ASC");
+        $compromised = [];
+
+        foreach ($rows as $row) {
+            $merchantId = isset($row['merchant_id']) && is_scalar($row['merchant_id']) ? (int) $row['merchant_id'] : null;
+            $userId = isset($row['user_id']) && is_scalar($row['user_id']) ? (int) $row['user_id'] : null;
+            $action = isset($row['action']) && is_scalar($row['action']) ? (string) $row['action'] : '';
+            $entityType = isset($row['entity_type']) && is_scalar($row['entity_type']) ? (string) $row['entity_type'] : null;
+            $entityId = isset($row['entity_id']) && is_scalar($row['entity_id']) ? (int) $row['entity_id'] : null;
+            $oldValuesJson = isset($row['old_values']) && is_scalar($row['old_values']) ? (string) $row['old_values'] : null;
+            $newValuesJson = isset($row['new_values']) && is_scalar($row['new_values']) ? (string) $row['new_values'] : null;
+            $ip = isset($row['ip_address']) && is_scalar($row['ip_address']) ? (string) $row['ip_address'] : null;
+            $userAgent = isset($row['user_agent']) && is_scalar($row['user_agent']) ? (string) $row['user_agent'] : null;
+            $storedSignature = isset($row['signature']) && is_scalar($row['signature']) ? (string) $row['signature'] : '';
+
+            // Skip entries that were created before the signature column was added (storedSignature === null)
+            if ($row['signature'] === null) {
+                continue;
+            }
+
+            $calculated = $this->calculateSignature(
+                $merchantId,
+                $userId,
+                $action,
+                $entityType,
+                $entityId,
+                $oldValuesJson,
+                $newValuesJson,
+                $ip,
+                $userAgent
+            );
+
+            if (!hash_equals($calculated, $storedSignature)) {
+                $compromised[] = $row;
+            }
+        }
+
+        return $compromised;
+    }
+
+    /**
+     * Signs any pre-existing logs that do not currently have a signature.
+     *
+     * @return int Number of signed pre-existing logs.
+     */
+    public function signExistingLogs(): int
+    {
+        $rows = $this->db->fetchAll("SELECT * FROM {$this->table} WHERE signature IS NULL");
+        $count = 0;
+
+        foreach ($rows as $row) {
+            $id = isset($row['id']) && is_scalar($row['id']) ? (int)$row['id'] : 0;
+            $merchantId = isset($row['merchant_id']) && is_scalar($row['merchant_id']) ? (int) $row['merchant_id'] : null;
+            $userId = isset($row['user_id']) && is_scalar($row['user_id']) ? (int) $row['user_id'] : null;
+            $action = isset($row['action']) && is_scalar($row['action']) ? (string) $row['action'] : '';
+            $entityType = isset($row['entity_type']) && is_scalar($row['entity_type']) ? (string) $row['entity_type'] : null;
+            $entityId = isset($row['entity_id']) && is_scalar($row['entity_id']) ? (int) $row['entity_id'] : null;
+            $oldValuesJson = isset($row['old_values']) && is_scalar($row['old_values']) ? (string) $row['old_values'] : null;
+            $newValuesJson = isset($row['new_values']) && is_scalar($row['new_values']) ? (string) $row['new_values'] : null;
+            $ip = isset($row['ip_address']) && is_scalar($row['ip_address']) ? (string) $row['ip_address'] : null;
+            $userAgent = isset($row['user_agent']) && is_scalar($row['user_agent']) ? (string) $row['user_agent'] : null;
+
+            $signature = $this->calculateSignature(
+                $merchantId,
+                $userId,
+                $action,
+                $entityType,
+                $entityId,
+                $oldValuesJson,
+                $newValuesJson,
+                $ip,
+                $userAgent
+            );
+
+            $this->db->execute(
+                "UPDATE {$this->table} SET signature = :sig WHERE id = :id",
+                ['sig' => $signature, 'id' => $id]
+            );
+            $count++;
+        }
+
+        return $count;
+    }
+
 
     /**
      * Lists audit log records with sorting and pagination, optionally scoped by merchant ID.

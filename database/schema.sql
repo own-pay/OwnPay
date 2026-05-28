@@ -576,6 +576,7 @@ CREATE TABLE `op_audit_logs` (
   `new_values` JSON DEFAULT NULL,
   `ip_address` VARCHAR(45) DEFAULT NULL,
   `user_agent` VARCHAR(500) DEFAULT NULL,
+  `signature` VARCHAR(64) DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_merchant_action` (`merchant_id`, `action`),

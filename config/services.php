@@ -593,7 +593,7 @@ return static function (\OwnPay\Container $c): void {
 
         $runner->register('QueueWorker', ensureType($c->get(\OwnPay\Cron\QueueWorkerJob::class), \OwnPay\Cron\QueueWorkerJob::class), 'every_minute');
         $runner->register('SmsVerification', ensureType($c->get(\OwnPay\Cron\SmsVerificationJob::class), \OwnPay\Cron\SmsVerificationJob::class), 'every_minute');
-        $runner->register('WebhookRetry', ensureType($c->get(\OwnPay\Cron\WebhookRetryJob::class), \OwnPay\Cron\WebhookRetryJob::class), 'every_5min');
+        $runner->register('WebhookRetry', ensureType($c->get(\OwnPay\Cron\WebhookRetryCron::class), \OwnPay\Cron\WebhookRetryCron::class), 'every_5min');
         $runner->register('BalanceVerification', ensureType($c->get(\OwnPay\Cron\BalanceVerificationJob::class), \OwnPay\Cron\BalanceVerificationJob::class), 'every_5min');
         $runner->register('CurrencyUpdate', ensureType($c->get(\OwnPay\Cron\CurrencyUpdateJob::class), \OwnPay\Cron\CurrencyUpdateJob::class), 'hourly');
         $runner->register('DnsVerification', ensureType($c->get(\OwnPay\Cron\DnsVerificationJob::class), \OwnPay\Cron\DnsVerificationJob::class), 'hourly');
