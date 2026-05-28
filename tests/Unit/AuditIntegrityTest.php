@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use OwnPay\Repository\AuditLogRepository;
 use OwnPay\Core\Database;
 use OwnPay\Service\System\AuditService;
@@ -13,6 +14,7 @@ use OwnPay\Service\System\AuditService;
  *
  * Verifies cryptographic signature chaining, integrity checks, and backport signing for Audit Trail compliance.
  */
+#[AllowMockObjectsWithoutExpectations]
 class AuditIntegrityTest extends TestCase
 {
     /**

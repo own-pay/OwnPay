@@ -26,15 +26,21 @@ Phase 1: Research & Planning
 - **Status:** complete
 
 ### Phase 4: Administrative UI & CRUD Controller
-- [ ] Update `SettingsController.php` to handle saving custom API endpoints and managing the active list of currencies
-- [ ] Expand settings template `templates/admin/settings/index.twig` to add a new "Currencies & Exchange Rates" management section within the payment tab, listing all currencies, status toggles, rate inputs, add manual currency form, and a "Sync Rates Now" trigger button
-- **Status:** pending
+- [x] Update `SettingsController.php` to handle saving custom API endpoints and managing the active list of currencies
+- [x] Expand settings template `templates/admin/settings/index.twig` to add a new "Currencies & Exchange Rates" management section within the payment tab, listing all currencies, status toggles, rate inputs, add manual currency form, and a "Sync Rates Now" trigger button
+- **Status:** complete
 
 ### Phase 5: Verification & Testing
-- [ ] Add unit/integration tests for the new exchange rate sync and CurrencyService conversions
-- [ ] Run PHPUnit tests and ensure 100% green passing status
-- [ ] Run PHPStan analysis at Level 9 and ensure 100% clean compilation
-- **Status:** pending
+- [x] Add unit/integration tests for the new exchange rate sync and CurrencyService conversions
+- [x] Run PHPUnit tests and ensure 100% green passing status
+- [x] Run PHPStan analysis at Level 9 and ensure 100% clean compilation
+- **Status:** complete
+
+### Phase 6: Resolve PHPUnit Notices & Deprecations
+- [x] Identify all test cases generating mock object notices or warnings (completed: AuditIntegrityTest and WebhookRetryTest)
+- [x] Apply `#[AllowMockObjectsWithoutExpectations]` to AuditIntegrityTest and WebhookRetryTest test classes to eliminate PHPUnit 12 notices
+- [x] Re-run PHPUnit to verify that all 443 tests pass with 0 notices, 0 deprecations, and 0 warnings
+- **Status:** complete
 
 ## Decisions Made
 | Decision | Rationale |

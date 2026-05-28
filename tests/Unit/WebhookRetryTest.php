@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use OwnPay\Repository\WebhookEventRepository;
 use OwnPay\Repository\WebhookRepository;
 use OwnPay\Repository\CommLogRepository;
@@ -17,6 +18,7 @@ use OwnPay\Core\Database;
  *
  * Verifies webhook queueing, exponential backoffs, DLQ quarantining, and background retries.
  */
+#[AllowMockObjectsWithoutExpectations]
 class WebhookRetryTest extends TestCase
 {
     /**

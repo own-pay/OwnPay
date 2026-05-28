@@ -33,3 +33,14 @@
 ## Currency Seed Strategy
 Seeding ~150-160 active world currencies with correct code, name, symbol, and default decimal places (e.g. JPY=0, BHD=3, USD=2).
 Default active: USD, EUR, GBP, INR, BDT, CNY, JPY. Default inactive: All others.
+
+## PHPUnit 12 Notices Findings
+
+1. **Mock Objects without Expectations Warning:**
+   - In PHPUnit 12, creating a mock object using `$this->createMock(...)` without configuring expectations on it (e.g. using `expects(...)`) triggers a warning notice unless the `#[PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations]` attribute is defined.
+   - For `AuditIntegrityTest::testCalculateSignature`, the `dbMock` is created in `setUp()` but no expectations are defined on it for this specific test method.
+   - For `WebhookRetryTest`, both `dbMock` and `stmtMock` are created in `setUp()`. While `dbMock` uses stubbing (`method(...)`), PHPUnit 12 considers mock objects with only `method()` stubs and no expectations as lacking expectations. Similarly, `stmtMock` has no expectations set on it for multiple test methods.
+
+2. **Remediation Plan:**
+   - Add `#[PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations]` at the class level for both `AuditIntegrityTest` and `WebhookRetryTest`. Since the targets are both `CLASS` and `METHOD`, class-level declaration will cover all test methods cleanly without cluttering individual methods.
+

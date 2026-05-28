@@ -221,13 +221,34 @@ final class CurrencyService
     }
 
     /**
-     * Retrieves all currency codes and names registered in the system.
+     * Retrieves all currency codes, names, symbols, decimals, status, and exchange rates.
      *
      * @return array<int, array<string, mixed>> List of currency metadata arrays.
      */
     public function listAll(): array
     {
-        return $this->db->fetchAll("SELECT code, name FROM op_currencies ORDER BY code");
+        $currencies = $this->db->fetchAll("SELECT code, name, symbol, decimal_places, status FROM op_currencies ORDER BY code");
+        $rates = $this->db->fetchAll(
+            "SELECT target_currency, rate FROM op_exchange_rates WHERE base_currency = :base",
+            ['base' => $this->baseCurrency]
+        );
+        $rateMap = [];
+        foreach ($rates as $r) {
+            $tc = $r['target_currency'] ?? '';
+            if (is_string($tc)) {
+                $rateMap[strtoupper($tc)] = $r['rate'] ?? '0';
+            }
+        }
+        foreach ($currencies as &$c) {
+            $code = $c['code'] ?? '';
+            if (is_string($code)) {
+                $c['rate'] = $rateMap[strtoupper($code)] ?? '0';
+            } else {
+                $c['rate'] = '0';
+            }
+        }
+        unset($c);
+        return $currencies;
     }
 
     /**
@@ -258,6 +279,19 @@ final class CurrencyService
         if (isset($this->currencies[$targetCurrency])) {
             $this->currencies[$targetCurrency]['rate'] = $rate;
         }
+    }
+
+    /**
+     * Instantly triggers the exchange rate synchronization job.
+     *
+     * @return array{success: bool, updated?: int, skipped?: bool, error?: string}
+     */
+    public function syncRates(): array
+    {
+        $job = new \OwnPay\Cron\CurrencyUpdateJob($this->db);
+        $res = $job->run(true); // force = true to bypass manual mode check
+        $this->loadCurrencies(); // Reload in-memory cache
+        return $res;
     }
 }
 

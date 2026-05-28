@@ -468,9 +468,13 @@ final class SettingsController
             }
         }
 
+        $oldDefaultCurrency = $this->settingsRepo->get('general', 'default_currency', 'USD');
+        $newDefaultCurrency = is_scalar($data['default_currency'] ?? null) ? trim((string) $data['default_currency']) : 'USD';
+
         $whitelist = [
             'default_currency',
             'exchange_rate_mode',
+            'exchange_rate_api_url',
             'payment_expiry_minutes',
             'invoice_due_days',
             'auto_approve_payments',
@@ -483,7 +487,18 @@ final class SettingsController
             }
         }
 
+        // Keep base_currency and currency in sync
+        $filtered['base_currency'] = $newDefaultCurrency;
+        $filtered['currency'] = $newDefaultCurrency;
+
         $this->settingsRepo->bulkSet('general', $filtered);
+
+        if ($oldDefaultCurrency !== $newDefaultCurrency) {
+            $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+            if ($currencySvc instanceof \OwnPay\Service\Payment\CurrencyService) {
+                $currencySvc->syncRates();
+            }
+        }
     }
 
     /**

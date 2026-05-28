@@ -182,6 +182,9 @@ return static function (\OwnPay\Http\Router $router): void {
     // Currencies
     $router->get('/admin/currencies', 'Admin\\CurrencyController@index', 'admin');
     $router->post('/admin/currencies/update', 'Admin\\CurrencyController@update', 'admin');
+    $router->post('/admin/currencies/toggle/{code}', 'Admin\\CurrencyController@toggle', 'admin');
+    $router->post('/admin/currencies/sync-rates', 'Admin\\CurrencyController@syncRates', 'admin');
+    $router->post('/admin/currencies/update-rates', 'Admin\\CurrencyController@updateRates', 'admin');
 
     // Devices
     $router->get('/admin/devices', 'Admin\\DeviceController@index', 'admin');
@@ -221,6 +224,13 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/reports/export', 'Admin\\DashboardController@exportCsv', 'admin');
     $router->get('/admin/activities', 'Admin\\ActivitiesController@index', 'admin');
     $router->get('/admin/audit-log',  'Admin\\ActivitiesController@index', 'admin');
+    $router->get('/admin/audit-integrity', 'Admin\\AuditIntegrityController@scan', 'admin');
+    $router->post('/admin/audit-integrity/scan', 'Admin\\AuditIntegrityController@scan', 'admin');
+
+    // Webhook Events / DLQ
+    $router->get('/admin/webhooks/events', 'Admin\\WebhookEventController@index', 'admin');
+    $router->get('/admin/webhooks/events/{id}/logs', 'Admin\\WebhookEventController@logs', 'admin');
+    $router->post('/admin/webhooks/events/{id}/replay', 'Admin\\WebhookEventController@replay', 'admin');
 
     // My Account
     $router->get('/admin/my-account', 'Admin\\DashboardController@myAccount', 'admin');

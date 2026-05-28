@@ -254,12 +254,17 @@
                         </select>
                     </div>
                     <div class="op-form-group op-col-6">
-                        <label>Exchange Rate Update</label>
+                        <label>Exchange Rate Update Mode</label>
                         <select name="exchange_rate_mode" class="op-input">
                             <option value="auto" {{ (settings.exchange_rate_mode ?? 'auto') == 'auto' ? 'selected' : '' }}>Automatic</option>
                             <option value="manual" {{ (settings.exchange_rate_mode ?? '') == 'manual' ? 'selected' : '' }}>Manual</option>
                         </select>
                     </div>
+                </div>
+                <div class="op-form-group">
+                    <label>Custom Exchange Rate API URL</label>
+                    <input type="text" name="exchange_rate_api_url" value="{{ settings.exchange_rate_api_url ?? '' }}" class="op-input" placeholder="e.g., https://custom-api.example.com/v1/currencies/{currency}.json">
+                    <small class="op-text-muted">Optional. Leave blank to use Fawaz Ahmed API CDN fallbacks. Use <code>{currency}</code> placeholder for base currency code.</small>
                 </div>
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
@@ -279,6 +284,69 @@
                         <span>Auto-approve verified payments</span>
                     </label>
                     <small class="op-text-muted">When enabled, SMS-verified payments are approved automatically</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mt-4">
+            <div class="op-card-header">
+                <h3>Currencies &amp; Exchange Rates</h3>
+                <div class="op-header-actions">
+                    <button type="button" class="op-btn op-btn-sm op-btn-outline" onclick="document.getElementById('currency-sync-form').submit()">
+                        🔄 Sync Rates Now
+                    </button>
+                    <button type="button" class="op-btn op-btn-sm op-btn-primary" onclick="openAddCurrencyModal()">
+                        ➕ Add Currency
+                    </button>
+                </div>
+            </div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <input type="text" id="currency-search" class="op-input" placeholder="Search currency code or name..." onkeyup="filterCurrencies()">
+                </div>
+                
+                <div class="op-table-responsive" style="max-height: 400px; overflow-y: auto;">
+                    <table class="op-table" id="currency-table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Symbol</th>
+                                <th>Decimals</th>
+                                <th>Status</th>
+                                <th>Exchange Rate (per {{ settings.default_currency ?? 'BDT' }})</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cur in currencies %}
+                            <tr class="currency-row" data-code="{{ cur.code }}" data-name="{{ cur.name }}">
+                                <td><strong>{{ cur.code }}</strong></td>
+                                <td>{{ cur.name }}</td>
+                                <td><code class="op-badge op-badge-outline">{{ cur.symbol }}</code></td>
+                                <td>{{ cur.decimal_places }}</td>
+                                <td>
+                                    {% if cur.status == 'active' %}
+                                    <span class="op-badge op-badge-success">Active</span>
+                                    {% else %}
+                                    <span class="op-badge op-badge-muted">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="op-flex op-items-center op-gap-2">
+                                        <input type="text" name="currencies[{{ cur.code }}][rate]" value="{{ cur.rate }}" class="op-input op-input-sm" style="max-width: 150px;" {% if (settings.exchange_rate_mode ?? 'auto') == 'auto' %}readonly title="Automatic exchange rates mode is enabled. Change mode to Manual to edit rates manually."{% endif %}>
+                                        <small class="op-text-muted">{{ settings.default_currency ?? 'BDT' }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    <button type="button" class="op-btn op-btn-xs {{ cur.status == 'active' ? 'op-btn-danger' : 'op-btn-success' }}" onclick="toggleCurrencyStatus('{{ cur.code }}')">
+                                        {{ cur.status == 'active' ? 'Deactivate' : 'Activate' }}
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -772,6 +840,61 @@
     <input type="file" name="site_favicon" accept="image/*,.ico" id="favicon-file-input" class="op-hidden" onchange="document.getElementById('favicon-upload-form').submit()">
 </form>
 
+<form id="currency-toggle-form" method="POST" action="" style="display:none;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+<form id="currency-sync-form" method="POST" action="/admin/currencies/sync-rates" style="display:none;">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+<!-- Add Currency Modal -->
+<div class="op-modal" id="add-currency-modal" hidden>
+    <div class="op-modal-backdrop" onclick="closeAddCurrencyModal()"></div>
+    <div class="op-modal-dialog">
+        <div class="op-modal-header">
+            <h3>Add New Currency</h3>
+            <button type="button" class="op-modal-close" onclick="closeAddCurrencyModal()">&times;</button>
+        </div>
+        <form method="POST" action="/admin/currencies/update">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <div class="op-modal-body">
+                <div class="op-form-group">
+                    <label>Currency Code (ISO 4217) *</label>
+                    <input type="text" name="code" class="op-input" required placeholder="e.g., USD" maxlength="3" style="text-transform: uppercase;">
+                </div>
+                <div class="op-form-group">
+                    <label>Name *</label>
+                    <input type="text" name="name" class="op-input" required placeholder="e.g., US Dollar">
+                </div>
+                <div class="op-form-group">
+                    <label>Symbol *</label>
+                    <input type="text" name="symbol" class="op-input" required placeholder="e.g., $">
+                </div>
+                <div class="op-form-group">
+                    <label>Decimal Places</label>
+                    <input type="number" name="decimal_places" class="op-input" value="2" min="0" max="8">
+                </div>
+                <div class="op-form-group">
+                    <label>Exchange Rate (relative to base currency)</label>
+                    <input type="text" name="rate" class="op-input" placeholder="e.g., 1.0">
+                </div>
+                <div class="op-form-group">
+                    <label>Status</label>
+                    <select name="status" class="op-input">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="op-modal-footer">
+                <button type="button" class="op-btn op-btn-outline" onclick="closeAddCurrencyModal()">Cancel</button>
+                <button type="submit" class="op-btn op-btn-primary">Save Currency</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script nonce="{{ csp_nonce }}" src="/assets/js/pages/settings.js"></script>
@@ -865,6 +988,36 @@
             tooltip.style.transform = 'translateX(-50%)';
             setTimeout(() => tooltip.remove(), 200);
         }, 1500);
+    }
+
+    function filterCurrencies() {
+        const query = document.getElementById('currency-search').value.toLowerCase();
+        const rows = document.querySelectorAll('.currency-row');
+        rows.forEach(row => {
+            const code = row.getAttribute('data-code').toLowerCase();
+            const name = row.getAttribute('data-name').toLowerCase();
+            if (code.includes(query) || name.includes(query)) {
+                row.style.display = '';
+            } else {
+                row.style.display = 'none';
+            }
+        });
+    }
+
+    function toggleCurrencyStatus(code) {
+        if (confirm('Are you sure you want to toggle the status of ' + code + '?')) {
+            const form = document.getElementById('currency-toggle-form');
+            form.action = '/admin/currencies/toggle/' + encodeURIComponent(code);
+            form.submit();
+        }
+    }
+
+    function openAddCurrencyModal() {
+        document.getElementById('add-currency-modal').removeAttribute('hidden');
+    }
+
+    function closeAddCurrencyModal() {
+        document.getElementById('add-currency-modal').setAttribute('hidden', 'true');
     }
 </script>
 {% endblock %}
