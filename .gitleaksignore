@@ -1,0 +1,6 @@
+# Gitleaks ignore list for false positives in historical commits
+# These are safe placeholder JWT and API key example tokens from refactoring commit 24b3d2b10884e41cbb15d46dcc73ff219e6d854d
+
+24b3d2b10884e41cbb15d46dcc73ff219e6d854d:public/api-tester.php:generic-api-key:307
+24b3d2b10884e41cbb15d46dcc73ff219e6d854d:docs/v2/api/README.md:curl-auth-header:114
+24b3d2b10884e41cbb15d46dcc73ff219e6d854d:docs/v2/api/README.md:generic-api-key:282
