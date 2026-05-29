@@ -16,7 +16,7 @@ info:
     ### Mobile API (Bearer JWT)
     All `/api/mobile/v1/*` endpoints require a JWT token from device pairing:
     ```
-    Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+    Authorization: Bearer <JWT_ACCESS_TOKEN>
     ```
     
     ### Admin API (Bearer API Key)
@@ -580,7 +580,7 @@ paths:
                 refresh_token:
                   type: string
                   description: The current valid refresh token (JWT format)
-                  example: "eyJhbGciOiJIUzI1NiIs..."
+                  example: "<REFRESH_TOKEN>"
       responses:
         '200':
           description: Access token refreshed.
@@ -1415,7 +1415,7 @@ components:
           example: true
         access_token:
           type: string
-          example: "eyJhbGciOiJIUzI1NiIs..."
+          example: "<JWT_ACCESS_TOKEN>"
           description: "JWT access token for subsequent API calls (TTL: 15m)"
         device_uuid:
           type: string
@@ -1423,7 +1423,7 @@ components:
           description: "Server-assigned unique device ID"
         refresh_token:
           type: string
-          example: "eyJhbGciOiJIUzI1NiIs..."
+          example: "<JWT_REFRESH_TOKEN>"
           description: "JWT refresh token used to rotate credentials (TTL: 30 days)"
         aes_key:
           type: string
@@ -1477,10 +1477,10 @@ components:
           example: true
         access_token:
           type: string
-          example: "eyJhbGciOiJIUzI1NiIs..."
+          example: "<JWT_ACCESS_TOKEN>"
         refresh_token:
           type: string
-          example: "eyJhbGciOiJIUzI1NiIs..."
+          example: "<JWT_REFRESH_TOKEN>"
         expires_in:
           type: integer
           example: 900

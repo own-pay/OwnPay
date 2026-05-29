@@ -27,7 +27,7 @@ Authentication is scoped based on the API target group. The credentials must be 
 | API Group | Endpoint Prefix | Auth Mechanism | Example Token |
 |-----------|-----------------|----------------|---------------|
 | **Merchant API** | `/api/v1/*` | Bearer API Key | `Authorization: Bearer op_abcdefgh.12345678...` |
-| **Mobile API** | `/api/mobile/v1/*` | Bearer JWT (Access token) | `Authorization: Bearer eyJhbGciOiJIUzI1NiIs...` |
+| **Mobile API** | `/api/mobile/v1/*` | Bearer JWT (Access token) | `Authorization: Bearer <JWT_ACCESS_TOKEN>` |
 | **Admin API** | `/api/admin/v1/*` | Bearer API Key (Admin Scope) | `Authorization: Bearer op_abcdefgh.12345678...` |
 
 ### A. Getting a Merchant/Admin API Key
@@ -112,7 +112,7 @@ This creates a new payment intent and returns the checkout URL. You should redir
 #### Bash (cURL)
 ```bash
 curl -X POST https://pay.merchantbrand.com/api/v1/payments \
-  -H "Authorization: Bearer op_your_key_here" \
+  -H "Authorization: Bearer <MERCHANT_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{
     "amount": 1250.00,
@@ -137,7 +137,7 @@ require 'vendor/autoload.class.php';
 $client = new \GuzzleHttp\Client();
 $response = $client->post('https://pay.merchantbrand.com/api/v1/payments', [
     'headers' => [
-        'Authorization' => 'Bearer op_your_key_here',
+        'Authorization' => 'Bearer <MERCHANT_API_KEY>',
         'Content-Type' => 'application/json',
     ],
     'json' => [
@@ -279,7 +279,7 @@ All Mobile companion APIs require Bearer JWT authorization generated during pair
 * `POST /api/mobile/v1/devices/bulk-revocations` — Revokes multiple registered devices concurrently.
   * *Request Body*: `{"ids": [12, 13]}`
 * `POST /api/mobile/v1/devices/token-refreshes` — Exchange a valid refresh token for rotated credentials.
-  * *Request Body*: `{"refresh_token": "eyJhbGciOiJIUzI1NiIs..."}`
+  * *Request Body*: `{"refresh_token": "<REFRESH_TOKEN>"}`
 * `GET /api/mobile/v1/devices/statuses` — Check JWT session validity and resolve active brand metadata.
 
 #### SMS Processing Logs
