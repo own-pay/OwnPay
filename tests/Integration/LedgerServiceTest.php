@@ -48,15 +48,15 @@ class LedgerServiceTest extends IntegrationTestCase
         $merchant = $this->db->fetchOne("SELECT * FROM op_merchants WHERE id = 1 LIMIT 1");
         if ($merchant === null) {
             $this->db->execute(
-                "INSERT INTO op_merchants (id, uuid, name, status, settings)
-                 VALUES (1, 'merchant-uuid-1', 'Test Merchant', 'active', '{}')"
+                "INSERT INTO op_merchants (id, uuid, name, slug, email, status, settings)
+                 VALUES (1, 'merchant-uuid-1', 'Test Merchant', 'test-merchant-1', 'test1@example.com', 'active', '{}')"
             );
         }
         $merchant2 = $this->db->fetchOne("SELECT * FROM op_merchants WHERE id = 2 LIMIT 1");
         if ($merchant2 === null) {
             $this->db->execute(
-                "INSERT INTO op_merchants (id, uuid, name, status, settings)
-                 VALUES (2, 'merchant-uuid-2', 'Test Merchant 2', 'active', '{}')"
+                "INSERT INTO op_merchants (id, uuid, name, slug, email, status, settings)
+                 VALUES (2, 'merchant-uuid-2', 'Test Merchant 2', 'test-merchant-2', 'test2@example.com', 'active', '{}')"
             );
         }
     }

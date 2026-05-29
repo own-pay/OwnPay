@@ -34,6 +34,15 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
 
         $db = Database::getInstance();
         if (static::$dbAvailable) {
+            // Ensure merchant 12 exists
+            $merchant = $db->fetchOne("SELECT * FROM op_merchants WHERE id = 12 LIMIT 1");
+            if ($merchant === null) {
+                $db->execute(
+                    "INSERT INTO op_merchants (id, uuid, name, slug, email, status, settings)
+                     VALUES (12, 'merchant-uuid-12', 'Test Merchant 12', 'test-merchant-12', 'test12@example.com', 'active', '{}')"
+                );
+            }
+
             $db->pdo()->exec("DELETE FROM op_device_pairing_tokens WHERE created_by = 12 OR merchant_id = 1 OR merchant_id = 12");
         }
         $this->tokenRepo = (new DevicePairingTokenRepository($db))->forTenant(12);
@@ -62,6 +71,9 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
 
         // Clean up test tokens
         $pdo->exec("DELETE FROM op_device_pairing_tokens WHERE created_by = 12 OR merchant_id = 1 OR merchant_id = 12");
+
+        // Clean up merchant 12
+        $pdo->exec("DELETE FROM op_merchants WHERE id = 12");
     }
 
     // ═══════════════════════════════════════════════════════════════

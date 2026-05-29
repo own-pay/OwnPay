@@ -83,11 +83,22 @@ final class IdempotencyService
 
         // Lock the key (insert with null response_code and response_body)
         $expiresAt = date('Y-m-d H:i:s.u', time() + $ttl);
-        $repo->createScoped([
-            'idempotency_key' => $key,
-            'request_hash'    => $requestHash,
-            'expires_at'      => $expiresAt,
-        ]);
+        try {
+            $repo->createScoped([
+                'idempotency_key' => $key,
+                'request_hash'    => $requestHash,
+                'expires_at'      => $expiresAt,
+            ]);
+        } catch (\PDOException $e) {
+            // SQLSTATE 23000 indicates unique constraint violation (duplicate key)
+            if ($e->getCode() === '23000' || str_contains($e->getMessage(), '1062')) {
+                return [
+                    'is_duplicate' => true,
+                    'status' => 'processing',
+                ];
+            }
+            throw $e;
+        }
 
         return ['is_duplicate' => false];
     }

@@ -186,39 +186,51 @@ final class GatewayApiService
             }
         }
 
-        // Use TransactionService methods (not repo methods) so audit/event hooks fire
-        $transaction = null;
-        if ($trxId !== '') {
-            $transaction = $this->transactions->findByTrxId($merchantId, $trxId);
-        }
-
         // Fallback: lookup by gateway_trx_id (bank/gateway reference)
         $gwTrxId = $verification['gateway_trx_id'] ?? null;
-        if ($transaction === null && is_string($gwTrxId) && $gwTrxId !== '') {
-            $transaction = $this->transactions->findByGatewayTrxId(
-                $merchantId,
-                $gwTrxId
-            );
-        }
 
-        if ($transaction !== null && in_array($transaction['status'], ['pending', 'processing', 'callback_processing'], true)) {
-            $txnId = $transaction['id'] ?? 0;
-            $amt = $transaction['amount'] ?? '0.00';
-            $feeVal = $transaction['fee'] ?? '0.00';
-            $cur = $transaction['currency'] ?? 'BDT';
-            if (is_scalar($txnId) && is_scalar($amt) && is_scalar($feeVal) && is_scalar($cur)) {
-                $this->transactions->complete((int) $txnId, $merchantId);
+        // Use database transaction and FOR UPDATE lock to completely prevent concurrency race conditions
+        $db = \OwnPay\Core\Database::getInstance();
+        $transaction = null;
 
-                // Record in ledger
-                $this->ledger->recordPaymentReceived(
-                    $merchantId,
-                    (int) $txnId,
-                    (string) $amt,
-                    (string) $feeVal,
-                    (string) $cur
+        $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, &$transaction) {
+            if ($trxId !== '') {
+                $transaction = $db->fetchOne(
+                    "SELECT * FROM op_transactions WHERE trx_id = :t AND merchant_id = :mid LIMIT 1 FOR UPDATE",
+                    ['t' => $trxId, 'mid' => $merchantId]
                 );
             }
 
+            if ($transaction === null && is_string($gwTrxId) && $gwTrxId !== '') {
+                $transaction = $db->fetchOne(
+                    "SELECT * FROM op_transactions WHERE gateway_trx_id = :gtid AND merchant_id = :mid LIMIT 1 FOR UPDATE",
+                    ['gtid' => $gwTrxId, 'mid' => $merchantId]
+                );
+            }
+
+            if ($transaction !== null && in_array($transaction['status'], ['pending', 'processing', 'callback_processing'], true)) {
+                $txnId = $transaction['id'] ?? 0;
+                $amt = $transaction['amount'] ?? '0.00';
+                $feeVal = $transaction['fee'] ?? '0.00';
+                $cur = $transaction['currency'] ?? 'BDT';
+                if (is_scalar($txnId) && is_scalar($amt) && is_scalar($feeVal) && is_scalar($cur)) {
+                    $this->transactions->complete((int) $txnId, $merchantId);
+
+                    // Record in ledger
+                    $this->ledger->recordPaymentReceived(
+                        $merchantId,
+                        (int) $txnId,
+                        (string) $amt,
+                        (string) $feeVal,
+                        (string) $cur
+                    );
+                }
+            } else {
+                $transaction = null;
+            }
+        });
+
+        if ($transaction !== null) {
             return ['success' => true, 'transaction' => $transaction];
         }
 

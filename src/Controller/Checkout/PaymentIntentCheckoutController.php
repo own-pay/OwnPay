@@ -164,6 +164,15 @@ final class PaymentIntentCheckoutController
         $midVal = $intent['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
 
+        // Verify that the intent merchant matches the resolved host domain merchant (prevent Cross-Brand Leakage)
+        $domainMidVal = $req->getAttribute('merchant_id');
+        if (is_int($domainMidVal) || is_string($domainMidVal)) {
+            $domainMid = (int) $domainMidVal;
+            if ($domainMid !== $mid) {
+                return $this->renderStatus($token, 'expired');
+            }
+        }
+
         $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
             $brandCtx->setActiveBrandId($mid);

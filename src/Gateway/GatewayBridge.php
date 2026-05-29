@@ -155,7 +155,7 @@ final class GatewayBridge
     public function verifyWebhookSignature(string $gatewaySlug, int $merchantId, string $rawBody, array $headers): bool
     {
         if (!$this->hasAdapter($gatewaySlug)) {
-            return true; // No adapter — can't verify, allow through
+            return false; // No adapter — signature verification fails
         }
         $adapter = $this->adapters[$gatewaySlug];
         $credentials = $this->decryptCredentials($gatewaySlug, $merchantId);

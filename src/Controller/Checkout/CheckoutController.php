@@ -110,6 +110,15 @@ final class CheckoutController
         $midVal = $txn['merchant_id'] ?? 0;
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
 
+        // Verify that the transaction merchant matches the resolved host domain merchant (prevent Cross-Brand Leakage)
+        $domainMidVal = $req->getAttribute('merchant_id');
+        if (is_int($domainMidVal) || is_string($domainMidVal)) {
+            $domainMid = (int) $domainMidVal;
+            if ($domainMid !== $mid) {
+                return $this->renderStatus($ref, 'expired');
+            }
+        }
+
         $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
             $brandCtx->setActiveBrandId($mid);
@@ -764,6 +773,7 @@ final class CheckoutController
             $status = $txn['status'];
         }
 
+        $mid = 0;
         if (is_array($txn) && isset($txn['merchant_id'])) {
             $midVal = $txn['merchant_id'];
             $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
@@ -780,6 +790,20 @@ final class CheckoutController
         $callbackStatus = is_string($callbackStatusVal) ? $callbackStatusVal : '';
 
         if ($callbackPaymentId !== '' && is_array($txn) && ($txn['status'] ?? '') === 'processing') {
+            $txnIdVal = $txn['id'] ?? 0;
+            $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
+            
+            $db = \OwnPay\Core\Database::getInstance();
+            // Acquire database-level transaction status lock to prevent concurrent double-capture callback processing.
+            $claimed = $db->update(
+                "UPDATE op_transactions SET status = 'callback_processing' WHERE id = :id AND merchant_id = :mid AND status = 'processing'",
+                ['id' => $txnId, 'mid' => $mid]
+            );
+            if ($claimed === 0) {
+                // Already being processed or completed — skip duplicate callback
+                return $this->renderStatus($token, $status);
+            }
+
             if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
                 try {
                     $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);

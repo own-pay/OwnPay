@@ -45,6 +45,7 @@ final class ApiKeyService
             'key_prefix' => $keyData['prefix'],
             'key_hash'   => $keyData['hash'],
             'name'       => $label,
+            'scopes'     => json_encode(['read', 'write']),
             'status'     => 'active',
             'expires_at' => $expiresAt,
         ]);

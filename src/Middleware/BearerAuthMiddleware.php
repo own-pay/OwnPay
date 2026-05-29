@@ -103,6 +103,28 @@ final class BearerAuthMiddleware
         $merchantId = (int) $apiKey['merchant_id'];
         $apiKeyId = (int) $apiKey['id'];
 
+        // Enforce API key scope verification (read vs write)
+        $scopesRaw = $apiKey['scopes'] ?? null;
+        $scopes = [];
+        if (is_string($scopesRaw)) {
+            $scopes = json_decode($scopesRaw, true);
+        } elseif (is_array($scopesRaw)) {
+            $scopes = $scopesRaw;
+        }
+        if (!is_array($scopes)) {
+            $scopes = ['read', 'write']; // Default fallback for backwards compatibility
+        }
+
+        $method = $request->method();
+        $requiredScope = in_array($method, ['GET', 'HEAD', 'OPTIONS'], true) ? 'read' : 'write';
+
+        if (!in_array($requiredScope, $scopes, true)) {
+            return Response::json([
+                'success' => false,
+                'message' => "Insufficient scope. Required: {$requiredScope}",
+            ], 403);
+        }
+
         // Inject merchant context into request
         $request->setAttribute('api_key', $apiKey);
         $request->setAttribute('merchant_id', $merchantId);
