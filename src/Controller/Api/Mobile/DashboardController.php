@@ -75,12 +75,13 @@ final class DashboardController
             'X-API-Version' => $version,
         ];
 
-        return Response::json([
-            'success'               => true,
+        $data = [
             'today'                 => $today,
             'recent_transactions'   => $recent,
             'unread_notifications'  => $unread,
             'server_time'           => DateHelper::iso(),
-        ], 200, $headers);
+        ];
+
+        return Response::apiSuccess($data, null, 200, $headers);
     }
 }

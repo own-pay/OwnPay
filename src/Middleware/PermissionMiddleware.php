@@ -215,7 +215,12 @@ final class PermissionMiddleware
 
         // Check prefix match — POST uses .manage
         foreach ($map as $prefix => $perm) {
-            if (str_starts_with($path, $prefix)) {
+            // Do not match the base '/admin' as a dynamic prefix.
+            // This prevents unmapped paths under /admin/ from falling back to dashboard.view/manage
+            if ($prefix === '/admin') {
+                continue;
+            }
+            if (str_starts_with($path, $prefix . '/')) {
                 if ($method === 'POST') {
                     return str_replace('.view', '.manage', $perm);
                 }

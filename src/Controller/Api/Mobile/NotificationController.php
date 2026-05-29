@@ -51,7 +51,7 @@ final class NotificationController
         $didVal = $req->getAttribute('device_id');
         $did = is_string($didVal) ? $didVal : '';
         $notifs = $this->notifRepo->listForDevice($mid, $did);
-        return Response::json(['success' => true, 'data' => $notifs]);
+        return Response::apiSuccess($notifs);
     }
 
     /**
@@ -81,7 +81,7 @@ final class NotificationController
         }
 
         if (empty($ids)) {
-            return Response::json(['success' => false, 'error' => 'ids required'], 422);
+            return Response::apiError('IDS_REQUIRED', 'ids required', 'ids', 422);
         }
 
         $midVal = $req->getAttribute('merchant_id');
@@ -90,6 +90,6 @@ final class NotificationController
         $did = is_string($didVal) ? $didVal : '';
         
         $count = $this->notifRepo->acknowledgeIds($ids, $mid, $did);
-        return Response::json(['success' => true, 'acknowledged' => $count]);
+        return Response::apiSuccess(['acknowledged' => $count]);
     }
 }

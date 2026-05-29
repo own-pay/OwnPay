@@ -81,6 +81,133 @@ final class Response
     }
 
     /**
+     * Creates a standardized JSON success response.
+     *
+     * @param mixed $data The success data payload.
+     * @param array<string, mixed>|null $meta Optional pagination/meta payload.
+     * @param int $status The HTTP status code. Defaults to 200.
+     * @param array<string, string> $headers Additional custom headers.
+     * @return self The populated Response instance.
+     */
+    public static function apiSuccess(mixed $data = null, ?array $meta = null, int $status = 200, array $headers = []): self
+    {
+        $payload = ['success' => true];
+        if ($data !== null) {
+            $payload['data'] = $data;
+        }
+        if ($meta !== null) {
+            $payload['meta'] = $meta;
+        }
+        return self::json($payload, $status, $headers);
+    }
+
+    /**
+     * Creates a standardized JSON single error response.
+     *
+     * @param string $code The machine-readable error code.
+     * @param string $message The human-readable error message.
+     * @param string|null $field The optional input field scope causing the error.
+     * @param int $status The HTTP status code. Defaults to 400.
+     * @param array<string, string> $headers Additional custom headers.
+     * @return self The populated Response instance.
+     */
+    public static function apiError(string $code, string $message, ?string $field = null, int $status = 400, array $headers = []): self
+    {
+        $error = [
+            'code'    => $code,
+            'message' => $message,
+        ];
+        if ($field !== null) {
+            $error['field'] = $field;
+        }
+        
+        $requestId = null;
+        if (function_exists('apache_request_headers')) {
+            $apacheHeaders = apache_request_headers();
+            $requestId = $apacheHeaders['X-Request-ID'] ?? $apacheHeaders['x-request-id'] ?? null;
+        }
+        if (!$requestId && isset($_SERVER['HTTP_X_REQUEST_ID']) && is_scalar($_SERVER['HTTP_X_REQUEST_ID'])) {
+            $requestId = (string)$_SERVER['HTTP_X_REQUEST_ID'];
+        }
+        if (!$requestId) {
+            try {
+                $requestId = bin2hex(random_bytes(16));
+            } catch (\Throwable) {
+                $requestId = uniqid('req_', true);
+            }
+        }
+
+        $payload = [
+            'success'    => false,
+            'error'      => $message,
+            'errors'     => [$error],
+            'request_id' => $requestId,
+        ];
+        return self::json($payload, $status, $headers);
+    }
+
+    /**
+     * Creates a standardized JSON multiple error response.
+     *
+     * @param array<mixed> $errors List of structured errors.
+     * @param int $status The HTTP status code. Defaults to 422.
+     * @param array<string, string> $headers Additional custom headers.
+     * @return self The populated Response instance.
+     */
+    public static function apiErrors(array $errors, int $status = 422, array $headers = []): self
+    {
+        $requestId = null;
+        if (function_exists('apache_request_headers')) {
+            $apacheHeaders = apache_request_headers();
+            $requestId = $apacheHeaders['X-Request-ID'] ?? $apacheHeaders['x-request-id'] ?? null;
+        }
+        if (!$requestId && isset($_SERVER['HTTP_X_REQUEST_ID']) && is_scalar($_SERVER['HTTP_X_REQUEST_ID'])) {
+            $requestId = (string)$_SERVER['HTTP_X_REQUEST_ID'];
+        }
+        if (!$requestId) {
+            try {
+                $requestId = bin2hex(random_bytes(16));
+            } catch (\Throwable) {
+                $requestId = uniqid('req_', true);
+            }
+        }
+
+        $formatted = [];
+        foreach ($errors as $err) {
+            if (is_array($err)) {
+                $codeVal = $err['code'] ?? 'VALIDATION_FAILED';
+                $codeStr = is_scalar($codeVal) ? (string)$codeVal : 'VALIDATION_FAILED';
+
+                $msgVal = $err['message'] ?? 'Invalid input';
+                $msgStr = is_scalar($msgVal) ? (string)$msgVal : 'Invalid input';
+
+                $item = [
+                    'code'    => $codeStr,
+                    'message' => $msgStr,
+                ];
+
+                if (array_key_exists('field', $err)) {
+                    $fld = $err['field'];
+                    if (is_scalar($fld) || $fld === null) {
+                        $item['field'] = $fld !== null ? (string)$fld : null;
+                    }
+                }
+                $formatted[] = $item;
+            }
+        }
+
+        $firstMessage = $formatted[0]['message'] ?? 'Validation failed';
+
+        $payload = [
+            'success'    => false,
+            'error'      => $firstMessage,
+            'errors'     => $formatted,
+            'request_id' => $requestId,
+        ];
+        return self::json($payload, $status, $headers);
+    }
+
+    /**
      * Creates a redirect response instance.
      *
      * @param string $url The destination URL.

@@ -203,6 +203,19 @@ final class WebhookDispatcher
      */
     private function sendWithRetry(string $url, string $payload, string $signature, int $timestamp, int $merchantId, string $event): void
     {
+        // Enforce SSRF protection: reject addresses targeting local or private ranges
+        if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($url)) {
+            $this->events->doAction('webhook.delivery.failed', $merchantId, $event);
+            $this->logger->error("Webhook delivery blocked by SSRF protection: merchant={$merchantId} event={$event} url={$url}");
+            
+            $this->logDelivery($merchantId, $event, $url, [
+                'success' => false,
+                'status_code' => 0,
+                'response_time_ms' => 0,
+            ], 1);
+            return;
+        }
+
         for ($attempt = 1; $attempt <= self::MAX_RETRIES; $attempt++) {
             $result = $this->doSend($url, $payload, $signature, $timestamp);
 
@@ -235,6 +248,16 @@ final class WebhookDispatcher
      */
     private function doSend(string $url, string $payload, string $signature, int $timestamp): array
     {
+        // Enforce SSRF protection: reject addresses targeting local or private ranges
+        if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($url)) {
+            return [
+                'success' => false,
+                'status_code' => 0,
+                'response_time_ms' => 0,
+                'error' => 'URL blocked by SSRF protection',
+            ];
+        }
+
         $startTime = microtime(true);
 
         $headers = [

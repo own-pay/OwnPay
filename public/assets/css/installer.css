@@ -727,3 +727,32 @@ body::before {
     .ins-step span:not(.ins-step-num) { display: none; }
     .ins-steps { gap: 0.25rem; }
 }
+
+/* ─── Aud-P1 Hardening: Clean CSP fallbacks and page styles ─── */
+.ins-logo-fallback {
+    width: 32px;
+    height: 32px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-alt));
+    color: #FFF;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 900;
+    font-size: 0.85rem;
+    letter-spacing: -0.02em;
+    flex-shrink: 0;
+    box-shadow: 0 2px 6px var(--accent-glow);
+}
+
+.ins-locked-p1 {
+    margin-bottom: 1.5rem;
+}
+
+.ins-locked-p2 {
+    font-size: 0.88rem;
+    line-height: 1.6;
+    margin-bottom: 2rem;
+}
+
+

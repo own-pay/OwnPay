@@ -119,7 +119,7 @@ final class HealthController
             'X-API-Version' => $version,
         ];
 
-        return Response::json([
+        $data = [
             'status'  => $status,
             'version' => $version,
             'db'      => $dbOk ? 'connected' : 'error',
@@ -130,6 +130,8 @@ final class HealthController
             'gateways'  => $gatewayCount,
             'customers' => $customerCount,
             'time'      => DateHelper::iso(),
-        ], $code, $headers);
+        ];
+
+        return Response::apiSuccess($data, null, $code, $headers);
     }
 }

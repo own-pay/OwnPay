@@ -54,7 +54,7 @@ final class DeviceController
     /**
      * Pairs a mobile companion device.
      *
-     * POST /api/mobile/v1/devices/pair
+     * POST /api/mobile/v1/devices
      * Input Body: { pairing_code, device_name, platform, device_id }
      *
      * @param Request $req The incoming HTTP request.
@@ -70,7 +70,7 @@ final class DeviceController
         $deviceId = is_string($deviceIdVal) ? $deviceIdVal : '';
 
         if ($pairingCode === '' || $deviceId === '') {
-            return Response::json(['success' => false, 'error' => 'pairing_code and device_id required'], 422);
+            return Response::apiError('PAIRING_PARAMETERS_REQUIRED', 'pairing_code and device_id required', 'pairing_code', 422);
         }
 
         try {
@@ -87,19 +87,21 @@ final class DeviceController
             );
 
             if (!$result['success']) {
-                return Response::json(['success' => false, 'error' => $result['error']], 400);
+                $errStr = $result['error'];
+                return Response::apiError('DEVICE_PAIRING_FAILED', $errStr, null, 400);
             }
 
-            return Response::json([
-                'success'       => true,
+            $data = [
                 'access_token'  => $result['access_token'],
                 'device_uuid'   => $result['device_id'],
                 'refresh_token' => $result['refresh_token'],
                 'aes_key'       => $result['aes_key'],
                 'expires_in'    => $result['expires_in'],
-            ], 201);
+            ];
+
+            return Response::apiSuccess($data, null, 201);
         } catch (\InvalidArgumentException $e) {
-            return Response::json(['success' => false, 'error' => $e->getMessage()], 400);
+            return Response::apiError('INVALID_PAIRING_CODE', $e->getMessage(), 'pairing_code', 400);
         }
     }
 
@@ -116,7 +118,7 @@ final class DeviceController
         $deviceIdVal = $req->getAttribute('device_id');
         $deviceId = is_string($deviceIdVal) ? $deviceIdVal : '';
         $this->devices->heartbeat($deviceId);
-        return Response::json(['success' => true, 'server_time' => DateHelper::iso()]);
+        return Response::apiSuccess(['server_time' => DateHelper::iso()]);
     }
 
     /**
@@ -143,7 +145,7 @@ final class DeviceController
         }
 
         $this->devices->revoke($deviceId, $mid);
-        return Response::json(['success' => true]);
+        return Response::apiSuccess(['message' => 'Device revoked']);
     }
 
     /**
@@ -164,7 +166,7 @@ final class DeviceController
 
         $deviceIds = $bodyArr['device_ids'] ?? [];
         if (!is_array($deviceIds)) {
-            return Response::json(['success' => false, 'error' => 'device_ids must be an array'], 422);
+            return Response::apiError('INVALID_PARAMETER_TYPE', 'device_ids must be an array', 'device_ids', 422);
         }
 
         $ids  = array_filter(
@@ -175,7 +177,7 @@ final class DeviceController
             fn($id) => $id !== ''
         );
         if (empty($ids)) {
-            return Response::json(['success' => false, 'error' => 'device_ids required'], 422);
+            return Response::apiError('DEVICE_IDS_REQUIRED', 'device_ids required', 'device_ids', 422);
         }
 
         $count = 0;
@@ -184,13 +186,13 @@ final class DeviceController
                 $count++;
             }
         }
-        return Response::json(['success' => true, 'revoked' => $count]);
+        return Response::apiSuccess(['revoked' => $count]);
     }
 
     /**
      * Refreshes JWT using a valid refresh token.
      *
-     * POST /api/mobile/v1/devices/refresh
+     * POST /api/mobile/v1/devices/token-refreshes
      * Input Body: { refresh_token: "<jwt_with_long_ttl>" }
      *
      * The refresh token is itself a JWT issued with 30-day TTL.
@@ -207,13 +209,13 @@ final class DeviceController
         $refreshToken = trim(is_string($refreshTokenVal) ? $refreshTokenVal : '');
 
         if ($refreshToken === '') {
-            return Response::json(['success' => false, 'error' => 'refresh_token required'], 422);
+            return Response::apiError('REFRESH_TOKEN_REQUIRED', 'refresh_token required', 'refresh_token', 422);
         }
 
         $fingerprintVal = $req->header('X-Device-Fingerprint') ?: $req->input('fingerprint') ?: '';
         $fingerprint = is_string($fingerprintVal) ? $fingerprintVal : '';
         if ($fingerprint === '') {
-            return Response::json(['success' => false, 'error' => 'Device fingerprint required'], 422);
+            return Response::apiError('FINGERPRINT_REQUIRED', 'Device fingerprint required', 'fingerprint', 422);
         }
 
         $res = $this->devices->refreshAccessToken($refreshToken, $fingerprint);
@@ -223,22 +225,23 @@ final class DeviceController
                 'FINGERPRINT_MISMATCH' => 'Device fingerprint mismatch',
                 default => 'Invalid or expired refresh token'
             };
-            return Response::json(['success' => false, 'error' => $err], 401);
+            return Response::apiError('REFRESH_FAILED', $err, null, 401);
         }
 
-        return Response::json([
-            'success'       => true,
+        $data = [
             'access_token'  => $res['access_token'],
             'refresh_token' => $res['refresh_token'],
             'expires_in'    => $res['expires_in'],
             'server_time'   => DateHelper::iso(),
-        ]);
+        ];
+
+        return Response::apiSuccess($data);
     }
 
     /**
      * Retrieves current device connection status, last heartbeat, and brand details.
      *
-     * GET /api/mobile/v1/devices/status
+     * GET /api/mobile/v1/devices/statuses
      * Requires valid JWT (device must be active).
      *
      * @param Request $req The incoming HTTP request.
@@ -254,11 +257,10 @@ final class DeviceController
         $device = $this->deviceRepo->forTenant($mid)->findByDeviceId($deviceId);
 
         if ($device === null) {
-            return Response::json(['success' => false, 'error' => 'Device not found'], 404);
+            return Response::apiError('DEVICE_NOT_FOUND', 'Device not found', null, 404);
         }
 
-        return Response::json([
-            'success'        => true,
+        $data = [
             'device_id'      => $device['device_id'],
             'device_name'    => $device['device_name'],
             'platform'       => $device['platform'] ?? 'unknown',
@@ -266,6 +268,8 @@ final class DeviceController
             'last_heartbeat' => $device['last_heartbeat'] ?? null,
             'merchant_id'    => $mid,
             'server_time'    => DateHelper::iso(),
-        ]);
+        ];
+
+        return Response::apiSuccess($data);
     }
 }

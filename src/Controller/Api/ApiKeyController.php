@@ -61,7 +61,7 @@ final class ApiKeyController
             'created_at' => $k['created_at'],
         ], $list);
 
-        return Response::json(['success' => true, 'data' => $safe]);
+        return Response::apiSuccess($safe);
     }
 
     /**
@@ -81,13 +81,13 @@ final class ApiKeyController
         $label = is_string($labelVal) ? $labelVal : 'Default';
         $result = $this->keys->generate($mid, $label);
 
-        // PCI: Show key only once
-        return Response::json([
-            'success' => true,
+        $data = [
             'key'     => $result['key'],
             'prefix'  => $result['prefix'],
             'warning' => 'Store this key securely. It cannot be retrieved again.',
-        ], 201);
+        ];
+
+        return Response::apiSuccess($data, null, 201);
     }
 
     /**
@@ -102,7 +102,12 @@ final class ApiKeyController
         $id = (int) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
-        $this->keys->revoke($mid, $id);
-        return Response::json(['success' => true, 'message' => 'Key revoked']);
+        
+        try {
+            $this->keys->revoke($mid, $id);
+            return Response::apiSuccess(['message' => 'Key revoked']);
+        } catch (\Throwable $e) {
+            return Response::apiError('KEY_REVOCATION_FAILED', $e->getMessage(), 'id', 400);
+        }
     }
 }

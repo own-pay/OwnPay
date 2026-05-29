@@ -261,6 +261,26 @@ final class SecurityRemediationTest extends TestCase
                 '<?php $db = new \mysqli();',
                 'contains restricted reference: \mysqli'
             ],
+            'eval construct usage' => [
+                '<?php eval("echo 123;");',
+                'contains restricted language construct: eval'
+            ],
+            'include construct usage' => [
+                '<?php include "file.php";',
+                'contains restricted language construct: include'
+            ],
+            'require construct usage' => [
+                '<?php require "file.php";',
+                'contains restricted language construct: require'
+            ],
+            'use function alias bypass' => [
+                '<?php use function exec as foo; foo("id");',
+                'imports dangerous function: exec'
+            ],
+            'use namespace restricted class alias' => [
+                '<?php use ReflectionClass as Ref; $ref = new Ref("OwnPay\Container");',
+                'imports restricted reference: ReflectionClass'
+            ],
         ];
     }
 
@@ -642,6 +662,26 @@ final class SecurityRemediationTest extends TestCase
         // X-Safe-Header should still be present
         $this->assertArrayHasKey('x-safe-header', $normalized);
         $this->assertSame('should-remain', $normalized['x-safe-header']);
+    }
+
+    public function testPermissionMiddlewareDefaultDenyOnUnmappedRoutes(): void
+    {
+        $container = new Container();
+        $middleware = new PermissionMiddleware($container);
+        $reflection = new \ReflectionClass(PermissionMiddleware::class);
+        $method = $reflection->getMethod('resolvePermission');
+        $method->setAccessible(true);
+
+        // Exact match /admin should be dashboard.view
+        $this->assertSame('dashboard.view', $method->invoke($middleware, '/admin', 'GET'));
+
+        // Prefix match under mapped should work
+        $this->assertSame('transactions.view', $method->invoke($middleware, '/admin/transactions/1', 'GET'));
+        $this->assertSame('transactions.manage', $method->invoke($middleware, '/admin/transactions/create', 'POST'));
+
+        // Unmapped routes must be strictly default-denied as system.unmapped, instead of falling back to dashboard.view
+        $this->assertSame('system.unmapped', $method->invoke($middleware, '/admin/secret-unmapped', 'GET'));
+        $this->assertSame('system.unmapped', $method->invoke($middleware, '/admin/super-secret/nested', 'POST'));
     }
 }
 

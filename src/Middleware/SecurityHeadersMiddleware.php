@@ -98,7 +98,7 @@ final class SecurityHeadersMiddleware
             $gatewayCsp = $this->collectGatewayCspSources();
 
             $scriptSrc  = array_unique(array_merge(["'self'", "'nonce-{$nonce}'"], $gatewayCsp['script_src']));
-            $styleSrc   = array_unique(array_merge(["'self'", "'nonce-{$nonce}'", 'https://fonts.googleapis.com'], $gatewayCsp['style_src']));
+            $styleSrc   = array_unique(array_merge(["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'], $gatewayCsp['style_src']));
             $frameSrc   = array_unique(array_merge(["'self'"], $gatewayCsp['frame_src']));
             $connectSrc = array_unique(array_merge(["'self'"], $gatewayCsp['connect_src']));
 
@@ -120,7 +120,7 @@ final class SecurityHeadersMiddleware
             $csp = implode('; ', [
                 "default-src 'self'",
                 "script-src 'self' 'nonce-{$nonce}'",
-                "style-src 'self' 'nonce-{$nonce}' https://fonts.googleapis.com",
+                "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
                 "font-src 'self' https://fonts.gstatic.com",
                 "img-src 'self' data: https:",
                 "connect-src 'self'",

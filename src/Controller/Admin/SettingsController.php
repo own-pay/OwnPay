@@ -250,6 +250,12 @@ final class SettingsController
         $this->events->doAction('settings.saved', ['tab' => $tab, 'data' => $data]);
         $this->audit->log('settings.saved', 'settings', null, null, ['tab' => $tab]);
         $this->session->flashSuccess('Settings saved');
+
+        $referer = $req->header('Referer');
+        if ($referer !== '' && str_contains($referer, '/admin/developer')) {
+            return Response::redirect('/admin/developer#webhooks');
+        }
+
         return Response::redirect('/admin/settings/' . $tab);
     }
 

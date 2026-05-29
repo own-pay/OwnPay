@@ -102,4 +102,39 @@ class WebhookDispatcherTest extends TestCase
         $signature = hash_hmac('sha256', $payload, '');
         $this->assertSame(64, strlen($signature));
     }
+
+    public function testSsrfProtectionBlocksLocalUrls(): void
+    {
+        $unsafeUrls = [
+            'http://127.0.0.1/test',
+            'https://localhost/webhook',
+            'https://192.168.1.50/pay',
+            'https://10.0.0.1/callback',
+            'http://[::1]/webhook',
+            'https://0.0.0.0/test',
+        ];
+
+        foreach ($unsafeUrls as $url) {
+            $this->assertFalse(
+                \OwnPay\Security\UrlValidator::isValidWebhookUrl($url),
+                "URL {$url} should be blocked by SSRF protection."
+            );
+        }
+    }
+
+    public function testSsrfProtectionAllowsPublicHttpsUrls(): void
+    {
+        $safeUrls = [
+            'https://example.com/webhook',
+            'https://api.stripe.com/v1',
+            'https://webhook.site/callback',
+        ];
+
+        foreach ($safeUrls as $url) {
+            $this->assertTrue(
+                \OwnPay\Security\UrlValidator::isValidWebhookUrl($url),
+                "URL {$url} should be permitted."
+            );
+        }
+    }
 }

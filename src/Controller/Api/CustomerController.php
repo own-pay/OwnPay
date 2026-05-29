@@ -59,18 +59,16 @@ final class CustomerController
 
         $result = $this->pii->list($mid, $page, $perPage);
 
-        return Response::json([
-            'success' => true,
-            'data'    => array_map(fn(array $c) => [
-                'id'           => $c['id'],
-                'uuid'         => $c['uuid'],
-                'name'         => $c['name'] ?? null,
-                'email_masked' => $c['email_masked'] ?? null,
-                'phone_masked' => $c['phone_masked'] ?? null,
-                'created_at'   => $c['created_at'],
-            ], $result['items']),
-            'meta'    => ['page' => $page, 'per_page' => $perPage, 'total' => $result['total']],
-        ]);
+        $items = array_map(fn(array $c) => [
+            'id'           => $c['id'],
+            'uuid'         => $c['uuid'],
+            'name'         => $c['name'] ?? null,
+            'email_masked' => $c['email_masked'] ?? null,
+            'phone_masked' => $c['phone_masked'] ?? null,
+            'created_at'   => $c['created_at'],
+        ], $result['items']);
+
+        return Response::apiSuccess($items, ['page' => $page, 'per_page' => $perPage, 'total' => $result['total']]);
     }
 
     /**
@@ -89,22 +87,24 @@ final class CustomerController
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
 
         if ($identifier === '') {
-            return Response::json(['success' => false, 'error' => 'Identifier required'], 422);
+            return Response::apiError('IDENTIFIER_REQUIRED', 'Identifier required', 'identifier', 422);
         }
 
         $customer = $this->pii->findByContact($mid, $identifier);
         if (!$customer) {
-            return Response::json(['success' => false, 'error' => 'Customer not found'], 404);
+            return Response::apiError('CUSTOMER_NOT_FOUND', 'Customer not found', null, 404);
         }
 
-        return Response::json(['success' => true, 'data' => [
+        $data = [
             'id'         => $customer['id'],
             'uuid'       => $customer['uuid'],
             'name'       => $customer['name'] ?? null,
             'email'      => $customer['email'] ?? null,
             'phone'      => $customer['phone'] ?? null,
             'created_at' => $customer['created_at'],
-        ]]);
+        ];
+
+        return Response::apiSuccess($data);
     }
 
     /**
@@ -124,7 +124,7 @@ final class CustomerController
 
         $nameVal = $bodyArr['name'] ?? null;
         if (!is_string($nameVal) || trim($nameVal) === '') {
-            return Response::json(['success' => false, 'error' => 'name required'], 422);
+            return Response::apiError('NAME_REQUIRED', 'name required', 'name', 422);
         }
 
         try {
@@ -134,11 +134,7 @@ final class CustomerController
             if ($email !== '') {
                 $existing = $this->pii->findByEmail($mid, $email);
                 if ($existing) {
-                    return Response::json([
-                        'success' => false,
-                        'error'   => 'Customer with this email already exists',
-                        'data'    => ['id' => $existing['id'], 'uuid' => $existing['uuid']],
-                    ], 409);
+                    return Response::apiError('CUSTOMER_EXISTS', 'Customer with this email already exists', 'email', 409);
                 }
             }
 
@@ -151,21 +147,20 @@ final class CustomerController
                 'phone' => $phone,
             ]);
 
-            return Response::json([
-                'success' => true,
-                'data'    => [
-                    'id'   => $customer['id'],
-                    'uuid' => $customer['uuid'],
-                ],
-            ], 201);
+            $data = [
+                'id'   => $customer['id'],
+                'uuid' => $customer['uuid'],
+            ];
+
+            return Response::apiSuccess($data, null, 201);
         } catch (\PDOException $e) {
             // MySQL duplicate key = SQLSTATE 23000
             if (str_contains($e->getMessage(), '23000') || str_contains($e->getMessage(), 'Duplicate entry')) {
-                return Response::json(['success' => false, 'error' => 'Customer with this email already exists'], 409);
+                return Response::apiError('CUSTOMER_EXISTS', 'Customer with this email already exists', 'email', 409);
             }
-            return Response::json(['success' => false, 'error' => 'Customer creation failed'], 500);
+            return Response::apiError('CUSTOMER_CREATION_FAILED', 'Customer creation failed', null, 500);
         } catch (\Throwable $e) {
-            return Response::json(['success' => false, 'error' => 'Customer creation failed'], 500);
+            return Response::apiError('CUSTOMER_CREATION_FAILED', 'Customer creation failed', null, 500);
         }
     }
 }

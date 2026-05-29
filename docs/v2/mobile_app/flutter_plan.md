@@ -80,7 +80,7 @@ Each entry shows: sender, time, status badge, failure reason (if any).
 
 - Companion app Foreground Service polls `GET /api/mobile/v1/notifications` every 10-15s.
 - App receives response → triggers **native local notification** via `flutter_local_notifications`.
-- App acknowledges processed notifications using `POST /api/mobile/v1/notifications/ack` with array of notification `ids`.
+- App acknowledges processed notifications using `POST /api/mobile/v1/notifications/acknowledgements` with array of notification `ids`.
 
 ### Offline Dashboard
 

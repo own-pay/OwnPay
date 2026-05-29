@@ -87,8 +87,7 @@ final class ConfigController
 
         $checkInterval = (int) $this->settings->get('sms', 'filter_rules_check_interval_hours', '24');
 
-        return Response::json([
-            'success'               => true,
+        $data = [
             'version'               => 1,
             'updated_at'            => DateHelper::iso(),
             /** @phpstan-ignore-next-line */
@@ -96,7 +95,9 @@ final class ConfigController
             'positive_keywords'     => $positiveKeywords,
             'negative_keywords'     => $negativeKeywords,
             'check_interval_hours'  => max(1, $checkInterval),
-        ]);
+        ];
+
+        return Response::apiSuccess($data);
     }
 
     /**

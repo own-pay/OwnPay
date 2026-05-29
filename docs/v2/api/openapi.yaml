@@ -10,7 +10,7 @@ info:
     ### Merchant API (Bearer API Key)
     All `/api/v1/*` endpoints require a Bearer API key:
     ```
-    Authorization: Bearer opk_live_xxxxxxxxxx
+    Authorization: Bearer op_abcdefgh.1234567890abcdef1234567890
     ```
     
     ### Mobile API (Bearer JWT)
@@ -121,7 +121,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/v1/payments/initiate:
+  /api/v1/payments:
     post:
       tags: [Payments]
       summary: Initiate Payment Intent
@@ -405,8 +405,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiKeyGenerateResponse'
 
-  /api/v1/api-keys/{id}/revoke:
-    post:
+  /api/v1/api-keys/{id}:
+    delete:
       tags: [API Keys]
       summary: Revoke API Key
       description: Deactivates and permanently revokes an API key by database ID.
@@ -434,7 +434,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/v1/webhooks/test:
+  /api/v1/webhooks/tests:
     post:
       tags: [Webhooks]
       summary: Test Webhook Dispatch
@@ -480,7 +480,7 @@ paths:
           description: Report recorded.
 
   # Mobile API (JWT authenticated companion app interactions)
-  /api/mobile/v1/devices/pair:
+  /api/mobile/v1/devices:
     post:
       tags: [Mobile - Devices]
       summary: Pair Companion Device
@@ -505,7 +505,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/mobile/v1/devices/heartbeat:
+  /api/mobile/v1/devices/heartbeats:
     post:
       tags: [Mobile - Devices]
       summary: Submit Heartbeat
@@ -520,13 +520,21 @@ paths:
               schema:
                 $ref: '#/components/schemas/HeartbeatResponse'
 
-  /api/mobile/v1/devices/revoke:
-    post:
+  /api/mobile/v1/devices/{id}:
+    delete:
       tags: [Mobile - Devices]
       summary: Revoke Current Device
-      description: Self-revokes the active device session and voids authorization tokens.
+      description: Self-revokes the active device session and voids authorization tokens by database ID or UUID.
       security:
         - BearerJWT: []
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: Unique device database ID or UUID
+          schema:
+            type: string
+          example: "dev_xxxxxxxxxxxxxxxxxxxxxxxx"
       responses:
         '200':
           description: Revoked.
@@ -535,7 +543,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/SuccessOnlyResponse'
 
-  /api/mobile/v1/devices/bulk-revoke:
+  /api/mobile/v1/devices/bulk-revocations:
     post:
       tags: [Mobile - Devices]
       summary: Bulk Revoke Devices
@@ -556,7 +564,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/BulkRevokeResponse'
 
-  /api/mobile/v1/devices/refresh:
+  /api/mobile/v1/devices/token-refreshes:
     post:
       tags: [Mobile - Devices]
       summary: Refresh JWT Access Token
@@ -593,7 +601,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/mobile/v1/devices/status:
+  /api/mobile/v1/devices/statuses:
     get:
       tags: [Mobile - Devices]
       summary: Query Current Device Status
@@ -639,7 +647,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/mobile/v1/sms/queue:
+  /api/mobile/v1/sms/queues:
     get:
       tags: [Mobile - SMS]
       summary: Get Pending SMS Queue
@@ -669,7 +677,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ActiveNotificationsResponse'
 
-  /api/mobile/v1/notifications/ack:
+  /api/mobile/v1/notifications/acknowledgements:
     post:
       tags: [Mobile - Notifications]
       summary: Acknowledge Push Deliveries
@@ -778,7 +786,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/admin/v1/sms-queue:
+  /api/admin/v1/sms-queues:
     get:
       tags: [Admin - SMS]
       summary: List Admin SMS Parsing Queue
@@ -793,7 +801,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminSmsQueueResponse'
 
-  /api/admin/v1/sms-queue/{id}/retry:
+  /api/admin/v1/sms-queues/{id}/retries:
     post:
       tags: [Admin - SMS]
       summary: Retry SMS Processing
@@ -836,8 +844,8 @@ paths:
               schema:
                 $ref: '#/components/schemas/AdminDeviceListResponse'
 
-  /api/admin/v1/devices/{id}/revoke:
-    post:
+  /api/admin/v1/devices/{id}:
+    delete:
       tags: [Admin - Devices]
       summary: Force Revoke Device
       description: System-wide admin revocation of a paired device by device database ID or UUID.
@@ -864,7 +872,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/admin/v1/domains/verify:
+  /api/admin/v1/domains/verifications:
     post:
       tags: [Admin - Domains]
       summary: Trigger Verification Cron
@@ -884,7 +892,7 @@ components:
     BearerApiKey:
       type: http
       scheme: bearer
-      description: "Admin/Merchant API key (header: `Authorization: Bearer opk_live_xxx`)"
+      description: "Admin/Merchant API key (header: `Authorization: Bearer op_abcdefgh.12345678...`)"
     BearerJWT:
       type: http
       scheme: bearer
@@ -892,16 +900,44 @@ components:
       description: "JWT access token returned by device pairing (header: `Authorization: Bearer eyJ...`)"
 
   schemas:
+    ErrorItem:
+      type: object
+      required: [code, message]
+      properties:
+        code:
+          type: string
+          example: "VALIDATION_FAILED"
+          description: "Machine-readable error classification code"
+        message:
+          type: string
+          example: "The amount field must be greater than zero."
+          description: "Human-readable error description"
+        field:
+          type: string
+          nullable: true
+          example: "amount"
+          description: "The request body parameter or header scope causing this error"
+
     ErrorResponse:
       type: object
-      required: [success, error]
+      required: [success, error, errors, request_id]
       properties:
         success:
           type: boolean
           example: false
         error:
           type: string
-          example: "Invalid API key or token expired"
+          example: "Validation failed"
+          description: "The primary high-level error summary message"
+        errors:
+          type: array
+          items:
+            $ref: '#/components/schemas/ErrorItem'
+          description: "List of fine-grained error reasons"
+        request_id:
+          type: string
+          example: "req_6656c12345678"
+          description: "A unique tracing ID assigned to this request for support/debugging audits"
 
     SuccessOnlyResponse:
       type: object
@@ -1237,7 +1273,7 @@ components:
           example: "Production Server Key"
         key_preview:
           type: string
-          example: "opk_live_xxxx...abcd"
+          example: "op_abcdefgh.xxxx...abcd"
         scope:
           type: string
           enum: [admin, merchant]
@@ -1286,7 +1322,7 @@ components:
           example: true
         token:
           type: string
-          example: "opk_live_abcdef1234567890abcdef1234567890"
+          example: "op_abcdefgh.1234567890abcdef1234567890"
           description: "The full unmasked API key token. ONLY returned during generation."
         data:
           $ref: '#/components/schemas/ApiKey'
@@ -1380,7 +1416,7 @@ components:
         access_token:
           type: string
           example: "eyJhbGciOiJIUzI1NiIs..."
-          description: "JWT access token for subsequent API calls (TTL: 24h)"
+          description: "JWT access token for subsequent API calls (TTL: 15m)"
         device_uuid:
           type: string
           example: "device-uuid-value"
@@ -1395,7 +1431,7 @@ components:
           description: "Base16 / Hex end-to-end payload encryption key"
         expires_in:
           type: integer
-          example: 86400
+          example: 900
           description: "Access token lifetime in seconds"
 
     HeartbeatResponse:
@@ -1447,7 +1483,7 @@ components:
           example: "eyJhbGciOiJIUzI1NiIs..."
         expires_in:
           type: integer
-          example: 86400
+          example: 900
         server_time:
           type: string
           format: date-time

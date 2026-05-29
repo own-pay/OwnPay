@@ -188,12 +188,16 @@ final class UnifiedWebhookController
         foreach ($refFields as $field) {
             if (!empty($data[$field])) {
                 $ref = $data[$field];
+                if (!is_scalar($ref)) {
+                    continue;
+                }
+                $refStr = (string) $ref;
                 $db = $this->c->get(\OwnPay\Core\Database::class);
                 if ($db instanceof \OwnPay\Core\Database) {
                     // Correct column name is 'trx_id', not 'transaction_id'
                     $txn = $db->fetchOne(
                         "SELECT merchant_id FROM op_transactions WHERE trx_id = :ref OR gateway_trx_id = :ref2 LIMIT 1",
-                        ['ref' => $ref, 'ref2' => $ref]
+                        ['ref' => $refStr, 'ref2' => $refStr]
                     );
                     if (is_array($txn) && isset($txn['merchant_id']) && is_numeric($txn['merchant_id'])) {
                         return (int) $txn['merchant_id'];

@@ -85,15 +85,11 @@ final class TransactionController
         // Whitelist fields to filter sensitive internal transaction data.
         $safe = array_map(fn($t) => $this->safeFields($t), $transactions);
 
-        return Response::json([
-            'success' => true,
-            'data'    => $safe,
-            'meta'    => [
-                'page'        => $pagination['page'],
-                'per_page'    => $perPage,
-                'total'       => $total,
-                'total_pages' => $pagination['total_pages'],
-            ],
+        return Response::apiSuccess($safe, [
+            'page'        => $pagination['page'],
+            'per_page'    => $perPage,
+            'total'       => $total,
+            'total_pages' => $pagination['total_pages'],
         ]);
     }
 
@@ -113,16 +109,16 @@ final class TransactionController
         $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
 
         if ($trxId === '') {
-            return Response::json(['success' => false, 'error' => 'Transaction ID required'], 422);
+            return Response::apiError('TRANSACTION_ID_REQUIRED', 'Transaction ID required', 'trx_id', 422);
         }
 
         $txn = $this->txns->forTenant($mid)->findByTrxId($trxId);
 
         if ($txn === null) {
-            return Response::json(['success' => false, 'error' => 'Transaction not found'], 404);
+            return Response::apiError('TRANSACTION_NOT_FOUND', 'Transaction not found', null, 404);
         }
 
-        return Response::json(['success' => true, 'data' => $this->safeFields($txn)]);
+        return Response::apiSuccess($this->safeFields($txn));
     }
 
     /**

@@ -42,7 +42,7 @@ final class SmsQueueController
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $queue = $this->commRepo->listSmsQueue($mid, 100);
-        return Response::json(['success' => true, 'data' => $queue]);
+        return Response::apiSuccess($queue);
     }
 
     /**
@@ -56,7 +56,12 @@ final class SmsQueueController
         $id  = (int) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
-        $this->commRepo->retrySms($id, $mid);
-        return Response::json(['success' => true, 'message' => 'Queued for retry']);
+        
+        try {
+            $this->commRepo->retrySms($id, $mid);
+            return Response::apiSuccess(['message' => 'Queued for retry']);
+        } catch (\Throwable $e) {
+            return Response::apiError('SMS_RETRY_FAILED', $e->getMessage(), 'id', 400);
+        }
     }
 }

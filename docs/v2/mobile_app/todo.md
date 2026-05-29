@@ -32,12 +32,12 @@
 ### 1.3 API Middleware
 - [x] Extend `BearerAuthMiddleware` or create `JwtAuthMiddleware` for JWT validation
 - [x] Create `DeviceFingerprintMiddleware` — validate X-Device-Fingerprint header (integrated into JwtAuthMiddleware)
-- [x] Add rate limiting rule for `/api/mobile/v1/devices/pair`
+- [x] Add rate limiting rule for `/api/mobile/v1/devices`
 
 ### 1.4 API Endpoints
-- [x] `POST /api/mobile/v1/devices/pair` — OTP validation + credential issuance
-- [x] `POST /api/mobile/v1/devices/refresh` — JWT refresh via refresh token
-- [x] `GET  /api/mobile/v1/devices/status` — Connection health check
+- [x] `POST /api/mobile/v1/devices` — OTP validation + credential issuance
+- [x] `POST /api/mobile/v1/devices/token-refreshes` — JWT refresh via refresh token
+- [x] `GET  /api/mobile/v1/devices/statuses` — Connection health check
 - [x] Register routes in `config/routes/api.php`
 
 ### 1.5 Web Admin UI
@@ -139,7 +139,7 @@
 - [x] `src/Service/MobileNotificationService.php` — queue payment notifications per device
 - [x] `src/Repository/MobileNotificationRepository.php` — notification CRUD with cursor polling + findById
 - [x] `GET /api/mobile/v1/notifications` endpoint — list pending notifications for device
-- [x] `POST /api/mobile/v1/notifications/ack` endpoint — acknowledge processed notifications
+- [x] `POST /api/mobile/v1/notifications/acknowledgements` endpoint — acknowledge processed notifications
 - [x] Hook into SMS processing: `SmsParserService` → auto-queues notification on successful parse
 - [x] Auto-cleanup: purge old read notifications
 
@@ -159,7 +159,7 @@
 - [ ] Transaction detail screen
 - [ ] Offline cache: Hive box for dashboard data
 - [ ] Offline banner: "Showing cached data from [timestamp]"
-- [ ] Acknowledge notifications via `/api/mobile/v1/notifications/ack`
+- [ ] Acknowledge notifications via `/api/mobile/v1/notifications/acknowledgements`
 
 ---
 

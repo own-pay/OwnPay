@@ -55,11 +55,11 @@ final class DomainController
         $domainIdVal = $bodyArr['domain_id'] ?? 0;
         $domainId = (is_int($domainIdVal) || is_string($domainIdVal)) ? (int) $domainIdVal : 0;
         if ($domainId <= 0) {
-            return Response::json(['success' => false, 'error' => 'domain_id required'], 422);
+            return Response::apiError('DOMAIN_ID_REQUIRED', 'domain_id required', 'domain_id', 422);
         }
 
         // BUG-48 FIX: verifyDomain(int $domainId, int $merchantId) — params were swapped
         $result = $this->domains->verifyDomain($domainId, $mid);
-        return Response::json(['success' => true, 'verified' => $result]);
+        return Response::apiSuccess(['verified' => $result]);
     }
 }

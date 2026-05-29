@@ -10,7 +10,7 @@
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <img src="https://cdn.ownpay.org/assets/logo.png" alt="OwnPay Logo" class="ins-logo-img" onerror="this.src='/assets/img/logo-fallback.png';this.onerror=null;">
+        <div class="ins-logo-fallback">OP</div>
         <span class="ins-name">Own Pay <span>Setup</span></span>
     </div>
 </header>
@@ -19,8 +19,8 @@
     <div class="ins-card ins-locked">
         <div class="ins-locked-icon">🔒</div>
         <h2>Installation Locked</h2>
-        <p class="ins-sub" style="margin-bottom: 1.5rem;">OwnPay is already installed and fully operational on this system.</p>
-        <p class="ins-sub" style="font-size: 0.88rem; line-height: 1.6; margin-bottom: 2rem;">For security reasons, the installation wizard cannot be re-run while a master configuration is active. If you must rebuild the gateway environment, you must manually delete the active lockout key from your local server terminal: <code>storage/.installed</code></p>
+        <p class="ins-sub ins-locked-p1">OwnPay is already installed and fully operational on this system.</p>
+        <p class="ins-sub ins-locked-p2">For security reasons, the installation wizard cannot be re-run while a master configuration is active. If you must rebuild the gateway environment, you must manually delete the active lockout key from your local server terminal: <code>storage/.installed</code></p>
         <a href="/admin/login" class="ins-btn">Navigate to Login Dashboard</a>
     </div>
 </main>

@@ -61,7 +61,7 @@ final class SmsController
      * Handles receiving SMS payloads from the mobile companion app.
      * Supports both single SMS and batch arrays.
      *
-     * POST /api/mobile/v1/sms/receive
+     * POST /api/mobile/v1/sms
      *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP response with receipt details.
@@ -90,19 +90,19 @@ final class SmsController
         }
 
         if (empty($messages)) {
-            return Response::json(['success' => false, 'error' => 'No messages provided'], 422);
+            return Response::apiError('MESSAGES_REQUIRED', 'No messages provided', 'messages', 422);
         }
 
         // Validate messages
         foreach ($messages as $msg) {
             if (!is_array($msg)) {
-                return Response::json(['success' => false, 'error' => 'Invalid message format'], 422);
+                return Response::apiError('INVALID_MESSAGE_FORMAT', 'Invalid message format', 'messages', 422);
             }
             $senderVal = $msg['sender'] ?? null;
             $encryptedPayloadVal = $msg['encrypted_payload'] ?? null;
             $bodyVal = $msg['body'] ?? null;
             if (empty($senderVal) || (empty($encryptedPayloadVal) && empty($bodyVal))) {
-                return Response::json(['success' => false, 'error' => 'sender and encrypted_payload/body required'], 422);
+                return Response::apiError('INVALID_MESSAGE_PAYLOAD', 'sender and encrypted_payload/body required', 'messages', 422);
             }
         }
 
@@ -135,10 +135,7 @@ final class SmsController
         $this->events->doAction('sms.received.after', $results);
 
         if ($isBatch) {
-            return Response::json([
-                'success' => true,
-                'results' => $results,
-            ]);
+            return Response::apiSuccess($results);
         }
 
         // For single message compatibility, return top-level keys
@@ -146,18 +143,19 @@ final class SmsController
         $status = $singleResult['status'] ?? 'rejected';
         $success = ($status === 'accepted' || $status === 'duplicate');
 
-        return Response::json([
-            'success'    => $success,
+        $data = [
             'status'     => $status,
             'server_ref' => $singleResult['server_ref'] ?? null,
             'error'      => $singleResult['error'] ?? null,
-        ]);
+        ];
+
+        return Response::apiSuccess($data, null, $success ? 200 : 400);
     }
 
     /**
      * Lists pending outbound SMS messages waiting to be sent via the mobile app gateway.
      *
-     * GET /api/mobile/v1/sms/queue
+     * GET /api/mobile/v1/sms/queues
      *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP response with queue list.
@@ -167,6 +165,6 @@ final class SmsController
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $pending = $this->commRepo->listPendingSms($mid, 20);
-        return Response::json(['success' => true, 'queue' => $pending]);
+        return Response::apiSuccess($pending);
     }
 }

@@ -18,7 +18,7 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // ======================== MERCHANT API (Bearer Auth) ========================
     $router->get('/api/v1/health',                    'Api\\HealthController@check',            'api');
-    $router->post('/api/v1/payments/initiate',        'Api\\PaymentController@initiate',        'api');
+    $router->post('/api/v1/payments',                 'Api\\PaymentController@initiate',        'api');
     $router->get('/api/v1/payments/{trx_id}',         'Api\\PaymentController@show',            'api');
     $router->get('/api/v1/transactions',              'Api\\TransactionController@index',       'api');
     $router->get('/api/v1/transactions/{trx_id}',     'Api\\TransactionController@show',        'api');
@@ -29,37 +29,37 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/api/v1/customers',                'Api\\CustomerController@create',         'api');
     $router->get('/api/v1/api-keys',                  'Api\\ApiKeyController@index',            'api');
     $router->post('/api/v1/api-keys',                 'Api\\ApiKeyController@generate',         'api');
-    $router->post('/api/v1/api-keys/{id}/revoke',     'Api\\ApiKeyController@revoke',           'api');
-    $router->post('/api/v1/webhooks/test',            'Api\\WebhookController@test',            'api');
+    $router->delete('/api/v1/api-keys/{id}',          'Api\\ApiKeyController@revoke',           'api');
+    $router->post('/api/v1/webhooks/tests',           'Api\\WebhookController@test',            'api');
     $router->get('/api/v1/webhooks/deliveries',       'Api\\WebhookController@deliveries',      'api');
 
     // ======================== CSP REPORT ========================
     $router->post('/csp-report-api',                  'Webhook\\CspReportController@handle',    'api');
 
     // ======================== MOBILE API (JWT Auth) ========================
-    $router->post('/api/mobile/v1/devices/pair',       'Api\\Mobile\\DeviceController@pair',         'mobile');
-    $router->post('/api/mobile/v1/devices/heartbeat',  'Api\\Mobile\\DeviceController@heartbeat',    'mobile');
-    $router->post('/api/mobile/v1/devices/revoke',     'Api\\Mobile\\DeviceController@revoke',       'mobile');
-    $router->post('/api/mobile/v1/devices/bulk-revoke','Api\\Mobile\\DeviceController@bulkRevoke',   'mobile');
+    $router->post('/api/mobile/v1/devices',            'Api\\Mobile\\DeviceController@pair',         'mobile');
+    $router->post('/api/mobile/v1/devices/heartbeats', 'Api\\Mobile\\DeviceController@heartbeat',    'mobile');
+    $router->delete('/api/mobile/v1/devices/{id}',     'Api\\Mobile\\DeviceController@revoke',       'mobile');
+    $router->post('/api/mobile/v1/devices/bulk-revocations', 'Api\\Mobile\\DeviceController@bulkRevoke', 'mobile');
     $router->post('/api/mobile/v1/sms',                'Api\\Mobile\\SmsController@receive',         'mobile');
-    $router->get('/api/mobile/v1/sms/queue',           'Api\\Mobile\\SmsController@queue',           'mobile');
+    $router->get('/api/mobile/v1/sms/queues',          'Api\\Mobile\\SmsController@queue',           'mobile');
     $router->get('/api/mobile/v1/notifications',       'Api\\Mobile\\NotificationController@index',  'mobile');
-    $router->post('/api/mobile/v1/notifications/ack',  'Api\\Mobile\\NotificationController@ack',    'mobile');
+    $router->post('/api/mobile/v1/notifications/acknowledgements', 'Api\\Mobile\\NotificationController@ack', 'mobile');
     $router->get('/api/mobile/v1/dashboard',           'Api\\Mobile\\DashboardController@index',     'mobile');
 
     // Config / Filter Rules (mobile SMS privacy gate)
     $router->get('/api/mobile/v1/config/filter-rules', 'Api\\Mobile\\ConfigController@filterRules',   'mobile');
 
     // Device refresh + status
-    $router->post('/api/mobile/v1/devices/refresh',    'Api\\Mobile\\DeviceController@refresh',       'mobile');
-    $router->get('/api/mobile/v1/devices/status',      'Api\\Mobile\\DeviceController@status',        'mobile');
+    $router->post('/api/mobile/v1/devices/token-refreshes', 'Api\\Mobile\\DeviceController@refresh',   'mobile');
+    $router->get('/api/mobile/v1/devices/statuses',    'Api\\Mobile\\DeviceController@status',        'mobile');
 
     // ======================== ADMIN API (Bearer Auth) ========================
     $router->get('/api/admin/v1/sms-templates',         'Api\\Admin\\SmsTemplateController@index',   'api');
     $router->put('/api/admin/v1/sms-templates/{id}',    'Api\\Admin\\SmsTemplateController@update',  'api');
-    $router->get('/api/admin/v1/sms-queue',             'Api\\Admin\\SmsQueueController@index',      'api');
-    $router->post('/api/admin/v1/sms-queue/{id}/retry', 'Api\\Admin\\SmsQueueController@retry',      'api');
+    $router->get('/api/admin/v1/sms-queues',            'Api\\Admin\\SmsQueueController@index',      'api');
+    $router->post('/api/admin/v1/sms-queues/{id}/retries', 'Api\\Admin\\SmsQueueController@retry',      'api');
     $router->get('/api/admin/v1/devices',               'Api\\Admin\\DeviceController@index',         'api');
-    $router->post('/api/admin/v1/devices/{id}/revoke',  'Api\\Admin\\DeviceController@revoke',        'api');
-    $router->post('/api/admin/v1/domains/verify',       'Api\\Admin\\DomainController@verify',        'api');
+    $router->delete('/api/admin/v1/devices/{id}',       'Api\\Admin\\DeviceController@revoke',        'api');
+    $router->post('/api/admin/v1/domains/verifications', 'Api\\Admin\\DomainController@verify',        'api');
 };

@@ -51,15 +51,19 @@ final class WebhookController
         $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
         $result = $this->webhooks->sendTest($mid);
         $success = isset($result['success']) && $result['success'] === true;
-        $response = [
-            'success'          => $success,
+        
+        $data = [
             'status_code'      => $result['status_code'] ?? null,
             'response_time_ms' => $result['response_time_ms'] ?? null,
         ];
-        if (!$success && !empty($result['error'])) {
-            $response['error'] = $result['error'];
+
+        if ($success) {
+            return Response::apiSuccess($data);
+        } else {
+            $err = $result['error'] ?? 'Webhook test failed';
+            $errStr = is_string($err) ? $err : 'Webhook test failed';
+            return Response::apiError('WEBHOOK_TEST_FAILED', $errStr, null, 400);
         }
-        return Response::json($response, $success ? 200 : 400);
     }
 
     /**
@@ -73,6 +77,6 @@ final class WebhookController
         $midVal = $req->getAttribute('merchant_id');
         $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
         $deliveries = $this->webhooks->listDeliveries($mid, 50);
-        return Response::json(['success' => true, 'data' => $deliveries]);
+        return Response::apiSuccess($deliveries);
     }
 }

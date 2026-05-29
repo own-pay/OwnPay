@@ -215,6 +215,41 @@ final class PluginLoader
             // Extract function calls using token_get_all for accurate detection
             $tokens = @token_get_all($content);
             for ($i = 0, $count = count($tokens); $i < $count; $i++) {
+                // Block dangerous language constructs (eval, include, require)
+                if (is_array($tokens[$i]) && in_array($tokens[$i][0], [T_EVAL, T_INCLUDE, T_INCLUDE_ONCE, T_REQUIRE, T_REQUIRE_ONCE], true)) {
+                    $relPath = str_replace($manifest->path . '/', '', $phpFile);
+                    throw new \RuntimeException(
+                        "Plugin {$slug} blocked: {$relPath} contains restricted language construct: " . $tokens[$i][1]
+                    );
+                }
+
+                // Block dangerous imports inside T_USE statements
+                if (is_array($tokens[$i]) && $tokens[$i][0] === T_USE) {
+                    $next = $i + 1;
+                    while ($next < $count && $tokens[$next] !== ';') {
+                        $nextToken = $tokens[$next];
+                        if (is_array($nextToken) && in_array($nextToken[0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE], true)) {
+                            $importRaw = $nextToken[1];
+                            $importBase = strtolower(ltrim(strrchr($importRaw, '\\') ?: $importRaw, '\\'));
+                            
+                            if (str_starts_with($importBase, 'reflection') || in_array($importBase, ['pdo', 'mysqli'], true)) {
+                                $relPath = str_replace($manifest->path . '/', '', $phpFile);
+                                throw new \RuntimeException(
+                                    "Plugin {$slug} blocked: {$relPath} imports restricted reference: {$importRaw}"
+                                );
+                            }
+
+                            if (PluginSandbox::isDangerousFunction($importBase)) {
+                                $relPath = str_replace($manifest->path . '/', '', $phpFile);
+                                throw new \RuntimeException(
+                                    "Plugin {$slug} blocked: {$relPath} imports dangerous function: {$importRaw}"
+                                );
+                            }
+                        }
+                        $next++;
+                    }
+                }
+
                 if (is_array($tokens[$i]) && in_array($tokens[$i][0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE], true)) {
                     $rawName = $tokens[$i][1];
                     $funcName = ltrim($rawName, '\\');

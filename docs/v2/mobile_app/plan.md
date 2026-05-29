@@ -22,8 +22,8 @@
 │  FLUTTER MOBILE APP              │       │  PHP WEB BACKEND (OwnPay)    │
 │                                  │       │                              │
 │  ┌────────────┐ ┌─────────────┐  │       │  ┌──────────────────────┐    │
-│  │ SMS Capture │ │ Privacy     │  │       │  │ /api/mobile/v1/devices/pair│
-│  │ (Dual-Eng) │→│ Gate        │──┼─AES──→│  │ /api/mobile/v1/sms   │    │
+│  │ SMS Capture │ │ Privacy     │  │       │  │ /api/mobile/v1/devices     │
+│  │ (Dual-Eng) │→│ Gate        │──┼─AES──→│  │ /api/mobile/v1/sms         │
 │  └────────────┘ └─────────────┘  │  256  │  │ /api/mobile/v1/notifications│
 │  ┌────────────┐ ┌─────────────┐  │       │  │ /api/mobile/v1/dashboard  │    │
 │  │ Offline    │ │ Sync Engine │──┼─JWT──→│  └──────────────────────┘    │
@@ -45,7 +45,7 @@
 1. Admin opens **Web Panel → Settings → Mobile App → Pair Device**
 2. Server generates 6-digit OTP, stores in `op_device_pairing_tokens` (TTL: 5 min)
 3. Web UI renders QR: `{"server_url":"https://merchant.com","otp":"482910"}`
-4. Flutter scans QR → hits `POST /api/mobile/v1/devices/pair`
+4. Flutter scans QR → hits `POST /api/mobile/v1/devices`
 5. Server validates OTP + creates device record → issues credentials → invalidates OTP
 
 ### Auth Model
@@ -78,7 +78,7 @@ Server stores its copy of the AES-256 key encrypted via `FieldEncryptor` (AES-25
 
 On pairing, app sends: `android_id + app_signing_cert_sha256`. Server stores `jwt_fingerprint` which is `hash('sha256', $deviceUuid . $merchantId)`. Every API call verification matches the request JWT signature and extracts the paired device configuration to authorize access.
 
-### API: `POST /api/mobile/v1/devices/pair`
+### API: `POST /api/mobile/v1/devices`
 
 **Request:**
 ```json
@@ -264,7 +264,7 @@ Stores all parsed SMS messages, both matching templates and heuristics fallbacks
 ### Flow
 - Mobile app polls `GET /api/mobile/v1/notifications` every 10-15 seconds.
 - Server returns a list of pending notifications for the specific device ID.
-- App displays local notifications and acknowledges receipt via `POST /api/mobile/v1/notifications/ack` with `ids`.
+- App displays local notifications and acknowledges receipt via `POST /api/mobile/v1/notifications/acknowledgements` with `ids`.
 
 #### `op_mobile_notifications`
 | Column | Type | Notes |
@@ -292,7 +292,7 @@ Exposes status summary and recent stats directly to companion device:
 ## 9. API Authentication Flow
 
 ```
-Every request (except /devices/pair and /devices/refresh):
+Every request (except POST /api/mobile/v1/devices and POST /api/mobile/v1/devices/token-refreshes):
   1. Extract JWT from Authorization: Bearer <token>
   2. Validate JWT signature + expiry
   3. Validate device is active in DB

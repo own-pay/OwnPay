@@ -10,7 +10,7 @@
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <img src="https://cdn.ownpay.org/assets/logo.png" alt="OwnPay Logo" class="ins-logo-img" onerror="this.src='/assets/img/logo-fallback.png';this.onerror=null;">
+        <div class="ins-logo-fallback">OP</div>
         <span class="ins-name">Own Pay <span>Setup</span></span>
     </div>
     <div class="ins-steps">

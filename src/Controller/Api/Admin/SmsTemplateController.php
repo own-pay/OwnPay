@@ -42,7 +42,7 @@ final class SmsTemplateController
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $templates = $this->tplRepo->listForAdmin($mid, 'priority ASC, created_at DESC');
-        return Response::json(['success' => true, 'data' => $templates]);
+        return Response::apiSuccess($templates);
     }
 
     /**
@@ -73,6 +73,6 @@ final class SmsTemplateController
         }
 
         $this->tplRepo->updateTemplate($id, $mid, $data);
-        return Response::json(['success' => true]);
+        return Response::apiSuccess(['message' => 'Template updated successfully']);
     }
 }

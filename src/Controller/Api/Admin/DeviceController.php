@@ -49,7 +49,7 @@ final class DeviceController
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $list = $this->devices->listDevices($mid);
-        return Response::json(['success' => true, 'data' => $list]);
+        return Response::apiSuccess($list);
     }
 
     /**
@@ -65,7 +65,12 @@ final class DeviceController
         $deviceUuid = (string) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
-        $this->devices->revoke($deviceUuid, $mid);
-        return Response::json(['success' => true]);
+        
+        try {
+            $this->devices->revoke($deviceUuid, $mid);
+            return Response::apiSuccess(['message' => 'Device revoked successfully']);
+        } catch (\Throwable $e) {
+            return Response::apiError('DEVICE_REVOCATION_FAILED', $e->getMessage(), 'id', 400);
+        }
     }
 }

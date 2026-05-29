@@ -139,7 +139,33 @@ final class PaymentController
         }
 
         if (!empty($errors)) {
-            return Response::json(['success' => false, 'errors' => $errors], 422);
+            $formatted = [];
+            foreach ($errors as $err) {
+                $code = 'VALIDATION_FAILED';
+                $field = null;
+                if (str_contains($err, 'amount')) {
+                    $code = 'INVALID_AMOUNT';
+                    $field = 'amount';
+                } elseif (str_contains($err, 'currency')) {
+                    $code = 'INVALID_CURRENCY';
+                    $field = 'currency';
+                } elseif (str_contains($err, 'callback_url')) {
+                    $code = 'INVALID_CALLBACK_URL';
+                    $field = 'callback_url';
+                } elseif (str_contains($err, 'redirect_url')) {
+                    $code = 'INVALID_REDIRECT_URL';
+                    $field = 'redirect_url';
+                } elseif (str_contains($err, 'cancel_url')) {
+                    $code = 'INVALID_CANCEL_URL';
+                    $field = 'cancel_url';
+                }
+                $formatted[] = [
+                    'code'    => $code,
+                    'message' => $err,
+                    'field'   => $field,
+                ];
+            }
+            return Response::apiErrors($formatted, 422);
         }
 
         // Sanitize customer PII inputs to prevent injection vectors.
@@ -226,19 +252,20 @@ final class PaymentController
             }
             $checkoutUrl = $urlService->buildCheckoutUrl($mid, $intentToken, $req);
 
-            return Response::json([
-                'success'      => true,
+            $data = [
                 'payment_id'   => $intentUuid,
                 'token'        => $intentToken,
                 'checkout_url' => $checkoutUrl,
                 'status'       => $intentStatus,
-            ], 201);
+            ];
+
+            return Response::apiSuccess($data, null, 201);
         } catch (\Throwable $e) {
             $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
             if ($logger instanceof \OwnPay\Service\System\Logger) {
                 $logger->error('Payment initiation failed', ['error' => $e->getMessage(), 'merchant' => $mid]);
             }
-            return Response::json(['success' => false, 'error' => 'Payment processing failed'], 500);
+            return Response::apiError('PAYMENT_PROCESSING_FAILED', 'Payment processing failed', null, 500);
         }
     }
 
@@ -258,13 +285,13 @@ final class PaymentController
         $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
 
         if ($trxId === '') {
-            return Response::json(['success' => false, 'error' => 'Transaction ID required'], 422);
+            return Response::apiError('TRANSACTION_ID_REQUIRED', 'Transaction ID required', 'trx_id', 422);
         }
 
         $payment = $this->transactions->forTenant($mid)->findByTrxId($trxId);
 
         if (!is_array($payment)) {
-            return Response::json(['success' => false, 'error' => 'Payment not found'], 404);
+            return Response::apiError('PAYMENT_NOT_FOUND', 'Payment not found', null, 404);
         }
 
         $response = [
@@ -301,6 +328,6 @@ final class PaymentController
             }
         }
 
-        return Response::json(['success' => true, 'payment' => $response]);
+        return Response::apiSuccess($response);
     }
 }

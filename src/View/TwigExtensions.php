@@ -239,8 +239,6 @@ final class TwigExtensions extends AbstractExtension
     /**
      * Retrieve a runtime setting value.
      *
-     * @todo Integrate with SettingsRepository or SettingsService in future phases.
-     *
      * @param string $key The configuration key.
      * @param string $default The fallback value.
      * @return string The settings value or fallback.
