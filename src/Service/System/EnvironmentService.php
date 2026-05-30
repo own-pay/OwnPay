@@ -22,7 +22,11 @@ final class EnvironmentService
      */
     public static function mode(): string
     {
-        return getenv('APP_ENV') ?: 'production';
+        $env = getenv('APP_ENV');
+        if ($env === false) {
+            $env = $_ENV['APP_ENV'] ?? $_SERVER['APP_ENV'] ?? 'production';
+        }
+        return is_scalar($env) ? (string) $env : 'production';
     }
 
     /**
@@ -62,7 +66,11 @@ final class EnvironmentService
      */
     public static function debugEnabled(): bool
     {
-        return (getenv('APP_DEBUG') ?: 'false') === 'true';
+        $env = getenv('APP_DEBUG');
+        if ($env === false) {
+            $env = $_ENV['APP_DEBUG'] ?? $_SERVER['APP_DEBUG'] ?? 'false';
+        }
+        return ($env === 'true' || $env === true);
     }
 
     /**
@@ -72,7 +80,11 @@ final class EnvironmentService
      */
     public static function version(): string
     {
-        return getenv('APP_VERSION') ?: '0.1.0';
+        $env = getenv('APP_VERSION');
+        if ($env === false) {
+            $env = $_ENV['APP_VERSION'] ?? $_SERVER['APP_VERSION'] ?? '0.1.0';
+        }
+        return is_scalar($env) ? (string) $env : '0.1.0';
     }
 
     /**
@@ -196,7 +208,10 @@ final class EnvironmentService
 
         // System environment variable fallback
         $env = getenv($key);
-        $value = $env !== false ? $env : '';
+        if ($env === false) {
+            $env = $_ENV[$key] ?? $_SERVER[$key] ?? false;
+        }
+        $value = (is_scalar($env) && $env !== false) ? (string) $env : '';
         self::$cache[$cacheKey] = $value;
         return $value;
     }

@@ -493,10 +493,11 @@ final class InstallerController
         }
 
         try {
-            $appKey        = base64_encode(random_bytes(32));
-            $encryptionKey = base64_encode(random_bytes(32));
-            $hmacKey       = bin2hex(random_bytes(32));
-            $jwtSecret     = bin2hex(random_bytes(32));
+            $appKey          = 'base64:' . base64_encode(random_bytes(32));
+            $encryptionKey   = 'base64:' . base64_encode(random_bytes(32));
+            $hmacKey         = bin2hex(random_bytes(32));
+            $jwtSecret       = bin2hex(random_bytes(32));
+            $auditHmacSecret = bin2hex(random_bytes(32));
 
             $dbEnv = $this->parseTempEnv($tempEnv);
             if (empty($dbEnv)) {
@@ -538,6 +539,7 @@ final class InstallerController
                 'ENCRYPTION_KEY' => $encryptionKey,
                 'HMAC_KEY' => $hmacKey,
                 'JWT_SECRET' => $jwtSecret,
+                'AUDIT_HMAC_SECRET' => $auditHmacSecret,
                 
                 'CACHE_DRIVER' => 'file',
                 'QUEUE_DRIVER' => 'file',
@@ -604,6 +606,18 @@ final class InstallerController
             $stmt = $pdo->prepare("INSERT IGNORE INTO {$p}system_settings (group_name, key_name, value, type) VALUES (?,?,?,?)");
             foreach ($seeds as $s) {
                 $stmt->execute($s);
+            }
+
+            // Bootstrap languages folder and copy master en.json
+            $languagesDir = $this->rootDir . '/storage/languages';
+            if (!is_dir($languagesDir)) {
+                @mkdir($languagesDir, 0755, true);
+            }
+            $masterEn = $this->rootDir . '/config/languages/en.json';
+            $destEn = $languagesDir . '/en.json';
+            if (file_exists($masterEn)) {
+                @copy($masterEn, $destEn);
+                @chmod($destEn, 0664);
             }
 
             file_put_contents($this->markerFile, "Installed: " . DateHelper::iso() . "\nVersion: 0.1.0\n", LOCK_EX);

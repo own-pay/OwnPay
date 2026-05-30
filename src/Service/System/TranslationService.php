@@ -243,6 +243,14 @@ final class TranslationService
                 'translations' => $translations
             ]
         );
+
+        // Write to storage file
+        $storageDir = dirname(__DIR__, 3) . '/storage/languages';
+        if (!is_dir($storageDir)) {
+            @mkdir($storageDir, 0755, true);
+        }
+        @file_put_contents($storageDir . '/' . $code . '.json', $translations, LOCK_EX);
+        @chmod($storageDir . '/' . $code . '.json', 0664);
     }
 
     /**
@@ -278,6 +286,15 @@ final class TranslationService
                 ]
             );
         }
+
+        // Write to storage file
+        $storageDir = dirname(__DIR__, 3) . '/storage/languages';
+        if (!is_dir($storageDir)) {
+            @mkdir($storageDir, 0755, true);
+        }
+        @file_put_contents($storageDir . '/' . $code . '.json', $json, LOCK_EX);
+        @chmod($storageDir . '/' . $code . '.json', 0664);
+
         $this->clearCache();
     }
 
@@ -294,6 +311,13 @@ final class TranslationService
         }
         
         $this->db->execute("DELETE FROM op_languages WHERE code = :code", ['code' => $code]);
+
+        // Delete storage file
+        $filePath = dirname(__DIR__, 3) . '/storage/languages/' . $code . '.json';
+        if (file_exists($filePath)) {
+            @unlink($filePath);
+        }
+
         $this->clearCache();
     }
 
@@ -339,6 +363,15 @@ final class TranslationService
             'code' => $code,
             'translations' => $json
         ]);
+
+        // Write to storage file
+        $storageDir = dirname(__DIR__, 3) . '/storage/languages';
+        if (!is_dir($storageDir)) {
+            @mkdir($storageDir, 0755, true);
+        }
+        @file_put_contents($storageDir . '/' . $code . '.json', $json, LOCK_EX);
+        @chmod($storageDir . '/' . $code . '.json', 0664);
+
         $this->clearCache();
     }
 
@@ -355,17 +388,76 @@ final class TranslationService
 
         // 1. Load English fallback always
         if (empty($this->fallbackTranslations)) {
-            $this->fallbackTranslations = $this->loadTranslationsFromDb('en');
+            $this->fallbackTranslations = $this->loadTranslations('en');
         }
 
         // 2. Load active locale
         if ($this->locale === 'en') {
             $this->translations = $this->fallbackTranslations;
         } else {
-            $this->translations = $this->loadTranslationsFromDb($this->locale);
+            $this->translations = $this->loadTranslations($this->locale);
         }
 
         $this->loaded = true;
+    }
+
+    /**
+     * Loads translations for a locale from its storage file, copying/recovering it from config or database if missing.
+     *
+     * @param string $code Locale code.
+     * @return array<string, string> Flat key-value translations map.
+     */
+    private function loadTranslations(string $code): array
+    {
+        $rootDir = dirname(__DIR__, 3);
+        $storageDir = $rootDir . '/storage/languages';
+        
+        // Ensure storage directory exists
+        if (!is_dir($storageDir)) {
+            @mkdir($storageDir, 0755, true);
+        }
+
+        $filePath = $storageDir . '/' . $code . '.json';
+
+        // 1. If it's English ('en') and the file is missing, instantly recover it from config/languages/en.json
+        if ($code === 'en' && !file_exists($filePath)) {
+            $masterPath = $rootDir . '/config/languages/en.json';
+            if (file_exists($masterPath)) {
+                @copy($masterPath, $filePath);
+                @chmod($filePath, 0664);
+            }
+        }
+
+        // 2. If it's a custom language and the file is missing, load translations from the DB and write it back to storage file
+        if (!file_exists($filePath)) {
+            $dbTranslations = $this->loadTranslationsFromDb($code);
+            // Write it to file to restore it
+            if (!empty($dbTranslations)) {
+                $json = json_encode($dbTranslations, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                if ($json !== false) {
+                    @file_put_contents($filePath, $json, LOCK_EX);
+                    @chmod($filePath, 0664);
+                }
+                return $dbTranslations;
+            }
+            return [];
+        }
+
+        // 3. Read and decode from the storage file
+        $content = @file_get_contents($filePath);
+        if ($content !== false && $content !== '') {
+            $decoded = json_decode($content, true);
+            if (is_array($decoded)) {
+                $result = [];
+                foreach ($decoded as $k => $v) {
+                    $result[(string)$k] = is_scalar($v) ? (string)$v : '';
+                }
+                return $result;
+            }
+        }
+
+        // If file read/decode failed, fallback to DB
+        return $this->loadTranslationsFromDb($code);
     }
 
     /**

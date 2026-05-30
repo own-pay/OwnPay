@@ -155,7 +155,8 @@ final class LanguageSystemTest extends IntegrationTestCase
         // Find an active user in test database
         $user = $this->db->fetchOne("SELECT id FROM op_merchant_users WHERE status = 'active' LIMIT 1");
         if ($user) {
-            $userId = (int)$user['id'];
+            $userIdVal = $user['id'] ?? null;
+            $userId = is_numeric($userIdVal) ? (int)$userIdVal : 0;
             $_SESSION['auth_user_id'] = $userId;
             $this->container->instance(AdminSession::class, $adminSession);
 
@@ -173,4 +174,50 @@ final class LanguageSystemTest extends IntegrationTestCase
             unset($_SESSION['auth_user_id']);
         }
     }
+
+    /**
+     * Test automatic recovery of language JSON files if they are missing in storage.
+     */
+    public function testAutomaticLanguageFileRecovery(): void
+    {
+        $rootDir = dirname(__DIR__, 2);
+        $languagesDir = $rootDir . '/storage/languages';
+        $enFile = $languagesDir . '/en.json';
+
+        // 1. Force clear cache and delete storage en.json if it exists
+        $this->translationService->clearCache();
+        if (file_exists($enFile)) {
+            @unlink($enFile);
+        }
+
+        $this->assertFileDoesNotExist($enFile);
+
+        // 2. Perform a translation to trigger on-the-fly recovery of en.json
+        $trans = $this->translationService->trans('menu.dashboard');
+        $this->assertSame('Dashboard', $trans);
+
+        // 3. Verify that en.json was instantly and automatically copied back
+        $this->assertFileExists($enFile);
+
+        // 4. Test recovery of custom language from database
+        $this->translationService->createLanguage('testlocale', 'Test Locale');
+        $testLocaleFile = $languagesDir . '/testlocale.json';
+        $this->assertFileExists($testLocaleFile);
+
+        // Delete testlocale.json from storage
+        @unlink($testLocaleFile);
+        $this->assertFileDoesNotExist($testLocaleFile);
+
+        // Clear in-memory caches and switch active locale
+        $this->translationService->clearCache();
+        $this->translationService->setLocale('testlocale');
+
+        // Translate - should automatically recover testlocale.json from database
+        $transCustom = $this->translationService->trans('menu.dashboard');
+        $this->assertSame('Dashboard', $transCustom); // Since created language copies 'en' keys
+
+        // Verify file is automatically restored
+        $this->assertFileExists($testLocaleFile);
+    }
 }
+

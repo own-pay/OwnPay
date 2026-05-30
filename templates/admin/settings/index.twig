@@ -6,23 +6,128 @@
 {% block content %}
 <div class="op-page-header"><h1>Settings</h1></div>
 
-<div class="op-tabs" id="settings-tabs">
-    <button class="op-tab {{ default_tab == 'general' ? 'active' : '' }}" data-tab="general">General</button>
-    <button class="op-tab {{ default_tab == 'branding' ? 'active' : '' }}" data-tab="branding">Branding</button>
-    <button class="op-tab {{ default_tab == 'theme' ? 'active' : '' }}" data-tab="theme">Theme</button>
-    <button class="op-tab {{ default_tab == 'landing' ? 'active' : '' }}" data-tab="landing">Landing Page</button>
-    <button class="op-tab {{ default_tab == 'payment' ? 'active' : '' }}" data-tab="payment">Payment</button>
-    <button class="op-tab {{ default_tab == 'email' ? 'active' : '' }}" data-tab="email">Email / SMTP</button>
-    <button class="op-tab {{ default_tab == 'security' ? 'active' : '' }}" data-tab="security">Security</button>
-    <button class="op-tab {{ default_tab == 'checkout' ? 'active' : '' }}" data-tab="checkout">Checkout</button>
-    <button class="op-tab {{ default_tab == 'notification' ? 'active' : '' }}" data-tab="notification">Notifications</button>
-    <button class="op-tab {{ default_tab == 'faq' ? 'active' : '' }}" data-tab="faq">FAQ</button>
-    <button class="op-tab {{ default_tab == 'mobile' ? 'active' : '' }}" data-tab="mobile">Mobile App</button>
-    <button class="op-tab {{ default_tab == 'api' ? 'active' : '' }}" data-tab="api">API</button>
-    <button class="op-tab {{ default_tab == 'cron' ? 'active' : '' }}" data-tab="cron">Cron Jobs</button>
-    <button class="op-tab {{ default_tab == 'language' ? 'active' : '' }}" data-tab="language">Language</button>
-    {{ hook('admin.settings.tabs')|raw }}
-</div>
+<div class="op-settings-layout">
+    <aside class="op-settings-sidebar" id="settings-tabs">
+        <!-- Basic Settings Group -->
+        <div class="op-sidebar-group">
+            <div class="op-sidebar-group-title">Basic Settings</div>
+            <nav class="op-sidebar-nav">
+                <button type="button" class="op-tab {{ default_tab == 'general' or default_tab is empty ? 'active' : '' }}" data-tab="general">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </span>
+                    General
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'branding' ? 'active' : '' }}" data-tab="branding">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                    </span>
+                    Branding
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'faq' ? 'active' : '' }}" data-tab="faq">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </span>
+                    FAQ
+                </button>
+            </nav>
+        </div>
+
+        <!-- Appearance & Portal Group -->
+        <div class="op-sidebar-group">
+            <div class="op-sidebar-group-title">Appearance & Portal</div>
+            <nav class="op-sidebar-nav">
+                <button type="button" class="op-tab {{ default_tab == 'theme' ? 'active' : '' }}" data-tab="theme">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.7255 3.09032 17.1962 4.85857 19C5.35848 19.5 5.25 20.5 4.5 21C3.75 21.5 3 22 12 22Z"></path><circle cx="7.5" cy="10.5" r="1.5"></circle><circle cx="11.5" cy="7.5" r="1.5"></circle><circle cx="16.5" cy="9.5" r="1.5"></circle><circle cx="15.5" cy="14.5" r="1.5"></circle></svg>
+                    </span>
+                    Theme
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'landing' ? 'active' : '' }}" data-tab="landing">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    </span>
+                    Landing Page
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'checkout' ? 'active' : '' }}" data-tab="checkout">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                    </span>
+                    Checkout
+                </button>
+            </nav>
+        </div>
+
+        <!-- Gateways & Messages Group -->
+        <div class="op-sidebar-group">
+            <div class="op-sidebar-group-title">Gateways & Messages</div>
+            <nav class="op-sidebar-nav">
+                <button type="button" class="op-tab {{ default_tab == 'payment' ? 'active' : '' }}" data-tab="payment">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    </span>
+                    Payment Settings
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'email' ? 'active' : '' }}" data-tab="email">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    </span>
+                    Email / SMTP
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'notification' ? 'active' : '' }}" data-tab="notification">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    </span>
+                    Notifications
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'mobile' ? 'active' : '' }}" data-tab="mobile">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
+                    </span>
+                    Mobile App
+                </button>
+            </nav>
+        </div>
+
+        <!-- System & Advanced Group -->
+        <div class="op-sidebar-group">
+            <div class="op-sidebar-group-title">System & Advanced</div>
+            <nav class="op-sidebar-nav">
+                <button type="button" class="op-tab {{ default_tab == 'security' ? 'active' : '' }}" data-tab="security">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    </span>
+                    Security
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'api' ? 'active' : '' }}" data-tab="api">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
+                    </span>
+                    API Credentials
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'cron' ? 'active' : '' }}" data-tab="cron">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    </span>
+                    Cron Jobs
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'language' ? 'active' : '' }}" data-tab="language">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                    </span>
+                    Language
+                </button>
+                <button type="button" class="op-tab op-tab-highlight {{ default_tab == 'optimization' ? 'active' : '' }}" data-tab="optimization">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    </span>
+                    Optimization &amp; Maintenance
+                </button>
+                {{ hook('admin.settings.tabs')|raw }}
+            </nav>
+        </div>
+    </aside>
+    <div class="op-settings-main">
 
 <form method="POST" action="/admin/settings/save" class="op-form">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
@@ -921,8 +1026,253 @@
         </div>
     </div>
 
-    <div class="op-form-actions op-mt-4"><button type="submit" class="op-btn op-btn-primary op-btn-lg">Save Settings</button></div>
+    <div class="op-form-actions op-mt-4" {% if default_tab == 'optimization' %}style="display: none;"{% endif %}>
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg op-btn-flex-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            Save Settings
+        </button>
+    </div>
 </form>
+
+{# ── Optimization & Maintenance Tab ────────────────────────────────────── #}
+<div class="op-tab-panel {{ default_tab == 'optimization' ? 'active' : '' }}" id="tab-optimization">
+    <div class="op-card op-mb-4">
+        <div class="op-card-header">
+            <h3>Platform Resource Metrics</h3>
+            <span class="op-text-muted op-text-sm">Real-time usage statistics</span>
+        </div>
+        <div class="op-card-body">
+            <div class="op-grid-4">
+                {# Cache Metric Card #}
+                <div class="op-metric-card op-gradient-blue">
+                    <div class="op-metric-icon">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m12 0V5a2 2 0 00-2-2H7a2 2 0 00-2 2v2m12 0h-2M5 7h2"/></svg>
+                    </div>
+                    <div class="op-metric-content">
+                        <div class="op-metric-value">{{ (general_cache_size + twig_cache_size)|format_bytes }}</div>
+                        <div class="op-metric-label">Cache Storage</div>
+                        <div class="op-metric-meta">
+                            <span>App: {{ general_cache_size|format_bytes }} ({{ general_cache_count }} items)</span><br>
+                            <span>Twig: {{ twig_cache_size|format_bytes }} ({{ twig_cache_count }} views)</span>
+                        </div>
+                    </div>
+                </div>
+
+                {# Database Metric Card #}
+                <div class="op-metric-card op-gradient-purple">
+                    <div class="op-metric-icon">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+                    </div>
+                    <div class="op-metric-content">
+                        <div class="op-metric-value">{{ db_stats.total_size|format_bytes }}</div>
+                        <div class="op-metric-label">Database Size</div>
+                        <div class="op-metric-meta">
+                            <span>Tables: {{ db_stats.table_count }} tables</span><br>
+                            <span>Fragmented: {{ db_stats.free_size|format_bytes }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {# Logs & Sessions Metric Card #}
+                <div class="op-metric-card op-gradient-green">
+                    <div class="op-metric-icon">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <div class="op-metric-content">
+                        <div class="op-metric-value">{{ (log_stats.audit_count + log_stats.login_count + log_stats.comm_count + log_stats.webhook_count)|number_format }}</div>
+                        <div class="op-metric-label">System Logs</div>
+                        <div class="op-metric-meta">
+                            <span>Audit: {{ log_stats.audit_count|number_format }} | Webhook: {{ log_stats.webhook_count|number_format }}</span><br>
+                            <span>Sessions: {{ log_stats.session_count|number_format }} active</span>
+                        </div>
+                    </div>
+                </div>
+
+                {# Temp Files Metric Card #}
+                <div class="op-metric-card op-gradient-orange">
+                    <div class="op-metric-icon">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </div>
+                    <div class="op-metric-content">
+                        <div class="op-metric-value">{{ temp_uploads_size|format_bytes }}</div>
+                        <div class="op-metric-label">Temporary Files</div>
+                        <div class="op-metric-meta">
+                            <span>Files: {{ temp_uploads_count }} items</span><br>
+                            <span>Ready to reclaim</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header">
+            <h3>Manual Optimization Tools</h3>
+            <span class="op-text-muted op-text-sm">Safe actions recommended once a month in production</span>
+        </div>
+        <div class="op-card-body">
+            {# 1. Cache Tool #}
+            <div class="op-opt-tool-row">
+                <div class="op-opt-tool-info">
+                    <h4>Clean Application &amp; View Cache</h4>
+                    <p class="op-text-muted op-text-sm">Flushes key-value Redis/File cache pools, clears compiled Twig templates, and invalidates temporary URL caches. 100% safe to run anytime.</p>
+                    <small class="op-text-muted">
+                        Last executed: 
+                        {% if opt_settings.last_cache_clear %}
+                            <strong>{{ opt_settings.last_cache_clear|time_ago }}</strong> ({{ opt_settings.last_cache_clear|datetime }})
+                        {% else %}
+                            <span class="op-text-warning">Never run</span>
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="op-opt-tool-action">
+                    <button type="submit" form="optimize-cache-form" class="op-btn op-btn-outline btn-opt-trigger">Clean Cache</button>
+                </div>
+            </div>
+
+            <hr class="op-divider">
+
+            {# 2. DB Tool #}
+            <div class="op-opt-tool-row">
+                <div class="op-opt-tool-info">
+                    <h4>Analyze &amp; Defragment Database</h4>
+                    <p class="op-text-muted op-text-sm">Runs query optimization analyzer and defragments indices on active high-churn tables (transactions, ledger, and logs) to boost lookup speeds. Executed online and table-by-table to prevent locking issues.</p>
+                    <small class="op-text-muted">
+                        Last executed: 
+                        {% if opt_settings.last_db_optimize %}
+                            <strong>{{ opt_settings.last_db_optimize|time_ago }}</strong> ({{ opt_settings.last_db_optimize|datetime }})
+                        {% else %}
+                            <span class="op-text-warning">Never run</span>
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="op-opt-tool-action">
+                    <button type="submit" form="optimize-db-form" class="op-btn op-btn-outline btn-opt-trigger">Optimize DB</button>
+                </div>
+            </div>
+
+            <hr class="op-divider">
+
+            {# 3. Logs & Sessions Tool #}
+            <div class="op-opt-tool-row">
+                <div class="op-opt-tool-info">
+                    <h4>Purge Logs &amp; Sessions</h4>
+                    <p class="op-text-muted op-text-sm">Wipes expired login attempts, webhook delivery records, communication logs, and audit entries older than the configured retention period. Clears dead guest user sessions.</p>
+                    <div class="op-form-group op-mt-2">
+                        <label class="op-text-sm">Log Retention Period:</label>
+                        <select id="log-retention-select" class="op-input op-input-sm" style="max-width: 180px; display: inline-block; margin-left: 8px;">
+                            <option value="30" {{ opt_settings.log_retention_days == 30 ? 'selected' : '' }}>30 days</option>
+                            <option value="60" {{ opt_settings.log_retention_days == 60 ? 'selected' : '' }}>60 days</option>
+                            <option value="90" {{ opt_settings.log_retention_days == 90 ? 'selected' : '' }}>90 days (Recommended)</option>
+                            <option value="180" {{ opt_settings.log_retention_days == 180 ? 'selected' : '' }}>180 days</option>
+                        </select>
+                    </div>
+                    <small class="op-text-muted op-mt-1" style="display: block;">
+                        Last executed: 
+                        {% if opt_settings.last_logs_purge %}
+                            <strong>{{ opt_settings.last_logs_purge|time_ago }}</strong> ({{ opt_settings.last_logs_purge|datetime }})
+                        {% else %}
+                            <span class="op-text-warning">Never run</span>
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="op-opt-tool-action">
+                    <button type="submit" form="optimize-logs-form" class="op-btn op-btn-outline btn-opt-trigger">Purge Logs</button>
+                </div>
+            </div>
+
+            <hr class="op-divider">
+
+            {# 4. Temp Uploads Tool #}
+            <div class="op-opt-tool-row">
+                <div class="op-opt-tool-info">
+                    <h4>Clean Temporary Uploads</h4>
+                    <p class="op-text-muted op-text-sm">Deletes orphaned and abandoned temporary files inside the system temp storage older than 24 hours to reclaim disk space. Perfectly safe and non-disruptive.</p>
+                    <small class="op-text-muted">
+                        Last executed: 
+                        {% if opt_settings.last_uploads_purge %}
+                            <strong>{{ opt_settings.last_uploads_purge|time_ago }}</strong> ({{ opt_settings.last_uploads_purge|datetime }})
+                        {% else %}
+                            <span class="op-text-warning">Never run</span>
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="op-opt-tool-action">
+                    <button type="submit" form="optimize-uploads-form" class="op-btn op-btn-outline btn-opt-trigger">Clean Temp Files</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Master Action Panel #}
+    <div class="op-card op-card-bordered op-gradient-panel op-p-4 op-text-center op-mb-4">
+        <h4>Complete Platform Performance Sweep</h4>
+        <p class="op-text-muted op-max-width-600 op-mx-auto op-mt-1 op-mb-3 op-text-sm">
+            Boost your system performance by running a full optimization run. This will execute all safe cache, database index defragmentation, temporary upload cleans, and expired logging maintenance scripts sequentially.
+        </p>
+        <button type="submit" form="optimize-all-form" class="op-btn op-btn-primary op-btn-lg btn-opt-trigger">
+            ⚡ Run Full Platform Maintenance
+        </button>
+    </div>
+</div>
+    </div> {# op-settings-main #}
+</div> {# op-settings-layout #}
+
+<form id="optimize-cache-form" method="POST" action="/admin/settings/optimize/cache">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+<form id="optimize-db-form" method="POST" action="/admin/settings/optimize/database">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+<form id="optimize-logs-form" method="POST" action="/admin/settings/optimize/logs">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="log_retention_days" id="logs-retention-input" value="90">
+</form>
+<form id="optimize-uploads-form" method="POST" action="/admin/settings/optimize/uploads">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+<form id="optimize-all-form" method="POST" action="/admin/settings/optimize/all">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="log_retention_days" id="all-retention-input" value="90">
+</form>
+
+<script nonce="{{ csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function () {
+        var select = document.getElementById('log-retention-select');
+        var inputLogs = document.getElementById('logs-retention-input');
+        var inputAll = document.getElementById('all-retention-input');
+        if (select && inputLogs && inputAll) {
+            select.addEventListener('change', function () {
+                inputLogs.value = this.value;
+                inputAll.value = this.value;
+            });
+            // Initial sync
+            inputLogs.value = select.value;
+            inputAll.value = select.value;
+        }
+
+        // Setup loading confirmation / spinner state when optimization is clicked
+        var buttons = document.querySelectorAll('.btn-opt-trigger');
+        buttons.forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                var btnText = btn.innerText;
+                btn.disabled = true;
+                btn.innerHTML = '<span class="op-spinner"></span> Optimizing...';
+                
+                // Find form and submit it manually since we disabled button
+                var formId = btn.getAttribute('form');
+                if (formId) {
+                    var form = document.getElementById(formId);
+                    if (form) {
+                        e.preventDefault();
+                        form.submit();
+                    }
+                }
+            });
+        });
+    });
+</script>
 
 <form id="save-default-lang-form" method="POST" action="/admin/settings/language/save-default">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

@@ -21,6 +21,16 @@
             if (window.location.hash !== "#tab-" + this.dataset.tab) {
                 history.replaceState(null, null, "#tab-" + this.dataset.tab);
             }
+
+            // Toggle visibility of Save Settings button for Maintenance tab
+            var formActions = document.querySelector(".op-form-actions");
+            if (formActions) {
+                if (this.dataset.tab === "optimization") {
+                    formActions.style.display = "none";
+                } else {
+                    formActions.style.display = "";
+                }
+            }
         });
     });
 

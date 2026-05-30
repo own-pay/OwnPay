@@ -79,6 +79,7 @@ final class TwigExtensions extends AbstractExtension
             new TwigFilter('truncate', [$this, 'truncate']),
             new TwigFilter('slug', [$this, 'slugify']),
             new TwigFilter('time_ago', [$this, 'timeAgo']),
+            new TwigFilter('format_bytes', [$this, 'formatBytes']),
         ];
     }
 
@@ -406,6 +407,27 @@ final class TwigExtensions extends AbstractExtension
         } catch (\Exception) {
             return $datetime;
         }
+    }
+
+    /**
+     * Format an integer byte count into a readable string (e.g. 1.2 MB).
+     *
+     * @param string|int|float|null $bytes The bytes count.
+     * @return string The formatted byte representation.
+     */
+    public function formatBytes(string|int|float|null $bytes): string
+    {
+        $b = (float) ($bytes ?? 0);
+        if ($b >= 1073741824) {
+            return round($b / 1073741824, 2) . ' GB';
+        }
+        if ($b >= 1048576) {
+            return round($b / 1048576, 2) . ' MB';
+        }
+        if ($b >= 1024) {
+            return round($b / 1024, 1) . ' KB';
+        }
+        return $b . ' B';
     }
 }
 

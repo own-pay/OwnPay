@@ -179,6 +179,13 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/settings/cron/regenerate', 'Admin\\SettingsController@regenerateCronSecret', 'admin');
     $router->post('/admin/settings/cron/run/{jobName}', 'Admin\\SettingsController@runCronJob', 'admin');
 
+    // Optimization
+    $router->post('/admin/settings/optimize/cache', 'Admin\\SettingsController@optimizeCache', 'admin');
+    $router->post('/admin/settings/optimize/database', 'Admin\\SettingsController@optimizeDatabase', 'admin');
+    $router->post('/admin/settings/optimize/logs', 'Admin\\SettingsController@optimizeLogs', 'admin');
+    $router->post('/admin/settings/optimize/uploads', 'Admin\\SettingsController@optimizeUploads', 'admin');
+    $router->post('/admin/settings/optimize/all', 'Admin\\SettingsController@optimizeAll', 'admin');
+
     // Language Settings
     $router->post('/admin/settings/language/save-default', 'Admin\\SettingsController@saveDefaultLanguage', 'admin');
     $router->post('/admin/settings/language/create', 'Admin\\SettingsController@createLanguage', 'admin');

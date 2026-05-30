@@ -1,0 +1,261 @@
+================================================================================
+          OWNPAY ULTIMATE ADVENTURE AUDIT — MASTER PROMPT
+================================================================================
+Mode: Local Filesystem Discovery | Self-Directed Investigation | Adversarial Audit
+Scope: Full Codebase Depth-Audit, Architectural Compliance, and Risk Validation
+Target: OwnPay Open-Source Payment Gateway (PHP 8.2+, MySQL, PSR-11, Twig)
+================================================================================
+
+SECTION 1: THE MISSION & ADVENTURE IDENTITY
+================================================================================
+You are entering an epic, high-stakes engineering and security expedition. You are
+not a simple code reviewer or linters assistant; you are a world-class Adversarial
+Systems Architect and Fintech Forensic Auditor. Your mission is to conduct a 100%
+exhaustive, pre-release master audit of the OwnPay payment gateway platform. 
+
+This is the absolute final gate before OwnPay's first public release. Your goal 
+is to find EVERY single logic bug, structural flaw, security vulnerability, 
+financial leak, or compliance discrepancy. 
+
+To achieve this, you are bound by an unbreakable "Oath of the Auditor":
+- GUESS NOTHING. ASSUME NOTHING. Check the real code, trace real functions, 
+  and read every line of logic.
+- Follow every function step: trace where it is connected, what each step does,
+  what is complete, what is missing, and what gaps remain.
+- Discover all files, directories, routes, and services yourself. Do not rely 
+  on any external hardcoded maps. Traverse and audit the actual filesystem.
+
+--------------------------------------------------------------------------------
+THE SOVEREIGN CORE PRINCIPLE:
+OwnPay is a single-owner, multi-brand (multi-store) payment gateway platform. 
+It is NOT a SaaS/multi-tenant service. One super-administrator controls 
+the entire platform. Multiple brands operate under this owner, and staff 
+members are assigned to brands. The DB tenant identifier column is ALWAYS 
+`merchant_id` (even though the UI calls it "Brand" or "Store"). Keep this 
+sovereign structure in mind at all times. Any feature that breaches this flow, 
+compromises brand isolation, or permits unprivileged staff access is a release-
+blocking finding.
+--------------------------------------------------------------------------------
+
+
+SECTION 2: ADVENTURE QUESTS (MANDATORY AUDIT TARGETS)
+================================================================================
+You must traverse the codebase and systematically complete the following 6 Quests:
+
+--------------------------------------------------------------------------------
+QUEST 1: THE SOVEREIGN BOUNDARY & WHITE-LABEL CUSTOM DOMAINS
+--------------------------------------------------------------------------------
+Find and audit the files implementing custom domain routing, brand theme resolution,
+and brand/merchant isolation. Inquire and verify:
+1. Tenant Isolation & Scoping:
+   - Does every brand-specific database repository utilize a Tenant Scoping mechanism?
+   - Before executing queries, is the brand context (`merchant_id`) explicitly set?
+   - Trace all repository operations: are there any places where scoping is bypassed,
+     allowing a staff member or client of Brand A to access or manipulate data or 
+     settings of Brand B?
+2. Custom Domain Resolution:
+   - How does the domain routing middleware resolve custom domains? 
+   - Is there strict domain enforcement? If a request arrives on a custom domain that
+     does not exist or is inactive (e.g., `dns_verified = 0` or pending), does the 
+     system immediately return a 404/503 error, or does it leak through to the app?
+3. Admin Route Protection:
+   - Is the administrative portal (`/admin/*`) strictly blocked on custom domains? 
+   - Verify that the admin dashboard is ONLY accessible on the master domain.
+4. Brand Theme Resolution:
+   - Does the checkout controller load brand theme configurations (custom CSS, JS, 
+     logos) via a dedicated Brand Theme service? Or does it query the brand directly
+     and bypass the brand-scoped settings check?
+
+--------------------------------------------------------------------------------
+QUEST 2: THE DOUBLE-ENTRY FINANCIAL LEDGER & PAYMENT INTEGRITY
+--------------------------------------------------------------------------------
+Find and audit the core payment transaction services, refund/dispute processors, 
+and double-entry bookkeeping components. Inquire and verify:
+1. Double-Entry Accounting Balancing:
+   - Does every financial movement record entries across Ledger Accounts, Ledger 
+     Transactions, and Ledger Entries tables?
+   - Is there a strict Journal Balance Constraint? Verify that the sum of debits
+     MUST equal the sum of credits for every transaction, rolling back on imbalance.
+2. GAAP Compliance & Directionality:
+   - Are account balances adjusted strictly according to GAAP rules? 
+   - Verify that DR increases and CR decreases Asset/Expense accounts, and CR increases 
+     and DR decreases Liability/Equity/Revenue accounts.
+3. Concurrency & Race Conditions:
+   - Are all ledger entries posted within database transactions with explicit locks
+     (e.g., `SELECT ... FOR UPDATE` or application mutexes) to prevent double-posting 
+     or out-of-order balance calculations under high concurrent loads (1 million DAU)?
+4. Scoped Cloning Integrity:
+   - When a repository or service uses tenant scoping, does it return a cloned 
+     instance? 
+   - Verify that the codebase captures and utilizes this cloned returned instance, 
+     rather than referencing the original unscoped/stale instance.
+5. Refund Calculations:
+   - Are refund fees and net amounts calculated proportionally and atomically, 
+     preventing refunds from exceeding the original transaction amount or double-refunding?
+
+--------------------------------------------------------------------------------
+QUEST 3: THE SMS INGESTION, PAIRING & PARSING ENGINE
+--------------------------------------------------------------------------------
+OwnPay utilizes companion mobile devices to ingest and match carrier receipt SMS 
+messages to automate offline payment confirmations. Find and audit the SMS services,
+parsers, device pairing repositories, and cron verification jobs. Inquire and verify:
+1. Parameter Mismatch Bug Hunt (CRITICAL):
+   - Locate where the SMS parsing engine is called by the MFS/payment matching service
+     (e.g., when processing incoming SMS data). 
+   - Verify the argument order! Check if there is a severe parameter mismatch where the 
+     sender is passed as the message body, or the body is passed as the sender. If this
+     exists, it will completely break all automatic MFS parsing. Trace this call stack!
+2. SMS Data Processing & Fail-safes:
+   - What happens if the SMS content contains new words, letters, or structures not 
+     defined in the regex template? Does the regex engine gracefully fall back to 
+     lexical/keyword proximity heuristic analysis, or does it trigger unhandled errors?
+3. The Single vs. Multi-Word Reference Problem:
+   - Payer references in SMS receipts (like bKash/Nagad) can contain a single word 
+     or multiple words with or without spaces (e.g. "School Fee" vs "fee"). 
+   - How does the parser capture these? If the regex limits matching to strict 
+     alphanumeric patterns (like `[A-Z0-9]`), does a reference with spaces cause the 
+     entire regex block to fail to match the transaction? What happens to the payment?
+4. Device Pairing & Scoping:
+   - When mapping JWT claims, does the pairing service gracefully fallback to the 
+     default superadmin ID `1` if the owner column is null, or does it crash?
+5. Notification UUID Scoping & Casting:
+   - When retrieving device identifiers from API controllers, are UUIDs strictly 
+     cast to strings? If cast to integers, does the UUID turn to `0`, bricking all
+     device queries?
+   - Verify that notification acknowledgements filter strictly by device UUID to 
+     prevent cross-brand/cross-device IDOR vulnerabilities.
+
+--------------------------------------------------------------------------------
+QUEST 4: THE CHECKOUT, INVOICE & FRONTEND FLOWS
+--------------------------------------------------------------------------------
+Find and audit the invoice generation engines, frontend templates, manual payment 
+gateways, and public checkout flows. Inquire and verify:
+1. Dynamic Invoice Calculations:
+   - When updating an invoice, does the service dynamically recalculate the totals
+     and subtotals from current request inputs, or does it save stale values?
+   - Does it purge old invoice items and insert fresh ones to avoid orphan records, 
+     or does it overwrite totals to `0.00` BDT?
+2. Gateway Logo Paths & Assets:
+   - Are manual gateway logo and QR code paths prefixed correctly with `/storage/`? 
+     Check if nested admin/checkout routes render broken image paths (404) due to 
+     missing prefixes.
+3. Safe Clipboard Copying:
+   - Do admin panels and copy buttons call the native browser clipboard API directly, 
+     or do they utilize a robust fallback helper function to support clipboard actions
+     in non-secure HTTP administrative contexts?
+4. UI/UX User-Friendliness & Stranding Risks:
+   - Trace all user checkout screens. Are there loading indicators, form validation
+     sync, clear success states, and robust error messages? 
+   - Can a customer get stranded with no way to proceed or return if an external payment
+     verification fails or is delayed?
+
+--------------------------------------------------------------------------------
+QUEST 5: DATABASE SCHEMA HARDENING & SCALABILITY
+--------------------------------------------------------------------------------
+Find and review the database DDL file (e.g., `schema.sql`) and compare it with the 
+codebase models and repositories. Inquire and verify:
+1. Structural Normalization & Integrity:
+   - Is the database schema normalized? Are appropriate foreign keys and unique constraints 
+     configured to prevent duplicates?
+2. Codebase vs. Schema Discrepancies:
+   - Identify if there are any columns or tables referenced in the active codebase that 
+     are missing from the schema definition, or vice versa.
+3. Strict Column Naming Compliance:
+   - Verify that the schema utilizes the EXACT column names expected by the codebase:
+     * `op_merchant_users` -> `two_factor_enabled` (NOT `totp_enabled`, `two_fa_enabled`)
+     * `op_merchant_users` -> `totp_secret_enc` (NOT `totp_secret`, `totp_secret_encrypted`)
+     * `op_currencies` -> `decimal_places` (NOT `decimals`, `decimal`)
+     * `op_exchange_rates` -> `base_currency` & `target_currency`
+     * `op_sms_parsed` -> `device_id` & `match_status` (NOT generic status)
+     * `op_ledger_entries` & `op_ledger_accounts` -> `type`
+   - Are all tables correctly prefixed with `op_`?
+4. Scalability Optimization for 1 Million Daily Paying Users:
+   - JSON extraction is too slow for hot database queries. Are hot transaction details 
+     (e.g., invoice IDs or payment link IDs) configured as **Stored Generated Columns** 
+     with matching indices, or are they queried dynamically from raw JSON?
+   - Are all critical indexes present for high-volume transactions?
+
+--------------------------------------------------------------------------------
+QUEST 6: THE INSTALLER WIZARD BOOTSTRAP LOGIC
+--------------------------------------------------------------------------------
+Find and audit the installer wizard controllers, environment writers, and setup 
+middlewares. Inquire and verify:
+1. Database Independence:
+   - Does the installer middleware group bypass all database-dependent middleware 
+     (sessions, settings, rate limiters) since the database is absent during installation?
+2. Key Parsing & Decryption Safeguards:
+   - Does the installer avoid using `parse_ini_file` to read the temporary `.env`? 
+     Verify if base64-encoded strings (like keys containing `=`) break the PHP ini parser.
+3. Installation Locking:
+   - Does the system return an immediate 404 or redirect on `/install/*` routes once 
+     the `.installed` lock file exists in storage?
+
+
+SECTION 3: THE BINDING RULES FOR THE AUDITOR
+================================================================================
+You must follow these operational rules strictly throughout your execution:
+
+1. DO NOT GUESS. If you state a file has an issue, you must open it, verify the 
+   exact line numbers, and copy the code snippet as evidence.
+2. DO NOT SKIP. Every quest, question, and category must be evaluated in full.
+3. ADVERSARIAL MINDSET. Treat the system as under active attack. Assume every 
+   input is untrusted and every configuration could be misconfigured.
+4. DO NOT WRITE CODE CHANGES TO DISK. This is an AUDIT ONLY. Your goal is to log 
+   issues in your report, not modify the application codebase.
+5. EXPOSE HIDDEN REGRESSIONS. Find places where stubs, TODOs, FIXMEs, or dead code
+   are left behind. Check if they are release-blocking.
+
+
+SECTION 4: AUDIT FINDINGS REGISTRY (REQUIRED STRUCTURE)
+================================================================================
+You will output your audit report in a new file named `ownpay_master_audit_report.md`
+inside the target directory (e.g. `docs/v2/audit_findings/ownpay_master_audit_report.md` 
+or another suitable audit directory). 
+
+Structure the report using this exact schema:
+
+# OWNPAY MASTER AUDIT REPORT
+## 1. Scope, Methodology & Discovery Map
+Provide a summary of the directories traversed, the entry points discovered, and
+the core architecture mapped.
+
+## 2. Executive Summary
+- Total findings categorized in a severity matrix table.
+- Overall release recommendation: HOLDBACK / CONDITIONAL / READY.
+- The Single-Owner business model risk analysis (Do any features break the 
+  single-owner flow?).
+
+## 3. High-Volume Scalability & Database Assessment
+- Detailed review of the database schema (`schema.sql` vs codebase).
+- Analysis of column naming compliance.
+- Evaluation of stored generated columns, index coverage, and slow JSON query risks 
+  for the 1 million daily user target.
+
+## 4. The MFS SMS-Parsing Edge Case Report
+- In-depth review of the SMS templates, regex generator, and heuristic fallback.
+- Analysis of what happens when the SMS content contains unexpected characters/words.
+- Detailed scenario mapping for single vs. multi-word references with/without spaces.
+- **The Argument Mismatch Finding**: Document the exact file, lines, and impact of the
+  MfsService parameter order mismatch.
+
+## 5. Detailed Findings
+For each finding, use this precise format:
+
+### [SEVERITY] [QUEST-ID] FIND-[NNN] — [Title]
+- **Severity**: CRITICAL / HIGH / MEDIUM / LOW / INFORMATIONAL
+- **Quest**: Sovereign Domain / Ledger & Payments / SMS Engine / Checkout & UI / DB Hardening / Installer
+- **Location**: `relative/path/to/file.php` (Lines X-Y)
+- **Description**: Detailed explanation of the logic flaw, vulnerability, or gap.
+- **Root Cause**: Why the issue exists.
+- **Evidence**: Paste the exact, raw code block proving the finding.
+- **Attack Path / Scenario**: Step-by-step description of how this is triggered, abused, or how it fails.
+- **Impact**: Quantified risk (financial loss, cross-brand leak, broken matcher, crashing API).
+- **Proposed Technical Fix**: Complete, copy-pasteable PHP/SQL/JS code showing the corrected implementation.
+
+## 6. Pass Log
+List every check and quest category that passed without issues, including a one-line 
+verification note for each.
+
+================================================================================
+END OF PROMPT
+================================================================================

@@ -195,6 +195,100 @@ final class SettingsController
         $languages = $transSvc->getAllLanguages();
         $defaultLanguage = $transSvc->getDefaultLanguage();
 
+        // Optimization metrics calculations
+        $twigCacheDir = dirname(__DIR__, 3) . '/storage/cache/twig';
+        $generalCacheDir = dirname(__DIR__, 3) . '/storage/cache';
+        $twigStats = $this->getDirectoryStats($twigCacheDir);
+        $totalCacheStats = $this->getDirectoryStats($generalCacheDir);
+        $generalCacheSize = max(0, $totalCacheStats['size'] - $twigStats['size']);
+        $generalCacheCount = max(0, $totalCacheStats['count'] - $twigStats['count']);
+
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $dbName = 'ownpay';
+        $configApp = $this->c->get('config.app');
+        $dbConfig = (is_array($configApp) && isset($configApp['db']) && is_array($configApp['db'])) ? $configApp['db'] : [];
+        if (!empty($dbConfig['name']) && is_string($dbConfig['name'])) {
+            $dbName = $dbConfig['name'];
+        }
+
+        $dbStats = [
+            'total_size' => 0,
+            'table_count' => 0,
+            'free_size' => 0,
+            'fragmented_tables' => []
+        ];
+
+        try {
+            if ($db instanceof \OwnPay\Core\Database) {
+                $tables = $db->fetchAll(
+                    "SELECT TABLE_NAME, DATA_LENGTH, INDEX_LENGTH, DATA_FREE 
+                     FROM information_schema.TABLES 
+                     WHERE TABLE_SCHEMA = :db",
+                    ['db' => $dbName]
+                );
+                $totalSize = 0;
+                $freeSize = 0;
+                $fragTables = [];
+                foreach ($tables as $t) {
+                    $dLen = is_numeric($t['DATA_LENGTH'] ?? null) ? (int) $t['DATA_LENGTH'] : 0;
+                    $iLen = is_numeric($t['INDEX_LENGTH'] ?? null) ? (int) $t['INDEX_LENGTH'] : 0;
+                    $dFree = is_numeric($t['DATA_FREE'] ?? null) ? (int) $t['DATA_FREE'] : 0;
+                    $totalSize += ($dLen + $iLen);
+                    $freeSize += $dFree;
+                    if ($dFree > 0) {
+                        $tNameVal = $t['TABLE_NAME'] ?? '';
+                        $fragTables[] = [
+                            'name' => is_scalar($tNameVal) ? (string)$tNameVal : '',
+                            'free' => $dFree
+                        ];
+                    }
+                }
+                $dbStats = [
+                    'total_size' => $totalSize,
+                    'table_count' => count($tables),
+                    'free_size' => $freeSize,
+                    'fragmented_tables' => $fragTables
+                ];
+            }
+        } catch (\Throwable) {
+        }
+
+        $logStats = [
+            'audit_count' => 0,
+            'login_count' => 0,
+            'comm_count' => 0,
+            'webhook_count' => 0,
+            'session_count' => 0
+        ];
+
+        try {
+            if ($db instanceof \OwnPay\Core\Database) {
+                $auditVal = $db->fetchColumn("SELECT COUNT(*) FROM op_audit_logs");
+                $loginVal = $db->fetchColumn("SELECT COUNT(*) FROM op_login_attempts");
+                $commVal = $db->fetchColumn("SELECT COUNT(*) FROM op_comm_log");
+                $webhookVal = $db->fetchColumn("SELECT COUNT(*) FROM op_webhook_delivery_logs");
+                $sessionVal = $db->fetchColumn("SELECT COUNT(*) FROM op_sessions");
+
+                $logStats['audit_count'] = is_numeric($auditVal) ? (int) $auditVal : 0;
+                $logStats['login_count'] = is_numeric($loginVal) ? (int) $loginVal : 0;
+                $logStats['comm_count'] = is_numeric($commVal) ? (int) $commVal : 0;
+                $logStats['webhook_count'] = is_numeric($webhookVal) ? (int) $webhookVal : 0;
+                $logStats['session_count'] = is_numeric($sessionVal) ? (int) $sessionVal : 0;
+            }
+        } catch (\Throwable) {
+        }
+
+        $tempDir = dirname(__DIR__, 3) . '/storage/temp';
+        $tempStats = $this->getDirectoryStats($tempDir);
+
+        $optimizationSettings = [
+            'log_retention_days' => (int) $this->settingsRepo->get('runtime', 'optimization.log_retention_days', '90'),
+            'last_cache_clear' => $this->settingsRepo->get('runtime', 'optimization.last_cache_clear_time', ''),
+            'last_db_optimize' => $this->settingsRepo->get('runtime', 'optimization.last_db_optimize_time', ''),
+            'last_logs_purge' => $this->settingsRepo->get('runtime', 'optimization.last_logs_purge_time', ''),
+            'last_uploads_purge' => $this->settingsRepo->get('runtime', 'optimization.last_uploads_purge_time', '')
+        ];
+
         return $this->renderAdminPage('admin/settings/index.twig', [
             'settings'          => $settings,
             'branding'          => $branding,
@@ -212,6 +306,15 @@ final class SettingsController
             'cron_jobs'         => $cronJobs,
             'languages'         => $languages,
             'default_language'  => $defaultLanguage,
+            'general_cache_size' => $generalCacheSize,
+            'general_cache_count' => $generalCacheCount,
+            'twig_cache_size'   => $twigStats['size'],
+            'twig_cache_count'  => $twigStats['count'],
+            'db_stats'          => $dbStats,
+            'log_stats'         => $logStats,
+            'temp_uploads_size'  => $tempStats['size'],
+            'temp_uploads_count' => $tempStats['count'],
+            'opt_settings'      => $optimizationSettings,
         ]);
     }
 
@@ -320,6 +423,343 @@ final class SettingsController
             'landing'  => 'landing-editor',
         ];
         return $this->index($req, $tab);
+    }
+
+    /**
+     * Helper to recursively scan a directory for total file count and size.
+     *
+     * @param string $dir Target directory.
+     * @return array{size: int, count: int}
+     */
+    private function getDirectoryStats(string $dir): array
+    {
+        $size = 0;
+        $count = 0;
+        if (!is_dir($dir)) {
+            return ['size' => $size, 'count' => $count];
+        }
+
+        try {
+            $iterator = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS)
+            );
+            foreach ($iterator as $file) {
+                if ($file instanceof \SplFileInfo && $file->isFile()) {
+                    $size += $file->getSize();
+                    $count++;
+                }
+            }
+        } catch (\Throwable) {
+            // Gracefully ignore directory permission or read errors
+        }
+
+        return ['size' => $size, 'count' => $count];
+    }
+
+    /**
+     * Recursively unlinks directory contents while keeping the base directory intact.
+     *
+     * @param string $dir Target directory.
+     * @return void
+     */
+    private function removeDirectoryContents(string $dir): void
+    {
+        if (!is_dir($dir)) {
+            return;
+        }
+        try {
+            $items = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+            foreach ($items as $item) {
+                if ($item instanceof \SplFileInfo) {
+                    $realPath = $item->getRealPath();
+                    if ($realPath !== false) {
+                        $item->isDir() ? @rmdir($realPath) : @unlink($realPath);
+                    }
+                }
+            }
+        } catch (\Throwable) {
+        }
+    }
+
+    /**
+     * Clears application general key-value caches and unlinks Twig compiled templates.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response The redirect response.
+     */
+    public function optimizeCache(Request $req): Response
+    {
+        // 1. Flush key-value cache
+        /** @var mixed $cache */
+        $cache = $this->c->get(\OwnPay\Cache\CacheInterface::class);
+        if ($cache instanceof \OwnPay\Cache\CacheInterface) {
+            $cache->flush();
+        }
+
+        // 2. Clear Twig views cache
+        $twigCacheDir = dirname(__DIR__, 3) . '/storage/cache/twig';
+        if (is_dir($twigCacheDir)) {
+            $this->removeDirectoryContents($twigCacheDir);
+        }
+
+        // 3. Clear Login slug cache
+        $loginSlugCache = dirname(__DIR__, 3) . '/storage/cache/login_slug.cache';
+        if (file_exists($loginSlugCache)) {
+            @unlink($loginSlugCache);
+        }
+
+        $this->settingsRepo->set('runtime', 'optimization.last_cache_clear_time', date('Y-m-d H:i:s'));
+        $this->audit->log('settings.cache_cleaned', 'settings');
+        $this->session->flashSuccess('Application cache and compiled Twig templates cleared successfully.');
+
+        return Response::redirect('/admin/settings/optimization');
+    }
+
+    /**
+     * Executes index statistics updates globally and defragments key high-churn tables.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response The redirect response.
+     */
+    public function optimizeDatabase(Request $req): Response
+    {
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            $this->session->flashError('Database connection unavailable.');
+            return Response::redirect('/admin/settings/optimization');
+        }
+
+        $dbName = 'ownpay';
+        $configApp = $this->c->get('config.app');
+        /** @var array<string, mixed> $dbConfig */
+        $dbConfig = (is_array($configApp) && isset($configApp['db']) && is_array($configApp['db'])) ? $configApp['db'] : [];
+        if (!empty($dbConfig['name']) && is_string($dbConfig['name'])) {
+            $dbName = $dbConfig['name'];
+        }
+
+        try {
+            // Get all tables in our schema
+            $tables = $db->fetchAll(
+                "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = :db",
+                ['db' => $dbName]
+            );
+
+            // Fast, non-blocking stats update (ANALYZE) on all tables
+            foreach ($tables as $t) {
+                $tableName = (isset($t['TABLE_NAME']) && is_scalar($t['TABLE_NAME'])) ? (string) $t['TABLE_NAME'] : '';
+                if ($tableName !== '' && str_starts_with($tableName, 'op_')) {
+                    $db->execute("ANALYZE TABLE `{$tableName}`");
+                }
+            }
+
+            // Safe defragmentation (OPTIMIZE) on high-churn tables table-by-table
+            $hotTables = ['op_transactions', 'op_ledger_entries', 'op_sms_parsed', 'op_audit_logs'];
+            foreach ($hotTables as $tableName) {
+                $db->execute("OPTIMIZE TABLE `{$tableName}`");
+            }
+
+            $this->settingsRepo->set('runtime', 'optimization.last_db_optimize_time', date('Y-m-d H:i:s'));
+            $this->audit->log('settings.db_optimized', 'settings');
+            $this->session->flashSuccess('Database query statistics analyzed and fragmented index pages defragmented.');
+        } catch (\Throwable $e) {
+            $this->session->flashError('Database optimization failed: ' . $e->getMessage());
+        }
+
+        return Response::redirect('/admin/settings/optimization');
+    }
+
+    /**
+     * Purges expired user sessions and logs older than the configurable retention setting.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response The redirect response.
+     */
+    public function optimizeLogs(Request $req): Response
+    {
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            $this->session->flashError('Database connection unavailable.');
+            return Response::redirect('/admin/settings/optimization');
+        }
+
+        $retentionVal = $req->post('log_retention_days', '90');
+        $retentionDays = is_numeric($retentionVal) ? (int)$retentionVal : 90;
+        if (!in_array($retentionDays, [30, 60, 90, 180], true)) {
+            $retentionDays = 90;
+        }
+
+        // Persist retention setting
+        $this->settingsRepo->set('runtime', 'optimization.log_retention_days', (string) $retentionDays);
+
+        try {
+            $cutoffDate = date('Y-m-d H:i:s', strtotime("-{$retentionDays} days"));
+
+            // 1. Purge old audit logs
+            $db->execute("DELETE FROM op_audit_logs WHERE created_at < :cutoff", ['cutoff' => $cutoffDate]);
+
+            // 2. Purge old login attempts
+            $db->execute("DELETE FROM op_login_attempts WHERE created_at < :cutoff", ['cutoff' => $cutoffDate]);
+
+            // 3. Purge old communication logs
+            $db->execute("DELETE FROM op_comm_log WHERE created_at < :cutoff", ['cutoff' => $cutoffDate]);
+
+            // 4. Purge old webhook delivery logs
+            $db->execute("DELETE FROM op_webhook_delivery_logs WHERE created_at < :cutoff", ['cutoff' => $cutoffDate]);
+
+            // 5. Purge expired sessions
+            $db->execute("DELETE FROM op_sessions WHERE last_activity < :cutoff", ['cutoff' => time() - 86400]);
+
+            $this->settingsRepo->set('runtime', 'optimization.last_logs_purge_time', date('Y-m-d H:i:s'));
+            $this->audit->log('settings.logs_purged', 'settings', null, null, ['retention_days' => $retentionDays]);
+            $this->session->flashSuccess("System logs and expired sessions older than {$retentionDays} days purged successfully.");
+        } catch (\Throwable $e) {
+            $this->session->flashError('Logs purge failed: ' . $e->getMessage());
+        }
+
+        return Response::redirect('/admin/settings/optimization');
+    }
+
+    /**
+     * Purges transient temporary upload files older than 24 hours.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response The redirect response.
+     */
+    public function optimizeUploads(Request $req): Response
+    {
+        $tempDir = dirname(__DIR__, 3) . '/storage/temp';
+        $count = 0;
+        if (is_dir($tempDir)) {
+            try {
+                $iterator = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($tempDir, \FilesystemIterator::SKIP_DOTS),
+                    \RecursiveIteratorIterator::CHILD_FIRST
+                );
+                $cutoff = time() - 86400; // 24 hours ago
+                foreach ($iterator as $item) {
+                    if ($item instanceof \SplFileInfo && $item->isFile()) {
+                        $mTime = $item->getMTime();
+                        if ($mTime < $cutoff) {
+                            @unlink($item->getRealPath());
+                            $count++;
+                        }
+                    }
+                }
+            } catch (\Throwable) {
+            }
+        }
+
+        $this->settingsRepo->set('runtime', 'optimization.last_uploads_purge_time', date('Y-m-d H:i:s'));
+        $this->audit->log('settings.uploads_cleaned', 'settings', null, null, ['deleted_files_count' => $count]);
+        $this->session->flashSuccess("Temporary upload files older than 24 hours purged successfully ({$count} files reclaimed).");
+
+        return Response::redirect('/admin/settings/optimization');
+    }
+
+    /**
+     * Executes all four platform manual optimization actions sequentially.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response The redirect response.
+     */
+    public function optimizeAll(Request $req): Response
+    {
+        // 1. Optimize cache
+        $cache = $this->c->get(\OwnPay\Cache\CacheInterface::class);
+        if ($cache instanceof \OwnPay\Cache\CacheInterface) {
+            $cache->flush();
+        }
+        $twigCacheDir = dirname(__DIR__, 3) . '/storage/cache/twig';
+        if (is_dir($twigCacheDir)) {
+            $this->removeDirectoryContents($twigCacheDir);
+        }
+        $loginSlugCache = dirname(__DIR__, 3) . '/storage/cache/login_slug.cache';
+        if (file_exists($loginSlugCache)) {
+            @unlink($loginSlugCache);
+        }
+        $this->settingsRepo->set('runtime', 'optimization.last_cache_clear_time', date('Y-m-d H:i:s'));
+
+        // 2. Optimize Database
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        if ($db instanceof \OwnPay\Core\Database) {
+            $dbName = 'ownpay';
+            $configApp = $this->c->get('config.app');
+            /** @var array<string, mixed> $dbConfig */
+            $dbConfig = (is_array($configApp) && isset($configApp['db']) && is_array($configApp['db'])) ? $configApp['db'] : [];
+            if (!empty($dbConfig['name']) && is_string($dbConfig['name'])) {
+                $dbName = $dbConfig['name'];
+            }
+            try {
+                $tables = $db->fetchAll(
+                    "SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = :db",
+                    ['db' => $dbName]
+                );
+                foreach ($tables as $t) {
+                    $tableName = (isset($t['TABLE_NAME']) && is_scalar($t['TABLE_NAME'])) ? (string) $t['TABLE_NAME'] : '';
+                    if ($tableName !== '' && str_starts_with($tableName, 'op_')) {
+                        $db->execute("ANALYZE TABLE `{$tableName}`");
+                    }
+                }
+                $hotTables = ['op_transactions', 'op_ledger_entries', 'op_sms_parsed', 'op_audit_logs'];
+                foreach ($hotTables as $tableName) {
+                    $db->execute("OPTIMIZE TABLE `{$tableName}`");
+                }
+            } catch (\Throwable) {
+            }
+            $this->settingsRepo->set('runtime', 'optimization.last_db_optimize_time', date('Y-m-d H:i:s'));
+        }
+
+        // 3. Purge Logs & Sessions
+        if ($db instanceof \OwnPay\Core\Database) {
+            $retentionVal = $req->post('log_retention_days', '90');
+            $retentionDays = is_numeric($retentionVal) ? (int)$retentionVal : 90;
+            if (!in_array($retentionDays, [30, 60, 90, 180], true)) {
+                $retentionDays = 90;
+            }
+            $this->settingsRepo->set('runtime', 'optimization.log_retention_days', (string) $retentionDays);
+            try {
+                $cutoffDate = date('Y-m-d H:i:s', strtotime("-{$retentionDays} days"));
+                $db->execute("DELETE FROM op_audit_logs WHERE created_at < :cutoff", ['cutoff' => $cutoffDate]);
+                $db->execute("DELETE FROM op_login_attempts WHERE created_at < :cutoff", ['cutoff' => $cutoffDate]);
+                $db->execute("DELETE FROM op_comm_log WHERE created_at < :cutoff", ['cutoff' => $cutoffDate]);
+                $db->execute("DELETE FROM op_webhook_delivery_logs WHERE created_at < :cutoff", ['cutoff' => $cutoffDate]);
+                $db->execute("DELETE FROM op_sessions WHERE last_activity < :cutoff", ['cutoff' => time() - 86400]);
+            } catch (\Throwable) {
+            }
+            $this->settingsRepo->set('runtime', 'optimization.last_logs_purge_time', date('Y-m-d H:i:s'));
+        }
+
+        // 4. Clean Uploads
+        $tempDir = dirname(__DIR__, 3) . '/storage/temp';
+        $uploadsCount = 0;
+        if (is_dir($tempDir)) {
+            try {
+                $iterator = new \RecursiveIteratorIterator(
+                    new \RecursiveDirectoryIterator($tempDir, \FilesystemIterator::SKIP_DOTS),
+                    \RecursiveIteratorIterator::CHILD_FIRST
+                );
+                $cutoff = time() - 86400;
+                foreach ($iterator as $item) {
+                    if ($item instanceof \SplFileInfo && $item->isFile()) {
+                        $mTime = $item->getMTime();
+                        if ($mTime < $cutoff) {
+                            @unlink($item->getRealPath());
+                            $uploadsCount++;
+                        }
+                    }
+                }
+            } catch (\Throwable) {
+            }
+        }
+        $this->settingsRepo->set('runtime', 'optimization.last_uploads_purge_time', date('Y-m-d H:i:s'));
+
+        $this->audit->log('settings.full_optimization_completed', 'settings', null, null, ['deleted_files_count' => $uploadsCount]);
+        $this->session->flashSuccess('Full platform maintenance and performance optimization run completed successfully.');
+
+        return Response::redirect('/admin/settings/optimization');
     }
 
     // ─── Private save helpers ─────────────────────────────────
