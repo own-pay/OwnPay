@@ -71,7 +71,7 @@ final class SettingsRenderer
             }
             $value = $currentValues[$name] ?? $defaultStr;
 
-            $html .= '<div class="op-field-group">';
+            $html .= '<div class="op-field-group field-group-' . self::e($name) . '">';
             $html .= '<label for="setting_' . self::e($name) . '">' . self::e($label) . '</label>';
 
             $html .= match ($type) {
@@ -96,6 +96,12 @@ final class SettingsRenderer
         $html .= '<button type="submit" class="op-btn op-btn-primary">Save Settings</button>';
         $html .= '</div>';
         $html .= '</form>';
+
+        $meta = get_class($plugin)::metadata();
+        $slug = $meta['slug'];
+        if ($slug === 'sms-gateway') {
+            $html .= self::injectSmsGatewayToggleScript();
+        }
 
         return $html;
     }
@@ -192,5 +198,57 @@ final class SettingsRenderer
     private static function e(string $value): string
     {
         return htmlspecialchars($value, ENT_QUOTES, 'UTF-8');
+    }
+
+    /**
+     * Injects the dynamic client-side Javascript block to toggle provider field visibilities.
+     *
+     * @return string The inline HTML script block.
+     */
+    private static function injectSmsGatewayToggleScript(): string
+    {
+        return '
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    var providerSelect = document.getElementById("setting_provider");
+    if (!providerSelect) return;
+
+    var twilioFields = [".field-group-twilio_sid", ".field-group-twilio_token", ".field-group-twilio_from"];
+    var vonageFields = [".field-group-vonage_key", ".field-group-vonage_secret", ".field-group-vonage_from"];
+    var customFields = [".field-group-custom_api_url", ".field-group-custom_api_key", ".field-group-custom_api_method", ".field-group-custom_api_body_template"];
+
+    function updateVisibility() {
+        var selected = providerSelect.value;
+
+        // Helper to toggle a list of fields
+        function toggleFields(fields, show) {
+            fields.forEach(function(selector) {
+                var el = document.querySelector(selector);
+                if (el) {
+                    el.style.display = show ? "block" : "none";
+                }
+            });
+        }
+
+        // Hide all first
+        toggleFields(twilioFields, false);
+        toggleFields(vonageFields, false);
+        toggleFields(customFields, false);
+
+        // Show selected
+        if (selected === "twilio") {
+            toggleFields(twilioFields, true);
+        } else if (selected === "vonage") {
+            toggleFields(vonageFields, true);
+        } else if (selected === "custom") {
+            toggleFields(customFields, true);
+        }
+    }
+
+    providerSelect.addEventListener("change", updateVisibility);
+    updateVisibility();
+});
+</script>
+';
     }
 }

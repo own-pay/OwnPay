@@ -69,13 +69,20 @@
         </div>
         <div class="op-card-body op-p-0">
             <table class="op-table">
-                <thead><tr><th>Label</th><th>Key Prefix</th><th>Created</th><th>Last Used</th><th>Actions</th></tr></thead>
+                <thead><tr><th>Label</th><th>Key Prefix</th><th>Scopes</th><th>Created</th><th>Last Used</th><th>Actions</th></tr></thead>
                 <tbody>
                     {% for key in api_keys %}
                     <tr>
                         <td><strong>{{ key.name }}</strong></td>
                         <td>
                             <code class="op-code-pill">{{ key.key_prefix }}••••••••••••••••</code>
+                        </td>
+                        <td>
+                            {% for scope in key.scopes %}
+                                <span class="op-badge op-badge-{{ scope == 'admin' ? 'danger' : 'info' }}">{{ scope }}</span>
+                            {% else %}
+                                <span class="op-text-muted">—</span>
+                            {% endfor %}
                         </td>
                         <td>{{ key.created_at|date('M d, Y') }}</td>
                         <td>{{ key.last_used_at ? key.last_used_at|date('M d, Y H:i') : '—' }}</td>
@@ -87,7 +94,7 @@
                         </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" class="op-empty">No API keys yet. Generate one below.</td></tr>
+                    <tr><td colspan="6" class="op-empty">No API keys yet. Generate one below.</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -97,16 +104,35 @@
     <div class="op-card op-mt-4">
         <div class="op-card-header"><h3>Generate New API Key</h3></div>
         <div class="op-card-body">
-            <form method="POST" action="/admin/api-keys/generate" class="op-form-inline">
+            <form method="POST" action="/admin/api-keys/generate" class="op-form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                <div class="op-form-row op-align-end">
+                <div class="op-form-row">
                     <div class="op-form-group op-col-6">
                         <label>Key Label *</label>
                         <input type="text" name="label" class="op-input" placeholder="e.g. Production Server, Mobile App, Staging" required>
                         <small class="op-text-muted">Descriptive name to identify where this key is used</small>
                     </div>
+                    <div class="op-form-group op-col-6">
+                        <label>API Key Scopes *</label>
+                        <div class="op-flex-gap-16 op-flex-wrap op-mt-2">
+                            <label class="op-flex-gap-8 op-flex-align-center op-cursor-pointer">
+                                <input type="checkbox" name="scopes[]" value="read" checked>
+                                <span>Read</span>
+                            </label>
+                            <label class="op-flex-gap-8 op-flex-align-center op-cursor-pointer">
+                                <input type="checkbox" name="scopes[]" value="write" checked>
+                                <span>Write</span>
+                            </label>
+                            <label class="op-flex-gap-8 op-flex-align-center op-cursor-pointer op-text-danger" style="font-weight: 600;">
+                                <input type="checkbox" name="scopes[]" value="admin">
+                                <span>Admin (Administrative Access)</span>
+                            </label>
+                        </div>
+                        <small class="op-text-muted op-display-block op-mt-1">Select the operations this key is permitted to perform</small>
+                    </div>
+                </div>
+                <div class="op-form-row op-mt-3">
                     <div class="op-form-group op-col-3">
-                        <label>&nbsp;</label>
                         <button type="submit" class="op-btn op-btn-primary op-w-full">
                             <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="op-mr-1"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
                             Generate Key

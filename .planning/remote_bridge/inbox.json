@@ -1,0 +1,8 @@
+{
+  "queue": [
+    {
+      "type": "USER_INPUT",
+      "content": "/goal i active a plugin in the global brand. and open the plugin settings or customization then i change brand. it will keep the same plugin setting page. then i go to the plugin page there show the plugin is not active. its a bug. its should not access plugin"
+    }
+  ]
+}

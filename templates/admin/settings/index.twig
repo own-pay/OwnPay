@@ -20,6 +20,7 @@
     <button class="op-tab {{ default_tab == 'mobile' ? 'active' : '' }}" data-tab="mobile">Mobile App</button>
     <button class="op-tab {{ default_tab == 'api' ? 'active' : '' }}" data-tab="api">API</button>
     <button class="op-tab {{ default_tab == 'cron' ? 'active' : '' }}" data-tab="cron">Cron Jobs</button>
+    <button class="op-tab {{ default_tab == 'language' ? 'active' : '' }}" data-tab="language">Language</button>
     {{ hook('admin.settings.tabs')|raw }}
 </div>
 
@@ -804,8 +805,144 @@
         {{ hook('admin.settings.cron')|raw }}
     </div>
 
+    {# ── Language Tab ────────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'language' ? 'active' : '' }}" id="tab-language">
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>System Default Language</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row op-align-end">
+                    <div class="op-form-group op-col-8 op-mb-0">
+                        <label>Default Language</label>
+                        <select name="default_language" class="op-input" form="save-default-lang-form">
+                            {% for lang in languages %}
+                                <option value="{{ lang.code }}" {{ default_language == lang.code ? 'selected' : '' }}>
+                                    {{ lang.name }} ({{ lang.code }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="op-form-group op-col-4 op-mb-0">
+                        <button type="submit" form="save-default-lang-form" class="op-btn op-btn-primary op-btn-block">Save Default</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>Manage Languages</h3></div>
+            <div class="op-card-body">
+                <div class="op-table-responsive">
+                    <table class="op-table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Default</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lang in languages %}
+                            <tr>
+                                <td><code>{{ lang.code }}</code></td>
+                                <td>{{ lang.name }}</td>
+                                <td>
+                                    {% if lang.status == 'active' %}
+                                        <span class="op-badge op-badge-success">Active</span>
+                                    {% else %}
+                                        <span class="op-badge op-badge-muted">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if lang.is_default %}
+                                        <span class="op-badge op-badge-primary">Default</span>
+                                    {% else %}
+                                        <span class="op-text-muted">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="op-flex op-gap-2">
+                                        <a href="/admin/settings/language/{{ lang.code }}/translate" class="op-btn op-btn-sm op-btn-outline">Translate</a>
+                                        {% if lang.code != 'en' %}
+                                            <button type="submit" form="delete-lang-form-{{ lang.code }}" class="op-btn op-btn-sm op-btn-danger" onclick="return confirm('Are you sure you want to delete this language?')">Delete</button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-row op-gap-4">
+            <div class="op-col-6">
+                <div class="op-card">
+                    <div class="op-card-header"><h3>Upload Translation File (JSON)</h3></div>
+                    <div class="op-card-body">
+                        <div class="op-form-group">
+                            <label>Language Code *</label>
+                            <input type="text" name="code" form="upload-lang-form" class="op-input" required placeholder="e.g. bn" pattern="[a-z]{2,5}" maxlength="5">
+                            <small class="op-text-muted">ISO 2-letter or 5-letter locale code (e.g. bn, es, pt-br)</small>
+                        </div>
+                        <div class="op-form-group">
+                            <label>Language Name *</label>
+                            <input type="text" name="name" form="upload-lang-form" class="op-input" required placeholder="e.g. Bengali">
+                        </div>
+                        <div class="op-form-group">
+                            <label>Translation File (.json) *</label>
+                            <input type="file" name="language_file" form="upload-lang-form" class="op-input" required accept=".json">
+                            <small class="op-text-muted">Upload a valid translations JSON. File can contain nested or flat key-values.</small>
+                        </div>
+                        <button type="submit" form="upload-lang-form" class="op-btn op-btn-primary op-btn-block">Upload Language</button>
+                    </div>
+                </div>
+            </div>
+            <div class="op-col-6">
+                <div class="op-card">
+                    <div class="op-card-header"><h3>Manually Add Language</h3></div>
+                    <div class="op-card-body">
+                        <div class="op-form-group">
+                            <label>Language Code *</label>
+                            <input type="text" name="code" form="create-lang-form" class="op-input" required placeholder="e.g. bn" pattern="[a-z]{2,5}" maxlength="5">
+                            <small class="op-text-muted">ISO 2-letter or 5-letter locale code (e.g. bn, es, pt-br)</small>
+                        </div>
+                        <div class="op-form-group">
+                            <label>Language Name *</label>
+                            <input type="text" name="name" form="create-lang-form" class="op-input" required placeholder="e.g. Bengali">
+                            <small class="op-text-muted">Will copy baseline English keys to translate manually</small>
+                        </div>
+                        <button type="submit" form="create-lang-form" class="op-btn op-btn-primary op-btn-block">Create Language</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <div class="op-form-actions op-mt-4"><button type="submit" class="op-btn op-btn-primary op-btn-lg">Save Settings</button></div>
 </form>
+
+<form id="save-default-lang-form" method="POST" action="/admin/settings/language/save-default">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+<form id="create-lang-form" method="POST" action="/admin/settings/language/create">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+<form id="upload-lang-form" method="POST" action="/admin/settings/language/upload" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+{% for lang in languages %}
+    {% if lang.code != 'en' %}
+        <form id="delete-lang-form-{{ lang.code }}" method="POST" action="/admin/settings/language/{{ lang.code }}/delete" style="display:none;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+    {% endif %}
+{% endfor %}
 
 <form id="generate-form" method="POST" action="/admin/api-keys/generate">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

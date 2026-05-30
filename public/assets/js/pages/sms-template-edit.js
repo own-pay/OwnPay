@@ -7,6 +7,17 @@
     "use strict";
 
     var csrf    = window.OP_CSRF || "";
+
+    function escapeHtml(str) {
+        if (!str) { return ""; }
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
     var testBtn = document.getElementById("test-all-btn");
     if (!testBtn) {return;}
 
@@ -39,7 +50,7 @@
             results.forEach(function (r) {
                 var icon = r.matched ? "\u2713" : "\u2717";
                 var cls  = r.matched ? "op-text-success" : "op-text-danger";
-                html += "<tr><td>" + r.label + "</td><td><code>" + r.regex + '</code></td><td class="' + cls + '">' + icon + "</td><td><code>" + (r.match || "\u2014") + "</code></td></tr>";
+                html += "<tr><td>" + escapeHtml(r.label) + "</td><td><code>" + escapeHtml(r.regex) + '</code></td><td class="' + cls + '">' + escapeHtml(icon) + "</td><td><code>" + escapeHtml(r.match || "\u2014") + "</code></td></tr>";
             });
             html += "</tbody></table></div>";
             box.innerHTML = html;

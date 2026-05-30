@@ -296,11 +296,25 @@ final class DeveloperController
 
         $labelVal = $req->post('label', 'API Key');
         $label = is_string($labelVal) ? trim($labelVal) : 'API Key';
+        
+        $scopesPost = $req->post('scopes');
+        $scopes = [];
+        if (is_array($scopesPost)) {
+            foreach ($scopesPost as $scope) {
+                if (is_string($scope) && in_array($scope, ['read', 'write', 'admin'], true)) {
+                    $scopes[] = $scope;
+                }
+            }
+        }
+        if (empty($scopes)) {
+            $scopes = ['read', 'write'];
+        }
+
         $keyService = $this->c->get(ApiKeyService::class);
         if (!$keyService instanceof ApiKeyService) {
             throw new \RuntimeException('ApiKeyService service unavailable');
         }
-        $result = $keyService->generate($mid, $label);
+        $result = $keyService->generate($mid, $label, $scopes);
 
         $_SESSION['_generated_api_key'] = $result['key'];
         $_SESSION['_generated_api_key_label'] = $label;

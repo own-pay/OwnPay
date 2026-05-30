@@ -210,6 +210,28 @@ final class Router
             $events->doAction('system.routes.register', $this);
         }
 
+        if ($this->container->has(\OwnPay\Plugin\PluginRegistry::class)) {
+            /** @var \OwnPay\Plugin\PluginRegistry $registry */
+            $registry = $this->container->get(\OwnPay\Plugin\PluginRegistry::class);
+            foreach ($registry->getLoaded() as $slug => $instance) {
+                $manifest = $registry->getManifest($slug);
+                if ($manifest !== null && !empty($manifest->routes)) {
+                    foreach ($manifest->routes as $routeDef) {
+                        if (count($routeDef) >= 3) {
+                            $method = $routeDef[0] ?? null;
+                            $pattern = $routeDef[1] ?? null;
+                            $action = $routeDef[2] ?? null;
+                            if (is_string($method) && is_string($pattern) && is_string($action)) {
+                                // Format handler to point directly to FQCN of the plugin class
+                                $handler = $manifest->getFullyQualifiedClassName() . '@' . $action;
+                                $this->addRoute(strtoupper($method), $pattern, $handler, 'api-public');
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         $this->loaded = true;
     }
 

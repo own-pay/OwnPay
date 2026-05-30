@@ -179,6 +179,14 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/settings/cron/regenerate', 'Admin\\SettingsController@regenerateCronSecret', 'admin');
     $router->post('/admin/settings/cron/run/{jobName}', 'Admin\\SettingsController@runCronJob', 'admin');
 
+    // Language Settings
+    $router->post('/admin/settings/language/save-default', 'Admin\\SettingsController@saveDefaultLanguage', 'admin');
+    $router->post('/admin/settings/language/create', 'Admin\\SettingsController@createLanguage', 'admin');
+    $router->post('/admin/settings/language/upload', 'Admin\\SettingsController@uploadLanguage', 'admin');
+    $router->get('/admin/settings/language/{code}/translate', 'Admin\\SettingsController@translateLanguage', 'admin');
+    $router->post('/admin/settings/language/{code}/translate/save', 'Admin\\SettingsController@saveTranslations', 'admin');
+    $router->post('/admin/settings/language/{code}/delete', 'Admin\\SettingsController@deleteLanguage', 'admin');
+
     // Currencies
     $router->get('/admin/currencies', 'Admin\\CurrencyController@index', 'admin');
     $router->post('/admin/currencies/update', 'Admin\\CurrencyController@update', 'admin');
@@ -274,7 +282,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/balance-verification/run', 'Admin\\BalanceVerificationController@run', 'admin');
 
     // ─── Cron endpoint ─────────────────────────────────────────
-    $router->get('/cron/{secret}', 'Page\\CronController@run', 'global');
+    $router->get('/cron/{secret}', 'Page\\CronController@run', 'cron');
+    $router->post('/cron', 'Page\\CronController@run', 'cron');
 
     // ─── Unified Webhook Endpoint (dynamic, zero-core-mod) ──────
     $router->post('/webhook/{gateway}', 'Webhook\\UnifiedWebhookController@handle', 'webhook');

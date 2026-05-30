@@ -12,6 +12,15 @@
                 <input type="hidden" name="type" value="profile">
                 <div class="op-form-group"><label>Name</label><input type="text" name="name" value="{{ current_user.name }}" class="op-input" required></div>
                 <div class="op-form-group"><label>Email</label><input type="email" name="email" value="{{ current_user.email }}" class="op-input" required></div>
+                <div class="op-form-group">
+                    <label>Preferred Language</label>
+                    <select name="language" class="op-input">
+                        <option value="">System Default</option>
+                        {% for lang in languages %}
+                            <option value="{{ lang.code }}" {% if profile_user.language == lang.code %}selected{% endif %}>{{ lang.name }} ({{ lang.code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
                 <button type="submit" class="op-btn op-btn-primary">Update Profile</button>
             </form>
         </div>

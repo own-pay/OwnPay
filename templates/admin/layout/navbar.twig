@@ -16,7 +16,7 @@
             <form method="POST" action="/admin/brands/switch" id="brand-switcher-form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                 <select name="brand_id" id="brand-switcher-select" class="op-input op-input-sm">
-                    <option value="global" {% if active_brand_id is empty %}selected{% endif %}>Global View</option>
+                    <option value="global" {% if active_brand_id is empty %}selected{% endif %}>{{ __('navbar.global_view') }}</option>
                     {% for b in brands %}
                         <option value="{{ b.id }}" {% if active_brand_id == b.id %}selected{% endif %}>{{ b.name }}</option>
                     {% endfor %}
@@ -26,11 +26,11 @@
         {% endif %}
         
         <div class="op-navbar-search">
-            <input type="search" placeholder="Search..." class="op-input op-input-sm" id="global-search">
+            <input type="search" placeholder="{{ __('common.search') }}" class="op-input op-input-sm" id="global-search">
         </div>
 
         <div class="op-navbar-alerts" id="alert-bell">
-            <button class="op-icon-btn" title="Alerts">
+            <button class="op-icon-btn" title="{{ __('navbar.alerts') }}">
                 <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
                     <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
                 </svg>
@@ -41,7 +41,7 @@
         </div>
 
         <div class="op-navbar-theme">
-            <button class="op-icon-btn" id="theme-toggle" title="Toggle light/dark mode" aria-label="Toggle theme">
+            <button class="op-icon-btn" id="theme-toggle" title="{{ __('navbar.toggle_theme') }}" aria-label="{{ __('navbar.toggle_theme') }}">
                 <span id="theme-toggle-icon">&#9728;</span>
             </button>
         </div>
@@ -54,12 +54,12 @@
                 <span class="op-user-name">{{ current_user.name|default('Admin') }}</span>
             </button>
             <div class="op-dropdown-menu" id="user-menu">
-                <a href="/admin/my-account" class="op-dropdown-item">My Account</a>
-                <a href="/admin/settings" class="op-dropdown-item">Settings</a>
+                <a href="/admin/my-account" class="op-dropdown-item">{{ __('menu.my_account') }}</a>
+                <a href="/admin/settings" class="op-dropdown-item">{{ __('menu.settings') }}</a>
                 <hr class="op-dropdown-divider">
                 <form method="POST" action="/admin/logout">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                    <button type="submit" class="op-dropdown-item op-text-danger">Logout</button>
+                    <button type="submit" class="op-dropdown-item op-text-danger">{{ __('navbar.logout') }}</button>
                 </form>
             </div>
         </div>

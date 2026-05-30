@@ -382,6 +382,7 @@ final class PluginLoader
         }
 
         $this->registry->registerLoaded($slug, $instance, $manifest, $sandbox);
+        $this->container->instance($className, $instance);
     }
 
     /**

@@ -1,0 +1,25 @@
+{
+  "logs": [
+    "?? Antigravity 2.0 Active Session Started\n",
+    "Prompt: testing the antigravity connection\n",
+    "Checking workspace changes...\n",
+    "True\n",
+    "False\n",
+    "\u0192o. Prompt successfully injected into active Antigravity 2.0 GUI session!\n",
+    "True\n",
+    "False\n",
+    "\u0192o. Prompt successfully injected into active Antigravity 2.0 GUI session via Clipboard Paste!\n",
+    "True\n",
+    "True\n",
+    "\u0192o. Prompt successfully injected into active Antigravity 2.0 GUI session via Clipboard Paste!\n",
+    "True\n",
+    "True\n",
+    "\u0192o. Prompt successfully injected into active Antigravity 2.0 GUI session via Clipboard Paste!\n",
+    "True\n",
+    "False\n",
+    "\u00c3\u00a2\u00c5\u201c\u00e2\u20ac\u00a6 GUI session window reloaded. Started a clean fresh chat session successfully!\n",
+    "True\n",
+    "True\n",
+    "\u00c3\u00a2\u00c5\u201c\u00e2\u20ac\u00a6 Prompt successfully injected into active Antigravity 2.0 GUI session via Clipboard Paste!\n"
+  ]
+}

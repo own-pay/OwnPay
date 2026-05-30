@@ -10,13 +10,13 @@
 
 {% block content %}
 <div class="op-page-header">
-    <h1>Dashboard</h1>
+    <h1>{{ __('dashboard.title') }}</h1>
     <div class="op-header-actions">
         <select class="op-input op-input-sm" id="date-range">
-            <option value="today" {{ range == 'today' ? 'selected' : '' }}>Today</option>
-            <option value="7d" {{ range == '7d' ? 'selected' : '' }}>Last 7 Days</option>
-            <option value="30d" {{ range == '30d' ? 'selected' : '' }}>Last 30 Days</option>
-            <option value="all" {{ range == 'all' ? 'selected' : '' }}>All Time</option>
+            <option value="today" {{ range == 'today' ? 'selected' : '' }}>{{ __('common.today') }}</option>
+            <option value="7d" {{ range == '7d' ? 'selected' : '' }}>{{ __('common.last_7_days') }}</option>
+            <option value="30d" {{ range == '30d' ? 'selected' : '' }}>{{ __('common.last_30_days') }}</option>
+            <option value="all" {{ range == 'all' ? 'selected' : '' }}>{{ __('common.all_time') }}</option>
         </select>
     </div>
 </div>
@@ -35,7 +35,7 @@
         </div>
         <div class="op-stat-content">
             <span class="op-stat-value">{{ stats.total_revenue ?? '0.00' }}</span>
-            <span class="op-stat-label">Total Revenue</span>
+            <span class="op-stat-label">{{ __('dashboard.total_revenue') }}</span>
         </div>
     </div>
 
@@ -45,7 +45,7 @@
         </div>
         <div class="op-stat-content">
             <span class="op-stat-value">{{ stats.completed_count ?? 0 }}</span>
-            <span class="op-stat-label">Completed</span>
+            <span class="op-stat-label">{{ __('common.completed') }}</span>
         </div>
     </div>
 
@@ -55,7 +55,7 @@
         </div>
         <div class="op-stat-content">
             <span class="op-stat-value">{{ stats.pending_count ?? 0 }}</span>
-            <span class="op-stat-label">Pending</span>
+            <span class="op-stat-label">{{ __('common.pending') }}</span>
         </div>
     </div>
 
@@ -65,7 +65,7 @@
         </div>
         <div class="op-stat-content">
             <span class="op-stat-value">{{ stats.customer_count ?? 0 }}</span>
-            <span class="op-stat-label">Customers</span>
+            <span class="op-stat-label">{{ __('menu.customers') }}</span>
         </div>
     </div>
 </div>
@@ -75,14 +75,21 @@
 {# Recent Transactions #}
 <div class="op-card op-mt-4">
     <div class="op-card-header">
-        <h3>Recent Transactions</h3>
-        <a href="/admin/transactions" class="op-btn op-btn-sm op-btn-outline">View All</a>
+        <h3>{{ __('dashboard.recent_transactions') }}</h3>
+        <a href="/admin/transactions" class="op-btn op-btn-sm op-btn-outline">{{ __('dashboard.view_all') }}</a>
     </div>
     <div class="op-card-body">
         {% if recent_transactions|length > 0 %}
         <div class="op-table-responsive"><table class="op-table">
             <thead>
-                <tr><th>TRX ID</th><th>Customer</th><th>Amount</th><th>Gateway</th><th>Status</th><th>Date</th></tr>
+                <tr>
+                    <th>{{ __('transaction.trx_id') }}</th>
+                    <th>{{ __('customer.customer') }}</th>
+                    <th>{{ __('common.amount') }}</th>
+                    <th>{{ __('common.gateway') }}</th>
+                    <th>{{ __('common.status') }}</th>
+                    <th>{{ __('common.date') }}</th>
+                </tr>
             </thead>
             <tbody>
                 {% for txn in recent_transactions %}
@@ -98,7 +105,7 @@
             </tbody>
         </table></div>
         {% else %}
-        <div class="op-empty-state"><p>No transactions yet.</p></div>
+        <div class="op-empty-state"><p>{{ __('dashboard.no_transactions') }}</p></div>
         {% endif %}
     </div>
 </div>

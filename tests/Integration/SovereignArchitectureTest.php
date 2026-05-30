@@ -186,28 +186,28 @@ final class SovereignArchitectureTest extends IntegrationTestCase
         $this->assertSame($this->merchantId1, (int)$smsPre['merchant_id']);
         $this->assertSame('pending', $smsPre['match_status']);
 
-        // 3. Execute the SMS verification job (which matches dynamically across the global pool)
+        // 3. Execute the SMS verification job (which must not match across tenant boundaries)
         $res = $this->job->run();
-        $this->assertSame(1, $res['matched']);
-        $this->assertSame(0, $res['failed']);
+        $this->assertSame(0, $res['matched']);
+        $this->assertSame(1, $res['failed']);
 
-        // 4. Verify post-run assertions:
-        // A. Transaction for Brand 2 is now successfully completed
+        // 4. Verify post-run assertions proving isolation:
+        // A. Transaction for Brand 2 remains pending
         $txPost = $this->db->fetchOne("SELECT * FROM op_transactions WHERE trx_id = :trx", ['trx' => $trxId]);
-        $this->assertSame('completed', $txPost['status']);
+        $this->assertSame('pending', $txPost['status']);
 
-        // B. Parsed SMS merchant_id is automatically aligned to Brand 2 context
+        // B. Parsed SMS merchant_id remains unchanged (Brand 1)
         $smsPost = $this->db->fetchOne("SELECT * FROM op_sms_parsed WHERE trx_id = :trx", ['trx' => $trxId]);
-        $this->assertSame($this->merchantId2, (int)$smsPost['merchant_id']);
-        $this->assertSame('matched', $smsPost['match_status']);
-        $this->assertSame($txPost['id'], $smsPost['transaction_id']);
+        $this->assertSame($this->merchantId1, (int)$smsPost['merchant_id']);
+        $this->assertSame('pending', $smsPost['match_status']);
+        $this->assertNull($smsPost['transaction_id']);
 
-        // C. Double-entry ledger accounts and entries were posted under Brand 2
+        // C. No double-entry ledger accounts and entries were posted under Brand 2
         $ledgerTrans = $this->db->fetchOne(
-            "SELECT * FROM op_ledger_transactions WHERE merchant_id = :mid AND reference_id = :tx_id",
-            ['mid' => $this->merchantId2, 'tx_id' => $txPost['id']]
+            "SELECT * FROM op_ledger_transactions WHERE merchant_id = :mid",
+            ['mid' => $this->merchantId2]
         );
-        $this->assertNotNull($ledgerTrans);
+        $this->assertNull($ledgerTrans);
     }
 
     /**

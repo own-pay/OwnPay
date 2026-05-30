@@ -374,6 +374,22 @@ final class PluginController
             return Response::redirect('/admin/plugins');
         }
 
+        $brandId = null;
+        if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
+            $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+            if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandCtx->resolveFromRequest($request);
+                $brandId = $brandCtx->getActiveBrandId();
+            }
+        }
+
+        if ($brandId !== null && $brandId > 0) {
+            if (!$this->repo->isPluginActiveForBrand($slug, $brandId)) {
+                $this->session->flashError('This plugin is not active for the current brand.');
+                return Response::redirect('/admin/plugins');
+            }
+        }
+
         $manifestVal = $plugin['manifest'] ?? '{}';
         $manifestJson = json_decode(is_string($manifestVal) ? $manifestVal : '{}', true);
         $manifestJson = is_array($manifestJson) ? $manifestJson : [];
@@ -414,14 +430,7 @@ final class PluginController
         if ($instance !== null) {
             $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
 
-            // AUD-G5: Use brand-scoped settings — each brand can have different plugin config
-            $brandId = null;
-            if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
-                $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-                if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
-                    $brandId = $brandCtx->getActiveBrandId();
-                }
-            }
+
 
             if ($settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
                 if ($brandId !== null && $brandId > 0) {
@@ -471,6 +480,7 @@ final class PluginController
         if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
             if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+                $brandCtx->resolveFromRequest($request);
                 $brandId = $brandCtx->getActiveBrandId();
             }
         }

@@ -142,6 +142,13 @@ final class PluginManifest
     public readonly array $migrations;
 
     /**
+     * Custom routes registered by this plugin.
+     *
+     * @var array<int, array<mixed>>
+     */
+    public readonly array $routes;
+
+    /**
      * Absolute directory path of the manifest file.
      *
      * @var string
@@ -306,6 +313,17 @@ final class PluginManifest
             }
         }
         $this->migrations = $migrations;
+
+        $rawRoutes = $data['routes'] ?? [];
+        $routes = [];
+        if (is_array($rawRoutes)) {
+            foreach ($rawRoutes as $route) {
+                if (is_array($route) && count($route) >= 3) {
+                    $routes[] = $route;
+                }
+            }
+        }
+        $this->routes = $routes;
         
         $this->sourcePath = $sourcePath;
         
@@ -535,6 +553,7 @@ final class PluginManifest
             'admin_menu' => $this->adminMenu,
             'cron' => $this->cron,
             'migrations' => $this->migrations,
+            'routes' => $this->routes,
         ];
     }
 }

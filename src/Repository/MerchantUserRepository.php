@@ -45,7 +45,7 @@ final class MerchantUserRepository extends BaseRepository
      * @var list<string> List of fields that can be mass-assigned.
      */
     protected array $fillable = [
-        'merchant_id', 'role_id', 'name', 'email', 'password_hash',
+        'merchant_id', 'role_id', 'name', 'email', 'language', 'password_hash',
         'phone', 'avatar_path', 'totp_secret_enc', 'two_factor_enabled',
         'last_login_at', 'last_login_ip', 'status',
     ];
@@ -117,7 +117,7 @@ final class MerchantUserRepository extends BaseRepository
     public function findById(int $id): ?array
     {
         return $this->db->fetchOne(
-            "SELECT id, name, email, two_factor_enabled, totp_secret_enc, merchant_id, role_id, status, created_at
+            "SELECT id, name, email, language, two_factor_enabled, totp_secret_enc, merchant_id, role_id, status, created_at
              FROM {$this->table} WHERE id = :id LIMIT 1",
             ['id' => $id]
         );
@@ -129,13 +129,14 @@ final class MerchantUserRepository extends BaseRepository
      * @param int $id The user's primary key ID.
      * @param string $name The updated display name.
      * @param string $email The updated email address.
+     * @param string|null $language The user preferred language code.
      * @return void
      */
-    public function updateProfile(int $id, string $name, string $email): void
+    public function updateProfile(int $id, string $name, string $email, ?string $language = null): void
     {
         $this->db->execute(
-            "UPDATE {$this->table} SET name = :n, email = :e WHERE id = :id",
-            ['n' => $name, 'e' => $email, 'id' => $id]
+            "UPDATE {$this->table} SET name = :n, email = :e, language = :lang WHERE id = :id",
+            ['n' => $name, 'e' => $email, 'lang' => $language, 'id' => $id]
         );
     }
 

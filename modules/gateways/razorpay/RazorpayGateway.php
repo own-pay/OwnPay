@@ -123,7 +123,7 @@ final class RazorpayGateway implements PluginInterface, GatewayAdapterInterface
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? null);
-        if ($webhookSecret === '') return true;
+        if ($webhookSecret === '') return false;
         $sigHeader = $this->getString($headers['X-Razorpay-Signature'] ?? $headers['x-razorpay-signature'] ?? null);
         $computedSig = hash_hmac('sha256', $rawBody, $webhookSecret);
         return hash_equals($computedSig, $sigHeader);

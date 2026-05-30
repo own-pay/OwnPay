@@ -655,12 +655,13 @@ final class TransactionRepository extends BaseRepository
             $sqlCount = "SELECT COUNT(*) FROM {$this->table}
                          WHERE merchant_id = :mid AND status = 'pending'
                            AND amount = :amt AND gateway_slug = :gw
-                           AND created_at BETWEEN DATE_SUB(:received_at, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at, INTERVAL 5 MINUTE)";
+                           AND created_at BETWEEN DATE_SUB(:received_at1, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at2, INTERVAL 5 MINUTE)";
             $countVal = $this->db->fetchColumn($sqlCount, [
                 'mid' => $merchantId,
                 'amt' => $amount,
                 'gw'  => $gatewaySlug,
-                'received_at' => $receivedAt
+                'received_at1' => $receivedAt,
+                'received_at2' => $receivedAt
             ]);
             $count = is_scalar($countVal) ? (int) $countVal : 0;
 
@@ -672,9 +673,15 @@ final class TransactionRepository extends BaseRepository
                 "SELECT * FROM {$this->table}
                  WHERE merchant_id = :mid AND status = 'pending'
                    AND amount = :amt AND gateway_slug = :gw
-                   AND created_at BETWEEN DATE_SUB(:received_at, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at, INTERVAL 5 MINUTE)
+                   AND created_at BETWEEN DATE_SUB(:received_at3, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at4, INTERVAL 5 MINUTE)
                  LIMIT 1",
-                ['mid' => $merchantId, 'amt' => $amount, 'gw' => $gatewaySlug, 'received_at' => $receivedAt]
+                [
+                    'mid' => $merchantId,
+                    'amt' => $amount,
+                    'gw' => $gatewaySlug,
+                    'received_at3' => $receivedAt,
+                    'received_at4' => $receivedAt
+                ]
             );
         }
 
@@ -703,11 +710,12 @@ final class TransactionRepository extends BaseRepository
             $sqlCount = "SELECT COUNT(*) FROM {$this->table}
                          WHERE status = 'pending'
                            AND amount = :amt AND gateway_slug = :gw
-                           AND created_at BETWEEN DATE_SUB(:received_at, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at, INTERVAL 5 MINUTE)";
+                           AND created_at BETWEEN DATE_SUB(:received_at1, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at2, INTERVAL 5 MINUTE)";
             $countVal = $this->db->fetchColumn($sqlCount, [
                 'amt' => $amount,
                 'gw'  => $gatewaySlug,
-                'received_at' => $receivedAt
+                'received_at1' => $receivedAt,
+                'received_at2' => $receivedAt
             ]);
             $count = is_scalar($countVal) ? (int) $countVal : 0;
 
@@ -719,9 +727,14 @@ final class TransactionRepository extends BaseRepository
                 "SELECT * FROM {$this->table}
                  WHERE status = 'pending'
                    AND amount = :amt AND gateway_slug = :gw
-                   AND created_at BETWEEN DATE_SUB(:received_at, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at, INTERVAL 5 MINUTE)
+                   AND created_at BETWEEN DATE_SUB(:received_at3, INTERVAL 30 MINUTE) AND DATE_ADD(:received_at4, INTERVAL 5 MINUTE)
                  LIMIT 1",
-                ['amt' => $amount, 'gw' => $gatewaySlug, 'received_at' => $receivedAt]
+                [
+                    'amt' => $amount,
+                    'gw' => $gatewaySlug,
+                    'received_at3' => $receivedAt,
+                    'received_at4' => $receivedAt
+                ]
             );
         }
 

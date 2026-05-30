@@ -273,8 +273,8 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
     {
         $webhookSecret = $credentials['webhook_secret'] ?? '';
         if ($webhookSecret === '') {
-            // No webhook secret configured — skip verification (backward compat)
-            return true;
+            // No webhook secret configured — fail closed
+            return false;
         }
 
         // Stripe sends signature in 'Stripe-Signature' header

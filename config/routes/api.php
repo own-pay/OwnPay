@@ -34,7 +34,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/api/v1/webhooks/deliveries',       'Api\\WebhookController@deliveries',      'api');
 
     // ======================== CSP REPORT ========================
-    $router->post('/csp-report-api',                  'Webhook\\CspReportController@handle',    'api');
+    $router->post('/csp-report-api',                  'Webhook\\CspReportController@handle',    'api-public');
 
     // ======================== MOBILE API (JWT Auth) ========================
     $router->post('/api/mobile/v1/devices',            'Api\\Mobile\\DeviceController@pair',         'mobile');
@@ -55,11 +55,11 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/api/mobile/v1/devices/statuses',    'Api\\Mobile\\DeviceController@status',        'mobile');
 
     // ======================== ADMIN API (Bearer Auth) ========================
-    $router->get('/api/admin/v1/sms-templates',         'Api\\Admin\\SmsTemplateController@index',   'api');
-    $router->put('/api/admin/v1/sms-templates/{id}',    'Api\\Admin\\SmsTemplateController@update',  'api');
-    $router->get('/api/admin/v1/sms-queues',            'Api\\Admin\\SmsQueueController@index',      'api');
-    $router->post('/api/admin/v1/sms-queues/{id}/retries', 'Api\\Admin\\SmsQueueController@retry',      'api');
-    $router->get('/api/admin/v1/devices',               'Api\\Admin\\DeviceController@index',         'api');
-    $router->delete('/api/admin/v1/devices/{id}',       'Api\\Admin\\DeviceController@revoke',        'api');
-    $router->post('/api/admin/v1/domains/verifications', 'Api\\Admin\\DomainController@verify',        'api');
+    $router->get('/api/admin/v1/sms-templates',         'Api\\Admin\\SmsTemplateController@index',   'admin-api');
+    $router->put('/api/admin/v1/sms-templates/{id}',    'Api\\Admin\\SmsTemplateController@update',  'admin-api');
+    $router->get('/api/admin/v1/sms-queues',            'Api\\Admin\\SmsQueueController@index',      'admin-api');
+    $router->post('/api/admin/v1/sms-queues/{id}/retries', 'Api\\Admin\\SmsQueueController@retry',      'admin-api');
+    $router->get('/api/admin/v1/devices',               'Api\\Admin\\DeviceController@index',         'admin-api');
+    $router->delete('/api/admin/v1/devices/{id}',       'Api\\Admin\\DeviceController@revoke',        'admin-api');
+    $router->post('/api/admin/v1/domains/verifications', 'Api\\Admin\\DomainController@verify',        'admin-api');
 };

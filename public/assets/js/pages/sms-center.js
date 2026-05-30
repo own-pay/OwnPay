@@ -11,6 +11,16 @@
 
     var csrf = window.OP_CSRF || "";
 
+    function escapeHtml(str) {
+        if (!str) { return ""; }
+        return String(str)
+            .replace(/&/g, "&amp;")
+            .replace(/</g, "&lt;")
+            .replace(/>/g, "&gt;")
+            .replace(/"/g, "&quot;")
+            .replace(/'/g, "&#039;");
+    }
+
     // ─── Tab Switching ────────────────────────────────────────────────────────
     document.querySelectorAll(".op-tab").forEach(function (t) {
         t.addEventListener("click", function () {
@@ -79,7 +89,7 @@
                     box.textContent = "Error: " + data.error;
                 } else if (data.matched) {
                     box.className = "op-alert op-alert-success";
-                    box.innerHTML = "<strong>✓ Match found!</strong><br>Field: <code>" + data.field + "</code><br>Extracted: <code>" + (data.match || "(empty)") + "</code><br>Full matches: <code>" + JSON.stringify(data.full) + "</code>";
+                    box.innerHTML = "<strong>✓ Match found!</strong><br>Field: <code>" + escapeHtml(data.field) + "</code><br>Extracted: <code>" + escapeHtml(data.match || "(empty)") + "</code><br>Full matches: <code>" + escapeHtml(JSON.stringify(data.full)) + "</code>";
                 } else {
                     box.className = "op-alert op-alert-warning";
                     box.textContent = "✗ No match. Adjust your regex pattern.";
@@ -143,7 +153,7 @@
                     "<thead><tr><th>Field</th><th>Extracted</th><th>Confidence</th></tr></thead><tbody>" +
                     rows.map(function (r) {
                         var cls = r[2] === "high" ? "success" : r[2] === "medium" ? "warning" : r[2] === "info" ? "info" : "muted";
-                        return "<tr><td>" + r[0] + "</td><td><code>" + r[1] + '</code></td><td><span class="op-badge op-badge-' + cls + '">' + r[2] + "</span></td></tr>";
+                        return "<tr><td>" + escapeHtml(r[0]) + "</td><td><code>" + escapeHtml(r[1]) + '</code></td><td><span class="op-badge op-badge-' + cls + '">' + escapeHtml(r[2]) + "</span></td></tr>";
                     }).join("") +
                     "</tbody></table>";
 

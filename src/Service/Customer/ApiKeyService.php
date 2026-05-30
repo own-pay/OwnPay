@@ -34,10 +34,11 @@ final class ApiKeyService
      *
      * @param int $merchantId Unique identifier of the merchant/brand.
      * @param string $label Descriptive name/label for the API key.
+     * @param array<string> $scopes Allowed scopes for the API key.
      * @param string|null $expiresAt Optional expiration timestamp (ISO-8601).
      * @return array{key: string, prefix: string} The full generated key and its prefix.
      */
-    public function generate(int $merchantId, string $label, ?string $expiresAt = null): array
+    public function generate(int $merchantId, string $label, array $scopes = ['read', 'write'], ?string $expiresAt = null): array
     {
         $keyData = SecurityHelpers::generateApiKey();
 
@@ -45,7 +46,7 @@ final class ApiKeyService
             'key_prefix' => $keyData['prefix'],
             'key_hash'   => $keyData['hash'],
             'name'       => $label,
-            'scopes'     => json_encode(['read', 'write']),
+            'scopes'     => json_encode($scopes),
             'status'     => 'active',
             'expires_at' => $expiresAt,
         ]);
@@ -95,6 +96,12 @@ final class ApiKeyService
         
         return array_map(function (array $key) {
             unset($key['hash']);
+            if (isset($key['scopes']) && is_string($key['scopes'])) {
+                $key['scopes'] = json_decode($key['scopes'], true);
+            }
+            if (!is_array($key['scopes'] ?? null)) {
+                $key['scopes'] = [];
+            }
             return $key;
         }, $keys);
     }

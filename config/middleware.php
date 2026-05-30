@@ -40,6 +40,7 @@ return [
         \OwnPay\Middleware\SessionMiddleware::class,
         \OwnPay\Middleware\CsrfMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
+        \OwnPay\Middleware\LanguageMiddleware::class,
         \OwnPay\Middleware\TwoFactorMiddleware::class,
         \OwnPay\Middleware\PermissionMiddleware::class,
     ],
@@ -49,6 +50,15 @@ return [
         \OwnPay\Middleware\CorsMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
         \OwnPay\Middleware\BearerAuthMiddleware::class,
+        \OwnPay\Middleware\IdempotencyMiddleware::class,
+    ],
+
+    // ─── Admin API: admin bearer auth + rate limit + idempotency ─
+    'admin-api' => [
+        \OwnPay\Middleware\CorsMiddleware::class,
+        \OwnPay\Middleware\RateLimiterMiddleware::class,
+        \OwnPay\Middleware\LanguageMiddleware::class,
+        \OwnPay\Middleware\AdminBearerAuthMiddleware::class,
         \OwnPay\Middleware\IdempotencyMiddleware::class,
     ],
 
@@ -68,7 +78,11 @@ return [
     // ─── Webhook: signature verification ───────────────────────
     'webhook' => [
         \OwnPay\Middleware\IpAllowlistMiddleware::class,
-        \OwnPay\Middleware\RequestSignatureMiddleware::class,
+    ],
+
+    // ─── Cron: rate limiting for cron routes ───────────────────
+    'cron' => [
+        \OwnPay\Middleware\RateLimiterMiddleware::class,
     ],
 
     // ─── Checkout: minimal (session + csrf) ────────────────────

@@ -73,6 +73,7 @@ CREATE TABLE `op_merchant_users` (
   `avatar_path` VARCHAR(500) DEFAULT NULL,
   `totp_secret_enc` VARCHAR(500) DEFAULT NULL,
   `two_factor_enabled` TINYINT(1) NOT NULL DEFAULT 0,
+  `language` VARCHAR(10) DEFAULT NULL,
   `last_login_at` DATETIME(6) DEFAULT NULL,
   `last_login_ip` VARCHAR(45) DEFAULT NULL,
   `status` ENUM('active','suspended','pending') NOT NULL DEFAULT 'active',
@@ -790,6 +791,20 @@ CREATE TABLE `op_cache` (
   `expires_at` INT UNSIGNED NOT NULL,
   PRIMARY KEY (`key_name`),
   KEY `idx_expires` (`expires_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `op_languages` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `code` VARCHAR(10) NOT NULL,
+  `name` VARCHAR(100) NOT NULL,
+  `status` ENUM('active','inactive') NOT NULL DEFAULT 'active',
+  `is_default` TINYINT(1) NOT NULL DEFAULT 0,
+  `translations` LONGTEXT CHARACTER SET utf8mb4 COLLATE utf8mb4_bin NOT NULL,
+  `created_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+  `updated_at` TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_code` (`code`),
+  CONSTRAINT `chk_translations_json` CHECK (json_valid(`translations`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── 13. Communication ─────────────────────────────────────

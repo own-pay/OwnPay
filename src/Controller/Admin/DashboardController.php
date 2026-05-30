@@ -314,9 +314,14 @@ final class DashboardController
         $user = $this->userRepo->findById($userId);
         $this->session->set('two_fa_enabled', (bool) ($user['two_factor_enabled'] ?? false));
 
+        /** @var \OwnPay\Service\System\TranslationService $transSvc */
+        $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+        $languages = $transSvc->getActiveLanguages();
+
         return $this->renderAdminPage('admin/my-account.twig', [
             'active_page'  => 'profile',
             'profile_user' => $user,
+            'languages'    => $languages,
         ]);
     }
 
@@ -345,10 +350,23 @@ final class DashboardController
         if ($type === 'profile') {
             $nameVal = $data['name'] ?? '';
             $emailVal = $data['email'] ?? '';
+            $langVal = $data['language'] ?? '';
             $name  = \OwnPay\Service\System\InputSanitizer::string(is_string($nameVal) ? $nameVal : '');
             $email = \OwnPay\Service\System\InputSanitizer::email(is_string($emailVal) ? $emailVal : '');
+            $langCode = trim(is_string($langVal) ? $langVal : '');
+
+            /** @var \OwnPay\Service\System\TranslationService $transSvc */
+            $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+            
+            $language = null;
+            if ($langCode !== '') {
+                if ($transSvc->exists($langCode)) {
+                    $language = $langCode;
+                }
+            }
+
             if ($name !== '' && $email !== '') {
-                $this->userRepo->updateProfile($userId, $name, $email);
+                $this->userRepo->updateProfile($userId, $name, $email, $language);
                 $this->session->updateProfile($name, $email);
                 $this->session->flashSuccess('Profile updated successfully.');
             } else {

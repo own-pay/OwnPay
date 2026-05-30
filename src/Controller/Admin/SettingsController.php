@@ -188,6 +188,13 @@ final class SettingsController
             ];
         }
 
+        $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+        if (!$transSvc instanceof \OwnPay\Service\System\TranslationService) {
+            throw new \RuntimeException('TranslationService not found.');
+        }
+        $languages = $transSvc->getAllLanguages();
+        $defaultLanguage = $transSvc->getDefaultLanguage();
+
         return $this->renderAdminPage('admin/settings/index.twig', [
             'settings'          => $settings,
             'branding'          => $branding,
@@ -203,6 +210,8 @@ final class SettingsController
             'cron_secret'       => $cronSecret,
             'cron_url'          => $cronUrl,
             'cron_jobs'         => $cronJobs,
+            'languages'         => $languages,
+            'default_language'  => $defaultLanguage,
         ]);
     }
 
@@ -615,5 +624,252 @@ final class SettingsController
         }
 
         return Response::redirect('/admin/settings/cron');
+    }
+
+    /**
+     * Saves the default system language.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response
+     */
+    public function saveDefaultLanguage(Request $req): Response
+    {
+        $defaultLang = $req->post('default_language', 'en');
+        $code = is_string($defaultLang) ? $defaultLang : 'en';
+        /** @var \OwnPay\Service\System\TranslationService $transSvc */
+        $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+        
+        try {
+            $transSvc->setDefaultLanguage($code);
+            $this->audit->log('settings.language_default_changed', 'settings', null, null, ['code' => $code]);
+            $this->session->flashSuccess('Default system language updated successfully');
+        } catch (\Throwable $e) {
+            $this->session->flashError('Failed to update default language: ' . $e->getMessage());
+        }
+
+        return Response::redirect('/admin/settings/language');
+    }
+
+    /**
+     * Manually creates a new language.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response
+     */
+    public function createLanguage(Request $req): Response
+    {
+        $codeVal = $req->post('code', '');
+        $nameVal = $req->post('name', '');
+        $code = is_string($codeVal) ? trim($codeVal) : '';
+        $name = is_string($nameVal) ? trim($nameVal) : '';
+
+        if ($code === '' || $name === '') {
+            $this->session->flashError('Language code and name are required');
+            return Response::redirect('/admin/settings/language');
+        }
+
+        if (!preg_match('/^[a-z]{2,5}$/', $code)) {
+            $this->session->flashError('Language code must be 2 to 5 lowercase letters');
+            return Response::redirect('/admin/settings/language');
+        }
+
+        /** @var \OwnPay\Service\System\TranslationService $transSvc */
+        $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+
+        if ($transSvc->exists($code)) {
+            $this->session->flashError("Language code '{$code}' already exists");
+            return Response::redirect('/admin/settings/language');
+        }
+
+        try {
+            $transSvc->createLanguage($code, $name);
+            $this->audit->log('settings.language_created', 'settings', null, null, ['code' => $code, 'name' => $name]);
+            $this->session->flashSuccess("Language '{$name}' created successfully");
+        } catch (\Throwable $e) {
+            $this->session->flashError('Failed to create language: ' . $e->getMessage());
+        }
+
+        return Response::redirect('/admin/settings/language');
+    }
+
+    /**
+     * Uploads a JSON translations file for a language.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response
+     */
+    public function uploadLanguage(Request $req): Response
+    {
+        $codeVal = $req->post('code', '');
+        $nameVal = $req->post('name', '');
+        $code = is_string($codeVal) ? trim($codeVal) : '';
+        $name = is_string($nameVal) ? trim($nameVal) : '';
+        $file = $req->file('language_file');
+
+        if ($code === '' || $name === '') {
+            $this->session->flashError('Language code and name are required');
+            return Response::redirect('/admin/settings/language');
+        }
+
+        if (!preg_match('/^[a-z]{2,5}$/', $code)) {
+            $this->session->flashError('Language code must be 2 to 5 lowercase letters');
+            return Response::redirect('/admin/settings/language');
+        }
+
+        if ($file === null || ($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            $this->session->flashError('Please select a valid JSON translation file');
+            return Response::redirect('/admin/settings/language');
+        }
+
+        try {
+            $tmpName = $file['tmp_name'] ?? null;
+            if (!is_string($tmpName) || $tmpName === '') {
+                throw new \RuntimeException('Uploaded temporary file not found');
+            }
+            $content = file_get_contents($tmpName);
+            if ($content === false) {
+                throw new \RuntimeException('Failed to read uploaded file');
+            }
+            
+            $translations = json_decode($content, true);
+            if (!is_array($translations)) {
+                throw new \RuntimeException('Invalid JSON structure. Ensure it is a valid JSON array or object.');
+            }
+
+            $translationsClean = [];
+            foreach ($translations as $k => $v) {
+                $translationsClean[(string)$k] = $v;
+            }
+
+            /** @var \OwnPay\Service\System\TranslationService $transSvc */
+            $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+            $transSvc->uploadLanguage($code, $name, $translationsClean);
+            
+            $this->audit->log('settings.language_uploaded', 'settings', null, null, ['code' => $code, 'name' => $name]);
+            $this->session->flashSuccess("Language '{$name}' uploaded/updated successfully");
+        } catch (\Throwable $e) {
+            $this->session->flashError('Failed to upload language file: ' . $e->getMessage());
+        }
+
+        return Response::redirect('/admin/settings/language');
+    }
+
+    /**
+     * Renders the inline strings translation editor page.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response
+     */
+    public function translateLanguage(Request $req): Response
+    {
+        $code = $req->param('code', '');
+        /** @var \OwnPay\Service\System\TranslationService $transSvc */
+        $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+
+        if (!$transSvc->exists($code)) {
+            $this->session->flashError("Language code '{$code}' not found");
+            return Response::redirect('/admin/settings/language');
+        }
+
+        $allLangs = $transSvc->getAllLanguages();
+        $langName = $code;
+        foreach ($allLangs as $l) {
+            if ($l['code'] === $code) {
+                $langName = $l['name'];
+                break;
+            }
+        }
+
+        $translations = $transSvc->getTranslations($code);
+        $enTranslations = $transSvc->getTranslations('en');
+
+        // Merge baseline English keys to make sure any missing key is editable
+        $mergedTranslations = [];
+        foreach ($enTranslations as $k => $v) {
+            $mergedTranslations[$k] = $translations[$k] ?? '';
+        }
+
+        return $this->renderAdminPage('admin/settings/translate.twig', [
+            'code'                => $code,
+            'name'                => $langName,
+            'strings'             => $mergedTranslations,
+            'en_strings'          => $enTranslations,
+            'active_page'         => 'settings',
+            'default_tab'         => 'language',
+        ]);
+    }
+
+    /**
+     * Saves updated translation strings.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response
+     */
+    public function saveTranslations(Request $req): Response
+    {
+        $code = $req->param('code', '');
+        $postStrings = $req->post('strings');
+        $strings = is_array($postStrings) ? $postStrings : [];
+
+        /** @var \OwnPay\Service\System\TranslationService $transSvc */
+        $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+
+        if (!$transSvc->exists($code)) {
+            $this->session->flashError("Language code '{$code}' not found");
+            return Response::redirect('/admin/settings/language');
+        }
+
+        try {
+            // Clean up and save
+            $clean = [];
+            foreach ($strings as $k => $v) {
+                $kStr = is_string($k) ? $k : (string)$k;
+                $vStr = is_string($v) ? $v : (is_scalar($v) ? (string)$v : '');
+                if ($kStr !== '') {
+                    $clean[$kStr] = trim($vStr);
+                }
+            }
+            $transSvc->saveTranslations($code, $clean);
+            $this->audit->log('settings.language_translated', 'settings', null, null, ['code' => $code]);
+            $this->session->flashSuccess('Translations saved successfully');
+        } catch (\Throwable $e) {
+            $this->session->flashError('Failed to save translations: ' . $e->getMessage());
+        }
+
+        return Response::redirect("/admin/settings/language/{$code}/translate");
+    }
+
+    /**
+     * Deletes a language.
+     *
+     * @param Request $req The incoming request context.
+     * @return Response
+     */
+    public function deleteLanguage(Request $req): Response
+    {
+        $code = $req->param('code', '');
+
+        if ($code === 'en') {
+            $this->session->flashError('Cannot delete the base English language');
+            return Response::redirect('/admin/settings/language');
+        }
+
+        /** @var \OwnPay\Service\System\TranslationService $transSvc */
+        $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+
+        if (!$transSvc->exists($code)) {
+            $this->session->flashError("Language code '{$code}' not found");
+            return Response::redirect('/admin/settings/language');
+        }
+
+        try {
+            $transSvc->deleteLanguage($code);
+            $this->audit->log('settings.language_deleted', 'settings', null, null, ['code' => $code]);
+            $this->session->flashSuccess('Language deleted successfully');
+        } catch (\Throwable $e) {
+            $this->session->flashError('Failed to delete language: ' . $e->getMessage());
+        }
+
+        return Response::redirect('/admin/settings/language');
     }
 }

@@ -43,6 +43,16 @@ final class CronController
     {
         // 1. Validate secret against env/config/db
         $secret = $req->param('secret');
+        if ($secret === '') {
+            $secret = $req->header('X-Cron-Secret');
+        }
+        if ($secret === '') {
+            $authHeader = $req->header('Authorization');
+            if (str_starts_with(strtolower($authHeader), 'bearer ')) {
+                $secret = substr($authHeader, 7);
+            }
+        }
+
         $settingsRepo = $this->c->has(\OwnPay\Repository\SettingsRepository::class) ? $this->c->get(\OwnPay\Repository\SettingsRepository::class) : null;
         if (!$settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
             $settingsRepo = null;
@@ -56,8 +66,7 @@ final class CronController
         $dbSecretStr = is_string($dbSecret) ? $dbSecret : '';
         $expected = (is_string($envSecret) && $envSecret !== '') ? $envSecret : ($dbSecretStr !== '' ? $dbSecretStr : $configCronSecret);
  
-        $secretStr = $secret;
-        if ($secretStr === '' || !hash_equals($expected, $secretStr)) {
+        if ($secret === '' || !hash_equals($expected, $secret)) {
             return Response::json(['error' => 'Invalid secret'], 401);
         }
  

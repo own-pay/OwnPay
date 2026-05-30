@@ -91,8 +91,8 @@ final class AuditLogRepository extends BaseRepository
         ?string $userAgent
     ): string {
         $secret = \OwnPay\Service\System\EnvironmentService::get('AUDIT_HMAC_SECRET');
-        if ($secret === '') {
-            $secret = 'default_audit_hmac_secret_key_2026';
+        if ($secret === '' || strlen($secret) < 32) {
+            throw new \RuntimeException('Insecure or missing AUDIT_HMAC_SECRET. Secret must be at least 32 characters long.');
         }
 
         $payload = sprintf(

@@ -8,14 +8,17 @@
   "entry": "Plugin.php",
   "entrypoint": "Plugin.php",
   "namespace": "OwnPay\\Modules\\Addons\\SmsGateway",
-  "capabilities": ["addon"],
+  "capabilities": [
+    "addon",
+    "communication"
+  ],
   "requires": {
     "core": ">=0.1.0"
   },
   "hooks": [
-    "sms.before_send",
-    "sms.after_send",
-    "sms.template.render"
+    "sms.send",
+    "invoice.created",
+    "payment.transaction.completed"
   ],
   "settings": {
     "provider": "custom",
@@ -29,6 +32,10 @@
     "custom_api_key": "",
     "custom_api_method": "POST",
     "custom_api_body_template": "{\"to\":\"{{to}}\",\"message\":\"{{message}}\"}",
+    "send_on_invoice_created": false,
+    "invoice_created_template": "Hi {{customer}}, invoice {{invoice_number}} of {{currency}} {{due_amount}} is ready. Due date: {{due_date}}. Pay here: {{url}}",
+    "send_on_payment_success": false,
+    "payment_success_template": "Thank you {{customer}}, your payment of {{currency}} {{amount}} (Trx ID: {{trx_id}}) was successful!",
     "enabled": true
   }
 }

@@ -87,7 +87,7 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $encryptor = new FieldEncryptor('test-encryption-key-32-chars-long!');
         $this->bridge = new GatewayBridge($configsRepo, $encryptor, $this->events, $this->settingsRepo);
 
-        $adapter = $this->createMock(GatewayAdapterInterface::class);
+        $adapter = $this->createStub(GatewayAdapterInterface::class);
         $adapter->method('slug')->willReturn('stripe');
         $adapter->method('verify')->willReturn(['success' => true, 'gateway_trx_id' => 'GW_TRX_123']);
         $adapter->method('refund')->willReturn(['success' => true]);

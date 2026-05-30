@@ -204,7 +204,7 @@ return static function (\OwnPay\Container $c): void {
         $twig->addExtension(new \OwnPay\View\TwigExtension\CoreExtension($appVersion, $appUrl));
         
         /**
-         * H-03 FIX: CSRF token must be read lazily at render time, NOT at container build time.
+         * CSRF token must be read lazily at render time, NOT at container build time.
          * At container build, session may not be started yet → token would be empty string.
          * Use a __toString() proxy so Twig reads session when rendering {{ csrf_token }}.
          */
@@ -223,10 +223,49 @@ return static function (\OwnPay\Container $c): void {
         });
         $appName = $_ENV['APP_NAME'] ?? 'Own Pay';
         $twig->addGlobal('app_name', is_string($appName) ? $appName : 'Own Pay');
-        $twig->addGlobal('lang', []);   // i18n placeholder — populated by locale plugin
+        // i18n dynamic translation setup
+        $twig->addFunction(new \Twig\TwigFunction('__', function (string $key, array $replace = []) use ($c): string {
+            $trans = $c->get(\OwnPay\Service\System\TranslationService::class);
+            if ($trans instanceof \OwnPay\Service\System\TranslationService) {
+                return $trans->trans($key, $replace);
+            }
+            return $key;
+        }));
+
+        $twig->addFunction(new \Twig\TwigFunction('locale', function () use ($c): string {
+            $trans = $c->get(\OwnPay\Service\System\TranslationService::class);
+            if ($trans instanceof \OwnPay\Service\System\TranslationService) {
+                return $trans->getLocale();
+            }
+            return 'en';
+        }));
+
+        $twig->addFilter(new \Twig\TwigFilter('__', function (string $key, array $replace = []) use ($c): string {
+            $trans = $c->get(\OwnPay\Service\System\TranslationService::class);
+            if ($trans instanceof \OwnPay\Service\System\TranslationService) {
+                return $trans->trans($key, $replace);
+            }
+            return $key;
+        }));
+
+        $twig->addGlobal('lang', new class($c) implements \ArrayAccess {
+            private \OwnPay\Container $c;
+            public function __construct(\OwnPay\Container $c) { $this->c = $c; }
+            public function offsetExists(mixed $offset): bool { return true; }
+            public function offsetGet(mixed $offset): mixed {
+                $trans = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+                if ($trans instanceof \OwnPay\Service\System\TranslationService) {
+                    $offsetStr = is_scalar($offset) ? (string)$offset : '';
+                    return $trans->trans($offsetStr);
+                }
+                return $offset;
+            }
+            public function offsetSet(mixed $offset, mixed $value): void {}
+            public function offsetUnset(mixed $offset): void {}
+        });
 
         /**
-         * BUG-12 FIX: Expose CSP nonce to all templates.
+         * Expose CSP nonce to all templates.
          * SecurityHeadersMiddleware stores nonce in Container as 'csp_nonce'.
          * Use lazy proxy since nonce isn't generated until middleware runs.
          */
@@ -485,7 +524,7 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
-    // CHK-003 + CHK-006: Payment completion listener (invoice paid + link use_count)
+    // Payment completion listener (invoice paid + link use_count)
     $c->singleton(\OwnPay\Service\Payment\PaymentCompletionListener::class, static function (\OwnPay\Container $c): \OwnPay\Service\Payment\PaymentCompletionListener {
         return new \OwnPay\Service\Payment\PaymentCompletionListener(
             ensureType($c->get(\OwnPay\Repository\InvoiceRepository::class), \OwnPay\Repository\InvoiceRepository::class),
@@ -601,6 +640,14 @@ return static function (\OwnPay\Container $c): void {
         $runner->register('SystemUpdate', ensureType($c->get(\OwnPay\Cron\SystemUpdateJob::class), \OwnPay\Cron\SystemUpdateJob::class), 'daily');
 
         return $runner;
+    });
+
+    $c->singleton(\OwnPay\Service\System\TranslationService::class, static function (\OwnPay\Container $c): \OwnPay\Service\System\TranslationService {
+        $db = $c->get(\OwnPay\Core\Database::class);
+        if (!$db instanceof \OwnPay\Core\Database) {
+            throw new \RuntimeException('Database instance not found in Container');
+        }
+        return new \OwnPay\Service\System\TranslationService($db);
     });
 };
 

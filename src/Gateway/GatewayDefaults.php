@@ -45,18 +45,18 @@ trait GatewayDefaults
     }
 
     /**
-     * Default webhook verification that accepts all payloads as authentic.
+     * Default webhook verification that rejects all payloads by default.
      *
      * Gateways must override this to check signatures, check SSL certificates, or execute IPNs.
      *
      * @param string $rawBody The raw HTTP request payload.
      * @param array<string, string> $headers Inbound HTTP request headers.
      * @param array<string, mixed> $credentials Decrypted, merchant-configured gateway credentials.
-     * @return bool Always true by default.
+     * @return bool Always false by default.
      */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        return true;
+        return false;
     }
 
     /**

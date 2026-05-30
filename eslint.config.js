@@ -13,7 +13,10 @@ export default [
       "update/**/*",
       "mobile_app/**/*",
       "cli/**/*",
-      "scratch/**/*"
+      "scratch/**/*",
+      ".antigravitycli/**/*",
+      ".planning/**/*",
+      ".phpunit.cache/**/*"
     ]
   },
 

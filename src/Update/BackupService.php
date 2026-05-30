@@ -102,6 +102,13 @@ class BackupService
         if (file_exists($codeZip)) {
             $zip = new \ZipArchive();
             if ($zip->open($codeZip) === true) {
+                for ($i = 0; $i < $zip->numFiles; $i++) {
+                    $name = $zip->getNameIndex($i);
+                    if ($name === false || str_contains($name, '..') || str_starts_with($name, '/') || str_starts_with($name, '\\')) {
+                        $zip->close();
+                        throw new \RuntimeException('Backup archive contains unsafe paths');
+                    }
+                }
                 $zip->extractTo(dirname(__DIR__, 2));
                 $zip->close();
             }
