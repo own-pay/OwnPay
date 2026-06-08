@@ -1,10 +1,10 @@
-<div align="center">
+ <div align="center">
 
 <!--  LOGO — auto light/dark based on GitHub theme  -->
 <picture>
-  <source media="(prefers-color-scheme: dark)"  srcset="https://github.com/own-pay/.github/raw/main/profile/assets/logo-dark.png">
+  <source media="(prefers-color-scheme: dark)"  srcset="https://github.com/own-pay/.github/blob/main/profile/assets/logo-png.png">
   <source media="(prefers-color-scheme: light)" srcset="https://github.com/own-pay/.github/raw/main/profile/assets/logo-light.png">
-  <img src="https://github.com/own-pay/.github/raw/main/profile/assets/logo-png.png" height="96" alt="OwnPay" />
+  <img src="https://github.com/own-pay/.github/blob/main/profile/assets/logo-png.png" height="96" alt="OwnPay" />
 </picture>
 
 <br /><br />
@@ -34,7 +34,8 @@
 <!--  ELITE SPONSOR STRIP  -->
 <div align="center">
 
-[![ELITE SPONSOR](https://img.shields.io/badge/%E2%9A%A1%20ELITE%20SPONSOR-FFB800?style=flat-square&labelColor=111111)](https://namepart.com) &nbsp; <a href="https://namepart.com"><img src="https://ownpay.org/assets/img/sponsor/namepart.png" height="22" alt="Namepart" /></a> &nbsp; **[Namepart](https://namepart.com)** — Powering open-source fintech infrastructure. &nbsp; <sub>[Become a Sponsor →](mailto:ping@ownpay.org)</sub>
+![ELITE SPONSOR](https://img.shields.io/badge/%E2%9A%A1%20ELITE%20SPONSOR-FFB800?style=flat-square&labelColor=111111) &nbsp; <br />
+<a href="https://namepart.com"><img src="https://ownpay.org/assets/img/sponsors/namepart_logo.png" height="22" alt="Namepart" /></a> &nbsp; **[Namepart](https://namepart.com)** — Powering open-source fintech infrastructure. &nbsp; <br /><sub>[Become a Sponsor →](https://ownpay.org/donate)</sub>
 
 </div>
 
@@ -90,7 +91,7 @@
 
 <div align="center">
 
-> **OwnPay is functional and ready to explore — right now.**<br />
+> **OwnPay live demo open soon**<br />
 > Experience the platform firsthand before the official public release.
 
 <br />
@@ -144,7 +145,7 @@
 <summary><b>What is the current project status?</b></summary>
 <br />
 
-OwnPay has completed its core development phase. The platform is currently undergoing **bug fixing and final validation** before the **Public Beta v0.1.0** release. The live demo at [demo.ownpay.org](https://demo.ownpay.org) is fully operational — you can explore the platform today.
+OwnPay has completed its core development phase. The platform is currently undergoing **bug fixing and final validation** before the **Public Beta v0.1.0** release. The live demo at [demo.ownpay.org](https://demo.ownpay.org) is fully operational soon — you can explore the platform today.
 
 </details>
 
@@ -262,7 +263,7 @@ The platform is in its **public beta phase** of release. The demo environment is
 <br />
 
 <a href="https://namepart.com">
-  <img src="https://ownpay.org/assets/img/sponsor/namepart.png" height="38" alt="Namepart" />
+  <img src="https://ownpay.org/assets/img/sponsors/namepart_logo.png" height="38" alt="Namepart" />
 </a>
 
 <br /><br />
