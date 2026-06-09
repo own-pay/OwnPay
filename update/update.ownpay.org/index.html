@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OwnPay — Update Server</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <!-- Marked.js for rendering markdown changelogs -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --bg-color: #0b0f19;
+            --panel-bg: rgba(22, 27, 42, 0.65);
+            --border-color: rgba(255, 255, 255, 0.08);
+            --text-main: #f3f4f6;
+            --text-muted: #9ca3af;
+            --primary: #6366f1;
+            --primary-glow: rgba(99, 102, 241, 0.35);
+            --accent: #8b5cf6;
+            --accent-glow: rgba(139, 92, 246, 0.35);
+            --success: #10b981;
+            --danger: #f43f5e;
+            --warning: #f59e0b;
+            --font-main: 'Outfit', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+            --glass-blur: blur(12px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: var(--font-main);
+            background-color: var(--bg-color);
+            color: var(--text-main);
+            min-height: 100vh;
+            overflow-x: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+
+        /* --- Glowing Background Blobs --- */
+        .bg-glow-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            z-index: -1;
+            overflow: hidden;
+        }
+
+        .bg-blob {
+            position: absolute;
+            border-radius: 50%;
+            filter: blur(80px);
+            opacity: 0.25;
+            animation: float 25s infinite alternate ease-in-out;
+        }
+
+        .blob-1 {
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--primary) 0%, transparent 70%);
+            top: -10%;
+            right: -10%;
+            animation-duration: 20s;
+        }
+
+        .blob-2 {
+            width: 600px;
+            height: 600px;
+            background: radial-gradient(circle, var(--accent) 0%, transparent 70%);
+            bottom: -20%;
+            left: -10%;
+            animation-duration: 25s;
+        }
+
+        .blob-3 {
+            width: 400px;
+            height: 400px;
+            background: radial-gradient(circle, var(--success) 0%, transparent 70%);
+            top: 40%;
+            right: 20%;
+            animation-duration: 18s;
+            opacity: 0.12;
+        }
+
+        @keyframes float {
+            0% {
+                transform: translate(0, 0) scale(1);
+            }
+            100% {
+                transform: translate(80px, 50px) scale(1.1);
+            }
+        }
+
+        /* --- Header & Layout --- */
+        header {
+            padding: 40px 20px 20px;
+            text-align: center;
+        }
+
+        .logo-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+        }
+
+        .logo-icon {
+            width: 52px;
+            height: 52px;
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            border-radius: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 800;
+            font-size: 24px;
+            color: #fff;
+            box-shadow: 0 0 20px var(--primary-glow);
+        }
+
+        h1 {
+            font-size: 32px;
+            font-weight: 700;
+            letter-spacing: -0.5px;
+            margin-bottom: 6px;
+            background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            font-size: 16px;
+            color: var(--text-muted);
+            font-weight: 300;
+        }
+
+        main {
+            max-width: 1000px;
+            width: 100%;
+            margin: 0 auto;
+            padding: 20px;
+            flex-grow: 1;
+        }
+
+        /* --- Server Stats Bar --- */
+        .stats-bar {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 16px 24px;
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: space-around;
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .stat-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            text-align: center;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 4px;
+        }
+
+        .stat-value {
+            font-size: 16px;
+            font-weight: 600;
+            color: var(--text-main);
+        }
+
+        /* --- Tabs --- */
+        .tabs-container {
+            display: flex;
+            justify-content: center;
+            margin-bottom: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            padding: 6px;
+            border-radius: 12px;
+            border: 1px solid var(--border-color);
+            max-width: 320px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .tab-btn {
+            flex: 1;
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            padding: 10px 16px;
+            font-family: var(--font-main);
+            font-size: 14px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            color: #fff;
+            box-shadow: 0 4px 15px var(--primary-glow);
+        }
+
+        /* --- Content Panels --- */
+        .channel-panel {
+            display: none;
+            animation: fadeIn 0.4s ease-out forwards;
+        }
+
+        .channel-panel.active {
+            display: block;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* --- Latest Release Card --- */
+        .latest-card {
+            background: linear-gradient(135deg, rgba(22, 27, 42, 0.8) 0%, rgba(30, 41, 59, 0.8) 100%);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid rgba(255, 255, 255, 0.12);
+            border-radius: 20px;
+            padding: 30px;
+            margin-bottom: 30px;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .latest-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--primary) 0%, var(--accent) 50%, var(--success) 100%);
+        }
+
+        .card-header-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-bottom: 20px;
+        }
+
+        .version-badge-container {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .latest-badge {
+            background: rgba(16, 185, 129, 0.15);
+            color: var(--success);
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .breaking-badge {
+            background: rgba(244, 63, 94, 0.15);
+            color: var(--danger);
+            border: 1px solid rgba(244, 63, 94, 0.3);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 11px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .version-title {
+            font-size: 28px;
+            font-weight: 700;
+            color: #fff;
+        }
+
+        .release-date {
+            font-size: 14px;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        .download-action-btn {
+            background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%);
+            border: none;
+            color: #fff;
+            padding: 12px 24px;
+            font-family: var(--font-main);
+            font-weight: 600;
+            font-size: 15px;
+            border-radius: 10px;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            box-shadow: 0 4px 15px var(--primary-glow);
+            transition: all 0.3s ease;
+            text-decoration: none;
+        }
+
+        .download-action-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(99, 102, 241, 0.5);
+        }
+
+        .latest-meta-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 20px;
+            padding: 20px 0;
+            border-top: 1px solid var(--border-color);
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 24px;
+        }
+
+        .meta-cell {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .meta-label {
+            font-size: 12px;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+        }
+
+        .meta-val {
+            font-size: 14px;
+            font-weight: 500;
+        }
+
+        .meta-val-mono {
+            font-family: var(--font-mono);
+            font-size: 13px;
+            background: rgba(255, 255, 255, 0.04);
+            padding: 4px 8px;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .copy-icon-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-muted);
+            cursor: pointer;
+            padding: 2px;
+            margin-left: 8px;
+            transition: color 0.2s;
+        }
+
+        .copy-icon-btn:hover {
+            color: #fff;
+        }
+
+        /* --- Changelog Box --- */
+        .changelog-box h3 {
+            font-size: 16px;
+            font-weight: 600;
+            margin-bottom: 12px;
+            color: #fff;
+        }
+
+        .markdown-body {
+            font-size: 14px;
+            line-height: 1.6;
+            color: #d1d5db;
+        }
+
+        .markdown-body ul, .markdown-body ol {
+            padding-left: 20px;
+            margin-bottom: 12px;
+        }
+
+        .markdown-body li {
+            margin-bottom: 6px;
+        }
+
+        .markdown-body h3 {
+            font-size: 14px;
+            margin-top: 14px;
+            margin-bottom: 8px;
+            color: var(--primary);
+        }
+
+        /* --- Historical List --- */
+        .history-section-title {
+            font-size: 18px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            color: var(--text-muted);
+            letter-spacing: 0.5px;
+        }
+
+        .history-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .history-item {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            overflow: hidden;
+            transition: border-color 0.3s;
+        }
+
+        .history-item:hover {
+            border-color: rgba(255, 255, 255, 0.15);
+        }
+
+        .history-header {
+            padding: 16px 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            user-select: none;
+        }
+
+        .history-version-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+
+        .history-version-name {
+            font-size: 16px;
+            font-weight: 600;
+            color: #fff;
+        }
+
+        .history-date {
+            font-size: 13px;
+            color: var(--text-muted);
+        }
+
+        .history-arrow {
+            width: 20px;
+            height: 20px;
+            fill: var(--text-muted);
+            transition: transform 0.3s ease;
+        }
+
+        .history-item.open .history-arrow {
+            transform: rotate(180deg);
+        }
+
+        .history-body {
+            max-height: 0;
+            overflow: hidden;
+            transition: max-height 0.3s cubic-bezier(0, 1, 0, 1);
+            padding: 0 20px;
+        }
+
+        .history-item.open .history-body {
+            max-height: 2000px;
+            transition: max-height 0.4s cubic-bezier(1, 0, 1, 0);
+            padding-bottom: 20px;
+            border-top: 1px solid var(--border-color);
+            padding-top: 16px;
+        }
+
+        /* --- Footer --- */
+        footer {
+            padding: 40px 20px;
+            text-align: center;
+            font-size: 13px;
+            color: var(--text-muted);
+            border-top: 1px solid var(--border-color);
+            background: rgba(11, 15, 25, 0.8);
+            backdrop-filter: var(--glass-blur);
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        footer a:hover {
+            text-decoration: underline;
+        }
+
+        /* --- Utility UI elements --- */
+        .empty-state {
+            padding: 40px;
+            text-align: center;
+            background: var(--panel-bg);
+            border-radius: 16px;
+            border: 1px dashed var(--border-color);
+        }
+
+        .empty-state p {
+            color: var(--text-muted);
+            font-size: 15px;
+        }
+
+        .toast {
+            position: fixed;
+            bottom: 24px;
+            right: 24px;
+            background: #1e293b;
+            border: 1px solid var(--success);
+            color: #fff;
+            padding: 12px 20px;
+            border-radius: 8px;
+            font-size: 14px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.4);
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 1000;
+            transform: translateY(100px);
+            opacity: 0;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+
+        .toast.show {
+            transform: translateY(0);
+            opacity: 1;
+        }
+
+        /* --- SVG Icons --- */
+        .icon {
+            display: inline-block;
+            width: 1.2em;
+            height: 1.2em;
+            stroke-width: 0;
+            stroke: currentColor;
+            fill: currentColor;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- Glowing Background Blobs -->
+    <div class="bg-glow-container">
+        <div class="bg-blob blob-1"></div>
+        <div class="bg-blob blob-2"></div>
+        <div class="bg-blob blob-3"></div>
+    </div>
+
+    <!-- Header -->
+    <header>
+        <div class="logo-container">
+            <div class="logo-icon">OP</div>
+        </div>
+        <h1>OwnPay — Update Registry</h1>
+        <div class="subtitle">Platform self-update packages & release distributions</div>
+    </header>
+
+    <!-- Main Container -->
+    <main>
+        <!-- Stats Bar -->
+        <div class="stats-bar">
+            <div class="stat-item">
+                <span class="stat-label">Stable Release</span>
+                <span class="stat-value" id="stats-stable">Checking...</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Beta Release</span>
+                <span class="stat-value" id="stats-beta">Checking...</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Registry Updated</span>
+                <span class="stat-value" id="stats-updated">Checking...</span>
+            </div>
+        </div>
+
+        <!-- Tabs -->
+        <div class="tabs-container">
+            <button class="tab-btn active" onclick="switchChannel('stable')">Stable Channel</button>
+            <button class="tab-btn" onclick="switchChannel('beta')">Beta Channel</button>
+        </div>
+
+        <!-- Stable Channel Panel -->
+        <div id="stable-panel" class="channel-panel active">
+            <div id="stable-latest-container"></div>
+            <div class="history-section-title">Historical Stable Releases</div>
+            <div id="stable-history-list" class="history-list"></div>
+        </div>
+
+        <!-- Beta Channel Panel -->
+        <div id="beta-panel" class="channel-panel">
+            <div id="beta-latest-container"></div>
+            <div class="history-section-title">Historical Beta Releases</div>
+            <div id="beta-history-list" class="history-list"></div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <p>&copy; <span id="year"></span> <a href="https://ownpay.org" target="_blank">OwnPay</a>. All rights reserved.</p>
+        <p style="margin-top: 4px; font-size: 11px; opacity: 0.5;">Secure Update Registry Service</p>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast">
+        <svg class="icon" viewBox="0 0 24 24" style="color: var(--success);"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/></svg>
+        <span id="toast-message">Copied to clipboard!</span>
+    </div>
+
+    <!-- Scripts -->
+    <script>
+        document.getElementById('year').textContent = new Date().getFullYear();
+
+        let manifestData = null;
+
+        // Fetch manifest.json
+        fetch('manifest.json')
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error();
+                }
+                return response.json();
+            })
+            .then(data => {
+                manifestData = data;
+                renderPage();
+            })
+            .catch(() => {
+                showNoUpdateFound();
+            });
+
+        function switchChannel(channel) {
+            // Switch tabs
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            tabButtons.forEach(btn => btn.classList.remove('active'));
+            
+            const activeBtnIndex = channel === 'stable' ? 0 : 1;
+            tabButtons[activeBtnIndex].classList.add('active');
+
+            // Switch panels
+            const panels = document.querySelectorAll('.channel-panel');
+            panels.forEach(p => p.classList.remove('active'));
+            document.getElementById(`${channel}-panel`).classList.add('active');
+        }
+
+        function formatBytes(bytes, decimals = 2) {
+            if (bytes === 0) return '0 Bytes';
+            const k = 1024;
+            const dm = decimals < 0 ? 0 : decimals;
+            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const i = Math.floor(Math.log(bytes) / Math.log(k));
+            return parseFloat((bytes / Math.pow(k, bytes === 0 ? 1 : k)).toFixed(dm)) + ' ' + sizes[i];
+        }
+
+        function formatDate(dateStr) {
+            if (!dateStr) return 'Unknown';
+            const options = { year: 'numeric', month: 'long', day: 'numeric' };
+            return new Date(dateStr).toLocaleDateString(undefined, options);
+        }
+
+        function showToast(message) {
+            const toast = document.getElementById('toast');
+            document.getElementById('toast-message').textContent = message;
+            toast.classList.add('show');
+            setTimeout(() => {
+                toast.classList.remove('show');
+            }, 3000);
+        }
+
+        function copyToClipboard(text, entityName) {
+            navigator.clipboard.writeText(text).then(() => {
+                showToast(`Copied ${entityName} to clipboard!`);
+            }, (err) => {
+                console.error('Could not copy text: ', err);
+            });
+        }
+
+        async function checkZipExists(url) {
+            if (!url) return false;
+            try {
+                let localUrl = url;
+                const releasesIdx = url.indexOf('/releases/');
+                if (releasesIdx !== -1) {
+                    localUrl = url.substring(releasesIdx + 1);
+                }
+
+                const response = await fetch(localUrl, { method: 'HEAD' });
+                if (response.status === 404) {
+                    return false;
+                }
+                return response.ok;
+            } catch (error) {
+                const isRelative = !url.startsWith('http://') && !url.startsWith('https://');
+                const isSameDomain = url.includes(window.location.host);
+                if (isRelative || isSameDomain) {
+                    return false;
+                }
+                return true;
+            }
+        }
+
+        function showNoUpdateFound() {
+            const emptyHtml = `
+                <div class="empty-state">
+                    <p>No update found.</p>
+                </div>
+            `;
+            document.getElementById('stable-latest-container').innerHTML = emptyHtml;
+            document.getElementById('beta-latest-container').innerHTML = emptyHtml;
+            document.getElementById('stable-history-list').innerHTML = '';
+            document.getElementById('beta-history-list').innerHTML = '';
+            document.getElementById('stats-stable').textContent = 'N/A';
+            document.getElementById('stats-beta').textContent = 'N/A';
+            document.getElementById('stats-updated').textContent = 'N/A';
+        }
+
+        function toggleHistoryItem(element) {
+            const item = element.closest('.history-item');
+            item.classList.toggle('open');
+        }
+
+        function renderPage() {
+            if (!manifestData) return;
+
+            // Render stats
+            const stableLatest = manifestData.channels?.stable?.latest_version_name || 'N/A';
+            const betaLatest = manifestData.channels?.beta?.latest_version_name || 'N/A';
+            
+            document.getElementById('stats-stable').textContent = stableLatest;
+            document.getElementById('stats-beta').textContent = betaLatest;
+            
+            if (manifestData.generated_at) {
+                const date = new Date(manifestData.generated_at);
+                document.getElementById('stats-updated').textContent = date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            } else {
+                document.getElementById('stats-updated').textContent = 'N/A';
+            }
+
+            // Group releases by channel
+            const releasesList = manifestData.releases || [];
+            
+            // Sort stable and beta releases descending
+            const stableReleases = releasesList.filter(r => r.channel === 'stable').sort((a,b) => b.version.localeCompare(a.version, undefined, {numeric: true}));
+            const betaReleases = releasesList.filter(r => r.channel === 'beta').sort((a,b) => b.version.localeCompare(a.version, undefined, {numeric: true}));
+
+            renderChannel('stable', stableReleases);
+            renderChannel('beta', betaReleases);
+        }
+
+        async function renderChannel(channel, releases) {
+            const latestContainer = document.getElementById(`${channel}-latest-container`);
+            const historyList = document.getElementById(`${channel}-history-list`);
+
+            if (releases.length === 0) {
+                latestContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>No update found.</p>
+                    </div>
+                `;
+                historyList.innerHTML = '';
+                return;
+            }
+
+            // Latest is first index
+            const latest = releases[0];
+            const history = releases.slice(1);
+
+            // Verify if zip file exists
+            const zipExists = await checkZipExists(latest.download_url);
+            if (!zipExists) {
+                latestContainer.innerHTML = `
+                    <div class="empty-state">
+                        <p>No update found.</p>
+                    </div>
+                `;
+                historyList.innerHTML = '';
+                const statsId = channel === 'stable' ? 'stats-stable' : 'stats-beta';
+                document.getElementById(statsId).textContent = 'N/A';
+                return;
+            }
+
+            // Render Latest Card
+            latestContainer.innerHTML = `
+                <div class="latest-card">
+                    <div class="card-header-row">
+                        <div>
+                            <div class="version-badge-container">
+                                <span class="version-title">v${latest.version}</span>
+                                <span class="latest-badge">LATEST</span>
+                                ${latest.breaking_changes ? '<span class="breaking-badge">BREAKING</span>' : ''}
+                            </div>
+                            <div class="release-date">Released on ${formatDate(latest.release_date)}</div>
+                        </div>
+                        <a href="${latest.download_url}" class="download-action-btn">
+                            <svg class="icon" viewBox="0 0 24 24" style="width: 20px; height: 20px;"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+                            Download Package
+                        </a>
+                    </div>
+                    
+                    <div class="latest-meta-grid">
+                        <div class="meta-cell">
+                            <span class="meta-label">File Size</span>
+                            <span class="meta-val">${formatBytes(latest.size_bytes)}</span>
+                        </div>
+                        <div class="meta-cell">
+                            <span class="meta-label">Minimum PHP</span>
+                            <span class="meta-val">${latest.min_php_version || '8.2.0'}</span>
+                        </div>
+                        <div class="meta-cell">
+                            <span class="meta-label">Minimum OwnPay</span>
+                            <span class="meta-val">${latest.min_ownpay_version || '0.1.0'}</span>
+                        </div>
+                        <div class="meta-cell">
+                            <span class="meta-label">SHA-256 Checksum</span>
+                            <span class="meta-val-mono" title="${latest.checksum_sha256}">
+                                ${latest.checksum_sha256 ? latest.checksum_sha256.substring(0, 12) + '...' : 'N/A'}
+                                <button class="copy-icon-btn" onclick="copyToClipboard('${latest.checksum_sha256}', 'SHA-256 hash')">
+                                    <svg class="icon" viewBox="0 0 24 24" style="width: 14px; height: 14px;"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                                </button>
+                            </span>
+                        </div>
+                    </div>
+
+                    ${latest.breaking_changes && latest.breaking_notes ? `
+                        <div style="background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #fda4af;">
+                            <strong>Breaking Change Note:</strong> ${latest.breaking_notes}
+                        </div>
+                    ` : ''}
+
+                    ${latest.migrations && latest.migrations.length > 0 ? `
+                        <div style="margin-bottom: 20px;">
+                            <span class="meta-label" style="display: block; margin-bottom: 6px;">Migrations to Execute</span>
+                            <div style="display: flex; flex-wrap: wrap; gap: 8px;">
+                                ${latest.migrations.map(m => `<span style="font-family: var(--font-mono); font-size: 12px; background: rgba(99, 102, 241, 0.1); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.2); padding: 4px 8px; border-radius: 4px;">${m}</span>`).join('')}
+                            </div>
+                        </div>
+                    ` : ''}
+
+                    <div class="changelog-box">
+                        <h3>Changelog</h3>
+                        <div class="markdown-body">
+                            ${marked.parse(latest.changelog || '*No changelog provided.*')}
+                        </div>
+                    </div>
+                </div>
+            `;
+
+            // Render Historical Accordions
+            if (history.length === 0) {
+                historyList.innerHTML = `
+                    <div class="empty-state" style="padding: 20px;">
+                        <p>No historical releases available.</p>
+                    </div>
+                `;
+                return;
+            }
+
+            historyList.innerHTML = history.map((rel, index) => `
+                <div class="history-item">
+                    <div class="history-header" onclick="toggleHistoryItem(this)">
+                        <div class="history-version-info">
+                            <span class="history-version-name">v${rel.version}</span>
+                            ${rel.breaking_changes ? '<span class="breaking-badge" style="font-size: 9px; padding: 2px 6px;">BREAKING</span>' : ''}
+                            <span class="history-date">${formatDate(rel.release_date)}</span>
+                        </div>
+                        <svg class="history-arrow" viewBox="0 0 24 24"><path d="M7 10l5 5 5-5z"/></svg>
+                    </div>
+                    <div class="history-body">
+                        <div class="latest-meta-grid" style="grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); border-top: none; margin-bottom: 16px; padding: 0 0 16px 0;">
+                            <div class="meta-cell">
+                                <span class="meta-label">File Size</span>
+                                <span class="meta-val" style="font-size:13px;">${formatBytes(rel.size_bytes)}</span>
+                            </div>
+                            <div class="meta-cell">
+                                <span class="meta-label">Required PHP</span>
+                                <span class="meta-val" style="font-size:13px;">${rel.min_php_version || '8.2.0'}</span>
+                            </div>
+                            <div class="meta-cell">
+                                <span class="meta-label">SHA-256 Hash</span>
+                                <span class="meta-val-mono" style="font-size:12px;" title="${rel.checksum_sha256}">
+                                    ${rel.checksum_sha256 ? rel.checksum_sha256.substring(0, 10) + '...' : 'N/A'}
+                                    <button class="copy-icon-btn" onclick="event.stopPropagation(); copyToClipboard('${rel.checksum_sha256}', 'SHA-256 hash')">
+                                        <svg class="icon" viewBox="0 0 24 24" style="width: 12px; height: 12px;"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+                                    </button>
+                                </span>
+                            </div>
+                            <div class="meta-cell" style="justify-content: center; align-items: flex-end;">
+                                <a href="${rel.download_url}" class="download-action-btn" style="padding: 8px 16px; font-size:13px;">
+                                    Download ZIP
+                                </a>
+                            </div>
+                        </div>
+
+                        ${rel.breaking_changes && rel.breaking_notes ? `
+                            <div style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: #fda4af;">
+                                <strong>Breaking Change Note:</strong> ${rel.breaking_notes}
+                            </div>
+                        ` : ''}
+
+                        ${rel.migrations && rel.migrations.length > 0 ? `
+                            <div style="margin-bottom: 14px;">
+                                <span class="meta-label" style="display: block; margin-bottom: 4px; font-size:11px;">Migrations</span>
+                                <div style="display: flex; flex-wrap: wrap; gap: 6px;">
+                                    ${rel.migrations.map(m => `<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(255, 255, 255, 0.05); color: #cbd5e1; border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 4px;">${m}</span>`).join('')}
+                                </div>
+                            </div>
+                        ` : ''}
+
+                        <div class="changelog-box">
+                            <h3 style="font-size:14px; margin-bottom:8px;">Changelog</h3>
+                            <div class="markdown-body" style="font-size:13px;">
+                                ${marked.parse(rel.changelog || '*No changelog provided.*')}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Error state handled gracefully by showNoUpdateFound()
+    </script>
+</body>
+</html>

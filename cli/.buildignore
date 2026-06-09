@@ -1,0 +1,78 @@
+# OwnPay release packaging ignore rules (.gitignore-style, project-root-relative).
+# Read by cli/build-update.php — listed files/dirs are EXCLUDED from the release zip.
+# Syntax: trailing "/" = directory; pattern with "/" matches the full path; pattern
+# without "/" matches the basename at any depth; "*" globs are allowed (fnmatch).
+#
+# NOTE 1: secrets (.env, *private_key*.pem, .git/) are ALSO hard-denied in build-update.php
+#         regardless of this file, so a typo here can never leak them.
+# NOTE 2: the storage/ runtime skeleton (empty dirs) is re-created by the builder so the
+#         zip also works as a clean fresh-install — do NOT remove the storage/ rule below.
+
+# ── Version control / IDE / agent tooling ──
+.git/
+.github/
+.gitignore
+.gitattributes
+.vscode/
+.idea/
+.agents/
+.antigravitycli/
+.claude/
+.graphifyignore
+
+# ── Build / audit / planning artifacts ──
+output/
+.planning/
+graphify-out/
+scratch/
+docs/
+node_modules/
+.phpunit.cache/
+.twig-cs-fixer.cache
+
+# ── Dev / test / build tooling (not needed at runtime) ──
+tests/
+cli/
+update/
+mobile_app/
+phpunit.xml
+phpstan.neon
+.twig-cs-fixer.php
+eslint.config.js
+stylelint.config.js
+package.json
+package-lock.json
+nginx.conf.example
+
+# ── Runtime state (empty skeleton is re-created by the builder) ──
+storage/
+
+# ── Secrets & local env (also hard-denied in code) ──
+.env
+.env.temp
+update_private_key.pem
+update_public_key.pem
+
+# ── Repo meta-docs not part of the shipped product ──
+CLAUDE.md
+AGENTS.md
+ARCHITECTURE.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+ROADMAP.md
+SECURITY.md
+SUPPORT.md
+ownpay_master_audit_prompt.txt
+
+# ── Misc junk / scratch ──
+.DS_Store
+Thumbs.db
+*.log
+admin_errors.txt
+admin_errors_left.txt
+admin_phpstan_errors.txt
+headers.txt
+scratch_test.php
+findings.md
+progress.md
+task_plan.md

@@ -91,20 +91,80 @@ final class SystemUpdateController
             }
         }
 
-        $autoUpdate     = $this->settingsRepo->get('general', 'auto_update', '0');
+        $autoUpdate      = $this->settingsRepo->get('general', 'auto_update', '0');
+        $updateChannel   = $this->settingsRepo->get('general', 'update_channel', 'stable');
+        $preUpdateBackup = $this->settingsRepo->get('general', 'pre_update_backup', '1');
+
         $configApp = $this->c->get('config.app');
         $currentVersion = is_array($configApp) && isset($configApp['version']) && is_string($configApp['version']) ? $configApp['version'] : '0.1.0';
         $latestVersion  = is_array($latestCheck) && isset($latestCheck['version']) && is_string($latestCheck['version']) ? $latestCheck['version'] : $currentVersion;
 
+        // Dynamic server-side diagnostics
+        $dbStart = microtime(true);
+        $this->historyRepo->latest();
+        $dbLatencyMs = (int) round((microtime(true) - $dbStart) * 1000);
+
+        $appRoot = dirname(__DIR__, 3);
+        $appRootPerms = is_dir($appRoot) ? (string) substr(sprintf('%o', @fileperms($appRoot)), -4) : '0755';
+        $storagePerms = is_dir($appRoot . '/storage') ? (string) substr(sprintf('%o', @fileperms($appRoot . '/storage')), -4) : '0775';
+        $publicPerms  = is_dir($appRoot . '/public') ? (string) substr(sprintf('%o', @fileperms($appRoot . '/public')), -4) : '0755';
+
+        $diagnostics = [
+            'php_version' => PHP_VERSION,
+            'memory_limit' => ini_get('memory_limit') ?: 'N/A',
+            'max_execution_time' => (ini_get('max_execution_time') ?: '0') . 's',
+            'db_latency' => $dbLatencyMs . 'ms',
+            'app_root_writable' => is_writable($appRoot),
+            'storage_writable' => is_writable($appRoot . '/storage'),
+            'public_writable' => is_writable($appRoot . '/public'),
+            'app_root_perms' => $appRootPerms,
+            'storage_perms' => $storagePerms,
+            'public_perms' => $publicPerms,
+        ];
+
         return $this->renderAdminPage('admin/system-update.twig', [
-            'current_version'  => $currentVersion,
-            'latest_version'   => $latestVersion,
-            'update_available' => version_compare($latestVersion, $currentVersion, '>'),
-            'update_info'      => $latestCheck,
-            'update_history'   => $history,
-            'total_updates'    => $total,
-            'auto_update'      => $autoUpdate === '1',
-            'active_page'      => 'system-update',
+            'current_version'   => $currentVersion,
+            'latest_version'    => $latestVersion,
+            'update_available'  => version_compare($latestVersion, $currentVersion, '>'),
+            'update_info'       => $latestCheck,
+            'update_history'    => $history,
+            'total_updates'     => $total,
+            'auto_update'       => $autoUpdate === '1',
+            'update_channel'    => $updateChannel,
+            'pre_update_backup' => $preUpdateBackup === '1',
+            'diagnostics'       => $diagnostics,
+            'active_page'       => 'system-update',
+        ]);
+    }
+
+    /**
+     * Get the status of any active update in progress.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP JSON response.
+     */
+    public function status(Request $req): Response
+    {
+        $active = $this->historyRepo->getActiveUpdate();
+        if ($active === null) {
+            return Response::json([
+                'in_progress' => false,
+                'current_step' => 'completed',
+                'target_version' => null,
+                'error' => null,
+                'duration' => 0
+            ]);
+        }
+
+        $duration = $active['duration'] ?? 0;
+        $durationVal = is_scalar($duration) && is_numeric($duration) ? (int) $duration : 0;
+
+        return Response::json([
+            'in_progress' => true,
+            'current_step' => $active['status'],
+            'target_version' => $active['to_version'],
+            'error' => $active['error'],
+            'duration' => $durationVal
         ]);
     }
 
@@ -147,10 +207,23 @@ final class SystemUpdateController
         $versionRaw  = $req->post('version', '');
         $version = is_string($versionRaw) ? $versionRaw : '';
         if ($version === '') {
+            if ($req->expectsJson()) {
+                return Response::json(['success' => false, 'error' => 'Missing version.'], 400);
+            }
             $this->session->flashError('Missing version.');
             return Response::redirect('/admin/system-update');
         }
         $result = $this->updater->execute($version);
+        if ($req->expectsJson()) {
+            if ($result['success']) {
+                return Response::json(['success' => true]);
+            } else {
+                return Response::json([
+                    'success' => false,
+                    'error' => $result['error'] ?? 'unknown error'
+                ], 500);
+            }
+        }
         if ($result['success']) {
             $this->session->flashSuccess("Updated to v{$version}!");
         } else {
@@ -168,8 +241,14 @@ final class SystemUpdateController
      */
     public function settings(Request $req): Response
     {
-        $val = $req->post('auto_update') ? '1' : '0';
-        $this->settingsRepo->set('general', 'auto_update', $val);
+        $autoUpdate = $req->post('auto_update') ? '1' : '0';
+        $updateChannel = $req->post('update_channel') === 'beta' ? 'beta' : 'stable';
+        $preUpdateBackup = $req->post('pre_update_backup') ? '1' : '0';
+
+        $this->settingsRepo->set('general', 'auto_update', $autoUpdate);
+        $this->settingsRepo->set('general', 'update_channel', $updateChannel);
+        $this->settingsRepo->set('general', 'pre_update_backup', $preUpdateBackup);
+
         $this->session->flashSuccess('Update settings saved');
         return Response::redirect('/admin/system-update');
     }

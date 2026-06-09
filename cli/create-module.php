@@ -308,6 +308,9 @@ if ($moduleType === 'gateway') {
 echo "\nCreating directory structure... ";
 mkdir($targetDir, 0755, true);
 mkdir($targetDir . '/assets', 0755, true);
+// Write a placeholder icon so the manifest 'icon' path resolves (replace with your brand asset).
+$placeholderIcon = '<svg xmlns="http://www.w3.org/2000/svg" width="64" height="64" viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="#6C5CE7"/><text x="32" y="42" font-family="Arial, sans-serif" font-size="28" font-weight="700" fill="#fff" text-anchor="middle">' . strtoupper(substr($slug, 0, 2)) . '</text></svg>';
+file_put_contents($targetDir . '/assets/icon.svg', $placeholderIcon);
 if ($moduleType === 'theme') {
     mkdir($targetDir . '/templates', 0755, true);
     mkdir($targetDir . '/templates/checkout', 0755, true);
@@ -328,7 +331,7 @@ $manifestData = [
     'description' => $description,
     'author' => $author,
     'type' => $moduleType,
-    'icon' => 'assets/icon.png', // Standard brand logo parameter
+    'icon' => 'assets/icon.svg', // Standard brand logo parameter
     'color' => '#6366f1',
     'entrypoint' => $entrypointName,
     'namespace' => $namespace,
@@ -577,10 +580,9 @@ final class {{STUDLY_SLUG}}Gateway implements PluginInterface, GatewayAdapterInt
         // $response = curl_exec($ch);
         // ...
 
-        return [
-            'redirect_url' => 'https://sandbox.{{SLUG}}.com/pay/mock_checkout_session?ref=' . urlencode($params['trx_id']),
-            'session_id'   => 'mock_session_' . bin2hex(random_bytes(8)),
-        ];
+        // SECURITY: a scaffold must never fabricate a payment session. Implement a real outbound
+        // call to the gateway above, then return its redirect_url / form_html.
+        throw new \RuntimeException('{{NAME}} gateway initiate() is not implemented yet.');
     }
 
     /**
@@ -603,15 +605,9 @@ final class {{STUDLY_SLUG}}Gateway implements PluginInterface, GatewayAdapterInt
         // $ch = curl_init('https://sandbox.{{SLUG}}.com/v1/payments/' . urlencode($sessionId));
         // ...
 
-        $paymentSucceeded = true; // Replace with actual API validation result
-
-        return [
-            'success'        => $paymentSucceeded,
-            'gateway_trx_id' => 'TXN_' . strtoupper(bin2hex(random_bytes(6))),
-            'amount'         => $callbackData['amount'] ?? null,
-            'status'         => $paymentSucceeded ? 'completed' : 'failed',
-            'trx_id'         => $callbackData['trx_id'] ?? '',
-        ];
+        // SECURITY: NEVER return success without confirming against the gateway API.
+        // Query the provider with $sessionId, verify BOTH status and amount, then return the real result.
+        throw new \RuntimeException('{{NAME}} gateway verify() is not implemented yet — refusing to auto-confirm payment.');
     }
 
     /**
@@ -626,7 +622,8 @@ final class {{STUDLY_SLUG}}Gateway implements PluginInterface, GatewayAdapterInt
     {
         $webhookSecret = $credentials['webhook_secret'] ?? '';
         if ($webhookSecret === '') {
-            return true;
+            // SECURITY: fail closed — without a configured secret we cannot verify authenticity.
+            return false;
         }
 
         $signature = $headers['Signature-Key'] ?? $headers['signature-key'] ?? '';
@@ -653,11 +650,8 @@ final class {{STUDLY_SLUG}}Gateway implements PluginInterface, GatewayAdapterInt
         // Outbound cURL request to refund endpoint goes here
         // ...
 
-        return [
-            'success'   => true,
-            'refund_id' => 'RFD_' . bin2hex(random_bytes(4)),
-            'error'     => null,
-        ];
+        // SECURITY: call the gateway refund endpoint; never fake a successful refund.
+        throw new \RuntimeException('{{NAME}} gateway refund() is not implemented yet.');
     }
 
     /**
@@ -856,7 +850,8 @@ final class Plugin implements PluginInterface
      */
     public function handleWebhook(Request \$req): Response
     {
-        \$body = \$req->jsonBody();
+        \$body = \$req->json();
+        \$body = is_array(\$body) ? \$body : [];
         
         return Response::json(['ok' => true, 'payload_size' => count(\$body)]);
     }
@@ -941,7 +936,8 @@ final class Theme implements PluginInterface
             
             // Register a custom function 'render_php' dynamically if not already present
             try {
-                $twig->addFunction(new \Twig\TwigFunction('render_php', function (string $file, array $context = []) {
+                $twig->addFunction(new \Twig\TwigFunction('render_php', function (string $file, array $context = []) use ($container) {
+                    $events = $container->get(\OwnPay\Event\EventManager::class);
                     extract($context, EXTR_SKIP);
                     ob_start();
                     try {
@@ -1257,7 +1253,7 @@ EOT;
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
     
     <!-- Injection hook for head assets -->
-    <?= $this->events->doAction('checkout.head') ?>
+    <?php if (isset($events)) { $events->doAction('checkout.head'); } ?>
 </head>
 <body>
 
@@ -1278,7 +1274,7 @@ EOT;
 
         <form action="/checkout/pay" method="POST">
             <!-- CSRF Protection Field -->
-            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+            <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars(\OwnPay\Security\SecurityHelpers::csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
             <input type="hidden" name="trx_id" value="<?= htmlspecialchars($transaction['trx_id'] ?? '', ENT_QUOTES, 'UTF-8') ?>">
 
             <div style="margin-bottom: 20px;">
@@ -1305,7 +1301,7 @@ EOT;
     </div>
 
     <!-- Injection hook for footer scripts -->
-    <?= $this->events->doAction('checkout.footer') ?>
+    <?php if (isset($events)) { $events->doAction('checkout.footer'); } ?>
 </body>
 </html>
 EOT;
@@ -1320,7 +1316,7 @@ EOT;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Payment Status | <?= htmlspecialchars($brand['name'] ?? 'OwnPay', ENT_QUOTES, 'UTF-8') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <?= $this->events->doAction('checkout.head') ?>
+    <?php if (isset($events)) { $events->doAction('checkout.head'); } ?>
 </head>
 <body>
 
@@ -1344,7 +1340,7 @@ EOT;
         <a href="<?= htmlspecialchars($brand['url'] ?? '#', ENT_QUOTES, 'UTF-8') ?>" class="payment-button" style="display: inline-block; text-decoration: none; line-height: 48px; height: 48px; padding:0;">Back to Merchant</a>
     </div>
 
-    <?= $this->events->doAction('checkout.footer') ?>
+    <?php if (isset($events)) { $events->doAction('checkout.footer'); } ?>
 </body>
 </html>
 EOT;
@@ -1359,7 +1355,7 @@ EOT;
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Pay Brand | <?= htmlspecialchars($brand['name'] ?? 'OwnPay', ENT_QUOTES, 'UTF-8') ?></title>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <?= $this->events->doAction('checkout.head') ?>
+    <?php if (isset($events)) { $events->doAction('checkout.head'); } ?>
 </head>
 <body>
 
@@ -1370,7 +1366,7 @@ EOT;
         </div>
 
         <form action="/pay/<?= htmlspecialchars($payment_link['id'] ?? '', ENT_QUOTES, 'UTF-8') ?>" method="POST">
-            <input type="hidden" name="csrf_token" value="<?= csrf_token() ?>">
+            <input type="hidden" name="_csrf_token" value="<?= htmlspecialchars(\OwnPay\Security\SecurityHelpers::csrfToken(), ENT_QUOTES, 'UTF-8') ?>">
 
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500;">Enter Amount (<?= htmlspecialchars($payment_link['currency'] ?? 'BDT', ENT_QUOTES, 'UTF-8') ?>)</label>
@@ -1381,7 +1377,7 @@ EOT;
         </form>
     </div>
 
-    <?= $this->events->doAction('checkout.footer') ?>
+    <?php if (isset($events)) { $events->doAction('checkout.footer'); } ?>
 </body>
 </html>
 EOT;
@@ -1423,7 +1419,7 @@ EOT;
 
         <form action="/checkout/pay" method="POST">
             <!-- CSRF Protection Field -->
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
             <input type="hidden" name="trx_id" value="{{ transaction.trx_id }}">
 
             <div style="margin-bottom: 20px;">
@@ -1513,7 +1509,7 @@ EOT;
         </div>
 
         <form action="/pay/{{ payment_link.id }}" method="POST">
-            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token() }}">
 
             <div style="margin-bottom: 20px;">
                 <label style="display: block; margin-bottom: 8px; font-size: 14px; font-weight: 500;">Enter Amount ({{ payment_link.currency }})</label>

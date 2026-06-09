@@ -1,0 +1,3 @@
+1. Create implementation plan for docs\v2\audit_findings\ownpay_master_audit_report.md findings. Complete production ready fixing plan. after the fixing OwnPay will go for first release.
+2. Write a developer guide, note for the OwnPay. 
+3. Make graph of the entire OwnPay codebase with critical note. critical mean before editing the part may break system so be careful before any modifications. also write what is the critical.

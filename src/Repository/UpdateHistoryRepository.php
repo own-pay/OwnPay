@@ -143,8 +143,20 @@ class UpdateHistoryRepository extends BaseRepository
     public function listFinished(int $limit = 10, int $offset = 0): array
     {
         return $this->db->fetchAll(
-            "SELECT * FROM {$this->table} WHERE status IN ('completed','failed','rolled_back') ORDER BY id DESC LIMIT :lim OFFSET :off",
+            "SELECT *, TIMESTAMPDIFF(SECOND, started_at, completed_at) AS duration FROM {$this->table} WHERE status IN ('completed','failed','rolled_back') ORDER BY id DESC LIMIT :lim OFFSET :off",
             ['lim' => $limit, 'off' => $offset]
+        );
+    }
+
+    /**
+     * Retrieves the active update in progress, if any.
+     *
+     * @return array<string, mixed>|null The active update or null if none is in progress.
+     */
+    public function getActiveUpdate(): ?array
+    {
+        return $this->db->fetchOne(
+            "SELECT *, TIMESTAMPDIFF(SECOND, started_at, NOW(6)) AS duration FROM {$this->table} WHERE status IN ('started','backup_created','downloaded','applied','verified') ORDER BY id DESC LIMIT 1"
         );
     }
 

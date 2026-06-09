@@ -1,0 +1,74 @@
+
+--- Page 1 ---
+www.eps.com.bdinfo@eps.com.bd
+
+--- Page 2 ---
+EASYPAYMENTSYSTEM
+APIInformation(Application)MechanismforHash:Step1:EncodeHashKeyusingUTF8.Step2:CreateHMACSHA512usingencodeddata.Step3:ComputeHashusingcreatedhmacandUserIDorOtherKeyStep4:ReturnBase64stringofHash
+TransactionTypeID:TransectionTypeId TransectionType1 Web2 AndroidDevices3 IOSDevices
+APINo.01
+Name:EPSPaymentGatewayGetToken
+HTTPMethod:POSTRequest Parameters:ParameterId ParameterName Mandatory/Optional1 userName M2 password M
+ParameterforHashCreation:ParameterId ParameterName1 userName
+APIEndpoint:https://pgapi.eps.com.bd/v1/Auth/GetToken
+Header:
+Parameterinheader:ParameterId ParameterName1 x-hash
+Hereusing‘username’ and HashKey:SFNLQHJlY2lwZXdhbGEjYTc3Zi1mOTQ5NWZhY2M2ZTZuZXQ=Wemakeax-hashandpassintheheadersectionHerex-hashkeyisBKXUD5z0NQgPDQMcZuPL2dSUwo5oSdvBpzz2xbkxikB7KfYV0kZIF8sW6udvSqOTZNUJ5VHnMTSJP3oxDABpJQ==
+
+--- Page 3 ---
+Body:{  "userName": "your user name", "password": "your password"  }
+Response:
+{  "token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9uYW1laWRlbnRpZmllciI6IjNmYjc4M2NiLWU3MzYtNDk4NC04YzliLWRjYjI5MDYxMDAzZCIsImh0dHA6Ly9zY2hlbWFzLnhtbHNvYXAub3JnL3dzLzIwMDUvMDUvaWRlbnRpdHkvY2xhaW1zL25hbWUiOiJkdF9tZXJjaGFudEBlcHMuY29tLmJkIiwiaHR0cDovL3NjaGVtYXMueG1sc29hcC5vcmcvd3MvMjAwNS8wNS9pZGVudGl0eS9jbGFpbXMvZ2l2ZW5uYW1lIjoiRGV2IFRlc3QgTWVyY2hhbnQiLCJodHRwOi8vc2NoZW1hcy54bWxzb2FwLm9yZy93cy8yMDA1LzA1L2lkZW50aXR5L2NsYWltcy9lbWFpbGFkZHJlc3MiOiJkdF9tZXJjaGFudEBlcHMuY29tLmJkIiwiaHR0cDovL3NjaGVtYXMubWljcm9zb2Z0LmNvbS93cy8yMDA4LzA2L2lkZW50aXR5L2NsYWltcy9yb2xlIjoiU3lzdGVtTWVyY2hhbnQiLCJleHAiOjE3MTE4ODA4NDMsImlzcyI6Inh5ei5jb20iLCJhdWQiOiJ4eXouY29tIn0.ZWnfVWSisNlBDhCGPgN2BzfJb_jvk7lQaAF1NsdKz2k",  "expireDate": "2024-03-31T16:27:23.3751441",  "errorMessage": null,  "errorCode": null}
+APINo.02
+Name:EPSPaymentGatewayInitializePayment
+HTTPMethod:POST
+Request Parameters:
+ParameterId ParameterName Mandatory/Optional Default Value Remarks
+1 merchantId M String
+Ex:094980ee-XXX-XXX-XXX//YourMerchantID
+2 storeId M String
+Ex:35b518f6-XXXX-XXXX//YourStoreID
+3 CustomerOrderId M Unique  string
+Ex:Order123//EveryTimeUnique
+4 merchantTransactonId M
+UniqueMinimum10Digit string
+Ex:20240956354//UniqueIDassignedforeverysingletransition.
+5 TransactionTypeId M int 
+1=Web2=AndroidDevices3=IOSDevices6 totalAmount M Decimal7 successUrl M String8 failUrl M String9 cancelUrl M String10 customerName M String
+
+--- Page 4 ---
+11 customerEmail M String 12 customerAddress M String13 customerAddress2 O String14 customerCity M String15 customerState M String16 customerPostcode M String17 customerCountry M String18 customerPhone M String19 shipmentName O String20 shipmentAddress O String21 shipmentAddress2 O  String22 shipmentCity O String23 shipmentState O String24 shipmentPostcode O String25 shipmentCountry O String26 valueA O String27 valueB O String28 valueC O String29 valueD O String30 shippingMethod O String31 noOfItem O String32 productName M String33 productProfile O String34 productCategory O String
+ParameterforHashCreation:ParameterId ParameterName1 merchantTransactonId
+
+--- Page 5 ---
+APIEndpoint:https://pgapi.eps.com.bd/v1/EPSEngine/InitializeEPS
+Header:
+Parameterinheader:ParameterId ParameterName1 x-hash
+2
+Authorization(Bearertokenfrom1stAPI)
+Herex-hashisgeneratedwithtransactionIdandkeythat isprovidedAuthorization(Bearertokenfrom1st API
+Additional instruction:1. merchantTransactonIdshouldbeuniquefor everytransaction.2. API consumersneedtoprovidesuccessUrl, failUrl, cancelUrl toget returndatainquerystringof theurl andhavetoprocessfurther usingthosedata.
+Body:
+{
+ "storeId": "your storeid","CustomerOrderId": "orderNo12234" //uniqueeverytime "merchantTransactionId": "20240624120615835",//uniqueeverytime "transactionTypeId": 10, "financialEntityId": 0, "transitionStatusId": 0, "totalAmount": 1, "ipAddress": "103.12.45.69", "version": "1", "successUrl": "https://www.eps.com.bd/", "failUrl": "https://www.eps.com.bd/", "cancelUrl": "https://www.eps.com.bd/", "customerName": "Shariful Islam", "customerEmail": "example@gmail.com", "CustomerAddress": "Uttara, Dhaka-1230", "CustomerAddress2": "Uttara, Khulna-123011", "CustomerCity": "Khulna", "CustomerState": "Khulna", "CustomerPostcode": "12301", "CustomerCountry": "BD", "CustomerPhone": "01912610899", "ShipmentName": "ABC", "ShipmentAddress": "Address", "ShipmentAddress2": "Address", "ShipmentCity": "CityNam", "ShipmentState": "StateNam", "ShipmentPostcode": "1230", "ShipmentCountry": "BD", "ValueA": "", "ValueB": "", "ValueC": "",
+
+--- Page 6 ---
+ "ValueD": "", "ShippingMethod": "NO", "NoOfItem": "1", "ProductName": "candy", "ProductProfile": "general", "ProductCategory": "Demo", "ProductList":  [  {    "ProductName": "Product name1",    "NoOfItem": "2",    "ProductProfile": "ProductProfile1",    "ProductCategory": "Product ImageURl",    "ProductPrice": "105"  },  {    "ProductName": "Product name2",    "NoOfItem": "7",    "ProductProfile": "Product ImageURl",    "ProductCategory": "ProductCategory2",    "ProductPrice": "210"  }  ]}
+Response:
+{  "TransactionId": "23e02880-f378-4594-86f8-30ecb5998094",  "RedirectURL": "https://pg.eps.com.bd/PG?data=23e02880-f378-4594-86f8- 30ecb5998094",  "ErrorMessage": "",  "ErrorCode": null,  "FinancialEntityList": null}
+APINo.03
+
+--- Page 7 ---
+Name:VerifyTransaction
+HTTPMethod:GET
+ParameterforHashCreation:ParameterId ParameterName1 merchantTransactionIdORParameterforHashCreation:ParameterId ParameterName1 EPSTransactionId
+APIEndpoint:https://pgapi.eps.com.bd/v1/EPSEngine/CheckMerchantTransactionStatus?merchantTransactionId=202406241206158&EPSTransactionId=C254919040105F
+Note: WhenusingmerchantTransactionIdtogetdetails,usemerchantTransactionIdforthehash,ORuseEPSTransactionId
+Header:Parameterinheader:ParameterId ParameterName1 x-hash
+2
+Authorization(Bearertokenfrom1stAPI)
+X-hashgeneratedusingHashKeyAndmerchantTransactionId
+Body:Response:{  "MerchantTransactionId": "20240624120615835","EpsTransactionId": "C2549190401",  "Status": "Success",  "TotalAmount": "1.00",  "TransactionDate": "24Jun202406:06:19PM",  "TransactionType": "Purchase",  "FinancialEntity": "OKWallet",  "ErrorCode": “”,  "ErrorMessage": “”,  "CustomerId": “3245”,  "CustomerName": "Shariful Islam",  "CustomerEmail": "example@gmail.com",  "CustomerAddress": "Uttara, Dhaka-1230",  "CustomerAddress2": "Uttara, Khulna-123011",  "CustomerCity": "Khulna",  "CustomerState": "Khulna",  "CustomerPostcode": "12301",
+
+--- Page 8 ---
+  "CustomerCountry": "BD",  "CustomerPhone": "01912610899",  "ShipmentName": "ABC",  "ShipmentAddress": "Address",  "ShipmentAddress2": "Address",  "ShipmentCity": "CityNam",  "ShipmentState": "StateNam",  "ShipmentPostcode": "1230",  "ShipmentCountry": "BD",  "ValueA": "",  "ValueB": "",  "ValueC": "",  "ValueD": "",  "ShippingMethod": "NO",  "NoOfItem": "1",  "ProductName": "candy",  "ProductProfile": "general",  "ProductCategory": "Demo""PaymentReferance": "EducationFee"}

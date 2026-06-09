@@ -280,6 +280,7 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // System Update
     $router->get('/admin/system-update', 'Admin\\SystemUpdateController@index', 'admin');
+    $router->get('/admin/system-update/status', 'Admin\\SystemUpdateController@status', 'admin');
     $router->post('/admin/system-update/check', 'Admin\\SystemUpdateController@check', 'admin');
     $router->post('/admin/system-update/apply', 'Admin\\SystemUpdateController@install', 'admin');
     $router->post('/admin/system-update/settings', 'Admin\\SystemUpdateController@settings', 'admin');

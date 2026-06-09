@@ -7,7 +7,8 @@ declare(strict_types=1);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OwnPay — Official Premium API Tester</title>
+    <title>OwnPay — Official Merchant API Tester</title>
+    <link rel="icon" type="image/png" href="https://ownpay.org/ownpay_icon.png">
     <!-- Premium Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -103,9 +104,9 @@ declare(strict_types=1);
     <header class="bg-white/95 border-b border-slate-200/80 px-6 py-4 flex flex-col lg:flex-row justify-between items-center gap-4 z-10 premium-shadow">
         <div class="flex items-center justify-between w-full lg:w-auto">
             <a href="https://ownpay.org" target="_blank" class="flex items-center gap-3">
-                <img src="https://cdn.ownpay.org/assets/logo.png" alt="OwnPay Logo" class="h-8 object-contain">
+                <img src="https://ownpay.org/ownpay_logo.png" alt="OwnPay Logo" class="h-8 object-contain">
                 <span class="h-5 w-[1px] bg-slate-200 hidden sm:inline-block"></span>
-                <span class="text-slate-800 font-extrabold tracking-tight text-lg hidden sm:inline-block">Sandbox API Tester</span>
+                <span class="text-slate-800 font-extrabold tracking-tight text-lg hidden sm:inline-block">Merchant API Tester</span>
             </a>
             <!-- Mobile Sidebar Toggle -->
             <button id="mobileMenuBtn" class="lg:hidden p-2 text-slate-700 hover:bg-slate-100 rounded-xl transition">
@@ -119,11 +120,11 @@ declare(strict_types=1);
         <div class="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-3/5 xl:w-1/2">
             <div class="relative w-full sm:w-1/3">
                 <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[10px] font-bold text-slate-400 tracking-wider">HOST</span>
-                <input type="text" id="baseUrl" value="https://ownpay.test" class="pl-14 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="Base URL">
+                <input type="text" id="baseUrl" value="https://ownpay.org" class="pl-14 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="Base URL">
             </div>
             <div class="relative w-full sm:w-2/3">
-                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[10px] font-bold text-slate-400 tracking-wider">TOKEN</span>
-                <input type="password" id="apiKey" class="pl-16 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="op_apiKey or Mobile JWT token">
+                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[10px] font-bold text-slate-400 tracking-wider">api_key</span>
+                <input type="password" id="apiKey" class="pl-16 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="op_apiKey">
             </div>
         </div>
     </header>
@@ -152,10 +153,10 @@ declare(strict_types=1);
             
             <!-- Welcome Splash Panel -->
             <section id="welcomePanel" class="flex-1 flex flex-col items-center justify-center p-6 md:p-10 bg-white border border-slate-200 rounded-3xl premium-shadow max-w-4xl mx-auto w-full text-center my-auto gap-6 transition animate-fade-in">
-                <img src="https://cdn.ownpay.org/assets/logo.png" alt="OwnPay Logo" class="h-14 object-contain">
+                <img src="https://ownpay.org/ownpay_logo.png" alt="OwnPay Logo" class="h-14 object-contain">
                 <div>
-                    <h2 class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">OwnPay Internal API Playground</h2>
-                    <p class="text-slate-500 mt-2 text-sm max-w-lg mx-auto leading-relaxed">This secure environment allows developers to debug, test, and trace Merchant REST APIs, companion Mobile app APIs, and administrative control paths.</p>
+                    <h2 class="text-2xl md:text-3xl font-extrabold text-slate-800 tracking-tight">OwnPay Merchant API Playground</h2>
+                    <p class="text-slate-500 mt-2 text-sm max-w-lg mx-auto leading-relaxed">This secure environment allows developers to debug, test, and trace OwnPay Merchant REST APIs.</p>
                 </div>
                 
                 <!-- Quick Instructions -->
@@ -170,10 +171,6 @@ declare(strict_types=1);
                         <li class="flex items-start gap-2">
                             <span class="text-brand-500 font-bold text-sm leading-none">•</span>
                             <span><strong>Merchant API:</strong> Authenticate `/api/v1/*` routes using Bearer API keys formatted as `op_[identifier].[secret]`.</span>
-                        </li>
-                        <li class="flex items-start gap-2">
-                            <span class="text-brand-500 font-bold text-sm leading-none">•</span>
-                            <span><strong>Mobile App API:</strong> Authenticate `/api/mobile/v1/*` using Bearer JWT tokens generated from companion pairing OTPs.</span>
                         </li>
                         <li class="flex items-start gap-2">
                             <span class="text-brand-500 font-bold text-sm leading-none">•</span>
@@ -268,7 +265,7 @@ declare(strict_types=1);
     <!-- Universal Responsive Page Footer -->
     <footer class="bg-white border-t border-slate-200/80 py-4 px-6 text-center text-[10px] text-slate-450 flex flex-col sm:flex-row justify-between items-center gap-3 z-10 premium-shadow">
         <div class="text-slate-500">
-            &copy; 2026 <a href="https://ownpay.org" class="font-bold text-slate-600 hover:text-brand-600 transition">OwnPay</a> — Sovereign Bookkeeping & SMS Gateway Platform.
+            &copy; 2026 <a href="https://ownpay.org" class="font-bold text-slate-600 hover:text-brand-600 transition">OwnPay</a> — Built by the Community, for the Community
         </div>
         <div class="flex flex-wrap justify-center gap-3.5 font-semibold text-slate-500">
             <a href="https://docs.ownpay.org" target="_blank" class="hover:text-brand-600 transition">Docs</a>
@@ -279,7 +276,6 @@ declare(strict_types=1);
         </div>
     </footer>
 
-    <!-- Endpoint Definitions and Interactive Logic -->
     <script>
         const endpoints = [
             // === MERCHANT API ===
@@ -297,30 +293,7 @@ declare(strict_types=1);
             { id: 'apikey-create', category: 'Merchant API — Credentials', method: 'POST', path: '/api/v1/api-keys', desc: 'Generate a new API key scoped to the merchant brand.', hasBody: true, defaultBody: '{\n  "name": "Production Server Key"\n}' },
             { id: 'apikey-revoke', category: 'Merchant API — Credentials', method: 'DELETE', path: '/api/v1/api-keys/{id}', desc: 'Revoke and permanently decommission an API key by ID.', hasBody: false },
             { id: 'webhook-test', category: 'Merchant API — Outbound Webhooks', method: 'POST', path: '/api/v1/webhooks/tests', desc: 'Trigger a test HMAC-SHA256 signature event log callback.', hasBody: false },
-            { id: 'webhook-deliveries', category: 'Merchant API — Outbound Webhooks', method: 'GET', path: '/api/v1/webhooks/deliveries', desc: 'Trace outbound webhooks logs history status responses.', hasBody: false },
-            
-            // === MOBILE COMPANION APP API ===
-            { id: 'mobile-pair', category: 'Mobile App API — Devices & Sessions', method: 'POST', path: '/api/mobile/v1/devices', desc: 'Pair a device using a temporary 6-digit OTP pairing code. Returns short-lived JWT access tokens.', hasBody: true, defaultBody: '{\n  "pairing_code": "594830",\n  "device_id": "android_persistent_fingerprint",\n  "device_name": "Samsung S24 Ultra",\n  "platform": "android",\n  "app_version": "1.0.0"\n}' },
-            { id: 'mobile-heartbeat', category: 'Mobile App API — Devices & Sessions', method: 'POST', path: '/api/mobile/v1/devices/heartbeats', desc: 'Submit client online heartbeat to refresh activity logging timestamps.', hasBody: false },
-            { id: 'mobile-revoke', category: 'Mobile App API — Devices & Sessions', method: 'DELETE', path: '/api/mobile/v1/devices/{id}', desc: 'Self-revoke the active companion session, terminating JWT authorizations.', hasBody: false },
-            { id: 'mobile-bulk-revoke', category: 'Mobile App API — Devices & Sessions', method: 'POST', path: '/api/mobile/v1/devices/bulk-revocations', desc: 'Revoke multiple registered companion sessions.', hasBody: true, defaultBody: '{\n  "device_ids": [4, 5]\n}' },
-            { id: 'mobile-refresh', category: 'Mobile App API — Devices & Sessions', method: 'POST', path: '/api/mobile/v1/devices/token-refreshes', desc: 'Exchange a valid refresh token for rotated credentials.', hasBody: true, defaultBody: '{\n  "refresh_token": "<REFRESH_TOKEN>"\n}' },
-            { id: 'mobile-status', category: 'Mobile App API — Devices & Sessions', method: 'GET', path: '/api/mobile/v1/devices/statuses', desc: 'Check connection JWT session validity logs.', hasBody: false },
-            { id: 'mobile-sms-submit', category: 'Mobile App API — SMS Gateway', method: 'POST', path: '/api/mobile/v1/sms', desc: 'Upload parsed/raw incoming bank notification SMS. Decrypted securely with AES keys.', hasBody: true, defaultBody: '{\n  "messages": [\n    {\n      "local_id": 42,\n      "sender": "bKash",\n      "encrypted_payload": "ciphertext_base64_encoded_value",\n      "received_at": "2026-05-21T02:40:00+06:00"\n    }\n  ]\n}' },
-            { id: 'mobile-sms-queue', category: 'Mobile App API — SMS Gateway', method: 'GET', path: '/api/mobile/v1/sms/queues', desc: 'Fetch SMS parsing rules queue details.', hasBody: false },
-            { id: 'mobile-notifs', category: 'Mobile App API — Pushes', method: 'GET', path: '/api/mobile/v1/notifications', desc: 'List unacknowledged pushes targeting the paired device.', hasBody: false },
-            { id: 'mobile-notifs-ack', category: 'Mobile App API — Pushes', method: 'POST', path: '/api/mobile/v1/notifications/acknowledgements', desc: 'Acknowledge processing task completions scoped by device ID.', hasBody: true, defaultBody: '{\n  "ids": [12, 13]\n}' },
-            { id: 'mobile-dashboard', category: 'Mobile App API — Aggregate Panels', method: 'GET', path: '/api/mobile/v1/dashboard', desc: 'Return today transaction aggregation metrics for companion app displays.', hasBody: false },
-            { id: 'mobile-config', category: 'Mobile App API — Aggregate Panels', method: 'GET', path: '/api/mobile/v1/config/filter-rules', desc: 'Returns SMS parsing allowed sender whitelist rules.', hasBody: false },
-            
-            // === ADMIN SYSTEM API ===
-            { id: 'admin-sms-templates', category: 'Admin API — SMS Templates', method: 'GET', path: '/api/admin/v1/sms-templates', desc: 'List regex template rules matching payment SMS strings.', hasBody: false },
-            { id: 'admin-sms-template-edit', category: 'Admin API — SMS Templates', method: 'PUT', path: '/api/admin/v1/sms-templates/{id}', desc: 'Modify regex matching variables and capture templates.', hasBody: true, defaultBody: '{\n  "sender_pattern": "bKash",\n  "regex_pattern": "/You have received Tk (?<amount>[\\\\d.]+)/i",\n  "provider_name": "bKash",\n  "currency": "BDT",\n  "priority": 10,\n  "is_active": true\n}' },
-            { id: 'admin-sms-queue', category: 'Admin API — Parsing Logs', method: 'GET', path: '/api/admin/v1/sms-queues', desc: 'Review list of parsed, resolved, or ignored SMS items system-wide.', hasBody: false },
-            { id: 'admin-sms-retry', category: 'Admin API — Parsing Logs', method: 'POST', path: '/api/admin/v1/sms-queues/{id}/retries', desc: 'Rerun regex pattern evaluation manually against a stored SMS body.', hasBody: false },
-            { id: 'admin-devices-list', category: 'Admin API — Device Audits', method: 'GET', path: '/api/admin/v1/devices', desc: 'Trace active system-wide device pairings.', hasBody: false },
-            { id: 'admin-device-revoke', category: 'Admin API — Device Audits', method: 'DELETE', path: '/api/admin/v1/devices/{id}', desc: 'Force revoke a device pairing to sever authorizations instantly.', hasBody: false },
-            { id: 'admin-domains-cron', category: 'Admin API — Domains Scans', method: 'POST', path: '/api/admin/v1/domains/verifications', desc: 'Trigger CNAME DNS verify cron sweep manually.', hasBody: false }
+            { id: 'webhook-deliveries', category: 'Merchant API — Outbound Webhooks', method: 'GET', path: '/api/v1/webhooks/deliveries', desc: 'Trace outbound webhooks logs history status responses.', hasBody: false }
         ];
 
         let activeEndpoint = null;
@@ -345,7 +318,7 @@ declare(strict_types=1);
             btn.className = 'endpoint-btn w-full flex items-center gap-3 px-3 py-2 rounded-xl text-left border border-transparent text-slate-500 font-semibold hover:text-slate-800 transition duration-150 ease-in-out';
             
             // Clean paths for cleaner display
-            const renderPath = ep.path.replace('/api/v1', '').replace('/api/mobile/v1', '/mobile').replace('/api/admin/v1', '/admin');
+            const renderPath = ep.path.replace('/api/v1', '');
             
             btn.innerHTML = `
                 <span class="text-[9px] font-bold px-2 py-0.5 rounded-md w-14 text-center uppercase tracking-wide method-${ep.method}">${ep.method}</span>

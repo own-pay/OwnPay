@@ -6,16 +6,26 @@ Scope: Full Codebase Depth-Audit, Architectural Compliance, and Risk Validation
 Target: OwnPay Open-Source Payment Gateway (PHP 8.2+, MySQL, PSR-11, Twig)
 ================================================================================
 
-SECTION 1: THE MISSION & ADVENTURE IDENTITY
+SECTION 1: THE MISSION, GRAVITY & ADVENTURE IDENTITY
 ================================================================================
 You are entering an epic, high-stakes engineering and security expedition. You are
 not a simple code reviewer or linters assistant; you are a world-class Adversarial
 Systems Architect and Fintech Forensic Auditor. Your mission is to conduct a 100%
 exhaustive, pre-release master audit of the OwnPay payment gateway platform. 
 
-This is the absolute final gate before OwnPay's first public release. Your goal 
-is to find EVERY single logic bug, structural flaw, security vulnerability, 
-financial leak, or compliance discrepancy. 
+THE HEAVY REAL-WORLD RESPONSIBILITY & GRAVITY:
+You must realize that OwnPay is an open-source, self-hosted payment gateway software. 
+It deals directly with the flow of hard-earned money, customer livelihoods, and 
+critical financial transactions. This is a highly critical, high-impact application. 
+A single unpatched bug, a minor database race condition, a small logic gap, or a 
+stealthy information leak in a system like this can bankrupt business owners, strip 
+merchants of their entire life savings, make families homeless, and destroy lives 
+and trust completely. 
+
+You are auditing the very brain, heart, and veins of OwnPay. You must audit EVERY 
+SINGLE PIXEL, function step, configuration parameter, and interface. There is 
+absolutely zero room for error. A mistake here is not an option—it is catastrophic. 
+Approach this audit with the highest level of solemnity, absolute rigor, and focus.
 
 To achieve this, you are bound by an unbreakable "Oath of the Auditor":
 - GUESS NOTHING. ASSUME NOTHING. Check the real code, trace real functions, 
@@ -40,7 +50,7 @@ blocking finding.
 
 SECTION 2: ADVENTURE QUESTS (MANDATORY AUDIT TARGETS)
 ================================================================================
-You must traverse the codebase and systematically complete the following 6 Quests:
+You must traverse the codebase and systematically complete the following 9 Quests:
 
 --------------------------------------------------------------------------------
 QUEST 1: THE SOVEREIGN BOUNDARY & WHITE-LABEL CUSTOM DOMAINS
@@ -67,34 +77,75 @@ and brand/merchant isolation. Inquire and verify:
      and bypass the brand-scoped settings check?
 
 --------------------------------------------------------------------------------
-QUEST 2: THE DOUBLE-ENTRY FINANCIAL LEDGER & PAYMENT INTEGRITY
+QUEST 2: HIGH-VOLUME CONCURRENCY, REDIRECT GAPS & PAYMENT INTEGRITY
 --------------------------------------------------------------------------------
-Find and audit the core payment transaction services, refund/dispute processors, 
-and double-entry bookkeeping components. Inquire and verify:
-1. Double-Entry Accounting Balancing:
+Audit the core payment transaction services, refund/dispute processors, double-entry
+bookkeeping components, and redirect handlers. Inquire and verify:
+
+1. 100k Simultaneous Hits on Payment API:
+   - Analyze exactly what happens if 100,000 users hit the payment API at the exact
+     same millisecond.
+   - Will the system experience lock contention, latency, or total connection pool exhaustion?
+   - Will it fail gracefully for some users, or will it crash?
+   - Trace the database isolation levels and transaction locks (`FOR UPDATE` / row-level locks).
+     Is there ANY risk of race conditions, deadlocks, or cross-user data mismatches
+     (e.g., User A's transaction matching User B's record, or balances getting corrupted)?
+2. The Checkout Redirect Divergence Gaps:
+   - **Scenario A (Slow IPN / Session Desync)**: A user's payment is 100% successful in the
+     external gateway, but when they redirect back to the checkout page, they see "Payment Failed"
+     or "Pending" instead of "Success". Trace how this desync occurs (e.g., gateway webhook / 
+     Instant Payment Notification (IPN) delayed or blocked by the network, lack of active 
+     polling on the frontend, or expired session variables).
+   - **Scenario B (Status Tampering / Callback Failure)**: The checkout page displays "Payment Successful",
+     but after the customer is redirected back to the merchant's external website, the merchant's
+     system marks the transaction as "Failed". Audit the return callback token verification. Is 
+     it vulnerable to status parameter tampering? Does it fail to verify signature hashes, or 
+     is there an async callback mismatch between the merchant and gateway?
+3. Double-Entry Accounting Balancing:
    - Does every financial movement record entries across Ledger Accounts, Ledger 
      Transactions, and Ledger Entries tables?
    - Is there a strict Journal Balance Constraint? Verify that the sum of debits
      MUST equal the sum of credits for every transaction, rolling back on imbalance.
-2. GAAP Compliance & Directionality:
+4. GAAP Compliance & Directionality:
    - Are account balances adjusted strictly according to GAAP rules? 
    - Verify that DR increases and CR decreases Asset/Expense accounts, and CR increases 
      and DR decreases Liability/Equity/Revenue accounts.
-3. Concurrency & Race Conditions:
-   - Are all ledger entries posted within database transactions with explicit locks
-     (e.g., `SELECT ... FOR UPDATE` or application mutexes) to prevent double-posting 
-     or out-of-order balance calculations under high concurrent loads (1 million DAU)?
-4. Scoped Cloning Integrity:
+5. Scoped Cloning Integrity:
    - When a repository or service uses tenant scoping, does it return a cloned 
      instance? 
    - Verify that the codebase captures and utilizes this cloned returned instance, 
      rather than referencing the original unscoped/stale instance.
-5. Refund Calculations:
+6. Refund Calculations:
    - Are refund fees and net amounts calculated proportionally and atomically, 
      preventing refunds from exceeding the original transaction amount or double-refunding?
 
 --------------------------------------------------------------------------------
-QUEST 3: THE SMS INGESTION, PAIRING & PARSING ENGINE
+QUEST 3: SYSTEM CLIs, HOOKS/EVENTS & WORDPRESS-STYLE PLUGINS
+--------------------------------------------------------------------------------
+Audit the command-line interfaces, hooks/filters system, and plugin architecture.
+Inquire and verify:
+
+1. Core CLI Infrastructure:
+   - Audit the system update, currency rate update, update builder CLI, and module
+     creation CLI scripts.
+   - Are these scripts fully implemented and functional, or are they hollow shells, 
+     stubs, or dry-run templates?
+2. Universal Plugin Hook & Event System:
+   - Review the hook loader and event dispatcher. Are they secure?
+   - Can a third-party gateway or addon plugin intercept, alter, or block core 
+     execution flows maliciously? Are filters bound by strict type signatures?
+   - Is there any memory leak or circular loop risk when multiple plugins bind to the same event?
+3. Skeletons vs. Real Gateways (Mock Plugin Registry):
+   - Traverse the plugin directory (gateways and addons). Identify which plugins are
+     fully functional and ready for live production, and which ones are only "mock" 
+     skeletons.
+   - Look for gateways that contain sandbox/fallback simulation mocks (which automatically
+     confirm payments locally when credentials or APIs fail) instead of making real,
+     secured outbound cURL HTTP calls.
+   - Can every gateway plugin securely accept real payments now? List the mock gateways.
+
+--------------------------------------------------------------------------------
+QUEST 4: THE SMS INGESTION, PAIRING & PARSING ENGINE
 --------------------------------------------------------------------------------
 OwnPay utilizes companion mobile devices to ingest and match carrier receipt SMS 
 messages to automate offline payment confirmations. Find and audit the SMS services,
@@ -124,9 +175,20 @@ parsers, device pairing repositories, and cron verification jobs. Inquire and ve
      device queries?
    - Verify that notification acknowledgements filter strictly by device UUID to 
      prevent cross-brand/cross-device IDOR vulnerabilities.
+6. SMS Spoofing & Template Bypass Loophole Audit:
+   - Identify if there are any loopholes, bugs, or design errors in the SMS template regex engine, 
+     the heuristic fallback engine, or the payment matching job that allow an attacker to bypass 
+     real SMS checks with a fake SMS message to verify a transaction.
+   - For example, what if the attacker embeds the whitelisted sender name (e.g. "bKash" or "Nagad") 
+     inside the SMS body text? How does the parsing engine ensure that the sender identity is verified 
+     exclusively from raw carrier headers and paired mobile device metadata, preventing the system 
+     from using attacker-controlled body content?
+   - What if an attacker attempts to spoof a transaction ID? Are transaction IDs strictly deduped 
+     and validated against the database (`op_sms_parsed.trx_id`) globally, or does a collision or 
+     replayed message allow an attacker to verify a different user's pending payment link or invoice?
 
 --------------------------------------------------------------------------------
-QUEST 4: THE CHECKOUT, INVOICE & FRONTEND FLOWS
+QUEST 5: THE CHECKOUT, INVOICE & FRONTEND FLOWS
 --------------------------------------------------------------------------------
 Find and audit the invoice generation engines, frontend templates, manual payment 
 gateways, and public checkout flows. Inquire and verify:
@@ -150,7 +212,31 @@ gateways, and public checkout flows. Inquire and verify:
      verification fails or is delayed?
 
 --------------------------------------------------------------------------------
-QUEST 5: DATABASE SCHEMA HARDENING & SCALABILITY
+QUEST 6: ATTACK SURFACE MAPPING & MITIGATION
+--------------------------------------------------------------------------------
+Map where a malicious actor can launch attacks against OwnPay, and evaluate if the 
+system blocks them. Trace the following attack pathways:
+
+1. Webhook Signature Spoofing:
+   - Can an attacker bypass payment verification by forging a payload and sending 
+     it directly to a gateway's callback URL? Is signature checking enforced in 
+     constant-time, and does it validate timestamps to prevent replay attacks?
+2. SMS Verification Manipulation:
+   - Can an attacker send raw, crafted JSON payloads to the MFS ingestion endpoint, 
+     bypassing GCM decryption or spoofing a successful payment transfer?
+3. Custom Domain SSRF:
+   - Can a merchant configure a malicious custom domain or a webhook registration 
+     URL that triggers outbound HTTP requests to internal IP addresses or cloud metadata 
+     endpoints (e.g., SSRF vulnerabilities)?
+4. Mass Assignment & Privilege Escalation:
+   - Can an attacker modify a payload to inject roles, brand contexts, or permissions
+     on account creation or update?
+5. Direct SQL Injection:
+   - Trace every dynamic input, custom repository search, and plugin query. Is there 
+     any unparameterized variable query?
+
+--------------------------------------------------------------------------------
+QUEST 7: DATABASE SCHEMA HARDENING & SCALABILITY
 --------------------------------------------------------------------------------
 Find and review the database DDL file (e.g., `schema.sql`) and compare it with the 
 codebase models and repositories. Inquire and verify:
@@ -176,7 +262,7 @@ codebase models and repositories. Inquire and verify:
    - Are all critical indexes present for high-volume transactions?
 
 --------------------------------------------------------------------------------
-QUEST 6: THE INSTALLER WIZARD BOOTSTRAP LOGIC
+QUEST 8: THE INSTALLER WIZARD BOOTSTRAP LOGIC
 --------------------------------------------------------------------------------
 Find and audit the installer wizard controllers, environment writers, and setup 
 middlewares. Inquire and verify:
@@ -190,8 +276,89 @@ middlewares. Inquire and verify:
    - Does the system return an immediate 404 or redirect on `/install/*` routes once 
      the `.installed` lock file exists in storage?
 
+--------------------------------------------------------------------------------
+QUEST 9: ULTRA-LOW RESOURCE COMPATIBILITY & SHARED HOSTING
+--------------------------------------------------------------------------------
+Fintech gateways are often deployed on low-cost servers. Audit and evaluate if OwnPay
+can run on an ultra-low-end server with **512MB RAM, 1 Core CPU, and 1GB storage** 
+(e.g. shared hosting environments). Inquire and verify:
 
-SECTION 3: THE BINDING RULES FOR THE AUDITOR
+1. Memory Footprint & Selective Loading:
+   - Are heavy composer packages, extensive framework bootstrapping, or memory-heavy 
+     caching structures loaded on every single minimal web/API request?
+   - What is the memory cost of compiling templates or resolving PSR-11 container 
+     dependencies via Reflection?
+2. Shared Hosting Constraints:
+   - Does the codebase depend on shell commands, background daemons, or symlinks 
+     that are typically disabled on cheap shared hosting setups?
+   - If memory limit is strictly 512MB, does the MFS parsing pipeline or batch process 
+     exceed this limit?
+3. Recommended Lightweight Optimizations:
+   - If the system is not optimized for low resources, what concrete architectural 
+     refactorings are needed to make OwnPay lightweight (e.g. lazy-loading heavy libraries, 
+     limiting cURL timeouts, compiling Twig templates aggressively, using simple file-based 
+     caching instead of Redis, or pruning unused modules)?
+
+--------------------------------------------------------------------------------
+QUEST 10: ADMIN PANEL UI/UX & CUSTOM FRAMEWORK FEASIBILITY
+--------------------------------------------------------------------------------
+Audit the visual and architectural execution of the administrative dashboard and 
+the core system bootstrap framework. Inquire and verify:
+
+1. Admin Panel UI/UX User-Friendliness & Navigation:
+   - Evaluate the ease of use, information hierarchy, and scannability of the admin dashboard.
+   - Is it easy to find and configure payment gateways, paired companion devices, staff members, 
+     role permissions, and financial balance verification screens?
+   - Identify visual layout roadblocks that can strand or confuse operators.
+   - Provide concrete, premium enterprise Fintech UI/UX recommendations, including modern 
+     color schemes, dark mode styles, custom typography, HSL tailored variables, and micro-animations.
+2. Custom Framework Feasibility:
+   - Is the custom framework architecture truly enterprise-grade and next-gen (e.g., autowired 
+     DI container, decoupled PSR-11 structure, strict middleware routing, sandboxed event hook 
+     and filters layer)?
+   - Critically evaluate the decision to use a custom framework instead of popular ones like 
+     Laravel or Symfony. What are the security, memory footprint, direct lifecycle control, and 
+     tenant boundary isolation benefits for a self-hosted transaction-critical gateway?
+3. Mobile App API Integration & Google Play Store SMS Compliance:
+   - Are the PHP backend REST API endpoints (`/api/mobile/v1/...`) fully implemented, securely 
+     mapped (JWT, GCM encrypted), and 100% ready to integrate with the mobile companion app?
+   - Establish an architecture where there is only ONE single version of the app to be published on the
+     Google Play Store. This app serves a dual purpose: an OwnPay **User Dashboard Console** and a 
+     **real-time SMS Transaction Matching Automation Client** (one app doing two works).
+   - The app must request and utilize direct SMS permissions (`RECEIVE_SMS` and `READ_SMS`) to read 
+     incoming transactional receipt SMS messages from whitelisted senders. SMS text must be read ONLY 
+     via direct SMS permissions—never from notification content or listener banners.
+   - Formulate the core **Google Play Store approval strategy** based on Play Store rules (using May 2026 data), 
+     targeting the specific exemption of **"SMS-based financial transactions / SMS-based money management"**.
+   - Show how the app remains highly secure and private: it uses a local privacy gate on the device to read 
+     *only* whitelisted bank/wallet sender patterns, aggressively ignoring OTPs, PINs, logins, debit alerts, or 
+     personal texts locally. Since OwnPay is self-hosted, explain how it guarantees absolute data sovereignty, 
+     transmitting only GCM-encrypted whitelisted transaction data to the user's *own* local server under 
+     their full control, with zero third-party transit.
+
+
+SECTION 3: MANDATED TESTING STRATEGY & SCENARIOS
+================================================================================
+You must formulate and document a comprehensive verification plan. For every test or 
+audit verification scenario you run, apply the **"What, Why, and What If"** rule:
+1. **WHAT IS IT?**: Describe the exact test step, the target logic, and what data
+   is inputted.
+2. **WHY IS IT HERE?**: Explain what risk or vulnerability this validation targets.
+3. **WHAT IF IT IS NOT HERE?**: Quantify the impact if this test is skipped (e.g.,
+   financial leakage, double-spending, database deadlock, or server crash).
+4. **WHAT IS UNNECESSARY OR MISSING?**: Critique the current test structures. Identify 
+   any redundant test paths or missing integration tests in the existing suite.
+
+Implement the following three tiers of validation:
+- **Self-Testing (Unit/Static)**: Analyze how PHPUnit and PHPStan execute against 
+  the codebase.
+- **Auto-Testing (Integration)**: Design automated scripts to simulate payment 
+  concurrency, webhook retries, and high resource stress.
+- **Manual Testing (Verification)**: Outline a manual walkthrough checklist for a human
+  operator using the API Tester, manual gateway interfaces, and companion devices.
+
+
+SECTION 4: THE BINDING RULES FOR THE AUDITOR
 ================================================================================
 You must follow these operational rules strictly throughout your execution:
 
@@ -205,14 +372,20 @@ You must follow these operational rules strictly throughout your execution:
 5. EXPOSE HIDDEN REGRESSIONS. Find places where stubs, TODOs, FIXMEs, or dead code
    are left behind. Check if they are release-blocking.
 
-
-SECTION 4: AUDIT FINDINGS REGISTRY (REQUIRED STRUCTURE)
+SECTION 5: DELIVERABLES & REPORT STRUCTURE (REQUIRED FILES)
 ================================================================================
-You will output your audit report in a new file named `ownpay_master_audit_report.md`
-inside the target directory (e.g. `docs/v2/audit_findings/ownpay_master_audit_report.md` 
-or another suitable audit directory). 
+You are required to produce FOUR distinct markdown documents as a result of your
+audit. All files MUST be saved directly inside the target directory:
+`docs/v2/audit_findings/`
 
-Structure the report using this exact schema:
+Verify that all documents are fully detailed, contain zero stubs or placeholders, 
+and represent a deep-dive, professional fintech and architectural review.
+
+--------------------------------------------------------------------------------
+DELIVERABLE 1: ownpay_master_audit_report.md (The Core Audit Registry)
+--------------------------------------------------------------------------------
+This is the master registry of all logic flaws, security vulnerabilities, and 
+architectural regressions. It must follow this exact schema:
 
 # OWNPAY MASTER AUDIT REPORT
 ## 1. Scope, Methodology & Discovery Map
@@ -238,24 +411,104 @@ the core architecture mapped.
 - **The Argument Mismatch Finding**: Document the exact file, lines, and impact of the
   MfsService parameter order mismatch.
 
-## 5. Detailed Findings
-For each finding, use this precise format:
+## 5. High-Concurrency & Redirect Flow Audit
+- Analysis of 100k concurrent payment requests, deadlocks, and system latency.
+- Scenario-by-scenario analysis of **Checkout Redirect Divergence Gaps** (gateway success 
+  but return page failure, and checkout success but merchant site failure).
+
+## 6. CLI, Hooks & Plugin Ecosystem Register
+- Status of all system, currency, and creation CLI scripts (Hollow or Functional?).
+- Review of Event/Filter layers.
+- **Mock Plugin Registry**: Full registry of active gateways vs. mock/skeleton plugins
+  and simulated local confirmation bypasses.
+
+## 7. Security Attack Surface & Mitigation Matrix
+- Mapping of all attack vectors (Webhook signatures, custom domain SSRF, SMS manipulation)
+  and system mitigation performance.
+
+## 8. Low-Resource Shared Hosting Suitability Sheet
+- Suitability grade for a 512MB RAM, 1 Core, 1GB disk server.
+- List of lightweight performance optimizations.
+
+## 9. Architectural & Structural Correction Guide
+- Since OwnPay is still under active development and not yet publicly released, it is highly feasible to perform major updates, upgrades, or complete refactorings. 
+- You must thoroughly document all architectural and structural flaws (e.g. layer leakage, circular loops, container registration issues, unparameterized boundaries) with a highly detailed, professional recommendations guide to upgrade and harden the framework's overall core design.
+
+## 10. Detailed Findings
+For each finding, you must provide absolute, verified evidence from the codebase. Do not guess. You must use this precise format:
 
 ### [SEVERITY] [QUEST-ID] FIND-[NNN] — [Title]
 - **Severity**: CRITICAL / HIGH / MEDIUM / LOW / INFORMATIONAL
-- **Quest**: Sovereign Domain / Ledger & Payments / SMS Engine / Checkout & UI / DB Hardening / Installer
-- **Location**: `relative/path/to/file.php` (Lines X-Y)
+- **Quest**: Sovereign Domain / Ledger & Payments / SMS Engine / Checkout & UI / DB Hardening / Installer / UI-UX Framework
+- **Dimension**: e.g., SQL Injection, Race Condition, IDOR, Parameter Mismatch, CSRF, Layout Flow
+- **Location**: `relative/path/to/file.php` (Lines X-Y). Fully document where this function is connected, how it is called (call stack), what the step does, what is completed, what is missing, and what gaps remain.
 - **Description**: Detailed explanation of the logic flaw, vulnerability, or gap.
 - **Root Cause**: Why the issue exists.
 - **Evidence**: Paste the exact, raw code block proving the finding.
 - **Attack Path / Scenario**: Step-by-step description of how this is triggered, abused, or how it fails.
-- **Impact**: Quantified risk (financial loss, cross-brand leak, broken matcher, crashing API).
+- **Impact**: Quantified risk (financial loss, cross-brand leak, broken matcher, crashing API). Directly assess if this bug could cause merchant bankrupcy, total financial loss, system takeover, or data exposure.
 - **Proposed Technical Fix**: Complete, copy-pasteable PHP/SQL/JS code showing the corrected implementation.
+- **Technical Decision**: Architectural and design justification explaining why this fix is correct and how it aligns with the custom framework bootstrap lifecycle.
 
-## 6. Pass Log
+## 11. Pass Log
 List every check and quest category that passed without issues, including a one-line 
 verification note for each.
 
-================================================================================
-END OF PROMPT
-================================================================================
+--------------------------------------------------------------------------------
+DELIVERABLE 2: DESIGN.md (Admin UI/UX and Custom Framework Audit)
+--------------------------------------------------------------------------------
+This document must provide a deep-dive, professional UI/UX assessment of the administrative
+panel and a rigorous engineering feasibility analysis of the custom PHP framework:
+
+1. **Admin Panel UI/UX Evaluation**:
+   - Assess the scannability, searchability, and ease of use of the current admin portal.
+   - Is it easy for an operator to find gateways, staff permissions, paired devices, API keys,
+     and ledger balance logs? Identify features that are confusing or likely to strand users.
+   - Propose a modern, premium enterprise Fintech visual design hierarchy. Detail custom 
+     color schemes (curated HSL palettes, cohesive dark mode spectrums, and gradients), 
+     typography mappings (Inter/Outfit), and subtle micro-animations (hover curves, tactility).
+2. **Custom Framework Feasibility Analysis**:
+   - Is the custom framework really enterprise-grade? Is it a "next-gen" design (e.g., autowired
+     PSR-11 container, strict PSR-7/15-like routing middleware pipeline, sandboxed filters)?
+   - Critically evaluate the decision to use a custom PHP framework instead of popular ones like
+     Laravel or Symfony. Outline the pros, cons, and tradeoffs, focusing on:
+     * *Low-Resource shared hosting capability* (bootstrapping under 4MB RAM).
+     * *Tenant isolation safety* (scoping `merchant_id` automatically at the repository layer).
+     * *Control over request/exception lifecycle* (centralized error mask that prevents system path leaks).
+     * *Maintenance, package compatibility, and security costs*.
+
+--------------------------------------------------------------------------------
+DELIVERABLE 3: mobile_architecture.md (Companion Mobile App Architecture)
+--------------------------------------------------------------------------------
+Provide a comprehensive mobile companion app architecture and a Play Store SMS compliance review:
+
+1. **Backend API Readiness & Endpoints Integration**:
+   - Is the PHP backend codebase REST API layer completely integrated and ready to securely receive
+     GCM-encrypted MFS logs via `/api/mobile/v1/...` (pairing, configuration rules, SMS, notifications)?
+   - Verify pairing OTP handshakes, ACCESS/REFRESH tokens, and device fingerprint validations.
+2. **Google Play Store SMS Permission Compliance & Approval Strategy (Circa May 2026 data)**:
+   - There will be only ONE single version of the app published directly on the Google Play Store. This app 
+     performs dual roles: an administrative **User Dashboard** and a **Background SMS Ingestion Automater** (one app, two works).
+   - The app declares and requests direct SMS permissions (`RECEIVE_SMS` and `READ_SMS`). Transactional SMS texts
+     MUST be read ONLY via these direct SMS permissions—never from notification banners or listener APIs.
+   - Outline a 100% compliant app and permission architecture optimized for Google Play Console approval. 
+     Fulfill the strict criteria for the **"SMS-based financial transactions / SMS-based money management"** 
+     exemption category (SMS tracking of transactional alerts to manage budget and verify invoices).
+   - Detail the Permissions Declaration Form strategy: how to prove "Core Functionality", how to demonstrate 
+     the absence of lighter alternatives (since direct carrier receipt matching is the only way to link automated payments),
+     and how to declare prominent in-app disclosures and user consent flows.
+3. **Local Privacy Gate & Data Sovereignty**:
+   - Detail the on-device privacy filter: whitelisting only approved wallet/bank senders configured via the admin panel,
+     aggressively ignoring OTPs, PINs, logins, debits, or personal text messages locally on-device.
+   - Explain why this self-hosted flow guarantees absolute data privacy and zero third-party transit, as the phone 
+     transmits whitelisted GCM-encrypted financial transactions exclusively to the user's *own* local server under 
+     their full control. This is the cornerstone argument for Google Play Store compliance.
+
+--------------------------------------------------------------------------------
+DELIVERABLE 4: mobile_design.md (Mobile Companion App UI/UX Specs)
+--------------------------------------------------------------------------------
+A dedicated design specification detailing the mobile app interface:
+1. **Visual Language**: HSL color schemes matching the core OwnPay Indigo identity, Outfit display 
+   typography, and battery/temperature grid layouts (critical for constant-charging devices).
+2. **User Navigation Flows**: Screen-by-screen flow mapping (Pairing setups, connection status dash,
+   offline cache queue count indicators, biometric-locked local Audit Trail logs, and whitelist configs).

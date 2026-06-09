@@ -391,71 +391,94 @@ if ($zip->open($zipPath, ZipArchive::CREATE | ZipArchive::OVERWRITE) !== true) {
     exit(1);
 }
 
-// Define exclusions
-$rootExclusions = [
-    '.git/',
-    '.github/',
-    '.agents/',
-    '.antigravitycli/',
-    '.vscode/',
-    '.phpunit.cache/',
-    '.planning/',
-    'node_modules/',
-    'docs/',
-    'tests/',
-    'storage/',
-    'cli/',
-    'graphify-out/',
-    'scratch/',
-    'update/', // Exclude output directory
-    'mobile_app/', // Exclude mobile app directory
-];
+// ─── Load build ignore rules from cli/.buildignore (gitignore-style, project-root-relative) ───
+$buildIgnorePath = __DIR__ . '/.buildignore';
+$ignorePatterns = [];
+if (file_exists($buildIgnorePath)) {
+    $ignoreLines = file($buildIgnorePath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+    foreach ($ignoreLines as $ignoreLine) {
+        $ignoreLine = trim($ignoreLine);
+        if ($ignoreLine === '' || str_starts_with($ignoreLine, '#')) {
+            continue;
+        }
+        $ignorePatterns[] = $ignoreLine;
+    }
+    echo CLI_GREEN . "Loaded " . count($ignorePatterns) . " ignore rule(s) from cli/.buildignore." . CLI_RESET . "\n";
+} else {
+    echo CLI_RED . "WARNING: cli/.buildignore not found — only the built-in secret hard-deny rules will apply." . CLI_RESET . "\n";
+}
 
-$fileExclusions = [
-    '.env',
-    '.env.temp',
-    '.gitignore',
-    '.gitattributes',
-    '.graphifyignore',
-    '.twig-cs-fixer.cache',
-    '.twig-cs-fixer.php',
-    'phpunit.xml',
-    'phpstan.neon',
-    'nginx.conf.example',
-    'findings.md',
-    'progress.md',
-    'task_plan.md',
-    'scratch_test.php',
-    'update_private_key.pem',
-    'update_public_key.pem',
-    'eslint.config.js',
-    'stylelint.config.js',
-    'package.json',
-    'package-lock.json',
-    'admin_errors.txt',
-    'admin_errors_left.txt',
-    'admin_phpstan_errors.txt',
-    'headers.txt',
-    'AGENTS.md',
-    'ARCHITECTURE.md',
-    'CODE_OF_CONDUCT.md',
-    'CONTRIBUTING.md',
-    'ROADMAP.md',
-    'SECURITY.md',
-    'SUPPORT.md',
-];
-
-$globalExclusions = [
-    '.DS_Store',
-    'Thumbs.db',
-];
+// ─── Hard-deny safety net: these NEVER ship, regardless of .buildignore (prevents secret leakage on misconfig) ───
+$hardDenyExact = ['.env', '.env.temp', '.env.local', '.env.backup'];
+$hardDenyGlob  = ['*private_key*.pem'];
+$hardDenyDirs  = ['.git/'];
 
 /**
- * @param array<int, string> $rootExclusions
- * @param array<int, string> $fileExclusions
- * @param array<int, string> $globalExclusions
+ * Returns true if a project-root-relative path matches a .buildignore pattern.
+ *
+ * Pragmatic .gitignore subset (project-root-relative):
+ *  - trailing "/"  → directory: matches the dir and everything beneath it
+ *  - contains "/"  → matched against the full relative path (fnmatch globs allowed)
+ *  - no "/"        → matched against the basename at any depth (fnmatch globs allowed)
+ *
+ * @param array<int, string> $patterns
  */
-function scanAndZip(string $dir, ZipArchive $zip, string $projectRoot, array $rootExclusions, array $fileExclusions, array $globalExclusions, string $newVersion): void
+function buildIsIgnored(string $relativePath, array $patterns): bool
+{
+    $base = basename($relativePath);
+    foreach ($patterns as $pattern) {
+        if (str_ends_with($pattern, '/')) {
+            $dir = rtrim($pattern, '/');
+            if ($relativePath === $dir || str_starts_with($relativePath, $dir . '/')) {
+                return true;
+            }
+            continue;
+        }
+        if (str_contains($pattern, '/')) {
+            if ($relativePath === $pattern || fnmatch($pattern, $relativePath)) {
+                return true;
+            }
+        } elseif ($base === $pattern || fnmatch($pattern, $base)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * Hard-deny check for secrets/VCS that must never ship regardless of .buildignore.
+ *
+ * @param array<int, string> $exact Exact basename or relative-path matches.
+ * @param array<int, string> $globs fnmatch globs applied to the basename.
+ * @param array<int, string> $dirs  Directory prefixes (trailing "/").
+ */
+function buildIsHardDenied(string $relativePath, array $exact, array $globs, array $dirs): bool
+{
+    $base = basename($relativePath);
+    foreach ($dirs as $d) {
+        $d = rtrim($d, '/');
+        if ($relativePath === $d || str_starts_with($relativePath, $d . '/')) {
+            return true;
+        }
+    }
+    if (in_array($base, $exact, true) || in_array($relativePath, $exact, true)) {
+        return true;
+    }
+    foreach ($globs as $g) {
+        if (fnmatch($g, $base)) {
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
+ * @param array<int, string> $ignorePatterns
+ * @param array<int, string> $hardExact
+ * @param array<int, string> $hardGlob
+ * @param array<int, string> $hardDirs
+ */
+function scanAndZip(string $dir, ZipArchive $zip, string $projectRoot, array $ignorePatterns, array $hardExact, array $hardGlob, array $hardDirs, string $newVersion): void
 {
     $files = new RecursiveIteratorIterator(
         new RecursiveDirectoryIterator($dir, RecursiveDirectoryIterator::SKIP_DOTS),
@@ -469,33 +492,13 @@ function scanAndZip(string $dir, ZipArchive $zip, string $projectRoot, array $ro
         $relativePath = substr($absolutePath, strlen($projectRoot) + 1);
         $relativePath = str_replace('\\', '/', $relativePath);
 
-        // Check root-level exclusions
-        $excluded = false;
-        foreach ($rootExclusions as $exclusion) {
-            if (str_ends_with($exclusion, '/')) {
-                if (str_starts_with($relativePath . '/', $exclusion)) {
-                    $excluded = true;
-                    break;
-                }
-            } else {
-                if ($relativePath === $exclusion) {
-                    $excluded = true;
-                    break;
-                }
-            }
-        }
-
-        if ($excluded) {
+        // Secrets/VCS can never ship — checked first, before .buildignore.
+        if (buildIsHardDenied($relativePath, $hardExact, $hardGlob, $hardDirs)) {
             continue;
         }
 
-        // Check file exclusions
-        if (in_array($relativePath, $fileExclusions, true)) {
-            continue;
-        }
-
-        // Check global exclusions
-        if (in_array(basename($relativePath), $globalExclusions, true)) {
+        // .buildignore rules.
+        if (buildIsIgnored($relativePath, $ignorePatterns)) {
             continue;
         }
 
@@ -518,7 +521,22 @@ function scanAndZip(string $dir, ZipArchive $zip, string $projectRoot, array $ro
     echo "Added {$count} files to the zip archive.\n";
 }
 
-scanAndZip($projectRoot, $zip, $projectRoot, $rootExclusions, $fileExclusions, $globalExclusions, $version);
+scanAndZip($projectRoot, $zip, $projectRoot, $ignorePatterns, $hardDenyExact, $hardDenyGlob, $hardDenyDirs, $version);
+
+// ─── Preserve the runtime directory skeleton so the zip also works as a clean fresh-install ───
+// storage CONTENTS stay excluded (.buildignore), but the empty dirs must exist on extract or the
+// installer's "Writable: storage/" check fails and .installed cannot be written.
+$skeletonDirs = [
+    'storage', 'storage/cache', 'storage/logs', 'storage/temp',
+    'storage/languages', 'storage/framework', 'storage/backups',
+    'public/assets/uploads',
+];
+foreach ($skeletonDirs as $skelDir) {
+    $zip->addEmptyDir($skelDir);
+    $zip->addFromString($skelDir . '/.gitkeep', '');
+}
+echo "Added runtime directory skeleton (" . count($skeletonDirs) . " dirs) for fresh-install support.\n";
+
 $zip->close();
 
 echo CLI_GREEN . "ZipArchive created successfully.\n" . CLI_RESET;

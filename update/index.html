@@ -3,13 +3,25 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OwnPay — Update Server</title>
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com; img-src 'self' https://ownpay.org data:; connect-src 'self'; object-src 'none'; base-uri 'none'">
+    <meta name="color-scheme" content="dark light">
+    <!-- Anti-flash theme init (default dark; honors saved preference). Self-host note: to drop the
+         CDN dependency, place marked.min.js + purify.min.js under /vendor and point the two script
+         tags below at them ('self' is already allowed by the CSP). -->
+    <script>(function(){try{var t=localStorage.getItem('op-update-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
+    <title>OwnPay — Update Registry</title>
+    <link rel="icon" type="image/png" href="https://ownpay.org/ownpay_icon.png">
+    <link rel="apple-touch-icon" href="https://ownpay.org/ownpay_icon.png">
+    <meta name="description" content="OwnPay Update Registry — signed self-update packages and release distributions.">
+    <meta property="og:title" content="OwnPay — Update Registry">
+    <meta property="og:image" content="https://ownpay.org/ownpay_logo.png">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-    <!-- Marked.js for rendering markdown changelogs -->
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <!-- Marked.js (pinned major) for rendering markdown changelogs + DOMPurify to sanitize the output -->
+    <script src="https://cdn.jsdelivr.net/npm/marked@12/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dompurify@3/dist/purify.min.js"></script>
     <style>
         :root {
             --bg-color: #0b0f19;
@@ -17,8 +29,8 @@
             --border-color: rgba(255, 255, 255, 0.08);
             --text-main: #f3f4f6;
             --text-muted: #9ca3af;
-            --primary: #6366f1;
-            --primary-glow: rgba(99, 102, 241, 0.35);
+            --primary: #6c5ce7;
+            --primary-glow: rgba(108, 92, 231, 0.35);
             --accent: #8b5cf6;
             --accent-glow: rgba(139, 92, 246, 0.35);
             --success: #10b981;
@@ -27,6 +39,59 @@
             --font-main: 'Outfit', sans-serif;
             --font-mono: 'JetBrains Mono', monospace;
             --glass-blur: blur(12px);
+        }
+
+        html { color-scheme: dark; }
+        html[data-theme="light"] { color-scheme: light; }
+        [data-theme="light"] {
+            --bg-color: #f4f6fb;
+            --panel-bg: rgba(255, 255, 255, 0.78);
+            --border-color: rgba(15, 23, 42, 0.10);
+            --text-main: #0f172a;
+            --text-muted: #475569;
+            --primary: #6c5ce7;
+            --primary-glow: rgba(108, 92, 231, 0.22);
+            --accent: #8b5cf6;
+            --success: #059669;
+            --danger: #e11d48;
+            --warning: #d97706;
+        }
+        [data-theme="light"] h1 { background: linear-gradient(135deg, #1e293b 20%, #6c5ce7 100%); -webkit-background-clip: text; background-clip: text; }
+        [data-theme="light"] .latest-card {
+            background: linear-gradient(135deg, rgba(255, 255, 255, 0.8) 0%, rgba(241, 245, 249, 0.8) 100%);
+            border-color: rgba(15, 23, 42, 0.08);
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.04);
+        }
+        [data-theme="light"] .version-title,
+        [data-theme="light"] .changelog-box h3,
+        [data-theme="light"] .history-version-name {
+            color: var(--text-main);
+        }
+        [data-theme="light"] .markdown-body {
+            color: var(--text-muted);
+        }
+        [data-theme="light"] .copy-icon-btn:hover {
+            color: var(--text-main);
+        }
+        [data-theme="light"] .meta-val-mono {
+            background: rgba(15, 23, 42, 0.03);
+        }
+        [data-theme="light"] .history-item:hover {
+            border-color: rgba(15, 23, 42, 0.20);
+        }
+        [data-theme="light"] .tabs-container {
+            background: rgba(15, 23, 42, 0.03);
+        }
+        [data-theme="light"] footer {
+            background: rgba(244, 246, 251, 0.8);
+        }
+        [data-theme="light"] .footer-social a {
+            background: rgba(15, 23, 42, 0.04);
+        }
+        [data-theme="light"] .footer-social a:hover {
+            color: #fff;
+            background: var(--primary);
+            box-shadow: 0 6px 18px rgba(108, 92, 231, 0.35);
         }
 
         * {
@@ -129,12 +194,24 @@
             box-shadow: 0 0 20px var(--primary-glow);
         }
 
+        .logo-link { display: inline-flex; align-items: center; justify-content: center; }
+        .logo-img {
+            height: 56px;
+            width: auto;
+            max-width: 260px;
+            object-fit: contain;
+            filter: drop-shadow(0 4px 18px var(--primary-glow));
+            transition: transform 0.3s ease;
+        }
+        .logo-link:hover .logo-img { transform: translateY(-2px) scale(1.02); }
+
         h1 {
             font-size: 32px;
             font-weight: 700;
             letter-spacing: -0.5px;
             margin-bottom: 6px;
             background: linear-gradient(135deg, #ffffff 30%, #a5b4fc 100%);
+            background-clip: text;
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -520,6 +597,48 @@
             text-decoration: underline;
         }
 
+        /* --- Footer nav + social --- */
+        .footer-links {
+            display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
+            gap: 10px 24px;
+            margin-bottom: 18px;
+        }
+        .footer-links a {
+            color: var(--text-muted);
+            font-size: 14px;
+            font-weight: 500;
+            text-decoration: none;
+        }
+        .footer-links a:hover { color: var(--text-main); text-decoration: none; }
+        .footer-social {
+            display: flex;
+            justify-content: center;
+            gap: 14px;
+            margin-bottom: 20px;
+        }
+        .footer-social a {
+            width: 40px;
+            height: 40px;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid var(--border-color);
+            color: var(--text-muted);
+            transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .footer-social a:hover {
+            color: #fff;
+            border-color: var(--primary);
+            background: rgba(108, 92, 231, 0.18);
+            transform: translateY(-3px);
+            box-shadow: 0 6px 18px var(--primary-glow);
+        }
+        .footer-social svg { width: 18px; height: 18px; }
+
         /* --- Utility UI elements --- */
         .empty-state {
             padding: 40px;
@@ -569,9 +688,139 @@
             fill: currentColor;
             vertical-align: middle;
         }
+
+        /* --- Sticky top navigation --- */
+        .topnav {
+            position: sticky; top: 0; z-index: 50;
+            display: flex; align-items: center; justify-content: space-between;
+            gap: 16px; padding: 12px 24px;
+            background: rgba(11, 15, 25, 0.72); backdrop-filter: var(--glass-blur);
+            border-bottom: 1px solid var(--border-color);
+        }
+        [data-theme="light"] .topnav { background: rgba(244, 246, 251, 0.8); }
+        .topnav-brand { display: inline-flex; align-items: center; gap: 10px; font-weight: 700; color: var(--text-main); text-decoration: none; }
+        .topnav-brand img { height: 26px; width: auto; }
+        .topnav-right { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
+        .topnav-link { color: var(--text-muted); font-size: 13.5px; font-weight: 500; text-decoration: none; padding: 6px 10px; border-radius: 8px; transition: all .2s; }
+        .topnav-link:hover { color: var(--text-main); background: rgba(255,255,255,0.06); }
+        .theme-toggle { width: 38px; height: 38px; display: inline-flex; align-items: center; justify-content: center; border-radius: 9px; background: rgba(255,255,255,0.05); border: 1px solid var(--border-color); color: var(--text-muted); cursor: pointer; transition: all .2s; }
+        .theme-toggle:hover { color: var(--text-main); border-color: var(--primary); }
+        .theme-toggle .sun { display: none; }
+        [data-theme="light"] .theme-toggle .sun { display: inline; }
+        [data-theme="light"] .theme-toggle .moon { display: none; }
+
+        /* --- Hero verify command --- */
+        .hero-cmd {
+            display: flex; align-items: center; gap: 10px;
+            max-width: 640px; margin: 18px auto 8px;
+            background: rgba(0,0,0,0.25); border: 1px solid var(--border-color);
+            border-radius: 12px; padding: 12px 14px;
+        }
+        [data-theme="light"] .hero-cmd { background: rgba(15,23,42,0.05); }
+        .hero-cmd code { flex: 1; font-family: var(--font-mono); font-size: 13px; color: var(--text-main); background: none; text-align: left; white-space: nowrap; overflow-x: auto; }
+        .hero-copy { flex-shrink: 0; background: transparent; border: none; color: var(--text-muted); cursor: pointer; padding: 4px; border-radius: 6px; transition: color .2s; }
+        .hero-copy:hover { color: var(--text-main); }
+        .hero-note { font-size: 12.5px; color: var(--text-muted); max-width: 560px; margin: 0 auto; }
+
+        /* --- Release search --- */
+        .release-search-wrap { max-width: 420px; margin: 0 auto 22px; position: relative; }
+        .release-search {
+            width: 100%; box-sizing: border-box; padding: 11px 14px 11px 40px;
+            background: var(--panel-bg); backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border-color); border-radius: 12px;
+            color: var(--text-main); font-family: var(--font-main); font-size: 14px; outline: none;
+            transition: border-color .2s;
+        }
+        .release-search:focus { border-color: var(--primary); }
+        .release-search::placeholder { color: var(--text-muted); }
+        .release-search-icon { position: absolute; left: 14px; top: 50%; transform: translateY(-50%); width: 16px; height: 16px; color: var(--text-muted); pointer-events: none; }
+        .search-empty { text-align: center; color: var(--text-muted); font-size: 14px; padding: 16px; display: none; }
+
+        /* --- Download actions (GitHub-first + direct mirror fallback) --- */
+        .download-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 6px; }
+        .download-mirror-link { font-size: 12px; color: var(--text-muted); text-decoration: none; }
+        .download-mirror-link:hover { color: var(--text-main); text-decoration: underline; }
+        .unavailable-badge { background: rgba(245,158,11,0.15); color: var(--warning); border: 1px solid rgba(245,158,11,0.3); padding: 6px 12px; border-radius: 10px; font-size: 12px; font-weight: 700; }
+
+        /* --- Breaking Note & Migration Tags --- */
+        .breaking-note-box {
+            background: rgba(244, 63, 94, 0.1);
+            border: 1px solid rgba(244, 63, 94, 0.25);
+            border-radius: 8px;
+            padding: 12px 16px;
+            margin-bottom: 20px;
+            font-size: 13px;
+            color: #fda4af;
+        }
+        .history-body .breaking-note-box {
+            background: rgba(244, 63, 94, 0.08);
+            border: 1px solid rgba(244, 63, 94, 0.2);
+            padding: 10px 14px;
+            margin-bottom: 14px;
+            font-size: 12px;
+        }
+        [data-theme="light"] .breaking-note-box {
+            background: rgba(244, 63, 94, 0.06);
+            border-color: rgba(244, 63, 94, 0.2);
+            color: #b91c1c;
+        }
+
+        .migration-tag {
+            font-family: var(--font-mono);
+            font-size: 12px;
+            background: rgba(99, 102, 241, 0.1);
+            color: #a5b4fc;
+            border: 1px solid rgba(99, 102, 241, 0.2);
+            padding: 4px 8px;
+            border-radius: 4px;
+            display: inline-block;
+        }
+        .history-body .migration-tag {
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.05);
+            color: #cbd5e1;
+            border-color: var(--border-color);
+            padding: 2px 6px;
+        }
+        [data-theme="light"] .migration-tag {
+            background: rgba(99, 102, 241, 0.08);
+            color: #4f46e5;
+            border-color: rgba(99, 102, 241, 0.2);
+        }
+        [data-theme="light"] .history-body .migration-tag {
+            background: rgba(15, 23, 42, 0.04);
+            color: var(--text-muted);
+            border-color: var(--border-color);
+        }
+
+        @media (max-width: 640px) {
+            .topnav { flex-direction: column; gap: 8px; padding: 10px 14px; }
+            .topnav-right { justify-content: center; }
+            .hero-cmd code { white-space: normal; }
+        }
     </style>
 </head>
 <body>
+
+    <!-- Sticky Top Navigation -->
+    <nav class="topnav">
+        <a class="topnav-brand" href="https://ownpay.org" target="_blank" rel="noopener">
+            <img src="https://ownpay.org/ownpay_logo.png" alt="OwnPay" onerror="this.style.display='none'">
+            <span>Update Registry</span>
+        </a>
+        <div class="topnav-right">
+            <a class="topnav-link" href="https://ownpay.org" target="_blank" rel="noopener">Home</a>
+            <a class="topnav-link" href="https://docs.ownpay.org" target="_blank" rel="noopener">Docs</a>
+            <a class="topnav-link" href="https://blog.ownpay.org" target="_blank" rel="noopener">Blog</a>
+            <a class="topnav-link" href="https://learn.ownpay.org" target="_blank" rel="noopener">Learn</a>
+            <a class="topnav-link" href="https://support.ownpay.org" target="_blank" rel="noopener">Support</a>
+            <a class="topnav-link" href="https://github.com/own-pay/OwnPay" target="_blank" rel="noopener">GitHub</a>
+            <button class="theme-toggle" id="theme-toggle" type="button" aria-label="Toggle light/dark theme" title="Toggle theme">
+                <svg class="moon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+                <svg class="sun" viewBox="0 0 24 24" width="18" height="18" fill="currentColor" aria-hidden="true"><path d="M12 17a5 5 0 100-10 5 5 0 000 10zm0-13a1 1 0 011 1v1a1 1 0 11-2 0V5a1 1 0 011-1zm0 14a1 1 0 011 1v1a1 1 0 11-2 0v-1a1 1 0 011-1zM4 12a1 1 0 011-1h1a1 1 0 110 2H5a1 1 0 01-1-1zm14 0a1 1 0 011-1h1a1 1 0 110 2h-1a1 1 0 01-1-1zM6.34 6.34a1 1 0 011.41 0l.71.71A1 1 0 117.05 8.46l-.71-.71a1 1 0 010-1.41zm9.49 9.49a1 1 0 011.41 0l.71.71a1 1 0 11-1.41 1.41l-.71-.71a1 1 0 010-1.41zM17.66 6.34a1 1 0 010 1.41l-.71.71a1 1 0 11-1.41-1.41l.71-.71a1 1 0 011.41 0zM8.46 16.95a1 1 0 010 1.41l-.71.71a1 1 0 11-1.41-1.41l.71-.71a1 1 0 011.41 0z"/></svg>
+            </button>
+        </div>
+    </nav>
 
     <!-- Glowing Background Blobs -->
     <div class="bg-glow-container">
@@ -583,10 +832,21 @@
     <!-- Header -->
     <header>
         <div class="logo-container">
-            <div class="logo-icon">OP</div>
+            <a href="https://ownpay.org" target="_blank" rel="noopener" class="logo-link" aria-label="OwnPay home">
+                <img src="https://ownpay.org/ownpay_logo.png" alt="OwnPay" class="logo-img"
+                     onerror="this.style.display='none';document.getElementById('logo-fallback').style.display='flex';">
+                <span id="logo-fallback" class="logo-icon" style="display:none;">OP</span>
+            </a>
         </div>
         <h1>OwnPay — Update Registry</h1>
         <div class="subtitle">Platform self-update packages & release distributions</div>
+        <div class="hero-cmd">
+            <code id="verify-cmd">sha256sum -c checksum.sha256   # verify a downloaded release before installing</code>
+            <button class="hero-copy" id="hero-copy-btn" type="button" aria-label="Copy command" title="Copy command">
+                <svg class="icon" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>
+            </button>
+        </div>
+        <p class="hero-note">Every release is integrity-checked (SHA-256) and RSA-signature verified by OwnPay before it is applied.</p>
     </header>
 
     <!-- Main Container -->
@@ -613,6 +873,12 @@
             <button class="tab-btn" onclick="switchChannel('beta')">Beta Channel</button>
         </div>
 
+        <!-- Release search / filter -->
+        <div class="release-search-wrap">
+            <svg class="release-search-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
+            <input type="search" id="release-search" class="release-search" placeholder="Search releases by version or date…" autocomplete="off" aria-label="Search releases">
+        </div>
+
         <!-- Stable Channel Panel -->
         <div id="stable-panel" class="channel-panel active">
             <div id="stable-latest-container"></div>
@@ -630,8 +896,24 @@
 
     <!-- Footer -->
     <footer>
+        <nav class="footer-links">
+            <a href="https://ownpay.org" target="_blank" rel="noopener">Home</a>
+            <a href="https://docs.ownpay.org" target="_blank" rel="noopener">Docs</a>
+            <a href="https://blog.ownpay.org" target="_blank" rel="noopener">Blog</a>
+            <a href="https://learn.ownpay.org" target="_blank" rel="noopener">Learn</a>
+            <a href="https://support.ownpay.org" target="_blank" rel="noopener">Support</a>
+            <a href="https://github.com/own-pay/OwnPay" target="_blank" rel="noopener">GitHub</a>
+        </nav>
+        <div class="footer-social">
+            <a href="https://github.com/own-pay/OwnPay" target="_blank" rel="noopener" aria-label="GitHub" title="GitHub">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 .5C5.73.5.5 5.73.5 12c0 5.08 3.29 9.39 7.86 10.91.58.11.79-.25.79-.56 0-.27-.01-1.16-.02-2.1-3.2.7-3.88-1.36-3.88-1.36-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.09-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.18 1.18a11.07 11.07 0 015.79 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.8 1.19 1.83 1.19 3.09 0 4.42-2.69 5.39-5.25 5.68.41.36.78 1.06.78 2.14 0 1.55-.01 2.8-.01 3.18 0 .31.21.68.8.56A11.51 11.51 0 0023.5 12C23.5 5.73 18.27.5 12 .5z"/></svg>
+            </a>
+            <a href="https://fb.com/ownpay.org" target="_blank" rel="noopener" aria-label="Facebook" title="Facebook">
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M24 12.07C24 5.4 18.63 0 12 0S0 5.4 0 12.07c0 6.02 4.39 11.01 10.13 11.85v-8.38H7.08v-3.47h3.05V9.41c0-3.01 1.79-4.67 4.53-4.67 1.31 0 2.69.24 2.69.24v2.95h-1.51c-1.49 0-1.96.93-1.96 1.87v2.25h3.33l-.53 3.47h-2.8v8.38C19.61 23.08 24 18.09 24 12.07z"/></svg>
+            </a>
+        </div>
         <p>&copy; <span id="year"></span> <a href="https://ownpay.org" target="_blank">OwnPay</a>. All rights reserved.</p>
-        <p style="margin-top: 4px; font-size: 11px; opacity: 0.5;">Secure Update Registry Service</p>
+        <p style="margin-top: 4px; font-size: 11px; opacity: 0.5;">Built by the Community, for the Community</p>
     </footer>
 
     <!-- Toast Notification -->
@@ -677,12 +959,12 @@
         }
 
         function formatBytes(bytes, decimals = 2) {
-            if (bytes === 0) return '0 Bytes';
+            if (!bytes || bytes < 0) return '0 Bytes';
             const k = 1024;
             const dm = decimals < 0 ? 0 : decimals;
-            const sizes = ['Bytes', 'KB', 'MB', 'GB'];
+            const sizes = ['Bytes', 'KB', 'MB', 'GB', 'TB'];
             const i = Math.floor(Math.log(bytes) / Math.log(k));
-            return parseFloat((bytes / Math.pow(k, bytes === 0 ? 1 : k)).toFixed(dm)) + ' ' + sizes[i];
+            return parseFloat((bytes / Math.pow(k, i)).toFixed(dm)) + ' ' + sizes[i];
         }
 
         function formatDate(dateStr) {
@@ -708,28 +990,43 @@
             });
         }
 
-        async function checkZipExists(url) {
-            if (!url) return false;
-            try {
-                let localUrl = url;
-                const releasesIdx = url.indexOf('/releases/');
-                if (releasesIdx !== -1) {
-                    localUrl = url.substring(releasesIdx + 1);
-                }
+        const GITHUB_REPO = 'https://github.com/own-pay/OwnPay';
 
-                const response = await fetch(localUrl, { method: 'HEAD' });
-                if (response.status === 404) {
-                    return false;
-                }
-                return response.ok;
-            } catch (error) {
-                const isRelative = !url.startsWith('http://') && !url.startsWith('https://');
-                const isSameDomain = url.includes(window.location.host);
-                if (isRelative || isSameDomain) {
-                    return false;
-                }
-                return true;
+        // Download priority = GitHub. Use an explicit GitHub download_url from the manifest if present,
+        // otherwise build the conventional GitHub release-asset URL from the version.
+        function githubUrl(rel) {
+            if (rel && typeof rel.download_url === 'string' && /github\.com/i.test(rel.download_url)) {
+                return rel.download_url;
             }
+            if (!rel || !rel.version) return '';
+            const v = encodeURIComponent(rel.version);
+            return `${GITHUB_REPO}/releases/download/v${v}/ownpay-${v}.zip`;
+        }
+
+        // Fallback = same-origin mirror on this update server.
+        function localMirrorUrl(rel) {
+            if (rel && typeof rel.download_url === 'string') {
+                const i = rel.download_url.indexOf('/releases/');
+                if (i !== -1) return rel.download_url.substring(i + 1); // 'releases/<v>/...zip' (relative)
+            }
+            if (rel && rel.version) return `releases/${rel.version}/ownpay-${rel.version}.zip`;
+            return '';
+        }
+
+        // GitHub-first download block, with the local mirror as a fallback link.
+        function downloadBlock(rel, opts) {
+            opts = opts || {};
+            const gh = githubUrl(rel);
+            const mirror = localMirrorUrl(rel);
+            const btnStyle = opts.small ? ' style="padding: 8px 16px; font-size:13px;"' : '';
+            const dl = '<svg class="icon" viewBox="0 0 24 24" style="width:18px;height:18px;"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>';
+            const primary = gh
+                ? `<a href="${gh}" class="download-action-btn"${btnStyle} target="_blank" rel="noopener" title="Download from GitHub (recommended)">${dl}${opts.small ? 'GitHub' : 'Download (GitHub)'}</a>`
+                : '<span class="unavailable-badge">Download unavailable</span>';
+            const mirrorLink = mirror
+                ? `<a href="${mirror}" class="download-mirror-link" title="Direct mirror from this update server">${opts.small ? 'mirror' : 'or use direct mirror'}</a>`
+                : '';
+            return `<div class="download-actions">${primary}${mirrorLink}</div>`;
         }
 
         function showNoUpdateFound() {
@@ -780,41 +1077,34 @@
             renderChannel('beta', betaReleases);
         }
 
-        async function renderChannel(channel, releases) {
+        function renderChannel(channel, releases) {
             const latestContainer = document.getElementById(`${channel}-latest-container`);
             const historyList = document.getElementById(`${channel}-history-list`);
+            const statsId = channel === 'stable' ? 'stats-stable' : 'stats-beta';
 
-            if (releases.length === 0) {
+            // Skip structurally-invalid entries (e.g. missing version / malformed config) but keep the rest.
+            const valid = (releases || []).filter(r => r && r.version);
+
+            if (valid.length === 0) {
                 latestContainer.innerHTML = `
                     <div class="empty-state">
-                        <p>No update found.</p>
+                        <p>No releases found.</p>
                     </div>
                 `;
                 historyList.innerHTML = '';
-                return;
-            }
-
-            // Latest is first index
-            const latest = releases[0];
-            const history = releases.slice(1);
-
-            // Verify if zip file exists
-            const zipExists = await checkZipExists(latest.download_url);
-            if (!zipExists) {
-                latestContainer.innerHTML = `
-                    <div class="empty-state">
-                        <p>No update found.</p>
-                    </div>
-                `;
-                historyList.innerHTML = '';
-                const statsId = channel === 'stable' ? 'stats-stable' : 'stats-beta';
                 document.getElementById(statsId).textContent = 'N/A';
                 return;
             }
 
+            // Feature the newest valid release. IMPORTANT: a problem with the latest release's
+            // download or config must NOT hide the rest of the list — older versions still render.
+            const latest = valid[0];
+            const history = valid.slice(1);
+            document.getElementById(statsId).textContent = latest.version;
+
             // Render Latest Card
             latestContainer.innerHTML = `
-                <div class="latest-card">
+                <div class="latest-card" data-search="v${(latest.version || '').toLowerCase()} ${(formatDate(latest.release_date) || '').toLowerCase()}">
                     <div class="card-header-row">
                         <div>
                             <div class="version-badge-container">
@@ -824,10 +1114,7 @@
                             </div>
                             <div class="release-date">Released on ${formatDate(latest.release_date)}</div>
                         </div>
-                        <a href="${latest.download_url}" class="download-action-btn">
-                            <svg class="icon" viewBox="0 0 24 24" style="width: 20px; height: 20px;"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
-                            Download Package
-                        </a>
+                        ${downloadBlock(latest)}
                     </div>
                     
                     <div class="latest-meta-grid">
@@ -855,7 +1142,7 @@
                     </div>
 
                     ${latest.breaking_changes && latest.breaking_notes ? `
-                        <div style="background: rgba(244, 63, 94, 0.1); border: 1px solid rgba(244, 63, 94, 0.25); border-radius: 8px; padding: 12px 16px; margin-bottom: 20px; font-size: 13px; color: #fda4af;">
+                        <div class="breaking-note-box">
                             <strong>Breaking Change Note:</strong> ${latest.breaking_notes}
                         </div>
                     ` : ''}
@@ -864,7 +1151,7 @@
                         <div style="margin-bottom: 20px;">
                             <span class="meta-label" style="display: block; margin-bottom: 6px;">Migrations to Execute</span>
                             <div style="display: flex; flex-wrap: wrap; gap: 8px;">
-                                ${latest.migrations.map(m => `<span style="font-family: var(--font-mono); font-size: 12px; background: rgba(99, 102, 241, 0.1); color: #a5b4fc; border: 1px solid rgba(99, 102, 241, 0.2); padding: 4px 8px; border-radius: 4px;">${m}</span>`).join('')}
+                                ${latest.migrations.map(m => `<span class="migration-tag">${m}</span>`).join('')}
                             </div>
                         </div>
                     ` : ''}
@@ -872,7 +1159,7 @@
                     <div class="changelog-box">
                         <h3>Changelog</h3>
                         <div class="markdown-body">
-                            ${marked.parse(latest.changelog || '*No changelog provided.*')}
+                            ${DOMPurify.sanitize(marked.parse(latest.changelog || '*No changelog provided.*'))}
                         </div>
                     </div>
                 </div>
@@ -889,7 +1176,7 @@
             }
 
             historyList.innerHTML = history.map((rel, index) => `
-                <div class="history-item">
+                <div class="history-item" data-search="v${(rel.version || '').toLowerCase()} ${(formatDate(rel.release_date) || '').toLowerCase()}">
                     <div class="history-header" onclick="toggleHistoryItem(this)">
                         <div class="history-version-info">
                             <span class="history-version-name">v${rel.version}</span>
@@ -918,14 +1205,12 @@
                                 </span>
                             </div>
                             <div class="meta-cell" style="justify-content: center; align-items: flex-end;">
-                                <a href="${rel.download_url}" class="download-action-btn" style="padding: 8px 16px; font-size:13px;">
-                                    Download ZIP
-                                </a>
+                                ${downloadBlock(rel, { small: true })}
                             </div>
                         </div>
 
                         ${rel.breaking_changes && rel.breaking_notes ? `
-                            <div style="background: rgba(244, 63, 94, 0.08); border: 1px solid rgba(244, 63, 94, 0.2); border-radius: 6px; padding: 10px 14px; margin-bottom: 14px; font-size: 12px; color: #fda4af;">
+                            <div class="breaking-note-box">
                                 <strong>Breaking Change Note:</strong> ${rel.breaking_notes}
                             </div>
                         ` : ''}
@@ -934,7 +1219,7 @@
                             <div style="margin-bottom: 14px;">
                                 <span class="meta-label" style="display: block; margin-bottom: 4px; font-size:11px;">Migrations</span>
                                 <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-                                    ${rel.migrations.map(m => `<span style="font-family: var(--font-mono); font-size: 11px; background: rgba(255, 255, 255, 0.05); color: #cbd5e1; border: 1px solid var(--border-color); padding: 2px 6px; border-radius: 4px;">${m}</span>`).join('')}
+                                    ${rel.migrations.map(m => `<span class="migration-tag">${m}</span>`).join('')}
                                 </div>
                             </div>
                         ` : ''}
@@ -942,13 +1227,60 @@
                         <div class="changelog-box">
                             <h3 style="font-size:14px; margin-bottom:8px;">Changelog</h3>
                             <div class="markdown-body" style="font-size:13px;">
-                                ${marked.parse(rel.changelog || '*No changelog provided.*')}
+                                ${DOMPurify.sanitize(marked.parse(rel.changelog || '*No changelog provided.*'))}
                             </div>
                         </div>
                     </div>
                 </div>
             `).join('');
         }
+
+        // --- Release search / filter (by version or date) ---
+        (function () {
+            const input = document.getElementById('release-search');
+            if (!input) return;
+            input.addEventListener('input', function () {
+                const q = this.value.trim().toLowerCase();
+                const activePanel = document.querySelector('.channel-panel.active');
+                if (!activePanel) return;
+                let visible = 0;
+                activePanel.querySelectorAll('[data-search]').forEach(function (el) {
+                    const match = !q || (el.getAttribute('data-search') || '').indexOf(q) !== -1;
+                    el.style.display = match ? '' : 'none';
+                    if (match) visible++;
+                });
+                let note = activePanel.querySelector('.search-empty');
+                if (!note) {
+                    note = document.createElement('div');
+                    note.className = 'search-empty';
+                    note.textContent = 'No releases match your search.';
+                    activePanel.appendChild(note);
+                }
+                note.style.display = (q && visible === 0) ? 'block' : 'none';
+            });
+        })();
+
+        // --- Light / dark theme toggle ---
+        (function () {
+            const btn = document.getElementById('theme-toggle');
+            if (!btn) return;
+            btn.addEventListener('click', function () {
+                const cur = document.documentElement.getAttribute('data-theme') === 'light' ? 'light' : 'dark';
+                const next = cur === 'light' ? 'dark' : 'light';
+                document.documentElement.setAttribute('data-theme', next);
+                try { localStorage.setItem('op-update-theme', next); } catch (e) {}
+            });
+        })();
+
+        // --- Hero: copy the verify command ---
+        (function () {
+            const btn = document.getElementById('hero-copy-btn');
+            const cmd = document.getElementById('verify-cmd');
+            if (!btn || !cmd) return;
+            btn.addEventListener('click', function () {
+                copyToClipboard(cmd.textContent.trim(), 'command');
+            });
+        })();
 
         // Error state handled gracefully by showNoUpdateFound()
     </script>
