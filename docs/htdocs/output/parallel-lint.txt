@@ -1,3 +1,0 @@
-﻿PHP 8.2.12 | 10 parallel jobs
-Checked 364 files in 16.2 seconds
-No syntax error found

@@ -1,3 +1,0 @@
-﻿
- [OK] Files linted: 79, notices: 0, warnings: 0, errors: 0                                                             
-

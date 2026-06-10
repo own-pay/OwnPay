@@ -1,4 +1,0 @@
-﻿
-> ownpay-frontend-linting@1.0.0 lint:css
-> stylelint "public/assets/css/**/*.css"
-
