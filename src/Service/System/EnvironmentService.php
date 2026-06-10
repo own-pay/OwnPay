@@ -98,10 +98,6 @@ final class EnvironmentService
     {
         $errors = [];
 
-        if (version_compare(PHP_VERSION, '8.2.0', '<')) {
-            $errors[] = 'PHP 8.2+ required (current: ' . PHP_VERSION . ')';
-        }
-
         $requiredExtensions = ['pdo', 'pdo_mysql', 'openssl', 'mbstring', 'json', 'curl', 'bcmath'];
         foreach ($requiredExtensions as $ext) {
             if (!extension_loaded($ext)) {

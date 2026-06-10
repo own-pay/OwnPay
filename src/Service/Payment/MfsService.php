@@ -62,7 +62,7 @@ final class MfsService
      */
     public function processIncomingSms(int $merchantId, string $sender, string $body, string $deviceId): array
     {
-        $parsed = $this->parser->parse($sender, $body, $merchantId);
+        $parsed = $this->parser->parse($body, $sender, $merchantId);
 
         $smsId = $this->smsParsed->forTenant($merchantId)->createScoped([
             'device_id'    => $deviceId,
@@ -82,7 +82,7 @@ final class MfsService
 
         // Try auto-match to pending transaction
         if ($trxId !== '') {
-            $transaction = $this->transactions->findByTrxId($merchantId, $trxId);
+            $transaction = $this->transactions->findByProviderTrxId($merchantId, $trxId);
             if ($transaction !== null && $transaction['status'] === 'pending') {
                 $txIdVal = $transaction['id'] ?? 0;
                 $txId = is_scalar($txIdVal) ? (int) $txIdVal : 0;

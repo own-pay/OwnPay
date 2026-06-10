@@ -162,13 +162,34 @@ final class UrlValidator
             }
         }
 
-        // Resolve DNS records to verify and inspect host IP addresses.
-        $ips = gethostbynamel($host);
-        if ($ips === false || empty($ips)) {
+        // Resolve DNS records to verify and inspect host IP addresses (both IPv4 and IPv6).
+        $resolvedIps = [];
+        $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+        if (is_array($records)) {
+            foreach ($records as $record) {
+                if (isset($record['type'])) {
+                    if ($record['type'] === 'A' && isset($record['ip'])) {
+                        $resolvedIps[] = $record['ip'];
+                    } elseif ($record['type'] === 'AAAA' && isset($record['ipv6'])) {
+                        $resolvedIps[] = $record['ipv6'];
+                    }
+                }
+            }
+        }
+
+        // Fallback to gethostbynamel for IPv4
+        if (empty($resolvedIps)) {
+            $ipv4s = gethostbynamel($host);
+            if (is_array($ipv4s)) {
+                $resolvedIps = array_merge($resolvedIps, $ipv4s);
+            }
+        }
+
+        if (empty($resolvedIps)) {
             return false;
         }
 
-        foreach ($ips as $ip) {
+        foreach ($resolvedIps as $ip) {
             if (self::isPrivateIp($ip)) {
                 return false;
             }

@@ -40,9 +40,9 @@ final class RequirementsChecker
         return [
             [
                 'name'     => 'PHP Version',
-                'required' => '8.2.x - 8.4.x',
+                'required' => '8.3.x - 8.4.x',
                 'current'  => PHP_VERSION,
-                'check'    => version_compare(PHP_VERSION, '8.2.0', '>=') && version_compare(PHP_VERSION, '8.5.0', '<'),
+                'check'    => version_compare(PHP_VERSION, '8.5.0', '<'),
             ],
             [
                 'name'     => 'cURL',

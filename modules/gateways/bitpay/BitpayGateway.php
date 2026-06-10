@@ -105,6 +105,9 @@ final class BitpayGateway implements PluginInterface, GatewayAdapterInterface
 
         // Graceful fallback for mock tests
         if ($redirectUrl === '') {
+            if ($mode === 'live') {
+                throw new \RuntimeException('BitPay payment initiation failed: Empty response from gateway.');
+            }
             $invoiceId = 'mock_btp_' . uniqid();
             $redirectUrl = $params['redirect_url'] . '?id=' . $invoiceId . '&trx_id=' . urlencode($trxId);
         }
@@ -130,6 +133,13 @@ final class BitpayGateway implements PluginInterface, GatewayAdapterInterface
 
         // If it's a mock token, bypass API call
         if (str_starts_with($invoiceId, 'mock_')) {
+            if ($mode === 'live') {
+                return [
+                    'success' => false,
+                    'gateway_trx_id' => '',
+                    'status' => 'failed',
+                ];
+            }
             return [
                 'success' => true,
                 'gateway_trx_id' => $invoiceId,

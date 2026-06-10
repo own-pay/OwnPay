@@ -111,10 +111,10 @@ final class SmsVerificationJob
                     continue;
                 }
 
-                // Attempt to resolve the transaction record utilizing the direct gateway transaction identifier.
+                // Attempt to resolve the transaction record utilizing the MFS provider transaction identifier.
                 $transaction = null;
                 if ($trxId !== null) {
-                    $transaction = $this->transactions->forTenant($merchantId)->findByTrxId($trxId);
+                    $transaction = $this->transactions->forTenant($merchantId)->findByProviderTrxId($trxId);
                 }
 
                 // Fallback: Resolve transaction record matching by exact transacted amount and gateway provider.

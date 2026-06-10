@@ -4,7 +4,7 @@
   "type": "project",
   "license": "AGPL-3.0-or-later",
   "require": {
-    "php": "^8.2",
+    "php": "^8.3",
     "ext-bcmath": "*",
     "ext-json": "*",
     "ext-mbstring": "*",
@@ -34,7 +34,7 @@
   "require-dev": {
     "php-parallel-lint/php-parallel-lint": "^1.4",
     "phpstan/phpstan": "^2.1",
-    "phpunit/phpunit": "^12.5",
+    "phpunit/phpunit": "12.5.29",
     "vincentlanglet/twig-cs-fixer": "^3.14"
   },
   "scripts": {

@@ -192,43 +192,69 @@ final class GatewayApiService
         // Use database transaction and FOR UPDATE lock to completely prevent concurrency race conditions
         $db = \OwnPay\Core\Database::getInstance();
         $transaction = null;
+        $amountMismatch = false;
 
-        $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, &$transaction) {
-            if ($trxId !== '') {
-                $transaction = $db->fetchOne(
-                    "SELECT * FROM op_transactions WHERE trx_id = :t AND merchant_id = :mid LIMIT 1 FOR UPDATE",
-                    ['t' => $trxId, 'mid' => $merchantId]
-                );
-            }
-
-            if ($transaction === null && is_string($gwTrxId) && $gwTrxId !== '') {
-                $transaction = $db->fetchOne(
-                    "SELECT * FROM op_transactions WHERE gateway_trx_id = :gtid AND merchant_id = :mid LIMIT 1 FOR UPDATE",
-                    ['gtid' => $gwTrxId, 'mid' => $merchantId]
-                );
-            }
-
-            if ($transaction !== null && in_array($transaction['status'], ['pending', 'processing', 'callback_processing'], true)) {
-                $txnId = $transaction['id'] ?? 0;
-                $amt = $transaction['amount'] ?? '0.00';
-                $feeVal = $transaction['fee'] ?? '0.00';
-                $cur = $transaction['currency'] ?? 'BDT';
-                if (is_scalar($txnId) && is_scalar($amt) && is_scalar($feeVal) && is_scalar($cur)) {
-                    $this->transactions->complete((int) $txnId, $merchantId);
-
-                    // Record in ledger
-                    $this->ledger->recordPaymentReceived(
-                        $merchantId,
-                        (int) $txnId,
-                        (string) $amt,
-                        (string) $feeVal,
-                        (string) $cur
+        try {
+            $db->transaction(function () use ($db, $merchantId, $trxId, $gwTrxId, $verification, &$transaction, &$amountMismatch) {
+                if ($trxId !== '') {
+                    $transaction = $db->fetchOne(
+                        "SELECT * FROM op_transactions WHERE trx_id = :t AND merchant_id = :mid LIMIT 1 FOR UPDATE",
+                        ['t' => $trxId, 'mid' => $merchantId]
                     );
                 }
-            } else {
-                $transaction = null;
-            }
-        });
+
+                if ($transaction === null && is_string($gwTrxId) && $gwTrxId !== '') {
+                    $transaction = $db->fetchOne(
+                        "SELECT * FROM op_transactions WHERE gateway_trx_id = :gtid AND merchant_id = :mid LIMIT 1 FOR UPDATE",
+                        ['gtid' => $gwTrxId, 'mid' => $merchantId]
+                    );
+                }
+
+                if ($transaction !== null) {
+                    // Assert callback amount matches transaction amount
+                    $verifiedAmountVal = $verification['amount'] ?? null;
+                    $txAmtVal = $transaction['amount'] ?? null;
+                    if ($verifiedAmountVal !== null && is_scalar($verifiedAmountVal) && is_scalar($txAmtVal)) {
+                        $verifiedAmountStr = (string)$verifiedAmountVal;
+                        $txAmtStr = (string)$txAmtVal;
+                        /** @var numeric-string $verifiedAmountStr */
+                        /** @var numeric-string $txAmtStr */
+                        if (bccomp($verifiedAmountStr, $txAmtStr, 2) !== 0) {
+                            $amountMismatch = true;
+                            $transaction = null;
+                            return;
+                        }
+                    }
+
+                    if (in_array($transaction['status'], ['pending', 'processing', 'callback_processing'], true)) {
+                        $txnId = $transaction['id'] ?? 0;
+                        $amt = $transaction['amount'] ?? '0.00';
+                        $feeVal = $transaction['fee'] ?? '0.00';
+                        $cur = $transaction['currency'] ?? 'BDT';
+                        if (is_scalar($txnId) && is_scalar($amt) && is_scalar($feeVal) && is_scalar($cur)) {
+                            $this->transactions->complete((int) $txnId, $merchantId);
+
+                            // Record in ledger
+                            $this->ledger->recordPaymentReceived(
+                                $merchantId,
+                                (int) $txnId,
+                                (string) $amt,
+                                (string) $feeVal,
+                                (string) $cur
+                            );
+                        }
+                    } else {
+                        $transaction = null;
+                    }
+                }
+            });
+        } catch (\Throwable $e) {
+            return ['success' => false, 'error' => 'Callback processing error: ' . $e->getMessage()];
+        }
+
+        if ($amountMismatch) {
+            return ['success' => false, 'error' => 'Transaction amount mismatch'];
+        }
 
         if ($transaction !== null) {
             return ['success' => true, 'transaction' => $transaction];
@@ -264,8 +290,30 @@ final class GatewayApiService
             $html
         );
 
-        // 3. Strip <script src="..."> (external script loading) but keep inline <script>
-        $html = (string) preg_replace('/<script\s+[^>]*src\s*=\s*[^>]*>.*?<\/script>/is', '', $html);
+        // 3. Parse <script> tags: strip external scripts, and restrict inline scripts only to safe form auto-submission
+        $html = (string) preg_replace_callback('/<script\b[^>]*>(.*?)<\/script>/is', function ($matches) {
+            $scriptAttrs = $matches[0];
+            $scriptContent = $matches[1];
+
+            // If it has a src attribute, it's an external script. Block it.
+            if (preg_match('/\bsrc\s*=/i', $scriptAttrs)) {
+                return '';
+            }
+
+            // Clean whitespaces and check if the content matches allowed auto-submit patterns
+            $cleaned = preg_replace('/\s+/', '', $scriptContent);
+            $cleanedContent = trim(is_string($cleaned) ? $cleaned : '');
+            
+            // Allow only standard forms of auto-submitting the parent redirect form
+            $allowedPattern = '/^(?:(?:window\.onload\s*=\s*function\(\s*\)\s*\{)?\s*document\.(?:forms\[0\]|forms\[[\'"][a-zA-Z0-9_\-]+[\'"]\]|getElementById\([\'"][a-zA-Z0-9_\-]+[\'"]\))\.submit\(\s*\);?\s*\}?)$/i';
+            
+            if (preg_match($allowedPattern, $cleanedContent)) {
+                return "<script>" . trim($scriptContent) . "</script>";
+            }
+
+            // Default-deny: neutralize arbitrary javascript to a safe form submission
+            return "<script>document.forms[0].submit();</script>";
+        }, $html);
 
         return $html;
     }

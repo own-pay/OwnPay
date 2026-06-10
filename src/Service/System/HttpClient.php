@@ -285,10 +285,48 @@ final class HttpClient
                 ];
             }
 
+            $parsed = parse_url($currentUrl);
+            $host = $parsed['host'] ?? '';
+            $port = $parsed['port'] ?? (strtolower($parsed['scheme'] ?? '') === 'https' ? 443 : 80);
+
+            $pinIp = null;
+            if ($host !== '' && filter_var($host, FILTER_VALIDATE_IP) === false) {
+                $resolvedIps = [];
+                $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+                if (is_array($records)) {
+                    foreach ($records as $record) {
+                        if (isset($record['type'])) {
+                            if ($record['type'] === 'A' && isset($record['ip'])) {
+                                $resolvedIps[] = $record['ip'];
+                            } elseif ($record['type'] === 'AAAA' && isset($record['ipv6'])) {
+                                $resolvedIps[] = $record['ipv6'];
+                            }
+                        }
+                    }
+                }
+                if (empty($resolvedIps)) {
+                    $ipv4s = gethostbynamel($host);
+                    if (is_array($ipv4s)) {
+                        $resolvedIps = array_merge($resolvedIps, $ipv4s);
+                    }
+                }
+
+                // Verify resolved IPs
+                foreach ($resolvedIps as $ip) {
+                    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_NO_PRIV_RANGE | FILTER_FLAG_NO_RES_RANGE) === false) {
+                        throw new \RuntimeException('URL blocked by SSRF protection');
+                    }
+                }
+
+                if (!empty($resolvedIps)) {
+                    $pinIp = $resolvedIps[0];
+                }
+            }
+
             $ch = curl_init($currentUrl);
             $responseHeaders = [];
 
-            curl_setopt_array($ch, [
+            $curlOpts = [
                 CURLOPT_RETURNTRANSFER => true,
                 CURLOPT_TIMEOUT        => $this->timeout,
                 CURLOPT_CONNECTTIMEOUT => $this->connectTimeout,
@@ -305,7 +343,16 @@ final class HttpClient
                     }
                     return strlen($header);
                 },
-            ]);
+            ];
+
+            if ($pinIp !== null) {
+                $curlOpts[CURLOPT_RESOLVE] = ["{$host}:{$port}:{$pinIp}"];
+                if (str_contains($pinIp, ':')) {
+                    $curlOpts[CURLOPT_IPRESOLVE] = CURL_IPRESOLVE_V6;
+                }
+            }
+
+            curl_setopt_array($ch, $curlOpts);
 
             // Build header structures for cURL execution
             $curlHeaders = [];

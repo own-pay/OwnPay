@@ -280,7 +280,7 @@ final class Authenticator
         string $secret,
         string $code,
         int $lastUsedWindow = 0,
-        int $discrepancy = 2,
+        int $discrepancy = 1,
         ?int $currentTimeSlice = null
     ): int {
         if (strlen($code) !== 6 || !ctype_digit($code)) {

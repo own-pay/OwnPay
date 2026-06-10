@@ -320,7 +320,12 @@ final class EventManager
                         $registry = $this->container->get(\OwnPay\Plugin\PluginRegistry::class);
                         if ($registry instanceof \OwnPay\Plugin\PluginRegistry) {
                             $sandbox = $registry->getSandbox($listener['owner']);
-                            if ($sandbox !== null && !$sandbox->validateSql($sqlToCheck)) {
+                            if ($sandbox === null) {
+                                throw new \RuntimeException(
+                                    "Database query modified by plugin '{$listener['owner']}' blocked: No active sandbox context defined."
+                                );
+                            }
+                            if (!$sandbox->validateSql($sqlToCheck)) {
                                 throw new \RuntimeException(
                                     "Database query modified by plugin '{$listener['owner']}' blocked: direct access to core tables or dangerous SQL operations are restricted."
                                 );

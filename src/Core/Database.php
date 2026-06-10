@@ -66,6 +66,17 @@ class Database
     }
 
     /**
+     * Manually registers the singleton instance (used in container factory).
+     *
+     * @param self $instance The active database instance.
+     * @return void
+     */
+    public static function setInstance(self $instance): void
+    {
+        self::$instance = $instance;
+    }
+
+    /**
      * Injects the EventManager after container build.
      * Called by Kernel::boot() once DI is ready.
      *

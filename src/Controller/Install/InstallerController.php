@@ -665,7 +665,7 @@ final class InstallerController
         $publicWritable = is_dir($publicDir) && is_writable($publicDir);
 
         return [
-            ['name' => 'PHP Version',      'required' => '≥ 8.2', 'current' => PHP_VERSION,                                      'ok' => version_compare(PHP_VERSION, '8.2.0', '>=')],
+            ['name' => 'PHP Version',      'required' => '≥ 8.3', 'current' => PHP_VERSION,                                      'ok' => version_compare(PHP_VERSION, '8.3.0', '>=')],
             ['name' => 'PDO MySQL',        'required' => 'Enabled', 'current' => extension_loaded('pdo_mysql') ? 'Yes' : 'No',   'ok' => extension_loaded('pdo_mysql')],
             ['name' => 'cURL',             'required' => 'Enabled', 'current' => extension_loaded('curl')      ? 'Yes' : 'No',   'ok' => extension_loaded('curl')],
             ['name' => 'OpenSSL',          'required' => 'Enabled', 'current' => extension_loaded('openssl')   ? 'Yes' : 'No',   'ok' => extension_loaded('openssl')],

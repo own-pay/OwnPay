@@ -37,7 +37,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/csp-report-api',                  'Webhook\\CspReportController@handle',    'api-public');
 
     // ======================== MOBILE API (JWT Auth) ========================
-    $router->post('/api/mobile/v1/devices',            'Api\\Mobile\\DeviceController@pair',         'mobile');
+    $router->post('/api/mobile/v1/devices',            'Api\\Mobile\\DeviceController@pair',         'mobile-bootstrap');
     $router->post('/api/mobile/v1/devices/heartbeats', 'Api\\Mobile\\DeviceController@heartbeat',    'mobile');
     $router->delete('/api/mobile/v1/devices/{id}',     'Api\\Mobile\\DeviceController@revoke',       'mobile');
     $router->post('/api/mobile/v1/devices/bulk-revocations', 'Api\\Mobile\\DeviceController@bulkRevoke', 'mobile');
@@ -51,7 +51,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/api/mobile/v1/config/filter-rules', 'Api\\Mobile\\ConfigController@filterRules',   'mobile');
 
     // Device refresh + status
-    $router->post('/api/mobile/v1/devices/token-refreshes', 'Api\\Mobile\\DeviceController@refresh',   'mobile');
+    $router->post('/api/mobile/v1/devices/token-refreshes', 'Api\\Mobile\\DeviceController@refresh',   'mobile-bootstrap');
     $router->get('/api/mobile/v1/devices/statuses',    'Api\\Mobile\\DeviceController@status',        'mobile');
 
     // ======================== ADMIN API (Bearer Auth) ========================

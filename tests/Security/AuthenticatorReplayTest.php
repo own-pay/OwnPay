@@ -98,5 +98,25 @@ final class AuthenticatorReplayTest extends TestCase
         );
         $this->assertSame($window - 1, $matched);
     }
+
+    public function test_default_discrepancy_limit(): void
+    {
+        $window = 12345678;
+
+        // Default discrepancy should accept 1 step lookback (30s ago)
+        $code1 = $this->ga->getCode($this->secret, $window - 1);
+        $matched1 = $this->ga->verifyCodeWithReplayGuard(
+            $this->secret, $code1, lastUsedWindow: 0, currentTimeSlice: $window
+        );
+        $this->assertSame($window - 1, $matched1);
+
+        // Default discrepancy should reject 2 steps lookback (60s ago)
+        $code2 = $this->ga->getCode($this->secret, $window - 2);
+        $matched2 = $this->ga->verifyCodeWithReplayGuard(
+            $this->secret, $code2, lastUsedWindow: 0, currentTimeSlice: $window
+        );
+        $this->assertSame(-1, $matched2);
+    }
 }
+
 

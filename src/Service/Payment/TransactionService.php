@@ -190,6 +190,18 @@ final class TransactionService
     }
 
     /**
+     * Finds a single transaction by its MFS provider transaction identifier.
+     *
+     * @param int $merchantId The unique ID of the merchant/brand.
+     * @param string $providerTrxId The MFS provider's transaction ID reference.
+     * @return array<string, mixed>|null The transaction record fields, or null if not found.
+     */
+    public function findByProviderTrxId(int $merchantId, string $providerTrxId): ?array
+    {
+        return $this->transactions->forTenant($merchantId)->findByProviderTrxId($providerTrxId);
+    }
+
+    /**
      * Finds a transaction using the external gateway reference identifier.
      *
      * This is useful during callback/IPN handling when the local merchant reference is missing or unavailable.

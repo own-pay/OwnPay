@@ -235,9 +235,6 @@ final class TwoCheckoutGateway implements PluginInterface, GatewayAdapterInterfa
         return ['success' => false];
     }
 
-    /**
-     * Validates webhook signatures.
-     */
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
         $webhookHeader = 'X-2CO-Signature';
@@ -254,8 +251,14 @@ final class TwoCheckoutGateway implements PluginInterface, GatewayAdapterInterfa
             return false;
         }
 
-        // Webhook timing-safe validation check simulation
-        return true;
+        $secret = $this->getString($credentials['secret_key'] ?? '');
+        if ($secret === '') {
+            return false;
+        }
+
+        // Timing-safe HMAC-SHA256 signature verification check
+        $expected = hash_hmac('sha256', $rawBody, $secret);
+        return hash_equals($expected, $signature);
     }
 
     /**
@@ -307,6 +310,10 @@ final class TwoCheckoutGateway implements PluginInterface, GatewayAdapterInterfa
      */
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array
     {
+        $mode = $this->getString($credentials['mode'] ?? 'sandbox');
+        if ($mode === 'live') {
+            throw new \RuntimeException('2Checkout live refund integration is not supported in this version.');
+        }
         // Dynamic refund simulation
         return [
             'success'   => true,

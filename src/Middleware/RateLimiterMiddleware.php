@@ -113,8 +113,36 @@ final class RateLimiterMiddleware
 
             return $response;
         } catch (\PDOException|\RuntimeException $e) {
-            // DB unavailable (install mode, outage) — skip rate limiting
             $this->logWarning('Rate limiter skipped: ' . $e->getMessage());
+
+            // Determine if the current endpoint requires strict rate limiting (fail-closed)
+            $loginSlug = 'login';
+            $root = dirname(__DIR__, 2);
+            $cacheFile = $root . '/storage/cache/login_slug.cache';
+            if (file_exists($cacheFile)) {
+                $cached = file_get_contents($cacheFile);
+                if ($cached !== false && preg_match('/^[a-z0-9\-]+$/', $cached)) {
+                    $loginSlug = $cached;
+                }
+            }
+
+            $requestPath = '/' . trim($request->path(), '/');
+            $isLogin = (
+                $requestPath === '/' . $loginSlug || 
+                $requestPath === '/2fa' || 
+                $requestPath === '/forgot-password' || 
+                str_contains($requestPath, '/login') || 
+                str_contains($requestPath, '/2fa') || 
+                str_contains($requestPath, '/forgot-password')
+            );
+
+            if ($isLogin || str_starts_with($requestPath, '/api/mobile/v1/devices')) {
+                return Response::json([
+                    'success' => false,
+                    'message' => 'Service temporarily unavailable. Limiter backend error.',
+                ], 503);
+            }
+
             return $next($request);
         }
     }

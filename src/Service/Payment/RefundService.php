@@ -78,9 +78,9 @@ final class RefundService
         $amount = $data['amount'] ?? null;
 
         $db = \OwnPay\Core\Database::getInstance();
-        $refund = null;
 
-        $db->transaction(function () use ($db, $merchantId, $transactionId, $amount, $data, &$refund) {
+        // Phase 1: Lock & Log (Prepare the refund in pending state inside a transaction)
+        $preparation = $db->transaction(function () use ($db, $merchantId, $transactionId, $amount, $data) {
             // Lock parent transaction row to prevent concurrent refund computations on same transaction
             $txn = $db->fetchOne(
                 "SELECT * FROM op_transactions WHERE id = :id AND merchant_id = :mid FOR UPDATE",
@@ -105,12 +105,12 @@ final class RefundService
                 ['txid' => $txnId, 'mid' => $merchantId]
             );
             $alreadyRefunded = is_scalar($alreadyRefundedVal) ? (string)$alreadyRefundedVal : '0.00';
+            /** @var numeric-string $alreadyRefunded */
             
             $origAmountVal = $txn['amount'] ?? '0.00';
             $origAmount = is_scalar($origAmountVal) ? (string) $origAmountVal : '0.00';
-
-            /** @var numeric-string $alreadyRefunded */
             /** @var numeric-string $origAmount */
+
             if ($amount === null || !is_numeric($amount) || bccomp((string)$amount, '0', 2) <= 0) {
                 $amount = bcsub($origAmount, $alreadyRefunded, 2);
             }
@@ -122,7 +122,6 @@ final class RefundService
             }
 
             $newTotal = bcadd($alreadyRefunded, $amountStr, 2);
-            /** @var numeric-string $newTotal */
             if (bccomp($newTotal, $origAmount, 2) > 0) {
                 throw new InvalidArgumentException('Refund amount cannot exceed transaction amount');
             }
@@ -131,19 +130,20 @@ final class RefundService
             $currencyVal = $txn['currency'] ?? 'BDT';
             $currency = is_scalar($currencyVal) ? (string)$currencyVal : 'BDT';
             $merchantBalance = $this->ledger->calculateBalance($merchantId, $currency);
+            /** @var numeric-string $merchantBalance */
 
             $feeVal = $txn['fee'] ?? '0.00';
             $origFee = is_scalar($feeVal) ? (string)$feeVal : '0.00';
+            /** @var numeric-string $origFee */
             if (bccomp($origAmount, '0.00', 4) > 0) {
                 $ratio = bcdiv($origFee, $origAmount, 18);
                 $refundFee = bcmul($amountStr, $ratio, 4);
             } else {
                 $refundFee = '0.00';
             }
+            /** @var numeric-string $refundFee */
             $refundNet = bcsub($amountStr, $refundFee, 4);
 
-            /** @var numeric-string $merchantBalance */
-            /** @var numeric-string $refundNet */
             if (bccomp($merchantBalance, $refundNet, 4) < 0) {
                 throw new InvalidArgumentException("Insufficient merchant payable ledger balance ({$merchantBalance} {$currency}) to issue refund net of {$refundNet} {$currency}");
             }
@@ -161,54 +161,107 @@ final class RefundService
                 throw new RuntimeException("Refund record not found after creation");
             }
 
-            try {
-                $gwSlugVal = $txn['gateway_slug'] ?? '';
-                $gwSlug = is_scalar($gwSlugVal) ? (string)$gwSlugVal : '';
-                $gwTrxIdVal = $txn['gateway_trx_id'] ?? $txn['trx_id'] ?? '';
-                $gwTrxId = is_scalar($gwTrxIdVal) ? (string)$gwTrxIdVal : '';
+            $gwSlugVal = $txn['gateway_slug'] ?? '';
+            $gwSlug = is_scalar($gwSlugVal) ? (string)$gwSlugVal : '';
+            $gwTrxIdVal = $txn['gateway_trx_id'] ?? $txn['trx_id'] ?? '';
+            $gwTrxId = is_scalar($gwTrxIdVal) ? (string)$gwTrxIdVal : '';
 
-                $result = $this->bridge->refund(
-                    $gwSlug,
-                    $merchantId,
-                    $gwTrxId,
-                    (string)$amount
+            return [
+                'refund' => $refund,
+                'refund_id' => (int)$id,
+                'txn_id' => $txnId,
+                'amount' => (string)$amount,
+                'currency' => $currency,
+                'gateway_slug' => $gwSlug,
+                'gateway_trx_id' => $gwTrxId,
+                'orig_amount' => $origAmount,
+            ];
+        });
+
+        $refundId = $preparation['refund_id'];
+        $txnId = $preparation['txn_id'];
+        $amountStr = $preparation['amount'];
+        $currency = $preparation['currency'];
+        $gwSlug = $preparation['gateway_slug'];
+        $gwTrxId = $preparation['gateway_trx_id'];
+        $origAmount = $preparation['orig_amount'];
+
+        // Phase 2: Outbound network request (executed outside the transaction scope)
+        $gatewaySuccess = false;
+        $gatewayError = null;
+
+        try {
+            $result = $this->bridge->refund(
+                $gwSlug,
+                $merchantId,
+                $gwTrxId,
+                $amountStr
+            );
+            $gatewaySuccess = (bool) ($result['success'] ?? false);
+        } catch (\Throwable $e) {
+            $gatewayError = $e;
+        }
+
+        // Phase 3: Reconciliation & Finalization (executed in a second short transaction)
+        $refund = $db->transaction(function () use ($db, $merchantId, $refundId, $txnId, $amountStr, $currency, $origAmount, $gatewaySuccess, $gatewayError) {
+            // Lock refund record to update status safely
+            $refRecord = $db->fetchOne(
+                "SELECT * FROM op_refunds WHERE id = :id AND merchant_id = :mid FOR UPDATE",
+                ['id' => $refundId, 'mid' => $merchantId]
+            );
+            if (!$refRecord) {
+                throw new RuntimeException("Refund record not found during finalization");
+            }
+
+            if ($gatewaySuccess) {
+                // Update refund record status to completed
+                $this->refunds->forTenant($merchantId)->updateScoped($refundId, [
+                    'status' => 'completed',
+                    'processed_at' => DateHelper::nowMicro()
+                ]);
+
+                // Record in ledger
+                $this->ledger->recordRefund($merchantId, $refundId, $txnId, $amountStr, $currency);
+
+                // Lock parent transaction to calculate total refunds and update its status
+                $txn = $db->fetchOne(
+                    "SELECT * FROM op_transactions WHERE id = :id AND merchant_id = :mid FOR UPDATE",
+                    ['id' => $txnId, 'mid' => $merchantId]
                 );
+                if ($txn) {
+                    $totalRefundedVal = $db->fetchColumn(
+                        "SELECT COALESCE(SUM(amount), 0) FROM op_refunds 
+                         WHERE transaction_id = :txid AND merchant_id = :mid AND status = 'completed'",
+                        ['txid' => $txnId, 'mid' => $merchantId]
+                    );
+                    $totalRefunded = is_scalar($totalRefundedVal) ? (string)$totalRefundedVal : '0.00';
+                    /** @var numeric-string $totalRefunded */
+                    /** @var numeric-string $origAmount */
 
-                if ($result['success']) {
-                    $this->refunds->forTenant($merchantId)->updateScoped((int)$id, [
-                        'status' => 'completed',
-                        'processed_at' => DateHelper::nowMicro()
-                    ]);
-                    
-                    // Ledger recording
-                    $currencyVal = $txn['currency'] ?? 'BDT';
-                    $currency = is_scalar($currencyVal) ? (string)$currencyVal : 'BDT';
-                    $this->ledger->recordRefund($merchantId, (int)$id, $txnId, (string)$amount, $currency);
-
-                    if (bccomp($newTotal, $origAmount, 2) === 0) {
+                    if (bccomp($totalRefunded, $origAmount, 2) === 0) {
                         $this->transactions->forTenant($merchantId)->updateScoped($txnId, [
                             'status' => 'refunded'
                         ]);
                     }
-                    $refund['status'] = 'completed';
-                } else {
-                    $this->refunds->forTenant($merchantId)->updateScoped((int)$id, [
-                        'status' => 'failed'
-                    ]);
-                    $refund['status'] = 'failed';
                 }
-            } catch (\Throwable $e) {
-                $this->refunds->forTenant($merchantId)->updateScoped((int)$id, [
+            } else {
+                // Update refund record status to failed
+                $this->refunds->forTenant($merchantId)->updateScoped($refundId, [
                     'status' => 'failed'
                 ]);
-                $refund['status'] = 'failed';
-                throw new RuntimeException('Gateway refund failed: ' . $e->getMessage());
             }
-        });
 
-        if ($refund === null) {
-            throw new RuntimeException("Failed to complete refund transaction");
-        }
+            $finalRefund = $this->refunds->forTenant($merchantId)->findScoped($refundId);
+            if (!$finalRefund) {
+                throw new RuntimeException("Refund record not found after finalization");
+            }
+
+            if ($gatewayError !== null) {
+                throw new RuntimeException('Gateway refund failed: ' . $gatewayError->getMessage());
+            }
+
+            return $finalRefund;
+        });
 
         return $refund;
     }

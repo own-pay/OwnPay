@@ -101,10 +101,10 @@ return static function (\OwnPay\Container $c): void {
         return $pdo;
     });
 
-    // ─── Database Wrapper ──────────────────────────────────────
-    // Reuse container's PDO singleton eliminates dual connection and transaction isolation issues (commit on one PDO didn't affect the other).
     $c->singleton(\OwnPay\Core\Database::class, static function (\OwnPay\Container $c): \OwnPay\Core\Database {
-        return new \OwnPay\Core\Database(ensureType($c->get(\PDO::class), \PDO::class));
+        $db = new \OwnPay\Core\Database(ensureType($c->get(\PDO::class), \PDO::class));
+        \OwnPay\Core\Database::setInstance($db);
+        return $db;
     });
 
     // ─── Event Manager ─────────────────────────────────────────

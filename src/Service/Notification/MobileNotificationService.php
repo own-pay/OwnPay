@@ -227,14 +227,34 @@ final class MobileNotificationService
     {
         $file = sys_get_temp_dir() . '/op_notifications.json';
         $queue = [];
-        if (file_exists($file)) {
-            $decoded = json_decode(file_get_contents($file) ?: '[]', true);
-            if (is_array($decoded)) {
-                $queue = $decoded;
+        
+        $fp = @fopen($file, 'c+');
+        if ($fp) {
+            if (flock($fp, LOCK_EX)) {
+                $size = @filesize($file);
+                if ($size !== false && $size > 0) {
+                    $content = @fread($fp, $size);
+                    if (is_string($content)) {
+                        $decoded = json_decode($content, true);
+                        if (is_array($decoded)) {
+                            $queue = $decoded;
+                        }
+                    }
+                }
+                $payload['queued_at'] = DateHelper::now();
+                $queue[] = $payload;
+                
+                @ftruncate($fp, 0);
+                @rewind($fp);
+                $json = json_encode($queue);
+                if (is_string($json)) {
+                    @fwrite($fp, $json);
+                }
+                @fflush($fp);
+                flock($fp, LOCK_UN);
             }
+            fclose($fp);
+            @chmod($file, 0600);
         }
-        $payload['queued_at'] = DateHelper::now();
-        $queue[] = $payload;
-        file_put_contents($file, json_encode($queue));
     }
 }

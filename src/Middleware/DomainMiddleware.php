@@ -69,7 +69,8 @@ final class DomainMiddleware
         // Compare normalized hostname against the resolved system-wide master domain and localhost.
         // Standard admin panel routes are directly processed without mapping tenant scopes.
         $masterDomain = $this->resolveMasterDomain();
-        if ($domain === $masterDomain || $domain === 'localhost') {
+        $isLocalhostLoopback = ($domain === 'localhost' && in_array($request->ip(), ['127.0.0.1', '::1', 'localhost'], true));
+        if ($domain === $masterDomain || $isLocalhostLoopback) {
             return $next($request);
         }
 

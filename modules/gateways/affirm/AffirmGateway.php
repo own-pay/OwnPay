@@ -128,6 +128,9 @@ final class AffirmGateway implements PluginInterface, GatewayAdapterInterface
 
         // Graceful fallback for mock tests
         if ($redirectUrl === '') {
+            if ($mode === 'live') {
+                throw new \RuntimeException('Affirm payment initiation failed: Empty response from gateway.');
+            }
             $checkoutId = 'mock_aff_' . uniqid();
             $redirectUrl = $params['redirect_url'] . '?checkout_token=' . $checkoutId . '&trx_id=' . urlencode($trxId);
         }
@@ -154,6 +157,13 @@ final class AffirmGateway implements PluginInterface, GatewayAdapterInterface
 
         // If it's a mock token from local integration testing, bypass HTTP call
         if (str_starts_with($token, 'mock_')) {
+            if ($mode === 'live') {
+                return [
+                    'success' => false,
+                    'gateway_trx_id' => '',
+                    'status' => 'failed',
+                ];
+            }
             return [
                 'success' => true,
                 'gateway_trx_id' => $token,

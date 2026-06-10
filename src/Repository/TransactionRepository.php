@@ -84,6 +84,27 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
+     * Finds a transaction by its MFS provider reference transaction ID (gateway reference),
+     * scoped by active tenant if configured.
+     *
+     * @param string $providerTrxId The MFS provider's transaction reference.
+     * @return array<string, mixed>|null Database row array, or null if not found.
+     */
+    public function findByProviderTrxId(string $providerTrxId): ?array
+    {
+        if ($this->tenantId !== null) {
+            return $this->db->fetchOne(
+                "SELECT * FROM {$this->table} WHERE provider_trx_id = :p AND merchant_id = :mid LIMIT 1",
+                ['p' => $providerTrxId, 'mid' => $this->tenantId]
+            );
+        }
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE provider_trx_id = :p LIMIT 1",
+            ['p' => $providerTrxId]
+        );
+    }
+
+    /**
      * Marks a transaction as completed and updates the completion timestamp.
      *
      * @param int $id Primary key identifier.

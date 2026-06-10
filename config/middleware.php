@@ -75,6 +75,12 @@ return [
         \OwnPay\Middleware\JwtAuthMiddleware::class,
     ],
 
+    // ─── Mobile API Bootstrap: no JWT required ─────────────────
+    'mobile-bootstrap' => [
+        \OwnPay\Middleware\CorsMiddleware::class,
+        \OwnPay\Middleware\RateLimiterMiddleware::class,
+    ],
+
     // ─── Webhook: signature verification ───────────────────────
     'webhook' => [
         \OwnPay\Middleware\IpAllowlistMiddleware::class,

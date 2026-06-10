@@ -139,7 +139,7 @@ final class InvoiceService
         $subtotal = '0.00';
         foreach ($items as &$item) {
             $qty   = (string) max(1, (int) ($item['quantity'] ?? 1));
-            $price = number_format((float) ($item['unit_price'] ?? $item['amount'] ?? 0), 2, '.', '');
+            $price = number_format(max(0.00, (float) ($item['unit_price'] ?? $item['amount'] ?? 0)), 2, '.', '');
             $item['quantity']   = (int) $qty;
             $item['unit_price'] = $price;
             $itemTotal = bcmul($qty, $price, 2);
@@ -148,10 +148,13 @@ final class InvoiceService
         }
         unset($item);
 
-        $tax      = number_format((float) ($data['tax'] ?? 0), 2, '.', '');
-        $discount = number_format((float) ($data['discount'] ?? 0), 2, '.', '');
+        $tax      = number_format(max(0.00, (float) ($data['tax'] ?? 0)), 2, '.', '');
+        $discount = number_format(max(0.00, (float) ($data['discount'] ?? 0)), 2, '.', '');
         $total    = bcadd($subtotal, $tax, 2);
         $total    = bcsub($total, $discount, 2);
+        if (bccomp($total, '0.00', 2) < 0) {
+            $total = '0.00';
+        }
 
         $id = $this->db->insert(
             "INSERT INTO op_invoices (merchant_id, uuid, token, invoice_number, customer_id, subtotal, tax, discount, total, currency, notes, due_date, status, created_at, updated_at)
@@ -215,7 +218,7 @@ final class InvoiceService
         $subtotal = '0.00';
         foreach ($items as &$item) {
             $qty   = (string) max(1, (int) ($item['quantity'] ?? 1));
-            $price = number_format((float) ($item['unit_price'] ?? $item['amount'] ?? 0), 2, '.', '');
+            $price = number_format(max(0.00, (float) ($item['unit_price'] ?? $item['amount'] ?? 0)), 2, '.', '');
             $item['quantity']   = (int) $qty;
             $item['unit_price'] = $price;
             $itemTotal = bcmul($qty, $price, 2);
@@ -224,10 +227,13 @@ final class InvoiceService
         }
         unset($item);
 
-        $tax      = number_format((float) ($data['tax'] ?? 0), 2, '.', '');
-        $discount = number_format((float) ($data['discount'] ?? 0), 2, '.', '');
+        $tax      = number_format(max(0.00, (float) ($data['tax'] ?? 0)), 2, '.', '');
+        $discount = number_format(max(0.00, (float) ($data['discount'] ?? 0)), 2, '.', '');
         $total    = bcadd($subtotal, $tax, 2);
         $total    = bcsub($total, $discount, 2);
+        if (bccomp($total, '0.00', 2) < 0) {
+            $total = '0.00';
+        }
 
         $status = $data['status'] ?? 'draft';
         $allowedStatuses = ['draft', 'sent', 'paid', 'overdue', 'cancelled'];
