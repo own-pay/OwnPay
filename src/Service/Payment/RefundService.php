@@ -129,8 +129,30 @@ final class RefundService
             // Validate merchant payable ledger balance prior to issuing refund
             $currencyVal = $txn['currency'] ?? 'BDT';
             $currency = is_scalar($currencyVal) ? (string)$currencyVal : 'BDT';
-            $merchantBalance = $this->ledger->calculateBalance($merchantId, $currency);
+
+            // Lock the merchant payable account to prevent concurrent overdraft/race conditions
+            $account = $db->fetchOne(
+                "SELECT balance FROM op_ledger_accounts 
+                 WHERE merchant_id = :mid AND currency = :cur AND name = 'MERCHANT_PAYABLE' 
+                 LIMIT 1 FOR UPDATE",
+                ['mid' => $merchantId, 'cur' => $currency]
+            );
+            $balanceVal = $account['balance'] ?? '0.00';
+            $merchantBalance = is_scalar($balanceVal) ? (string)$balanceVal : '0.00';
             /** @var numeric-string $merchantBalance */
+
+            // Calculate total pending refunds that are not yet posted to the ledger for the same currency
+            $pendingRefundsVal = $db->fetchColumn(
+                "SELECT COALESCE(SUM(r.amount), 0) FROM op_refunds r
+                 JOIN op_transactions t ON t.id = r.transaction_id
+                 WHERE r.merchant_id = :mid AND r.status = 'pending' AND t.currency = :cur",
+                ['mid' => $merchantId, 'cur' => $currency]
+            );
+            $pendingRefunds = is_scalar($pendingRefundsVal) ? (string)$pendingRefundsVal : '0.00';
+            /** @var numeric-string $pendingRefunds */
+
+            // Available balance is Ledger balance minus pending refunds
+            $availableBalance = bcsub($merchantBalance, $pendingRefunds, 4);
 
             $feeVal = $txn['fee'] ?? '0.00';
             $origFee = is_scalar($feeVal) ? (string)$feeVal : '0.00';
@@ -144,8 +166,8 @@ final class RefundService
             /** @var numeric-string $refundFee */
             $refundNet = bcsub($amountStr, $refundFee, 4);
 
-            if (bccomp($merchantBalance, $refundNet, 4) < 0) {
-                throw new InvalidArgumentException("Insufficient merchant payable ledger balance ({$merchantBalance} {$currency}) to issue refund net of {$refundNet} {$currency}");
+            if (bccomp($availableBalance, $refundNet, 4) < 0) {
+                throw new InvalidArgumentException("Insufficient merchant payable ledger balance ({$availableBalance} {$currency}) to issue refund net of {$refundNet} {$currency}");
             }
 
             // Create refund record

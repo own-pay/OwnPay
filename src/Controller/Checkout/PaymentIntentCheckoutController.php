@@ -560,53 +560,100 @@ final class PaymentIntentCheckoutController
             'metadata'          => !empty($intent['metadata']) ? $intent['metadata'] : '{}',
         ];
 
+        $db = \OwnPay\Core\Database::getInstance();
         $txn = null;
-        $existingTxn = $this->txnRepo->forTenant($mid)->findByIntentId($intentId);
-        if ($existingTxn !== null) {
-            $existingTxnIdVal = $existingTxn['id'] ?? 0;
-            $existingTxnId = (is_int($existingTxnIdVal) || is_string($existingTxnIdVal)) ? (int) $existingTxnIdVal : 0;
-            
-            $existingTxnStatusVal = $existingTxn['status'] ?? '';
-            $existingTxnStatus = (is_int($existingTxnStatusVal) || is_string($existingTxnStatusVal)) ? $existingTxnStatusVal : '';
-            $statusObj = \OwnPay\Enum\TransactionStatus::tryFrom($existingTxnStatus);
-            if ($statusObj !== null && !$statusObj->isTerminal()) {
-                try {
-                    $this->txnRepo->forTenant($mid)->updateScoped($existingTxnId, [
-                        'gateway_slug' => $gateway,
-                        'amount'       => $amount,
-                        'currency'     => $currency,
-                        'method'       => $gatewayMode === 'api' ? 'api' : 'manual',
-                        'reference'    => $intent['description'] ?? null,
-                        'metadata'     => !empty($intent['metadata']) ? $intent['metadata'] : '{}',
-                    ]);
-                    $txn = $this->txnRepo->forTenant($mid)->findScoped($existingTxnId);
-                } catch (\Throwable $e) {
-                    $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
-                    if ($logger instanceof \OwnPay\Service\System\Logger) {
-                        $logger->error('Transaction update failed: ' . $e->getMessage());
-                    }
-                    if ($req->isAjax()) {
-                        return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
-                    }
-                    return $this->renderStatus($token, 'failed');
+        $errorResponse = null;
+
+        try {
+            $db->transaction(function () use ($db, $token, $mid, $intentId, $gateway, $gatewayMode, $amount, $currency, $txnData, &$txn, &$errorResponse, $req) {
+                // 1. SELECT FOR UPDATE on the payment intent by token to block concurrent checkout pay requests.
+                $lockedIntent = $db->fetchOne(
+                    "SELECT * FROM op_payment_intents WHERE token = :t FOR UPDATE",
+                    ['t' => $token]
+                );
+
+                if (!$lockedIntent) {
+                    $errorResponse = $req->isAjax()
+                        ? Response::json(['success' => false, 'error' => 'Transaction expired or not found.'], 404)
+                        : $this->renderStatus($token, 'expired');
+                    return;
                 }
+
+                $intentStatusVal = $lockedIntent['status'] ?? '';
+                $intentStatus = is_string($intentStatusVal) ? $intentStatusVal : '';
+                if ($intentStatus !== 'pending') {
+                    $errorResponse = $req->isAjax()
+                        ? Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409)
+                        : $this->renderStatus($token, $intentStatus, $lockedIntent);
+                    return;
+                }
+
+                // Check expiry
+                $expiresAtVal = $lockedIntent['expires_at'] ?? '';
+                $expiresAt = is_scalar($expiresAtVal) ? (string) $expiresAtVal : '';
+                if (DateHelper::isPast($expiresAt)) {
+                    $db->execute("UPDATE op_payment_intents SET status = 'expired' WHERE id = :id", ['id' => $lockedIntent['id']]);
+                    $errorResponse = $req->isAjax()
+                        ? Response::json(['success' => false, 'error' => 'Transaction expired.'], 410)
+                        : $this->renderStatus($token, 'expired');
+                    return;
+                }
+
+                // Check for existing pending/processing transaction to reuse (with FOR UPDATE lock)
+                $existingTxn = $db->fetchOne(
+                    "SELECT * FROM op_transactions WHERE payment_intent_id = :pi AND merchant_id = :mid ORDER BY id DESC LIMIT 1 FOR UPDATE",
+                    ['pi' => $intentId, 'mid' => $mid]
+                );
+
+                if ($existingTxn !== null) {
+                    $existingTxnIdVal = $existingTxn['id'] ?? 0;
+                    $existingTxnId = (is_int($existingTxnIdVal) || is_string($existingTxnIdVal)) ? (int) $existingTxnIdVal : 0;
+                    
+                    $existingTxnStatusVal = $existingTxn['status'] ?? '';
+                    $existingTxnStatus = is_string($existingTxnStatusVal) ? $existingTxnStatusVal : '';
+                    $statusObj = \OwnPay\Enum\TransactionStatus::tryFrom($existingTxnStatus);
+                    if ($statusObj !== null && !$statusObj->isTerminal()) {
+                        $db->execute(
+                            "UPDATE op_transactions SET gateway_slug = :gw, amount = :amt, currency = :cur, method = :method, reference = :ref, metadata = :meta WHERE id = :id",
+                            [
+                                'gw' => $gateway,
+                                'amt' => $amount,
+                                'cur' => $currency,
+                                'method' => $gatewayMode === 'api' ? 'api' : 'manual',
+                                'ref' => $lockedIntent['description'] ?? null,
+                                'meta' => !empty($lockedIntent['metadata']) ? $lockedIntent['metadata'] : '{}',
+                                'id' => $existingTxnId
+                            ]
+                        );
+                        $txn = $this->txnRepo->forTenant($mid)->findScoped($existingTxnId);
+                    }
+                }
+
+                if ($txn === null) {
+                    $txn = $this->transactionService->create($mid, $txnData);
+                }
+            });
+        } catch (\Throwable $e) {
+            fwrite(STDERR, "\n[EX] Atomic pay transaction setup failed: " . $e->getMessage() . "\n" . $e->getTraceAsString() . "\n");
+            $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
+            if ($logger instanceof \OwnPay\Service\System\Logger) {
+                $logger->error('Atomic pay transaction setup failed: ' . $e->getMessage());
             }
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
+            }
+            return $this->renderStatus($token, 'failed');
+        }
+
+        if ($errorResponse !== null) {
+            return $errorResponse;
         }
 
         if ($txn === null) {
-            try {
-                $txn = $this->transactionService->create($mid, $txnData);
-            } catch (\Throwable $e) {
-                // Log failure context for administration auditing; response contains sanitized user message.
-                $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
-                if ($logger instanceof \OwnPay\Service\System\Logger) {
-                    $logger->error('Transaction creation failed: ' . $e->getMessage());
-                }
-                if ($req->isAjax()) {
-                    return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
-                }
-                return $this->renderStatus($token, 'failed');
+            if ($req->isAjax()) {
+                return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
             }
+            return $this->renderStatus($token, 'failed');
         }
 
         $txnIdVal = $txn['id'] ?? 0;
@@ -1206,13 +1253,85 @@ final class PaymentIntentCheckoutController
             'metadata'          => !empty($intent['metadata']) ? $intent['metadata'] : '{}',
         ];
 
+        $db = \OwnPay\Core\Database::getInstance();
+        $txn = null;
+        $errorResponse = null;
+
         try {
-            $txn = $this->transactionService->create($mid, $txnData);
+            $db->transaction(function () use ($db, $token, $mid, $intentId, $gatewaySlug, $intentAmount, $intentCurrency, $txnData, &$txn, &$errorResponse) {
+                // 1. SELECT FOR UPDATE on the payment intent by token to block concurrent checkout pay requests.
+                $lockedIntent = $db->fetchOne(
+                    "SELECT * FROM op_payment_intents WHERE token = :t FOR UPDATE",
+                    ['t' => $token]
+                );
+
+                if (!$lockedIntent) {
+                    $errorResponse = Response::json(['success' => false, 'error' => 'Transaction expired or not found.'], 404);
+                    return;
+                }
+
+                $intentStatusVal = $lockedIntent['status'] ?? '';
+                $intentStatus = is_string($intentStatusVal) ? $intentStatusVal : '';
+                if ($intentStatus !== 'pending') {
+                    $errorResponse = Response::json(['success' => false, 'error' => 'Payment already submitted.'], 409);
+                    return;
+                }
+
+                // Check expiry
+                $expiresAtVal = $lockedIntent['expires_at'] ?? '';
+                $expiresAt = is_scalar($expiresAtVal) ? (string) $expiresAtVal : '';
+                if (DateHelper::isPast($expiresAt)) {
+                    $db->execute("UPDATE op_payment_intents SET status = 'expired' WHERE id = :id", ['id' => $lockedIntent['id']]);
+                    $errorResponse = Response::json(['success' => false, 'error' => 'Transaction expired.'], 410);
+                    return;
+                }
+
+                // Check for existing pending/processing transaction to reuse (with FOR UPDATE lock)
+                $existingTxn = $db->fetchOne(
+                    "SELECT * FROM op_transactions WHERE payment_intent_id = :pi AND merchant_id = :mid ORDER BY id DESC LIMIT 1 FOR UPDATE",
+                    ['pi' => $intentId, 'mid' => $mid]
+                );
+
+                if ($existingTxn !== null) {
+                    $existingTxnIdVal = $existingTxn['id'] ?? 0;
+                    $existingTxnId = (is_int($existingTxnIdVal) || is_string($existingTxnIdVal)) ? (int) $existingTxnIdVal : 0;
+                    
+                    $existingTxnStatusVal = $existingTxn['status'] ?? '';
+                    $existingTxnStatus = is_string($existingTxnStatusVal) ? $existingTxnStatusVal : '';
+                    $statusObj = \OwnPay\Enum\TransactionStatus::tryFrom($existingTxnStatus);
+                    if ($statusObj !== null && !$statusObj->isTerminal()) {
+                        $db->execute(
+                            "UPDATE op_transactions SET gateway_slug = :gw, amount = :amt, currency = :cur, method = 'api', reference = :ref, metadata = :meta WHERE id = :id",
+                            [
+                                'gw' => $gatewaySlug,
+                                'amt' => $intentAmount,
+                                'cur' => $intentCurrency,
+                                'ref' => $lockedIntent['description'] ?? null,
+                                'meta' => !empty($lockedIntent['metadata']) ? $lockedIntent['metadata'] : '{}',
+                                'id' => $existingTxnId
+                            ]
+                        );
+                        $txn = $this->txnRepo->forTenant($mid)->findScoped($existingTxnId);
+                    }
+                }
+
+                if ($txn === null) {
+                    $txn = $this->transactionService->create($mid, $txnData);
+                }
+            });
         } catch (\Throwable $e) {
             $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
             if ($logger instanceof \OwnPay\Service\System\Logger) {
-                $logger->error('Express Transaction creation failed: ' . $e->getMessage());
+                $logger->error('Atomic express pay transaction setup failed: ' . $e->getMessage());
             }
+            return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
+        }
+
+        if ($errorResponse !== null) {
+            return $errorResponse;
+        }
+
+        if ($txn === null) {
             return Response::json(['success' => false, 'error' => 'Payment processing failed. Please try again.'], 500);
         }
 

@@ -61,6 +61,7 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         }
 
         $this->db = Database::getInstance();
+        $this->db->execute("SET SESSION innodb_lock_wait_timeout = 2");
         
         // Clean tables
         $this->db->execute("DELETE FROM op_ledger_entries");
@@ -68,6 +69,7 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $this->db->execute("DELETE FROM op_ledger_accounts");
         $this->db->execute("DELETE FROM op_refunds");
         $this->db->execute("DELETE FROM op_transactions");
+        $this->db->execute("DELETE FROM op_payment_intents");
 
         $this->events = new EventManager();
         $this->ledgerRepo = new LedgerRepository($this->db);
@@ -89,6 +91,8 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
 
         $adapter = $this->createStub(GatewayAdapterInterface::class);
         $adapter->method('slug')->willReturn('stripe');
+        $adapter->method('initiate')->willReturn(['success' => true, 'redirect_url' => 'https://stripe.com/checkout']);
+        $adapter->method('supportedCurrencies')->willReturn(['BDT', 'USD']);
         $adapter->method('verify')->willReturn(['success' => true, 'gateway_trx_id' => 'GW_TRX_123']);
         $adapter->method('refund')->willReturn(['success' => true]);
         
@@ -136,6 +140,7 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
             $this->db->execute("DELETE FROM op_ledger_accounts");
             $this->db->execute("DELETE FROM op_refunds");
             $this->db->execute("DELETE FROM op_transactions");
+            $this->db->execute("DELETE FROM op_payment_intents");
         }
         parent::tearDown();
     }
@@ -231,5 +236,109 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
             'amount' => '20.00',
             'reason' => 'Third partial refund'
         ]);
+    }
+
+    /**
+     * Verifies that concurrent pay requests to PaymentIntentCheckoutController::pay
+     * are locked and prevented from creating multiple duplicate transactions.
+     */
+    public function testPaymentIntentCheckoutConcurrencyPrevention(): void
+    {
+        // 1. Seed a payment intent
+        $this->db->execute(
+            "INSERT INTO op_payment_intents (id, merchant_id, uuid, token, customer_id, amount, currency, status, expires_at)
+             VALUES (2001, 1, 'intent-uuid-1', 'test-intent-token', NULL, 100.00, 'BDT', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))"
+        );
+
+        // Configure HMAC key
+        $_ENV['HMAC_KEY'] = 'test-hmac-key';
+        $checkoutHash = hash_hmac('sha256', '100.00|BDT|test-intent-token', 'test-hmac-key');
+
+        // Instantiate controller
+        $container = new \OwnPay\Container();
+        $bootstrap = require dirname(__DIR__, 2) . '/config/services.php';
+        $bootstrap($container);
+        $container->instance(\OwnPay\Core\Database::class, $this->db);
+        \OwnPay\Core\Database::setInstance($this->db);
+        $container->instance(\OwnPay\Event\EventManager::class, $this->events);
+        $container->instance(\OwnPay\Repository\TransactionRepository::class, $this->transactionRepo);
+        $container->instance(\OwnPay\Repository\SettingsRepository::class, $this->settingsRepo);
+        $container->instance(\OwnPay\Service\Payment\TransactionService::class, $this->transactionService);
+        $container->instance(\OwnPay\Gateway\GatewayBridge::class, $this->bridge);
+        $container->instance(\OwnPay\Service\Payment\GatewayApiService::class, $this->gatewayApiService);
+        $container->instance(\OwnPay\Service\Payment\LedgerService::class, $this->ledgerService);
+        $container->instance(\OwnPay\Repository\LedgerRepository::class, $this->ledgerRepo);
+        $container->instance(\OwnPay\Service\Payment\FeeService::class, $this->feeService);
+
+        $controller = $container->get(\OwnPay\Controller\Checkout\PaymentIntentCheckoutController::class);
+
+        // Request 1: POST /pay
+        $req1 = new \OwnPay\Http\Request(
+            query: [],
+            post: [
+                'checkout_hash' => $checkoutHash,
+                'gateway' => 'stripe',
+                'gateway_mode' => 'api'
+            ],
+            server: [
+                'REQUEST_METHOD' => 'POST',
+                'REQUEST_URI' => '/checkout/intent/test-intent-token/pay'
+            ]
+        );
+        $req1->setRouteParams(['token' => 'test-intent-token']);
+        $req1->setAttribute('merchant_id', 1);
+
+        // Execute Request 1
+        $res1 = $controller->pay($req1);
+        
+        // Assert Request 1 succeeded or redirected (meaning it created a transaction)
+        $this->assertNotNull($res1);
+        fwrite(STDERR, "\n[DEBUG] res1 Status: " . $res1->getStatusCode() . "\n");
+        fwrite(STDERR, "[DEBUG] res1 Body: " . $res1->getBody() . "\n");
+
+        if ($res1->getStatusCode() === 200) {
+            try {
+                $locks = $this->db->fetchAll("SELECT * FROM performance_schema.data_locks");
+                fwrite(STDERR, "\n[DEBUG] performance_schema.data_locks:\n" . print_r($locks, true) . "\n");
+            } catch (\Throwable) {
+                $trx = $this->db->fetchAll("SELECT * FROM information_schema.innodb_trx");
+                fwrite(STDERR, "\n[DEBUG] information_schema.innodb_trx:\n" . print_r($trx, true) . "\n");
+            }
+        }
+
+        // Verify one transaction was created
+        $countBefore = (int) $this->db->fetchColumn("SELECT COUNT(*) FROM op_transactions WHERE payment_intent_id = 2001");
+        $this->assertSame(1, $countBefore);
+
+        // Re-read intent status (should now be processing)
+        $intent = $this->db->fetchOne("SELECT status FROM op_payment_intents WHERE id = 2001");
+        $this->assertSame('processing', $intent['status']);
+
+        // Request 2 (concurrent submission): POST /pay again for the same intent
+        $req2 = new \OwnPay\Http\Request(
+            query: [],
+            post: [
+                'checkout_hash' => $checkoutHash,
+                'gateway' => 'stripe',
+                'gateway_mode' => 'api'
+            ],
+            server: [
+                'REQUEST_METHOD' => 'POST',
+                'REQUEST_URI' => '/checkout/intent/test-intent-token/pay',
+                'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'
+            ]
+        );
+        $req2->setRouteParams(['token' => 'test-intent-token']);
+        $req2->setAttribute('merchant_id', 1);
+
+        // Execute Request 2
+        $res2 = $controller->pay($req2);
+
+        // Assert Request 2 returned a 409 Conflict/already submitted response
+        $this->assertSame(409, $res2->getStatusCode());
+
+        // Verify exactly one transaction exists (duplicate was not created)
+        $countAfter = (int) $this->db->fetchColumn("SELECT COUNT(*) FROM op_transactions WHERE payment_intent_id = 2001");
+        $this->assertSame(1, $countAfter);
     }
 }
