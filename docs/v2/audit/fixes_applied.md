@@ -158,3 +158,84 @@ Status: APPLIED
 Summary: `doSend()` now resolves the webhook host to a public IP and pins it via `CURLOPT_RESOLVE` (plus explicit `CURLOPT_SSL_VERIFYHOST => 2`), so cURL connects to the exact address that passed SSRF validation instead of re-resolving the hostname at request time. `resolveSafeWebhookIp()` re-verifies every resolved A/AAAA record is public before returning the pinned IP.
 
 Reason: `isValidWebhookUrl()` validated the host at check time, but the subsequent cURL call re-resolved DNS — a malicious/changed resolver could return a public IP for the check and an internal one (e.g. 169.254.169.254 cloud metadata) for the request. Pinning closes that time-of-check/time-of-use window while keeping TLS certificate validation bound to the hostname.
+
+---
+
+### FIX-008 — [FIND-006] — Durable per-user TOTP replay protection
+File: `src/Middleware/TwoFactorMiddleware.php:verifyTotp()`; `src/Controller/Admin/AuthController.php:twoFactorVerify()`
+Status: APPLIED
+
+Summary: `verifyTotp()` now accepts the last-used time slice by reference; `twoFactorVerify()` loads it per-user from the cache (`totp_replay_{userId}`), passes it in, and persists the consumed slice (120s TTL) on success. A consumed code is therefore rejected across all sessions within its validity window, not just the originating session.
+
+Reason: Replay state was stored only in `$_SESSION['totp_last_used_window']`, so a captured 2FA code could be replayed from a fresh session (which started at window 0) inside the ±30s drift window. Per-user durable storage closes the cross-session replay gap.
+
+---
+
+### FIX-009 — [FIND-007] — Exponential backoff on login lockout
+File: `src/Repository/LoginAttemptRepository.php` (new `lockoutSecondsRemaining()`); `src/Security/Authenticator.php:attempt()`
+Status: APPLIED
+
+Summary: Login lockout now escalates. Once failures reach the threshold, each additional batch of failures doubles the lockout window (base 300s → 600s → 1200s → capped 1800s), measured from the most recent failed attempt on the database clock (TIMESTAMPDIFF, timezone-safe). The user-facing error reports the remaining minutes.
+
+Reason: The previous check was a flat 5-failures-per-300s window, letting an attacker resume guessing at full rate every 5 minutes indefinitely. Escalating backoff sharply reduces sustained brute-force throughput while still auto-recovering for legitimate users.
+
+---
+
+### FIX-010 — [FIND-011] — storage/.htaccess defense-in-depth (mirrors root exemption)
+File: `storage/.htaccess` (created)
+Status: APPLIED
+
+Summary: Added a `storage/.htaccess` that denies all HTTP access EXCEPT the `storage/gateways/` and `storage/uploads/` media subdirectories — exactly the exemption the project-root `.htaccess` already grants — plus a `FilesMatch` fallback (log/bak/cache/sqlite/key/pem/env) for servers without mod_rewrite and PHP-engine-off directives. Protects logs, cache, sessions, and backups if a deployment misconfigures the document root to the project base.
+
+Reason: The root `.htaccess` intentionally exempts `storage/(gateways|uploads)/` for public media, so a naive blanket `Require all denied` here would contradict that intent. Mirroring the exemption adds the defense-in-depth guard for sensitive artifacts without any risk of breaking media serving.
+
+---
+
+### Findings confirmed NO_FIX_NEEDED on re-review (goal: production readiness)
+- **FIND-009 (silent catches):** The only truly-empty `catch (\Throwable) {}` blocks are `RateLimiterMiddleware::logWarning()` (the catch wraps the logger itself — logging a logging failure would recurse) and `AuthController` logout slug resolution (a safe `'login'` default is assigned before the try). Both are intentional and correct.
+- **FIND-010 (MfsService dead code):** `MfsService` is inert (not DI-registered, not routed; only referenced in a doc comment) and its `parse($body, $sender, $merchantId)` call matches `SmsParserService::parse(string $rawMessage, string $sender, int $brandId)` — no swapped-argument bug. The live SMS path (SmsParserService) is independent and also correct. Left in place rather than performing a destructive deletion with no production benefit.
+- **FIND-014 (doc/version hygiene):** Documentation-only inconsistency (`^8.3` in composer vs "8.2+" prose). composer correctly blocks installs on <8.3; not a runtime defect.
+
+---
+
+### FIX-011 — [static analysis] — Restore clean PHPStan level 9 build
+Files: 8 gateway adapters (adyen, affirm, afterpay, bitpay, maya, opennode, phonepe, worldline — `verify()` amount return); 8 controllers (`@phpstan-ignore property.onlyWritten` for unused `$c`); AddonController (`$manager`); ConfigController + NotificationController (removed unused `Container $c` constructor param); RedisCache, SettingsController, ConfigController (redundant-check / no-op cleanups)
+Status: APPLIED
+
+Summary: The FIND-001 verify() gate originally returned `amount => null`, which violated the interface's `amount?: string`; the gate now omits `amount`, and the 8 adapters whose own `verify()` could return a null amount now return `$amount ?? ''` (an empty, non-numeric amount which the FIND-004 backstop still rejects). Pre-existing static-analysis debt left by earlier work was also cleared so `composer analyse` is green: unused container properties suppressed per the established codebase convention, two genuinely unused constructor params removed, and a few always-true/no-op expressions simplified.
+
+Verification: `vendor/bin/phpstan analyse` → 0 errors; `vendor/bin/phpunit` → 476 tests, 1527 assertions, 0 failures (1 skipped).
+
+---
+
+## Remediation pass 3 (2026-06-12) — FIND-009 / FIND-010 / FIND-013 + dead-code & legacy sweep
+
+### FIX-012 — [FIND-010] — Delete dead MfsService
+File: `src/Service/Payment/MfsService.php` (deleted); `src/Service/Sms/SmsParserService.php` (stale doc reference cleaned)
+Status: APPLIED
+
+`MfsService` was implemented but never DI-registered, routed, or referenced (only a doc comment mentioned it). The live SMS engine is `SmsController` → `SmsParserService`. Deleted the orphaned class and reworded the one doc-comment that named it; autoloader refreshed. Verified: PHPStan 0, PHPUnit 476 passing.
+
+### FIX-013 — [FIND-009] — Eliminate silent exception swallowing
+Files: `HealthController.php` (×2), `SettingsController.php` (×7), `DevicePairingService.php`, `AuthController.php`, `RateLimiterMiddleware.php`
+Status: APPLIED
+
+Every previously-empty `catch (\Throwable) {}` is now non-silent: best-effort metric/stat/cleanup paths carry an explicit comment documenting the graceful-default behaviour, the device refresh path documents that a malformed/forged token leaves `$device` null, and `RateLimiterMiddleware::logWarning()` (which wraps the logger itself) now falls back to `error_log()` so a logger failure is never lost. Zero empty catch blocks remain in `src/`.
+
+### FIX-014 — [FIND-013] — Graceful DB connection-saturation handling (code-side)
+Files: `config/services.php` (PDO factory); `src/Kernel.php` (`handleException`, new `isDatabaseUnavailable()` + `sendServiceUnavailable()`)
+Status: APPLIED
+
+The PDO factory now applies a connection wait strategy: on transient connection failures (too-many-connections, refusal, dropped connection) it retries up to `DB_CONNECT_RETRIES` (default 3) with linear backoff before failing; credential/schema errors still fail fast. `Kernel::handleException()` detects a database-unavailable condition anywhere in the exception chain and returns a self-contained **503 Retry-After** (JSON for `/api/`, branded HTML otherwise) instead of a generic 500, so load balancers and clients retry. The remaining connection-pooling work (ProxySQL/PgBouncer, FPM tuning) is infrastructure and stays a deployment recommendation.
+
+### FIX-015 — [dead-code / legacy sweep] — Remove genuine dead code, fail-closed scopes, de-legacy comments
+Files: `src/Plugin/PluginManifest.php`; `src/Middleware/BearerAuthMiddleware.php`; `src/Kernel.php`, `src/Middleware/CsrfMiddleware.php`, `src/Controller/Checkout/PaymentIntentCheckoutController.php` (comments); `.twig-cs-fixer.php` (restored)
+Status: APPLIED
+
+- Removed the genuinely-dead write-only `PluginManifest::$permissions` field (populated from manifests but read nowhere). `$category` and `$requires` were investigated, found to be actively used (checkout controllers + `PluginLoader`), and retained with their misleading "Deprecated" labels removed — PHPStan level 9 was the authority confirming which were truly unreferenced.
+- `BearerAuthMiddleware` no longer grants `['read','write']` to an API key whose scopes cannot be parsed (a backwards-compat shim); it now **fails closed** (`[]` → access denied).
+- Reworded misleading "legacy / backward compat" comment labels in `Kernel`, `CsrfMiddleware`, and `PaymentIntentCheckoutController` to describe what the code actually does.
+- Restored the deleted `.twig-cs-fixer.php` config so `composer lint:twig` runs against the project's intended ruleset (79 templates, 0 errors).
+- `JwtService::encode()/decode()` were evaluated for removal but RETAINED: they are exercised by a thorough, security-critical JWT codec test suite (signature, expiry, malformed-token coverage); only the misleading "legacy" comment was removed.
+
+Final verification (pass 3): PHPStan level 9 = 0 errors; PHPUnit = 476 tests / 1527 assertions / 0 failures (1 skipped); composer audit + npm audit = 0; twig-cs-fixer = 0 errors.

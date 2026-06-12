@@ -35,6 +35,7 @@ storage/.installed
 graphify-out/
 .antigravitycli/
 .graphifyignore
+.claude
 
 # Runtime storage (keep structure, ignore contents)
 storage/cache/*
@@ -57,3 +58,8 @@ public/storage/
 
 rsftpbackups
 public_html
+docs/v2/audit/backups/
+docs/v2/Claude_audit/
+.twig-cs-fixer.cache
+.twig-cs-fixer.cache
+.planning/.active_plan
