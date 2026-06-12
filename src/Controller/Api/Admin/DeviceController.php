@@ -16,7 +16,6 @@ final class DeviceController
     /**
      * The dependency injection container.
      *
-     * @phpstan-ignore property.onlyWritten
      */
     private Container $c;
 
@@ -61,7 +60,7 @@ final class DeviceController
      */
     public function revoke(Request $req): Response
     {
-        // BUG-47 FIX: Params were swapped — revoke(string $deviceUuid, int $merchantId)
+        // Params were swapped — revoke(string $deviceUuid, int $merchantId)
         $deviceUuid = (string) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;

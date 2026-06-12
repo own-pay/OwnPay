@@ -1,6 +1,5 @@
 /**
  * OwnPay Admin — Domains Page JS
- * Extracted from templates/admin/domains/index.twig
  * Handles: copy-to-clipboard for DNS records.
  */
 (function () {

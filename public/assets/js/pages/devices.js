@@ -1,6 +1,5 @@
 /**
  * OwnPay Admin — Devices Page JS
- * Extracted from templates/admin/devices/index.twig
  * Handles: pairing panel toggle, OTP generation + countdown timer, bulk select.
  */
 (function () {

@@ -1,6 +1,5 @@
 /**
  * OwnPay Admin — Settings Page JS
- * Extracted from templates/admin/settings/index.twig
  * Handles: tab switching, URL hash navigation, maintenance mode toggle,
  *          FAQ dynamic add/remove, Feature card dynamic add/remove.
  */

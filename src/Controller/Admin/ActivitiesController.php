@@ -24,7 +24,6 @@ final class ActivitiesController
      * Session wrapper service for authenticated administrative operations.
      *
      * @var AdminSession
-     * @phpstan-ignore property.onlyWritten
      */
     private AdminSession $session;
 

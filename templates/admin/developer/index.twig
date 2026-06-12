@@ -322,7 +322,7 @@
         <div class="op-card-body">
             <p class="op-text-muted op-mb-3">Mobile companion app endpoints use short-lived JWTs (15 min) issued after device pairing. Include <code>X-Device-Fingerprint</code> header on all requests.</p>
             <div class="op-alert op-alert-info">
-                <strong>Flow:</strong> Admin generates OTP → App scans QR → <code>POST /api/mobile/v1/devices/pair</code> → Receive access_token + refresh_token → Use access_token for all subsequent calls → Refresh with <code>POST /api/mobile/v1/devices/heartbeat</code>
+                <strong>Flow:</strong> Admin generates OTP → App scans QR → <code>POST /api/mobile/v1/devices</code> → Receive access_token + refresh_token → Use access_token for all subsequent calls → Refresh with <code>POST /api/mobile/v1/devices/heartbeats</code>
             </div>
         </div>
     </div>

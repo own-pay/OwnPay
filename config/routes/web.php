@@ -20,7 +20,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // ─── Admin Login (dynamic slug for security) ───────────────
     // Slug is configurable in Settings → Landing Page → Admin Login URL Slug
     // Default: /login  |  Custom example: /secure-gate-7x2
-    // AUD-P1 fix: Cache login slug to avoid DB query on every request (webhooks, public pages, etc.)
+    // Cache login slug to avoid DB query on every request (webhooks, public pages, etc.)
     $loginSlug = 'login';
     $cacheFile = dirname(__DIR__, 2) . '/storage/cache/login_slug.cache';
     $cacheTtl = 300; // 5 minutes
@@ -55,7 +55,7 @@ return static function (\OwnPay\Http\Router $router): void {
     }
     $router->get('/' . $loginSlug,  'Admin\\AuthController@loginForm', 'web-auth');
     $router->post('/' . $loginSlug, 'Admin\\AuthController@login',     'web-auth');
-    // Backward compat: if slug changed away from 'login', /login returns 404 (no route registered)
+    // If slug changed away from 'login', /login returns 404 (no route registered)
     $router->post('/logout', 'Admin\\AuthController@logout', 'web');
     $router->post('/admin/logout', 'Admin\\AuthController@logout', 'admin');
     $router->get('/forgot-password',  'Admin\\AuthController@forgotForm',   'web-auth');
@@ -303,7 +303,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/csp-report', 'Webhook\\CspReportController@handle', 'global');
 
     // ─── Install wizard (only when not installed) ──────────────
-    // L-03: Uses 'install' middleware group (rate-limited)
+    // Uses 'install' middleware group (rate-limited)
     $router->get('/install', 'Install\\InstallerController@show', 'install');
     $router->post('/install/test-db', 'Install\\InstallerController@testDatabase', 'install');
     $router->post('/install/import-schema', 'Install\\InstallerController@importSchema', 'install');

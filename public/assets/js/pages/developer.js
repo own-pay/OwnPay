@@ -1,6 +1,5 @@
 /**
  * OwnPay Admin — Developer Hub Page JS
- * Extracted from templates/admin/developer/index.twig
  * Handles: tab switching, copy buttons, webhook test, secret generator.
  */
 (function () {

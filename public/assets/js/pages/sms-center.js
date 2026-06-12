@@ -1,6 +1,5 @@
 /**
  * OwnPay Admin — SMS Center Page JS
- * Extracted from templates/admin/sms-center/index.twig
  * Handles: tab switching, live regex tester, Smart SMS Analyzer (Method B),
  *          AI Prompt Generator (Method C).
  *

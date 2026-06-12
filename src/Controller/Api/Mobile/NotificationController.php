@@ -28,7 +28,6 @@ final class NotificationController
      * @param Container                    $c         The DI container.
      * @param MobileNotificationRepository $notifRepo The mobile notification repository.
      *
-     * @phpstan-ignore-next-line
      */
     public function __construct(Container $c, MobileNotificationRepository $notifRepo)
     {
@@ -47,7 +46,7 @@ final class NotificationController
     {
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
-        // BUG-008 FIX: device_id is a UUID string — don't cast to int
+        // device_id is a UUID string — don't cast to int
         $didVal = $req->getAttribute('device_id');
         $did = is_string($didVal) ? $didVal : '';
         $notifs = $this->notifRepo->listForDevice($mid, $did);
@@ -60,7 +59,7 @@ final class NotificationController
      * POST /api/mobile/v1/notifications/ack
      * Input Body: { ids: [1, 2, 3] }
      *
-     * BUG-007 FIX: Scope ack by device_id to prevent IDOR.
+     * Scope ack by device_id to prevent IDOR.
      * Previously any device in a brand could silence another device's notifications.
      *
      * @param Request $req The incoming HTTP request.

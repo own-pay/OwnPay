@@ -84,16 +84,12 @@ final class SettingsController
         $checkout    = $this->settingsRepo->getGroup('checkout');
         $theme       = $this->settingsRepo->getGroup('theme');
 
-        /** @phpstan-ignore booleanAnd.rightAlwaysTrue */
         if (isset($settings['faqs']) && is_string($settings['faqs'])) {
             $decoded = json_decode($settings['faqs'], true);
-            /** @phpstan-ignore booleanAnd.rightAlwaysTrue */
             $settings['faqs'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
         }
-        /** @phpstan-ignore booleanAnd.rightAlwaysTrue */
         if (isset($landing['features']) && is_string($landing['features'])) {
             $decoded = json_decode($landing['features'], true);
-            /** @phpstan-ignore booleanAnd.rightAlwaysTrue */
             $landing['features'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
         }
 

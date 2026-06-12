@@ -1,6 +1,5 @@
 /**
  * OwnPay Admin — Roles & Permissions Page JS
- * Extracted from templates/admin/roles/index.twig
  * Handles: edit role modal, permission group toggle.
  */
 (function () {

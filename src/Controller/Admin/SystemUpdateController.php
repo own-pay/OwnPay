@@ -178,9 +178,7 @@ final class SystemUpdateController
     {
         try {
             $result = $this->updater->check();
-            /** @phpstan-ignore-next-line */
             if (!empty($result['error'])) {
-                /** @phpstan-ignore-next-line */
                 $this->session->flashError('Unable to reach update server. ' . ($result['message'] ?? 'Check your internet connection and try again.'));
             } elseif ($result['available']) {
                 $cacheFile = dirname(__DIR__, 3) . '/storage/cache/update_check.json';

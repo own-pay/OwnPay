@@ -96,7 +96,7 @@ trait AdminPageTrait
             }
         }
 
-        // AUD-G10: Plugin template override system
+        // Plugin template override system
         // Plugins can modify template name (e.g. replace admin/dashboard.twig with custom version)
         // and inject/modify template data (add widgets, custom variables, etc.)
         if ($c->has(\OwnPay\Event\EventManager::class)) {

@@ -210,9 +210,7 @@ final class AuthController
         $userIdFromDbVal = $user['id'] ?? 0;
         $userIdFromDb = is_int($userIdFromDbVal) || is_string($userIdFromDbVal) ? (int)$userIdFromDbVal : 0;
 
-        // BUG-40 FIX: Decrypt the TOTP secret before verification.
-        // totp_secret_enc is AES-256-GCM encrypted — passing it raw to verifyTotp()
-        // computes HMAC on ciphertext, causing all codes to fail.
+        // Decrypt the TOTP secret before verification.
         $decryptedSecret = $this->userRepo->getTotpSecret($userIdFromDb);
         if ($decryptedSecret === null) {
             return $this->renderAdminPage('page/2fa.twig', ['error' => '2FA secret could not be decrypted.']);
@@ -251,8 +249,7 @@ final class AuthController
      */
     public function forgotForm(Request $req): Response
     {
-        // AUD-03 FIX: OwnPay is single-owner system.
-        // Password resets are done by superadmin, not self-service email.
+        // OwnPay is single-owner system. Password resets are done by superadmin, not self-service email.
         $supportEmail = $this->settings->get('general', 'support_email', '');
         $supportEmailStr = is_string($supportEmail) ? $supportEmail : '';
         return $this->renderAdminPage('page/forgot.twig', [
@@ -278,7 +275,7 @@ final class AuthController
             ]);
         }
 
-        // AUD-03 FIX: Log the request and show honest message.
+        // Log the request and show honest message.
         // In a single-owner system, the admin resets passwords manually.
         $this->audit->log('password_reset.requested', 'user', null, null, ['email' => $email]);
         $this->events->doAction('auth.forgot_password', ['email' => $email]);
@@ -303,7 +300,7 @@ final class AuthController
         $this->events->doAction('auth.logout', $this->session->currentUser());
         $this->auth->logout();
 
-        // AUD-07 FIX: Resolve dynamic login slug instead of hardcoded /login
+        // Resolve dynamic login slug instead of hardcoded /login
         $loginSlug = 'login';
         try {
             $slug = $this->settings->get('landing', 'admin_login_slug', 'login');

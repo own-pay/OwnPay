@@ -84,8 +84,7 @@ final class FaqController
             }
         }
 
-        // BUG-42 FIX: Save FAQs scoped to the active brand, not global.
-        // Global-only writes cause all brands to share the same FAQ set.
+        // Save FAQs scoped to the active brand, not global.
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
             throw new \RuntimeException('BrandContext service unavailable');

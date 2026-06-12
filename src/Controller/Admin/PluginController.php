@@ -475,7 +475,7 @@ final class PluginController
         /** @var \OwnPay\Repository\SettingsRepository $settingsRepo */
         $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
 
-        // AUD-G5: Save brand-scoped plugin settings
+        // Save brand-scoped plugin settings
         $brandId = null;
         if ($this->c->has(\OwnPay\Service\Brand\BrandContext::class)) {
             $brandCtx = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);

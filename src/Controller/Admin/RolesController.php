@@ -194,7 +194,7 @@ final class RolesController
             }
         }
 
-        // AUD-B5 fix: Prevent privilege escalation — non-superadmins can only
+        // Prevent privilege escalation — non-superadmins can only
         // assign permissions they themselves hold.
         $isSuperadmin = !empty($_SESSION['is_superadmin']);
         if (!$isSuperadmin && !empty($permIds)) {

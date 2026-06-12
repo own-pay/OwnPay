@@ -66,8 +66,7 @@ final class TwoFactorSetupController
             return Response::redirect('/admin');
         }
 
-        // BUG-46 FIX: Use decrypted secret for QR code, not raw encrypted column.
-        // totp_secret_enc is AES-256-GCM encrypted — useless as a QR secret.
+        // Use decrypted secret for QR code, not raw encrypted column.
         $secret  = $this->userRepo->getTotpSecret($userId);
         $enabled = (bool) ($user['two_factor_enabled'] ?? false);
         $qrUri   = null;

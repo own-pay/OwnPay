@@ -1,6 +1,5 @@
 /**
  * OwnPay Admin — Plugin Install Page JS
- * Extracted from templates/admin/plugins/install.twig
  * Handles: drag-and-drop dropzone, file selection, upload submit state.
  */
 (function () {

@@ -60,7 +60,7 @@ final class DashboardController
     {
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
-        // BUG-008 FIX: device_id is a UUID string — don't cast to int
+        // device_id is a UUID string — don't cast to int
         $didVal = $req->getAttribute('device_id');
         $did = is_string($didVal) ? $didVal : '';
  

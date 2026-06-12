@@ -211,7 +211,7 @@ class Database
      */
     public function execute(string $sql, array $params = []): PDOStatement
     {
-        // AUD-G3: Fire db.query.before filter — plugins can modify SQL/params
+        // Fire db.query.before filter — plugins can modify SQL/params
         // Guard prevents infinite recursion when hook listeners query DB
         if ($this->events !== null && !$this->firingHooks) {
             $this->firingHooks = true;
@@ -232,7 +232,7 @@ class Database
             }
         }
 
-        // AUD-G8 fix: Validate SQL query safety if executed within plugin context.
+        // Validate SQL query safety if executed within plugin context.
         if ($this->registry !== null && $this->events !== null) {
             $activeOwner = $this->events->getActiveOwner();
             if ($activeOwner !== 'core') {
@@ -250,7 +250,7 @@ class Database
         $start = hrtime(true);
         $stmt = $this->pdo->prepare($sql);
 
-        // BUG-14/34 FIX: With ATTR_EMULATE_PREPARES=false, PDO requires
+        // With ATTR_EMULATE_PREPARES=false, PDO requires
         // LIMIT/OFFSET bound as PDO::PARAM_INT. Using $stmt->execute()
         // binds everything as PDO::PARAM_STR, causing MySQL errors.
         foreach ($params as $key => $value) {
@@ -268,7 +268,7 @@ class Database
         $stmt->execute();
         $durationMs = (hrtime(true) - $start) / 1_000_000;
 
-        // AUD-G3: Fire db.query.after action — profiling, audit logging
+        // Fire db.query.after action — profiling, audit logging
         if ($this->events !== null && !$this->firingHooks) {
             $this->firingHooks = true;
             try {

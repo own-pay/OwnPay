@@ -138,7 +138,7 @@ final class StaffController
             }
         }
 
-        // AUD-06 FIX: Validate required fields + password minimum length
+        // Validate required fields + password minimum length
         $nameVal = $data['name'] ?? '';
         $name = InputSanitizer::string(is_string($nameVal) ? $nameVal : '');
         $emailVal = $data['email'] ?? '';
@@ -155,7 +155,7 @@ final class StaffController
             return Response::redirect('/admin/staff/create');
         }
 
-        // AUD-05 FIX: Pass resolved $roleId to createStaff
+        // Pass resolved $roleId to createStaff
         $this->userRepo->createStaff(
             $mid,
             $name,

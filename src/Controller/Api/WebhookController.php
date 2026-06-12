@@ -18,7 +18,6 @@ final class WebhookController
 {
     /**
      * @var Container The service container instance.
-     * @phpstan-ignore property.onlyWritten
      */
     private Container $c;
 

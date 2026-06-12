@@ -23,7 +23,6 @@ final class AddonController
      * Session wrapper service for authenticated administrative operations.
      *
      * @var AdminSession
-     * @phpstan-ignore property.onlyWritten
      */
     private AdminSession $session;
 
@@ -31,7 +30,6 @@ final class AddonController
      * Manager facilitating plugin lifecycles, sandbox setups, and activations.
      *
      * @var PluginManager
-     * @phpstan-ignore property.onlyWritten
      */
     private PluginManager $manager;
 

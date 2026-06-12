@@ -42,7 +42,6 @@ final class ConfigController
      * @param SmsTemplateRepository $smsTemplates The SMS template repository.
      * @param SettingsRepository    $settings     The settings repository.
      *
-     * @phpstan-ignore-next-line
      */
     public function __construct(Container $c, SmsTemplateRepository $smsTemplates, SettingsRepository $settings)
     {
@@ -90,7 +89,6 @@ final class ConfigController
         $data = [
             'version'               => 1,
             'updated_at'            => DateHelper::iso(),
-            /** @phpstan-ignore-next-line */
             'allowed_senders'       => array_values($allowedSenders),
             'positive_keywords'     => $positiveKeywords,
             'negative_keywords'     => $negativeKeywords,

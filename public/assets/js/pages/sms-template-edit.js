@@ -1,6 +1,5 @@
 /**
  * OwnPay Admin — SMS Template Edit Page JS
- * Extracted from templates/admin/sms-center/edit.twig
  * Handles: live multi-pattern regex tester against /admin/sms-center/test-regex.
  */
 (function () {

@@ -1,7 +1,5 @@
 /**
  * OwnPay Admin — Manual Gateway Create / Edit Page JS
- * Extracted from templates/admin/gateways/create-manual.twig
- *              & templates/admin/gateways/edit-manual.twig
  * Handles: dynamic input field add/remove, auto-slug from name.
  */
 (function () {
