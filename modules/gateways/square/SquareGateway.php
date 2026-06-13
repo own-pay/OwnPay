@@ -61,7 +61,7 @@ final class SquareGateway implements PluginInterface, GatewayAdapterInterface
         $url = $mode === 'live' 
             ? 'https://connect.squareup.com/v2/online-checkout/payment-links' 
             : 'https://connect.squareupsandbox.com/v2/online-checkout/payment-links';
-        $amount = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amount = $this->toMinorUnits($params['amount']);
 
         $ch = curl_init($url);
         curl_setopt_array($ch, [
@@ -106,6 +106,14 @@ final class SquareGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
+        // FIND-001: redirect/callback parameters are not cryptographically
+        // authenticated. Only complete when the core proved the webhook
+        // signature for this payload (sets _op_webhook_verified in
+        // GatewayApiService::handleCallback after verifyWebhook passes).
+        if (($callbackData['_op_webhook_verified'] ?? false) !== true) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'unverified'];
+        }
+
         $transactionId = $this->getString($callbackData['transactionId'] ?? null);
         $success = $transactionId !== '';
         return [
@@ -117,6 +125,10 @@ final class SquareGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-return true;
+        // FIND-001: no provider signature scheme is implemented for this
+        // gateway. Fail closed (was an unconditional `return true`, which
+        // accepted forged callbacks). Implement the provider's signature
+        // verification before enabling this gateway in production.
+        return false;
     }
 }

@@ -73,7 +73,7 @@ final class AmazonPayGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         // Amount in cents (subunit) using BCMath
-        $amountCents = bcmul((string) (float) $params['amount'], '100', 0);
+        $amountCents = (string) $this->toMinorUnits($params['amount']);
 
         // Generate mock or real API checkout session
         $region = $this->getString($credentials['region'] ?? 'us');
@@ -140,6 +140,14 @@ final class AmazonPayGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
+        // FIND-001: redirect/callback parameters are not cryptographically
+        // authenticated. Only complete when the core proved the webhook
+        // signature for this payload (sets _op_webhook_verified in
+        // GatewayApiService::handleCallback after verifyWebhook passes).
+        if (($callbackData['_op_webhook_verified'] ?? false) !== true) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'unverified'];
+        }
+
         $sessionId = $this->getString($callbackData['amazon_session_id'] ?? $callbackData['session_id'] ?? null);
         $success = $sessionId !== '';
 
@@ -157,19 +165,17 @@ final class AmazonPayGateway implements PluginInterface, GatewayAdapterInterface
             return false;
         }
 
-        // Valid signature matches test webhook validation or true SHA256withRSA signature verification
-        if ($signature === 'invalid_signature') {
+        // FIND-002: fail closed. verify() carries no independent crypto check —
+        // it trusts the _op_webhook_verified flag set when this method returns
+        // true — so an unconditional `return true` here meant any forged webhook
+        // was accepted. The signature MUST match the HMAC of the raw body under
+        // the merchant's configured secret, compared in constant time.
+        $webhookSecret = $this->getString($credentials['webhook_secret'] ?? $credentials['store_id'] ?? null);
+        if ($webhookSecret === '') {
             return false;
         }
 
-        // For unit test verification or custom HMAC mock
-        $webhookSecret = $this->getString($credentials['store_id'] ?? 'mock_store');
         $expectedSignature = hash_hmac('sha256', $rawBody, $webhookSecret);
-        if ($signature === $expectedSignature) {
-            return true;
-        }
-
-        // True verification or positive mock fallthrough
-        return true;
+        return hash_equals($expectedSignature, $signature);
     }
 }

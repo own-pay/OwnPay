@@ -86,8 +86,8 @@ final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
             CURLOPT_POST           => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER     => [
                 'Content-Type: application/json'
             ],
@@ -127,6 +127,14 @@ final class OxapayGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
+        // FIND-001: redirect/callback parameters are not cryptographically
+        // authenticated. Only complete when the core proved the webhook
+        // signature for this payload (sets _op_webhook_verified in
+        // GatewayApiService::handleCallback after verifyWebhook passes).
+        if (($callbackData['_op_webhook_verified'] ?? false) !== true) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'unverified'];
+        }
+
         $status = $callbackData['status'] ?? '';
         $statusStr = is_scalar($status) ? (string) $status : '';
 

@@ -94,7 +94,7 @@ final class Przelewy24Gateway implements PluginInterface, GatewayAdapterInterfac
         $apiKey = $this->getString($credentials['api_key'] ?? '');
 
         // Amount in grosz (cents)
-        $amountGrosz = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amountGrosz = $this->toMinorUnits($params['amount']);
         $currency = $params['currency'];
         $sessionId = $params['trx_id'];
 
@@ -299,6 +299,14 @@ final class Przelewy24Gateway implements PluginInterface, GatewayAdapterInterfac
 
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array
     {
+        // Automated refunds are not implemented for this gateway; the simulated
+        // success below is for local testing only. In production fail closed so a
+        // refund is never marked complete (and the ledger credited) without the
+        // money actually being returned at the provider.
+        if ($this->isProductionEnv()) {
+            return ['success' => false, 'error' => 'Automated refunds are unavailable for this gateway; process it in the provider dashboard.'];
+        }
+
         return [
             'success'   => true,
             'refund_id' => 'REF_' . $this->slug() . '_' . uniqid(),

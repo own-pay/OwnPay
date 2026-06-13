@@ -61,7 +61,7 @@ final class PhonePeGateway implements PluginInterface, GatewayAdapterInterface
         $saltIndex = $this->getString($credentials['salt_index'] ?? null);
 
         $trxId = $params['trx_id'];
-        $amount = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amount = $this->toMinorUnits($params['amount']);
         $redirectUrl = $params['redirect_url'];
 
         $url = $mode === 'production'
@@ -165,10 +165,17 @@ final class PhonePeGateway implements PluginInterface, GatewayAdapterInterface
         $success = $code === 'PAYMENT_SUCCESS';
         $resData = $this->getArray($data, 'data');
         $gatewayTrxId = $this->getString($resData['transactionId'] ?? null);
+        // PhonePe reports the paid amount in integer paise.
+        $amount = null;
+        $amountRaw = $resData['amount'] ?? null;
+        if ($success && is_numeric($amountRaw)) {
+            $amount = bcdiv((string) $amountRaw, '100', 2);
+        }
 
         return [
             'success'        => $success,
             'gateway_trx_id' => $gatewayTrxId,
+            'amount'         => $amount ?? '',
             'status'         => $success ? 'completed' : 'failed',
             'trx_id'         => $trxId,
         ];
@@ -176,6 +183,9 @@ final class PhonePeGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
+        // PhonePe callbacks are authenticated by the X-VERIFY checksum that the
+        // server-side status call in verify() recomputes; webhooks act as
+        // untrusted triggers only, and completion requires the amount match.
         return true;
     }
 }

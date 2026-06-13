@@ -105,7 +105,7 @@ final class PaddleGateway implements PluginInterface, GatewayAdapterInterface
                     'price' => [
                         'description' => 'Payment ' . $params['trx_id'],
                         'unit_price' => [
-                            'amount' => (string) (int) bcmul((string) (float) $params['amount'], '100', 0), // cent value
+                            'amount' => (string) $this->toMinorUnits($params['amount']), // cent value
                             'currency_code' => strtoupper($params['currency']),
                         ],
                         'product_id' => 'pro_custom_01', // Example default custom product ID placeholder

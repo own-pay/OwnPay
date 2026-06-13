@@ -54,7 +54,7 @@ final class PromptPayGateway implements PluginInterface, GatewayAdapterInterface
     public function initiate(array $params, array $credentials): array
     {
         $secretKey = $this->getString($credentials['secret_key'] ?? null);
-        $amount = (int) bcmul((string) (float) $params['amount'], '100', 0); // Satang
+        $amount = $this->toMinorUnits($params['amount']); // Satang
 
         $ch = curl_init('https://api.omise.co/sources');
         curl_setopt_array($ch, [

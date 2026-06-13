@@ -68,7 +68,7 @@ final class SezzleGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         // Amount in cents using BCMath
-        $amountCents = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amountCents = $this->toMinorUnits($params['amount']);
 
         $baseUrl = $mode === 'live' 
             ? 'https://gateway.sezzle.com' 
@@ -148,6 +148,14 @@ final class SezzleGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
+        // FIND-001: redirect/callback parameters are not cryptographically
+        // authenticated. Only complete when the core proved the webhook
+        // signature for this payload (sets _op_webhook_verified in
+        // GatewayApiService::handleCallback after verifyWebhook passes).
+        if (($callbackData['_op_webhook_verified'] ?? false) !== true) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'unverified'];
+        }
+
         $sessionUuid = $this->getString($callbackData['session_uuid'] ?? $callbackData['session_id'] ?? null);
         $success = $sessionUuid !== '';
 

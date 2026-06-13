@@ -61,7 +61,7 @@ final class AdyenGateway implements PluginInterface, GatewayAdapterInterface
         $merchantAccount = $this->getString($credentials['merchant_account'] ?? null);
 
         $trxId = $params['trx_id'];
-        $amount = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amount = $this->toMinorUnits($params['amount']);
         $currency = strtoupper($params['currency']);
         $redirectUrl = $params['redirect_url'];
 
@@ -108,13 +108,37 @@ final class AdyenGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
-        $resultCode = $this->getString($callbackData['resultCode'] ?? null);
-        $success = in_array($resultCode, ['Authorised', 'Pending', 'Received']);
+        // Adyen redirect returns (resultCode/pspReference query parameters) are
+        // not cryptographically authenticated and must never complete payments.
+        // Only HMAC-verified webhook notifications (see verifyWebhook) are
+        // trusted; the core sets `_op_webhook_verified` after that check passes.
+        if (($callbackData['_op_webhook_verified'] ?? false) !== true) {
+            return [
+                'success'        => false,
+                'gateway_trx_id' => '',
+                'status'         => 'unverified',
+            ];
+        }
+
+        $items = $this->getArray($callbackData, 'notificationItems');
+        $item = $this->getArray($this->getArray($items, 0), 'NotificationRequestItem');
+        $eventCode = $this->getString($item['eventCode'] ?? null);
+        $successStr = strtolower($this->getString($item['success'] ?? null));
+        $success = $eventCode === 'AUTHORISATION' && $successStr === 'true';
+
+        // Adyen reports amount.value in integer minor units.
+        $amount = null;
+        $amountRaw = $this->getArray($item, 'amount')['value'] ?? null;
+        if ($success && is_numeric($amountRaw)) {
+            $amount = bcdiv((string) $amountRaw, '100', 2);
+        }
+
         return [
             'success'        => $success,
-            'gateway_trx_id' => $this->getString($callbackData['pspReference'] ?? null),
+            'gateway_trx_id' => $this->getString($item['pspReference'] ?? null),
+            'amount'         => $amount ?? '',
             'status'         => $success ? 'completed' : 'failed',
-            'trx_id'         => $this->getString($callbackData['merchantReference'] ?? null),
+            'trx_id'         => $this->getString($item['merchantReference'] ?? null),
         ];
     }
 
@@ -122,7 +146,9 @@ final class AdyenGateway implements PluginInterface, GatewayAdapterInterface
     {
         $hmacKey = $this->getString($credentials['hmac_key'] ?? null);
         if ($hmacKey === '') {
-            return true;
+            // Fail closed: without a configured HMAC key no webhook can be
+            // authenticated, so none may be accepted.
+            return false;
         }
         $data = json_decode($rawBody, true);
         if (!is_array($data)) {

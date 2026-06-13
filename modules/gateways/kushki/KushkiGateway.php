@@ -99,7 +99,7 @@ final class KushkiGateway implements PluginInterface, GatewayAdapterInterface
         $privateId = $this->getString($credentials['private_merchant_id'] ?? '');
         $mode = $this->getString($credentials['mode'] ?? 'sandbox');
 
-        if ($mode === 'sandbox') {
+        if ($mode === 'sandbox' && !$this->isProductionEnv()) {
             return [
                 'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()
             ];

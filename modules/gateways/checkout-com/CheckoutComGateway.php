@@ -122,7 +122,7 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
             ? 'https://api.checkout.com/hosted-payments'
             : 'https://api.sandbox.checkout.com/hosted-payments';
 
-        $amountCents = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amountCents = $this->toMinorUnits($params['amount']);
         $payload = [
             'amount'       => $amountCents,
             'currency'     => strtoupper($params['currency']),
@@ -337,6 +337,14 @@ final class CheckoutComGateway implements PluginInterface, GatewayAdapterInterfa
      */
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array
     {
+        // Automated refunds are not implemented for this gateway; the simulated
+        // success below is for local testing only. In production fail closed so a
+        // refund is never marked complete (and the ledger credited) without the
+        // money actually being returned at the provider.
+        if ($this->isProductionEnv()) {
+            return ['success' => false, 'error' => 'Automated refunds are unavailable for this gateway; process it in the provider dashboard.'];
+        }
+
         // Dynamic refund simulation
         return [
             'success'   => true,

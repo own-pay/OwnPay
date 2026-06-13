@@ -56,7 +56,7 @@ final class RazorpayGateway implements PluginInterface, GatewayAdapterInterface
     {
         $keyId = $this->getString($credentials['key_id'] ?? null);
         $keySecret = $this->getString($credentials['key_secret'] ?? null);
-        $amount = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amount = $this->toMinorUnits($params['amount']);
 
         $ch = curl_init('https://api.razorpay.com/v1/orders');
         curl_setopt_array($ch, [

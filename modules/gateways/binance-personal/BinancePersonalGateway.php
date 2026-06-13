@@ -181,7 +181,7 @@ final class BinancePersonalGateway implements PluginInterface, GatewayAdapterInt
 
         if ($apiKey === '') {
             // Fallback for simulation / testing when BscScan key is not configured and mode is sandbox
-            $success = ($mode === 'sandbox');
+            $success = ($mode === 'sandbox' && !$this->isProductionEnv());
             return [
                 'success'        => $success,
                 'gateway_trx_id' => $txhash,

@@ -68,7 +68,7 @@ final class AffirmGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         // Amount in cents using BCMath
-        $amountCents = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amountCents = $this->toMinorUnits($params['amount']);
 
         $baseUrl = $mode === 'live' 
             ? 'https://api.affirm.com' 
@@ -155,23 +155,7 @@ final class AffirmGateway implements PluginInterface, GatewayAdapterInterface
         $publicKey = $this->getString($credentials['public_key'] ?? null);
         $privateKey = $this->getString($credentials['private_key'] ?? null);
 
-        // If it's a mock token from local integration testing, bypass HTTP call
-        if (str_starts_with($token, 'mock_')) {
-            if ($mode === 'live') {
-                return [
-                    'success' => false,
-                    'gateway_trx_id' => '',
-                    'status' => 'failed',
-                ];
-            }
-            return [
-                'success' => true,
-                'gateway_trx_id' => $token,
-                'status' => 'completed',
-            ];
-        }
-
-        $baseUrl = $mode === 'live' 
+        $baseUrl = $mode === 'live'
             ? 'https://api.affirm.com' 
             : 'https://sandbox.affirm.com';
 
@@ -194,6 +178,7 @@ final class AffirmGateway implements PluginInterface, GatewayAdapterInterface
 
         $success = false;
         $transactionId = '';
+        $amount = null;
 
         if (is_array($data) && isset($data['id'])) {
             $transactionId = $this->getString($data['id']);
@@ -211,20 +196,28 @@ final class AffirmGateway implements PluginInterface, GatewayAdapterInterface
             $capData = json_decode((string) $capResponse, true);
             if (is_array($capData) && isset($capData['transaction_id'])) {
                 $success = true;
+                // Affirm reports amounts in integer cents on both objects.
+                $amountRaw = $capData['amount'] ?? $data['amount'] ?? null;
+                if (is_numeric($amountRaw)) {
+                    $amount = bcdiv((string) $amountRaw, '100', 2);
+                }
             }
         }
 
         return [
             'success' => $success,
             'gateway_trx_id' => $transactionId !== '' ? $transactionId : $token,
+            'amount' => $amount ?? '',
             'status' => $success ? 'completed' : 'failed',
         ];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // Affirm webhooks rely on validation callback or secret payload.
-        // We implement signature/basic-auth checks and fallback to active lookup verification
+        // Affirm does not sign webhooks with a shared-secret HMAC by default.
+        // Webhooks are therefore treated as untrusted triggers only: completion
+        // always requires the server-side transactions API confirmation that
+        // verify() performs, including the core amount match.
         return true;
     }
 }

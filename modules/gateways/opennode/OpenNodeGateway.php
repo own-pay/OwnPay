@@ -118,16 +118,23 @@ final class OpenNodeGateway implements PluginInterface, GatewayAdapterInterface
 
         $success = false;
         $trxId = '';
+        $amount = null;
         if (is_array($data)) {
             $innerData = $this->getArray($data, 'data');
             $status = $this->getString($innerData['status'] ?? null);
             $success = in_array($status, ['paid', 'confirmed']);
             $trxId = $this->getString($innerData['order_id'] ?? null);
+            // OpenNode charges echo the fiat order amount as `fiat_value`.
+            $amountRaw = $innerData['fiat_value'] ?? null;
+            if ($success && is_numeric($amountRaw)) {
+                $amount = (string) $amountRaw;
+            }
         }
 
         return [
             'success'        => $success,
             'gateway_trx_id' => $chargeId,
+            'amount'         => $amount ?? '',
             'status'         => $success ? 'completed' : 'failed',
             'trx_id'         => $trxId,
         ];
@@ -135,6 +142,9 @@ final class OpenNodeGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-return true;
+        // OpenNode webhooks (hashed_order) are validated implicitly by the
+        // server-side charge lookup in verify(); webhooks act as untrusted
+        // triggers only, and completion requires the core amount match.
+        return true;
     }
 }

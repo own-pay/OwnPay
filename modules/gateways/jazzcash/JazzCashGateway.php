@@ -64,7 +64,7 @@ final class JazzCashGateway implements PluginInterface, GatewayAdapterInterface
         $password = $this->getString($credentials['password'] ?? null);
         $salt = $this->getString($credentials['integrity_salt'] ?? null);
 
-        $amount = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amount = $this->toMinorUnits($params['amount']);
 
         $postData = [
             'pp_Version' => '1.1',
@@ -132,7 +132,7 @@ final class JazzCashGateway implements PluginInterface, GatewayAdapterInterface
         } else {
             // Fallback for testing when salt is not configured and mode is sandbox
             $mode = $this->getString($credentials['mode'] ?? 'sandbox');
-            $hashValid = ($mode === 'sandbox');
+            $hashValid = ($mode === 'sandbox' && !$this->isProductionEnv());
         }
 
         $success = $hashValid && $responseCode === '000';

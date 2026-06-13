@@ -55,7 +55,7 @@ final class PaystackGateway implements PluginInterface, GatewayAdapterInterface
     {
         $secretKey = $this->getString($credentials['secret_key'] ?? null);
         $trxId = $params['trx_id'];
-        $amount = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amount = $this->toMinorUnits($params['amount']);
         $currency = strtoupper($params['currency']);
         $redirectUrl = $params['redirect_url'];
 

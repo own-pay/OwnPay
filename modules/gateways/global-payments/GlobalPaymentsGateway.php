@@ -215,6 +215,9 @@ final class GlobalPaymentsGateway implements PluginInterface, GatewayAdapterInte
                 ];
             }
             // Simulation Mode: Accept callbacks as valid
+            if ($this->isProductionEnv()) {
+                return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
+            }
             return [
                 'success'        => true,
                 'gateway_trx_id' => $this->getString($callbackData['gateway_trx_id'] ?? 'SIM_TXN_' . uniqid()),
@@ -308,6 +311,14 @@ final class GlobalPaymentsGateway implements PluginInterface, GatewayAdapterInte
      */
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array
     {
+        // Automated refunds are not implemented for this gateway; the simulated
+        // success below is for local testing only. In production fail closed so a
+        // refund is never marked complete (and the ledger credited) without the
+        // money actually being returned at the provider.
+        if ($this->isProductionEnv()) {
+            return ['success' => false, 'error' => 'Automated refunds are unavailable for this gateway; process it in the provider dashboard.'];
+        }
+
         // Dynamic refund simulation
         return [
             'success'   => true,

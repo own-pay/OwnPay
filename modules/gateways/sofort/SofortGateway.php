@@ -274,6 +274,14 @@ final class SofortGateway implements PluginInterface, GatewayAdapterInterface
 
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array
     {
+        // Automated refunds are not implemented for this gateway; the simulated
+        // success below is for local testing only. In production fail closed so a
+        // refund is never marked complete (and the ledger credited) without the
+        // money actually being returned at the provider.
+        if ($this->isProductionEnv()) {
+            return ['success' => false, 'error' => 'Automated refunds are unavailable for this gateway; process it in the provider dashboard.'];
+        }
+
         return [
             'success'   => true,
             'refund_id' => 'REF_' . $this->slug() . '_' . uniqid(),

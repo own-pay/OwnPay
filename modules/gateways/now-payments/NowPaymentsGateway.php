@@ -105,8 +105,8 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
             CURLOPT_POST           => true,
             CURLOPT_RETURNTRANSFER => true,
             CURLOPT_TIMEOUT        => 15,
-            CURLOPT_SSL_VERIFYPEER => false,
-            CURLOPT_SSL_VERIFYHOST => 0,
+            CURLOPT_SSL_VERIFYPEER => true,
+            CURLOPT_SSL_VERIFYHOST => 2,
             CURLOPT_HTTPHEADER     => [
                 'x-api-key: ' . $apiKey,
                 'Content-Type: application/json'
@@ -148,6 +148,14 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
 
     public function verify(array $callbackData, array $credentials): array
     {
+        // FIND-001: redirect/callback parameters are not cryptographically
+        // authenticated. Only complete when the core proved the webhook
+        // signature for this payload (sets _op_webhook_verified in
+        // GatewayApiService::handleCallback after verifyWebhook passes).
+        if (($callbackData['_op_webhook_verified'] ?? false) !== true) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'unverified'];
+        }
+
         $paymentStatus = $callbackData['payment_status'] ?? '';
         $paymentStatusStr = is_scalar($paymentStatus) ? (string) $paymentStatus : '';
 

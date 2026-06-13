@@ -65,7 +65,7 @@ final class BitpayGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         // Amount formatted with exactly 2 decimal places using BCMath
-        $formattedAmount = bcmul((string) (float) $params['amount'], '1', 2);
+        $formattedAmount = $this->toDecimalString($params['amount']);
 
         $baseUrl = $mode === 'live' 
             ? 'https://bitpay.com' 
@@ -131,23 +131,7 @@ final class BitpayGateway implements PluginInterface, GatewayAdapterInterface
         $mode = $this->getString($credentials['mode'] ?? null);
         $apiToken = $this->getString($credentials['api_token'] ?? null);
 
-        // If it's a mock token, bypass API call
-        if (str_starts_with($invoiceId, 'mock_')) {
-            if ($mode === 'live') {
-                return [
-                    'success' => false,
-                    'gateway_trx_id' => '',
-                    'status' => 'failed',
-                ];
-            }
-            return [
-                'success' => true,
-                'gateway_trx_id' => $invoiceId,
-                'status' => 'completed',
-            ];
-        }
-
-        $baseUrl = $mode === 'live' 
+        $baseUrl = $mode === 'live'
             ? 'https://bitpay.com' 
             : 'https://test.bitpay.com';
 
@@ -168,6 +152,7 @@ final class BitpayGateway implements PluginInterface, GatewayAdapterInterface
 
         $success = false;
         $status = 'failed';
+        $amount = null;
 
         if (is_array($data)) {
             $invoiceData = $this->getArray($data, 'data');
@@ -175,19 +160,27 @@ final class BitpayGateway implements PluginInterface, GatewayAdapterInterface
             if ($statusStr === 'paid' || $statusStr === 'confirmed' || $statusStr === 'complete') {
                 $success = true;
                 $status = 'completed';
+                // BitPay invoices report the fiat order price as a decimal `price`.
+                $priceRaw = $invoiceData['price'] ?? null;
+                if (is_numeric($priceRaw)) {
+                    $amount = (string) $priceRaw;
+                }
             }
         }
 
         return [
             'success' => $success,
             'gateway_trx_id' => $invoiceId,
+            'amount' => $amount ?? '',
             'status' => $status,
         ];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // BitPay IPN webhooks verify by retrieving the invoice on secure backchannel to confirm status
+        // BitPay IPNs are not HMAC-signed; they are untrusted triggers only.
+        // Completion always requires the backchannel invoice retrieval performed
+        // in verify(), including the core amount match.
         return true;
     }
 }

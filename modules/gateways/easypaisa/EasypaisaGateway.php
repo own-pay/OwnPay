@@ -130,9 +130,11 @@ final class EasypaisaGateway implements PluginInterface, GatewayAdapterInterface
             $generatedHash = hash_hmac('sha256', $signatureString, $hashKey);
             $hashValid = hash_equals(strtolower($generatedHash), strtolower($secureHash));
         } else {
-            // Fallback for sandbox / testing when hash key is not configured and mode is sandbox
+            // Fallback for sandbox / testing when hash key is not configured and
+            // mode is sandbox. Never accept an unsigned callback in production —
+            // a gateway left in sandbox mode must not complete real transactions.
             $mode = $this->getString($credentials['mode'] ?? 'sandbox');
-            $hashValid = ($mode === 'sandbox');
+            $hashValid = ($mode === 'sandbox') && !$this->isProductionEnv();
         }
 
         $success = $hashValid && ($responseCode === '0000' || $responseCode === '000' || $responseCode === '');
@@ -151,6 +153,44 @@ final class EasypaisaGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        return true;
+        $hashKey = $this->getString($credentials['hash_key'] ?? null);
+        if ($hashKey === '') {
+            // No signing secret configured: accept only in a non-production
+            // sandbox; fail closed in production (and in live mode) rather than
+            // accepting every payload.
+            return $this->getString($credentials['mode'] ?? 'sandbox') === 'sandbox' && !$this->isProductionEnv();
+        }
+
+        // Parse the body the same way UnifiedWebhookController builds callbackData
+        // (JSON first, form-encoded fallback) and verify the secureHash over the
+        // sorted parameter string — mirrors verify()'s HMAC so the ingress gate
+        // is a real, constant-time signature check, not an unconditional accept.
+        $data = json_decode($rawBody, true);
+        if (!is_array($data)) {
+            $data = [];
+            parse_str($rawBody, $data);
+        }
+
+        $secureHash = isset($data['secureHash']) && is_scalar($data['secureHash']) ? (string) $data['secureHash'] : '';
+        if ($secureHash === '') {
+            return false;
+        }
+
+        $params = [];
+        foreach ($data as $k => $v) {
+            if ($k !== 'secureHash' && is_scalar($v) && (string) $v !== '') {
+                $params[(string) $k] = (string) $v;
+            }
+        }
+        ksort($params);
+
+        $signatureString = '';
+        foreach ($params as $k => $v) {
+            $signatureString .= $k . '=' . $v . '&';
+        }
+        $signatureString = rtrim($signatureString, '&');
+
+        $generatedHash = hash_hmac('sha256', $signatureString, $hashKey);
+        return hash_equals(strtolower($generatedHash), strtolower($secureHash));
     }
 }

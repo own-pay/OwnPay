@@ -174,6 +174,14 @@ final class TrustlyGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
+        // FIND-001: redirect/callback parameters are not cryptographically
+        // authenticated. Only complete when the core proved the webhook
+        // signature for this payload (sets _op_webhook_verified in
+        // GatewayApiService::handleCallback after verifyWebhook passes).
+        if (($callbackData['_op_webhook_verified'] ?? false) !== true) {
+            return ['success' => false, 'gateway_trx_id' => '', 'status' => 'unverified'];
+        }
+
         $mode = $this->getString($credentials['mode'] ?? 'sandbox');
         $gatewayTrxId = $this->getString($callbackData['gateway_trx_id'] ?? null);
 
@@ -208,7 +216,11 @@ final class TrustlyGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        return true;
+        // FIND-001: no provider signature scheme is implemented for this
+        // gateway. Fail closed (was an unconditional `return true`, which
+        // accepted forged callbacks). Implement the provider's signature
+        // verification before enabling this gateway in production.
+        return false;
     }
 
     public function handleWebhook(WebhookPayload $payload): void
@@ -249,6 +261,14 @@ final class TrustlyGateway implements PluginInterface, GatewayAdapterInterface
 
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array
     {
+        // Automated refunds are not implemented for this gateway; the simulated
+        // success below is for local testing only. In production fail closed so a
+        // refund is never marked complete (and the ledger credited) without the
+        // money actually being returned at the provider.
+        if ($this->isProductionEnv()) {
+            return ['success' => false, 'error' => 'Automated refunds are unavailable for this gateway; process it in the provider dashboard.'];
+        }
+
         return [
             'success'   => true,
             'refund_id' => 'REF_' . $this->slug() . '_' . uniqid(),

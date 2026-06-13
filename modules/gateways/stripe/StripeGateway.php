@@ -131,7 +131,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
     public function initiate(array $params, array $credentials): array
     {
         $secretKey = $credentials['secret_key'];
-        $amount = (int) bcmul((string) (float) $params['amount'], '100', 0); // Stripe uses cents
+        $amount = $this->toMinorUnits($params['amount']); // Stripe uses cents
         $currency = strtolower($params['currency']);
 
         $ch = curl_init('https://api.stripe.com/v1/checkout/sessions');
@@ -322,7 +322,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
     public function refund(string $gatewayTrxId, string $amount, array $credentials): array
     {
         $secretKey = $credentials['secret_key'];
-        $amountCents = (int) bcmul((string) (float) $amount, '100', 0);
+        $amountCents = $this->toMinorUnits($amount);
 
         $ch = curl_init('https://api.stripe.com/v1/refunds');
         curl_setopt_array($ch, [

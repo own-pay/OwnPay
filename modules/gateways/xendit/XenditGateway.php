@@ -87,7 +87,7 @@ final class XenditGateway implements PluginInterface, GatewayAdapterInterface
         $apiKey = $this->getString($credentials['api_key'] ?? '');
         $mode = $this->getString($credentials['mode'] ?? 'sandbox');
 
-        if ($mode === 'sandbox') {
+        if ($mode === 'sandbox' && !$this->isProductionEnv()) {
             // Simulated local redirect to avoid remote calls failing offline
             return [
                 'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()

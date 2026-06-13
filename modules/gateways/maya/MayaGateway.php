@@ -124,15 +124,22 @@ final class MayaGateway implements PluginInterface, GatewayAdapterInterface
 
         $success = false;
         $trxId = '';
+        $amount = null;
         if (is_array($data)) {
             $status = $this->getString($data['status'] ?? null);
             $success = $status === 'COMPLETED';
             $trxId = $this->getString($data['requestReferenceNumber'] ?? null);
+            // Maya checkouts report `totalAmount.value` as the charged amount.
+            $amountRaw = $this->getArray($data, 'totalAmount')['value'] ?? null;
+            if ($success && is_numeric($amountRaw)) {
+                $amount = (string) $amountRaw;
+            }
         }
 
         return [
             'success'        => $success,
             'gateway_trx_id' => $checkoutId,
+            'amount'         => $amount ?? '',
             'status'         => $success ? 'completed' : 'failed',
             'trx_id'         => $trxId,
         ];
@@ -140,6 +147,9 @@ final class MayaGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-return true;
+        // Maya webhooks carry no shared-secret signature; they are untrusted
+        // triggers only. Completion always requires the server-side checkout
+        // lookup performed in verify(), including the core amount match.
+        return true;
     }
 }

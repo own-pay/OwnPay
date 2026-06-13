@@ -61,7 +61,7 @@ final class WorldlineGateway implements PluginInterface, GatewayAdapterInterface
         $mode = $this->getString($credentials['mode'] ?? null);
 
         $trxId = $params['trx_id'];
-        $amount = (int) bcmul((string) (float) $params['amount'], '100', 0);
+        $amount = $this->toMinorUnits($params['amount']);
         $currency = strtoupper($params['currency']);
         $redirectUrl = $params['redirect_url'];
 
@@ -162,7 +162,10 @@ final class WorldlineGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         $status = $this->getString($data['status'] ?? null);
-        $success = $status === 'IN_PAYMENT_FLOW' || $status === 'PAYMENT_CREATED';
+        // Only PAYMENT_CREATED represents a created payment. IN_PAYMENT_FLOW
+        // means the customer is still inside the hosted checkout and must not
+        // complete the transaction.
+        $success = $status === 'PAYMENT_CREATED';
 
         $createdPaymentOutput = $this->getArray($data, 'createdPaymentOutput');
         $payment = $this->getArray($createdPaymentOutput, 'payment');
@@ -173,9 +176,18 @@ final class WorldlineGateway implements PluginInterface, GatewayAdapterInterface
         $references = $this->getArray($paymentOutput, 'references');
         $trxId = $this->getString($references['merchantReference'] ?? null);
 
+        // Worldline reports amountOfMoney.amount in integer minor units (cents).
+        $amount = null;
+        $amountOfMoney = $this->getArray($paymentOutput, 'amountOfMoney');
+        $amountRaw = $amountOfMoney['amount'] ?? null;
+        if ($success && is_numeric($amountRaw)) {
+            $amount = bcdiv((string) $amountRaw, '100', 2);
+        }
+
         return [
             'success'        => $success,
             'gateway_trx_id' => $paymentRef,
+            'amount'         => $amount ?? '',
             'status'         => $success ? 'completed' : 'failed',
             'trx_id'         => $trxId,
         ];
@@ -183,6 +195,11 @@ final class WorldlineGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
+        // Worldline webhook X-GCS-Signature validation requires the webhooks
+        // secret key pair which is not part of this adapter's credential set.
+        // Webhooks are untrusted triggers only: completion always requires the
+        // signed server-side hostedcheckouts lookup in verify() plus the core
+        // amount match.
         return true;
     }
 }

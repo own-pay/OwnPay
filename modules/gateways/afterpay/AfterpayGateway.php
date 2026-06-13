@@ -68,7 +68,7 @@ final class AfterpayGateway implements PluginInterface, GatewayAdapterInterface
         }
 
         // Amount in cents using BCMath
-        $amountCents = bcmul((string) (float) $params['amount'], '100', 0);
+        $amountCents = (string) $this->toMinorUnits($params['amount']);
 
         $baseUrl = $mode === 'live' 
             ? 'https://global-api.afterpay.com' 
@@ -144,23 +144,7 @@ final class AfterpayGateway implements PluginInterface, GatewayAdapterInterface
         $merchantId = $this->getString($credentials['merchant_id'] ?? null);
         $secretKey = $this->getString($credentials['secret_key'] ?? null);
 
-        // If it's a mock token, bypass API call
-        if (str_starts_with($token, 'mock_')) {
-            if ($mode === 'live') {
-                return [
-                    'success' => false,
-                    'gateway_trx_id' => '',
-                    'status' => 'failed',
-                ];
-            }
-            return [
-                'success' => true,
-                'gateway_trx_id' => $token,
-                'status' => 'completed',
-            ];
-        }
-
-        $baseUrl = $mode === 'live' 
+        $baseUrl = $mode === 'live'
             ? 'https://global-api.afterpay.com' 
             : 'https://global-api-sandbox.afterpay.com';
 
@@ -186,24 +170,37 @@ final class AfterpayGateway implements PluginInterface, GatewayAdapterInterface
 
         $success = false;
         $paymentId = '';
+        $amount = null;
 
         if (is_array($data) && isset($data['status'])) {
             $status = $this->getString($data['status']);
             $paymentId = $this->getString($data['id'] ?? null);
             if ($status === 'APPROVED' || $status === 'SUCCESS') {
                 $success = true;
+                // Afterpay Money objects carry a decimal-string `amount` field.
+                $amountRaw = $this->getArray($data, 'originalAmount')['amount']
+                    ?? $this->getArray($data, 'amount')['amount']
+                    ?? null;
+                if (is_numeric($amountRaw)) {
+                    $amount = (string) $amountRaw;
+                }
             }
         }
 
         return [
             'success' => $success,
             'gateway_trx_id' => $paymentId !== '' ? $paymentId : $token,
+            'amount' => $amount ?? '',
             'status' => $success ? 'completed' : 'failed',
         ];
     }
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
+        // Afterpay does not provide a shared-secret webhook signature. Webhooks
+        // are treated as untrusted triggers only: completion always requires the
+        // server-side capture/confirmation performed in verify(), including the
+        // core amount match.
         return true;
     }
 }

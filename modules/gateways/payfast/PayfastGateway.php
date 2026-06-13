@@ -137,7 +137,7 @@ final class PayfastGateway implements PluginInterface, GatewayAdapterInterface
         $html .= '<script>document.getElementById("payfast_checkout_form").submit();</script>';
 
         $mode = $this->getString($credentials['mode'] ?? 'sandbox');
-        if ($mode === 'sandbox') {
+        if ($mode === 'sandbox' && !$this->isProductionEnv()) {
             // Emulate fallback visual window for simulated checkout offline
             return [
                 'redirect_url' => $params['redirect_url'] . '?status=PAID&reference=' . $params['trx_id'] . '&gateway_trx_id=SIM_' . uniqid()

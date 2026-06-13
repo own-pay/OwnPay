@@ -254,7 +254,7 @@ final class BraintreeGateway implements PluginInterface, GatewayAdapterInterface
         if ($httpCode !== 201 || !$response) {
             // Fallback for simulation UAT if credentials are mock/sandbox and call fails
             $mode = $this->getString($credentials['mode'] ?? 'sandbox');
-            if ($mode === 'sandbox') {
+            if ($mode === 'sandbox' && !$this->isProductionEnv()) {
                 return [
                     'success'        => true,
                     'gateway_trx_id' => 'SIM_TXN_' . uniqid(),
