@@ -38,13 +38,32 @@ public/index.php ──> Kernel::boot() ──> Middleware Stack ──> Route M
 1. **Load Environment**: Read `.env` variables using `vlucas/phpdotenv`.
 2. **Build Container**: Load `config/services.php` to initialize the PSR-11 `Container`.
 3. **Configure Timezone**: Set timezone and core PHP execution rules dynamically.
-4. **Load Middlewares**: Build the middleware stack definitions from `config/middleware.php`.
-5. **Boot Plugins**: Scan active gateways, themes, and addons via `PluginLoader::boot()`.
+4. **Boot Plugins**: Scan active gateways, themes, and addons via `PluginLoader::boot()`. Plugins boot **before** the middleware pipeline is loaded (AUD-G1 fix) so they can inject custom middleware through the `system.middleware.pipeline` filter.
+5. **Load Middlewares**: Build the middleware stack definitions from `config/middleware.php`, then apply the `system.middleware.pipeline` filter (security-critical admin middleware is re-asserted afterward and cannot be removed by a plugin).
 6. **Trigger `system.boot` Event**: Fire hooks for plugin boot processes.
 7. **Register Routing Table**: Compile routes from `config/routes/web.php` and `config/routes/api.php`.
 8. **Match Request**: Compare request headers, domains, and paths against dynamic routing table.
 9. **Dispatch Pipeline**: Execute request through mapped middleware group and dispatch targeted Controller.
 10. **Shutdown**: Fire `system.shutdown` event hooks and emit HTTP Response payload.
+
+### Last-Resort Error Pages (`ErrorPageRenderer`)
+Fallback error pages (production 500, database-outage 503, maintenance 503, APP_DEBUG
+panel) live in `src/View/ErrorPageRenderer.php` as dependency-free inline HTML. The Kernel
+instantiates this class lazily and **never resolves it from the container**, so error pages
+still render when Twig, the database, or the container itself is broken. Normal-path errors
+always try their Twig templates (`error/404.twig`, `error/500.twig`, `error/503.twig`)
+first; the inline pages are the fallback of the fallback. Do not add service dependencies
+to `ErrorPageRenderer` — it must stay self-contained or outage handling cascades.
+
+### Maintenance Mode Whitelist (Single Source of Truth)
+Maintenance mode is enforced at two layers (a Kernel pre-routing gate and
+`MaintenanceMiddleware` in the `global` group). Both layers MUST consult
+`MaintenanceMiddleware::PASSTHROUGH_PREFIXES` / `isPassthroughPath()` — never inline a
+second whitelist. The passthrough set (`/admin`, `/login`, `/webhook`, `/cron`,
+`/checkout`) keeps gateway callbacks processing (AUD-12: otherwise payments are lost) and
+lets the operator sign in to disable maintenance. Matching is segment-aware: `/login`
+matches `/login` and `/login/...`, never `/loginfoo`. New-payment entry pages (`/invoice`,
+`/pay`) are intentionally NOT whitelisted — maintenance should block new payment starts.
 
 ---
 
@@ -94,7 +113,7 @@ Plugin Discovery ──> Manifest Check ──> Static Code Audit ──> Sandbo
 
 * **Dynamic Discovery**: Scanned via `manifest.json` files containing metadata, entrypoint endpoints, and configuration schemas.
 * **Static Code Audit Scanner**: Prevents unauthorized OS access, checking files for blocklisted dangerous operations (e.g. `exec`, `shell_exec`, `passthru`, `eval`, `system`).
-* **Gateway Permitted Runtime Hooks (C-13 Fix)**: The scanner explicitly permits standard runtime operations like `fwrite` (writing to standard logs/streams), `ini_set` (setting payload sizes), `header` (for payment portal redirects), and `setcookie` to ensure full plugin capability without compromising core security.
+* **Gateway Permitted Runtime Hooks (C-13 Fix)**: The scanner blocks by denylist (`PluginSandbox::isDangerousFunction()`), not by allowlist. Standard runtime operations like `fwrite` (writing to standard logs/streams), `ini_set` (setting payload sizes), `header` (for payment portal redirects), and `setcookie` are intentionally **absent from the denylist**, so they pass without being flagged — ensuring full plugin capability without compromising core security.
 
 ### 4.4. White-Label Custom Domain Pipeline
 
@@ -154,19 +173,21 @@ Checkout Pay Flow:
 * Visual triggers: CSS/JS injected raw, theme hook triggers fire on head and footer: `{{ hook('checkout.head') }}` and `{{ hook('checkout.footer') }}`
 
 ### 4.7. Fee Rules Specificity Resolution
-To calculate transactional commissions dynamically under the single-owner/multi-brand structure, OwnPay utilizes a tenant-scoped fee rules engine (`op_fee_rules`, `FeeRuleRepository`).
-* **Isolation Scope**: All rules are fully scoped within the active brand using the `TenantScope` trait in `FeeRuleRepository`.
-* **Resolution Priority**: Fee calculations automatically select active rules matching the transaction parameters, resolved in descending order of specificity:
-  1. Specific Gateway (e.g. `bkash-api`) + Specific Currency (e.g. `BDT`)
-  2. Specific Gateway + Any Currency
-  3. Any Gateway + Specific Currency
-  4. Any Gateway + Any Currency
+To calculate transactional commissions dynamically under the single-owner/multi-brand structure, OwnPay utilizes a brand-scoped fee rules engine (`op_fee_rules`, `FeeRuleRepository::resolveActiveRule()`).
+* **Isolation Scope**: `resolveActiveRule(int $merchantId, string $gatewaySlug, string $currency)` scopes rules by the supplied `$merchantId` plus a global (`merchant_id IS NULL`) fallback — `WHERE (merchant_id = :merchant_id OR merchant_id IS NULL)`. It does not call the `TenantScope` trait methods (the trait is used by the repository's generic CRUD, not by this hand-written resolver).
+* **Currency is an exact match, not a specificity tier**: `op_fee_rules.currency` is `CHAR(3) NOT NULL`, and the resolver always filters `AND currency = :currency`. There is no currency-agnostic ("any currency") rule — every candidate must match the transaction currency exactly.
+* **Resolution Priority**: Among rules matching the exact currency, the most specific active rule wins, resolved in descending order of (brand × gateway) specificity:
+  1. Specific Brand + Specific Gateway (e.g. brand 5 + `bkash-api`)
+  2. Specific Brand + Any Gateway (`gateway_slug IS NULL`)
+  3. Global Brand (`merchant_id IS NULL`) + Specific Gateway
+  4. Global Brand + Any Gateway
+  Ties break by newest rule (`id DESC`).
 * **Schema Integrity**: The `op_fee_rules` table includes a foreign key constraint referencing `op_merchants(id)` ON DELETE CASCADE.
 
 ### 4.8. Unified Configuration & Settings Management
 To eliminate legacy SQLite fallbacks and architectural redundancies, environment options and key-value pairings are unified under `op_system_settings`.
 * **Deprecation of `op_env`**: The legacy SQLite `op_env` fallback and all associated schema definitions have been completely eradicated.
-* **Persistent Configuration**: Operations within `EnvironmentService` (e.g. `get()`, `set()`, `delete()`) route exclusively through the unified `op_system_settings` database table under the `runtime` group using `SettingsRepository`.
+* **Persistent Configuration**: Operations within `EnvironmentService` (e.g. `get()`, `set()`, `delete()`) route through the unified `op_system_settings` database table under the `runtime` group using `SettingsRepository`. `get()` additionally falls back to real OS environment variables (`getenv()`/`$_ENV`/`$_SERVER`) when the database has no stored value — there is no competing key-value store.
 * **Dynamic Settings Bootstrapping**: Static methods within `EnvironmentService` automatically resolve the `SettingsRepository` singleton dynamically if the framework container has not been booted (crucial for PHPUnit initialization).
 
 ---
@@ -192,6 +213,28 @@ Android mobile devices pair with OwnPay to dynamically verify and match incoming
 * **DNS Verification**: Custom domains require `dns_verified = 1` in `op_domains` before serving content (returns 503 otherwise).
 * **Tenant Isolation**: `DomainMiddleware` injects the correct `merchant_id` from `op_domains`, and `TenantScope` enforces data isolation downstream.
 
+### 5.4. Checkout CSP Sourcing (Active Gateways Only)
+`SecurityHeadersMiddleware` builds the checkout Content-Security-Policy from the `csp`
+field of gateway manifests — but **only for gateways with an active configuration**
+(resolved via `BrandContext` + `GatewayConfigRepository::listActive()`, falling back to all
+active configs when no brand context exists). It MUST NOT scan every manifest under
+`modules/gateways/`: with 100+ bundled gateways the merged header exceeded mod_fcgid's
+8KB response-header limit, hard-killing the FastCGI worker ("Premature end of script
+headers") and returning bare Apache 500s on every `/checkout`, `/invoice`, and `/pay`
+page. A failsafe drops gateway sources (with a warning log) if the CSP value would exceed
+7,500 bytes. Plugins can still add origins at runtime via the `checkout.csp.sources` filter.
+
+### 5.5. Gateway Callback Lease (`callback_processing`)
+Checkout status pages claim redirect callbacks with an atomic
+`status: processing -> callback_processing` UPDATE to prevent concurrent double-capture.
+The claim is a **lease, not a one-way transition**: when the callback handler reaches no
+terminal state (soft failure or exception), the controller MUST release the lease with a
+guarded status-only UPDATE (`... SET status='processing' WHERE status='callback_processing'`)
+so later retries or webhooks can still complete the payment. The guard ensures a completion
+that landed inside `handleCallback()` is never clobbered. Both `CheckoutController` and
+`PaymentIntentCheckoutController` implement this pattern; `WebhookInboundProcessor` accepts
+`callback_processing` transactions as completable.
+
 ---
 
 ## 6. Database Schema Design & Performance
@@ -209,6 +252,12 @@ ALTER TABLE `op_transactions`
 
 ### 6.2. Brand-Scoped Overrides
 `op_system_settings` implements nullable `merchant_id` with unique constraint `uk_group_key_merchant` on `(group_name, key_name, merchant_id)`. NULL values serve as global system fallbacks, while non-NULL keys act as brand-scoped overrides.
+
+`SettingsRepository` memoizes resolved keys and group maps per request (settings are read
+dozens of times while rendering one page). Every write/delete on the repository invalidates
+the affected group automatically. After **out-of-band** writes (raw SQL, installer imports),
+call `SettingsRepository::flushCache()` — `EnvironmentService::clearCache()` does this for
+its repository instance.
 
 ### 6.3. Exchange Rates for Currency Conversion
 `op_exchange_rates` stores manual exchange rates with `base_currency CHAR(3)`, `target_currency CHAR(3)`, `rate DECIMAL(18,8)`, `source VARCHAR(50) DEFAULT 'manual'`. UNIQUE constraint on `(base_currency, target_currency)`. Used by `CurrencyService::convert()` at checkout time for automatic gateway currency conversion.
