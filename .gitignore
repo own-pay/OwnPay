@@ -63,3 +63,8 @@ docs/v2/Claude_audit/
 .twig-cs-fixer.cache
 .twig-cs-fixer.cache
 .planning/.active_plan
+docs/frontend_contribution/
+# Local HTTP debugging artifacts (curl output, cookie jars)
+/cookies.txt
+/login.html
+/login_post.html

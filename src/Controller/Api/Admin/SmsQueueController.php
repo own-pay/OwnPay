@@ -58,7 +58,18 @@ final class SmsQueueController
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         
         try {
-            $this->commRepo->retrySms($id, $mid);
+            $requeued = $this->commRepo->retrySms($id, $mid);
+            if ($requeued === 0) {
+                // No row matched: unknown id, another merchant's row, or the SMS is
+                // not in a 'failed' state (already queued/sending/sent) — reject so
+                // the caller cannot mistake a no-op for a real requeue.
+                return Response::apiError(
+                    'SMS_NOT_RETRYABLE',
+                    'No failed SMS found for that id (it may not exist or is not in a failed state).',
+                    'id',
+                    409
+                );
+            }
             return Response::apiSuccess(['message' => 'Queued for retry']);
         } catch (\Throwable $e) {
             return Response::apiError('SMS_RETRY_FAILED', $e->getMessage(), 'id', 400);

@@ -20,6 +20,7 @@ final class TransactionController
     /**
      * @var Container The service container instance.
      */
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
 
     /**

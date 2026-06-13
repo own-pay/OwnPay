@@ -25,11 +25,9 @@ final class NotificationController
     /**
      * NotificationController constructor.
      *
-     * @param Container                    $c         The DI container.
      * @param MobileNotificationRepository $notifRepo The mobile notification repository.
-     *
      */
-    public function __construct(Container $c, MobileNotificationRepository $notifRepo)
+    public function __construct(MobileNotificationRepository $notifRepo)
     {
         $this->notifRepo = $notifRepo;
     }

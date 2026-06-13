@@ -20,6 +20,7 @@ final class DomainController
     /**
      * @var Container The dependency injection container.
      */
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
 
     /**

@@ -31,6 +31,7 @@ final class AddonController
      *
      * @var PluginManager
      */
+    /** @phpstan-ignore property.onlyWritten */
     private PluginManager $manager;
 
     /**

@@ -93,6 +93,7 @@ final class HealthController
                 $gatewayCount = is_int($cntVal) || is_string($cntVal) || is_float($cntVal) ? (int) $cntVal : 0;
             }
         } catch (\Throwable) {
+            // Best-effort metric: leave the count at 0 if the query/table is unavailable.
         }
 
         // Customer count
@@ -107,6 +108,7 @@ final class HealthController
                 $customerCount = is_int($cntVal) || is_string($cntVal) || is_float($cntVal) ? (int) $cntVal : 0;
             }
         } catch (\Throwable) {
+            // Best-effort metric: leave the count at 0 if the query/table is unavailable.
         }
 
         $status = $dbOk ? 'healthy' : 'degraded';

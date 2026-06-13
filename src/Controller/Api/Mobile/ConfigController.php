@@ -38,12 +38,10 @@ final class ConfigController
     /**
      * ConfigController constructor.
      *
-     * @param Container             $c            The DI container.
      * @param SmsTemplateRepository $smsTemplates The SMS template repository.
      * @param SettingsRepository    $settings     The settings repository.
-     *
      */
-    public function __construct(Container $c, SmsTemplateRepository $smsTemplates, SettingsRepository $settings)
+    public function __construct(SmsTemplateRepository $smsTemplates, SettingsRepository $settings)
     {
         $this->smsTemplates = $smsTemplates;
         $this->settings     = $settings;
@@ -89,7 +87,7 @@ final class ConfigController
         $data = [
             'version'               => 1,
             'updated_at'            => DateHelper::iso(),
-            'allowed_senders'       => array_values($allowedSenders),
+            'allowed_senders'       => $allowedSenders,
             'positive_keywords'     => $positiveKeywords,
             'negative_keywords'     => $negativeKeywords,
             'check_interval_hours'  => max(1, $checkInterval),
