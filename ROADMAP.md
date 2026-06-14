@@ -1,66 +1,75 @@
-# OwnPay Product Roadmap
+# OwnPay Roadmap
 
-This document outlines the high-level roadmap and future plans for **OwnPay**, the sovereign enterprise payment gateway orchestrator. Our goal is to empower individuals and businesses with complete payment infrastructure sovereignty.
+This roadmap shows where OwnPay is headed on the path from **Public Beta v0.1.0** to a stable **1.0** and beyond. It's a living document — priorities shift with community feedback, and dates are intentionally avoided in favor of a quality-driven "ship when it's ready" approach.
 
----
+> Have an idea or a priority you care about? Open a [discussion](https://github.com/own-pay/OwnPay/discussions) or [feature request](https://github.com/own-pay/OwnPay/issues). The roadmap is shaped by the people who run OwnPay.
 
-## 🗺️ Release Timeline & Phases
-
-```mermaid
-gantt
-    title OwnPay Development Timeline
-    dateFormat  YYYY-MM
-    section Phase 1: Genesis
-    V2 Core Hadenning & Security Audit :active, p1, 2026-04, 2026-05
-    section Phase 2: Plugins
-    Extension Ecosystem & Gateway Registry : p2, 2026-06, 2026-08
-    section Phase 3: Mobile SDKs
-    Native Client Checkout SDKs (Android/iOS) : p3, 2026-09, 2026-11
-    section Phase 4: Intelligence
-    ML Fraud Detection & Risk Analytics : p4, 2026-12, 2027-02
-```
+**Legend:** ✅ Shipped &nbsp;·&nbsp; 🚧 In Progress &nbsp;·&nbsp; 🔭 Planned
 
 ---
 
-### 🟢 Phase 1: Genesis & Hadenning (Current)
-*Focus: Stabilizing the core white-labeled payment engine, database performance, and mobile pairing security.*
+## ✅ Shipped — Public Beta v0.1.0
 
-*   [x] **V2 Migration & Refactoring**: Overhaul PipraPay codebase into modern PSR-4 namespace patterns, strictly-typed PHP 8.2 classes.
-*   [x] **Double-Entry Bookkeeping**: Implementation of GAAP-compliant ledger transactions scoped strictly by brand to guarantee mathematical auditing.
-*   [x] **White-Label Domain Pipeline**: Resolution of customer-facing checkouts and gateway callback URLs strictly under custom domains (`op_domains`).
-*   [x] **Android Companion Pairing**: Secure companion app JWT authentication with stateless refresh token rotation and JTI blacklisting.
-*   [x] **CSP Header Compliance**: Implementation of dynamic Content Security Policy (CSP) header generator parsing domains from gateway manifests.
-*   [ ] **Comprehensive Test Coverage**: Expand automated testing suites to verify ledger balance queries, JWT expiration flows, and DNS validation.
+The foundation is live and self-hostable today:
 
----
-
-### 🟡 Phase 2: Extension Ecosystem (Q3 2026)
-*Focus: Enabling developer extensibility and simplifying the integration of international payment methods.*
-
-*   **Community Plugin Directory**: Release an official, web-accessible repository for community-submitted payment gateways, checkout themes, and webhook listeners.
-*   **One-Click Module Installation**: Admin panel integration allowing operators to securely download, scan, and activate plugins from the directory.
-*   **Sandbox Security Hardening**: Improve the `PluginSandbox` scanner to dynamically mock PHP file access and safely sandboxing third-party integrations.
-*   **SDK Generators**: Provide templates and base classes for developers to quickly build and package gateways using standard adapters.
-
----
-
-### 🔵 Phase 3: Native Mobile SDKs (Q4 2026)
-*Focus: Providing developers with official, pre-built frontend SDKs to process checkouts within mobile applications.*
-
-*   **Android Checkout SDK**: Native Kotlin library to initiate and complete checkouts, handling MFS tokenization and redirect pipelines smoothly.
-*   **iOS Checkout SDK**: Native Swift library with pre-built UI components matching premium brand aesthetics.
-*   **Flutter & React Native Bridges**: Official cross-platform wrappers for rapid deployment across multi-platform client apps.
-*   **Offline Mode Reconciliation**: Smart client-side queueing that logs intent parameters and syncs transaction states once network connections resume.
+- ✅ Multi-brand (multi-store) architecture with full tenant isolation
+- ✅ 120+ payment gateway integrations (plugin-based)
+- ✅ Hosted checkout, payment links, invoices & payment intents
+- ✅ Refunds with atomic, balance-validated reversals
+- ✅ Double-entry ledger engine (bcmath precision)
+- ✅ White-label custom-domain checkout + per-brand theming
+- ✅ Sandboxed plugin/add-on system with a domain hook engine
+- ✅ REST API (merchant / mobile / admin) + webhooks
+- ✅ Mobile companion app foundation (device pairing, JWT, SMS verification)
+- ✅ Full internationalization (admin panel + customer checkout)
+- ✅ Staff RBAC — granular roles & permissions
+- ✅ Signed, atomic, rollback-safe self-update engine
+- ✅ Security hardening — AES-256-GCM PII, Argon2id, CSRF, CSP, rate limiting, SSRF guards
+- ✅ Quality gates — PHPStan level 9 + automated test suite
 
 ---
 
-### 🟣 Phase 4: Fraud Detection & Analytics (Q1 2027)
-*Focus: Visualizing transaction flows and protecting stores from velocity attacks and chargeback disputes.*
+## 🚧 Now — Stabilizing the Beta (road to 1.0)
 
-*   **Real-time Analytics Dashboard**: Premium interactive charts detailing revenue metrics, refund rates, conversion velocities, and ledger statuses.
-*   **Heuristic Risk Engine**: Identify suspicious payment patterns (IP hopping, rapid checkout attempts, card test signatures) and alert admins.
-*   **Dynamic Dispute Management**: Visual hub inside the admin panel to track chargeback deadlines, log proof metadata, and automate gateway responses.
-*   **MFS Device Heartbeat Alerting**: Advanced push notifications via companion app notifying administrators when an SMS-forwarding device loses connection or battery.
+Our focus during the beta period:
+
+- 🚧 Real-world feedback loop — triaging issues from beta self-hosters
+- 🚧 Public **live demo** at [demo.ownpay.org](https://demo.ownpay.org)
+- 🚧 Expanded api documentation at [docs.ownpay.org](https://docs.ownpay.org)
+- 🚧 Guides & tutorials at [learn.ownpay.org](https://learn.ownpay.org)
+- 🚧 Hardening, edge-case validation, and performance tuning
+- 🚧 Broader gateway coverage and gateway-specific test coverage
 
 ---
-*Built by the Community, for the Community.*
+
+## 🔭 Next — Toward 1.0 Stable
+
+- 🔭 **1.0 stable release** once the quality bar and feedback goals are met
+- 🔭 **Plugin marketplace** at [plugin.ownpay.org](https://plugin.ownpay.org) — discover & install gateways and add-ons
+- 🔭 **Mobile companion app** general availability
+- 🔭 One-click / scripted **deployment tooling** (VPS provisioning, container images)
+- 🔭 Enhanced reporting, analytics & reconciliation dashboards
+- 🔭 Expanded webhook event catalog and developer SDKs
+
+---
+
+## 🌅 Later — Beyond 1.0
+
+Longer-term directions we're excited about (subject to community demand):
+
+- 🌅 Marketplace ecosystem with third-party plugin publishing
+- 🌅 Additional regional payment methods & MFS coverage
+- 🌅 Advanced fraud/risk tooling and configurable rules
+- 🌅 Broader governance — a distributed maintainer team (see [GOVERNANCE.md](GOVERNANCE.md))
+
+---
+
+## A Note on Timing
+
+OwnPay handles real money. We do **not** commit to calendar dates — features ship when they meet our security and quality bar, not before. Star and watch the repository to be notified the moment new releases drop, and follow [blog.ownpay.org](https://blog.ownpay.org) for release notes.
+
+> This document reflects current intentions, not promises. Anything here may change as we learn from the community.
+
+---
+
+❤️ Built by the **Community**, for the **Community**.
