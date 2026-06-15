@@ -85,6 +85,7 @@ ownpay/
 ├── modules/           # gateways/, addons/, themes/ (one dir each, manifest.json)
 ├── templates/         # Twig templates (admin, checkout, error, emails…)
 ├── database/          # schema.sql + migrations/
+├── vendor/            # vendor
 └── docs/              # docs
 ```
 
@@ -112,12 +113,14 @@ Every scoped entity table carries a `merchant_id` column. **Never** run a scoped
 Money movements are recorded as balanced debits/credits across `op_ledger_accounts`, `op_ledger_transactions`, and `op_ledger_entries`. Balances follow standard accounting directionality (assets/expenses increase on debit; liabilities/equity/revenue increase on credit). All monetary math uses **bcmath strings**, never floats.
 
 ### 4.4 Events & plugins
-`EventManager` provides WordPress-style **actions** (`doAction`) and **filters** (`applyFilter`). Plugins live in `modules/` and register callbacks on these hooks. See the [Hooks Reference](https://learn.ownpay.org/hooks-reference) and [Plugin Developer Guide](https://learn.ownpay.org/plugin-devoloper-guide).
+`EventManager` provides WordPress-style **actions** (`doAction`) and **filters** (`applyFilter`). Plugins live in `modules/` and register callbacks on these hooks. See the [Hooks Reference](https://learn.ownpay.org/hooks-reference) and [Plugin Developer Guide](https://learn.ownpay.org/plugin-developer-guide).
 
 Plugins are discovered via `manifest.json`, run through a **static code scanner** (`PluginSandbox`) that denies dangerous calls (`exec`, `shell_exec`, `passthru`, `eval`, `system`, raw PDO/reflection), and only then loaded.
 
-### 4.5 White-label custom domains
-A brand can serve checkout on its own domain. `DomainMiddleware` resolves `HTTP_HOST` against the `op_domains` table, injects the `merchant_id`, and blocks `/admin/*` on custom domains. **Always** build customer-facing/gateway URLs through `DomainUrlService` (`buildCheckoutUrl()`, `buildCallbackUrl()`) — never hardcode a host.
+### 4.5 White-label custom domains *(industry first)*
+OwnPay is the **first self-hosted payment platform** to support per-brand custom-domain checkout on a single installation. A brand maps its own domain (e.g. `pay.yourbrand.com`), which is DNS-verified (TXT ownership + A-record routing), then fully activated. From that point, every customer-facing URL uses the brand's domain — customers see the brand's logo, name, and colors; there is no trace of OwnPay.
+
+`DomainMiddleware` resolves `HTTP_HOST` against the `op_domains` table, injects the `merchant_id`, and blocks `/admin/*` on custom domains. **Always** build customer-facing and gateway URLs through `DomainUrlService` (`buildCheckoutUrl()`, `buildCallbackUrl()`) — never hardcode a host.
 
 ### 4.6 Payment gateways
 Gateways are plugins implementing `GatewayAdapterInterface` (`src/Gateway/`):
@@ -180,7 +183,7 @@ Three independent API layers, each with its own middleware group and auth:
 | Mobile companion | `/api/mobile/v1/*` | JWT (after device pairing) | same |
 | Admin API | `/api/admin/v1/*` | Bearer API key with `admin` scope (per-merchant) | same |
 
-Formal schema and integration examples: **[API Integration Guide](https://docs.ownpay.org)**.
+Formal API schema: **[docs.ownpay.org](https://docs.ownpay.org)**. Integration examples & guides: **[learn.ownpay.org](https://learn.ownpay.org)**.
 
 ---
 
@@ -191,8 +194,12 @@ Formal schema and integration examples: **[API Integration Guide](https://docs.o
 3. Money is **bcmath strings**, never floats.
 4. Scoped DB access always goes through `forTenant()` / `*Scoped()`.
 5. Customer/gateway URLs always go through `DomainUrlService` — never hardcode a host.
-6. New gateway? Add a directory under `modules/gateways/<slug>/` with a `manifest.json` and an adapter implementing `GatewayAdapterInterface`. See the [Plugin Developer Guide](https://learn.ownpay.org/plugin-devoloper-guide).
+6. New gateway? Add a directory under `modules/gateways/<slug>/` with a `manifest.json` and an adapter implementing `GatewayAdapterInterface`. See the [Plugin Developer Guide](https://learn.ownpay.org/plugin-developer-guide).
 7. Run the full check before a PR: `composer test && composer analyse && composer lint`.
+
+---
+
+**See also:** [Feature Reference →](FEATURES.md) for the complete list of OwnPay capabilities · [Local Setup →](LOCAL_SETUP.md) · [learn.ownpay.org](https://learn.ownpay.org) for integration guides.
 
 ---
 
