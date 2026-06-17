@@ -16,7 +16,7 @@
 [![Watchers](https://img.shields.io/github/watchers/own-pay/OwnPay?style=for-the-badge&label=Watching&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/watchers)&nbsp;
 [![Forks](https://img.shields.io/github/forks/own-pay/OwnPay?style=for-the-badge&label=Forks&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/network/members)&nbsp;
 [![License](https://img.shields.io/badge/AGPL-3.0-3B82F6?style=for-the-badge)](https://opensource.org/licenses/AGPL-3.0)&nbsp;
-[![PHP](https://img.shields.io/badge/PHP-8.2%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)&nbsp;
+[![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)&nbsp;
 [![Status](https://img.shields.io/badge/Public%20Beta-v0.1.0%20Coming%20Soon-0066FF?style=for-the-badge)](https://github.com/own-pay/OwnPay/releases)
 
 <br />
