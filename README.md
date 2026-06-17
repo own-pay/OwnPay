@@ -277,10 +277,14 @@ The platform is approaching its **Public Beta v0.1.0** release. For production d
 
 <table>
 <tr>
-<td align="center" width="25%"><a href="https://www.flexohost.com"><img src="https://ownpay.org/assets/img/sponsors/FlexoHost_logo.webp" height="32" alt="FlexoHost" /></a><br /><a href="https://www.flexohost.com"><sub><b>FlexoHost</b></sub></a></td>
-<td align="center" width="25%"><a href="https://hostazy.com.bd"><img src="https://ownpay.org/assets/img/sponsors/hostazy.png" height="32" alt="Hostazy" /></a><br /><a href="https://hostazy.com.bd"><sub><b>Hostazy</b></sub></a></td>
-<td align="center" width="25%"><a href="https://banglahoster.net"><img src="https://ownpay.org/assets/img/sponsors/banglahoster.svg" height="32" alt="Bangla Hoster" /></a><br /><a href="https://banglahoster.net"><sub><b>Bangla Hoster</b></sub></a></td>
-<td align="center" width="25%"><a href="https://hostsite24.com"><img src="https://ownpay.org/assets/img/sponsors/hostsite24.png" height="32" alt="HostSire24" /></a><br /><a href="https://hostsite24.com"><sub><b>HostSire24</b></sub></a></td>
+<td align="center" width="33%"><a href="https://hostever.com"><img src="https://ownpay.org/assets/img/sponsors/hostever.png" height="32" alt="Hostever" /></a><br /><a href="https://hostever.com"><sub><b>Hostever</b></sub></a></td>
+<td align="center" width="33%"><a href="https://www.flexohost.com"><img src="https://ownpay.org/assets/img/sponsors/FlexoHost_logo.webp" height="32" alt="FlexoHost" /></a><br /><a href="https://www.flexohost.com"><sub><b>FlexoHost</b></sub></a></td>
+<td align="center" width="33%"><a href="https://hostazy.com.bd"><img src="https://ownpay.org/assets/img/sponsors/hostazy.png" height="32" alt="Hostazy" /></a><br /><a href="https://hostazy.com.bd"><sub><b>Hostazy</b></sub></a></td>
+</tr>
+<tr>
+<td align="center" width="33%"><a href="https://banglahoster.net"><img src="https://ownpay.org/assets/img/sponsors/banglahoster.svg" height="32" alt="Bangla Hoster" /></a><br /><a href="https://banglahoster.net"><sub><b>Bangla Hoster</b></sub></a></td>
+<td align="center" width="33%"><a href="https://hostsite24.com"><img src="https://ownpay.org/assets/img/sponsors/hostsite24.png" height="32" alt="HostSire24" /></a><br /><a href="https://hostsite24.com"><sub><b>HostSire24</b></sub></a></td>
+<td align="center" width="33%"><a href="https://rayanhoster.com"><img src="https://ownpay.org/assets/img/sponsors/rayanhoster.png" height="32" alt="Rayanhoster" /></a><br /><a href="https://rayanhoster.com"><sub><b>Rayan Hoster</b></sub></a></td>
 </tr>
 </table>
 
