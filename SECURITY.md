@@ -34,7 +34,27 @@ To help us triage quickly, please include as much of the following as you can:
 - Any logs, screenshots, or payloads that demonstrate the issue.
 - Your suggested remediation, if you have one.
 
-> If you need to share sensitive details, mention it in your first email and we will arrange an encrypted channel.
+> If you need to share sensitive details, please encrypt with the **PGP Key**.
+
+- To get **.asc**: [https://keys.openpgp.org/vks/v1/by-fingerprint/9A7BAD2E64C4A245D095657DC05D4C5A656EFEC6](https://keys.openpgp.org/vks/v1/by-fingerprint/9A7BAD2E64C4A245D095657DC05D4C5A656EFEC6)
+
+```text
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Comment: 9A7B AD2E 64C4 A245 D095  657D C05D 4C5A 656E FEC6
+Comment: OwnPay Security <security@ownpay.org>
+
+xjMEai90phYJKwYBBAHaRw8BAQdA4wFqwJhBFU8iL1cEzu+DOwMJtY9e2XTcsvQv
+FwQY7b/NJU93blBheSBTZWN1cml0eSA8c2VjdXJpdHlAb3ducGF5Lm9yZz7CiQQT
+FggAGgQLCQgHAhUIAhYBAhkBBYJqL3SmAp4BApsDACEJEMBdTFplbv7GFiEEmnut
+LmTEokXQlWV9wF1MWmVu/sYi4wEAroe93ghP8ejYr73D68nvK82I4BgnQzAU3SoQ
+GtITokIA/17Iz07GVopJL1JTUo/ua4DSVTB+R4eUiGbYJTXEUyMFzjgEai90phIK
+KwYBBAGXVQEFAQEHQFXUEirW2K8a8HVMnpL9Z9nj5LapOgo+/c5E/D6I41JWAwEI
+B8J4BBgWCAAJBYJqL3SmApsMACEJEMBdTFplbv7GFiEEmnutLmTEokXQlWV9wF1M
+WmVu/sbxMAEA3bAsKRFoZOLJnRTIAs2WRI8xk3bvYui2y940tr5xEDABAJFpxFME
+6PBkA1bSkeUo7yyQj+2GoH3RH0rfygGQj0oL
+=y4fR
+-----END PGP PUBLIC KEY BLOCK-----
+```
 
 ---
 
