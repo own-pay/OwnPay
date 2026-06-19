@@ -1,9 +1,9 @@
 <div align="center">
 
 <picture>
-  <source media="(prefers-color-scheme: dark)"  srcset="https://github.com/own-pay/.github/raw/main/profile/assets/logo-png.png">
-  <source media="(prefers-color-scheme: light)" srcset="https://github.com/own-pay/.github/raw/main/profile/assets/logo-light.png">
-  <img src="https://github.com/own-pay/.github/raw/main/profile/assets/logo-png.png" height="96" alt="OwnPay" />
+  <source media="(prefers-color-scheme: dark)"  srcset="https://github.com/own-pay/.github/raw/main/profile/assets/ownpay-white-logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/own-pay/.github/raw/main/profile/assets/ownpay-dark-logo.svg">
+  <img src="https://github.com/own-pay/.github/raw/main/profile/assets/ownpay-with-bg.png" height="110" alt="OwnPayLogo" />
 </picture>
 
 <br /><br />
@@ -259,26 +259,30 @@ The platform is approaching its **Public Beta v0.1.0** release. For production d
 
 *OwnPay is made possible by the generous support of our sponsors.*
 
-<br />
-
-<div align="center">
-
-**⚡ Elite Sponsor**
-
-<br />
-
-<a href="https://namepart.com"><img src="https://ownpay.org/assets/img/sponsors/namepart_logo.png" height="38" alt="Namepart" /></a>
-
-<br /><br />
-
 **🤝 Community Sponsors**
 
 <br />
 
 <table>
 <tr>
-<td align="center" width="33%"><a href="https://hostever.com"><img src="https://ownpay.org/assets/img/sponsors/hostever.png" height="32" alt="Hostever" /></a><br /><a href="https://hostever.com"><sub><b>Hostever</b></sub></a></td>
-<td align="center" width="33%"><a href="https://www.flexohost.com"><img src="https://ownpay.org/assets/img/sponsors/FlexoHost_logo.webp" height="32" alt="FlexoHost" /></a><br /><a href="https://www.flexohost.com"><sub><b>FlexoHost</b></sub></a></td>
+<td align="center" width="33%">
+  <a href="https://hostever.com">
+<picture>
+  <source media="(prefers-color-scheme: dark)"  srcset="https://ownpay.org/assets/img/sponsors/hostever-logo-black-white.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://ownpay.org/assets/img/sponsors/hostever-logo.svg">
+  <img src="https://ownpay.org/assets/img/sponsors/hostever-logo.svg" height="32" alt="Hostever" />
+</picture>
+   </a>
+      <br />
+    <a href="https://hostever.com">
+        <sub>
+          <b>Hostever</b>
+        </sub>
+  </a>
+</td>
+<td align="center" width="33%"><a href="https://www.flexohost.com">
+  <img src="https://ownpay.org/assets/img/sponsors/FlexoHost_logo.webp" height="32" alt="FlexoHost" /></a><br /><a href="https://www.flexohost.com"><sub><b>FlexoHost</b></sub></a>
+</td>
 <td align="center" width="33%"><a href="https://hostazy.com.bd"><img src="https://ownpay.org/assets/img/sponsors/hostazy.png" height="32" alt="Hostazy" /></a><br /><a href="https://hostazy.com.bd"><sub><b>Hostazy</b></sub></a></td>
 </tr>
 <tr>
