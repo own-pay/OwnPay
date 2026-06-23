@@ -358,7 +358,7 @@ final class CheckoutController
             $midVal = $txn['merchant_id'];
             $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         }
-        $brand = $mid > 0 ? $this->loadBrand($mid) : ['name' => 'Own Pay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''];
+        $brand = $mid > 0 ? $this->loadBrand($mid) : ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''];
 
         // Retrieve dynamic currency symbols for status confirmation page.
         if (is_array($txn) && $this->c->has(\OwnPay\Service\Payment\CurrencyService::class)) {

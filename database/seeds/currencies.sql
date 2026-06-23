@@ -1,5 +1,5 @@
 -- ============================================================
--- Own Pay v0.1.0 — Comprehensive World Currencies Seed Data
+-- OwnPay v0.1.0 — Comprehensive World Currencies Seed Data
 -- ============================================================
 
 INSERT INTO `op_currencies` (`code`, `name`, `symbol`, `decimal_places`, `status`) VALUES

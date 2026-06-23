@@ -383,7 +383,7 @@ final class InstallerController
                 "INSERT INTO {$p}merchants (uuid, name, slug, email, timezone, default_currency, status, created_at, updated_at)
                  VALUES (?,?,?,?,'Asia/Dhaka','BDT','active',?,?)"
             );
-            $stmt->execute([$merchantUuid, 'Own Pay', 'own-pay', $email, $now, $now]);
+            $stmt->execute([$merchantUuid, 'OwnPay', 'own-pay', $email, $now, $now]);
             $merchantId = (int) $pdo->lastInsertId();
 
             // 2. Insert the owner role
@@ -494,7 +494,7 @@ final class InstallerController
             $body = [];
         }
         $appNameVal  = $body['app_name']  ?? null;
-        $appName     = is_string($appNameVal) ? trim($appNameVal) : 'Own Pay';
+        $appName     = is_string($appNameVal) ? trim($appNameVal) : 'OwnPay';
         $currencyVal = $body['currency']  ?? null;
         $currency    = is_string($currencyVal) ? trim($currencyVal) : 'BDT';
         $timezoneVal = $body['timezone']  ?? null;

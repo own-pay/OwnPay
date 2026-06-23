@@ -3,12 +3,14 @@
   "slug": "telegram-bot",
   "version": "1.0.0",
   "description": "Telegram Bot addon — real-time transaction alerts and commands.",
-  "author": "Own Pay",
+  "author": "OwnPay",
   "type": "addon",
   "entry": "Plugin.php",
   "entrypoint": "Plugin.php",
   "namespace": "OwnPay\\Modules\\Addons\\TelegramBot",
-  "capabilities": ["addon"],
+  "capabilities": [
+    "addon"
+  ],
   "requires": {
     "core": ">=0.1.0"
   },
@@ -17,7 +19,11 @@
     "payment.transaction.failed"
   ],
   "routes": [
-    ["POST", "/plugins/telegram-bot/webhook", "handleWebhook"]
+    [
+      "POST",
+      "/plugins/telegram-bot/webhook",
+      "handleWebhook"
+    ]
   ],
   "settings": {
     "bot_token": "",

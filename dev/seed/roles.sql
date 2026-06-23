@@ -1,5 +1,5 @@
 -- ============================================================
--- Own Pay v0.1.0 — Default Roles & Permissions Seed
+-- OwnPay v0.1.0 — Default Roles & Permissions Seed
 -- ============================================================
 
 -- Permissions (grouped by feature area)

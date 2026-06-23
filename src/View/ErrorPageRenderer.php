@@ -30,7 +30,7 @@ final class ErrorPageRenderer
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Error — Own Pay</title>
+    <title>Server Error — OwnPay</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}
@@ -56,7 +56,7 @@ final class ErrorPageRenderer
         <h1>Something went wrong</h1>
         <p>An unexpected error occurred while processing your request. Our team has been notified and is working on it.</p>
         <a class="btn" href="/">Back to Home</a>
-        <div class="footer">Own Pay &bull; Secure Payment Gateway</div>
+        <div class="footer">OwnPay &bull; Secure Payment Gateway</div>
     </div>
 </body>
 </html>
@@ -73,7 +73,7 @@ HTML;
         return <<<'HTML'
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Service Unavailable — Own Pay</title>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Service Unavailable — OwnPay</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}.c{text-align:center;max-width:480px;padding:2rem}.code{font-size:4rem;font-weight:800;background:linear-gradient(135deg,#f59e0b,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.75rem}h1{font-size:1.25rem;font-weight:600;margin-bottom:.5rem;color:#f1f5f9}p{color:#94a3b8;line-height:1.6;font-size:.9rem}</style>
 </head>
 <body><div class="c"><div class="code">503</div><h1>Service Temporarily Unavailable</h1><p>We are experiencing heavy load right now. Please try again in a moment.</p></div></body>
@@ -93,7 +93,7 @@ HTML;
         return <<<HTML
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Maintenance — Own Pay</title>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Maintenance — OwnPay</title>
 <style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}.c{text-align:center;max-width:480px;padding:2rem}.code{font-size:4rem;font-weight:800;background:linear-gradient(135deg,#0ea5e9,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.75rem}h1{font-size:1.25rem;font-weight:600;margin-bottom:.5rem;color:#f1f5f9}p{color:#94a3b8;line-height:1.6;font-size:.9rem}</style>
 </head>
 <body><div class="c"><div class="code">503</div><h1>Maintenance In Progress</h1><p>{$safeReason}</p></div></body>
@@ -250,7 +250,7 @@ HTML;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Too Many Requests — Own Pay</title>
+    <title>Too Many Requests — OwnPay</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}
@@ -284,7 +284,7 @@ HTML;
         
         <button id="retry-btn" class="btn disabled" disabled onclick="window.location.reload();">Retry Now</button>
         
-        <div class="footer">Own Pay &bull; Secure Payment Gateway</div>
+        <div class="footer">OwnPay &bull; Secure Payment Gateway</div>
     </div>
 
     <script>

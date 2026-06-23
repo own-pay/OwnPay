@@ -36,7 +36,7 @@
 
             <div class="ins-field">
                 <label for="app_name">Application Name</label>
-                <input id="app_name" name="app_name" value="Own Pay" required>
+                <input id="app_name" name="app_name" value="OwnPay" required>
             </div>
             <div class="ins-row">
                 <div class="ins-field">
@@ -73,7 +73,7 @@
         <div id="donePanel" class="ins-done" style="display:none">
             <div class="ins-done-icon">✓</div>
             <h2>Installation Complete!</h2>
-            <p>Own Pay is fully initialized. Environment configurations and secure cryptographic key rings are successfully locked.</p>
+            <p>OwnPay is fully initialized. Environment configurations and secure cryptographic key rings are successfully locked.</p>
             <div class="ins-done-actions">
                 <a href="/admin/login" class="ins-btn">Open Master Admin Dashboard →</a>
                 <a href="/" class="ins-btn ins-btn-outline">Visit Portal Homepage</a>
@@ -88,7 +88,7 @@
     </div>
 </main>
 
-<div class="ins-footer">Own Pay · High-Transaction Secured Payment Platform · v0.1.0</div>
+<div class="ins-footer">OwnPay · High-Transaction Secured Payment Platform · v0.1.0</div>
 
 <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
 document.getElementById('settingsForm').addEventListener('submit', async function(e) {

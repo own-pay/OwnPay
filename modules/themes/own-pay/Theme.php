@@ -9,7 +9,7 @@ use OwnPay\Plugin\Capability;
 use OwnPay\Event\EventManager;
 
 /**
- * Own Pay Default Theme — implements PluginInterface.
+ * OwnPay Default Theme — implements PluginInterface.
  * Registers checkout templates and assets.
  */
 final class Theme implements PluginInterface
@@ -17,11 +17,11 @@ final class Theme implements PluginInterface
     public static function metadata(): array
     {
         return [
-            'name'        => 'Own Pay Theme',
+            'name'        => 'OwnPay Theme',
             'slug'        => 'own-pay',
             'version'     => '1.0.0',
             'description' => 'Default OwnPay checkout and landing page theme.',
-            'author'      => 'Own Pay',
+            'author'      => 'OwnPay',
             'type'        => 'theme',
         ];
     }

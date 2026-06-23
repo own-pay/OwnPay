@@ -18,7 +18,7 @@ jobs:
     - name: Setup PHP
       uses: shivammathur/setup-php@v2
       with:
-        php-version: '8.3' # Ensuring baseline requirement for Own Pay
+        php-version: '8.3' # Ensuring baseline requirement for OwnPay
         tools: parallel-lint
 
     - name: Run PHP Parallel Lint

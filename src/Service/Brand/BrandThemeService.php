@@ -70,7 +70,7 @@ final class BrandThemeService
         // Fallback safely to generic details if the target merchant entity does not exist
         if ($merchant === null) {
             return [
-                'name'           => 'Own Pay',
+                'name'           => 'OwnPay',
                 'logo'           => '',
                 'favicon'        => '',
                 'color'          => '#0D9488',
@@ -78,7 +78,7 @@ final class BrandThemeService
                 'support_email'  => '',
                 'custom_css'     => '',
                 'custom_js'      => '',
-                'footer_text'    => 'Secured by Own Pay · 256-bit encryption',
+                'footer_text'    => 'Secured by OwnPay · 256-bit encryption',
                 'show_powered_by'=> true,
             ];
         }
@@ -103,7 +103,7 @@ final class BrandThemeService
         $merchantLogo = !empty($merchant['logo_path']) && is_string($merchant['logo_path']) ? $merchant['logo_path'] : $fallbackLogo;
 
         return [
-            'name'           => is_scalar($merchant['name'] ?? null) ? (string) $merchant['name'] : ($globalSettings['app_name'] ?? 'Own Pay'),
+            'name'           => is_scalar($merchant['name'] ?? null) ? (string) $merchant['name'] : ($globalSettings['app_name'] ?? 'OwnPay'),
             'logo'           => $this->resolveVal($brandSettings, $merchantJsonSettings, 'logo', $merchantLogo),
             'favicon'        => $this->resolveVal($brandSettings, $merchantJsonSettings, 'favicon', $fallbackFavicon),
             'color'          => $this->resolveVal($brandSettings, $merchantJsonSettings, 'primary_color', (string) ($themeSettings['primary_color'] ?? '#0D9488')),
@@ -111,7 +111,7 @@ final class BrandThemeService
             'support_email'  => $this->resolveVal($brandSettings, $merchantJsonSettings, 'support_email', (string) ($globalSettings['support_email'] ?? '')),
             'custom_css'     => $this->resolveVal($brandSettings, $merchantJsonSettings, 'custom_css', ''),
             'custom_js'      => $this->resolveVal($brandSettings, $merchantJsonSettings, 'custom_js', ''),
-            'footer_text'    => $this->resolveVal($brandSettings, $merchantJsonSettings, 'footer_text', 'Secured by ' . (is_scalar($merchant['name'] ?? null) ? (string) $merchant['name'] : 'Own Pay') . ' · 256-bit encryption'),
+            'footer_text'    => $this->resolveVal($brandSettings, $merchantJsonSettings, 'footer_text', 'Secured by ' . (is_scalar($merchant['name'] ?? null) ? (string) $merchant['name'] : 'OwnPay') . ' · 256-bit encryption'),
             'show_powered_by'=> (bool) ($brandSettings['show_powered_by'] ?? $merchantJsonSettings['show_powered_by'] ?? true),
             'language'       => $this->resolveVal($brandSettings, $merchantJsonSettings, 'language', ''),
             'checkout_success_msg' => $this->resolveVal($brandSettings, $merchantJsonSettings, 'checkout_success_msg', ''),

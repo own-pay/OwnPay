@@ -1,9 +1,9 @@
 {
-  "name": "Own Pay Theme",
+  "name": "OwnPay Theme",
   "slug": "own-pay",
   "version": "2.0.0",
-  "description": "Default Own Pay checkout theme — premium, responsive, multi-gateway.",
-  "author": "Own Pay",
+  "description": "Default OwnPay checkout theme — premium, responsive, multi-gateway.",
+  "author": "OwnPay",
   "type": "theme",
   "entry": "Theme.php",
   "namespace": "OwnPay\\Modules\\Themes\\OwnPay",
@@ -14,7 +14,7 @@
     "logo_url": "",
     "support_email": "",
     "help_url": "",
-    "footer_text": "Secured by Own Pay · 256-bit encryption",
+    "footer_text": "Secured by OwnPay · 256-bit encryption",
     "show_dark_toggle": "enabled",
     "show_security_badges": "enabled",
     "timeout_enabled": "enabled",
@@ -24,7 +24,12 @@
     "custom_js": ""
   },
   "assets": {
-    "css": ["checkout.css"],
-    "js": ["op-fetch.js", "checkout.js"]
+    "css": [
+      "checkout.css"
+    ],
+    "js": [
+      "op-fetch.js",
+      "checkout.js"
+    ]
   }
 }

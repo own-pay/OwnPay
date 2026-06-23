@@ -1,10 +1,10 @@
 -- ============================================================
--- Own Pay v0.1.0 — Default System Settings Seed
+-- OwnPay v0.1.0 — Default System Settings Seed
 -- ============================================================
 
 INSERT INTO `op_system_settings` (`group_name`, `key_name`, `value`, `type`) VALUES
 -- General
-('general', 'site_name', 'Own Pay', 'string'),
+('general', 'site_name', 'OwnPay', 'string'),
 ('general', 'site_tagline', 'Enterprise Payment Gateway', 'string'),
 ('general', 'default_currency', 'BDT', 'string'),
 ('general', 'default_timezone', 'Asia/Dhaka', 'string'),

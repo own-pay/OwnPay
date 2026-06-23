@@ -100,7 +100,7 @@ final class LandingController
             throw new \RuntimeException('Twig Environment not found.');
         }
 
-        $appName = isset($general['app_name']) ? $general['app_name'] : 'Own Pay';
+        $appName = isset($general['app_name']) ? $general['app_name'] : 'OwnPay';
         $landingTitle = isset($landing['landing_title']) ? $landing['landing_title'] : null;
         $landingSubtitle = isset($landing['landing_subtitle']) ? $landing['landing_subtitle'] : null;
         $landingDescription = isset($branding['site_meta_description']) ? $branding['site_meta_description'] : null;

@@ -1,5 +1,5 @@
 -- ============================================================
--- Own Pay v0.1.0 — Default SMS Templates Seed
+-- OwnPay v0.1.0 — Default SMS Templates Seed
 -- ============================================================
 -- Templates for Bangladeshi MFS providers.
 -- merchant_id NULL = global (all merchants can use).

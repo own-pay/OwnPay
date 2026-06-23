@@ -12,7 +12,7 @@ declare(strict_types=1);
  */
 return [
     // Identity parameters
-    'name'    => 'Own Pay',
+    'name'    => 'OwnPay',
     'version' => '0.1.0',
     'codename'=> 'Genesis',
 

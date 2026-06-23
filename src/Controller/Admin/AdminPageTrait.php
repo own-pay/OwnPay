@@ -43,7 +43,7 @@ trait AdminPageTrait
         $twig = $c->get(\Twig\Environment::class);
         
         $appConfig = $c->get('config.app');
-        $appName = is_array($appConfig) && isset($appConfig['name']) && is_string($appConfig['name']) ? $appConfig['name'] : 'Own Pay';
+        $appName = is_array($appConfig) && isset($appConfig['name']) && is_string($appConfig['name']) ? $appConfig['name'] : 'OwnPay';
         $appVersion = is_array($appConfig) && isset($appConfig['version']) && is_string($appConfig['version']) ? $appConfig['version'] : '0.1.0';
 
         $data['app_name']    = $appName;

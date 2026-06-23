@@ -1,4 +1,4 @@
-# Own Pay Mobile App — Execution Checklist
+# OwnPay Mobile App — Execution Checklist
 
 > **Single source of truth.** Update status as work progresses.
 > `[ ]` = pending | `[/]` = in progress | `[x]` = done
@@ -6,6 +6,7 @@
 ---
 
 ## Phase 0: Critique, Plan & Setup
+
 - [x] Deep-critique architecture
 - [x] Propose fixes (JWT expiry, polling, SMS strategy, AES backup, device pinning)
 - [x] Get user approval on fixes
@@ -18,29 +19,34 @@
 ## Part 1: Pillar 1 — Device Pairing & Auth (PHP Backend)
 
 ### 1.1 Database Migration
+
 - [x] Create migration: `op_device_pairing_tokens` table
 - [x] Create migration: `op_paired_devices` table
 - [x] Create migration: `op_mobile_notifications` table (for polling queue)
 - [x] Add `composer require firebase/php-jwt`
 
 ### 1.2 Core Services
+
 - [x] `src/Service/JwtService.php` — encode/decode/validate JWT with per-device HMAC secret
 - [x] `src/Service/DevicePairingService.php` — OTP generation, validation, credential issuance
 - [x] `src/Repository/PairedDeviceRepository.php` — CRUD for paired devices
 - [x] `src/Repository/DevicePairingTokenRepository.php` — OTP token CRUD
 
 ### 1.3 API Middleware
+
 - [x] Extend `BearerAuthMiddleware` or create `JwtAuthMiddleware` for JWT validation
 - [x] Validate X-Device-Fingerprint header — enforced at token **refresh** (`DevicePairingService::refreshAccessToken`/`validateRequest`). NOTE: the per-request access path (`JwtAuthMiddleware`) authenticates via JWT signature + device-revocation + merchant-match, but does **not** re-check the fingerprint, because the stored `jwt_fingerprint` is derived from `deviceUuid + merchantId` — both present as `did`/`mid` claims inside the token — so re-checking it on every request adds no protection against token theft. Token-theft risk is mitigated by the short 15-min access-token TTL plus active revocation checks.
 - [x] Add rate limiting rule for `/api/mobile/v1/devices` (strict login bucket: 5/300s)
 
 ### 1.4 API Endpoints
+
 - [x] `POST /api/mobile/v1/devices` — OTP validation + credential issuance
 - [x] `POST /api/mobile/v1/devices/token-refreshes` — JWT refresh via refresh token
 - [x] `GET  /api/mobile/v1/devices/statuses` — Connection health check
 - [x] Register routes in `config/routes/api.php`
 
 ### 1.5 Web Admin UI
+
 - [x] Admin action: "device-pair-generate" (generate secure OTP via DevicePairingService)
 - [x] Admin action: "device-paired-list" (list paired devices with status)
 - [x] Admin action: "device-revoke" (revoke device access)
@@ -49,6 +55,7 @@
 - [x] QR code generation using existing `chillerlan/php-qrcode` dependency
 
 ### 1.6 Tests
+
 - [x] Unit test: JwtService (encode, decode, expired, invalid) — 12 tests, 27 assertions ✅
 - [x] Unit test: DevicePairingService — OTP gen, rate limit, valid/invalid/used OTP, re-pair, refresh, validate ✅
 - [x] DeviceFingerprintMiddleware coverage — integrated into DevicePairingService validateRequest tests ✅
@@ -58,11 +65,13 @@
 ## Part 2: Pillar 4 — SMS Parsing Engine (PHP Backend)
 
 ### 2.1 Database
+
 - [x] Create migration: `op_sms_templates` table (regex patterns per sender)
 - [x] Create `op_sms_parsed` table (mobile-submitted parsed SMS data)
 - [x] Seed initial regex templates for: bKash, Nagad, Rocket, Upay, SureCash
 
 ### 2.2 Parser Services
+
 - [x] `src/Service/SmsParserService.php` — orchestrator (decrypt AES-256-GCM → Tier 1 → Tier 2 → save)
 - [x] `src/Service/SmsRegexParser.php` — Tier 1: template-based regex matching with named capture groups
 - [x] `src/Service/SmsHeuristicParser.php` — Tier 2: keyword/proximity-based lexical analysis fallback
@@ -70,16 +79,19 @@
 - [x] `src/Repository/SmsDataRepository.php` — parsed SMS data CRUD with dedup, pagination, unparsed counting
 
 ### 2.3 API Endpoints
+
 - [x] `POST /api/mobile/v1/sms` — batch or single encrypted SMS, decrypt, parse, store
 - [x] `GET  /api/mobile/v1/config/filter-rules` — return filter config JSON
 - [x] Route registration in `config/routes/api.php`
 
 ### 2.4 Admin UI
+
 - [x] Admin page: "SMS Templates" list (sender, regex, type, active toggle)
 - [x] Admin page: "Add/Edit SMS Template" form with regex test input
 - [x] Admin page: "Unparsed SMS" queue (review + manually assign template)
 
 ### 2.5 Tests
+
 - [x] Unit test: SmsRegexParser — 13 tests, bKash/Nagad patterns, optional fields, priority, invalid regex ✅
 - [x] Unit test: SmsHeuristicParser — 14 tests, Tk/BDT/Taka, balance disambiguation, confidence levels ✅
 - [x] Unit test: SmsParserService — 12 tests, full pipeline, dedup, errors, batch, real AES-256-GCM ✅
@@ -89,12 +101,14 @@
 ## Part 3: Pillars 2+3 — Flutter App (Pairing, SMS, Sync)
 
 ### 3.1 Project Setup
+
 - [ ] Create Flutter project with folder structure per plan
 - [ ] Add all dependencies (dio, hive, flutter_secure_storage, mobile_scanner, etc.)
 - [ ] Configure flavors: `sideload` (READ_SMS) vs `playstore` (SMS Retriever)
 - [ ] Set up dependency injection (get_it + injectable)
 
 ### 3.2 Pairing Feature
+
 - [ ] QR scanner screen (mobile_scanner)
 - [ ] Manual URL + OTP input screen (fallback)
 - [ ] Pairing API call + credential storage (flutter_secure_storage)
@@ -102,6 +116,7 @@
 - [ ] Device fingerprint generation (Android ID + cert hash)
 
 ### 3.3 SMS Capture (Strategy Pattern)
+
 - [ ] `SmsStrategy` interface: `Stream<SmsMessage> listen()`
 - [ ] `ReadSmsStrategy` — direct READ_SMS (sideload build)
 - [ ] `SmsRetrieverStrategy` — SMS Retriever API (Play Store build)
@@ -109,11 +124,13 @@
 - [ ] Strategy selector based on build flavor + runtime capability
 
 ### 3.4 Privacy Gate
+
 - [ ] Download + cache filter rules from server
 - [ ] Local filter engine: sender check → negative keyword check → positive keyword check
 - [ ] AES-256 encryption of approved SMS payloads
 
 ### 3.5 Offline-First Sync Engine
+
 - [ ] Hive box: `sms_queue` with status tracking
 - [ ] Connectivity monitor (connectivity_plus)
 - [ ] Sync worker: batch POST to `/api/mobile/v1/sms`
@@ -121,13 +138,15 @@
 - [ ] Status updates: pending → syncing → approved/failed
 
 ### 3.6 Audit Trail UI
+
 - [ ] History screen: All | Synced | Issues tabs
 - [ ] Entry detail: sender, time, status badge, failure reason
 - [ ] Auto-cleanup: delete approved entries > 30 days
 - [ ] Manual clear for failed entries
 
 ### 3.7 Android Foreground Service
-- [ ] Persistent notification: "Own Pay is monitoring payments"
+
+- [ ] Persistent notification: "OwnPay is monitoring payments"
 - [ ] Service lifecycle: start on boot, restart on kill
 - [ ] Battery optimization exclusion request
 
@@ -136,6 +155,7 @@
 ## Part 4: Pillar 5 — Notifications & Dashboard
 
 ### 4.1 Notification System (PHP)
+
 - [x] `src/Service/MobileNotificationService.php` — queue payment notifications per device
 - [x] `src/Repository/MobileNotificationRepository.php` — notification CRUD with cursor polling + findById
 - [x] `GET /api/mobile/v1/notifications` endpoint — list pending notifications for device
@@ -144,13 +164,16 @@
 - [x] Auto-cleanup: purge old read notifications
 
 ### 4.2 Dashboard APIs (PHP)
+
 - [x] `GET /api/mobile/v1/dashboard` — today/week/month stats, recent transactions, unread count, server time
 - [x] Route registration in `config/routes/api.php`
 
 ### 4.3 Tests
+
 - [x] Unit test: MobileNotificationService ✅
 
 ### 4.4 Flutter Notifications & Dashboard (Deferred — Part 3)
+
 - [ ] Poll service in foreground service (10-15s interval, configurable from server)
 - [ ] `flutter_local_notifications` integration
 - [ ] Notification tap → navigate to transaction detail
@@ -166,21 +189,25 @@
 ## Part 5: Polish & Release
 
 ### 5.1 Admin Management APIs (PHP) ✅
+
 - [x] `AdminSmsTemplateController` — Full CRUD (list/show/create/update/delete) + regex tester endpoint
 - [x] `AdminSmsQueueController` — Unparsed SMS queue (list, reprocess with updated templates, manual resolve)
 - [x] `AdminDeviceController` — Device management (list/show/revoke/delete)
 - [x] 16 new admin routes registered in `routes/api.php` under Bearer auth
 
 ### 5.2 Security Hardening (Server-Side) ✅
+
 - [x] All admin endpoints behind Bearer auth + IP allowlist + rate limiting
 - [x] Regex validation before save (prevents ReDoS / invalid patterns)
 - [x] Raw SMS messages excluded from mobile API responses (security by design)
 - [x] Device revocation: soft-revoke, JWT/refresh rejected on next use
 
 ### 5.3 Testing ✅
+
 - [x] Full suite: **317 tests, 697 assertions — zero regressions** ✅
 
 ### 5.4 Flutter Build & Distribution (Deferred)
+
 - [ ] Certificate pinning
 - [ ] Obfuscate Flutter release build
 - [ ] ProGuard rules for Android

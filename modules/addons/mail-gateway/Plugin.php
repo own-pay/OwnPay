@@ -25,7 +25,7 @@ final class Plugin implements PluginInterface
             'slug'        => 'mail-gateway',
             'version'     => '1.0.0',
             'description' => 'Send emails via SMTP, Mailgun, or SendGrid.',
-            'author'      => 'Own Pay',
+            'author'      => 'OwnPay',
             'type'        => 'addon',
         ];
     }
@@ -89,7 +89,7 @@ final class Plugin implements PluginInterface
                 'name'    => 'from_name',
                 'label'   => 'From Name',
                 'type'    => 'text',
-                'default' => 'Own Pay',
+                'default' => 'OwnPay',
                 'help'    => 'Sender display name.',
             ],
             [
@@ -189,7 +189,7 @@ final class Plugin implements PluginInterface
     private function sendSmtp(string $to, string $subject, string $body): array
     {
         $fromEmail = $this->settings['from_email'] ?? 'noreply@example.com';
-        $fromName = $this->settings['from_name'] ?? 'Own Pay';
+        $fromName = $this->settings['from_name'] ?? 'OwnPay';
 
         $headers = [
             "From: {$fromName} <{$fromEmail}>",
@@ -208,7 +208,7 @@ final class Plugin implements PluginInterface
     {
         $domain = $this->settings['mailgun_domain'] ?? '';
         $key = $this->settings['mailgun_key'] ?? '';
-        $from = ($this->settings['from_name'] ?? 'Own Pay') . ' <' . ($this->settings['from_email'] ?? "noreply@{$domain}") . '>';
+        $from = ($this->settings['from_name'] ?? 'OwnPay') . ' <' . ($this->settings['from_email'] ?? "noreply@{$domain}") . '>';
 
         $ch = curl_init("https://api.mailgun.net/v3/{$domain}/messages");
         curl_setopt_array($ch, [
@@ -229,7 +229,7 @@ final class Plugin implements PluginInterface
     private function sendSendGrid(string $to, string $subject, string $body): array
     {
         $key = $this->settings['sendgrid_key'] ?? '';
-        $from = ['email' => $this->settings['from_email'] ?? 'noreply@example.com', 'name' => $this->settings['from_name'] ?? 'Own Pay'];
+        $from = ['email' => $this->settings['from_email'] ?? 'noreply@example.com', 'name' => $this->settings['from_name'] ?? 'OwnPay'];
 
         $payload = json_encode([
             'personalizations' => [['to' => [['email' => $to]]]],

@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{{ app_name ?? 'Own Pay' }} | Enterprise Payment Infrastructure</title>
+    <title>{{ app_name ?? 'OwnPay' }} | Enterprise Payment Infrastructure</title>
     <meta name="description" content="{{ landing_description ?? 'Self-hosted payment gateway platform with multi-brand support and enterprise-grade security.' }}">
     <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
     <link rel="stylesheet" href="/assets/css/reset.css?v=017">
@@ -27,7 +27,7 @@
                 {% else %}
                     <span class="op-logo-icon">OP</span>
                 {% endif %}
-                <span>{{ app_name ?? 'Own Pay' }}</span>
+                <span>{{ app_name ?? 'OwnPay' }}</span>
             </a>
             <a href="https://github.com/own-pay/OwnPay" class="op-btn op-btn-outline" target="_blank" rel="external">GitHub</a>
         </nav>
@@ -163,13 +163,13 @@
         <div class="op-footer-content">
             <div class="op-logo">
                 {% if site_logo is defined and site_logo %}
-                    <img src="{{ site_logo }}" alt="{{ app_name ?? 'Own Pay' }}" style="max-height: 24px; width: auto; display: inline-block; vertical-align: middle;">
+                    <img src="{{ site_logo }}" alt="{{ app_name ?? 'OwnPay' }}" style="max-height: 24px; width: auto; display: inline-block; vertical-align: middle;">
                 {% else %}
                     <span class="op-logo-icon" style="width:24px;height:24px;font-size:10px;border-radius:6px;">OP</span>
                 {% endif %}
-                <span>{{ app_name ?? 'Own Pay' }}</span>
+                <span>{{ app_name ?? 'OwnPay' }}</span>
             </div>
-            <p class="op-footer-text">&copy; {{ "now"|date("Y") }} {{ app_name ?? 'Own Pay' }}. Self-hosted & Sovereign.</p>
+            <p class="op-footer-text">&copy; {{ "now"|date("Y") }} {{ app_name ?? 'OwnPay' }}. Self-hosted & Sovereign.</p>
         </div>
     </footer>
 </body>

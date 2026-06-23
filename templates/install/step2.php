@@ -133,7 +133,7 @@
     </div>
 </main>
 
-<div class="ins-footer">Own Pay · High-Transaction Secured Payment Platform · v0.1.0</div>
+<div class="ins-footer">OwnPay · High-Transaction Secured Payment Platform · v0.1.0</div>
 
 <script nonce="<?php echo htmlspecialchars($csp_nonce ?? '', ENT_QUOTES, 'UTF-8'); ?>">
 var dbConfigPayload = null;

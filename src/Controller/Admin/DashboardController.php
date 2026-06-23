@@ -814,11 +814,11 @@ final class DashboardController
         $data = $req->all();
         $providerVal = $data['provider'] ?? 'smtp';
         $fromEmailVal = $data['from_email'] ?? '';
-        $fromNameVal = $data['from_name'] ?? 'Own Pay';
+        $fromNameVal = $data['from_name'] ?? 'OwnPay';
 
         $provider = \OwnPay\Service\System\InputSanitizer::string(is_string($providerVal) ? $providerVal : 'smtp');
         $fromEmail = \OwnPay\Service\System\InputSanitizer::email(is_string($fromEmailVal) ? $fromEmailVal : '');
-        $fromName = \OwnPay\Service\System\InputSanitizer::string(is_string($fromNameVal) ? $fromNameVal : 'Own Pay');
+        $fromName = \OwnPay\Service\System\InputSanitizer::string(is_string($fromNameVal) ? $fromNameVal : 'OwnPay');
         
         $skip = ($data['skip'] ?? '0') === '1';
         

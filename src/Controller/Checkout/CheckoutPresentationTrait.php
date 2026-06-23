@@ -68,7 +68,7 @@ trait CheckoutPresentationTrait
         $s = $this->settings->getGroup('general');
         $theme = $this->settings->getGroup('theme');
         return [
-            'name'          => ($merchant !== null && isset($merchant['name']) && is_string($merchant['name'])) ? $merchant['name'] : ($s['app_name'] ?? 'Own Pay'),
+            'name'          => ($merchant !== null && isset($merchant['name']) && is_string($merchant['name'])) ? $merchant['name'] : ($s['app_name'] ?? 'OwnPay'),
             'logo'          => ($merchant !== null && isset($merchant['logo']) && is_string($merchant['logo'])) ? $merchant['logo'] : '',
             'color'         => $theme['primary_color'] ?? ($s['theme_primary'] ?? '#0D9488'),
             'support_email' => $s['support_email'] ?? '',

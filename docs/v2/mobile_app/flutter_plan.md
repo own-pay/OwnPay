@@ -1,4 +1,4 @@
-# Own Pay: Mobile Companion App — Flutter Architecture Plan
+# OwnPay: Mobile Companion App — Flutter Architecture Plan
 
 > **Note:** This document outlines the Flutter mobile application architecture. For the Backend API and system overview, refer to the master plan: [plan.md](plan.md).
 
@@ -35,6 +35,7 @@ SMS Received → Check sender against allowed_senders
 ### Local DB Schema (Hive/SQLite)
 
 #### `sms_queue` (local)
+
 | Field | Type | Notes |
 |---|---|---|
 | local_id | auto-increment | |

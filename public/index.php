@@ -2,7 +2,7 @@
 declare(strict_types=1);
 
 /**
- * Own Pay v0.1.0 — Single Front Controller.
+ * OwnPay v0.1.0 — Single Front Controller.
  *
  * ALL requests route through this file via .htaccess rewrites.
  * This is the only PHP file in the public/ directory.

@@ -249,8 +249,8 @@ return static function (\OwnPay\Container $c): void {
                 return '';
             }
         });
-        $appName = $_ENV['APP_NAME'] ?? 'Own Pay';
-        $twig->addGlobal('app_name', is_string($appName) ? $appName : 'Own Pay');
+        $appName = $_ENV['APP_NAME'] ?? 'OwnPay';
+        $twig->addGlobal('app_name', is_string($appName) ? $appName : 'OwnPay');
         // i18n dynamic translation setup
         $twig->addFunction(new \Twig\TwigFunction('__', function (string $key, array $replace = []) use ($c): string {
             $trans = $c->get(\OwnPay\Service\System\TranslationService::class);

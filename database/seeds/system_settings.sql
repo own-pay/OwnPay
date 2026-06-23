@@ -1,5 +1,5 @@
 -- ============================================================
--- Own Pay v0.1.0 — Default System Settings Seed
+-- OwnPay v0.1.0 — Default System Settings Seed
 -- ============================================================
 
 INSERT INTO `op_system_settings` (`group_name`, `key_name`, `value`, `type`) VALUES

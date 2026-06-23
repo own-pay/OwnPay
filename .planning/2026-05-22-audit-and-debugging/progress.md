@@ -3,11 +3,13 @@
 ## Session: 2026-05-22
 
 ### Current Status
+
 - **Phase:** 5 - Documentation & Report
 - **Started:** 2026-05-22
 - **Completed:** 2026-05-22
 
 ### Actions Taken
+
 - **Diagnostics**: Inspected local listening ports (only MySQL 3306 was running).
 - **httpd.conf Correction**:
   - Found that Apache `httpd.conf` had an invalid `SRVROOT` setting (`Define SRVROOT "C:/Apache24"`). Changed it to `C:/laragon/bin/apache/httpd-2.4.66-260223-Win64-VS18`.
@@ -25,16 +27,18 @@
   - Re-ran PHPUnit tests: All **331 tests passed** successfully.
 
 ### Test Results
+
 | Test | Expected | Actual | Status |
 |------|----------|--------|--------|
 | Apache Syntax Check | Syntax OK | Syntax OK | Pass |
 | Ports 80 & 443 Check | Listening | Active listeners on :: and 0.0.0.0 | Pass |
 | Web Application Load | Success (200 OK) | Loaded landing page successfully | Pass |
-| Database Integration (CLI) | Found Brand/Store | Found active Brand/Store (Own Pay) | Pass |
+| Database Integration (CLI) | Found Brand/Store | Found active Brand/Store (OwnPay) | Pass |
 | PHPStan Static Analysis | 0 Errors | 0 Errors | Pass |
 | PHPUnit Test Suite | 331 Tests Pass | 331 Tests Pass | Pass |
 
 ### Errors
+
 | Error | Resolution |
 |-------|------------|
 | ERR_CONNECTION_REFUSED | Corrected `SRVROOT` and started Apache process |

@@ -34,7 +34,7 @@ final class Plugin implements PluginInterface, SmsProviderInterface
             'slug'        => 'sms-gateway',
             'version'     => '1.0.0',
             'description' => 'Send SMS via Twilio, Vonage, or custom HTTP API.',
-            'author'      => 'Own Pay',
+            'author'      => 'OwnPay',
             'type'        => 'addon',
         ];
     }

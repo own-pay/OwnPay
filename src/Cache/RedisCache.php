@@ -7,7 +7,7 @@ namespace OwnPay\Cache;
  * Redis-based cache driver - VPS/dedicated server.
  *
  * Requires ext-redis. Falls back gracefully if Redis unavailable.
- * Prefix isolates Own Pay keys from other apps sharing same Redis.
+ * Prefix isolates OwnPay keys from other apps sharing same Redis.
  */
 final class RedisCache implements CacheInterface
 {

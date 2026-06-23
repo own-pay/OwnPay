@@ -27,7 +27,7 @@ final class Plugin implements PluginInterface
             'slug'        => 'telegram-bot',
             'version'     => '1.0.0',
             'description' => 'Telegram bot for transaction alerts and admin commands.',
-            'author'      => 'Own Pay',
+            'author'      => 'OwnPay',
             'type'        => 'addon',
         ];
     }
@@ -184,7 +184,7 @@ final class Plugin implements PluginInterface
             str_starts_with($text, '/refunds')       => $this->cmdRefunds(),
             str_starts_with($text, '/gateways')      => $this->cmdGateways(),
             str_starts_with($text, '/start') || str_starts_with($text, '/help') => [
-                'text' => "🤖 *Own Pay Advanced Command Center*\n\nSelect a dashboard action or use the command reference below.",
+                'text' => "🤖 *OwnPay Advanced Command Center*\n\nSelect a dashboard action or use the command reference below.",
                 'keyboard' => $this->startKeyboard()
             ],
             default => null,
@@ -285,7 +285,7 @@ final class Plugin implements PluginInterface
             case $data === 'cmd_help':
             default:
                 $result = [
-                    'text' => "🤖 *Own Pay Bot — Help Menu*\n\n"
+                    'text' => "🤖 *OwnPay Bot — Help Menu*\n\n"
                         . "Here are the advanced commands you can execute:\n\n"
                         . "📊 `/today` — Today's financial metrics\n"
                         . "📋 `/recent` — Last 5 transactions status\n"

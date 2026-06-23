@@ -327,7 +327,7 @@ final class PaymentLinkCheckoutController
             'status'       => 'expired',
             'status_label' => 'Payment Link Expired',
             'txn'          => [],
-            'brand'        => ['name' => 'Own Pay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
+            'brand'        => ['name' => 'OwnPay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''],
             'lang'         => [],
         ]));
     }

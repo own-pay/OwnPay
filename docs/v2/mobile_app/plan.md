@@ -1,4 +1,4 @@
-# Own Pay: Mobile Companion App & API Ecosystem — Master Architecture
+# OwnPay: Mobile Companion App & API Ecosystem — Master Architecture
 
 > **Version:** 0.1.1 | **Date:** 2026-05-23 | **Status:** Updated
 
@@ -81,6 +81,7 @@ On pairing, app sends: `android_id + app_signing_cert_sha256`. Server stores `jw
 ### API: `POST /api/mobile/v1/devices`
 
 **Request:**
+
 ```json
 {
   "pairing_code": "482910",
@@ -92,6 +93,7 @@ On pairing, app sends: `android_id + app_signing_cert_sha256`. Server stores `jw
 ```
 
 **Response (201):**
+
 ```json
 {
   "success": true,
@@ -106,6 +108,7 @@ On pairing, app sends: `android_id + app_signing_cert_sha256`. Server stores `jw
 ### DB Tables (V0.1.0)
 
 #### `op_device_pairing_tokens`
+
 | Column | Type | Notes |
 |---|---|---|
 | id | BIGINT UNSIGNED PK | |
@@ -118,6 +121,7 @@ On pairing, app sends: `android_id + app_signing_cert_sha256`. Server stores `jw
 | created_at | DATETIME(6) | |
 
 #### `op_paired_devices`
+
 | Column | Type | Notes |
 |---|---|---|
 | id | BIGINT UNSIGNED PK | |
@@ -164,6 +168,7 @@ App caches this locally. Re-fetches every 24h or on manual refresh.
 ### API: `POST /api/mobile/v1/sms`
 
 **Request:** (JWT required)
+
 ```json
 {
   "messages": [
@@ -178,6 +183,7 @@ App caches this locally. Re-fetches every 24h or on manual refresh.
 ```
 
 **Response (200):**
+
 ```json
 {
   "success": true,
@@ -220,10 +226,10 @@ Stored in `op_sms_templates` table.
 | created_at | DATETIME(6) | Timestamp when created |
 | updated_at | DATETIME(6) | Timestamp when updated |
 
-
 ### Tier 2: Heuristic Engine
 
 Pure PHP lexical analysis (`SmsHeuristicParser`):
+
 1. **Amount detection:** Find `Tk` or `BDT` followed by number. Disambiguate from `Balance` by proximity keywords (`received`, `credited` → transaction amount; `balance` → balance)
 2. **TrxID detection:** Look for `TrxID`, `TxnId`, `Ref`, `Transaction ID` followed by alphanumeric
 3. **Sender detection:** 11-digit mobile numbers or known bank names
@@ -262,11 +268,13 @@ Stores all parsed SMS messages, both matching templates and heuristics fallbacks
 ## 7. Real-Time Notifications
 
 ### Flow
+
 - Mobile app polls `GET /api/mobile/v1/notifications` every 10-15 seconds.
 - Server returns a list of pending notifications for the specific device ID.
 - App displays local notifications and acknowledges receipt via `POST /api/mobile/v1/notifications/acknowledgements` with `ids`.
 
 #### `op_mobile_notifications`
+
 | Column | Type | Notes |
 |---|---|---|
 | id | BIGINT UNSIGNED PK | |
@@ -285,6 +293,7 @@ Stores all parsed SMS messages, both matching templates and heuristics fallbacks
 ## 8. Dashboard APIs
 
 Exposes status summary and recent stats directly to companion device:
+
 - **`GET /api/mobile/v1/dashboard`** returns today's stats, recent transactions, unread notification count, and current server time.
 
 ---
