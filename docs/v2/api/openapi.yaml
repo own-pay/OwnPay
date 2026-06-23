@@ -154,21 +154,22 @@ paths:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
 
-  /api/v1/payments/{trx_id}:
+  /api/v1/payments/{payment_id}:
     get:
       tags: [Payments]
       summary: Get Payment Status
-      description: Retrieves details of a specific payment intent by its unique transaction ID.
+      description: Retrieves details of a specific payment intent by its unique payment intent UUID.
       security:
         - BearerApiKey: []
       parameters:
-        - name: trx_id
+        - name: payment_id
           in: path
           required: true
-          description: Unique payment intent token or transaction ID
+          description: The unique payment intent UUID.
           schema:
             type: string
-          example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+            format: uuid
+          example: "01eb81ef-2479-4bfb-96d6-146ac41813d8"
       responses:
         '200':
           description: Payment details retrieved.
@@ -234,10 +235,19 @@ paths:
         - name: trx_id
           in: path
           required: true
-          description: The transaction number
+          description: |
+            The unique transaction identifier. Accepts either:
+            - A transaction number (e.g., `OP-10482938`)
+            - A gateway transaction ID (e.g., `BKASH123456`)
           schema:
             type: string
-          example: "OP-10482938"
+          examples:
+            transaction_no:
+              summary: Transaction number
+              value: "OP-10482938"
+            gateway_trx_id:
+              summary: Gateway transaction ID
+              value: "BKASH123456"
       responses:
         '200':
           description: Transaction detail model.
@@ -273,11 +283,98 @@ paths:
               schema:
                 $ref: '#/components/schemas/RefundCreateResponse'
         '400':
-          description: Invalid Request or Insufficient Funds
+          description: Invalid refund (e.g. non-positive amount, exceeds refundable balance, transaction not refundable).
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Transaction not found for this merchant.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '422':
+          description: Missing required field (transaction_id / trx_id).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+    get:
+      tags: [Refunds]
+      summary: List Refunds
+      description: Queries a paginated history of transaction refunds registered under the active merchant context.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: page
+          in: query
+          description: The page number to retrieve.
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          description: The number of records per page (max 100).
+          required: false
+          schema:
+            type: integer
+            default: 25
+        - name: status
+          in: query
+          description: Filter by refund status.
+          required: false
+          schema:
+            type: string
+            enum: [pending, completed, failed]
+        - name: trx_id
+          in: query
+          description: Filter by the original transaction reference code.
+          required: false
+          schema:
+            type: string
+        - name: transaction_id
+          in: query
+          description: Filter by the internal transaction database ID.
+          required: false
+          schema:
+            type: integer
+        - name: from
+          in: query
+          description: Filter refunds created on or after this date (YYYY-MM-DD).
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: Filter refunds created on or before this date (YYYY-MM-DD).
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Paginated refund list retrieved successfully.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [success, data, meta]
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/RefundDetailResponse'
+                  meta:
+                    $ref: '#/components/schemas/PaginationMeta'
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
 
   /api/v1/refunds/{trx_id}:
     get:
@@ -290,10 +387,19 @@ paths:
         - name: trx_id
           in: path
           required: true
-          description: The refund transaction number
+          description: |
+            The unique transaction identifier of the original payment. Accepts either:
+            - A transaction number (e.g., `OP-10482938`)
+            - A gateway transaction ID (e.g., `BKASH123456`)
           schema:
             type: string
-          example: "RFD-28391823"
+          examples:
+            transaction_no:
+              summary: Transaction number
+              value: "OP-10482938"
+            gateway_trx_id:
+              summary: Gateway transaction ID
+              value: "BKASH123456"
       responses:
         '200':
           description: Refund details retrieved.
@@ -375,9 +481,16 @@ paths:
     get:
       tags: [API Keys]
       summary: List API Keys
-      description: Returns a list of active API keys (tokens are partially masked for security).
+      description: Returns a list of active API keys. Requires a Bearer API key with both `write` and `admin` scopes.
       security:
         - BearerApiKey: []
+      parameters:
+        - name: X-Super-Admin-Email
+          in: header
+          required: true
+          schema:
+            type: string
+          description: The email of an active super admin user.
       responses:
         '200':
           description: List of API keys.
@@ -388,9 +501,16 @@ paths:
     post:
       tags: [API Keys]
       summary: Generate API Key
-      description: Generates a new live or test API key for the active brand.
+      description: Generates a new API key for the active brand. Requires a Bearer API key with both `write` and `admin` scopes.
       security:
         - BearerApiKey: []
+      parameters:
+        - name: X-Super-Admin-Email
+          in: header
+          required: true
+          schema:
+            type: string
+          description: The email of an active super admin user.
       requestBody:
         required: true
         content:
@@ -409,7 +529,7 @@ paths:
     delete:
       tags: [API Keys]
       summary: Revoke API Key
-      description: Deactivates and permanently revokes an API key by database ID.
+      description: Deactivates and permanently revokes an API key by database ID. Requires a Bearer API key with both `write` and `admin` scopes.
       security:
         - BearerApiKey: []
       parameters:
@@ -420,6 +540,12 @@ paths:
           schema:
             type: integer
           example: 3
+        - name: X-Super-Admin-Email
+          in: header
+          required: true
+          schema:
+            type: string
+          description: The email of an active super admin user.
       responses:
         '200':
           description: API key permanently revoked.
@@ -921,6 +1047,11 @@ components:
     ErrorResponse:
       type: object
       required: [success, error, errors, request_id]
+      description: >
+        Standard error envelope for validation and business-logic errors (emitted by
+        Response::apiError). NOTE: authentication/authorization failures from the auth
+        middleware (most 401s, and 403 "Insufficient scope") use the simpler shape
+        `{ "success": false, "message": "..." }` instead — see AuthErrorResponse.
       properties:
         success:
           type: boolean
@@ -938,6 +1069,21 @@ components:
           type: string
           example: "req_6656c12345678"
           description: "A unique tracing ID assigned to this request for support/debugging audits"
+
+    AuthErrorResponse:
+      type: object
+      required: [success, message]
+      description: >
+        Error shape returned by the authentication/authorization middleware for
+        missing/invalid/expired/revoked credentials, insufficient scope, or a
+        suspended merchant (HTTP 401/403). Distinct from the richer ErrorResponse.
+      properties:
+        success:
+          type: boolean
+          example: false
+        message:
+          type: string
+          example: "Authentication required. Provide Bearer token."
 
     SuccessOnlyResponse:
       type: object
@@ -1003,11 +1149,11 @@ components:
           format: uri
           example: "https://myshop.com/cancel"
           description: "URL customer is redirected to if payment is cancelled"
-        webhook_url:
+        callback_url:
           type: string
           format: uri
           example: "https://myshop.com/webhook"
-          description: "Outbound HTTP callback URL destination for status changes"
+          description: "Outbound HTTP callback (webhook) URL for status changes. Also used as the default redirect_url/cancel_url when those are omitted."
         metadata:
           type: object
           example:
@@ -1017,20 +1163,33 @@ components:
 
     PaymentIntentResponse:
       type: object
-      required: [success, token, checkout_url]
+      required: [success, data]
+      description: "201 Created. The payload is wrapped under `data` (all success responses use this envelope)."
       properties:
         success:
           type: boolean
           example: true
-        token:
-          type: string
-          example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
-          description: "The unique payment intent token"
-        checkout_url:
-          type: string
-          format: uri
-          example: "https://pay.myshop.com/checkout/intent/pi_xxxxxxxxxxxxxxxxxxxxxxxx"
-          description: "The dynamic customer-facing white-label checkout URL"
+        data:
+          type: object
+          required: [payment_id, token, checkout_url, status]
+          properties:
+            payment_id:
+              type: string
+              example: "9f1c2e7a-1b3d-4c5e-8a90-112233445566"
+              description: "The payment intent UUID"
+            token:
+              type: string
+              example: "pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+              description: "The unique payment intent token"
+            checkout_url:
+              type: string
+              format: uri
+              example: "https://pay.myshop.com/checkout/intent/pi_xxxxxxxxxxxxxxxxxxxxxxxx"
+              description: "The dynamic customer-facing white-label checkout URL"
+            status:
+              type: string
+              example: "pending"
+              description: "Initial intent status"
 
     PaymentIntentDetailResponse:
       type: object
@@ -1094,6 +1253,10 @@ components:
           type: string
           enum: [pending, completed, failed, cancelled, refunded]
           example: "completed"
+        gateway_trx_id:
+          type: string
+          nullable: true
+          example: "BKASH123456"
         created_at:
           type: string
           format: date-time
@@ -1159,14 +1322,45 @@ components:
 
     RefundCreateResponse:
       type: object
-      required: [success, refund_id]
+      required: [success, data]
+      description: "201 Created. The created refund record is wrapped under `data`."
       properties:
         success:
           type: boolean
           example: true
-        refund_id:
-          type: string
-          example: "RFD-28391823"
+        data:
+          type: object
+          required: [id, uuid, transaction_id, amount, status, created_at]
+          properties:
+            id:
+              type: integer
+              example: 12
+            uuid:
+              type: string
+              example: "b2c3d4e5-6f70-4812-9a3b-445566778899"
+            transaction_id:
+              type: integer
+              example: 102
+            amount:
+              type: string
+              example: "250.00"
+            reason:
+              type: string
+              nullable: true
+              example: "Customer return request"
+            status:
+              type: string
+              example: "completed"
+              description: "Refund status (e.g. pending, completed, failed)"
+            processed_at:
+              type: string
+              format: date-time
+              nullable: true
+              example: "2026-05-21T03:00:05.000000+06:00"
+            created_at:
+              type: string
+              format: date-time
+              example: "2026-05-21T03:00:00.000000+06:00"
 
     RefundDetailResponse:
       type: object
@@ -1263,7 +1457,7 @@ components:
 
     ApiKey:
       type: object
-      required: [id, name, key_preview, scope, status, created_at]
+      required: [id, name, prefix, status, created_at]
       properties:
         id:
           type: integer
@@ -1271,17 +1465,23 @@ components:
         name:
           type: string
           example: "Production Server Key"
-        key_preview:
+        prefix:
           type: string
-          example: "op_abcdefgh.xxxx...abcd"
-        scope:
-          type: string
-          enum: [admin, merchant]
-          example: "merchant"
+          example: "abcdefgh"
         status:
           type: string
           enum: [active, revoked]
           example: "active"
+        last_used:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
+        expires_at:
+          type: string
+          format: date-time
+          nullable: true
+          example: null
         created_at:
           type: string
           format: date-time
@@ -1307,25 +1507,37 @@ components:
           type: string
           maxLength: 100
           example: "Production Server Key"
-        scope:
-          type: string
-          enum: [admin, merchant]
-          default: "merchant"
-          example: "merchant"
+        scopes:
+          type: array
+          items:
+            type: string
+            enum: [read, write, admin]
+          default: [read, write]
+          description: "List of scopes/privileges granted to the new API key."
+          example: ["read", "write"]
 
     ApiKeyGenerateResponse:
       type: object
-      required: [success, token, data]
+      required: [success, data]
       properties:
         success:
           type: boolean
           example: true
-        token:
-          type: string
-          example: "op_abcdefgh.1234567890abcdef1234567890"
-          description: "The full unmasked API key token. ONLY returned during generation."
         data:
-          $ref: '#/components/schemas/ApiKey'
+          type: object
+          required: [key, prefix, warning]
+          properties:
+            key:
+              type: string
+              example: "op_abcdefgh.1234567890abcdef1234567890"
+              description: "The full unmasked API key token. ONLY returned during generation."
+            prefix:
+              type: string
+              example: "abcdefgh"
+              description: "The API key prefix."
+            warning:
+              type: string
+              example: "Store this key securely. It cannot be retrieved again."
 
     WebhookTestResponse:
       type: object

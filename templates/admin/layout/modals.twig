@@ -33,5 +33,20 @@
         </div>
     </div>
 </div>
-
-
+{# Custom Confirmation Modal #}
+<div class="op-modal" id="confirm-modal" hidden>
+    <div class="op-modal-backdrop" id="confirm-modal-backdrop"></div>
+    <div class="op-modal-dialog">
+        <div class="op-modal-header">
+            <h4 id="confirm-modal-title">Confirmation</h4>
+            <button type="button" class="op-modal-close" id="confirm-modal-close">&times;</button>
+        </div>
+        <div class="op-modal-body">
+            <p id="confirm-modal-message">Are you sure you want to proceed?</p>
+        </div>
+        <div class="op-modal-footer">
+            <button type="button" class="op-btn op-btn-outline" id="confirm-modal-cancel">Cancel</button>
+            <button type="button" class="op-btn op-btn-primary" id="confirm-modal-submit">Confirm</button>
+        </div>
+    </div>
+</div>

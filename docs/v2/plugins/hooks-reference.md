@@ -12,6 +12,7 @@ Action and Filter hooks allow developers to alter core system pathways—such as
 ### Architectural Invariants
 
 1. **Strict Error Isolation**: Every action callback is wrapped within a standalone, structured try-catch execution context. If a third-party plugin hook throws a fatal runtime exception (e.g. database network loss, API curl timeout), the `EventManager` logs the traceback detail via `Logger::error()` and gracefully proceeds to the next callback in queue. A plugin failure will **never** crash a critical transaction flow or disrupt double-entry bookkeeping pipelines.
+0. **HTML Output Trust Contract**: Template-level hook points (`{{ hook('...')|raw }}` in Twig) render whatever the hook callbacks emit as **trusted HTML** — Twig auto-escaping is intentionally bypassed so plugins can inject panels, menus, and widgets. The contract this imposes on every plugin author: **any user-supplied or database-sourced value interpolated into hook output MUST be escaped by the plugin** (use `htmlspecialchars($value, ENT_QUOTES, 'UTF-8')`). As defense-in-depth, the core `hook()` renderer (`OwnPay\View\TwigExtensions::sanitizeHookOutput()`) strips script-capable elements (`script`, `iframe`, `object`, `embed`, `form`, `base`, `meta`, `link`), inline event handlers, and `javascript:` URIs from all hook output — but this is a backstop against compromised plugins, **not** a substitute for escaping user data.
 2. **Deterministic Priority Chains**: Hooks are executed in ascending numerical priority (e.g., priority `5` executes before `10`). If multiple plugins register callbacks on the same hook at matching priorities, they execute in order of registration.
 3. **Execution Context Identification**: The `EventManager` maintains an internal execution context stack (`ownerStack`). Calling `getActiveOwner()` dynamically resolves whether the current code path is executing within the `'core'` base system or is delegated to a specific plugin slug (e.g., `'bkash-api'`).
 4. **Scoped Execution Filters**: To prevent data leaks and maintain tenant isolation boundaries under the **Sovereign Single-Owner, Multi-Brand model**, filter hooks respect active `merchant_id` scopes. For example, during dashboard statistics compilation, the system resolves and loads the active brand ID to restrict query visibility within designated scopes.
@@ -20,7 +21,7 @@ Action and Filter hooks allow developers to alter core system pathways—such as
 
 ## 2. System Capabilities & RBAC Policies
 
-Every plugin must declare its operational capability profile within `manifest.json`. The platform uses the **`OwnPay\Plugin\Capability`** backed enum to sandbox and restrict plugin access:
+Plugins declare a capability profile in `manifest.json` via the **`OwnPay\Plugin\Capability`** backed enum. Under the full-trust model (owner-only upload) these are **declarative metadata** — they document intent and drive UI grouping / permission mapping; they are **not** enforced as a runtime sandbox, since an installed plugin has full PSR-11 container access. Read the "boundary" column below as the *intended* scope, not an enforced limit:
 
 | Capability Enum Case | JSON String Key | Required Permission Keys | Security and Sandboxing Boundary |
 | :--- | :--- | :--- | :--- |
@@ -45,6 +46,9 @@ Every plugin must declare its operational capability profile within `manifest.js
 | `Capability::CHECKOUT_UI` | `"checkout_ui"` | *None* | Permitted to filter visual twigs and variables within the transaction page environment. |
 
 ---
+
+> [!NOTE]
+> **Authoritative hook list.** `config/hooks.php` is the code-verified catalogue of every fireable hook (name, `action`/`filter` type, and source location), kept in sync with the actual `doAction`/`applyFilter` call sites. Where this prose reference and `config/hooks.php` disagree, `config/hooks.php` wins.
 
 ## 3. Core Platform & Application Lifecycle Hooks
 
@@ -321,25 +325,7 @@ Every plugin must declare its operational capability profile within `manifest.js
 
 ---
 
-## 7. Manual Payment Slip Verification Hooks
-
-### Filter Hooks
-
-#### `gateway.manual.render`
-* **Triggered From**: `OwnPay\Service\Payment\ManualGatewayService::render()`
-* **Parameters**: `string $html`, `array $gateway`
-* **Expected Return**: `string`
-* **Description**: Filters custom manual payment HTML markup, letting addons dynamically inject input boxes or validation instructions.
-
-#### `gateway.manual.verify`
-* **Triggered From**: `OwnPay\Service\Payment\ManualGatewayService::verify()`
-* **Parameters**: `array $result`, `array $gateway`, `array $submittedData`
-* **Expected Return**: `array`
-* **Description**: Filters manual slip validations. Use to run custom checks against receipt formats.
-
----
-
-## 8. Communication & Messaging Channels
+## 7. Communication & Messaging Channels
 
 ### Action Hooks
 
@@ -377,7 +363,7 @@ Every plugin must declare its operational capability profile within `manifest.js
 
 ---
 
-## 9. Admin Panel Operations & Report Grids
+## 8. Admin Panel Operations & Report Grids
 
 ### Action Hooks
 
@@ -434,7 +420,7 @@ Every plugin must declare its operational capability profile within `manifest.js
 
 ---
 
-## 10. Dynamic Webhook Observers & Mapped Domain Events
+## 9. Dynamic Webhook Observers & Mapped Domain Events
 
 ### Action Hooks
 
@@ -480,7 +466,7 @@ Every plugin must declare its operational capability profile within `manifest.js
 
 ---
 
-## 11. Auto-Updater Lifecycle Hooks
+## 10. Auto-Updater Lifecycle Hooks
 
 ### Action Hooks
 

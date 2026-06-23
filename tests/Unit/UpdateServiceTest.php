@@ -280,4 +280,61 @@ class UpdateServiceTest extends TestCase
         $this->assertTrue($updater->runMigrationsCalled);
         $this->assertTrue($updater->clearCacheCalled);
     }
+
+    /**
+     * Invokes the private splitSqlStatements() for direct verification.
+     *
+     * @return array<int, string>
+     */
+    private function splitSql(string $sql): array
+    {
+        $method = new \ReflectionMethod(UpdateService::class, 'splitSqlStatements');
+        /** @var array<int, string> $result */
+        $result = $method->invoke($this->createUpdateService(), $sql);
+        return $result;
+    }
+
+    public function testSplitSqlKeepsStatementPrecededByComment(): void
+    {
+        // Regression: a statement whose chunk starts with a '-- comment' line
+        // used to be discarded entirely — the migration was then marked as
+        // executed without its DDL ever running (silent schema drift). This is
+        // the exact shape of migration 008_add_provider_trx_id.sql.
+        $sql = "-- Add provider_trx_id column and index to op_transactions\n"
+             . "ALTER TABLE `op_transactions`\n"
+             . "  ADD COLUMN `provider_trx_id` VARCHAR(100) DEFAULT NULL,\n"
+             . "  ADD KEY `idx_provider_trx` (`provider_trx_id`);\n";
+
+        $statements = $this->splitSql($sql);
+
+        $this->assertCount(1, $statements);
+        $this->assertStringStartsWith('ALTER TABLE', $statements[0]);
+    }
+
+    public function testSplitSqlDropsCommentOnlyChunks(): void
+    {
+        $this->assertSame([], $this->splitSql("-- just a comment;\n-- another comment\n"));
+        $this->assertSame([], $this->splitSql("   \n\n"));
+    }
+
+    public function testSplitSqlHandlesInterleavedCommentsAndStatements(): void
+    {
+        $sql = "-- step one\nDELETE FROM a WHERE x = 1;\n\n-- step two\nALTER TABLE b ADD COLUMN c INT;";
+
+        $statements = $this->splitSql($sql);
+
+        $this->assertCount(2, $statements);
+        $this->assertStringStartsWith('DELETE FROM a', $statements[0]);
+        $this->assertStringStartsWith('ALTER TABLE b', $statements[1]);
+    }
+
+    public function testSplitSqlPreservesSemicolonsAndCommentMarkersInsideStrings(): void
+    {
+        $sql = "INSERT INTO t (v) VALUES ('a;b -- not a comment');\nUPDATE t SET v = 'x';";
+
+        $statements = $this->splitSql($sql);
+
+        $this->assertCount(2, $statements);
+        $this->assertStringContainsString("'a;b -- not a comment'", $statements[0]);
+    }
 }

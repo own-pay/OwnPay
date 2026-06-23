@@ -208,14 +208,25 @@ EOT;
      */
     public function execute(string $version): array
     {
-        if ($this->history->isUpdateInProgress()) {
+        // Acquire an exclusive on-disk lock BEFORE the isUpdateInProgress() DB
+        // check. Without it, two concurrent /admin/system-update/apply requests
+        // both read "no active update", both call startUpdate(), and run the
+        // download/extract/migrate pipeline simultaneously — corrupting files
+        // and double-running migrations. flock makes the check-and-claim atomic.
+        $lockHandle = $this->acquireUpdateLock();
+        if ($lockHandle === false) {
             return ['success' => false, 'error' => 'Update already in progress'];
         }
 
-        $updateId = $this->history->startUpdate($version);
-        $backupPath = null;
-
         try {
+            if ($this->history->isUpdateInProgress()) {
+                return ['success' => false, 'error' => 'Update already in progress'];
+            }
+
+            $updateId = $this->history->startUpdate($version);
+            $backupPath = null;
+
+            try {
             $this->log("Update to v{$version} — Step 1: Resolving update metadata");
             $manifest = $this->fetchManifest();
             
@@ -366,6 +377,51 @@ EOT;
             $this->maintenance->exit();
 
             return ['success' => false, 'error' => $e->getMessage(), 'rollback' => true];
+            }
+        } finally {
+            $this->releaseUpdateLock($lockHandle);
+        }
+    }
+
+    /**
+     * Acquires the exclusive self-update lock.
+     *
+     * @return resource|false|null Held lock handle on success; false when another
+     *                             update currently holds the lock (caller must
+     *                             abort); null when the lock file is unavailable
+     *                             (caller proceeds, guarded only by the DB check).
+     */
+    private function acquireUpdateLock()
+    {
+        $lockPath = dirname(__DIR__, 2) . '/storage/update.lock';
+        $dir = dirname($lockPath);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+        $fp = @fopen($lockPath, 'c');
+        if ($fp === false) {
+            // Lock file unavailable: degrade to the DB in-progress check alone
+            // rather than blocking updates outright.
+            return null;
+        }
+        if (!flock($fp, LOCK_EX | LOCK_NB)) {
+            fclose($fp);
+            return false;
+        }
+        return $fp;
+    }
+
+    /**
+     * Releases the self-update lock acquired by acquireUpdateLock().
+     *
+     * @param resource|null $handle The lock handle (null when running in degraded, lockless mode).
+     * @return void
+     */
+    private function releaseUpdateLock($handle): void
+    {
+        if (is_resource($handle)) {
+            flock($handle, LOCK_UN);
+            fclose($handle);
         }
     }
 
@@ -477,7 +533,10 @@ EOT;
 
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
-            if ($name === false || str_contains($name, '..') || str_starts_with($name, '/')) {
+            // Backslash is rejected as well: on Windows ZipArchive::extractTo()
+            // honors '\' as a path separator, so a forward-slash-only check would
+            // let an entry like 'a\..\..\evil.php' escape the application root.
+            if ($name === false || str_contains($name, '..') || str_starts_with($name, '/') || str_contains($name, '\\')) {
                 $zip->close();
                 @unlink($zipPath);
                 throw new \RuntimeException('Update package contains unsafe paths');
@@ -621,8 +680,8 @@ EOT;
             }
 
             if ($char === ';' && !$inSingleQuote && !$inDoubleQuote) {
-                $stmt = trim($current);
-                if ($stmt !== '' && !str_starts_with($stmt, '--')) {
+                $stmt = $this->stripLeadingSqlComments(trim($current));
+                if ($stmt !== '') {
                     $statements[] = $stmt;
                 }
                 $current = '';
@@ -632,12 +691,38 @@ EOT;
             $current .= $char;
         }
 
-        $stmt = trim($current);
-        if ($stmt !== '' && !str_starts_with($stmt, '--')) {
+        $stmt = $this->stripLeadingSqlComments(trim($current));
+        if ($stmt !== '') {
             $statements[] = $stmt;
         }
 
         return $statements;
+    }
+
+    /**
+     * Strips leading comment-only and blank lines from an SQL statement.
+     *
+     * Statements are split on ';', so any '--' comment lines preceding a
+     * statement become part of its text. Discarding a statement because it
+     * merely *starts with* a comment silently skips real DDL while still
+     * marking the migration as executed — schema drift with no error.
+     *
+     * @param string $stmt Raw statement text.
+     * @return string The statement without leading comment lines ('' when it was comments only).
+     */
+    private function stripLeadingSqlComments(string $stmt): string
+    {
+        $lines = preg_split('/\R/', $stmt) ?: [];
+        $offset = 0;
+        foreach ($lines as $line) {
+            $trimmed = trim($line);
+            if ($trimmed === '' || str_starts_with($trimmed, '--') || str_starts_with($trimmed, '#')) {
+                $offset++;
+                continue;
+            }
+            break;
+        }
+        return trim(implode("\n", array_slice($lines, $offset)));
     }
 
     /**

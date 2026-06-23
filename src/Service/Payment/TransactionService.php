@@ -96,10 +96,18 @@ final class TransactionService
     public function complete(int $transactionId, int $merchantId): array
     {
         $repo = $this->transactions->forTenant($merchantId);
-        $repo->markCompleted($transactionId);
+        $affected = $repo->markCompletedIfNotTerminal($transactionId);
         $transaction = $repo->findScoped($transactionId);
         if ($transaction === null) {
             throw new \RuntimeException('Failed to retrieve completed transaction.');
+        }
+
+        // No row transitioned: the transaction was already terminal — e.g. a
+        // concurrent callback completed it first, or a caller attempted to
+        // resurrect a failed/cancelled/refunded transaction. Completion events
+        // and audit entries must not fire for a transition that never happened.
+        if ($affected === 0) {
+            return $transaction;
         }
 
         $this->events->doAction('payment.transaction.completed', $transaction);
@@ -128,14 +136,18 @@ final class TransactionService
     public function fail(int $transactionId, int $merchantId, ?string $reason = null): array
     {
         $repo = $this->transactions->forTenant($merchantId);
-        $updateData = ['status' => 'failed'];
-        if ($reason !== null) {
-            $updateData['metadata'] = json_encode(['failure_reason' => $reason]);
-        }
-        $repo->updateScoped($transactionId, $updateData);
+        $affected = $repo->markStatusIfNotTerminal(
+            $transactionId,
+            'failed',
+            $reason !== null ? ['failure_reason' => $reason] : []
+        );
         $transaction = $repo->findScoped($transactionId);
         if ($transaction === null) {
             throw new \RuntimeException('Failed to retrieve failed transaction.');
+        }
+
+        if ($affected === 0) {
+            return $transaction;
         }
 
         $this->events->doAction('payment.transaction.failed', $transaction);
@@ -153,10 +165,14 @@ final class TransactionService
     public function cancel(int $transactionId, int $merchantId): array
     {
         $repo = $this->transactions->forTenant($merchantId);
-        $repo->updateScoped($transactionId, ['status' => 'cancelled']);
+        $affected = $repo->markStatusIfNotTerminal($transactionId, 'cancelled');
         $transaction = $repo->findScoped($transactionId);
         if ($transaction === null) {
             throw new \RuntimeException('Failed to retrieve cancelled transaction.');
+        }
+
+        if ($affected === 0) {
+            return $transaction;
         }
 
         $this->events->doAction('payment.transaction.cancelled', $transaction);

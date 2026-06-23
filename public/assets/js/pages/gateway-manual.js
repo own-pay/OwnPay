@@ -5,7 +5,7 @@
 (function () {
     "use strict";
 
-    document.addEventListener("DOMContentLoaded", function () {
+    function run() {
         var container = document.getElementById("input-fields-container");
         var template  = document.getElementById("field-template");
 
@@ -27,7 +27,8 @@
         if (container) {
             container.addEventListener("click", function (e) {
                 if (e.target.classList.contains("remove-field-btn")) {
-                    e.target.closest(".op-field-row").remove();
+                    var row = e.target.closest(".op-field-row");
+                    if (row) { row.remove(); }
                 }
             });
         }
@@ -44,6 +45,12 @@
                     .replace(/^-|-$/g, "");
             });
         }
-    });
+    }
+
+    if (document.readyState !== "loading") {
+        run();
+    } else {
+        document.addEventListener("DOMContentLoaded", run);
+    }
 
 }());

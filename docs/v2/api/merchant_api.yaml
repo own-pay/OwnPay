@@ -527,22 +527,18 @@ paths:
                     message: "Payment processing failed"
                 request_id: "d4c3b2a1d4c3b2a1d4c3b2a1d4c3b2a1"
 
-  /api/v1/payments/{trx_id}:
+  /api/v1/payments/{payment_id}:
     get:
       operationId: getPaymentStatus
       tags: [Payments]
       summary: Get payment intent details
       description: |
         Retrieves the current status and details of a specific payment intent
-        by its unique token or transaction ID.
+        by its unique payment intent UUID.
 
         The response includes the payment amount, currency, fee, status, gateway used,
         payment method, reference, and timestamps. If a customer was linked to the
         payment intent, their name and email are included in the `customer` object.
-
-        **Lookup Methods:**
-        - Payment intent token (format: `pi_xxxx...`)
-        - Transaction number (format: `OP-XXXXXXXX`)
 
         Use this endpoint to:
         - Poll for payment completion status after redirecting a customer
@@ -551,23 +547,14 @@ paths:
       security:
         - BearerApiKey: []
       parameters:
-        - name: trx_id
+        - name: payment_id
           in: path
           required: true
-          description: |
-            The unique payment identifier. Accepts either:
-            - A payment intent token (e.g., `pi_a1b2c3d4...`)
-            - A transaction number (e.g., `OP-10482938`)
+          description: The unique payment intent UUID.
           schema:
             type: string
-            minLength: 1
-          examples:
-            intent_token:
-              summary: Payment intent token
-              value: "pi_a1b2c3d4e5f6g7h8i9j0k1l2"
-            transaction_no:
-              summary: Transaction number
-              value: "OP-10482938"
+            format: uuid
+          example: "01eb81ef-2479-4bfb-96d6-146ac41813d8"
       responses:
         '200':
           description: Payment details retrieved successfully.
@@ -580,6 +567,7 @@ paths:
                 data:
                   id: 45
                   trx_id: "OP-10482938"
+                  gateway_trx_id: "BKASH123456"
                   amount: "500.00"
                   currency: "BDT"
                   fee: "7.50"
@@ -595,7 +583,7 @@ paths:
         '401':
           $ref: '#/components/responses/Unauthenticated'
         '404':
-          description: Payment intent or transaction not found for this brand.
+          description: Payment intent not found for this brand.
           content:
             application/json:
               schema:
@@ -608,18 +596,18 @@ paths:
                     message: "Payment not found"
                 request_id: "e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2"
         '422':
-          description: Transaction ID parameter is missing or empty.
+          description: Payment ID parameter is invalid.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ErrorResponse'
               example:
                 success: false
-                error: "Transaction ID required"
+                error: "Invalid Payment ID format"
                 errors:
-                  - code: "TRANSACTION_ID_REQUIRED"
-                    message: "Transaction ID required"
-                    field: "trx_id"
+                  - code: "INVALID_PAYMENT_ID"
+                    message: "Invalid Payment ID format"
+                    field: "payment_id"
                 request_id: "c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6"
         '429':
           $ref: '#/components/responses/RateLimited'
@@ -762,11 +750,20 @@ paths:
         - name: trx_id
           in: path
           required: true
-          description: The unique transaction number (format `OP-XXXXXXXX`) or payment intent token.
+          description: |
+            The unique transaction identifier. Accepts either:
+            - A transaction number (e.g., `OP-10482938`)
+            - A gateway transaction ID (e.g., `BKASH123456`)
           schema:
             type: string
             minLength: 1
-          example: "OP-10482938"
+          examples:
+            transaction_no:
+              summary: Transaction number
+              value: "OP-10482938"
+            gateway_trx_id:
+              summary: Gateway transaction ID
+              value: "BKASH123456"
       responses:
         '200':
           description: Transaction details retrieved successfully.
@@ -779,6 +776,7 @@ paths:
                 data:
                   id: 102
                   trx_id: "OP-10482938"
+                  gateway_trx_id: "BKASH123456"
                   amount: "500.00"
                   currency: "BDT"
                   fee: "7.50"
@@ -983,6 +981,93 @@ paths:
                     message: "Refund processing failed"
                 request_id: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4"
 
+    get:
+      operationId: listRefunds
+      tags: [Refunds]
+      summary: List refunds
+      description: |
+        Queries a paginated history of transaction refunds registered under the active merchant context.
+        Supports filtering by status, date range, original transaction ID, and transaction reference.
+      security:
+        - BearerApiKey: []
+      parameters:
+        - name: page
+          in: query
+          description: The page number to retrieve.
+          required: false
+          schema:
+            type: integer
+            default: 1
+        - name: per_page
+          in: query
+          description: The number of records per page (max 100).
+          required: false
+          schema:
+            type: integer
+            default: 25
+        - name: status
+          in: query
+          description: Filter by refund status.
+          required: false
+          schema:
+            type: string
+            enum: [pending, completed, failed]
+        - name: trx_id
+          in: query
+          description: Filter by the original transaction reference code (e.g. OP-123456789).
+          required: false
+          schema:
+            type: string
+        - name: transaction_id
+          in: query
+          description: Filter by the internal transaction database ID.
+          required: false
+          schema:
+            type: integer
+        - name: from
+          in: query
+          description: Filter refunds created on or after this date (YYYY-MM-DD).
+          required: false
+          schema:
+            type: string
+            format: date
+        - name: to
+          in: query
+          description: Filter refunds created on or before this date (YYYY-MM-DD).
+          required: false
+          schema:
+            type: string
+            format: date
+      responses:
+        '200':
+          description: Paginated refund list retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefundListResponse'
+              example:
+                success: true
+                data:
+                  - id: 12
+                    uuid: "rfd_a1b2c3d4e5f6g7h8"
+                    transaction_id: 102
+                    trx_id: "OP-TRX-TEST-1"
+                    merchant_id: 1
+                    amount: "250.00"
+                    reason: "Customer return request"
+                    status: "completed"
+                    processed_at: "2026-05-21T03:00:05.123456+06:00"
+                    created_at: "2026-05-21T03:00:00.000000+06:00"
+                meta:
+                  page: 1
+                  per_page: 25
+                  total: 1
+                  total_pages: 1
+        '401':
+          $ref: '#/components/responses/Unauthenticated'
+        '429':
+          $ref: '#/components/responses/RateLimited'
+
   /api/v1/refunds/{trx_id}:
     get:
       operationId: getRefund
@@ -1003,11 +1088,20 @@ paths:
         - name: trx_id
           in: path
           required: true
-          description: The transaction number of the original payment (format `OP-XXXXXXXX`).
+          description: |
+            The unique transaction identifier of the original payment. Accepts either:
+            - A transaction number (e.g., `OP-10482938`)
+            - A gateway transaction ID (e.g., `BKASH123456`)
           schema:
             type: string
             minLength: 1
-          example: "OP-10482938"
+          examples:
+            transaction_no:
+              summary: Transaction number
+              value: "OP-10482938"
+            gateway_trx_id:
+              summary: Gateway transaction ID
+              value: "BKASH123456"
       responses:
         '200':
           description: Refund details retrieved successfully.
@@ -1320,19 +1414,16 @@ paths:
       summary: List API keys
       description: |
         Returns a list of all API keys associated with the authenticated brand.
-
-        **Security Controls:**
-        - Full API key secrets are **never** returned in listings
-        - Only the key prefix (first 8 characters) is exposed for identification
-        - Key hashes are never exposed via the API
-        - `last_used` timestamps indicate when each key was last authenticated
-
-        This endpoint is useful for:
-        - Auditing active API credentials
-        - Identifying unused or stale keys for revocation
-        - Monitoring key usage patterns
+        Requires a Bearer API key with both `write` and `admin` scopes.
       security:
         - BearerApiKey: []
+      parameters:
+        - name: X-Super-Admin-Email
+          in: header
+          required: true
+          schema:
+            type: string
+          description: The email of an active super admin user.
       responses:
         '200':
           description: List of API keys with safe metadata.
@@ -1369,6 +1460,7 @@ paths:
       description: |
         Generates a new API key for the authenticated brand and returns the
         **full plaintext key** in the response.
+        Requires a Bearer API key with both `write` and `admin` scopes.
 
         > **⚠️ Critical**: The full API key is returned **only once** in this response.
         > Store it securely immediately. OwnPay hashes the key with SHA-256 before
@@ -1386,6 +1478,13 @@ paths:
         "Production Server", "Staging", "CI/CD Pipeline").
       security:
         - BearerApiKey: []
+      parameters:
+        - name: X-Super-Admin-Email
+          in: header
+          required: true
+          schema:
+            type: string
+          description: The email of an active super admin user.
       requestBody:
         required: true
         content:
@@ -1394,6 +1493,7 @@ paths:
               $ref: '#/components/schemas/GenerateApiKeyRequest'
             example:
               name: "Production Server Key"
+              scopes: ["read", "write"]
       responses:
         '201':
           description: |
@@ -1421,6 +1521,7 @@ paths:
       summary: Revoke an API key
       description: |
         Permanently deactivates and revokes an API key by its database ID.
+        Requires a Bearer API key with both `write` and `admin` scopes.
 
         **Revocation is immediate and permanent:**
         - The key can no longer authenticate API requests
@@ -1440,6 +1541,12 @@ paths:
             type: integer
             minimum: 1
           example: 3
+        - name: X-Super-Admin-Email
+          in: header
+          required: true
+          schema:
+            type: string
+          description: The email of an active super admin user.
       responses:
         '200':
           description: API key permanently revoked.
@@ -2040,6 +2147,11 @@ components:
           nullable: true
           description: Merchant-defined reference.
           example: "INV-2026-001"
+        gateway_trx_id:
+          type: string
+          nullable: true
+          description: Gateway/provider-specific transaction identifier (if settled).
+          example: "BKASH123456"
         created_at:
           type: string
           format: date-time
@@ -2158,6 +2270,11 @@ components:
           type: integer
           description: Database ID of the original transaction.
           example: 102
+        trx_id:
+          type: string
+          nullable: true
+          description: Unique reference code of the original transaction.
+          example: "OP-TRX-TEST-1"
         merchant_id:
           type: integer
           description: Brand/merchant ID the refund belongs to.
@@ -2198,6 +2315,22 @@ components:
           const: true
         data:
           $ref: '#/components/schemas/Refund'
+
+    RefundListResponse:
+      type: object
+      description: Paginated list of refunds.
+      required: [success, data, meta]
+      properties:
+        success:
+          type: boolean
+          const: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Refund'
+          description: Array of refund records for the current page.
+        meta:
+          $ref: '#/components/schemas/PaginationMeta'
 
     RefundDetailResponse:
       type: object
@@ -2474,6 +2607,15 @@ components:
           maxLength: 100
           description: Alternative field name for `name`. If both are provided, `name` takes precedence.
           example: "Production Server Key"
+        scopes:
+          type: array
+          items:
+            type: string
+            enum: [read, write, admin]
+          default: [read, write]
+          description: |
+            List of privileges/scopes granted to the new API key.
+          example: ["read", "write"]
 
     ApiKeyGeneratedResponse:
       type: object

@@ -2,7 +2,10 @@
 {% block title %}{{ link is not empty and link.id is defined and link.id ? 'Edit' : 'Create' }} Payment Link — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
-    <h1>{{ link is not empty and link.id is defined and link.id ? 'Edit' : 'Create' }} Payment Link</h1>
+    <div>
+        <h1>{{ link is not empty and link.id is defined and link.id ? 'Edit' : 'Create' }} Payment Link</h1>
+        <p class="op-page-subtitle">Configure reusable payment link options, preset amounts, and brand branding overrides.</p>
+    </div>
     <a href="/admin/payment-links" class="op-btn op-btn-outline">← Back</a>
 </div>
 <form method="POST" action="/admin/payment-links/{{ link is not empty and link.id is defined and link.id ? link.id ~ '/update' : 'store' }}" class="op-form">

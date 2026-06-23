@@ -68,6 +68,19 @@ final class WebhookService
      */
     public function dispatch(int $merchantId, string $eventType, array $payload): void
     {
+        if (!isset($payload['gateway_trx_id'])) {
+            $trxId = $payload['transaction_id'] ?? $payload['trx_id'] ?? $payload['id'] ?? null;
+            if ($trxId && is_string($trxId)) {
+                $txn = $this->webhookEvents->getDatabase()->fetchOne(
+                    "SELECT gateway_trx_id FROM op_transactions WHERE trx_id = :trxId LIMIT 1",
+                    ['trxId' => $trxId]
+                );
+                if ($txn && !empty($txn['gateway_trx_id'])) {
+                    $payload['gateway_trx_id'] = $txn['gateway_trx_id'];
+                }
+            }
+        }
+
         $hooks = $this->webhooks->forTenant($merchantId)->listActiveForEvent($eventType);
 
         foreach ($hooks as $hook) {

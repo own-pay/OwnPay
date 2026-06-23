@@ -38,6 +38,28 @@ final class InvoiceService
     }
 
     /**
+     * Normalizes a user-supplied monetary input to a non-negative 2-decimal string.
+     *
+     * Avoids the (float) round-trip that corrupts large DECIMAL(15,2) values and
+     * silently accepts scientific notation. Non-numeric input becomes '0.00';
+     * negatives are clamped to '0.00'; sub-cent precision is truncated (never
+     * rounded up, so a line item can't be inflated by a fraction of a cent).
+     *
+     * @param mixed $raw The raw amount value from request input.
+     * @return numeric-string The normalized amount.
+     */
+    private function normalizeMoney(mixed $raw): string
+    {
+        $s = is_scalar($raw) && !is_bool($raw) ? trim((string) $raw) : '';
+        // Regex rejects negatives and scientific notation; is_numeric narrows
+        // the type to numeric-string for the bcmath call.
+        if (!preg_match('/^\d{1,13}(\.\d+)?$/', $s) || !is_numeric($s)) {
+            return '0.00';
+        }
+        return bcadd($s, '0', 2);
+    }
+
+    /**
      * Lists invoices belonging to a specific merchant brand.
      *
      * @param int $merchantId The brand/merchant ID.
@@ -45,16 +67,22 @@ final class InvoiceService
      * @param int $perPage The number of items to fetch per page.
      * @return array<int, array<string, mixed>> The array of matching invoice records.
      */
-    public function listForMerchant(int $merchantId, int $page = 1, int $perPage = 25): array
+    public function listForMerchant(?int $merchantId, int $page = 1, int $perPage = 25): array
     {
         $offset = ($page - 1) * $perPage;
+        // merchantId === null => global "All Brands" view: aggregate across all brands.
+        $where = $merchantId === null ? '' : 'WHERE i.merchant_id = :mid';
+        $params = ['lim' => $perPage, 'off' => $offset];
+        if ($merchantId !== null) {
+            $params['mid'] = $merchantId;
+        }
         return $this->db->fetchAll(
             "SELECT i.*, c.name_enc as customer_name_enc
              FROM op_invoices i
              LEFT JOIN op_customers c ON c.id = i.customer_id
-             WHERE i.merchant_id = :mid
+             {$where}
              ORDER BY i.created_at DESC LIMIT :lim OFFSET :off",
-            ['mid' => $merchantId, 'lim' => $perPage, 'off' => $offset]
+            $params
         );
     }
 
@@ -66,12 +94,17 @@ final class InvoiceService
      * @param int $perPage The size of each page.
      * @return array{page: int, per_page: int, total: int, pages: int, offset: int} Pagination metadata.
      */
-    public function pagination(int $merchantId, int $page = 1, int $perPage = 25): array
+    public function pagination(?int $merchantId, int $page = 1, int $perPage = 25): array
     {
-        $totalVal = $this->db->fetchColumn(
-            "SELECT COUNT(*) FROM op_invoices WHERE merchant_id = :mid",
-            ['mid' => $merchantId]
-        );
+        // merchantId === null => global "All Brands" view: count across all brands.
+        if ($merchantId === null) {
+            $totalVal = $this->db->fetchColumn("SELECT COUNT(*) FROM op_invoices");
+        } else {
+            $totalVal = $this->db->fetchColumn(
+                "SELECT COUNT(*) FROM op_invoices WHERE merchant_id = :mid",
+                ['mid' => $merchantId]
+            );
+        }
         $total = is_scalar($totalVal) ? (int) $totalVal : 0;
         return [
             'page'     => $page,
@@ -139,7 +172,7 @@ final class InvoiceService
         $subtotal = '0.00';
         foreach ($items as &$item) {
             $qty   = (string) max(1, (int) ($item['quantity'] ?? 1));
-            $price = number_format(max(0.00, (float) ($item['unit_price'] ?? $item['amount'] ?? 0)), 2, '.', '');
+            $price = $this->normalizeMoney($item['unit_price'] ?? $item['amount'] ?? 0);
             $item['quantity']   = (int) $qty;
             $item['unit_price'] = $price;
             $itemTotal = bcmul($qty, $price, 2);
@@ -148,8 +181,8 @@ final class InvoiceService
         }
         unset($item);
 
-        $tax      = number_format(max(0.00, (float) ($data['tax'] ?? 0)), 2, '.', '');
-        $discount = number_format(max(0.00, (float) ($data['discount'] ?? 0)), 2, '.', '');
+        $tax      = $this->normalizeMoney($data['tax'] ?? 0);
+        $discount = $this->normalizeMoney($data['discount'] ?? 0);
         $total    = bcadd($subtotal, $tax, 2);
         $total    = bcsub($total, $discount, 2);
         if (bccomp($total, '0.00', 2) < 0) {
@@ -213,12 +246,18 @@ final class InvoiceService
             return [];
         }
 
-        // Calculate totals from line items
+        // Calculate totals from line items. An update must carry its line items
+        // (the edit form resubmits them); refusing an empty set prevents a
+        // missing/empty `items` payload from silently deleting every line item
+        // and zeroing the invoice total.
         $items = $data['items'] ?? [];
+        if ($items === []) {
+            throw new \InvalidArgumentException('Invoice update must include at least one line item.');
+        }
         $subtotal = '0.00';
         foreach ($items as &$item) {
             $qty   = (string) max(1, (int) ($item['quantity'] ?? 1));
-            $price = number_format(max(0.00, (float) ($item['unit_price'] ?? $item['amount'] ?? 0)), 2, '.', '');
+            $price = $this->normalizeMoney($item['unit_price'] ?? $item['amount'] ?? 0);
             $item['quantity']   = (int) $qty;
             $item['unit_price'] = $price;
             $itemTotal = bcmul($qty, $price, 2);
@@ -227,8 +266,8 @@ final class InvoiceService
         }
         unset($item);
 
-        $tax      = number_format(max(0.00, (float) ($data['tax'] ?? 0)), 2, '.', '');
-        $discount = number_format(max(0.00, (float) ($data['discount'] ?? 0)), 2, '.', '');
+        $tax      = $this->normalizeMoney($data['tax'] ?? 0);
+        $discount = $this->normalizeMoney($data['discount'] ?? 0);
         $total    = bcadd($subtotal, $tax, 2);
         $total    = bcsub($total, $discount, 2);
         if (bccomp($total, '0.00', 2) < 0) {
@@ -246,44 +285,50 @@ final class InvoiceService
         $dueDate    = !empty($data['due_date']) ? $data['due_date'] : null;
         $notes      = !empty($data['notes']) ? $data['notes'] : null;
 
-        // Update the invoice
-        $this->db->update(
-            "UPDATE op_invoices SET customer_id = :cust, subtotal = :sub, tax = :tax, discount = :dis, total = :total, currency = :cur, notes = :notes, due_date = :due, status = :status, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
-            [
-                'cust'     => $customerId,
-                'sub'      => $subtotal,
-                'tax'      => $tax,
-                'dis'      => $discount,
-                'total'    => $total,
-                'cur'      => $data['currency'] ?? 'BDT',
-                'notes'    => $notes,
-                'due'      => $dueDate,
-                'status'   => $status,
-                'id'       => $id,
-                'mid'      => $merchantId
-            ]
-        );
+        $currency = is_string($data['currency'] ?? null) ? $data['currency'] : 'BDT';
 
-        // Delete old items
-        $this->db->execute(
-            "DELETE FROM op_invoice_items WHERE invoice_id = :id",
-            ['id' => $id]
-        );
-
-        // Insert new/updated items
-        foreach ($items as $i => $item) {
-            $this->db->insert(
-                "INSERT INTO op_invoice_items (invoice_id, description, quantity, unit_price, total, sort_order) VALUES (:inv, :desc, :qty, :price, :total, :sort)",
+        // Wrap the header update + line-item rebuild in one transaction so a
+        // failure mid-rebuild can never leave the invoice with its items deleted
+        // but not re-inserted (a corrupted, item-less invoice).
+        $this->db->transaction(function () use (
+            $id, $merchantId, $customerId, $subtotal, $tax, $discount, $total, $currency, $notes, $dueDate, $status, $items
+        ): void {
+            $this->db->update(
+                "UPDATE op_invoices SET customer_id = :cust, subtotal = :sub, tax = :tax, discount = :dis, total = :total, currency = :cur, notes = :notes, due_date = :due, status = :status, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
                 [
-                    'inv'   => $id,
-                    'desc'  => $item['description'] ?? '',
-                    'qty'   => $item['quantity'],
-                    'price' => $item['unit_price'],
-                    'total' => $item['total'],
-                    'sort'  => $i
+                    'cust'     => $customerId,
+                    'sub'      => $subtotal,
+                    'tax'      => $tax,
+                    'dis'      => $discount,
+                    'total'    => $total,
+                    'cur'      => $currency,
+                    'notes'    => $notes,
+                    'due'      => $dueDate,
+                    'status'   => $status,
+                    'id'       => $id,
+                    'mid'      => $merchantId
                 ]
             );
-        }
+
+            $this->db->execute(
+                "DELETE FROM op_invoice_items WHERE invoice_id = :id",
+                ['id' => $id]
+            );
+
+            foreach ($items as $i => $item) {
+                $this->db->insert(
+                    "INSERT INTO op_invoice_items (invoice_id, description, quantity, unit_price, total, sort_order) VALUES (:inv, :desc, :qty, :price, :total, :sort)",
+                    [
+                        'inv'   => $id,
+                        'desc'  => $item['description'] ?? '',
+                        'qty'   => $item['quantity'],
+                        'price' => $item['unit_price'],
+                        'total' => $item['total'],
+                        'sort'  => $i
+                    ]
+                );
+            }
+        });
 
         return $this->find($merchantId, $id) ?? [];
     }

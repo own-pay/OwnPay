@@ -25,6 +25,14 @@ final class PluginLoader
     private array $scanDirs;
 
     /**
+     * PSR-4 map of namespace prefix (trailing "\") => plugin base directory, used to autoload the
+     * additional classes a multi-file plugin ships from inside its own directory.
+     *
+     * @var array<string, string>
+     */
+    private array $pluginNamespaces = [];
+
+    /**
      * Initialize the PluginLoader service.
      *
      * @param \OwnPay\Container $container The application's DI container.
@@ -48,6 +56,10 @@ final class PluginLoader
             $modulesPath . '/themes',
             $modulesPath . '/addons',
         ];
+
+        // Enable multi-file plugins: classes a plugin ships (beyond its entrypoint) autoload from
+        // the plugin directory via PSR-4. Every plugin file is still vetted by the load-time scanner.
+        spl_autoload_register([$this, 'autoloadPluginClass']);
     }
 
     /**
@@ -207,101 +219,59 @@ final class PluginLoader
             throw new \RuntimeException("Entrypoint not found: {$entrypointFile}");
         }
 
-        // AUD-A4, AUD-G8: Scan all plugin PHP files recursively for security-restricted functions.
-        // Checks tokens using PluginSandbox::isDangerousFunction() as the canonical rule list.
+        // Full-trust footgun guard (NOT an isolation boundary).
+        //
+        // Only the platform owner can upload plugins (PluginController::upload is gated by
+        // requireGlobalView), so installed plugins run with full application trust — the same model
+        // as WordPress. Accordingly this scan deliberately flags ONLY the two highest-risk,
+        // almost-never-legitimate primitives in plugin code: dynamic code evaluation and direct OS
+        // command execution. Everything else a real plugin needs — reflection, PDO, file I/O,
+        // callbacks (array_map, call_user_func, ...), dynamic calls, include/require, and multi-file
+        // classes via the PSR-4 autoloader registered below — is permitted. This guard is bypassable
+        // by construction (e.g. an indirected call); it is a safety net against accidents and obvious
+        // abuse, not a sandbox. The real trust boundary is owner-only upload.
         $phpFiles = $this->findPhpFiles($manifest->path);
         foreach ($phpFiles as $phpFile) {
             $content = (string) file_get_contents($phpFile);
-            // Extract function calls using token_get_all for accurate detection
             $tokens = @token_get_all($content);
             for ($i = 0, $count = count($tokens); $i < $count; $i++) {
-                // Block dangerous language constructs (eval, include, require)
-                if (is_array($tokens[$i]) && in_array($tokens[$i][0], [T_EVAL, T_INCLUDE, T_INCLUDE_ONCE, T_REQUIRE, T_REQUIRE_ONCE], true)) {
+                $token = $tokens[$i];
+                if (!is_array($token)) {
+                    continue;
+                }
+
+                // T_EVAL is a language construct (dynamic code evaluation), not a callable function.
+                if ($token[0] === T_EVAL) {
                     $relPath = str_replace($manifest->path . '/', '', $phpFile);
                     throw new \RuntimeException(
-                        "Plugin {$slug} blocked: {$relPath} contains restricted language construct: " . $tokens[$i][1]
+                        "Plugin {$slug} blocked: {$relPath} contains restricted language construct: " . $token[1]
                     );
                 }
 
-                // Block dangerous imports inside T_USE statements
-                if (is_array($tokens[$i]) && $tokens[$i][0] === T_USE) {
-                    $next = $i + 1;
-                    while ($next < $count && $tokens[$next] !== ';') {
-                        $nextToken = $tokens[$next];
-                        if (is_array($nextToken) && in_array($nextToken[0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE], true)) {
-                            $importRaw = $nextToken[1];
-                            $importBase = strtolower(ltrim(strrchr($importRaw, '\\') ?: $importRaw, '\\'));
-                            
-                            if (str_starts_with($importBase, 'reflection') || in_array($importBase, ['pdo', 'mysqli'], true)) {
-                                $relPath = str_replace($manifest->path . '/', '', $phpFile);
-                                throw new \RuntimeException(
-                                    "Plugin {$slug} blocked: {$relPath} imports restricted reference: {$importRaw}"
-                                );
-                            }
-
-                            if (PluginSandbox::isDangerousFunction($importBase)) {
-                                $relPath = str_replace($manifest->path . '/', '', $phpFile);
-                                throw new \RuntimeException(
-                                    "Plugin {$slug} blocked: {$relPath} imports dangerous function: {$importRaw}"
-                                );
-                            }
-                        }
-                        $next++;
-                    }
-                }
-
-                if (is_array($tokens[$i]) && in_array($tokens[$i][0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE], true)) {
-                    $rawName = $tokens[$i][1];
-                    $funcName = ltrim($rawName, '\\');
-                    $lowerFuncName = strtolower($funcName);
-
-                    // Block banned classes and reflection references directly (no parenthetical check required)
-                    if (str_starts_with($lowerFuncName, 'reflection') || in_array($lowerFuncName, ['pdo', 'mysqli'], true)) {
-                        $relPath = str_replace($manifest->path . '/', '', $phpFile);
-                        throw new \RuntimeException(
-                            "Plugin {$slug} blocked: {$relPath} contains restricted reference: {$rawName}"
-                        );
+                // Direct calls to OS-command / process-control primitives.
+                if (in_array($token[0], [T_STRING, T_NAME_QUALIFIED, T_NAME_FULLY_QUALIFIED, T_NAME_RELATIVE], true)) {
+                    $funcName = ltrim($token[1], '\\');
+                    if (!PluginSandbox::isDangerousFunction($funcName)) {
+                        continue;
                     }
 
-                    if (PluginSandbox::isDangerousFunction($funcName)) {
-                        // Skip if the function identifier is part of an object or class declaration context.
-                        $prev = $i - 1;
-                        while ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_WHITESPACE) {
-                            $prev--;
-                        }
-                        $isOOPOrDecl = false;
-                        if ($prev >= 0) {
-                            $prevToken = $tokens[$prev];
-                            if (is_array($prevToken)) {
-                                $prevType = $prevToken[0];
-                                if ($prevType === T_OBJECT_OPERATOR || 
-                                    $prevType === T_DOUBLE_COLON || 
-                                    $prevType === T_FUNCTION || 
-                                    (defined('T_NULLSAFE_OBJECT_OPERATOR') && $prevType === T_NULLSAFE_OBJECT_OPERATOR)) {
-                                    $isOOPOrDecl = true;
-                                }
-                            }
-                        }
-                        if ($isOOPOrDecl) {
+                    // Skip method calls ($x->system()), static calls (X::system()), and
+                    // function declarations (function system()) of a same-named symbol.
+                    $prev = $i - 1;
+                    while ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_WHITESPACE) {
+                        $prev--;
+                    }
+                    if ($prev >= 0 && is_array($tokens[$prev])) {
+                        $prevType = $tokens[$prev][0];
+                        if ($prevType === T_OBJECT_OPERATOR
+                            || $prevType === T_DOUBLE_COLON
+                            || $prevType === T_FUNCTION
+                            || (defined('T_NULLSAFE_OBJECT_OPERATOR') && $prevType === T_NULLSAFE_OBJECT_OPERATOR)) {
                             continue;
                         }
-
-                        // Confirm it is a function execution check by verifying it is followed by an opening parenthesis.
-                        $next = $i + 1;
-                        while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
-                            $next++;
-                        }
-                        if ($next < $count && $tokens[$next] === '(') {
-                            $relPath = str_replace($manifest->path . '/', '', $phpFile);
-                            throw new \RuntimeException(
-                                "Plugin {$slug} blocked: {$relPath} contains dangerous function call: {$funcName}()"
-                            );
-                        }
                     }
-                }
 
-                // Block variable function calls: $func(...)
-                if (is_array($tokens[$i]) && $tokens[$i][0] === T_VARIABLE) {
+                    // Only an actual call (followed by "(") is flagged; a bare reference is not.
                     $next = $i + 1;
                     while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
                         $next++;
@@ -309,52 +279,16 @@ final class PluginLoader
                     if ($next < $count && $tokens[$next] === '(') {
                         $relPath = str_replace($manifest->path . '/', '', $phpFile);
                         throw new \RuntimeException(
-                            "Plugin {$slug} blocked: {$relPath} contains dynamic/variable function call: " . $tokens[$i][1] . "()"
-                        );
-                    }
-                }
-
-                // Block wrapped variable calls: ($func)(...)
-                if ($tokens[$i] === ')') {
-                    $next = $i + 1;
-                    while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
-                        $next++;
-                    }
-                    if ($next < $count && $tokens[$next] === '(') {
-                        $prev = $i - 1;
-                        while ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_WHITESPACE) {
-                            $prev--;
-                        }
-                        if ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_VARIABLE) {
-                            $prev2 = $prev - 1;
-                            while ($prev2 >= 0 && is_array($tokens[$prev2]) && $tokens[$prev2][0] === T_WHITESPACE) {
-                                $prev2--;
-                            }
-                            if ($prev2 >= 0 && $tokens[$prev2] === '(') {
-                                $relPath = str_replace($manifest->path . '/', '', $phpFile);
-                                throw new \RuntimeException(
-                                    "Plugin {$slug} blocked: {$relPath} contains dynamic/variable function call."
-                                );
-                            }
-                        }
-                    }
-                }
-
-                // Block dynamic class instantiations: new $class(...)
-                if (is_array($tokens[$i]) && $tokens[$i][0] === T_NEW) {
-                    $next = $i + 1;
-                    while ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_WHITESPACE) {
-                        $next++;
-                    }
-                    if ($next < $count && is_array($tokens[$next]) && $tokens[$next][0] === T_VARIABLE) {
-                        $relPath = str_replace($manifest->path . '/', '', $phpFile);
-                        throw new \RuntimeException(
-                            "Plugin {$slug} blocked: {$relPath} contains dynamic class instantiation: new " . $tokens[$next][1]
+                            "Plugin {$slug} blocked: {$relPath} contains dangerous function call: {$funcName}()"
                         );
                     }
                 }
             }
         }
+
+        // Register this plugin's namespace so additional classes it ships (beyond the entrypoint)
+        // autoload from its own directory — enabling real multi-file plugins.
+        $this->registerPluginNamespace($manifest);
 
         require_once $entrypointFile;
 
@@ -377,6 +311,7 @@ final class PluginLoader
         $this->events->pushOwner($slug);
         try {
             $instance->register($this->events, $this->container);
+            $this->registerManifestAdminMenu($manifest);
         } finally {
             $this->events->popOwner();
         }
@@ -438,9 +373,105 @@ final class PluginLoader
     }
 
     /**
+     * Registers a plugin's declared namespace for PSR-4 autoloading from its own directory.
+     *
+     * Mirrors resolveClassName()'s namespace resolution: the manifest "namespace" field if present,
+     * otherwise the convention OwnPay\Plugins\{PascalSlug}. The namespace root maps to the plugin
+     * directory, so e.g. {NS}\Service\Foo resolves to <pluginDir>/Service/Foo.php.
+     *
+     * @param \OwnPay\Plugin\PluginManifest $manifest The plugin manifest.
+     * @return void
+     */
+    private function registerPluginNamespace(PluginManifest $manifest): void
+    {
+        $ns = $manifest->namespace;
+        if ($ns === '') {
+            $pascal = str_replace('-', '', ucwords($manifest->slug, '-'));
+            $ns = "OwnPay\\Plugins\\{$pascal}";
+        }
+        $prefix = trim($ns, '\\') . '\\';
+        $this->pluginNamespaces[$prefix] = rtrim($manifest->path, '/\\');
+    }
+
+    /**
+     * Bridges a plugin's declarative manifest "admin_menu" to the admin.menu.register hook.
+     *
+     * Each item ({label, url}) renders as an escaped, internal-only (path-relative) sidebar link.
+     * Registered under the active plugin owner, so it respects per-brand activation. Imperative menu
+     * injection via the admin.menu.register hook remains available for richer needs.
+     *
+     * Expected manifest shape:
+     *   "admin_menu": [ { "label": "My Plugin", "url": "/admin/plugins/my-plugin/settings" } ]
+     *
+     * @param \OwnPay\Plugin\PluginManifest $manifest The plugin manifest.
+     * @return void
+     */
+    private function registerManifestAdminMenu(PluginManifest $manifest): void
+    {
+        if (empty($manifest->adminMenu)) {
+            return;
+        }
+
+        $links = '';
+        foreach ($manifest->adminMenu as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $label = is_string($item['label'] ?? null) ? trim($item['label']) : '';
+            $url = is_string($item['url'] ?? null) ? trim($item['url']) : '';
+            // Internal admin links only — never emit off-site or javascript: targets.
+            if ($label === '' || !str_starts_with($url, '/')) {
+                continue;
+            }
+            $links .= '<a href="' . htmlspecialchars($url, ENT_QUOTES) . '" class="op-nav-link"><span>'
+                . htmlspecialchars($label, ENT_QUOTES) . '</span></a>';
+        }
+
+        if ($links === '') {
+            return;
+        }
+
+        $this->events->addAction('admin.menu.register', static function () use ($links): void {
+            echo $links;
+        });
+    }
+
+    /**
+     * PSR-4 autoloader for classes shipped by installed plugins.
+     *
+     * Strictly constrained to the registered plugin directory (realpath containment) so a crafted
+     * class name can never load a file outside the plugin tree.
+     *
+     * @param string $class Fully qualified class name being resolved.
+     * @return void
+     */
+    public function autoloadPluginClass(string $class): void
+    {
+        foreach ($this->pluginNamespaces as $prefix => $baseDir) {
+            if (!str_starts_with($class, $prefix)) {
+                continue;
+            }
+            $relative = substr($class, strlen($prefix));
+            $file = $baseDir . '/' . str_replace('\\', '/', $relative) . '.php';
+
+            $realBase = realpath($baseDir);
+            $realFile = realpath($file);
+            if ($realBase === false || $realFile === false) {
+                continue;
+            }
+            // Containment: only ever load files inside the plugin directory.
+            if ($realFile !== $realBase && !str_starts_with($realFile, $realBase . DIRECTORY_SEPARATOR)) {
+                continue;
+            }
+            require $file;
+            return;
+        }
+    }
+
+    /**
      * Recursively find all PHP source files in a directory.
      *
-     * AUD-A4: Essential for executing the static security scanner over the entire plugin codebase.
+     * Essential for executing the load-time plugin scanner over the entire plugin codebase.
      *
      * @param string $directory Absolute folder path to scan.
      * @return string[] Array of absolute file paths to PHP files.

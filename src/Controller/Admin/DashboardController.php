@@ -12,7 +12,6 @@ use OwnPay\Service\Auth\AuthSessionService;
 use OwnPay\Service\Brand\BrandContext;
 use OwnPay\Repository\TransactionRepository;
 use OwnPay\Repository\CustomerRepository;
-use OwnPay\Repository\AuditLogRepository;
 use OwnPay\Repository\MerchantUserRepository;
 use OwnPay\Support\DateHelper;
 
@@ -31,11 +30,6 @@ final class DashboardController
     /**
      * @var array<int, string> Allowed fragment names for dynamic template loading.
      */
-    private const ALLOWED_FRAGMENTS = [
-        'recent-transactions', 'stats', 'gateway-status',
-        'alerts', 'quick-actions',
-    ];
-
     /**
      * @var Container The dependency injection container.
      */
@@ -72,11 +66,6 @@ final class DashboardController
     private CustomerRepository $customerRepo;
 
     /**
-     * @var AuditLogRepository The audit log repository.
-     */
-    private AuditLogRepository $auditRepo;
-
-    /**
      * @var MerchantUserRepository The repository for merchant users.
      */
     private MerchantUserRepository $userRepo;
@@ -91,7 +80,6 @@ final class DashboardController
      * @param AuthSessionService     $auth         The authentication session service.
      * @param TransactionRepository  $txnRepo      The transaction repository.
      * @param CustomerRepository     $customerRepo The customer repository.
-     * @param AuditLogRepository     $auditRepo    The audit log repository.
      * @param MerchantUserRepository $userRepo     The repository for merchant users.
      */
     public function __construct(
@@ -102,7 +90,6 @@ final class DashboardController
         AuthSessionService $auth,
         TransactionRepository $txnRepo,
         CustomerRepository $customerRepo,
-        AuditLogRepository $auditRepo,
         MerchantUserRepository $userRepo
     ) {
         $this->c            = $c;
@@ -112,7 +99,6 @@ final class DashboardController
         $this->auth         = $auth;
         $this->txnRepo      = $txnRepo;
         $this->customerRepo = $customerRepo;
-        $this->auditRepo    = $auditRepo;
         $this->userRepo     = $userRepo;
     }
 
@@ -145,7 +131,7 @@ final class DashboardController
 
         $recent = $this->txnRepo->getRecentDashboardTransactions($isGlobal, $brandId);
 
-        // Decrypt customer names for rendering
+        // Decrypt customer details for rendering
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
         if (!$enc instanceof \OwnPay\Security\FieldEncryptor) {
             throw new \RuntimeException('FieldEncryptor service unavailable');
@@ -159,6 +145,15 @@ final class DashboardController
                 }
             } else {
                 $txn['customer_name'] = '—';
+            }
+            if (!empty($txn['customer_email']) && is_string($txn['customer_email'])) {
+                try {
+                    $txn['customer_email'] = $enc->decrypt($txn['customer_email']);
+                } catch (\Throwable $e) {
+                    $txn['customer_email'] = '[encrypted]';
+                }
+            } else {
+                $txn['customer_email'] = '—';
             }
             return $txn;
         }, $recent);
@@ -199,7 +194,255 @@ final class DashboardController
             ];
         }
 
+        $statsArray = is_array($stats) ? $stats : [];
+
+        // 2. Fetch and calculate trend and KPI metrics
+        $db = $this->txnRepo->getDatabase();
+        $merchantWhere = $isGlobal ? '' : 'AND merchant_id = :mid';
+        $queryParams = $isGlobal ? [] : ['mid' => $brandId];
+
+        // Today's Payments & Today's Volume
+        $todayStats = $db->fetchOne(
+            "SELECT COUNT(*) as cnt, COALESCE(SUM(amount), 0) as vol 
+             FROM op_transactions 
+             WHERE status = 'completed' AND DATE(created_at) = CURDATE() {$merchantWhere}",
+            $queryParams
+        ) ?: ['cnt' => 0, 'vol' => 0];
+
+        $yesterdayStats = $db->fetchOne(
+            "SELECT COUNT(*) as cnt, COALESCE(SUM(amount), 0) as vol 
+             FROM op_transactions 
+             WHERE status = 'completed' AND DATE(created_at) = DATE_SUB(CURDATE(), INTERVAL 1 DAY) {$merchantWhere}",
+            $queryParams
+        ) ?: ['cnt' => 0, 'vol' => 0];
+
+        $todayCount = is_scalar($todayStats['cnt'] ?? null) ? (int)$todayStats['cnt'] : 0;
+        $todayVol = is_scalar($todayStats['vol'] ?? null) ? (float)$todayStats['vol'] : 0.0;
+        $yesterdayVol = is_scalar($yesterdayStats['vol'] ?? null) ? (float)$yesterdayStats['vol'] : 0.0;
+
+        $todayTrendVal = 0.0;
+        if ($yesterdayVol > 0) {
+            $todayTrendVal = (($todayVol - $yesterdayVol) / $yesterdayVol) * 100;
+        } elseif ($todayVol > 0) {
+            $todayTrendVal = 100.0;
+        }
+        $todayTrendPercent = ($todayTrendVal >= 0 ? '+' : '') . number_format($todayTrendVal, 1) . '%';
+
+        // Past 30 days vs Prev 30 days trends
+        $p30Stats = $db->fetchOne(
+            "SELECT COUNT(*) as cnt, COALESCE(SUM(amount), 0) as vol
+             FROM op_transactions
+             WHERE status = 'completed' AND created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) {$merchantWhere}",
+            $queryParams
+        );
+        $prev30Stats = $db->fetchOne(
+            "SELECT COUNT(*) as cnt, COALESCE(SUM(amount), 0) as vol
+             FROM op_transactions
+             WHERE status = 'completed' AND created_at BETWEEN DATE_SUB(NOW(), INTERVAL 60 DAY) AND DATE_SUB(NOW(), INTERVAL 30 DAY) {$merchantWhere}",
+            $queryParams
+        );
+
+        $p30Count = is_scalar($p30Stats['cnt'] ?? null) ? (int)$p30Stats['cnt'] : 0;
+        $p30Vol = is_scalar($p30Stats['vol'] ?? null) ? (float)$p30Stats['vol'] : 0.0;
+        $prev30Count = is_scalar($prev30Stats['cnt'] ?? null) ? (int)$prev30Stats['cnt'] : 0;
+        $prev30Vol = is_scalar($prev30Stats['vol'] ?? null) ? (float)$prev30Stats['vol'] : 0.0;
+
+        $paymentsTrendVal = 0.0;
+        if ($prev30Count > 0) {
+            $paymentsTrendVal = (($p30Count - $prev30Count) / $prev30Count) * 100;
+        } elseif ($p30Count > 0) {
+            $paymentsTrendVal = 100.0;
+        }
+        $paymentsTrendPercent = ($paymentsTrendVal >= 0 ? '+' : '') . number_format($paymentsTrendVal, 1) . '%';
+
+        $revenueTrendVal = 0.0;
+        if ($prev30Vol > 0) {
+            $revenueTrendVal = (($p30Vol - $prev30Vol) / $prev30Vol) * 100;
+        } elseif ($p30Vol > 0) {
+            $revenueTrendVal = 100.0;
+        }
+        $revenueTrendPercent = ($revenueTrendVal >= 0 ? '+' : '') . number_format($revenueTrendVal, 1) . '%';
+
+        $c30Val = $db->fetchColumn(
+            "SELECT COUNT(*) FROM op_customers WHERE created_at >= DATE_SUB(NOW(), INTERVAL 30 DAY) " . ($isGlobal ? '' : 'AND merchant_id = :mid'),
+            $isGlobal ? [] : ['mid' => $brandId]
+        );
+        $c30Count = is_scalar($c30Val) ? (int)$c30Val : 0;
+
+        $prevC30Val = $db->fetchColumn(
+            "SELECT COUNT(*) FROM op_customers WHERE created_at BETWEEN DATE_SUB(NOW(), INTERVAL 60 DAY) AND DATE_SUB(NOW(), INTERVAL 30 DAY) " . ($isGlobal ? '' : 'AND merchant_id = :mid'),
+            $isGlobal ? [] : ['mid' => $brandId]
+        );
+        $prevC30Count = is_scalar($prevC30Val) ? (int)$prevC30Val : 0;
+
+        $customerTrendVal = 0.0;
+        if ($prevC30Count > 0) {
+            $customerTrendVal = (($c30Count - $prevC30Count) / $prevC30Count) * 100;
+        } elseif ($c30Count > 0) {
+            $customerTrendVal = 100.0;
+        }
+        $customerTrendPercent = ($customerTrendVal >= 0 ? '+' : '') . number_format($customerTrendVal, 1) . '%';
+
+        // Monthly Revenue Target & Gauge
+        $monthlyRevenueTarget = (float) $settingsRepo->get('general', 'monthly_revenue_target', '10000.00');
+        if ($monthlyRevenueTarget <= 0) {
+            $monthlyRevenueTarget = 10000.00;
+        }
+
+        $monthlyRevenueVolVal = $db->fetchColumn(
+            "SELECT COALESCE(SUM(amount), 0) 
+             FROM op_transactions 
+             WHERE status = 'completed' AND created_at >= DATE_FORMAT(NOW(), '%Y-%m-01 00:00:00') {$merchantWhere}",
+            $queryParams
+        );
+        $monthlyRevenueVol = is_scalar($monthlyRevenueVolVal) ? (float)$monthlyRevenueVolVal : 0.0;
+
+        $gaugePercent = min(100, max(0, (int) (($monthlyRevenueVol / $monthlyRevenueTarget) * 100)));
+
+        // Recent Payment Intents (latest 5)
+        $paymentIntentsRepo = $this->c->get(\OwnPay\Repository\PaymentIntentRepository::class);
+        $intentsList = [];
+        if ($paymentIntentsRepo instanceof \OwnPay\Repository\PaymentIntentRepository) {
+            $intentsQuery = ($isGlobal ? $paymentIntentsRepo->forAllTenants() : $paymentIntentsRepo->forTenant((int)$brandId))
+                ->paginateScoped(1, 5, '1=1', [], 'created_at DESC');
+            $intentsList = $intentsQuery['items'] ?? [];
+        }
+
+        // 3. Construct Chart.js datasets
+        // Today chart: hourly blocks
+        $todayLabels = [];
+        $todayData = [];
+        for ($i = 23; $i >= 0; $i -= 4) {
+            $hour = (int) date('H', strtotime("-{$i} hours"));
+            $todayLabels[] = sprintf('%02d:00', $hour);
+            
+            $hParams = $queryParams;
+            $hParams['start'] = date('Y-m-d H:00:00', strtotime("-{$i} hours"));
+            $hParams['end'] = date('Y-m-d H:59:59', strtotime("-{$i} hours"));
+            
+            $val = $db->fetchColumn(
+                "SELECT COALESCE(SUM(amount), 0) FROM op_transactions 
+                 WHERE status = 'completed' AND created_at BETWEEN :start AND :end {$merchantWhere}",
+                $hParams
+            );
+            $todayData[] = is_scalar($val) ? (float)$val : 0.0;
+        }
+        $revenueChartToday = ['labels' => $todayLabels, 'data' => $todayData];
+
+        // 7d chart
+        $labels7d = [];
+        $data7d = [];
+        for ($i = 6; $i >= 0; $i--) {
+            $dayStr = date('Y-m-d', strtotime("-{$i} days"));
+            $labels7d[] = date('D', strtotime("-{$i} days"));
+            
+            $dParams = $queryParams;
+            $dParams['start'] = $dayStr . ' 00:00:00';
+            $dParams['end'] = $dayStr . ' 23:59:59';
+            
+            $val = $db->fetchColumn(
+                "SELECT COALESCE(SUM(amount), 0) FROM op_transactions 
+                 WHERE status = 'completed' AND created_at BETWEEN :start AND :end {$merchantWhere}",
+                $dParams
+            );
+            $data7d[] = is_scalar($val) ? (float)$val : 0.0;
+        }
+        $revenueChart7d = ['labels' => $labels7d, 'data' => $data7d];
+
+        // 30d chart
+        $labels30d = [];
+        $data30d = [];
+        for ($i = 29; $i >= 0; $i -= 3) {
+            $dayStr = date('Y-m-d', strtotime("-{$i} days"));
+            $labels30d[] = date('M d', strtotime("-{$i} days"));
+            
+            $dParams = $queryParams;
+            $dParams['start'] = date('Y-m-d 00:00:00', strtotime("-{$i} days"));
+            $dParams['end'] = date('Y-m-d 23:59:59', strtotime("-{$i} days"));
+            
+            $val = $db->fetchColumn(
+                "SELECT COALESCE(SUM(amount), 0) FROM op_transactions 
+                 WHERE status = 'completed' AND created_at BETWEEN :start AND :end {$merchantWhere}",
+                $dParams
+            );
+            $data30d[] = is_scalar($val) ? (float)$val : 0.0;
+        }
+        $revenueChart30d = ['labels' => $labels30d, 'data' => $data30d];
+
+        // All (annual) chart
+        $labelsAll = [];
+        $dataAll = [];
+        for ($i = 11; $i >= 0; $i--) {
+            $monthStart = date('Y-m-01 00:00:00', strtotime("-{$i} months"));
+            $monthEnd = date('Y-m-t 23:59:59', strtotime("-{$i} months"));
+            $labelsAll[] = date('M', strtotime("-{$i} months"));
+            
+            $mParams = $queryParams;
+            $mParams['start'] = $monthStart;
+            $mParams['end'] = $monthEnd;
+            
+            $val = $db->fetchColumn(
+                "SELECT COALESCE(SUM(amount), 0) FROM op_transactions 
+                 WHERE status = 'completed' AND created_at BETWEEN :start AND :end {$merchantWhere}",
+                $mParams
+            );
+            $dataAll[] = is_scalar($val) ? (float)$val : 0.0;
+        }
+        $revenueChartAll = ['labels' => $labelsAll, 'data' => $dataAll];
+
+        // Construct the dashboard object expected by the new UI
+        $dashboardData = [
+            'total_revenue'   => is_scalar($statsArray['total_revenue'] ?? null) ? (string)$statsArray['total_revenue'] : '0.00',
+            'revenue_trend'   => $revenueTrendPercent . ' vs last month',
+            'completed_count' => is_scalar($statsArray['completed_count'] ?? null) ? (int)$statsArray['completed_count'] : 0,
+            'pending_count'   => is_scalar($statsArray['pending_count'] ?? null) ? (int)$statsArray['pending_count'] : 0,
+            'customer_count'  => is_scalar($statsArray['customer_count'] ?? null) ? (int)$statsArray['customer_count'] : 0,
+            'customer_trend'  => $customerTrendPercent . ' vs last month',
+            'gateway_message' => 'All Systems Operational',
+            'chart_tabs'      => ['Daily', 'Weekly', 'Monthly'],
+            'active_tab'      => 'Weekly',
+            'payments_trend_percent' => $paymentsTrendPercent,
+            'revenue_trend_percent'   => $revenueTrendPercent,
+            'customer_trend_percent'  => $customerTrendPercent,
+            'today_count'             => $todayCount,
+            'today_trend_percent'     => $todayTrendPercent,
+            'monthly_revenue'         => number_format($monthlyRevenueVol, 2),
+            'gauge_target'            => number_format($monthlyRevenueTarget, 2),
+            'gauge_percent'           => $gaugePercent,
+            'revenue_chart_today'     => $revenueChartToday,
+            'revenue_chart_7d'        => $revenueChart7d,
+            'revenue_chart_30d'       => $revenueChart30d,
+            'revenue_chart'           => $revenueChartAll,
+            'recent_tx'       => array_map(function (array $tx) {
+                $name = $tx['customer_name'];
+                $email = $tx['customer_email'];
+                
+                $currencyVal = $tx['currency'] ?? 'USD';
+                $currency = is_string($currencyVal) ? $currencyVal : 'USD';
+                
+                $amountVal = $tx['amount'] ?? '0.00';
+                $amount = is_string($amountVal) || is_numeric($amountVal) ? (string)$amountVal : '0.00';
+                
+                $statusVal = $tx['status'] ?? 'pending';
+                $status = is_string($statusVal) ? $statusVal : 'pending';
+                
+                $timeVal = $tx['created_at'] ?? 'just now';
+                $time = is_string($timeVal) ? $timeVal : 'just now';
+
+                return [
+                    'initials' => ($name !== '' && $name !== '—') ? strtoupper(substr($name, 0, 2)) : 'UN',
+                    'name'     => $name,
+                    'email'    => $email,
+                    'amount'   => $currency . ' ' . $amount,
+                    'status'   => $status,
+                    'description' => !empty($tx['reference']) ? $tx['reference'] : 'Payment',
+                    'time'     => $time
+                ];
+            }, $recent)
+        ];
+
         return $this->renderAdminPage('admin/dashboard.twig', [
+            'dashboard'            => $dashboardData,
             'stats'                => $stats,
             'recent_transactions'  => $recent,
             'range'                => $range,
@@ -209,23 +452,8 @@ final class DashboardController
             'onboarding_completed' => $onboardingCompleted,
             'currencies'           => $currencies,
             'timezones'            => $timezones,
+            'payment_intents'      => $intentsList,
         ]);
-    }
-
-    /**
-     * Renders dynamic layout fragments/widgets via AJAX.
-     *
-     * @param Request $req The incoming HTTP request.
-     *
-     * @return Response The HTML template snippet response.
-     */
-    public function fragment(Request $req): Response
-    {
-        $page = $req->param('page');
-        if ($page === '' || !in_array($page, self::ALLOWED_FRAGMENTS, true)) {
-            return Response::html('', 404);
-        }
-        return $this->renderAdminPage("admin/fragments/{$page}.twig");
     }
 
     /**
@@ -238,8 +466,9 @@ final class DashboardController
     public function reports(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
+        $isGlobal = $this->brand->isGlobalView();
         $mid = $this->brand->getActiveBrandId();
-        if ($mid === null) {
+        if ($mid === null && !$isGlobal) {
             throw new \RuntimeException('Active brand ID is not set.');
         }
 
@@ -250,8 +479,8 @@ final class DashboardController
         $gatewayVal = $req->query('gateway', '');
         $gateway = is_string($gatewayVal) ? $gatewayVal : '';
 
-        $report   = $this->txnRepo->getReportData($mid, $from, $to, $gateway !== '' ? $gateway : null);
-        $gateways = $this->txnRepo->getDistinctGateways($mid);
+        $report   = $this->txnRepo->getReportData($isGlobal ? null : $mid, $from, $to, $gateway !== '' ? $gateway : null);
+        $gateways = $this->txnRepo->getDistinctGateways($isGlobal ? null : $mid);
 
         $report = $this->events->applyFilter('report.data', $report, ['from' => $from, 'to' => $to]);
 
@@ -261,38 +490,6 @@ final class DashboardController
             'report'       => $report,
             'filters'      => ['from' => $from, 'to' => $to, 'gateway' => $gateway],
             'query_string' => http_build_query(['from' => $from, 'to' => $to, 'gateway' => $gateway]),
-        ]);
-    }
-
-    /**
-     * Displays a log of administrative activities and audits.
-     *
-     * @param Request $req The incoming HTTP request.
-     *
-     * @return Response The activities history log page.
-     */
-    public function activities(Request $req): Response
-    {
-        $this->brand->resolveFromRequest($req);
-        $mid = $this->brand->getActiveBrandId();
-
-        $pageVal = $req->query('page', '1');
-        $page = max(1, is_int($pageVal) || is_string($pageVal) ? (int)$pageVal : 1);
-        $limit  = 50;
-        $offset = ($page - 1) * $limit;
-
-        $merchantScope = $this->session->isSuperadmin() ? null : $mid;
-        $total      = $this->auditRepo->countFiltered($merchantScope);
-        $activities = $this->auditRepo->listPaginated($merchantScope, $limit, $offset);
-
-        return $this->renderAdminPage('admin/activities.twig', [
-            'active_page' => 'activities',
-            'activities'  => $activities,
-            'pagination'  => [
-                'page'        => $page,
-                'total_pages' => (int) ceil($total / $limit),
-                'total'       => $total,
-            ],
         ]);
     }
 
@@ -405,11 +602,31 @@ final class DashboardController
      *
      * @return Response The downloadable CSV file attachment response.
      */
+    /**
+     * Neutralizes a CSV cell against spreadsheet formula injection.
+     *
+     * Values exposed to the `export.row` filter (or future free-text columns)
+     * could begin with =, +, -, @, or a control character that Excel/Sheets
+     * would evaluate as a formula when the export is opened. Prefixing a single
+     * quote forces the cell to be treated as literal text.
+     *
+     * @param string $value The raw cell value.
+     * @return string The formula-safe cell value.
+     */
+    private static function csvCell(string $value): string
+    {
+        if ($value !== '' && preg_match('/^[=+\-@\t\r]/', $value) === 1) {
+            return "'" . $value;
+        }
+        return $value;
+    }
+
     public function exportCsv(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
+        $isGlobal = $this->brand->isGlobalView();
         $mid = $this->brand->getActiveBrandId();
-        if ($mid === null) {
+        if ($mid === null && !$isGlobal) {
             throw new \RuntimeException('Active brand ID is not set.');
         }
 
@@ -420,7 +637,7 @@ final class DashboardController
         $gatewayVal = $req->query('gateway', '');
         $gateway = is_string($gatewayVal) ? $gatewayVal : '';
 
-        $rows = $this->txnRepo->getExportData($mid, $from, $to, $gateway !== '' ? $gateway : null);
+        $rows = $this->txnRepo->getExportData($isGlobal ? null : $mid, $from, $to, $gateway !== '' ? $gateway : null);
 
         $rows = array_map(
             function ($row) {
@@ -442,12 +659,12 @@ final class DashboardController
                 $statVal = $row['status'] ?? '';
                 $dateVal = $row['created_at'] ?? '';
                 fputcsv($out, [
-                    is_scalar($idVal) ? (string)$idVal : '',
-                    is_scalar($gwVal) ? (string)$gwVal : '',
-                    is_scalar($curVal) ? (string)$curVal : '',
-                    is_scalar($amtVal) ? (string)$amtVal : '',
-                    is_scalar($statVal) ? (string)$statVal : '',
-                    is_scalar($dateVal) ? (string)$dateVal : '',
+                    self::csvCell(is_scalar($idVal) ? (string)$idVal : ''),
+                    self::csvCell(is_scalar($gwVal) ? (string)$gwVal : ''),
+                    self::csvCell(is_scalar($curVal) ? (string)$curVal : ''),
+                    self::csvCell(is_scalar($amtVal) ? (string)$amtVal : ''),
+                    self::csvCell(is_scalar($statVal) ? (string)$statVal : ''),
+                    self::csvCell(is_scalar($dateVal) ? (string)$dateVal : ''),
                 ]);
             }
             fclose($out);
@@ -549,7 +766,7 @@ final class DashboardController
         }
         $existing = $merchantRepo->findBySlug($slug);
         if ($existing) {
-            $slug .= '-' . rand(100, 999);
+            $slug .= '-' . random_int(100, 999);
         }
 
         $brandId = $merchantRepo->createMerchant([

@@ -68,3 +68,8 @@ docs/frontend_contribution/
 /cookies.txt
 /login.html
 /login_post.html
+storage/update.lock
+storage/cron/98a234fa4953567787cf87e47c1f5e21.running.lock
+storage/cron/250aafceaee3b63c95d9d5352b43431d.running.lock
+docs/frontend_contribution.zip
+*.zip

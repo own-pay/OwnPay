@@ -118,16 +118,22 @@ final class TwoFactorMiddleware
      * @param int $window The tolerance window (representing multiples of 30-second steps).
      * @return bool True if valid and not previously replayed; false otherwise.
      */
-    public static function verifyTotp(string $secret, string $code, int $window = 1): bool
+    public static function verifyTotp(string $secret, string $code, int $window = 1, ?int &$lastUsedWindow = null): bool
     {
         if (strlen($code) !== 6 || !ctype_digit($code)) {
             return false;
         }
 
         $timeSlice = intdiv(time(), 30);
-        // Get last used window to prevent replay
-        $lastUsedVal = $_SESSION['totp_last_used_window'] ?? 0;
-        $lastUsedWindow = (is_int($lastUsedVal) || is_string($lastUsedVal) || is_numeric($lastUsedVal)) ? (int) $lastUsedVal : 0;
+
+        // Replay floor. Prefer a caller-supplied, durable per-user window (passed by
+        // reference) so a code consumed in one session is rejected in every other
+        // session. Fall back to the pre-auth session only when none is provided.
+        $useSession = ($lastUsedWindow === null);
+        if ($useSession) {
+            $lastUsedVal = $_SESSION['totp_last_used_window'] ?? 0;
+            $lastUsedWindow = (is_int($lastUsedVal) || is_numeric($lastUsedVal)) ? (int) $lastUsedVal : 0;
+        }
 
         for ($i = -$window; $i <= $window; $i++) {
             $checkSlice = $timeSlice + $i;
@@ -137,8 +143,12 @@ final class TwoFactorMiddleware
             }
             $expectedCode = self::generateTotp($secret, $checkSlice);
             if (hash_equals($expectedCode, $code)) {
-                // Record this time slice as used
-                $_SESSION['totp_last_used_window'] = $checkSlice;
+                // Record this time slice as used. The updated window is returned to the
+                // caller via reference so it can be persisted durably (e.g. in the cache).
+                $lastUsedWindow = $checkSlice;
+                if ($useSession) {
+                    $_SESSION['totp_last_used_window'] = $checkSlice;
+                }
                 return true;
             }
         }

@@ -60,14 +60,14 @@ sequenceDiagram
 
 ### Namespace Conventions & Autoloading
 
-All plugins must strictly utilize PSR-4 autoloading rules. The namespace declared inside a plugin's `manifest.json` file is mapped directly to the plugin's root subdirectory by the `PluginLoader` under the global **`OwnPayPlugin\`** namespace prefix. 
+Plugins use PSR-4 autoloading. The `namespace` declared in `manifest.json` is mapped **verbatim** to the plugin's root directory by the autoloader `PluginLoader` registers, so a plugin can ship as many classes as it likes across subdirectories:
 
 * **Physical path**: `modules/gateways/bkash-api/`
-* **Target entrypoint file**: `Plugin.php` (contains class `Plugin` or `BkashApiGateway`)
-* **Standard PSR-4 prefix mapping**: `OwnPayPlugin\BkashApi\`
+* **Declared namespace**: `"namespace": "OwnPay\\Modules\\Gateways\\BkashApi"`
+* **Entrypoint**: `Plugin.php` → class `OwnPay\Modules\Gateways\BkashApi\Plugin`
+* **A shipped class** `OwnPay\Modules\Gateways\BkashApi\Client\Api` → `modules/gateways/bkash-api/Client/Api.php`
 
-> [!IMPORTANT]
-> To prevent collision risks across third-party installations, namespaces must reside under `OwnPayPlugin\`. Any entrypoint file containing an incorrect namespace suffix or resolving outside of this pattern will fail validation checks, causing the plugin to remain inactive.
+If `namespace` is omitted, the loader falls back to the convention `OwnPay\Plugins\{PascalSlug}`. Autoload resolution is realpath-contained to the plugin directory, so a class name can never load a file outside it. `include`/`require` are also permitted, but PSR-4 autoloading is the recommended way to load shipped classes.
 
 ---
 
@@ -631,21 +631,22 @@ final class CustomGateway implements PluginInterface, GatewayAdapterInterface
 
 ## 4. Security, Compliance & Static Hardening
 
-OwnPay operates a highly restricted sandbox compiler (`PluginSandbox.php`) to defend payment pipelines against SQL Injection, cross-tenant leaks, and remote shell execution.
+> [!IMPORTANT]
+> **Trust model (read first).** Plugin upload is restricted to the platform owner (`PluginController::upload` → `requireGlobalView`), so installed plugins run with **full application trust**, exactly like WordPress: through the PSR-11 container a plugin can reach any core service (`Database`, `RefundService`, …). The load-time scan is therefore a **footgun guard, not a sandbox** — it blocks only dynamic code evaluation and direct OS-command execution. Ordinary PHP — reflection, callbacks (`array_map`, `call_user_func`, `preg_replace_callback`), buffering (`ob_start`), file I/O, dynamic calls, and `include`/`require` — is permitted. The "blocking" described in the filesystem and SQL sections below is **convention and defense-in-depth, not hard isolation**; the real boundary is owner-only upload, so only install plugins you trust.
 
-### Allowed Filesystem Scope
-Plugins can only read and write files within:
-1. Their own plugin installation root folder (`modules/<type>/<slug>/`).
-2. The sandboxed storage partition dedicated to the plugin (`modules/<type>/<slug>/storage/`). This subdirectory is auto-created with `0755` permissions by calling `$sandbox->storagePath()`.
+OwnPay performs a lightweight load-time scan (`PluginLoader::loadPlugin` + `PluginSandbox::isDangerousFunction`) flagging the highest-risk primitives, and ships helpers (`PluginSandbox::validateSql()`, `validateFilePath()`, `storagePath()`) plugins may use to stay within brand/tenant boundaries.
+
+### Recommended Filesystem Scope
+By convention, keep plugin reads/writes within:
+1. Your plugin's installation root (`modules/<type>/<slug>/`).
+2. Your dedicated storage partition (`modules/<type>/<slug>/storage/`), auto-created `0755` via `$sandbox->storagePath()`.
 
 > [!WARNING]
-> Attempting to read files from parent system folders (such as `src/`, `config/`, `.env`, or `/tmp`) will trigger path-traversal blocks, log security alarms, and suspend execution instantly.
+> Under the full-trust model these scopes are conventions, not enforced limits — a plugin has the filesystem access of the PHP process. Call `PluginSandbox::validateFilePath($path)` to self-enforce containment, never read core files (`config/`, `.env`), and only install plugins you trust.
 
-#### Sandboxed File I/O: Reading & Writing Files Securely
+#### Plugin File I/O
 
-To protect application boundaries, `file_put_contents()` is completely blacklisted by `PluginSandbox::isDangerousFunction()`. Any module containing this function will fail validation and remain inactive. 
-
-To read or write local data (such as temporary transaction dumps or gateway token cache streams), plugins must leverage PHP stream routines (`fopen()`, `fwrite()`, `fread()`, and `fclose()`) explicitly targeted within the sandboxed `/storage` subdirectory.
+`file_put_contents`, `fwrite`, `unlink`, `rename`, and the PHP stream routines (`fopen`/`fread`/`fclose`) are all permitted. As a hygiene convention, target your plugin's `/storage` subdirectory (`$sandbox->storagePath()`) and optionally assert containment with `PluginSandbox::validateFilePath()`.
 
 > [!CAUTION]
 > **Wrong Way (Insecure or Blocked File Access)**
@@ -801,22 +802,14 @@ To process and query system statistics or checkout values, plugins must retrieve
 > }
 > ```
 
-### The Blacklisted Functions Index
+### The Blocked-Primitive Index
 
-If a plugin file contains any of the following PHP functions, the system compiler will reject the plugin activation:
+Under the full-trust model the load-time scanner blocks only a minimal footgun list — direct OS-command execution and dynamic code evaluation. A plugin file containing any of these is refused activation:
 
-* **OS Execution**: `exec`, `shell_exec`, `system`, `passthru`, `popen`, `proc_open`
-* **Dynamic Execution**: `eval`, `assert`, `create_function`
-* **Raw Write Operations**: `file_put_contents` *(Use `fwrite()` on sandboxed file logs instead)*
-* **File Deletion & Manipulation**: `unlink`, `rmdir`, `rename`, `chmod`, `chown`
-* **Environment Alters**: `putenv`, `dl`
-* **Dynamic Callbacks**: `call_user_func`, `call_user_func_array`, `forward_static_call`, `forward_static_call_array`
-* **Array Callback Walkers**: `array_map`, `array_filter`, `array_reduce`, `array_walk`, `array_walk_recursive`, `usort`, `uasort`, `uksort`
-* **Callback Intersectors**: `array_uintersect`, `array_uintersect_assoc`, `array_uintersect_uassoc`, `array_udiff`, `array_udiff_assoc`, `array_udiff_uassoc`, `array_diff_ukey`, `array_diff_uassoc`, `array_intersect_ukey`
-* **Regex Callbacks**: `preg_replace_callback`, `preg_replace_callback_array`
-* **Lifecycle Hooks**: `register_shutdown_function`, `register_tick_function`, `set_exception_handler`, `set_error_handler`
-* **Buffer Capturing**: `ob_start`
-* **Reflection Engine**: `ReflectionFunction`, `ReflectionClass`, `ReflectionMethod`, `ReflectionObject`, `ReflectionProperty`
+* **OS / process execution**: `exec`, `shell_exec`, `system`, `passthru`, `popen`, `proc_open`, `proc_nice`, `pcntl_exec`, `dl`
+* **Dynamic code**: `eval`, `assert`, `create_function`
+
+Everything else is permitted. In particular, the following — blocked in earlier releases — are now allowed: `file_put_contents`, `fwrite`, `unlink`, `rename`, `chmod`; `call_user_func`/`call_user_func_array`, `array_map`, `array_filter`, `usort`, `preg_replace_callback`; `ob_start`, `register_shutdown_function`, `set_error_handler`; the reflection classes (`ReflectionClass`, …); `include`/`require`; variable functions (`$fn()`); and dynamic instantiation (`new $class`). The guard is bypassable by construction (e.g. `call_user_func` with a `'system'` string) and is not relied upon for isolation — the boundary is owner-only upload.
 
 ---
 

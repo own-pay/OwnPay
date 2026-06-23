@@ -256,8 +256,17 @@ final class MerchantUserRepository extends BaseRepository
      * @param int|null $roleId Optional role ID override (defaults to finding 'staff' slug or role ID 1).
      * @return string The primary key ID of the newly created staff member.
      */
-    public function createStaff(int $merchantId, string $name, string $email, string $passwordHash, ?int $roleId = null): string
-    {
+    public function createStaff(
+        int $merchantId,
+        string $name,
+        string $email,
+        string $passwordHash,
+        ?int $roleId = null,
+        ?string $username = null,
+        ?string $phone = null,
+        string $status = 'active',
+        ?string $avatarPath = null
+    ): string {
         // Use provided roleId, or resolve Staff role for this merchant
         if ($roleId === null) {
             $role = $this->db->fetchOne(
@@ -271,9 +280,12 @@ final class MerchantUserRepository extends BaseRepository
             'merchant_id'   => $merchantId,
             'name'          => $name,
             'email'         => $email,
+            'username'      => $username,
             'password_hash' => $passwordHash,
             'role_id'       => $roleId,
-            'status'        => 'active',
+            'phone'         => $phone,
+            'status'        => $status,
+            'avatar_path'   => $avatarPath,
         ]);
     }
 
@@ -291,7 +303,7 @@ final class MerchantUserRepository extends BaseRepository
     public function updateStaff(int $id, array $fields, ?int $merchantId = null): void
     {
         // Only allow updating these safe columns
-        $allowed = ['name', 'email', 'phone', 'role_id', 'status', 'avatar_path', 'password_hash'];
+        $allowed = ['name', 'email', 'username', 'phone', 'role_id', 'status', 'avatar_path', 'password_hash'];
         $fields = array_intersect_key($fields, array_flip($allowed));
         if (empty($fields)) {
             return;

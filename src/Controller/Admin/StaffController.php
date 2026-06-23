@@ -155,13 +155,49 @@ final class StaffController
             return Response::redirect('/admin/staff/create');
         }
 
+        $usernameVal = $data['username'] ?? '';
+        $username = trim(is_string($usernameVal) ? $usernameVal : '');
+        if ($username === '') {
+            $username = null;
+        }
+        $phoneVal = $data['phone'] ?? '';
+        $phone = trim(is_string($phoneVal) ? $phoneVal : '');
+        if ($phone === '') {
+            $phone = null;
+        }
+        $statusVal = $data['status'] ?? 'active';
+        $status = is_string($statusVal) && in_array($statusVal, ['active', 'suspended', 'pending'], true) ? $statusVal : 'active';
+
+        $avatarPath = null;
+        $avatarFile = $req->file('avatar');
+        if (
+            is_array($avatarFile)
+            && isset($avatarFile['error'], $avatarFile['name'], $avatarFile['tmp_name'])
+            && is_int($avatarFile['error'])
+            && is_string($avatarFile['name'])
+            && is_string($avatarFile['tmp_name'])
+            && $avatarFile['error'] === UPLOAD_ERR_OK
+        ) {
+            try {
+                $fs = new \OwnPay\Service\System\FilesystemService(dirname(__DIR__, 3) . '/public/assets');
+                $storedPath = $fs->storeUpload($avatarFile, 'uploads/avatars');
+                $avatarPath = '/assets/' . $storedPath;
+            } catch (\Throwable $e) {
+                $this->session->flashError('Invalid file for staff avatar: ' . $e->getMessage());
+            }
+        }
+
         // Pass resolved $roleId to createStaff
         $this->userRepo->createStaff(
             $mid,
             $name,
             $email,
             password_hash($password, PASSWORD_ARGON2ID),
-            $roleId
+            $roleId,
+            $username,
+            $phone,
+            $status,
+            $avatarPath
         );
 
         $this->session->flashSuccess('Staff created');
@@ -206,14 +242,42 @@ final class StaffController
         $data = is_array($postData) ? $postData : [];
         $nameVal = $data['name'] ?? '';
         $emailVal = $data['email'] ?? '';
+        $usernameVal = $data['username'] ?? '';
+        $username = trim(is_string($usernameVal) ? $usernameVal : '');
+        $phoneVal = $data['phone'] ?? '';
+        $phone = trim(is_string($phoneVal) ? $phoneVal : '');
+        $statusVal = $data['status'] ?? 'active';
+        $status = is_string($statusVal) && in_array($statusVal, ['active', 'suspended', 'pending'], true) ? $statusVal : 'active';
+
         $update = [
             'name' => InputSanitizer::string(is_string($nameVal) ? $nameVal : ''),
-            'email' => is_string($emailVal) ? $emailVal : ''
+            'email' => is_string($emailVal) ? $emailVal : '',
+            'username' => $username !== '' ? $username : null,
+            'phone' => $phone !== '' ? $phone : null,
+            'status' => $status,
         ];
         
         $passwordVal = $data['password'] ?? '';
         if (is_string($passwordVal) && $passwordVal !== '') {
             $update['password_hash'] = password_hash($passwordVal, PASSWORD_ARGON2ID);
+        }
+
+        $avatarFile = $req->file('avatar');
+        if (
+            is_array($avatarFile)
+            && isset($avatarFile['error'], $avatarFile['name'], $avatarFile['tmp_name'])
+            && is_int($avatarFile['error'])
+            && is_string($avatarFile['name'])
+            && is_string($avatarFile['tmp_name'])
+            && $avatarFile['error'] === UPLOAD_ERR_OK
+        ) {
+            try {
+                $fs = new \OwnPay\Service\System\FilesystemService(dirname(__DIR__, 3) . '/public/assets');
+                $storedPath = $fs->storeUpload($avatarFile, 'uploads/avatars');
+                $update['avatar_path'] = '/assets/' . $storedPath;
+            } catch (\Throwable $e) {
+                $this->session->flashError('Invalid file for staff avatar: ' . $e->getMessage());
+            }
         }
         
         $roleIdVal = $data['role_id'] ?? null;
@@ -317,5 +381,30 @@ final class StaffController
             'settings.view', 'settings.manage', 'reports.view', 'sms.view',
             'devices.view', 'devices.manage', 'domains.view', 'domains.manage',
         ];
+    }
+
+    /**
+     * Resets/disables 2FA for a staff member.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The HTTP redirect response.
+     */
+    public function reset2fa(Request $req): Response
+    {
+        $this->brand->resolveFromRequest($req);
+        $mid = $this->brand->getActiveBrandId();
+        $id  = (int) $req->param('id');
+
+        $merchantScope = $this->brand->isGlobalView() ? null : $mid;
+        $user = $this->userRepo->findStaff($id, $merchantScope);
+
+        if (!$user) {
+            $this->session->flashError('Staff member not found.');
+            return Response::redirect('/admin/staff');
+        }
+
+        $this->userRepo->disableTotp($id);
+        $this->session->flashSuccess('2FA has been disabled and reset for this staff member.');
+        return Response::redirect('/admin/staff/' . $id);
     }
 }

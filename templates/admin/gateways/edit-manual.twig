@@ -4,7 +4,10 @@
 
 {% block content %}
 <div class="op-page-header">
-    <h1>Edit: {{ gateway.name }}</h1>
+    <div>
+        <h1>Edit: {{ gateway.name }}</h1>
+        <p class="op-page-subtitle">Edit manual payment gateway credentials, logos, instruction texts, and options.</p>
+    </div>
     <a href="/admin/gateways" class="op-btn op-btn-outline">← Back</a>
 </div>
 
@@ -92,6 +95,18 @@
                         <input type="checkbox" name="sms_verification" value="1" {{ gateway.sms_verification ? 'checked' : '' }}>
                         Enable SMS Verification
                     </label>
+                </div>
+            </div>
+            <div class="op-form-row op-mt-3" id="sms-patterns-row">
+                <div class="op-form-group op-col-6">
+                    <label>SMS Sender Pattern</label>
+                    <input type="text" name="sms_sender_pattern" value="{{ gateway.sms_sender_pattern ?? '' }}" class="op-input" placeholder="e.g. bKash, 1234">
+                    <small class="op-text-muted">Expected sender name or number for verification SMS</small>
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>SMS Matching Regex Template</label>
+                    <input type="text" name="sms_regex_template" value="{{ gateway.sms_regex_template ?? '' }}" class="op-input" placeholder="e.g. /TrxID\s+([A-Z0-9]+)/i">
+                    <small class="op-text-muted">Regular expression to extract the Transaction ID (TrxID) from the SMS text</small>
                 </div>
             </div>
         </div>

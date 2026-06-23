@@ -9,7 +9,9 @@ declare(strict_types=1);
  * grouping endpoints by functional domain:
  * 1. Merchant REST API: Authenticated via bearer API keys (scopes: read, write).
  * 2. Mobile Companion App API: Authenticated via JWT tokens.
- * 3. Administrative API: Authenticated via superadmin authorization.
+ * 3. Administrative API: Authenticated via a bearer API key carrying the 'admin'
+ *    scope. Actions are scoped to that key's own merchant_id (per-merchant admin),
+ *    not a cross-merchant superadmin.
  *
  * @param \OwnPay\Http\Router $router The global application Router instance.
  * @return void
@@ -19,10 +21,11 @@ return static function (\OwnPay\Http\Router $router): void {
     // ======================== MERCHANT API (Bearer Auth) ========================
     $router->get('/api/v1/health',                    'Api\\HealthController@check',            'api');
     $router->post('/api/v1/payments',                 'Api\\PaymentController@initiate',        'api');
-    $router->get('/api/v1/payments/{trx_id}',         'Api\\PaymentController@show',            'api');
+    $router->get('/api/v1/payments/{payment_id}',     'Api\\PaymentController@show',            'api');
     $router->get('/api/v1/transactions',              'Api\\TransactionController@index',       'api');
     $router->get('/api/v1/transactions/{trx_id}',     'Api\\TransactionController@show',        'api');
     $router->post('/api/v1/refunds',                  'Api\\RefundController@create',           'api');
+    $router->get('/api/v1/refunds',                   'Api\\RefundController@index',            'api');
     $router->get('/api/v1/refunds/{trx_id}',          'Api\\RefundController@show',             'api');
     $router->get('/api/v1/customers',                 'Api\\CustomerController@index',          'api');
     $router->get('/api/v1/customers/{identifier}',    'Api\\CustomerController@show',           'api');

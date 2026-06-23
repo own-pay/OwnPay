@@ -2,7 +2,10 @@
 {% block title %}Audit Trail Cryptographic Integrity Check — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
-    <h1>Audit Trail Cryptographic Integrity</h1>
+    <div>
+        <h1>Audit Trail Cryptographic Integrity</h1>
+        <p class="op-page-subtitle">Verify that the database ledger audit logs have not been tampered with since creation.</p>
+    </div>
     <div class="op-header-actions">
         <form method="POST" action="/admin/audit-integrity/scan" class="op-filter-bar">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

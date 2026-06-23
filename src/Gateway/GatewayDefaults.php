@@ -104,6 +104,61 @@ trait GatewayDefaults
     }
 
     /**
+     * Converts a decimal amount to integer minor units (e.g. cents) exactly.
+     *
+     * Validates the input as a plain non-negative decimal string BEFORE any
+     * conversion: a (float) round-trip here corrupts large or high-precision
+     * amounts (binary floating point cannot represent them exactly) and
+     * silently accepts scientific notation, negatives, or non-numeric input.
+     *
+     * @param mixed $amount The amount as provided by core (numeric-string).
+     * @param int $exponent Number of minor-unit digits (2 for cents).
+     * @return int The amount expressed in minor units.
+     * @throws \InvalidArgumentException When the amount is not a plain non-negative decimal.
+     */
+    protected function toMinorUnits(mixed $amount, int $exponent = 2): int
+    {
+        $str = is_scalar($amount) && !is_bool($amount) ? (string) $amount : '';
+        if (!preg_match('/^\d{1,13}(\.\d+)?$/', $str) || !is_numeric($str)) {
+            throw new \InvalidArgumentException('Invalid payment amount for minor-unit conversion.');
+        }
+        return (int) bcmul($str, bcpow('10', (string) $exponent, 0), 0);
+    }
+
+    /**
+     * Normalizes a decimal amount to a fixed-precision string without a float round-trip.
+     *
+     * @param mixed $amount The amount as provided by core (numeric-string).
+     * @param int $decimals Number of decimal places to keep.
+     * @return string The normalized amount string.
+     * @throws \InvalidArgumentException When the amount is not a plain non-negative decimal.
+     */
+    protected function toDecimalString(mixed $amount, int $decimals = 2): string
+    {
+        $str = is_scalar($amount) && !is_bool($amount) ? (string) $amount : '';
+        if (!preg_match('/^\d{1,13}(\.\d+)?$/', $str) || !is_numeric($str)) {
+            throw new \InvalidArgumentException('Invalid payment amount.');
+        }
+        return bcadd($str, '0', $decimals);
+    }
+
+    /**
+     * Reports whether the platform is running in a production environment.
+     *
+     * Adapters use this to disable their sandbox "simulation accept" callback
+     * paths in production, so a gateway accidentally left in a non-live mode
+     * cannot complete real transactions from a forged/unconfirmed callback.
+     * Defaults to production (fail closed) when APP_ENV is unset.
+     *
+     * @return bool True when APP_ENV is 'production' (or unset).
+     */
+    protected function isProductionEnv(): bool
+    {
+        $env = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
+        return strtolower(is_string($env) ? $env : 'production') === 'production';
+    }
+
+    /**
      * Safely cast a mixed value to string.
      */
     protected function getString(mixed $value, string $default = ''): string

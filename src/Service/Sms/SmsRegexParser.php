@@ -46,7 +46,8 @@ final class SmsRegexParser
                     continue; // Invalid regex — skip
                 }
 
-                if (preg_match($pattern, $body, $matches)) {
+                $matches = [];
+                if ($this->safeMatch($pattern, $body, $matches)) {
                     $amount = $this->extractAmount($matches['amount'] ?? null);
                     if ($amount === null) {
                         continue; // Matched but no amount — not useful
@@ -76,7 +77,8 @@ final class SmsRegexParser
                     continue; // Invalid regex — skip
                 }
 
-                if (preg_match($amountPattern, $body, $amountMatches)) {
+                $amountMatches = [];
+                if ($this->safeMatch($amountPattern, $body, $amountMatches)) {
                     $amount = $this->extractAmount($amountMatches[1] ?? null);
                     if ($amount === null) {
                         continue;
@@ -88,7 +90,8 @@ final class SmsRegexParser
                     if ($trxIdRegex !== '') {
                         $trxIdPattern = $this->ensureDelimiters($trxIdRegex);
                         if (@preg_match($trxIdPattern, '') !== false) {
-                            if (preg_match($trxIdPattern, $body, $trxMatches)) {
+                            $trxMatches = [];
+                            if ($this->safeMatch($trxIdPattern, $body, $trxMatches)) {
                                 $trxId = $this->clean($trxMatches[1] ?? null);
                             }
                         }
@@ -100,7 +103,8 @@ final class SmsRegexParser
                     if ($senderRegex !== '') {
                         $senderPattern = $this->ensureDelimiters($senderRegex);
                         if (@preg_match($senderPattern, '') !== false) {
-                            if (preg_match($senderPattern, $body, $senderMatches)) {
+                            $senderMatches = [];
+                            if ($this->safeMatch($senderPattern, $body, $senderMatches)) {
                                 $senderNumber = $this->clean($senderMatches[1] ?? null);
                             }
                         }
@@ -121,6 +125,41 @@ final class SmsRegexParser
         }
 
         return null;
+    }
+
+    /**
+     * Executes a merchant-supplied regex against the SMS body with a bounded
+     * PCRE backtracking budget.
+     *
+     * SMS parsing templates are authored by staff and run against attacker-
+     * influenceable SMS bodies, so a catastrophic-backtracking pattern (e.g.
+     * `(a+)+b`) could pin a CPU and stall the SMS cron / mobile endpoint.
+     * Temporarily lowering pcre.backtrack_limit/recursion_limit makes such a
+     * pattern fail fast (preg_match returns false), which is treated as "no
+     * match" — fail-safe, since a real payment match simply won't occur.
+     *
+     * @param string $pattern The regex pattern (with delimiters).
+     * @param string $subject The SMS body to match against.
+     * @param array<int|string, string> $matches Captured groups on success.
+     * @return bool True only on a genuine match within the backtracking budget.
+     */
+    private function safeMatch(string $pattern, string $subject, array &$matches = []): bool
+    {
+        $prevBacktrack = ini_get('pcre.backtrack_limit');
+        $prevRecursion = ini_get('pcre.recursion_limit');
+        ini_set('pcre.backtrack_limit', '50000');
+        ini_set('pcre.recursion_limit', '50000');
+        try {
+            $result = @preg_match($pattern, $subject, $matches);
+        } finally {
+            if ($prevBacktrack !== false) {
+                ini_set('pcre.backtrack_limit', $prevBacktrack);
+            }
+            if ($prevRecursion !== false) {
+                ini_set('pcre.recursion_limit', $prevRecursion);
+            }
+        }
+        return $result === 1;
     }
 
     /**

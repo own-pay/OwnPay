@@ -26,7 +26,7 @@ final class PaymentLinkRepository extends BaseRepository
      */
     protected array $fillable = [
         'merchant_id', 'uuid', 'slug', 'title', 'description', 'amount', 'currency',
-        'is_amount_fixed', 'min_amount', 'max_amount', 'redirect_url',
+        'is_amount_fixed', 'require_address', 'min_amount', 'max_amount', 'redirect_url',
         'max_uses', 'use_count', 'expires_at', 'status',
     ];
 

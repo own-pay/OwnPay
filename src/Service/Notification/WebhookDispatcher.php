@@ -117,9 +117,24 @@ final class WebhookDispatcher
      */
     public function buildPayload(string $event, array $data): array
     {
+        $gatewayTrxId = $data['gateway_trx_id'] ?? '';
+        if (empty($gatewayTrxId)) {
+            $trxId = $data['transaction_id'] ?? $data['trx_id'] ?? '';
+            if (is_string($trxId) && $trxId !== '') {
+                $txn = $this->db->fetchOne(
+                    "SELECT gateway_trx_id FROM op_transactions WHERE trx_id = :trxId LIMIT 1",
+                    ['trxId' => $trxId]
+                );
+                if ($txn && !empty($txn['gateway_trx_id'])) {
+                    $gatewayTrxId = $txn['gateway_trx_id'];
+                }
+            }
+        }
+
         return [
             'event'          => $event,
             'transaction_id' => $data['transaction_id'] ?? '',
+            'gateway_trx_id' => $gatewayTrxId,
             'amount'         => $data['amount'] ?? '0.00',
             'currency'       => $data['currency'] ?? 'BDT',
             'gateway'        => $data['gateway'] ?? '',
@@ -248,14 +263,25 @@ final class WebhookDispatcher
      */
     private function doSend(string $url, string $payload, string $signature, int $timestamp): array
     {
-        // Enforce SSRF protection: reject addresses targeting local or private ranges
-        if (!\OwnPay\Security\UrlValidator::isValidWebhookUrl($url)) {
+        // Enforce SSRF protection: reject local/private ranges AND pin the validated
+        // public IP so cURL cannot re-resolve the host to an internal address between
+        // the check and the request (DNS rebinding / TOCTOU).
+        $pinnedIp = \OwnPay\Security\UrlValidator::resolveSafeWebhookIp($url);
+        if ($pinnedIp === null) {
             return [
                 'success' => false,
                 'status_code' => 0,
                 'response_time_ms' => 0,
                 'error' => 'URL blocked by SSRF protection',
             ];
+        }
+
+        $parsed = parse_url($url);
+        $host = '';
+        $port = 443;
+        if (is_array($parsed)) {
+            $host = isset($parsed['host']) ? (string) $parsed['host'] : '';
+            $port = isset($parsed['port']) ? (int) $parsed['port'] : 443;
         }
 
         $startTime = microtime(true);
@@ -268,7 +294,7 @@ final class WebhookDispatcher
         ];
 
         $ch = curl_init($url);
-        curl_setopt_array($ch, [
+        $curlOptions = [
             CURLOPT_POST => true,
             CURLOPT_POSTFIELDS => $payload,
             CURLOPT_HTTPHEADER => $headers,
@@ -277,7 +303,13 @@ final class WebhookDispatcher
             CURLOPT_CONNECTTIMEOUT => 5,
             CURLOPT_FOLLOWLOCATION => false,
             CURLOPT_SSL_VERIFYPEER => true,
-        ]);
+            CURLOPT_SSL_VERIFYHOST => 2,
+        ];
+        // Pin host -> validated public IP (TLS SNI/cert validation still uses the hostname).
+        if ($host !== '') {
+            $curlOptions[CURLOPT_RESOLVE] = ["{$host}:{$port}:{$pinnedIp}"];
+        }
+        curl_setopt_array($ch, $curlOptions);
 
         $response = curl_exec($ch);
         $statusCode = (int) curl_getinfo($ch, CURLINFO_HTTP_CODE);
@@ -332,12 +364,14 @@ final class WebhookDispatcher
      * @param int $limit Maximum number of delivery records to retrieve.
      * @return array<int, array<string, mixed>> Collection of delivery record fields.
      */
-    public function listDeliveries(int $merchantId, int $limit = 50): array
+    public function listDeliveries(?int $merchantId, int $limit = 50): array
     {
+        $where = $merchantId !== null ? 'WHERE merchant_id = :mid' : '';
+        $params = $merchantId !== null ? ['mid' => $merchantId] : [];
         return $this->db->fetchAll(
-            "SELECT id, event, url, status_code, response_time_ms, attempt, status, created_at
-             FROM op_webhook_deliveries WHERE merchant_id = :mid ORDER BY created_at DESC LIMIT {$limit}",
-            ['mid' => $merchantId]
+            "SELECT id, event, url, direction, status_code, response_time_ms, attempt, status, created_at
+             FROM op_webhook_deliveries {$where} ORDER BY created_at DESC LIMIT {$limit}",
+            $params
         );
     }
 }

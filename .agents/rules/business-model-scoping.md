@@ -30,3 +30,11 @@ trigger: always_on
 - The active brand context MUST be resolved using `OwnPay\Service\Brand\BrandContext`.
 - Inside admin-level controllers, you must call `BrandContext::resolveFromRequest($req)` to resolve and cache the brand ID, and retrieve it via `getActiveBrandId()`.
 - Standard staff users MUST never be allowed to access or switch to brands to which they are not assigned.
+- Switching into the global **All Brands** view requires the `brands.access_all` permission (or `is_superadmin`); enforced in `BrandController::switchBrand`.
+
+## Platform Scope & Data Ownership ("All Brands")
+- A single reserved platform-owner row exists in `op_merchants` with `is_platform = 1` (slug `__platform__`). It represents the global "All Brands" scope and OWNS All-Brands-level operational data and configuration. It is EXCLUDED from `getAllBrands()` / the brand switcher and is never a selectable brand.
+- Resolve it via `BrandContext::getPlatformId()` (lazy-resolves the `is_platform = 1` row; the id differs per database — NEVER hard-code it).
+- For WRITES, choose the owner with `BrandContext::getWriteMerchantId()`: it returns the platform id in All-Brands view, else the active brand id. Use this (not `getActiveBrandId()`, which is 0 in All-Brands view) when creating All-Brands-owned records (e.g. admin-generated API keys, manual-gateway templates).
+- READS: brand view is hard-scoped to its own `merchant_id`; the All-Brands view uses `forAllTenants()` (unscoped) and therefore reads every brand's rows PLUS the platform-owned rows. Brand-owned data is readable by that brand and by All Brands; platform-owned data is readable only by All Brands.
+- Config cascade: `SettingsRepository::getScoped(group, key, merchantId)` resolves brand override → All-Brands (global) default → code default. Brand overrides apply only to that brand.

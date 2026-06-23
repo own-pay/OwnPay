@@ -53,8 +53,10 @@ final class LedgerController
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         $mid = 0;
+        $isGlobal = false;
         if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
             $brand->resolveFromRequest($req);
+            $isGlobal = $brand->isGlobalView();
             $activeId = $brand->getActiveBrandId();
             if ($activeId !== null) {
                 $mid = $activeId;
@@ -68,7 +70,7 @@ final class LedgerController
         $ledger = [];
         $balance = '0.00';
         if ($ledgerService instanceof \OwnPay\Service\Payment\LedgerService) {
-            $ledger = $ledgerService->entries($mid, $page, 50);
+            $ledger = $ledgerService->entries($isGlobal ? null : $mid, $page, 50);
 
             $db = $this->c->get(\OwnPay\Core\Database::class);
             $currency = 'USD';

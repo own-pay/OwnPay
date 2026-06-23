@@ -16,6 +16,7 @@ final class ApiKeyController
     /**
      * The dependency injection container.
      */
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
 
     /**
@@ -44,6 +45,11 @@ final class ApiKeyController
      */
     public function index(Request $req): Response
     {
+        $secureErr = $this->enforceSecureAccess($req);
+        if ($secureErr !== null) {
+            return $secureErr;
+        }
+
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $list = $this->keys->list($mid);
@@ -71,13 +77,41 @@ final class ApiKeyController
      */
     public function generate(Request $req): Response
     {
+        $secureErr = $this->enforceSecureAccess($req);
+        if ($secureErr !== null) {
+            return $secureErr;
+        }
+
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $body = $req->json();
         $bodyArr = is_array($body) ? $body : [];
         $labelVal = $bodyArr['name'] ?? $bodyArr['label'] ?? 'Default';
         $label = is_string($labelVal) ? $labelVal : 'Default';
-        $result = $this->keys->generate($mid, $label);
+
+        $requestedScopes = $bodyArr['scopes'] ?? null;
+        if ($requestedScopes !== null) {
+            if (!is_array($requestedScopes)) {
+                return Response::apiError('INVALID_SCOPES', 'Scopes must be an array of privileges.', 'scopes', 422);
+            }
+            $allowed = ['read', 'write', 'admin'];
+            /** @var array<string> $scopesToGenerate */
+            $scopesToGenerate = [];
+            foreach ($requestedScopes as $s) {
+                if (!is_string($s) || !in_array($s, $allowed, true)) {
+                    return Response::apiError('INVALID_SCOPES', 'Invalid scope value. Allowed: read, write, admin', 'scopes', 422);
+                }
+                $scopesToGenerate[] = $s;
+            }
+            if (empty($scopesToGenerate)) {
+                return Response::apiError('INVALID_SCOPES', 'At least one privilege scope must be provided.', 'scopes', 422);
+            }
+            $scopesToGenerate = array_values(array_unique($scopesToGenerate));
+        } else {
+            $scopesToGenerate = ['read', 'write'];
+        }
+
+        $result = $this->keys->generate($mid, $label, $scopesToGenerate);
 
         $data = [
             'key'     => $result['key'],
@@ -97,15 +131,72 @@ final class ApiKeyController
      */
     public function revoke(Request $req): Response
     {
+        $secureErr = $this->enforceSecureAccess($req);
+        if ($secureErr !== null) {
+            return $secureErr;
+        }
+
         $id = (int) $req->param('id');
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         
         try {
-            $this->keys->revoke($mid, $id);
+            $revoked = $this->keys->revoke($mid, $id);
+            if ($revoked === 0) {
+                // No key matched: unknown id or owned by another merchant. Return 404
+                // so the caller cannot mistake a no-op for a real revocation.
+                return Response::apiError('KEY_NOT_FOUND', 'API key not found', 'id', 404);
+            }
             return Response::apiSuccess(['message' => 'Key revoked']);
         } catch (\Throwable $e) {
             return Response::apiError('KEY_REVOCATION_FAILED', $e->getMessage(), 'id', 400);
         }
+    }
+
+    /**
+     * Enforce write and admin scopes and active super admin email header validation.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response|null Response error if unauthorized, otherwise null.
+     */
+    private function enforceSecureAccess(Request $req): ?Response
+    {
+        $apiKey = $req->getAttribute('api_key');
+        if (!is_array($apiKey)) {
+            return Response::apiError('UNAUTHORIZED', 'API key metadata missing.', null, 401);
+        }
+
+        $scopesRaw = $apiKey['scopes'] ?? null;
+        $scopes = [];
+        if (is_string($scopesRaw)) {
+            $scopes = json_decode($scopesRaw, true);
+        } elseif (is_array($scopesRaw)) {
+            $scopes = $scopesRaw;
+        }
+
+        if (!is_array($scopes)) {
+            $scopes = [];
+        }
+
+        if (!in_array('write', $scopes, true) || !in_array('admin', $scopes, true)) {
+            return Response::apiError('INSUFFICIENT_PRIVILEGE', 'Insufficient API key privilege. Key must have both write and admin scopes.', null, 403);
+        }
+
+        $email = trim($req->header('X-Super-Admin-Email'));
+        if ($email === '') {
+            return Response::apiError('SUPER_ADMIN_EMAIL_REQUIRED', 'Super admin email is required in the X-Super-Admin-Email header.', 'X-Super-Admin-Email', 400);
+        }
+
+        $db = \OwnPay\Core\Database::getInstance();
+        $user = $db->fetchOne(
+            "SELECT 1 FROM op_merchant_users WHERE email = :email AND is_superadmin = 1 AND status = 'active' LIMIT 1",
+            ['email' => $email]
+        );
+
+        if (!$user) {
+            return Response::apiError('INVALID_SUPER_ADMIN', 'Invalid or inactive super admin email in header.', 'X-Super-Admin-Email', 403);
+        }
+
+        return null;
     }
 }

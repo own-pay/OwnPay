@@ -30,18 +30,21 @@
     }
 
     // Delegate click on Edit Role buttons
-    document.addEventListener("click", function (e) {
-        if (!e.target) {return;}
-        var btn = e.target.closest(".btn-edit-role");
-        if (btn) {
-            try {
-                var roleData = JSON.parse(btn.getAttribute("data-role"));
-                openEditRole(roleData);
-            } catch (err) {
-                console.error("Failed to parse role data", err);
+    if (!document.opRolesClickRegistered) {
+        document.opRolesClickRegistered = true;
+        document.addEventListener("click", function (e) {
+            if (!e.target) {return;}
+            var btn = e.target.closest(".btn-edit-role");
+            if (btn) {
+                try {
+                    var roleData = JSON.parse(btn.getAttribute("data-role"));
+                    openEditRole(roleData);
+                } catch (err) {
+                    console.error("Failed to parse role data", err);
+                }
             }
-        }
-    });
+        });
+    }
 
     document.querySelectorAll(".op-group-toggle").forEach(function (toggle) {
         toggle.addEventListener("change", function () {

@@ -232,12 +232,12 @@ final class LedgerService
     /**
      * Get ledger transactions for merchant (paginated).
      *
-     * @param int $merchantId The merchant/brand ID.
+     * @param int|null $merchantId The merchant/brand ID, or null for global (all brands).
      * @param int $page The page number.
      * @param int $perPage The number of entries per page.
      * @return array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} The paginated ledger entries result.
      */
-    public function entries(int $merchantId, int $page = 1, int $perPage = 50): array
+    public function entries(?int $merchantId, int $page = 1, int $perPage = 50): array
     {
         $result = $this->ledger->entriesPaginated($merchantId, $page, $perPage);
 

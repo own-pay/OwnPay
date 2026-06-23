@@ -156,14 +156,7 @@ final class PluginManifest
     public readonly string $sourcePath;
 
     /**
-     * Deprecated compatibility permissions array.
-     *
-     * @var array<int, string>
-     */
-    public readonly array $permissions;
-
-    /**
-     * Deprecated compatibility category string.
+     * Plugin category grouping (e.g. 'global', 'payment').
      *
      * @var string
      */
@@ -191,7 +184,7 @@ final class PluginManifest
     public readonly string $path;
 
     /**
-     * Deprecated requirement definitions structure.
+     * Minimum version requirements (php and core).
      *
      * @var array{php: string, core: string}
      */
@@ -326,17 +319,6 @@ final class PluginManifest
         $this->routes = $routes;
         
         $this->sourcePath = $sourcePath;
-        
-        $rawPermissions = $data['permissions'] ?? [];
-        $permissions = [];
-        if (is_array($rawPermissions)) {
-            foreach ($rawPermissions as $perm) {
-                if (is_string($perm) && $perm !== '') {
-                    $permissions[] = $perm;
-                }
-            }
-        }
-        $this->permissions = $permissions;
 
         $this->category = is_string($data['category'] ?? null) ? $data['category'] : 'global';
         $this->icon = is_string($data['icon'] ?? null) ? $data['icon'] : '';
@@ -509,22 +491,23 @@ final class PluginManifest
     }
 
     /**
-     * Resolves the fully qualified class name for the plugin entrypoint class.
+     * Resolves the fully qualified class name of the plugin entrypoint.
      *
-     * Utilizes PSR-4 standard mappings under the `OwnPayPlugin` root namespace.
+     * MUST stay identical to PluginLoader::resolveClassName(): route handlers are built from this
+     * method, and the loader registers the instance under that same name in the container — any
+     * divergence makes plugin routes dispatch to a non-existent class.
      *
      * @return string Fully qualified class name.
      */
     public function getFullyQualifiedClassName(): string
     {
         $className = pathinfo($this->entrypoint, PATHINFO_FILENAME);
-        $ns = $this->namespace;
-        if ($ns === '') {
-            $parts = explode('-', $this->slug);
-            $capitalized = array_map('ucfirst', $parts);
-            $ns = implode('', $capitalized);
+        if ($this->namespace !== '') {
+            return rtrim($this->namespace, '\\') . '\\' . $className;
         }
-        return 'OwnPayPlugin\\' . $ns . '\\' . $className;
+        // Fallback convention mirrors PluginLoader::resolveClassName() exactly.
+        $pascal = str_replace('-', '', ucwords($this->slug, '-'));
+        return 'OwnPay\\Plugins\\' . $pascal . '\\' . $className;
     }
 
     /**

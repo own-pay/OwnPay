@@ -78,34 +78,6 @@ final class SettingsController
      */
     public function index(Request $req, string $activeTab = 'general'): Response
     {
-        $settings    = $this->settingsRepo->getGroup('general');
-        $branding    = $this->settingsRepo->getGroup('branding');
-        $landing     = $this->settingsRepo->getGroup('landing');
-        $checkout    = $this->settingsRepo->getGroup('checkout');
-        $theme       = $this->settingsRepo->getGroup('theme');
-
-        if (isset($settings['faqs']) && is_string($settings['faqs'])) {
-            $decoded = json_decode($settings['faqs'], true);
-            $settings['faqs'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
-        }
-        if (isset($landing['features']) && is_string($landing['features'])) {
-            $decoded = json_decode($landing['features'], true);
-            $landing['features'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
-        }
-
-        // Maintenance lock file status
-        $lockFile = dirname(__DIR__, 3) . '/storage/.maintenance';
-        if (file_exists($lockFile) && empty($settings['maintenance_mode'])) {
-            $settings['maintenance_mode'] = '1';
-        }
-
-        $currencyService = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
-        if (!$currencyService instanceof \OwnPay\Service\Payment\CurrencyService) {
-            throw new \RuntimeException('CurrencyService not found.');
-        }
-        $allCurrencies   = $currencyService->listAll();
-        $timezones       = \DateTimeZone::listIdentifiers();
-
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
             throw new \RuntimeException('BrandContext service not found.');
@@ -115,6 +87,123 @@ final class SettingsController
         if ($mid === null) {
             throw new \RuntimeException('Brand ID not resolved.');
         }
+
+        $isBrandView = ($mid > 0);
+        $brandRecord = null;
+        $brandSettings = [];
+        $domains = [];
+
+        $appDomainVal = $_ENV['APP_DOMAIN'] ?? getenv('APP_DOMAIN') ?: '';
+        $serverHost = is_string($appDomainVal) && $appDomainVal !== ''
+            ? $appDomainVal
+            : $req->header('Host', 'localhost');
+        $serverIp = gethostbyname($serverHost);
+
+        if ($isBrandView) {
+            $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
+            if (!$merchantRepo instanceof \OwnPay\Repository\MerchantRepository) {
+                throw new \RuntimeException('MerchantRepository not found.');
+            }
+            $brandRecord = $merchantRepo->find($mid);
+            if (!is_array($brandRecord)) {
+                $brandRecord = [];
+            }
+            
+            $brandSettings = [];
+            if (isset($brandRecord['settings']) && is_string($brandRecord['settings'])) {
+                $decoded = json_decode($brandRecord['settings'], true);
+                if (is_array($decoded)) {
+                    $brandSettings = $decoded;
+                }
+            }
+            
+            $settings = [
+                'support_email' => $brandSettings['support_email'] ?? ($brandRecord['email'] ?? ''),
+                'footer_text' => $brandSettings['footer_text'] ?? '',
+                'faqs' => $brandSettings['faqs'] ?? [],
+            ];
+
+            // Per-brand notification overrides. getScopedOverride returns the brand's OWN value
+            // (null = inherit the All-Brands default), so the form can show an empty field that
+            // falls back to the platform value rendered as the placeholder/hint below.
+            foreach (['mail_from_name', 'mail_from_email', 'admin_notification_email', 'email_on_payment', 'email_on_refund'] as $notifyKey) {
+                $settings[$notifyKey] = $this->settingsRepo->getScopedOverride('general', $notifyKey, $mid) ?? '';
+            }
+            $inherited = [
+                'mail_from_name'           => $this->settingsRepo->get('general', 'mail_from_name', ''),
+                'mail_from_email'          => $this->settingsRepo->get('general', 'mail_from_email', ''),
+                'admin_notification_email' => $this->settingsRepo->get('general', 'admin_notification_email', ''),
+                'email_on_payment'         => $this->settingsRepo->get('general', 'email_on_payment', '0'),
+                'email_on_refund'          => $this->settingsRepo->get('general', 'email_on_refund', '0'),
+            ];
+            $branding = [
+                'site_logo' => $brandRecord['logo_path'] ?? null,
+                'site_favicon' => $brandSettings['favicon'] ?? null,
+                'primary_color' => $brandSettings['primary_color'] ?? '#0D9488',
+                'accent_color' => $brandSettings['accent_color'] ?? '#0F766E',
+            ];
+            $checkout = [
+                'checkout_success_msg' => $brandSettings['checkout_success_msg'] ?? '',
+                'checkout_pending_msg' => $brandSettings['checkout_pending_msg'] ?? '',
+                'checkout_failed_msg' => $brandSettings['checkout_failed_msg'] ?? '',
+                'timer_enabled' => $brandSettings['timer_enabled'] ?? '0',
+                'timer_seconds' => $brandSettings['timer_seconds'] ?? '900',
+                'show_faq' => $brandSettings['show_faq'] ?? '0',
+                'custom_css' => $brandSettings['custom_css'] ?? '',
+                'custom_js' => $brandSettings['custom_js'] ?? '',
+            ];
+            $theme = [
+                'primary_color' => $brandSettings['primary_color'] ?? '#0D9488',
+                'accent_color' => $brandSettings['accent_color'] ?? '#0F766E',
+            ];
+            $landing = [];
+
+            $domainRepo = $this->c->get(\OwnPay\Repository\DomainRepository::class);
+            if ($domainRepo instanceof \OwnPay\Repository\DomainRepository) {
+                $domains = $domainRepo->forTenant($mid)->listAllScoped();
+                foreach ($domains as &$d) {
+                    $d['merchant_name'] = $brandRecord['name'] ?? '—';
+                }
+            }
+
+            if (!in_array($activeTab, ['branding', 'checkout', 'domains', 'faq', 'payment', 'notifications'], true)) {
+                return Response::redirect('/admin/settings/branding');
+            }
+        } else {
+            $inherited   = [];
+            $settings    = $this->settingsRepo->getGroup('general');
+            $branding    = $this->settingsRepo->getGroup('branding');
+            $landing     = $this->settingsRepo->getGroup('landing');
+            $checkout    = $this->settingsRepo->getGroup('checkout');
+            $theme       = $this->settingsRepo->getGroup('theme');
+
+            $smsSettings = $this->settingsRepo->getGroup('sms');
+            $settings['sms_positive_keywords'] = $smsSettings['positive_keywords'] ?? '';
+            $settings['sms_negative_keywords'] = $smsSettings['negative_keywords'] ?? '';
+            $settings['sms_filter_rules_check_interval_hours'] = $smsSettings['filter_rules_check_interval_hours'] ?? '24';
+
+            if (isset($settings['faqs'])) {
+                $decoded = json_decode((string) $settings['faqs'], true);
+                $settings['faqs'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+            }
+            if (isset($landing['features'])) {
+                $decoded = json_decode((string) $landing['features'], true);
+                $landing['features'] = (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) ? $decoded : [];
+            }
+
+            $lockFile = dirname(__DIR__, 3) . '/storage/.maintenance';
+            if (file_exists($lockFile) && empty($settings['maintenance_mode'])) {
+                $settings['maintenance_mode'] = '1';
+            }
+        }
+
+        $currencyService = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+        if (!$currencyService instanceof \OwnPay\Service\Payment\CurrencyService) {
+            throw new \RuntimeException('CurrencyService not found.');
+        }
+        $allCurrencies   = $currencyService->listAll();
+        $timezones       = \DateTimeZone::listIdentifiers();
+
         $apiKeyService = $this->c->get(\OwnPay\Service\Customer\ApiKeyService::class);
         if (!$apiKeyService instanceof \OwnPay\Service\Customer\ApiKeyService) {
             throw new \RuntimeException('ApiKeyService not found.');
@@ -247,6 +336,7 @@ final class SettingsController
                 ];
             }
         } catch (\Throwable) {
+            // Best-effort DB statistics — keep the defaults on any query error.
         }
 
         $logStats = [
@@ -272,10 +362,53 @@ final class SettingsController
                 $logStats['session_count'] = is_numeric($sessionVal) ? (int) $sessionVal : 0;
             }
         } catch (\Throwable) {
+            // Best-effort log statistics — keep the zero defaults on any query error.
         }
 
         $tempDir = dirname(__DIR__, 3) . '/storage/temp';
         $tempStats = $this->getDirectoryStats($tempDir);
+
+        $queueObj = $this->c->get(\OwnPay\Queue\QueueInterface::class);
+        $queueDriverStats = [
+            'driver' => getenv('QUEUE_DRIVER') ?: 'file',
+            'sizes' => [
+                'default'  => 0,
+                'webhooks' => 0,
+                'sms'      => 0,
+                'emails'   => 0,
+                'telegram' => 0,
+            ]
+        ];
+        if ($queueObj instanceof \OwnPay\Queue\QueueInterface) {
+            foreach (array_keys($queueDriverStats['sizes']) as $qName) {
+                try {
+                    $queueDriverStats['sizes'][$qName] = $queueObj->size($qName);
+                } catch (\Throwable) {
+                }
+            }
+        }
+
+        $dbQueueStats = [
+            'pending' => 0,
+            'processing' => 0,
+            'completed' => 0,
+            'failed' => 0,
+        ];
+        try {
+            if ($db instanceof \OwnPay\Core\Database) {
+                $rows = $db->fetchAll(
+                    "SELECT status, COUNT(*) as cnt FROM op_job_queue GROUP BY status"
+                );
+                foreach ($rows as $row) {
+                    $status = isset($row['status']) && is_string($row['status']) ? $row['status'] : '';
+                    $cnt = $row['cnt'] ?? 0;
+                    if ($status !== '' && array_key_exists($status, $dbQueueStats)) {
+                        $dbQueueStats[$status] = is_numeric($cnt) ? (int) $cnt : 0;
+                    }
+                }
+            }
+        } catch (\Throwable) {
+        }
 
         $optimizationSettings = [
             'log_retention_days' => (int) $this->settingsRepo->get('runtime', 'optimization.log_retention_days', '90'),
@@ -286,6 +419,8 @@ final class SettingsController
         ];
 
         return $this->renderAdminPage('admin/settings/index.twig', [
+            'queue_driver_stats' => $queueDriverStats,
+            'db_queue_stats'     => $dbQueueStats,
             'settings'          => $settings,
             'branding'          => $branding,
             'landing'           => $landing,
@@ -293,6 +428,7 @@ final class SettingsController
             'theme'             => $theme,
             'currencies'        => $allCurrencies,
             'all_currencies'    => $allCurrencies,
+            'base_currency'     => $this->settingsRepo->get('general', 'base_currency', 'USD'),
             'timezones'         => $timezones,
             'api_keys'          => $apiKeys,
             'active_page'       => 'settings',
@@ -311,6 +447,12 @@ final class SettingsController
             'temp_uploads_size'  => $tempStats['size'],
             'temp_uploads_count' => $tempStats['count'],
             'opt_settings'      => $optimizationSettings,
+            'is_brand_view'     => $isBrandView,
+            'inherited'         => $inherited,
+            'brand'             => $brandRecord,
+            'domains'           => $domains,
+            'server_host'       => $serverHost,
+            'server_ip'         => $serverIp,
         ]);
     }
 
@@ -328,6 +470,145 @@ final class SettingsController
         $postData = $req->post();
         $data = is_array($postData) ? $postData : [];
         unset($data['_csrf_token'], $data['_tab']);
+
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('Brand ID not resolved.');
+        }
+
+        if ($mid > 0) {
+            $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
+            if (!$merchantRepo instanceof \OwnPay\Repository\MerchantRepository) {
+                throw new \RuntimeException('MerchantRepository not found.');
+            }
+            $brandRecord = $merchantRepo->find($mid);
+            if (!is_array($brandRecord)) {
+                $this->session->flashError('Brand not found');
+                return Response::redirect('/admin/settings');
+            }
+            
+            $brandSettings = [];
+            if (isset($brandRecord['settings']) && is_string($brandRecord['settings'])) {
+                $decoded = json_decode($brandRecord['settings'], true);
+                if (is_array($decoded)) {
+                    $brandSettings = $decoded;
+                }
+            }
+            
+            switch ($tab) {
+                case 'branding':
+                    $primaryColorVal = $data['primary_color'] ?? ($brandSettings['primary_color'] ?? '#0D9488');
+                    $brandSettings['primary_color'] = \OwnPay\Service\System\InputSanitizer::string(is_string($primaryColorVal) ? $primaryColorVal : '#0D9488');
+                    
+                    $accentColorVal = $data['accent_color'] ?? ($brandSettings['accent_color'] ?? '#0F766E');
+                    $brandSettings['accent_color'] = \OwnPay\Service\System\InputSanitizer::string(is_string($accentColorVal) ? $accentColorVal : '#0F766E');
+                    
+                    $supportEmailVal = $data['support_email'] ?? ($brandSettings['support_email'] ?? '');
+                    $brandSettings['support_email'] = \OwnPay\Service\System\InputSanitizer::email(is_string($supportEmailVal) ? $supportEmailVal : '');
+                    
+                    $footerTextVal = $data['footer_text'] ?? ($brandSettings['footer_text'] ?? '');
+                    $brandSettings['footer_text'] = \OwnPay\Service\System\InputSanitizer::string(is_string($footerTextVal) ? $footerTextVal : '');
+
+                    // Extract and update Brand profile fields (merged brand settings)
+                    $brandNameVal = $data['brand_name'] ?? $brandRecord['name'];
+                    $brandRecord['name'] = \OwnPay\Service\System\InputSanitizer::string(is_string($brandNameVal) ? $brandNameVal : '');
+                    
+                    $brandEmailVal = $data['brand_email'] ?? $brandRecord['email'];
+                    $brandRecord['email'] = \OwnPay\Service\System\InputSanitizer::email(is_string($brandEmailVal) ? $brandEmailVal : '');
+                    
+                    $brandPhoneVal = $data['brand_phone'] ?? $brandRecord['phone'];
+                    $brandRecord['phone'] = \OwnPay\Service\System\InputSanitizer::string(is_string($brandPhoneVal) ? $brandPhoneVal : '');
+                    
+                    $brandTimezoneVal = $data['brand_timezone'] ?? $brandRecord['timezone'];
+                    $brandRecord['timezone'] = \OwnPay\Service\System\InputSanitizer::string(is_string($brandTimezoneVal) ? $brandTimezoneVal : 'Asia/Dhaka');
+                    
+                    $brandCurrencyVal = $data['brand_currency'] ?? $brandRecord['default_currency'];
+                    $brandRecord['default_currency'] = \OwnPay\Service\System\InputSanitizer::string(is_string($brandCurrencyVal) ? $brandCurrencyVal : 'BDT');
+                    break;
+                    
+                case 'payment':
+                    $brandCurrencyVal = $data['brand_currency'] ?? $brandRecord['default_currency'];
+                    $brandRecord['default_currency'] = \OwnPay\Service\System\InputSanitizer::string(is_string($brandCurrencyVal) ? $brandCurrencyVal : 'BDT');
+                    break;
+                    
+                case 'checkout':
+                    $successMsgVal = $data['checkout_success_msg'] ?? ($brandSettings['checkout_success_msg'] ?? '');
+                    $brandSettings['checkout_success_msg'] = \OwnPay\Service\System\InputSanitizer::string(is_string($successMsgVal) ? $successMsgVal : '');
+
+                    $pendingMsgVal = $data['checkout_pending_msg'] ?? ($brandSettings['checkout_pending_msg'] ?? '');
+                    $brandSettings['checkout_pending_msg'] = \OwnPay\Service\System\InputSanitizer::string(is_string($pendingMsgVal) ? $pendingMsgVal : '');
+
+                    $failedMsgVal = $data['checkout_failed_msg'] ?? ($brandSettings['checkout_failed_msg'] ?? '');
+                    $brandSettings['checkout_failed_msg'] = \OwnPay\Service\System\InputSanitizer::string(is_string($failedMsgVal) ? $failedMsgVal : '');
+                    
+                    $brandSettings['timer_enabled'] = isset($data['timer_enabled']) && $data['timer_enabled'] === '1' ? '1' : '0';
+                    $timerSecondsVal = $data['timer_seconds'] ?? ($brandSettings['timer_seconds'] ?? '900');
+                    $brandSettings['timer_seconds'] = is_scalar($timerSecondsVal) ? (string) $timerSecondsVal : '900';
+                    
+                    $brandSettings['show_faq'] = isset($data['show_faq']) && $data['show_faq'] === '1' ? '1' : '0';
+                    
+                    $isSuperadmin = !empty($_SESSION['is_superadmin']);
+                    if ($isSuperadmin) {
+                        $customCssVal = $data['custom_css'] ?? ($brandSettings['custom_css'] ?? '');
+                        $customCss = is_string($customCssVal) ? $customCssVal : '';
+                        $customJsVal = $data['custom_js'] ?? ($brandSettings['custom_js'] ?? '');
+                        $customJs = is_string($customJsVal) ? $customJsVal : '';
+
+                        $customCss = preg_replace('/expression\s*\(|behavior\s*:|javascript\s*:/i', '', $customCss);
+                        $customCss = preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', is_string($customCss) ? $customCss : '');
+
+                        $brandSettings['custom_css'] = is_string($customCss) ? $customCss : '';
+                        $brandSettings['custom_js']  = $customJs;
+                    }
+                    break;
+                    
+                case 'faq':
+                    if (isset($data['faqs']) && is_array($data['faqs'])) {
+                        $cleanFaqs = [];
+                        foreach ($data['faqs'] as $faq) {
+                            if (is_array($faq) && isset($faq['question'], $faq['answer'])) {
+                                $cleanFaqs[] = [
+                                    'question' => \OwnPay\Service\System\InputSanitizer::string((string)$faq['question']),
+                                    'answer' => \OwnPay\Service\System\InputSanitizer::string((string)$faq['answer']),
+                                ];
+                            }
+                        }
+                        $brandSettings['faqs'] = $cleanFaqs;
+                    } else {
+                        $brandSettings['faqs'] = [];
+                    }
+                    break;
+
+                case 'notifications':
+                    // Per-brand email sender + notification prefs live in op_system_settings
+                    // (group 'general', merchant-scoped) so they cascade brand → All-Brands →
+                    // default through getScoped — exactly how EmailNotificationService and
+                    // CommunicationService resolve them at send time. (Not in the brand JSON blob.)
+                    $this->saveBrandNotifications($data, $mid);
+                    break;
+            }
+            
+            $merchantRepo->updateBrand($mid, [
+                'name'             => $brandRecord['name'],
+                'email'            => $brandRecord['email'],
+                'phone'            => $brandRecord['phone'],
+                'timezone'         => $brandRecord['timezone'],
+                'default_currency' => $brandRecord['default_currency'],
+                'status'           => $brandRecord['status'],
+                'logo_path'        => $brandRecord['logo_path'],
+                'settings'         => json_encode($brandSettings, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            ]);
+
+            $this->events->doAction('settings.saved', ['tab' => $tab, 'data' => $data]);
+            $this->audit->log('brand.settings.saved', 'merchant', $mid, null, ['tab' => $tab]);
+            $this->session->flashSuccess('Settings saved');
+            return Response::redirect('/admin/settings/' . $tab);
+        }
 
         switch ($tab) {
             case 'branding':
@@ -376,8 +657,86 @@ final class SettingsController
      */
     public function upload(Request $req): Response
     {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service not found.');
+        }
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('Brand ID not resolved.');
+        }
+
+        $isBrandView = ($mid > 0);
         $saved = [];
         $fs = new \OwnPay\Service\System\FilesystemService(dirname(__DIR__, 3) . '/public/assets');
+
+        if ($isBrandView) {
+            $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
+            if (!$merchantRepo instanceof \OwnPay\Repository\MerchantRepository) {
+                throw new \RuntimeException('MerchantRepository not found.');
+            }
+            $brandRecord = $merchantRepo->find($mid);
+            if (!is_array($brandRecord)) {
+                $this->session->flashError('Brand not found');
+                return Response::redirect('/admin/settings/branding');
+            }
+            
+            $brandSettings = [];
+            if (isset($brandRecord['settings']) && is_string($brandRecord['settings'])) {
+                $decoded = json_decode($brandRecord['settings'], true);
+                if (is_array($decoded)) {
+                    $brandSettings = $decoded;
+                }
+            }
+            
+            $logoPath = $brandRecord['logo_path'];
+            $faviconPath = $brandSettings['favicon'] ?? null;
+
+            $logoFile = $req->file('site_logo');
+            if ($logoFile !== null && ($logoFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                try {
+                    if (isset($logoFile['name'], $logoFile['tmp_name']) && is_string($logoFile['name']) && is_string($logoFile['tmp_name'])) {
+                        $storedPath = $fs->storeUpload($logoFile, 'uploads/brands');
+                        $logoPath = '/assets/' . $storedPath;
+                        $saved['logo'] = $logoPath;
+                    }
+                } catch (\Throwable $e) {
+                    $this->session->flashError('Invalid file for brand logo: ' . $e->getMessage());
+                }
+            }
+
+            $faviconFile = $req->file('site_favicon');
+            if ($faviconFile !== null && ($faviconFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
+                try {
+                    if (isset($faviconFile['name'], $faviconFile['tmp_name']) && is_string($faviconFile['name']) && is_string($faviconFile['tmp_name'])) {
+                        $storedPath = $fs->storeUpload($faviconFile, 'uploads/brands');
+                        $faviconPath = '/assets/' . $storedPath;
+                        $saved['favicon'] = $faviconPath;
+                    }
+                } catch (\Throwable $e) {
+                    $this->session->flashError('Invalid file for brand favicon: ' . $e->getMessage());
+                }
+            }
+
+            $brandSettings['logo'] = $logoPath;
+            $brandSettings['favicon'] = $faviconPath;
+
+            $merchantRepo->updateBrand($mid, [
+                'name'             => $brandRecord['name'],
+                'email'            => $brandRecord['email'],
+                'phone'            => $brandRecord['phone'],
+                'timezone'         => $brandRecord['timezone'],
+                'default_currency' => $brandRecord['default_currency'],
+                'status'           => $brandRecord['status'],
+                'logo_path'        => $logoPath,
+                'settings'         => json_encode($brandSettings, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
+            ]);
+
+            $this->audit->log('brand.branding.upload', 'merchant', $mid, null, ['files' => array_keys($saved)]);
+            $this->session->flashSuccess('Branding files uploaded successfully');
+            return Response::redirect('/admin/settings/branding');
+        }
 
         foreach (['site_logo', 'site_favicon'] as $field) {
             $file = $req->file($field);
@@ -477,6 +836,7 @@ final class SettingsController
                 }
             }
         } catch (\Throwable) {
+            // Best-effort cleanup — ignore unreadable or locked filesystem entries.
         }
     }
 
@@ -645,6 +1005,7 @@ final class SettingsController
                     }
                 }
             } catch (\Throwable) {
+                // Best-effort temp purge — a locked/in-use file is skipped, not fatal.
             }
         }
 
@@ -704,6 +1065,7 @@ final class SettingsController
                     $db->execute("OPTIMIZE TABLE `{$tableName}`");
                 }
             } catch (\Throwable) {
+                // Best-effort table maintenance — ANALYZE/OPTIMIZE failures are non-fatal.
             }
             $this->settingsRepo->set('runtime', 'optimization.last_db_optimize_time', date('Y-m-d H:i:s'));
         }
@@ -724,6 +1086,7 @@ final class SettingsController
                 $db->execute("DELETE FROM op_webhook_delivery_logs WHERE created_at < :cutoff", ['cutoff' => $cutoffDate]);
                 $db->execute("DELETE FROM op_sessions WHERE last_activity < :cutoff", ['cutoff' => time() - 86400]);
             } catch (\Throwable) {
+                // Best-effort retention purge — a failed delete is retried next run.
             }
             $this->settingsRepo->set('runtime', 'optimization.last_logs_purge_time', date('Y-m-d H:i:s'));
         }
@@ -748,6 +1111,7 @@ final class SettingsController
                     }
                 }
             } catch (\Throwable) {
+                // Best-effort temp purge — a locked/in-use file is skipped, not fatal.
             }
         }
         $this->settingsRepo->set('runtime', 'optimization.last_uploads_purge_time', date('Y-m-d H:i:s'));
@@ -792,8 +1156,7 @@ final class SettingsController
             'mail_from_email', 'mail_from_name', 'webhook_url', 'api_rate_limit',
             'session_timeout', 'max_login_attempts', 'ip_allowlist', 'force_https',
             'require_2fa', 'admin_notification_email', 'email_on_payment', 'email_on_refund',
-            'faqs', 'sms_positive_keywords', 'sms_negative_keywords',
-            'sms_filter_rules_check_interval_hours'
+            'faqs'
         ];
 
         $filtered = [];
@@ -805,6 +1168,34 @@ final class SettingsController
 
         $this->settingsRepo->bulkSet('general', $filtered);
 
+        // Save Admin Login URL Slug to landing group if present (as it was moved to Security tab)
+        if (isset($data['admin_login_slug'])) {
+            $slug = is_scalar($data['admin_login_slug']) ? (string) $data['admin_login_slug'] : 'login';
+            $slugVal = preg_replace('/[^a-z0-9\-]/i', '', $slug); // sanitize slug
+            $slug = is_string($slugVal) ? $slugVal : 'login';
+            if ($slug === '') {
+                $slug = 'login';
+            }
+            $this->settingsRepo->set('landing', 'admin_login_slug', $slug);
+
+            // Invalidate login slug cache to apply changes immediately
+            $cacheFile = dirname(__DIR__, 3) . '/storage/cache/login_slug.cache';
+            if (file_exists($cacheFile)) {
+                @unlink($cacheFile);
+            }
+        }
+
+        // Save SMS group settings
+        if (isset($data['sms_positive_keywords'])) {
+            $this->settingsRepo->set('sms', 'positive_keywords', is_scalar($data['sms_positive_keywords']) ? (string) $data['sms_positive_keywords'] : '');
+        }
+        if (isset($data['sms_negative_keywords'])) {
+            $this->settingsRepo->set('sms', 'negative_keywords', is_scalar($data['sms_negative_keywords']) ? (string) $data['sms_negative_keywords'] : '');
+        }
+        if (isset($data['sms_filter_rules_check_interval_hours'])) {
+            $this->settingsRepo->set('sms', 'filter_rules_check_interval_hours', is_scalar($data['sms_filter_rules_check_interval_hours']) ? (string) $data['sms_filter_rules_check_interval_hours'] : '');
+        }
+
         // Sync maintenance lock file
         $lockFile = dirname(__DIR__, 3) . '/storage/.maintenance';
         if (!empty($filtered['maintenance_mode'])) {
@@ -815,6 +1206,57 @@ final class SettingsController
             ], JSON_THROW_ON_ERROR));
         } elseif (file_exists($lockFile)) {
             @unlink($lockFile);
+        }
+    }
+
+    /**
+     * Persists per-brand email-notification overrides into op_system_settings (group 'general').
+     *
+     * A blank text field DELETES the brand override (re-inheriting the All-Brands default);
+     * a non-blank value stores a brand-specific override. Toggle selects use '' = inherit,
+     * '1' = on, '0' = off. This keeps every key resolvable via getScoped at send time.
+     *
+     * @param array<string, mixed> $data Submitted form data.
+     * @param int $merchantId The active brand identifier.
+     * @return void
+     */
+    private function saveBrandNotifications(array $data, int $merchantId): void
+    {
+        $rawName = $data['mail_from_name'] ?? '';
+        $name = is_scalar($rawName) ? trim((string) $rawName) : '';
+        $this->applyBrandOverride('mail_from_name', $merchantId, $name === '' ? '' : \OwnPay\Service\System\InputSanitizer::string($name));
+
+        $rawFrom = $data['mail_from_email'] ?? '';
+        $from = is_scalar($rawFrom) ? trim((string) $rawFrom) : '';
+        $this->applyBrandOverride('mail_from_email', $merchantId, $from === '' ? '' : \OwnPay\Service\System\InputSanitizer::email($from));
+
+        $rawAdmin = $data['admin_notification_email'] ?? '';
+        $admin = is_scalar($rawAdmin) ? trim((string) $rawAdmin) : '';
+        $this->applyBrandOverride('admin_notification_email', $merchantId, $admin === '' ? '' : \OwnPay\Service\System\InputSanitizer::email($admin));
+
+        foreach (['email_on_payment', 'email_on_refund'] as $toggle) {
+            $rawToggle = $data[$toggle] ?? '';
+            $toggleVal = is_scalar($rawToggle) ? (string) $rawToggle : '';
+            $this->applyBrandOverride($toggle, $merchantId, ($toggleVal === '1' || $toggleVal === '0') ? $toggleVal : '');
+        }
+    }
+
+    /**
+     * Writes or clears a single brand-scoped 'general' override.
+     *
+     * An empty value clears the override so the brand re-inherits the All-Brands default.
+     *
+     * @param string $key The settings key.
+     * @param int $merchantId The active brand identifier.
+     * @param string $value The sanitized value, or '' to clear (inherit).
+     * @return void
+     */
+    private function applyBrandOverride(string $key, int $merchantId, string $value): void
+    {
+        if ($value === '') {
+            $this->settingsRepo->deleteSettingScoped('general', $key, $merchantId);
+        } else {
+            $this->settingsRepo->setScoped('general', $key, $value, $merchantId);
         }
     }
 
@@ -842,6 +1284,17 @@ final class SettingsController
             }
         }
         $this->settingsRepo->bulkSet('branding', $filtered);
+
+        $themeData = [];
+        if (isset($data['primary_color'])) {
+            $themeData['primary_color'] = is_scalar($data['primary_color']) ? (string) $data['primary_color'] : '#6C5CE7';
+        }
+        if (isset($data['accent_color'])) {
+            $themeData['accent_color'] = is_scalar($data['accent_color']) ? (string) $data['accent_color'] : '#00CEC9';
+        }
+        if ($themeData !== []) {
+            $this->settingsRepo->bulkSet('theme', $themeData);
+        }
     }
 
     /**

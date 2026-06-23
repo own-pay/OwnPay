@@ -77,11 +77,11 @@ final class ApiKeyService
      *
      * @param int $merchantId Unique identifier of the merchant/brand.
      * @param int $keyId Unique identifier of the API key to revoke.
-     * @return void
+     * @return int Number of keys actually revoked (0 if the id does not exist or belongs to another merchant).
      */
-    public function revoke(int $merchantId, int $keyId): void
+    public function revoke(int $merchantId, int $keyId): int
     {
-        $this->keys->forTenant($merchantId)->updateScoped($keyId, ['status' => 'revoked']);
+        return $this->keys->forTenant($merchantId)->updateScoped($keyId, ['status' => 'revoked']);
     }
 
     /**
@@ -95,7 +95,9 @@ final class ApiKeyService
         $keys = $this->keys->forTenant($merchantId)->listActiveKeys();
         
         return array_map(function (array $key) {
-            unset($key['hash']);
+            // The stored hash column is `key_hash`; defensively strip it (and the
+            // legacy `hash` alias) so it can never leak even if the SELECT changes.
+            unset($key['key_hash'], $key['hash']);
             if (isset($key['scopes']) && is_string($key['scopes'])) {
                 $key['scopes'] = json_decode($key['scopes'], true);
             }

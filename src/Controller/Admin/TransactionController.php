@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Controller\Admin;
 
 use OwnPay\Container;
+use OwnPay\Enum\TransactionStatus;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
@@ -103,6 +104,7 @@ final class TransactionController
     public function index(Request $req): Response
     {
         $mid = $this->resolveMerchant($req);
+        $isGlobal = $this->isGlobalView();
 
         $pageVal = $req->query('page', '1');
         $page = max(1, is_scalar($pageVal) && is_numeric($pageVal) ? (int) $pageVal : 1);
@@ -121,7 +123,7 @@ final class TransactionController
             'date_to'   => is_string($dateToVal) ? $dateToVal : '',
         ];
 
-        $repo = $this->txns->forTenant($mid);
+        $repo = $isGlobal ? $this->txns->forAllTenants() : $this->txns->forTenant($mid);
         $total = $repo->countFiltered($filters);
         $pagination = PaginationService::calculate($page, 25, $total);
         $transactions = $repo->listFiltered($filters, $pagination['per_page'], $pagination['offset']);
@@ -142,7 +144,7 @@ final class TransactionController
             }, $transactions);
         }
 
-        $gateways = $this->txns->getDistinctGateways($mid);
+        $gateways = $this->txns->getDistinctGateways($isGlobal ? null : $mid);
 
         return $this->renderAdminPage('admin/transactions/index.twig', [
             'transactions' => $transactions,
@@ -163,13 +165,16 @@ final class TransactionController
     public function show(Request $req): Response
     {
         $id = (int) $req->param('id');
+        $isGlobal = $this->isGlobalView();
         $mid = $this->resolveMerchant($req);
 
-        $txn = $this->txns->forTenant($mid)->findScoped($id);
+        $txn = ($isGlobal ? $this->txns->forAllTenants() : $this->txns->forTenant($mid))->findScoped($id);
         if ($txn === null) {
             $this->session->flashError('Transaction not found');
             return Response::redirect('/admin/transactions');
         }
+        // In global view, scope brand-specific lookups to the record's own brand.
+        $recordMid = is_numeric($txn['merchant_id'] ?? null) ? (int) $txn['merchant_id'] : $mid;
 
         // Fetch and decrypt customer details if customer_id is present
         if (!empty($txn['customer_id'])) {
@@ -177,7 +182,7 @@ final class TransactionController
             if ($customerRepo instanceof \OwnPay\Repository\CustomerRepository) {
                 $customerIdVal = $txn['customer_id'];
                 $customerId = is_numeric($customerIdVal) ? (int) $customerIdVal : 0;
-                $customer = $customerRepo->forTenant($mid)->findScoped($customerId);
+                $customer = $customerRepo->forTenant($recordMid)->findScoped($customerId);
                 if ($customer) {
                     $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
                     if ($enc instanceof \OwnPay\Security\FieldEncryptor) {
@@ -192,6 +197,26 @@ final class TransactionController
                         }
                     }
                 }
+            }
+        }
+        
+        // Resolve gateway name
+        $gwSlug = is_scalar($txn['gateway_slug'] ?? null) ? (string) $txn['gateway_slug'] : 'api';
+        $txn['gateway_name'] = ucfirst($gwSlug);
+        $gatewayRepo = $this->c->get(\OwnPay\Repository\GatewayRepository::class);
+        if ($gatewayRepo instanceof \OwnPay\Repository\GatewayRepository) {
+            $gw = $gatewayRepo->findBySlug($gwSlug);
+            if ($gw) {
+                $txn['gateway_name'] = $gw['name'] ?? $txn['gateway_name'];
+            }
+        }
+
+        // Resolve customer IP address
+        $txn['ip_address'] = $txn['ip_address'] ?? null;
+        if (empty($txn['ip_address']) && !empty($txn['metadata'])) {
+            $meta = is_string($txn['metadata']) ? json_decode($txn['metadata'], true) : $txn['metadata'];
+            if (is_array($meta)) {
+                $txn['ip_address'] = $meta['ip_address'] ?? null;
             }
         }
 
@@ -216,6 +241,7 @@ final class TransactionController
     public function updateStatus(Request $req): Response
     {
         $id = (int) $req->param('id');
+        $isGlobal = $this->isGlobalView();
         $mid = $this->resolveMerchant($req);
 
         $newStatus = $req->post('status', '');
@@ -224,14 +250,34 @@ final class TransactionController
             return Response::redirect("/admin/transactions/{$id}");
         }
 
-        $txn = $this->txns->forTenant($mid)->findScoped($id);
+        $txn = ($isGlobal ? $this->txns->forAllTenants() : $this->txns->forTenant($mid))->findScoped($id);
         if ($txn === null) {
             $this->session->flashError('Transaction not found');
             return Response::redirect('/admin/transactions');
         }
+        // In global view, perform the write against the transaction's own brand.
+        if ($isGlobal) {
+            $mid = is_numeric($txn['merchant_id'] ?? null) ? (int) $txn['merchant_id'] : $mid;
+        }
 
         if ($txn['status'] === $newStatus || ($newStatus === 'canceled' && $txn['status'] === 'cancelled')) {
             $this->session->flashSuccess("Transaction is already {$newStatus}");
+            return Response::redirect("/admin/transactions/{$id}");
+        }
+
+        // State machine enforcement: terminal transactions must not be
+        // re-completed or cancelled, and only completed transactions may be
+        // marked refunded — otherwise ledger entries get posted for money
+        // that never moved (e.g. "refunding" a failed payment).
+        $currentStatus = isset($txn['status']) && is_scalar($txn['status']) ? (string) $txn['status'] : '';
+        $terminalStatuses = array_map(static fn(TransactionStatus $s) => $s->value, TransactionStatus::terminal());
+
+        if (in_array($newStatus, ['completed', 'canceled'], true) && in_array($currentStatus, $terminalStatuses, true)) {
+            $this->session->flashError("Cannot mark a {$currentStatus} transaction as {$newStatus}");
+            return Response::redirect("/admin/transactions/{$id}");
+        }
+        if ($newStatus === 'refunded' && $currentStatus !== 'completed') {
+            $this->session->flashError('Only completed transactions can be marked refunded');
             return Response::redirect("/admin/transactions/{$id}");
         }
 
@@ -307,6 +353,17 @@ final class TransactionController
 
         $this->session->flashSuccess("Transaction marked {$newStatus}");
         return Response::redirect("/admin/transactions/{$id}");
+    }
+
+    /**
+     * Whether the admin is in the global "All Brands" (superadmin) view.
+     *
+     * @return bool True when operating across all brands.
+     */
+    private function isGlobalView(): bool
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        return $brand instanceof \OwnPay\Service\Brand\BrandContext && $brand->isGlobalView();
     }
 
     /**

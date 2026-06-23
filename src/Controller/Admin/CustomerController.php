@@ -65,17 +65,18 @@ final class CustomerController
             throw new \RuntimeException('BrandContext service unavailable');
         }
         $brand->resolveFromRequest($req); 
+        $isGlobal = $brand->isGlobalView();
         $mid = $brand->getActiveBrandId();
-        if ($mid === null) {
+        if ($mid === null && !$isGlobal) {
             throw new \RuntimeException('No active brand found.');
         }
-        
+
         $pageVal = $req->query('page', '1');
         $page = max(1, is_int($pageVal) || is_string($pageVal) ? (int)$pageVal : 1);
         $qVal = $req->query('q', '');
         $q = is_string($qVal) ? $qVal : '';
 
-        $paginated = $this->customerRepo->paginateWithStats($mid, $q, $page, 20);
+        $paginated = $this->customerRepo->paginateWithStats($isGlobal ? null : $mid, $q, $page, 20);
 
         // Decrypt PII fields for display
         $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
@@ -194,8 +195,8 @@ final class CustomerController
         }
         $brand->resolveFromRequest($req);
         $mid = $brand->getActiveBrandId();
-        if ($mid === null) {
-            throw new \RuntimeException('No active brand found.');
+        if ($guard = $this->requireActiveBrand($mid, '/admin/customers')) {
+            return $guard;
         }
 
         $nameVal = $req->post('name', '');

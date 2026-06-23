@@ -4,11 +4,19 @@
 
 {% block content %}
 <div class="op-page-header">
-    <h1>Addons</h1>
+    <div>
+        <h1>Addons</h1>
+        <p class="op-page-subtitle">Manage addon plugins, extra service integrations, and module configurations.</p>
+    </div>
+    {% if is_global_view ?? true %}
     <a href="/admin/plugins/install" class="op-btn op-btn-primary">
         <span class="op-icon">+</span> Install Addon
     </a>
+    {% endif %}
 </div>
+{% if not (is_global_view ?? true) %}
+{% include 'admin/partials/_all_brands_only.twig' with {title: 'Addons are managed from All Brands', message: 'Addons are uploaded once at the platform level, then activated per brand.'} only %}
+{% endif %}
 
 
 

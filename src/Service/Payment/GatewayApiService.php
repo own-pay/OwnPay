@@ -163,10 +163,21 @@ final class GatewayApiService
      * @param int $merchantId The ID of the merchant/brand.
      * @param string $gatewaySlug The identifier string of the payment gateway.
      * @param array<string, mixed> $callbackData Incoming callback request payload parameters.
+     * @param bool $webhookVerified True only when the caller has already validated the
+     *                              payload's cryptographic webhook signature for this gateway.
      * @return array{success: bool, error?: string, transaction?: array<string, mixed>} Verification response.
      */
-    public function handleCallback(int $merchantId, string $gatewaySlug, array $callbackData): array
+    public function handleCallback(int $merchantId, string $gatewaySlug, array $callbackData, bool $webhookVerified = false): array
     {
+        // The `_op_webhook_verified` flag may only originate from this code path.
+        // Strip any caller/user-supplied value, then re-add it solely when the
+        // ingress proved the payload signature. Adapters whose payloads are only
+        // trustworthy behind their own verifyWebhook() crypto check rely on it.
+        unset($callbackData['_op_webhook_verified']);
+        if ($webhookVerified) {
+            $callbackData['_op_webhook_verified'] = true;
+        }
+
         $verification = $this->bridge->verify($gatewaySlug, $merchantId, $callbackData);
 
         if (!$verification['success']) {
@@ -183,6 +194,16 @@ final class GatewayApiService
             if (is_scalar($fieldVal) && $fieldVal !== '') {
                 $trxId = (string) $fieldVal;
                 break;
+            }
+        }
+
+        // Nested webhook payloads (Stripe events, Adyen notifications, ...) carry
+        // the merchant reference inside the provider object; adapters surface it
+        // as `trx_id` in their verification result.
+        if ($trxId === '') {
+            $vTrx = $verification['trx_id'] ?? null;
+            if (is_scalar($vTrx) && (string) $vTrx !== '') {
+                $trxId = (string) $vTrx;
             }
         }
 
@@ -211,19 +232,29 @@ final class GatewayApiService
                 }
 
                 if ($transaction !== null) {
-                    // Assert callback amount matches transaction amount
+                    // FIND-004: a completion MUST carry a provider-verified amount that
+                    // matches the expected charge. Missing or non-numeric amounts fail
+                    // closed. When automatic currency conversion occurred, the gateway
+                    // charged metadata.converted_amount — compare against that instead
+                    // of the original-currency amount stored on the transaction row.
+                    $expectedVal = $transaction['amount'] ?? null;
+                    $metaRaw = $transaction['metadata'] ?? null;
+                    $meta = is_string($metaRaw) ? json_decode($metaRaw, true) : null;
+                    if (is_array($meta)
+                        && isset($meta['converted_amount']) && is_scalar($meta['converted_amount'])
+                        && (string) $meta['converted_amount'] !== ''
+                    ) {
+                        $expectedVal = $meta['converted_amount'];
+                    }
                     $verifiedAmountVal = $verification['amount'] ?? null;
-                    $txAmtVal = $transaction['amount'] ?? null;
-                    if ($verifiedAmountVal !== null && is_scalar($verifiedAmountVal) && is_scalar($txAmtVal)) {
-                        $verifiedAmountStr = (string)$verifiedAmountVal;
-                        $txAmtStr = (string)$txAmtVal;
-                        /** @var numeric-string $verifiedAmountStr */
-                        /** @var numeric-string $txAmtStr */
-                        if (bccomp($verifiedAmountStr, $txAmtStr, 2) !== 0) {
-                            $amountMismatch = true;
-                            $transaction = null;
-                            return;
-                        }
+                    $verifiedAmountStr = is_scalar($verifiedAmountVal) ? (string) $verifiedAmountVal : '';
+                    $expectedStr = is_scalar($expectedVal) ? (string) $expectedVal : '';
+                    if (!is_numeric($verifiedAmountStr) || !is_numeric($expectedStr)
+                        || bccomp($verifiedAmountStr, $expectedStr, 2) !== 0
+                    ) {
+                        $amountMismatch = true;
+                        $transaction = null;
+                        return;
                     }
 
                     if (in_array($transaction['status'], ['pending', 'processing', 'callback_processing'], true)) {

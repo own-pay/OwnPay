@@ -69,9 +69,16 @@ trait TenantScope
      */
     public function findScoped(int|string $id): ?array
     {
+        // tenantId === null => global read (superadmin "All Brands"): find regardless of brand.
+        if ($this->tenantId === null) {
+            return $this->db->fetchOne(
+                "SELECT * FROM {$this->table} WHERE {$this->primaryKey} = :id LIMIT 1",
+                ['id' => $id]
+            );
+        }
         return $this->db->fetchOne(
             "SELECT * FROM {$this->table} WHERE {$this->primaryKey} = :id AND merchant_id = :mid LIMIT 1",
-            ['id' => $id, 'mid' => $this->requireTenant()]
+            ['id' => $id, 'mid' => $this->tenantId]
         );
     }
 
@@ -87,7 +94,12 @@ trait TenantScope
      */
     public function paginateScoped(int $page = 1, int $perPage = 20, string $extraWhere = '1=1', array $params = [], string $orderBy = 'id DESC'): array
     {
-        $params['_tenant'] = $this->requireTenant();
+        // tenantId === null => global/all-tenants read (superadmin "All Brands" view):
+        // omit the merchant filter so the list aggregates across every brand.
+        if ($this->tenantId === null) {
+            return $this->paginate($page, $perPage, "({$extraWhere})", $params, $orderBy);
+        }
+        $params['_tenant'] = $this->tenantId;
         $where = "merchant_id = :_tenant AND ({$extraWhere})";
         return $this->paginate($page, $perPage, $where, $params, $orderBy);
     }
@@ -152,7 +164,11 @@ trait TenantScope
      */
     public function countScoped(string $extraWhere = '1=1', array $params = []): int
     {
-        $params['_mid'] = $this->requireTenant();
+        // tenantId === null => global/all-tenants count (aggregate across all brands).
+        if ($this->tenantId === null) {
+            return $this->db->count($this->table, "({$extraWhere})", $params);
+        }
+        $params['_mid'] = $this->tenantId;
         return $this->db->count(
             $this->table,
             "merchant_id = :_mid AND ({$extraWhere})",

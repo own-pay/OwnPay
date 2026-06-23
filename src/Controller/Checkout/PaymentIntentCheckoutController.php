@@ -27,6 +27,8 @@ use OwnPay\Support\DateHelper;
  */
 final class PaymentIntentCheckoutController
 {
+    use CheckoutPresentationTrait;
+
     /**
      * @var Container The service container instance.
      */
@@ -184,7 +186,9 @@ final class PaymentIntentCheckoutController
         }
 
         // Resolve active payment gateway configurations and manual gateway endpoints.
-        $manualGateways = $this->manualGw->forTenant($mid)->listActive();
+        // Phase 2c (money-critical): brand-account-over-platform-template resolution (see CheckoutController).
+        $platformId = ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) ? $brandCtx->getPlatformId() : 0;
+        $manualGateways = $this->manualGw->listActiveForCheckout($mid, $platformId);
         $apiGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
 
         // Retrieve the localized symbol representing the invoice's original currency.
@@ -415,7 +419,7 @@ final class PaymentIntentCheckoutController
         $intentDescVal = $intent['description'] ?? null;
         $intentDesc = is_string($intentDescVal) ? $intentDescVal : null;
 
-        // Construct mock transaction entity schema structure for compatibility with legacy Twig templates.
+        // Build the transaction view-model the checkout template expects.
         $txnMock = [
             'trx_id'            => $intentToken,
             'amount'            => $intentAmount,
@@ -831,6 +835,13 @@ final class PaymentIntentCheckoutController
         $intentStatusVal = $intent['status'] ?? '';
         $intentStatus = is_string($intentStatusVal) ? $intentStatusVal : '';
 
+        // No payment event has occurred yet (intent still on the gateway-selection step): send the
+        // customer back to the checkout page rather than a misleading "pending" status screen. The
+        // callback-capture block below only runs for 'processing', so this never blocks a callback.
+        if ($intentStatus === 'pending') {
+            return Response::redirect("/checkout/intent/{$token}");
+        }
+
         // Handle callback parameters and execute transaction settlement checks.
         // Map query inputs from regional integration interfaces.
         $callbackPaymentIdVal = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
@@ -859,6 +870,7 @@ final class PaymentIntentCheckoutController
                     return $this->renderStatus($token, $intentStatus, $intent);
                 }
 
+                $leaseReleased = false;
                 try {
                     $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
                     if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
@@ -877,6 +889,7 @@ final class PaymentIntentCheckoutController
                                 $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'completed']);
                                 $intent['status'] = 'completed';
                                 $intentStatus = 'completed';
+                                $leaseReleased = true;
                             } else {
                                 // Handle explicit rejection status by updating database records to failed.
                                 if (in_array($callbackStatus, ['cancel', 'failure', 'failed'], true)) {
@@ -884,18 +897,12 @@ final class PaymentIntentCheckoutController
                                     $this->intents->forTenant($mid)->updateScoped($intentId, ['status' => 'failed']);
                                     $intent['status'] = 'failed';
                                     $intentStatus = 'failed';
-                                } else {
-                                    // Revert status to processing state to support retrying checkout verification.
-                                    $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'processing', $mid);
+                                    $leaseReleased = true;
                                 }
                             }
                         }
                     }
                 } catch (\Throwable $e) {
-                    $gatewayVal = $txn['gateway_slug'] ?? '';
-                    $gateway = is_string($gatewayVal) ? $gatewayVal : '';
-                    // Revert status on capture failure to permit subsequent verification attempts.
-                    $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'processing', $mid);
                     // Log settlement capture exceptions without disrupting presentation page rendering.
                     $logger = $this->c->get(\OwnPay\Service\System\Logger::class);
                     if ($logger instanceof \OwnPay\Service\System\Logger) {
@@ -903,6 +910,17 @@ final class PaymentIntentCheckoutController
                             "Gateway callback execution failed for intent {$token}: " . $e->getMessage()
                         );
                     }
+                }
+
+                // Release the callback_processing lease whenever no terminal state
+                // was reached so retries/webhooks can still complete the payment.
+                // Guarded on the lease status so a completion that landed inside
+                // handleCallback is never clobbered back to 'processing'.
+                if (!$leaseReleased) {
+                    $this->db->update(
+                        "UPDATE op_transactions SET status = 'processing' WHERE id = :id AND merchant_id = :mid AND status = 'callback_processing'",
+                        ['id' => $txnId, 'mid' => $mid]
+                    );
                 }
             }
         }
@@ -965,7 +983,9 @@ final class PaymentIntentCheckoutController
         $cancelUrl = is_string($cancelUrlVal) ? $cancelUrlVal : '';
         if ($cancelUrl !== '') {
             $separator = str_contains($cancelUrl, '?') ? '&' : '?';
-            $redirectTarget = $cancelUrl . $separator . 'token=' . urlencode($token) . '&status=cancelled';
+            $intentUuidVal = $intent['uuid'] ?? '';
+            $intentUuid = is_string($intentUuidVal) ? $intentUuidVal : '';
+            $redirectTarget = $cancelUrl . $separator . 'payment_id=' . urlencode($intentUuid) . '&status=cancelled';
             return Response::redirect($redirectTarget);
         }
 
@@ -1056,15 +1076,6 @@ final class PaymentIntentCheckoutController
         }
         $brand = $mid > 0 ? $this->loadBrand($mid) : ['name' => 'Own Pay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''];
 
-        $statusLabels = [
-            'success' => 'Payment Successful', 'completed' => 'Payment Successful',
-            'failed' => 'Payment Failed', 'cancelled' => 'Payment Cancelled',
-            'canceled' => 'Payment Cancelled', 'expired' => 'Payment Expired',
-            'pending' => 'Payment Pending', 'pending_review' => 'Payment Under Review',
-            'awaiting_verification' => 'Awaiting Verification',
-            'processing' => 'Payment Processing',
-        ];
-
         $txn = null;
         if ($intent) {
             $intentIdVal = $intent['id'] ?? 0;
@@ -1124,46 +1135,19 @@ final class PaymentIntentCheckoutController
         return Response::html($twig->render($tplName, [
             'txn'                   => $txn,
             'status'                => $status,
-            'status_label'          => $statusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status)),
+            'status_label'          => $this->statusLabel($status),
             'brand'                 => $brand,
             'lang'                  => [
-                'success_msg' => is_string($this->settings->get('checkout', 'checkout_success_msg', '')) ? $this->settings->get('checkout', 'checkout_success_msg', '') : (is_string($this->settings->get('general', 'checkout_success_msg', '')) ? $this->settings->get('general', 'checkout_success_msg', '') : ''),
-                'pending_msg' => is_string($this->settings->get('checkout', 'checkout_pending_msg', '')) ? $this->settings->get('checkout', 'checkout_pending_msg', '') : (is_string($this->settings->get('general', 'checkout_pending_msg', '')) ? $this->settings->get('general', 'checkout_pending_msg', '') : ''),
-                'failed_msg'  => is_string($this->settings->get('checkout', 'checkout_failed_msg', '')) ? $this->settings->get('checkout', 'checkout_failed_msg', '') : (is_string($this->settings->get('general', 'checkout_failed_msg', '')) ? $this->settings->get('general', 'checkout_failed_msg', '') : ''),
+                'success_msg' => (!empty($brand['checkout_success_msg']) && is_string($brand['checkout_success_msg'])) ? $brand['checkout_success_msg'] : (is_string($this->settings->get('checkout', 'checkout_success_msg', '')) ? $this->settings->get('checkout', 'checkout_success_msg', '') : (is_string($this->settings->get('general', 'checkout_success_msg', '')) ? $this->settings->get('general', 'checkout_success_msg', '') : '')),
+                'pending_msg' => (!empty($brand['checkout_pending_msg']) && is_string($brand['checkout_pending_msg'])) ? $brand['checkout_pending_msg'] : (is_string($this->settings->get('checkout', 'checkout_pending_msg', '')) ? $this->settings->get('checkout', 'checkout_pending_msg', '') : (is_string($this->settings->get('general', 'checkout_pending_msg', '')) ? $this->settings->get('general', 'checkout_pending_msg', '') : '')),
+                'failed_msg'  => (!empty($brand['checkout_failed_msg']) && is_string($brand['checkout_failed_msg'])) ? $brand['checkout_failed_msg'] : (is_string($this->settings->get('checkout', 'checkout_failed_msg', '')) ? $this->settings->get('checkout', 'checkout_failed_msg', '') : (is_string($this->settings->get('general', 'checkout_failed_msg', '')) ? $this->settings->get('general', 'checkout_failed_msg', '') : '')),
             ],
             'merchant_redirect_url' => $targetUrl,
+            'intent_payment_id'     => $intent['uuid'] ?? '',
             'intent_token'          => $ref,
             'intent_status'         => $status,
             'is_intent'             => true,
         ]));
-    }
-
-    /**
-     * Resolve branding parameters for a given merchant ID.
-     *
-     * @param int $mid Brand/Merchant ID.
-     * @return array<string, mixed> Brand details styling array.
-     */
-    private function loadBrand(int $mid): array
-    {
-        // Load customized white-label styling assets via brand context layout services.
-        if ($this->c->has(\OwnPay\Service\Brand\BrandThemeService::class)) {
-            $brandThemeSvc = $this->c->get(\OwnPay\Service\Brand\BrandThemeService::class);
-            if ($brandThemeSvc instanceof \OwnPay\Service\Brand\BrandThemeService) {
-                return $brandThemeSvc->getBrandTheme($mid);
-            }
-        }
-
-        // Fallback: resolve basic branding elements using core configuration parameters.
-        $merchant = $this->merchants->find($mid);
-        $s = $this->settings->getGroup('general');
-        $theme = $this->settings->getGroup('theme');
-        return [
-            'name'          => ($merchant !== null && isset($merchant['name']) && is_string($merchant['name'])) ? $merchant['name'] : (isset($s['app_name']) ? $s['app_name'] : 'Own Pay'),
-            'logo'          => ($merchant !== null && isset($merchant['logo']) && is_string($merchant['logo'])) ? $merchant['logo'] : '',
-            'color'         => isset($theme['primary_color']) ? $theme['primary_color'] : (isset($s['theme_primary']) ? $s['theme_primary'] : '#0D9488'),
-            'support_email' => isset($s['support_email']) ? $s['support_email'] : '',
-        ];
     }
 
     /**

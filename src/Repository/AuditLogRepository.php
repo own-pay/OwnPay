@@ -95,6 +95,28 @@ final class AuditLogRepository extends BaseRepository
             throw new \RuntimeException('Insecure or missing AUDIT_HMAC_SECRET. Secret must be at least 32 characters long.');
         }
 
+        $oldNormalized = null;
+        if ($oldValuesJson !== null && $oldValuesJson !== '') {
+            $decoded = json_decode($oldValuesJson, true);
+            if (is_array($decoded)) {
+                $this->canonicalizeArray($decoded);
+                $oldNormalized = json_encode($decoded);
+            } else {
+                $oldNormalized = $oldValuesJson;
+            }
+        }
+
+        $newNormalized = null;
+        if ($newValuesJson !== null && $newValuesJson !== '') {
+            $decoded = json_decode($newValuesJson, true);
+            if (is_array($decoded)) {
+                $this->canonicalizeArray($decoded);
+                $newNormalized = json_encode($decoded);
+            } else {
+                $newNormalized = $newValuesJson;
+            }
+        }
+
         $payload = sprintf(
             '%s|%s|%s|%s|%s|%s|%s|%s|%s',
             $merchantId !== null ? (string)$merchantId : '',
@@ -102,13 +124,28 @@ final class AuditLogRepository extends BaseRepository
             $action,
             $entityType !== null ? $entityType : '',
             $entityId !== null ? (string)$entityId : '',
-            $oldValuesJson !== null ? $oldValuesJson : '',
-            $newValuesJson !== null ? $newValuesJson : '',
+            $oldNormalized !== null ? (string)$oldNormalized : '',
+            $newNormalized !== null ? (string)$newNormalized : '',
             $ip !== null ? $ip : '',
             $userAgent !== null ? $userAgent : ''
         );
 
         return hash_hmac('sha256', $payload, $secret);
+    }
+
+    /**
+     * Recursively sorts array keys to ensure canonical JSON representation.
+     *
+     * @param array<mixed, mixed> $array
+     */
+    private function canonicalizeArray(array &$array): void
+    {
+        ksort($array);
+        foreach ($array as &$value) {
+            if (is_array($value)) {
+                $this->canonicalizeArray($value);
+            }
+        }
     }
 
     /**

@@ -145,6 +145,9 @@ final class Router
         // Convert placeholder variables into safe regular expression capture groups.
         $regex = preg_replace_callback('/\{([a-zA-Z_][a-zA-Z0-9_]*)\}/', static function (array $m) use (&$paramNames): string {
             $paramNames[] = $m[1];
+            if ($m[1] === 'identifier') {
+                return '([a-zA-Z0-9_\-\.\+\@\%]+)';
+            }
             // BUG-023: Prevent route-based injection by constraining character set.
             return '([a-zA-Z0-9_\-\.]+)';
         }, $pattern);
@@ -210,7 +213,8 @@ final class Router
             $events->doAction('system.routes.register', $this);
         }
 
-        if ($this->container->has(\OwnPay\Plugin\PluginRegistry::class)) {
+        $installLock = dirname(__DIR__, 2) . '/storage/.installed';
+        if (file_exists($installLock) && $this->container->has(\OwnPay\Plugin\PluginRegistry::class)) {
             /** @var \OwnPay\Plugin\PluginRegistry $registry */
             $registry = $this->container->get(\OwnPay\Plugin\PluginRegistry::class);
             foreach ($registry->getLoaded() as $slug => $instance) {
@@ -221,10 +225,16 @@ final class Router
                             $method = $routeDef[0] ?? null;
                             $pattern = $routeDef[1] ?? null;
                             $action = $routeDef[2] ?? null;
+                            // Optional 4th element selects the middleware group, letting a plugin
+                            // declare an authenticated route (e.g. 'web' for an admin page) instead
+                            // of being forced public. Defaults to the public API group.
+                            $middleware = (isset($routeDef[3]) && is_string($routeDef[3]) && $routeDef[3] !== '')
+                                ? $routeDef[3]
+                                : 'api-public';
                             if (is_string($method) && is_string($pattern) && is_string($action)) {
                                 // Format handler to point directly to FQCN of the plugin class
                                 $handler = $manifest->getFullyQualifiedClassName() . '@' . $action;
-                                $this->addRoute(strtoupper($method), $pattern, $handler, 'api-public');
+                                $this->addRoute(strtoupper($method), $pattern, $handler, $middleware);
                             }
                         }
                     }

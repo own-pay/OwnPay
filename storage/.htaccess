@@ -1,0 +1,32 @@
+# OwnPay storage/ holds logs, cache, sessions, backups, the install/maintenance
+# markers, and trashed plugins. public/ is the sole document root, so this directory
+# is normally never reachable over HTTP. This file is defense-in-depth for deployments
+# where the document root is misconfigured to the project base.
+#
+# It MIRRORS the project-root .htaccess: deny everything EXCEPT the public media
+# subdirectories storage/gateways/ and storage/uploads/ that the root rules exempt,
+# so adding this guard cannot break brand/gateway media serving.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+    RewriteCond %{REQUEST_URI} !/storage/(gateways|uploads)/
+    RewriteRule .* - [F,L]
+</IfModule>
+
+# Fallback for servers without mod_rewrite: block sensitive artifact types outright.
+<FilesMatch "\.(log|bak|cache|sqlite|sqlite3|db|key|pem|env|ini)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order allow,deny
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Never execute PHP from within storage/.
+<IfModule mod_php.c>
+    php_flag engine off
+</IfModule>
+RemoveHandler .php .phtml .php3 .php4 .php5 .php7 .php8
+RemoveType .php .phtml .php3 .php4 .php5 .php7 .php8

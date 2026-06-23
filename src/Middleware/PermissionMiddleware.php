@@ -50,6 +50,44 @@ final class PermissionMiddleware
             return Response::redirect("/{$loginSlug}");
         }
 
+        // Active brand context check to block global-only routes in brand view
+        $brandCtx = $this->container->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brandCtx->resolveFromRequest($request);
+            $activeBrandId = $brandCtx->getActiveBrandId();
+            if ($activeBrandId !== null && $activeBrandId > 0) {
+                $path = $request->path();
+                // Platform-only pages: a brand has nothing to manage here, so block entirely in
+                // brand view. NOTE: plugins/addons are intentionally NOT here — brands activate &
+                // configure those per-brand (op_brand_plugins). Brand-disallowed plugin actions
+                // (upload/install/uninstall/trash/restore) are guarded per-action in the controller
+                // (AdminPageTrait::requireGlobalView). Themes stay platform-only for now (theme
+                // activation is global; per-brand theme selection is a later phase).
+                $globalOnlyPrefixes = [
+                    '/admin/brands',
+                    '/admin/themes',
+                    '/admin/system-update',
+                    '/admin/balance-verification',
+                    '/admin/audit-integrity',
+                ];
+                
+                if ($path !== '/admin/brands/switch') {
+                    foreach ($globalOnlyPrefixes as $prefix) {
+                        if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+                            $session = $this->container->get(\OwnPay\Service\Admin\AdminSession::class);
+                            if ($session instanceof \OwnPay\Service\Admin\AdminSession) {
+                                $session->flashError('This page is only accessible in Global View.');
+                            }
+                            if ($request->expectsJson()) {
+                                return Response::json(['success' => false, 'message' => 'This page is only accessible in Global View.'], 403);
+                            }
+                            return Response::redirect('/admin');
+                        }
+                    }
+                }
+            }
+        }
+
         // Lazy load user from DB if not passed in attributes
         $user = $request->getAttribute('auth_user');
         if ($user === null) {
@@ -168,6 +206,7 @@ final class PermissionMiddleware
         $map = [
             // Dashboard routes mapped to permission map
             '/admin/transactions'         => 'transactions.view',
+            '/admin/refunds'              => 'transactions.view',
             '/admin/invoices'             => 'invoices.view',
             '/admin/payment-links'        => 'payment_links.view',
             '/admin/disputes'             => 'disputes.view',
@@ -176,6 +215,7 @@ final class PermissionMiddleware
             '/admin/staff'                => 'staff.view',
             '/admin/brands'               => 'brands.view',
             '/admin/settings'             => 'settings.view',
+            '/admin/fee-rules'            => 'settings.view',
             '/admin/api-keys'             => 'api_keys.view',
             '/admin/sms-center'           => 'sms.view',
             '/admin/sms-data'             => 'sms.view',
@@ -186,16 +226,18 @@ final class PermissionMiddleware
             '/admin/system-update'        => 'system.update',
             '/admin/activities'           => 'system.audit',
             '/admin/audit-log'            => 'system.audit',
+            '/admin/audit-integrity'      => 'system.audit',
+            '/admin/login-attempts'       => 'system.audit',
             '/admin/reports'              => 'system.reports',
             '/admin/domains'              => 'domains.view',
             '/admin/balance-verification' => 'system.balance',
             '/admin/roles'                => 'staff.view',
             '/admin/developer'            => 'api_keys.view',
-            '/admin/faq'                  => 'settings.view',
+            '/admin/gateway-webhooks'     => 'api_keys.view',
             '/admin/ledger'               => 'system.reports',
             '/admin/currencies'           => 'settings.view',
             '/admin/my-account'           => 'admin.access',
-            '/admin/fragment'             => 'dashboard.view',
+            '/admin/contributors'         => 'dashboard.view',
             '/admin'                      => 'dashboard.view',
         ];
 

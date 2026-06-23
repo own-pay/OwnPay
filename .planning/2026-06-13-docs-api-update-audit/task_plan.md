@@ -28,21 +28,24 @@ Phase 2
 - **Status:** in_progress
 
 ### Phase 3: Fixes
-- [ ] Fix confirmed ARCHITECTURE.md inaccuracies
-- [ ] Fix confirmed API bugs
-- [ ] Fix confirmed update-pipeline bugs
-- **Status:** pending
+- [x] ARCHITECTURE.md: boot order, §4.3 sandbox, §4.7 fee rules, §4.8 env fallback + Kernel/EnvironmentService docblocks
+- [x] API bugs: B1 SMS retry idempotency, B2 SMS caps, B4 negative refund, B5 admin SSRF, B7 pairing rate-limit, B10 apikey 404, B11 docblock, B14 key_hash
+- [x] B3 device fingerprint: decided NOT to enforce (no anti-theft value + breakage risk); corrected misleading doc
+- [x] Update pipeline: CLI default → GitHub release URL, metadata URLs derived from download base, guidance rewritten
+- [~] Deferred (documented): B6 dead branch, B8 dedup, B10 admin 0-row, B12 regex-validate, B13 single-SMS 200
+- **Status:** complete
 
 ### Phase 4: New docs
-- [ ] docs/ARCHITECTURE.md (public, third-party developer oriented, Mermaid)
-- [ ] docs/LOCAL_SETUP.md (Win/macOS/Linux quick setup, Mermaid + official links)
-- **Status:** pending
+- [x] docs/ARCHITECTURE.md (public, third-party developer oriented, Mermaid)
+- [x] docs/LOCAL_SETUP.md (Win/macOS/Linux, ~2-min Quick Start, Mermaid + official links)
+- [x] OpenAPI/README sync: C1 payments resp, C2 refund resp, C3 auth envelope, C4 callback_url, C5 device_ids, C6 422/404, C7 optional urls
+- **Status:** complete
 
 ### Phase 5: Verification & delivery
-- [ ] phpunit + phpstan + lint green
-- [ ] Smoke test affected endpoints
-- [ ] Update planning files, summary
-- **Status:** pending
+- [x] phpstan clean, twig lint clean, openapi.yaml valid YAML
+- [ ] phpunit full suite (running)
+- [ ] Final summary to user
+- **Status:** in_progress
 
 ## Decisions Made
 | Decision | Rationale |

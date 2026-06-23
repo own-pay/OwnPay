@@ -4,8 +4,8 @@
 
 INSERT INTO `op_system_settings` (`group_name`, `key_name`, `value`, `type`) VALUES
 -- General
-('general', 'site_name', 'Own Pay', 'string'),
-('general', 'site_tagline', 'Enterprise Payment Gateway', 'string'),
+('general', 'site_name', 'OwnPay', 'string'),
+('general', 'site_tagline', 'Open Source Payment Gateway', 'string'),
 ('general', 'default_currency', 'BDT', 'string'),
 ('general', 'default_timezone', 'Asia/Dhaka', 'string'),
 ('general', 'landing_page_enabled', '1', 'bool'),
@@ -20,13 +20,13 @@ INSERT INTO `op_system_settings` (`group_name`, `key_name`, `value`, `type`) VAL
 ('checkout', 'show_faq', '1', 'bool'),
 ('checkout', 'active_theme', 'own-pay', 'string'),
 -- Security
-('security', 'max_login_attempts', '5', 'int'),
-('security', 'lockout_duration', '300', 'int'),
+('security', 'max_login_attempts', '20', 'int'),
+('security', 'lockout_duration', '3', 'int'),
 ('security', 'session_lifetime', '7200', 'int'),
 ('security', 'force_https', '1', 'bool'),
 ('security', 'two_factor_required', '0', 'bool'),
 -- API
-('api', 'rate_limit_per_minute', '60', 'int'),
+('api', 'rate_limit_per_minute', '120', 'int'),
 ('api', 'api_version', '1.0', 'string'),
 -- Mobile
 ('mobile', 'poll_interval_seconds', '30', 'int'),

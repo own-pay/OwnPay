@@ -1,276 +1,258 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}SMS Center — {{ app_name }}{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/assets/css/pages/sms-center.css?v=016">
+{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
         <h1>SMS Center</h1>
-        <p class="op-text-muted op-mt-1">Manage SMS parsing templates, view parsed messages, and monitor outbound queue.</p>
+        <p class="op-page-subtitle">Manage SMS templates, sender configurations, and automatic payment parser mapping.</p>
     </div>
 </div>
 
 <div class="op-tabs">
-    <button class="op-tab active" data-tab="templates">📋 Parsing Templates ({{ template_count }})</button>
-    <button class="op-tab" data-tab="parsed">📱 Parsed SMS</button>
-    <button class="op-tab" data-tab="queue">📤 Outbound Queue</button>
+    <button class="op-tab active" data-tab="templates">
+        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+        <span>Templates</span>
+        <span class="op-tab-count">{{ template_count }}</span>
+    </button>
+    <button class="op-tab" data-tab="parsed">
+        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        <span>Parsed SMS</span>
+    </button>
+    <button class="op-tab" data-tab="queue">
+        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+        <span>Outbound Queue</span>
+    </button>
+    <button class="op-tab" data-tab="emails">
+        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><polyline points="22,6 12,13 2,6"/></svg>
+        <span>Outbound Emails</span>
+    </button>
+    <button class="op-tab" data-tab="telegram">
+        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <span>Telegram Alerts</span>
+    </button>
+    <button class="op-tab" data-tab="webhooks">
+        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2v8M17 5H7M10 10v6a2 2 0 0 0 4 0v-6M12 16v6"/></svg>
+        <span>Alert Webhooks</span>
+    </button>
 </div>
 
-{# ═══ Tab 1: Parsing Templates ═══ #}
+{# ═══ Tab 1: Parsing Templates & Sandbox ═══ #}
 <div class="op-tab-panel active" id="tab-templates">
-    <div class="op-card op-mb-4">
-        <div class="op-card-header">
-            <h3>SMS Parsing Templates</h3>
-            <button class="op-btn op-btn-primary op-btn-sm" id="btn-toggle-create-template">+ New Template</button>
-        </div>
-
-        {# Create Form (hidden) #}
-        <div id="create-template-panel" class="op-card-body op-bg-subtle op-border-bottom op-d-none">
-            <form method="POST" action="/admin/sms-center/create" class="op-form">
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                <h4 class="op-mb-3">Create Parsing Template</h4>
-                <div class="op-form-row">
-                    <div class="op-form-group op-col-4">
-                        <label>Gateway <span class="op-text-danger">*</span></label>
-                        <select name="gateway_slug" class="op-input" required>
-                            <option value="">— Select Gateway —</option>
-                            {% for gw in gateways %}
-                            <option value="{{ gw.slug }}">{{ gw.name }}</option>
+    <div class="op-sms-workspace">
+        
+        {# Left Column: Parsing Templates Table #}
+        <div class="op-sms-left-panel">
+            <div class="op-card">
+                <div class="op-card-header">
+                    <h3>SMS Parsing Templates</h3>
+                    <button class="op-btn op-btn-primary op-btn-sm" id="btn-open-create-modal">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-right: 4px; display: inline-block; vertical-align: middle;"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+                        <span>New Template</span>
+                    </button>
+                </div>
+                <div class="op-card-body op-p-0">
+                    <div class="op-table-responsive"><table class="op-table">
+                        <thead><tr>
+                            <th>Gateway</th>
+                            <th>Sender Pattern</th>
+                            <th>Amount Regex</th>
+                            <th>TrxID Regex</th>
+                            <th>Priority</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr></thead>
+                        <tbody>
+                            {% for tpl in sms_templates %}
+                            <tr>
+                                <td><code>{{ tpl.gateway_slug }}</code></td>
+                                <td><code class="op-text-sm">{{ tpl.sender_pattern }}</code></td>
+                                <td><code class="op-text-sm">{{ tpl.amount_regex|slice(0, 30) }}{{ tpl.amount_regex|length > 30 ? '…' : '' }}</code></td>
+                                <td><code class="op-text-sm">{{ tpl.trx_id_regex|default('')|slice(0, 25) }}{{ tpl.trx_id_regex|default('')|length > 25 ? '…' : '' }}</code></td>
+                                <td>{{ tpl.priority }}</td>
+                                <td><span class="op-badge op-badge-{{ tpl.status == 'active' ? 'success' : 'muted' }}">{{ tpl.status|capitalize }}</span></td>
+                                <td>
+                                    <div style="display: flex; gap: 4px;">
+                                        <a href="/admin/sms-center/{{ tpl.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a>
+                                        <form method="POST" action="/admin/sms-center/{{ tpl.id }}/delete" class="op-inline-form delete-template-form" data-confirm="Delete this template?">
+                                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                            <button type="submit" class="op-btn op-btn-xs op-btn-danger">Delete</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr><td colspan="7" class="op-empty">No parsing templates. Click "New Template" to create one.</td></tr>
                             {% endfor %}
-                        </select>
-                    </div>
-                    <div class="op-form-group op-col-4">
-                        <label>Sender Pattern <span class="op-text-danger">*</span></label>
-                        <input type="text" name="sender_pattern" class="op-input" placeholder="e.g. bKash|16216" required>
-                        <small class="op-text-muted">Regex to match SMS sender name/number</small>
-                    </div>
-                    <div class="op-form-group op-col-4">
-                        <label>Priority</label>
-                        <input type="number" name="priority" class="op-input" value="10" min="1" max="999">
-                        <small class="op-text-muted">Lower = higher priority</small>
-                    </div>
+                        </tbody>
+                    </table></div>
                 </div>
-                <div class="op-form-row">
-                    <div class="op-form-group op-col-4">
-                        <label>Amount Regex <span class="op-text-danger">*</span></label>
-                        <input type="text" name="amount_regex" class="op-input" placeholder="e.g. Tk\s*([\d,]+\.?\d*)" required>
-                        <small class="op-text-muted">Capture group 1 = amount</small>
-                    </div>
-                    <div class="op-form-group op-col-4">
-                        <label>Transaction ID Regex</label>
-                        <input type="text" name="trx_id_regex" class="op-input" placeholder="e.g. TrxID\s*(\w+)">
-                        <small class="op-text-muted">Capture group 1 = transaction ID</small>
-                    </div>
-                    <div class="op-form-group op-col-4">
-                        <label>Sender Account Regex</label>
-                        <input type="text" name="sender_regex" class="op-input" placeholder="e.g. from\s*(01\d{9})">
-                        <small class="op-text-muted">Capture group 1 = sender number</small>
-                    </div>
-                </div>
-                <div class="op-form-row">
-                    <div class="op-form-group op-col-4">
-                        <label>Status</label>
-                        <select name="status" class="op-input">
-                            <option value="active">Active</option>
-                            <option value="inactive">Inactive</option>
-                        </select>
-                    </div>
-                </div>
-                <div class="op-form-actions">
-                    <button type="submit" class="op-btn op-btn-primary">Create Template</button>
-                    <button type="button" class="op-btn op-btn-ghost" id="btn-cancel-create-template">Cancel</button>
-                </div>
-            </form>
-        </div>
-
-        <div class="op-card-body op-p-0">
-            <div class="op-table-responsive"><table class="op-table">
-                <thead><tr>
-                    <th>Gateway</th>
-                    <th>Sender Pattern</th>
-                    <th>Amount Regex</th>
-                    <th>TrxID Regex</th>
-                    <th>Priority</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr></thead>
-                <tbody>
-                    {% for tpl in sms_templates %}
-                    <tr>
-                        <td><code>{{ tpl.gateway_slug }}</code></td>
-                        <td><code class="op-text-sm">{{ tpl.sender_pattern }}</code></td>
-                        <td><code class="op-text-sm">{{ tpl.amount_regex|slice(0, 40) }}{{ tpl.amount_regex|length > 40 ? '…' : '' }}</code></td>
-                        <td><code class="op-text-sm">{{ tpl.trx_id_regex|default('')|slice(0, 30) }}{{ tpl.trx_id_regex|default('')|length > 30 ? '…' : '' }}</code></td>
-                        <td>{{ tpl.priority }}</td>
-                        <td><span class="op-badge op-badge-{{ tpl.status == 'active' ? 'success' : 'muted' }}">{{ tpl.status|capitalize }}</span></td>
-                        <td>
-                            <a href="/admin/sms-center/{{ tpl.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a>
-                            <form method="POST" action="/admin/sms-center/{{ tpl.id }}/delete" class="op-inline-form delete-template-form" data-confirm="Delete this template?">
-                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                                <button type="submit" class="op-btn op-btn-xs op-btn-danger">Delete</button>
-                            </form>
-                        </td>
-                    </tr>
-                    {% else %}
-                    <tr><td colspan="7" class="op-empty">No parsing templates. Click "+ New Template" to create one.</td></tr>
-                    {% endfor %}
-                </tbody>
-            </table></div>
-        </div>
-    </div>
-
-    {# ── Method B: Smart Auto-Parse ─────────────────────────────── #}
-    <div class="op-card op-mb-4" id="smart-parse-card">
-        <div class="op-card-header">
-            <div class="op-flex op-align-center op-gap-2">
-                <h3>🤖 Smart SMS Parser</h3>
-                <span class="op-badge op-badge-primary op-badge-sm">Method B</span>
             </div>
-            <span class="op-text-muted op-text-sm">Heuristic field extraction</span>
         </div>
-        <div class="op-card-body">
-            <p class="op-text-muted op-mb-3">
-                Enter the exact SMS <strong>sender name</strong> (the "From" field as shown on your phone — e.g. <code>bKash</code>, <code>AD-NAGAD</code>, <code>01700000000</code>), then paste the SMS body.
-                OwnPay will extract <strong>Amount, TrxID, Balance</strong> and suggest regex patterns to save as a template.
-            </p>
-            <div class="op-sender-notice">
-                <strong>⚠️ Sender is case-sensitive:</strong> <code>bKash</code> ≠ <code>bkash</code>. Copy the exact name from your phone's message app.
-            </div>
-            <div class="op-form-row op-align-start op-mt-3">
-                <div class="op-form-group op-col-6">
-                    <label>SMS From (Sender Name) <span class="op-text-danger">*</span></label>
-                    <input type="text" id="sms-sender-input" class="op-input" placeholder="Exact sender name — e.g. bKash, AD-NAGAD, 01700123456" autocomplete="off" spellcheck="false">
-                    <small class="op-text-muted">Exact "From" field from your phone — case-sensitive</small>
 
-                    <label class="op-mt-3">SMS Body <span class="op-text-danger">*</span></label>
-                    <textarea id="raw-sms-input" rows="5" class="op-input" placeholder="Paste the full SMS text here…"></textarea>
-                    <div class="op-mt-2">
-                        <button class="op-btn op-btn-primary" id="analyze-sms-btn" type="button">
-                            <span id="analyze-btn-text">⚡ Analyze SMS</span>
-                        </button>
-                        <button class="op-btn op-btn-outline op-btn-sm op-ml-2" type="button" id="clear-analyze-btn">Clear</button>
-                    </div>
+        {# Right Column: Developer Sandbox & Tools #}
+        <aside class="op-sms-right-panel">
+            <div class="op-sandbox-card">
+                <div class="op-sandbox-header">
+                    <h3>
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/></svg>
+                        <span>Developer Sandbox &amp; Tools</span>
+                    </h3>
+                    <span class="op-text-muted op-text-xs">Helper tools to build and test regex configurations</span>
                 </div>
-                <div class="op-col-6 op-d-none" id="analyze-results">
-                    <div class="op-analyze-result-card">
-                        <div class="op-analyze-header">
-                            <strong>📊 Extracted Fields</strong>
-                            <span class="op-badge" id="confidence-badge"></span>
+                
+                <nav class="op-sandbox-nav" id="sandbox-tabs">
+                    <button type="button" class="op-sandbox-tab active" data-sandbox-tab="heuristics">⚡ Heuristics</button>
+                    <button type="button" class="op-sandbox-tab" data-sandbox-tab="ai-sandbox">🤖 AI Sandbox</button>
+                    <button type="button" class="op-sandbox-tab" data-sandbox-tab="regex-tester">🧪 Regex Tester</button>
+                </nav>
+                
+                <div class="op-sandbox-body">
+                    {# Sub-Tab 1: Heuristics Smart Parser #}
+                    <div class="op-sandbox-panel active" id="sandbox-panel-heuristics">
+                        <p class="op-text-muted op-text-xs op-mb-3">
+                            Extract values automatically from credit/payment SMS bodies using heuristic matching.
+                        </p>
+                        <div class="op-alert op-alert-warning op-p-2 op-text-xs op-mb-3">
+                            <strong>⚠️ Sender is case-sensitive:</strong> Copy the exact sender string (e.g. <code>bKash</code>) from your phone.
                         </div>
-                        <div class="op-analyze-fields" id="analyze-fields"></div>
-                        <hr class="op-divider">
-                        <div class="op-analyze-header op-mt-2"><strong>💾 Save as Template</strong></div>
-                        <form method="POST" action="/admin/sms-center/save-analysis" class="op-mt-2">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                            <input type="hidden" name="amount_regex" id="save-amount-regex">
-                            <input type="hidden" name="trx_id_regex" id="save-trxid-regex">
-                            <input type="hidden" name="sender_regex" id="save-sender-regex">
-                            <div class="op-form-group op-mb-2">
-                                <label class="op-text-sm">Gateway Slug *</label>
-                                <input type="text" name="gateway_slug" id="save-gateway-slug" class="op-input op-input-sm" placeholder="e.g. bkash, nagad, rocket">
-                            </div>
-                            <div class="op-form-group op-mb-2">
-                                <label class="op-text-sm">Sender Pattern (From) *</label>
-                                <input type="text" name="sender_pattern" id="save-sender-pattern" class="op-input op-input-sm" placeholder="Auto-filled from sender above" readonly>
-                                <small class="op-text-muted">Pre-filled from SMS sender — case-sensitive exact match</small>
-                            </div>
-                            <button type="submit" class="op-btn op-btn-success op-btn-sm">Save Template</button>
-                        </form>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    {# ── Method C: AI Prompt Generator ──────────────────────────────── #}
-    <div class="op-card op-mb-4" id="ai-prompt-card">
-        <div class="op-card-header">
-            <div class="op-flex op-align-center op-gap-2">
-                <h3>✨ AI Prompt Generator</h3>
-                <span class="op-badge op-badge-info op-badge-sm">Method C</span>
-            </div>
-            <span class="op-text-muted op-text-sm">For Gemini · ChatGPT · Claude</span>
-        </div>
-        <div class="op-card-body">
-            <p class="op-text-muted op-mb-3">
-                Enter the exact SMS sender and paste the SMS body. OwnPay generates a <strong>ready-to-paste AI prompt</strong>
-                — copy it to Gemini/ChatGPT/Claude → AI replies with <em>only</em> a JSON code block → paste that JSON into Method A.
-            </p>
-            <div class="op-sender-notice">
-                <strong>⚠️ Sender is case-sensitive:</strong> The sender you enter here will be placed directly into the AI prompt and the output's <code>sender_pattern</code>.
-            </div>
-            <div class="op-form-row op-align-start op-mt-3">
-                <div class="op-form-group op-col-5">
-                    <label>SMS From (Sender Name) <span class="op-text-danger">*</span></label>
-                    <input type="text" id="ai-sender-input" class="op-input" placeholder="e.g. bKash, AD-NAGAD, 01700123456" autocomplete="off" spellcheck="false">
-                    <small class="op-text-muted">Exact "From" shown on your phone — case-sensitive</small>
-
-                    <label class="op-mt-3">SMS Body <span class="op-text-danger">*</span></label>
-                    <textarea id="ai-sms-input" rows="4" class="op-input" placeholder="Paste the full SMS text here…"></textarea>
-                    <div class="op-mt-2">
-                        <button class="op-btn op-btn-primary" id="gen-ai-prompt-btn" type="button">
-                            <span id="gen-btn-text">✨ Generate AI Prompt</span>
-                        </button>
-                        <button class="op-btn op-btn-ghost op-btn-sm op-ml-2" type="button" id="clear-ai-btn">Clear</button>
-                    </div>
-                </div>
-                <div class="op-col-7 op-d-none" id="ai-prompt-result">
-                    <div class="op-ai-prompt-box">
-                        <div class="op-ai-prompt-header">
-                            <strong>🤖 Generated AI Prompt</strong>
-                            <button type="button" class="op-btn op-btn-sm op-btn-outline" id="copy-ai-prompt-btn">
-                                <span id="copy-btn-label">📋 Copy Prompt</span>
+                        <div class="op-form-group op-mb-3">
+                            <label class="op-text-xs op-font-semibold">SMS Sender (From)</label>
+                            <input type="text" id="sms-sender-input" class="op-input op-input-sm" placeholder="e.g. bKash, AD-NAGAD">
+                        </div>
+                        <div class="op-form-group op-mb-3">
+                            <label class="op-text-xs op-font-semibold">SMS Body</label>
+                            <textarea id="raw-sms-input" rows="4" class="op-input op-input-sm" placeholder="Paste incoming credit SMS body..."></textarea>
+                        </div>
+                        <div style="display: flex; gap: 8px;">
+                            <button class="op-btn op-btn-primary op-btn-sm" id="analyze-sms-btn" type="button">
+                                <span id="analyze-btn-text">⚡ Analyze SMS</span>
                             </button>
+                            <button class="op-btn op-btn-outline op-btn-sm" type="button" id="clear-analyze-btn">Clear</button>
                         </div>
-                        <pre id="ai-prompt-text" class="op-ai-prompt-pre"></pre>
-                        <div class="op-ai-prompt-tip">
-                            <strong>📌 How to use:</strong>
-                            Copy prompt → paste into <strong>Gemini, ChatGPT, or Claude</strong> → AI replies with <em>only</em> a JSON code block →
-                            copy that JSON → go to <strong>+ New Template</strong> above and fill in the fields.
+                        
+                        {# Analysis Results #}
+                        <div class="op-mt-3 op-d-none" id="analyze-results">
+                            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+                                <strong class="op-text-xs">Extracted Metrics</strong>
+                                <span class="op-badge" id="confidence-badge"></span>
+                            </div>
+                            <div id="analyze-fields"></div>
+                            
+                            <hr class="op-divider" style="margin: 12px 0;">
+                            
+                            <form method="POST" action="/admin/sms-center/save-analysis">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="amount_regex" id="save-amount-regex">
+                                <input type="hidden" name="trx_id_regex" id="save-trxid-regex">
+                                <input type="hidden" name="sender_regex" id="save-sender-regex">
+                                <div class="op-form-group op-mb-2">
+                                    <label class="op-text-xs">Gateway Slug *</label>
+                                    <input type="text" name="gateway_slug" id="save-gateway-slug" class="op-input op-input-sm" placeholder="e.g. bkash, nagad">
+                                </div>
+                                <div class="op-form-group op-mb-3">
+                                    <label class="op-text-xs">Sender Pattern *</label>
+                                    <input type="text" name="sender_pattern" id="save-sender-pattern" class="op-input op-input-sm" readonly>
+                                </div>
+                                <button type="submit" class="op-btn op-btn-success op-btn-sm" style="width: 100%;">Save as Template</button>
+                            </form>
                         </div>
                     </div>
-                </div>
-            </div>
-        </div>
-    </div>
+                    
+                    {# Sub-Tab 2: AI Sandbox & Response Importer #}
+                    <div class="op-sandbox-panel" id="sandbox-panel-ai-sandbox">
+                        <p class="op-text-muted op-text-xs op-mb-3">
+                            Generate structured prompts for Large Language Models (Gemini/ChatGPT) to build complex regex configurations.
+                        </p>
+                        <div class="op-form-group op-mb-2">
+                            <label class="op-text-xs op-font-semibold">SMS Sender (From)</label>
+                            <input type="text" id="ai-sender-input" class="op-input op-input-sm" placeholder="e.g. bKash, AD-NAGAD">
+                        </div>
+                        <div class="op-form-group op-mb-3">
+                            <label class="op-text-xs op-font-semibold">SMS Body</label>
+                            <textarea id="ai-sms-input" rows="3" class="op-input op-input-sm" placeholder="Paste full credit SMS body..."></textarea>
+                        </div>
+                        <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                            <button class="op-btn op-btn-primary op-btn-sm" id="gen-ai-prompt-btn" type="button">
+                                <span id="gen-btn-text">🤖 Generate Prompt</span>
+                            </button>
+                            <button class="op-btn op-btn-outline op-btn-sm" type="button" id="clear-ai-btn">Clear</button>
+                        </div>
+                        
+                        {# AI Generated Prompt Result #}
+                        <div class="op-d-none" id="ai-prompt-result">
+                            <div class="op-ai-prompt-box">
+                                <div class="op-ai-prompt-header">
+                                    <strong class="op-text-xs">Copy prompt to LLM</strong>
+                                    <button type="button" class="op-btn op-btn-xs op-btn-outline" id="copy-ai-prompt-btn">
+                                        <span id="copy-btn-label">Copy Prompt</span>
+                                    </button>
+                                </div>
+                                <pre id="ai-prompt-text" class="op-ai-prompt-pre"></pre>
+                                <div class="op-ai-prompt-tip">
+                                    Copy prompt &rarr; Paste in LLM &rarr; AI outputs a JSON block &rarr; Paste that JSON below to auto-fill templates.
+                                </div>
+                            </div>
+                        </div>
 
-    {# Live Regex Tester #}
-    <div class="op-card">
-        <div class="op-card-header"><h3>🧪 Live Regex Tester</h3></div>
-        <div class="op-card-body">
-            <p class="op-text-muted op-mb-3">Paste an SMS body and a regex pattern to test extraction in real time.</p>
-            <div class="op-form-row">
-                <div class="op-form-group op-col-6">
-                    <label>SMS Body</label>
-                    <textarea id="test-sms-body" rows="4" class="op-input" placeholder="Paste a sample SMS message here…"></textarea>
-                </div>
-                <div class="op-form-group op-col-6">
-                    <label>Regex Pattern</label>
-                    <input type="text" id="test-regex" class="op-input" placeholder="e.g. Tk\s*([\d,]+\.?\d*)">
-                    <div class="op-form-row op-mt-2">
-                        <div class="op-col-6">
-                            <label>Field</label>
-                            <select id="test-field" class="op-input">
+                        <hr class="op-divider" style="margin: 16px 0;">
+
+                        {# JSON Response Importer Workspace #}
+                        <div class="op-card" style="border-style: dashed; background: var(--op-bg-hover);">
+                            <div class="op-card-body" style="padding: 14px;">
+                                <strong class="op-text-xs op-mb-2" style="display: block;">📥 AI Response Auto-Importer</strong>
+                                <p class="op-text-muted op-text-xs op-mb-3">Paste the JSON config block output by the AI helper to auto-fill the creation form.</p>
+                                <textarea id="ai-json-response-input" rows="4" class="op-input op-input-sm op-font-mono" style="font-size: 0.775rem;" placeholder='e.g. { "gateway_slug": "bkash", ... }'></textarea>
+                                <button type="button" class="op-btn op-btn-success op-btn-sm op-mt-2" id="btn-import-ai-json" style="width: 100%;">
+                                    ⚡ Import &amp; Populate Form
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {# Sub-Tab 3: Live Regex Tester #}
+                    <div class="op-sandbox-panel" id="sandbox-panel-regex-tester">
+                        <p class="op-text-muted op-text-xs op-mb-3">
+                            Test regular expression extractions against sample SMS messages instantly.
+                        </p>
+                        <div class="op-form-group op-mb-2">
+                            <label class="op-text-xs op-font-semibold">SMS Body</label>
+                            <textarea id="test-sms-body" rows="4" class="op-input op-input-sm" placeholder="You received Tk 500.00 from 01700000000..."></textarea>
+                        </div>
+                        <div class="op-form-group op-mb-2">
+                            <label class="op-text-xs op-font-semibold">Regex Pattern</label>
+                            <input type="text" id="test-regex" class="op-input op-input-sm op-font-mono" placeholder="e.g. Tk\s*([\d,]+\.?\d*)">
+                        </div>
+                        <div class="op-form-group op-mb-3">
+                            <label class="op-text-xs op-font-semibold">Target Field</label>
+                            <select id="test-field" class="op-input op-input-sm">
                                 <option value="amount">Amount</option>
                                 <option value="trx_id">Transaction ID</option>
                                 <option value="sender">Sender Account</option>
                             </select>
                         </div>
-                        <div class="op-col-6 op-flex op-align-end">
-                            <button class="op-btn op-btn-primary" id="test-regex-btn">Test Regex</button>
+                        <button class="op-btn op-btn-primary op-btn-sm" id="test-regex-btn" style="width: 100%;">Test Regex Match</button>
+                        
+                        <div id="test-result" class="op-mt-3 op-d-none">
+                            <div class="op-alert" id="test-result-box" style="padding: 10px; font-size: 0.775rem; border-radius: var(--op-radius);"></div>
                         </div>
                     </div>
                 </div>
             </div>
-            <div id="test-result" class="op-mt-3 op-d-none">
-                <div class="op-alert" id="test-result-box"></div>
-            </div>
-        </div>
+        </aside>
+
     </div>
 </div>
 
 {# ═══ Tab 2: Parsed SMS ═══ #}
 <div class="op-tab-panel" id="tab-parsed">
     <div class="op-card">
-        <div class="op-card-header"><h3>Parsed SMS Messages</h3><span class="op-badge op-badge-info">{{ parsed_sms|length }} unmatched</span></div>
+        <div class="op-card-header">
+            <h3>Parsed SMS Logs</h3>
+            <span class="op-badge op-badge-info">{{ parsed_sms|length }} unmatched logs</span>
+        </div>
         <div class="op-card-body op-p-0">
             <div class="op-table-responsive"><table class="op-table">
                 <thead><tr>
@@ -281,6 +263,7 @@
                     <th>Status</th>
                     <th>Received</th>
                     <th>Body</th>
+                    <th>Actions</th>
                 </tr></thead>
                 <tbody>
                     {% for sms in parsed_sms %}
@@ -295,10 +278,22 @@
                             </span>
                         </td>
                         <td class="op-text-sm">{{ sms.received_at }}</td>
-                        <td class="op-text-sm">{{ sms.body|slice(0, 60) }}…</td>
+                        <td class="op-text-sm">{{ sms.body|slice(0, 50) }}…</td>
+                        <td>
+                            {% if sms.match_status != 'matched' %}
+                            <form method="POST" action="/admin/sms-center/match" style="display: flex; gap: 4px; align-items: center; margin: 0;">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <input type="hidden" name="sms_id" value="{{ sms.id }}">
+                                <input type="number" name="transaction_id" class="op-input op-input-sm" style="width: 70px; padding: 2px 4px; height: 26px; min-height: 26px;" placeholder="Tx ID" required>
+                                <button type="submit" class="op-btn op-btn-xs op-btn-primary" style="height: 26px; padding: 2px 8px;">Match</button>
+                            </form>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="7" class="op-empty">No parsed SMS messages yet. Messages appear when the companion app sends SMS data.</td></tr>
+                    <tr><td colspan="8" class="op-empty">No unmatched parsed SMS logs found. Messages sync from paired devices.</td></tr>
                     {% endfor %}
                 </tbody>
             </table></div>
@@ -319,7 +314,7 @@
         </div>
         <div class="op-card-body op-p-0">
             <div class="op-table-responsive"><table class="op-table">
-                <thead><tr><th>To</th><th>Message</th><th>Provider</th><th>Status</th><th>Sent At</th></tr></thead>
+                <thead><tr><th>To</th><th>Message</th><th>Provider</th><th>Status</th><th>Sent At</th><th>Actions</th></tr></thead>
                 <tbody>
                     {% for sms in sms_queue %}
                     <tr>
@@ -328,9 +323,19 @@
                         <td>{{ sms.provider ?? '—' }}</td>
                         <td><span class="op-badge op-badge-{{ sms.status == 'sent' ? 'success' : (sms.status == 'failed' ? 'danger' : 'warning') }}">{{ sms.status }}</span></td>
                         <td>{{ sms.sent_at ?? '—' }}</td>
+                        <td>
+                            {% if sms.status == 'failed' %}
+                            <form method="POST" action="/admin/sms-center/queue/{{ sms.id }}/retry" style="display:inline;">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-xs op-btn-warning">Retry</button>
+                            </form>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
                     </tr>
                     {% else %}
-                    <tr><td colspan="5" class="op-empty">No outbound SMS in queue.</td></tr>
+                    <tr><td colspan="6" class="op-empty">No outbound SMS in queue.</td></tr>
                     {% endfor %}
                 </tbody>
             </table></div>
@@ -338,5 +343,196 @@
     </div>
 </div>
 
+{# ═══ Tab 4: Outbound Emails ═══ #}
+<div class="op-tab-panel" id="tab-emails">
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>Outbound Email Logs</h3>
+            <span class="op-text-muted op-text-sm">Recent outbound system notifications and SMTP emails</span>
+        </div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive"><table class="op-table">
+                <thead><tr><th>Recipient</th><th>Subject</th><th>Status</th><th>Error</th><th>Sent At</th></tr></thead>
+                <tbody>
+                    {% for email in email_queue %}
+                    <tr>
+                        <td><strong>{{ email.recipient }}</strong></td>
+                        <td>{{ email.subject|default('—') }}</td>
+                        <td>
+                            <span class="op-badge op-badge-{{ email.status == 'sent' ? 'success' : (email.status == 'failed' ? 'danger' : 'warning') }}">
+                                {{ email.status|capitalize }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if email.error %}
+                            <code class="op-text-xs op-text-danger">{{ email.error }}</code>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td class="op-text-muted op-text-sm">{{ email.sent_at ?? '—' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="op-empty">No outbound emails logged.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
+
+{# ═══ Tab 5: Telegram Alerts ═══ #}
+<div class="op-tab-panel" id="tab-telegram">
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>Telegram Alert Logs</h3>
+            <span class="op-text-muted op-text-sm">Recent Telegram notifications and bot messages</span>
+        </div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive"><table class="op-table">
+                <thead><tr><th>Recipient (Chat ID)</th><th>Message</th><th>Status</th><th>Error</th><th>Sent At</th></tr></thead>
+                <tbody>
+                    {% for tel in telegram_queue %}
+                    <tr>
+                        <td><strong>{{ tel.recipient }}</strong></td>
+                        <td class="op-text-sm">{{ tel.body }}</td>
+                        <td>
+                            <span class="op-badge op-badge-{{ tel.status == 'sent' ? 'success' : (tel.status == 'failed' ? 'danger' : 'warning') }}">
+                                {{ tel.status|capitalize }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if tel.error %}
+                            <code class="op-text-xs op-text-danger">{{ tel.error }}</code>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td class="op-text-muted op-text-sm">{{ tel.sent_at ?? '—' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="5" class="op-empty">No Telegram alerts logged.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
+
+{# ═══ Tab 6: Webhook Logs ═══ #}
+<div class="op-tab-panel" id="tab-webhooks">
+    <div class="op-card">
+        <div class="op-card-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
+            <h3 style="margin: 0;">System Alert Webhook Logs</h3>
+            <span class="op-text-muted op-text-sm">This logs alert messages sent to administrators when important system events occur, such as SMS parsing failures or device updates. It is important because it warns you immediately when the system needs manual review or troubleshooting.</span>
+        </div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive"><table class="op-table">
+                <thead><tr><th>Endpoint URL</th><th>Event/Subject</th><th>Payload Summary</th><th>Status</th><th>Error</th><th>Sent At</th></tr></thead>
+                <tbody>
+                    {% for web in webhook_queue %}
+                    <tr>
+                        <td><code class="op-text-xs">{{ web.recipient }}</code></td>
+                        <td>{{ web.subject|default('—') }}</td>
+                        <td class="op-text-sm"><code class="op-text-xs">{{ web.body|slice(0, 100) }}{{ web.body|length > 100 ? '…' : '' }}</code></td>
+                        <td>
+                            <span class="op-badge op-badge-{{ web.status == 'sent' ? 'success' : (web.status == 'failed' ? 'danger' : 'warning') }}">
+                                {{ web.status|capitalize }}
+                            </span>
+                        </td>
+                        <td>
+                            {% if web.error %}
+                            <code class="op-text-xs op-text-danger">{{ web.error }}</code>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td class="op-text-muted op-text-sm">{{ web.sent_at ?? '—' }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="op-empty">No webhook dispatches logged.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table></div>
+        </div>
+    </div>
+</div>
+
+{# ── Create Parsing Template Modal ── #}
+<div class="op-modal" id="create-template-modal" hidden>
+    <div class="op-modal-backdrop" data-close-modal="create-template-modal"></div>
+    <div class="op-modal-dialog">
+        <div class="op-modal-header">
+            <h3>Create Parsing Template</h3>
+            <button class="op-modal-close" type="button" data-close-modal="create-template-modal">×</button>
+        </div>
+        <form method="POST" action="/admin/sms-center/create" class="op-form" id="create-template-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <div class="op-modal-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Gateway <span class="op-text-danger">*</span></label>
+                        <select name="gateway_slug" class="op-input" required>
+                            <option value="">— Select Gateway —</option>
+                            {% for gw in gateways %}
+                            <option value="{{ gw.slug }}">{{ gw.name }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="op-text-muted">Associated payment channel</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Sender Pattern <span class="op-text-danger">*</span></label>
+                        <input type="text" name="sender_pattern" class="op-input" placeholder="e.g. bKash|16216" required>
+                        <small class="op-text-muted">Regex pattern matching SMS sender/number</small>
+                    </div>
+                </div>
+                
+                <div class="op-form-row op-mt-3">
+                    <div class="op-form-group op-col-8">
+                        <label>Amount Regex <span class="op-text-danger">*</span></label>
+                        <input type="text" name="amount_regex" class="op-input op-font-mono" placeholder="e.g. Tk\s*([\d,]+\.?\d*)" required>
+                        <small class="op-text-muted">Regex capture group 1 = credited amount</small>
+                    </div>
+                    <div class="op-form-group op-col-4">
+                        <label>Priority</label>
+                        <input type="number" name="priority" class="op-input" value="10" min="1" max="999">
+                        <small class="op-text-muted">Lower value = higher priority</small>
+                    </div>
+                </div>
+                
+                <div class="op-form-row op-mt-3">
+                    <div class="op-form-group op-col-6">
+                        <label>Transaction ID Regex</label>
+                        <input type="text" name="trx_id_regex" class="op-input op-font-mono" placeholder="e.g. TrxID\s*(\w+)">
+                        <small class="op-text-muted">Regex capture group 1 = TrxID</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Sender Account Regex</label>
+                        <input type="text" name="sender_regex" class="op-input op-font-mono" placeholder="e.g. from\s*(01\d{9})">
+                        <small class="op-text-muted">Regex capture group 1 = Payer number</small>
+                    </div>
+                </div>
+                
+                <div class="op-form-row op-mt-3">
+                    <div class="op-form-group op-col-6">
+                        <label>Status</label>
+                        <select name="status" class="op-input">
+                            <option value="active">Active</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                        <small class="op-text-muted">Active templates parse incoming messages</small>
+                    </div>
+                </div>
+            </div>
+            <div class="op-modal-footer">
+                <button type="button" class="op-btn op-btn-outline" data-close-modal="create-template-modal">Cancel</button>
+                <button type="submit" class="op-btn op-btn-primary">Create Template</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 {% endblock %}
-{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/sms-center.js?v=013"></script>{% endblock %}
+{% block scripts %}
+    <script nonce="{{ csp_nonce }}" src="/assets/js/pages/sms-center.js?v=015"></script>
+{% endblock %}

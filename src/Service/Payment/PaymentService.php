@@ -65,6 +65,14 @@ final class PaymentService
         ]);
         $data['amount'] = $amount;
 
+        // Defense-in-depth: the amount must remain strictly positive after the
+        // payment.amount.calculate filter so a misbehaving plugin cannot zero or
+        // negate the stored intent amount that later drives the gateway charge.
+        $amountStr = is_scalar($data['amount']) ? (string) $data['amount'] : '';
+        if ($amountStr === '' || !is_numeric($amountStr) || bccomp($amountStr, '0', 2) <= 0) {
+            throw new \InvalidArgumentException('Payment intent amount must be a positive number.');
+        }
+
         if ($data['metadata'] ?? null) {
             $data['metadata'] = json_encode($data['metadata']);
         }
@@ -128,6 +136,17 @@ final class PaymentService
             $this->events->doAction('payment.intent.expired', ['count' => $count, 'batch' => true]);
         }
         return $count;
+    }
+
+    /**
+     * Finds a payment intent using its unique UUID (payment_id).
+     *
+     * @param string $uuid The UUID of the payment intent.
+     * @return array<string, mixed>|null The payment intent fields, or null if not found.
+     */
+    public function findByUuid(string $uuid): ?array
+    {
+        return $this->intents->findByUuid($uuid);
     }
 
     /**

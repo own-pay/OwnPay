@@ -1,17 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
-    <title>Database · Own Pay Setup</title>
-    <link rel="stylesheet" href="/assets/css/installer.css?v=3">
+    <title>Database · OwnPay Setup</title>
+    <link rel="stylesheet" href="/assets/css/installer.css?v=4">
+    <script nonce="<?php echo bin2hex(random_bytes(16)); ?>">
+        (function(){var t=localStorage.getItem('op-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
+    </script>
 </head>
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <div class="ins-logo-fallback">OP</div>
-        <span class="ins-name">Own Pay <span>Setup</span></span>
+        <img src="/assets/img/logo-light.svg" alt="OwnPay" class="op-logo-light" style="height: 32px; width: auto;">
+        <img src="/assets/img/logo-dark.svg" alt="OwnPay" class="op-logo-dark" style="height: 32px; width: auto;">
+        <span class="ins-name">OwnPay <span>Setup</span></span>
     </div>
     <div class="ins-steps">
         <div class="ins-step done"><span class="ins-step-num">✓</span><span>Requirements</span></div>
@@ -61,7 +65,7 @@
                     <input id="db_prefix" name="prefix" value="op_" required>
                 </div>
                 <div id="dbMsg" class="ins-msg"></div>
-                <button type="submit" class="ins-btn" id="dbBtn">
+                <button type="submit" class="ins-btn ins-btn-primary" id="dbBtn">
                     <span id="dbBtnText">Test Database Connection →</span>
                 </button>
             </form>
@@ -122,8 +126,8 @@
             </div>
 
             <div style="margin-top: 1.5rem; display: flex; gap: 1rem;">
-                <button type="button" class="ins-btn ins-btn-outline" id="backToParamsBtn">← Back</button>
-                <button type="button" class="ins-btn ins-btn-success" id="confirmImportBtn" style="flex: 1;">Execute Database Schema Import</button>
+                <button type="button" class="ins-btn" id="backToParamsBtn">← Back</button>
+                <button type="button" class="ins-btn ins-btn-primary" id="confirmImportBtn" style="flex: 1;">Execute Database Schema Import</button>
             </div>
         </div>
     </div>
@@ -155,7 +159,19 @@ document.getElementById('dbForm').addEventListener('submit', async function(e) {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        var d = await r.json();
+        
+        var text = await r.text();
+        var d;
+        try {
+            d = JSON.parse(text);
+        } catch (e) {
+            msg.className = 'ins-msg ins-msg-err';
+            msg.innerHTML = '<strong>Server Error</strong><br>' + (text.substring(0, 300).replace(/</g, '&lt;').replace(/>/g, '&gt;') || 'Invalid response from server.');
+            btn.disabled = false;
+            btnText.textContent = 'Test Database Connection →';
+            return;
+        }
+
         if (d.success) {
             dbConfigPayload = body; // cache for import confirmation step
             
@@ -182,13 +198,13 @@ document.getElementById('dbForm').addEventListener('submit', async function(e) {
             document.getElementById('dbConfirmPanel').style.display = 'block';
         } else {
             msg.className = 'ins-msg ins-msg-err';
-            msg.textContent = '✗ ' + (d.error || 'Connection failed');
+            msg.innerHTML = '<strong>Connection Failed</strong><br>' + (d.error || 'Could not connect to the database. Verify your host, port, credentials, and ensure MySQL is running.');
             btn.disabled = false;
             btnText.textContent = 'Test Database Connection →';
         }
     } catch (err) {
         msg.className = 'ins-msg ins-msg-err';
-        msg.textContent = '✗ Network connection failed. Please check your PHP server logs.';
+        msg.innerHTML = '<strong>Network Error</strong><br>' + (err.message || 'Could not reach the server. Check that your PHP server is running and accessible.');
         btn.disabled = false;
         btnText.textContent = 'Test Database Connection →';
     }
@@ -255,7 +271,19 @@ document.getElementById('confirmImportBtn').addEventListener('click', async func
             body: JSON.stringify(payload)
         });
         
-        var d = await r.json();
+        var text = await r.text();
+        var d;
+        try {
+            d = JSON.parse(text);
+        } catch (e) {
+            printLog('[ERROR] Server returned invalid format.', 'err');
+            msg.className = 'ins-msg ins-msg-err';
+            msg.innerHTML = '<strong>Server Error</strong><br>' + (text.substring(0, 300).replace(/</g, '&lt;').replace(/>/g, '&gt;') || 'Invalid response from server.');
+            btn.disabled = false;
+            backBtn.disabled = false;
+            return;
+        }
+
         if (d.success) {
             printLog('[OK] Connection verified. Collation matched.', 'ok');
             await new Promise(r => setTimeout(r, 350));
@@ -285,14 +313,14 @@ document.getElementById('confirmImportBtn').addEventListener('click', async func
         } else {
             printLog('[ERROR] ' + (d.error || 'Import failed'), 'err');
             msg.className = 'ins-msg ins-msg-err';
-            msg.textContent = '✗ ' + (d.error || 'Import failed');
+            msg.innerHTML = '<strong>Import Failed</strong><br>' + (d.error || 'The database schema could not be imported. Check that the database user has CREATE privileges.');
             btn.disabled = false;
             backBtn.disabled = false;
         }
     } catch (err) {
         printLog('[ERROR] Network exception triggered.', 'err');
         msg.className = 'ins-msg ins-msg-err';
-        msg.textContent = '✗ Network exception. Check server memory limits.';
+        msg.innerHTML = '<strong>Network Error</strong><br>' + (err.message || 'Lost connection during import. The database may be in an incomplete state — check your server logs.');
         btn.disabled = false;
         backBtn.disabled = false;
     }

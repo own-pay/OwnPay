@@ -103,37 +103,43 @@ final class CronJobRunner
         }
 
         $config = $this->jobs[$name];
-        $start = microtime(true);
 
-        try {
-            $result = $config['job']->run();
-            $duration = round(microtime(true) - $start, 4);
+        // Hold the same per-job lock as scheduled runs so a manual trigger can
+        // never execute concurrently with an in-progress scheduled execution.
+        $result = $this->withLock($name, function () use ($name, $config) {
+            $start = microtime(true);
+            try {
+                $jobResult = $config['job']->run();
+                $duration = round(microtime(true) - $start, 4);
 
-            $this->logger->info("Cron job manually completed: {$name}", [
-                'duration' => $duration,
-                'result'   => is_array($result) ? $result : null,
-            ]);
+                $this->logger->info("Cron job manually completed: {$name}", [
+                    'duration' => $duration,
+                    'result'   => is_array($jobResult) ? $jobResult : null,
+                ]);
 
-            $this->recordLastRun($name);
+                $this->recordLastRun($name);
 
-            return [
-                'status'   => 'completed',
-                'duration' => $duration,
-                'result'   => $result,
-            ];
-        } catch (\Throwable $e) {
-            $duration = round(microtime(true) - $start, 4);
-            $this->logger->error("Cron job manually failed: {$name}", [
-                'error'    => $e->getMessage(),
-                'duration' => $duration,
-            ]);
+                return [
+                    'status'   => 'completed',
+                    'duration' => $duration,
+                    'result'   => $jobResult,
+                ];
+            } catch (\Throwable $e) {
+                $duration = round(microtime(true) - $start, 4);
+                $this->logger->error("Cron job manually failed: {$name}", [
+                    'error'    => $e->getMessage(),
+                    'duration' => $duration,
+                ]);
 
-            return [
-                'status'   => 'failed',
-                'duration' => $duration,
-                'error'    => $e->getMessage(),
-            ];
-        }
+                return [
+                    'status'   => 'failed',
+                    'duration' => $duration,
+                    'error'    => $e->getMessage(),
+                ];
+            }
+        });
+
+        return is_array($result) ? $result : ['status' => 'locked', 'duration' => 0.0];
     }
 
     /**
@@ -152,41 +158,110 @@ final class CronJobRunner
                 continue;
             }
 
-            $start = microtime(true);
+            // Acquire an exclusive per-job lock so two concurrent /cron/{secret}
+            // hits cannot both pass the isDue() check and run the same job
+            // twice (double refund-reconciliation, duplicate webhook retries...).
+            // The due-ness is re-checked INSIDE the lock to close the gap between
+            // the outer check and lock acquisition.
+            $jobResult = $this->withLock($name, function () use ($name, $config) {
+                if (!$this->isDue($name, $config['schedule'])) {
+                    return ['status' => 'skipped'];
+                }
 
-            try {
-                $result = $config['job']->run();
-                $duration = round(microtime(true) - $start, 4);
+                $start = microtime(true);
+                try {
+                    $result = $config['job']->run();
+                    $duration = round(microtime(true) - $start, 4);
 
-                $this->logger->info("Cron job completed: {$name}", [
-                    'duration' => $duration,
-                    'result'   => is_array($result) ? $result : null,
-                ]);
+                    $this->logger->info("Cron job completed: {$name}", [
+                        'duration' => $duration,
+                        'result'   => is_array($result) ? $result : null,
+                    ]);
 
-                $this->recordLastRun($name);
+                    $this->recordLastRun($name);
 
-                $results[$name] = [
-                    'status'   => 'completed',
-                    'duration' => $duration,
-                    'result'   => $result,
-                ];
-            } catch (\Throwable $e) {
-                $duration = round(microtime(true) - $start, 4);
-                $this->logger->error("Cron job failed: {$name}", [
-                    'error'    => $e->getMessage(),
-                    'duration' => $duration,
-                ]);
+                    return [
+                        'status'   => 'completed',
+                        'duration' => $duration,
+                        'result'   => $result,
+                    ];
+                } catch (\Throwable $e) {
+                    $duration = round(microtime(true) - $start, 4);
+                    $this->logger->error("Cron job failed: {$name}", [
+                        'error'    => $e->getMessage(),
+                        'duration' => $duration,
+                    ]);
 
-                $results[$name] = [
-                    'status'   => 'failed',
-                    'duration' => $duration,
-                    'error'    => $e->getMessage(),
-                ];
-            }
+                    return [
+                        'status'   => 'failed',
+                        'duration' => $duration,
+                        'error'    => $e->getMessage(),
+                    ];
+                }
+            });
+
+            // Null result means the lock was held by a concurrent run.
+            $results[$name] = is_array($jobResult) ? $jobResult : ['status' => 'locked'];
         }
 
         $this->events->doAction('system.cron.after', $results);
         return $results;
+    }
+
+    /**
+     * Runs a callback while holding an exclusive advisory lock for the job.
+     *
+     * Uses flock(LOCK_EX | LOCK_NB) so concurrent invocations on the same host
+     * serialize: the first acquires the lock and runs; a concurrent caller gets
+     * null immediately rather than executing the job a second time.
+     *
+     * @template T
+     * @param string $name Unique job name identifier.
+     * @param callable():T $fn The work to perform under the lock.
+     * @return T|null The callback result, or null if the lock could not be acquired.
+     */
+    private function withLock(string $name, callable $fn): mixed
+    {
+        $lockPath = $this->runLockFile($name);
+        $dir = dirname($lockPath);
+        if (!is_dir($dir)) {
+            @mkdir($dir, 0755, true);
+        }
+
+        $fp = @fopen($lockPath, 'c');
+        if ($fp === false) {
+            // Lock file unavailable — fail safe by running so scheduled work is
+            // not silently dropped, but record the degraded condition.
+            $this->logger->warning("Cron run-lock unavailable for {$name}; executing without concurrency guard");
+            return $fn();
+        }
+
+        try {
+            if (!flock($fp, LOCK_EX | LOCK_NB)) {
+                return null;
+            }
+            try {
+                return $fn();
+            } finally {
+                flock($fp, LOCK_UN);
+            }
+        } finally {
+            fclose($fp);
+        }
+    }
+
+    /**
+     * Computes the absolute path to the exclusive run-lock for a job.
+     *
+     * Distinct from lockFile() (which stores the last-run timestamp) so the
+     * concurrency lock and the schedule marker never clobber each other.
+     *
+     * @param string $name Unique job name identifier.
+     * @return string Absolute file path.
+     */
+    private function runLockFile(string $name): string
+    {
+        return dirname(__DIR__, 2) . '/storage/cron/' . md5($name) . '.running.lock';
     }
 
     /**

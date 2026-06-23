@@ -364,7 +364,12 @@ final class SmsParserService
             'parser_type'      => $parsed['parse_method'] ?? 'unparsed',
             'template_id'      => $parsed['template_id'] ?? null,
             'parse_confidence' => $parsed['parse_confidence'] ?? 'low',
-            'match_status'     => ($parsed === null) ? 'admin_review' : 'accepted',
+            // Parsed rows enter the auto-match queue as 'pending' — the value the
+            // SmsVerificationJob cron consumes (it then promotes a matched row to
+            // 'matched' via linkToTransaction). Writing 'accepted' here orphaned
+            // the record so SMS-based MFS verification never ran automatically.
+            // Rows that could not be parsed go to manual review.
+            'match_status'     => ($parsed === null) ? 'admin_review' : 'pending',
         ];
     }
 
@@ -455,7 +460,7 @@ final class SmsParserService
     /**
      * Parses a raw SMS string message dynamically without creating database records.
      *
-     * Facilitates real-time verification queries executed inside the MfsService logic.
+     * Used for real-time, stateless SMS verification (no persistence side effects).
      *
      * @param string $rawMessage The raw SMS text body.
      * @param string $sender Original carrier sender identity pattern.

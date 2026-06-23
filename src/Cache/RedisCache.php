@@ -73,7 +73,7 @@ final class RedisCache implements CacheInterface
 
         do {
             $result = $this->redis->scan($cursor, $pattern, 100);
-            if ($result !== false && is_array($result) /** @phpstan-ignore function.alreadyNarrowedType */ && count($result) > 0) {
+            if ($result !== false && count($result) > 0) {
                 $this->redis->del(...$result);
             }
         } while ($cursor > 0);

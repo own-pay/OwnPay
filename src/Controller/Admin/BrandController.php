@@ -92,10 +92,14 @@ final class BrandController
      */
     public function create(Request $req): Response
     {
+        $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+        $languages = $transSvc instanceof \OwnPay\Service\System\TranslationService ? $transSvc->getAllLanguages() : [['code' => 'en', 'name' => 'English']];
+
         return $this->renderAdminPage('admin/brands/edit.twig', [
             'brand'       => null,
             'active_page' => 'brands',
             'is_new'      => true,
+            'languages'   => $languages,
         ]);
     }
 
@@ -130,6 +134,22 @@ final class BrandController
         $currencyField = $data['default_currency'] ?? 'BDT';
         $statusField = $data['status'] ?? 'active';
 
+        $defaultSettings = [
+            'logo' => null,
+            'favicon' => null,
+            'primary_color' => '#0D9488',
+            'accent_color' => '#0F766E',
+            'support_email' => is_string($emailField) ? $emailField : '',
+            'footer_text' => '',
+            'language' => 'en',
+            'checkout_success_msg' => '',
+            'checkout_pending_msg' => '',
+            'checkout_failed_msg' => '',
+            'custom_css' => '',
+            'custom_js' => '',
+            'show_powered_by' => 0,
+        ];
+
         $merchantId = (int) $this->merchants->createMerchant([
             'name'             => $name,
             'slug'             => $slug,
@@ -138,21 +158,9 @@ final class BrandController
             'timezone'         => is_string($timezoneField) ? $timezoneField : 'Asia/Dhaka',
             'default_currency' => is_string($currencyField) ? $currencyField : 'BDT',
             'status'           => is_string($statusField) ? $statusField : 'active',
+            'logo_path'        => null,
+            'settings'         => json_encode($defaultSettings, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
         ]);
-
-        // Process file uploads & customizations now that we have the merchant ID
-        $brandingData = $this->handleBrandUploadsAndSettings($req, $merchantId, $data);
-        
-        /** @var array<string, mixed> $updateData */
-        $updateData = array_merge([
-            'name'             => $name,
-            'email'            => is_string($emailField) ? $emailField : '',
-            'phone'            => is_string($phoneField) ? $phoneField : '',
-            'timezone'         => is_string($timezoneField) ? $timezoneField : 'Asia/Dhaka',
-            'default_currency' => is_string($currencyField) ? $currencyField : 'BDT',
-            'status'           => is_string($statusField) ? $statusField : 'active',
-        ], $brandingData);
-        $this->merchants->updateBrand($merchantId, $updateData);
 
         $customDomainVal = $req->post('custom_domain', '');
         $domain = trim(is_string($customDomainVal) ? $customDomainVal : '');
@@ -207,10 +215,14 @@ final class BrandController
             $brand['theme'] = [];
         }
 
+        $transSvc = $this->c->get(\OwnPay\Service\System\TranslationService::class);
+        $languages = $transSvc instanceof \OwnPay\Service\System\TranslationService ? $transSvc->getAllLanguages() : [['code' => 'en', 'name' => 'English']];
+
         return $this->renderAdminPage('admin/brands/edit.twig', [
             'brand'       => $brand,
             'active_page' => 'brands',
             'is_new'      => false,
+            'languages'   => $languages,
         ]);
     }
 
@@ -239,18 +251,27 @@ final class BrandController
 
         // Fetch current brand to retain existing settings / paths
         $existing = $this->merchants->find($id);
-        $existingSettings = [];
-        if ($existing && isset($existing['settings']) && is_string($existing['settings']) && $existing['settings'] !== '') {
-            $decoded = json_decode($existing['settings'], true);
-            $existingSettings = is_array($decoded) ? $decoded : [];
+        if (!$existing) {
+            $this->session->flashError('Brand not found');
+            return Response::redirect('/admin/brands');
         }
 
-        // Process file uploads & customizations
-        $existingLogoPath = ($existing && isset($existing['logo_path']) && is_string($existing['logo_path'])) ? $existing['logo_path'] : null;
-        $brandingData = $this->handleBrandUploadsAndSettings($req, $id, $data, $existingLogoPath, $existingSettings);
+        $emailField = $data['email'] ?? '';
+        $phoneField = $data['phone'] ?? '';
+        $timezoneField = $data['timezone'] ?? 'Asia/Dhaka';
+        $currencyField = $data['default_currency'] ?? 'BDT';
+        $statusField = $data['status'] ?? 'active';
 
-        /** @var array<string, mixed> $updateData */
-        $updateData = array_merge($data, $brandingData);
+        $updateData = [
+            'name'             => $name,
+            'email'            => is_string($emailField) ? $emailField : '',
+            'phone'            => is_string($phoneField) ? $phoneField : '',
+            'timezone'         => is_string($timezoneField) ? $timezoneField : 'Asia/Dhaka',
+            'default_currency' => is_string($currencyField) ? $currencyField : 'BDT',
+            'status'           => is_string($statusField) ? $statusField : 'active',
+            'logo_path'        => $existing['logo_path'],
+            'settings'         => $existing['settings'],
+        ];
         $this->merchants->updateBrand($id, $updateData);
 
         $customDomainVal = $req->post('custom_domain', '');
@@ -273,6 +294,21 @@ final class BrandController
     }
 
     /**
+     * Whether the current staff member may enter the All Brands (platform / super-admin) view.
+     *
+     * Superadmins always may. Other staff need the 'brands.access_all' permission, assignable per
+     * role from All Brands. Permissions are populated on the request by PermissionMiddleware.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return bool True if the user may access the All Brands view.
+     */
+    private function canAccessAllBrands(Request $req): bool
+    {
+        $perms = $req->getAttribute('user_permissions');
+        return is_array($perms) && in_array('brands.access_all', $perms, true);
+    }
+
+    /**
      * Contextually switches the active administrative brand context.
      *
      * @param Request $req The incoming HTTP request.
@@ -287,8 +323,8 @@ final class BrandController
         $homeMerchantId = is_scalar($authMerchantId) && is_numeric($authMerchantId) ? (int) $authMerchantId : 0;
 
         if ($id === 'global') {
-            if (!$isSuperAdmin) {
-                $this->session->flashError('Permission denied to switch to global view');
+            if (!$isSuperAdmin && !$this->canAccessAllBrands($req)) {
+                $this->session->flashError('You do not have permission to access the All Brands view.');
                 return Response::redirect('/admin');
             }
             $this->brand->setGlobalView(true);
@@ -374,99 +410,5 @@ final class BrandController
         $this->audit->log('brand.deleted', 'merchant', $id, ['name' => $brandName]);
         $this->session->flashSuccess("Brand '{$brandName}' deleted");
         return Response::redirect('/admin/brands');
-    }
-
-    /**
-     * Handles file uploads for brand logo and favicon, and aggregates all brand customizations
-     * into logo_path and JSON settings fields.
-     *
-     * @param Request $req The incoming HTTP request.
-     * @param int $merchantId The brand's merchant ID.
-     * @param array<string, mixed> $data The incoming POST/customization data.
-     * @param string|null $existingLogoPath The existing brand logo file path, if any.
-     * @param array<string, mixed> $existingSettings The existing brand settings, if any.
-     * @return array<string, mixed> The compiled branding data.
-     */
-    private function handleBrandUploadsAndSettings(Request $req, int $merchantId, array $data, ?string $existingLogoPath = null, array $existingSettings = []): array
-    {
-        $uploadDir = dirname(__DIR__, 3) . '/public/assets/uploads/brands/';
-        if (!is_dir($uploadDir)) {
-            mkdir($uploadDir, 0755, true);
-        }
-
-        $logoPath = $existingLogoPath;
-        $faviconPath = $existingSettings['favicon'] ?? null;
-
-        // Securely instantiate FilesystemService targeting the public assets folder.
-        $fs = new \OwnPay\Service\System\FilesystemService(dirname(__DIR__, 3) . '/public/assets');
-
-        // Process Brand Logo File
-        $logoFile = $req->file('brand_logo');
-        if ($logoFile !== null && ($logoFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-            try {
-                if (isset($logoFile['name'], $logoFile['tmp_name']) && is_string($logoFile['name']) && is_string($logoFile['tmp_name'])) {
-                    $storedPath = $fs->storeUpload($logoFile, 'uploads/brands');
-                    $logoPath = '/assets/' . $storedPath;
-                }
-            } catch (\Throwable $e) {
-                $this->session->flashError('Invalid file for brand logo: ' . $e->getMessage());
-            }
-        }
-
-        // Process Brand Favicon File
-        $faviconFile = $req->file('brand_favicon');
-        if ($faviconFile !== null && ($faviconFile['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_OK) {
-            try {
-                if (isset($faviconFile['name'], $faviconFile['tmp_name']) && is_string($faviconFile['name']) && is_string($faviconFile['tmp_name'])) {
-                    $storedPath = $fs->storeUpload($faviconFile, 'uploads/brands');
-                    $faviconPath = '/assets/' . $storedPath;
-                }
-            } catch (\Throwable $e) {
-                $this->session->flashError('Invalid file for brand favicon: ' . $e->getMessage());
-            }
-        }
-
-        // Compile settings JSON
-        $settings = $existingSettings;
-        $settings['logo']            = $logoPath;
-        $settings['favicon']         = $faviconPath;
-        
-        $primaryColorVal = $data['primary_color'] ?? ($existingSettings['primary_color'] ?? '#0D9488');
-        $settings['primary_color']   = InputSanitizer::string(is_string($primaryColorVal) ? $primaryColorVal : '#0D9488');
-        
-        $accentColorVal = $data['accent_color'] ?? ($existingSettings['accent_color'] ?? '#0F766E');
-        $settings['accent_color']    = InputSanitizer::string(is_string($accentColorVal) ? $accentColorVal : '#0F766E');
-        
-        $supportEmailVal = $data['support_email'] ?? ($existingSettings['support_email'] ?? '');
-        $settings['support_email']   = InputSanitizer::email(is_string($supportEmailVal) ? $supportEmailVal : '');
-        
-        $footerTextVal = $data['footer_text'] ?? ($existingSettings['footer_text'] ?? '');
-        $settings['footer_text']     = InputSanitizer::string(is_string($footerTextVal) ? $footerTextVal : '');
-        
-        // Authorization check: only superadmins can modify custom_css and custom_js
-        $isSuperadmin = !empty($_SESSION['is_superadmin']);
-        if ($isSuperadmin) {
-            $customCssVal = $data['custom_css'] ?? ($existingSettings['custom_css'] ?? '');
-            $customCss = is_string($customCssVal) ? $customCssVal : '';
-            $customJsVal = $data['custom_js'] ?? ($existingSettings['custom_js'] ?? '');
-            $customJs = is_string($customJsVal) ? $customJsVal : '';
-
-            // Clean custom_css of dangerous vectors: expressions, behavior, javascript:, script tags
-            $customCss = preg_replace('/expression\s*\(|behavior\s*:|javascript\s*:/i', '', $customCss);
-            $customCss = preg_replace('/<\s*script\b[^>]*>(.*?)<\s*\/\s*script\s*>/is', '', is_string($customCss) ? $customCss : '');
-
-            $settings['custom_css'] = is_string($customCss) ? $customCss : '';
-            $settings['custom_js']  = $customJs;
-        } else {
-            // Non-superadmins revert to existing styles/scripts
-            $settings['custom_css'] = $existingSettings['custom_css'] ?? '';
-            $settings['custom_js']  = $existingSettings['custom_js'] ?? '';
-        }
-        $settings['show_powered_by'] = isset($data['show_powered_by']) && $data['show_powered_by'] === '1' ? 1 : 0;
-
-        return [
-            'logo_path' => $logoPath,
-            'settings'  => json_encode($settings, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE),
-        ];
     }
 }

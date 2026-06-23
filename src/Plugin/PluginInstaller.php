@@ -53,9 +53,10 @@ final class PluginInstaller
      * 5. Deploys the verified plugin files into the merchant execution path.
      *
      * @param string $zipPath Absolute path to the uploaded ZIP file.
-     * @return array{success: bool, error?: string, slug?: string} Installation status and metadata.
+     * @param bool   $overwrite Whether to overwrite the plugin files if already installed.
+     * @return array{success: bool, error?: string, slug?: string, code?: string, existing_version?: string, new_version?: string, has_migrations?: bool} Installation status and metadata.
      */
-    public function installFromZip(string $zipPath): array
+    public function installFromZip(string $zipPath, bool $overwrite = false): array
     {
         if (!file_exists($zipPath)) {
             return $this->fail('ZIP file not found');
@@ -73,7 +74,7 @@ final class PluginInstaller
         $manifest = $this->loadAndValidateManifest($tempDir);
         if (is_array($manifest)) { $this->removeDir($tempDir); return $manifest; }
 
-        $deployResult = $this->deployPlugin($tempDir, $manifest);
+        $deployResult = $this->deployPlugin($tempDir, $manifest, $overwrite);
         $this->removeDir($tempDir);
         return $deployResult;
     }
@@ -129,7 +130,9 @@ final class PluginInstaller
             $name = $zip->getNameIndex($i);
             if ($name === false) continue;
 
-            if (str_contains($name, '..') || str_starts_with($name, '/')) {
+            // Normalize path separators to forward slashes for unified safety check
+            $normalizedName = str_replace('\\', '/', $name);
+            if (str_contains($normalizedName, '..') || str_starts_with($normalizedName, '/') || str_contains($normalizedName, ':')) {
                 return $this->fail('ZIP contains path traversal attempt');
             }
 
@@ -170,12 +173,12 @@ final class PluginInstaller
     {
         $pluginDir = $this->findPluginRoot($tempDir);
         if ($pluginDir === null) {
-            return $this->fail('No plugin.json found in ZIP');
+            return $this->fail('No manifest.json found in ZIP');
         }
 
         $manifest = PluginManifest::fromDirectory($pluginDir);
         if ($manifest === null) {
-            return $this->fail('Invalid plugin.json');
+            return $this->fail('Invalid manifest.json');
         }
 
         $errors = $manifest->validate();
@@ -183,8 +186,6 @@ final class PluginInstaller
             return $this->fail('Manifest errors: ' . implode(', ', $errors));
         }
 
-        /** @phpstan-ignore-next-line */
-        $manifest->_resolvedDir = $pluginDir;
         return $manifest;
     }
 
@@ -194,11 +195,12 @@ final class PluginInstaller
      * Checks destination writability and protects existing plugin paths from
      * being overwritten without prior uninstallation.
      *
-     * @param string         $tempDir  Path to the temporary directory.
-     * @param PluginManifest $manifest The validated plugin manifest structure.
-     * @return array{success: bool, error?: string, slug?: string} Deployment status.
+     * @param string         $tempDir   Path to the temporary directory.
+     * @param PluginManifest $manifest  The validated plugin manifest structure.
+     * @param bool           $overwrite Whether to overwrite the plugin files if already installed.
+     * @return array{success: bool, error?: string, slug?: string, code?: string, existing_version?: string, new_version?: string, has_migrations?: bool} Deployment status.
      */
-    private function deployPlugin(string $tempDir, PluginManifest $manifest): array
+    private function deployPlugin(string $tempDir, PluginManifest $manifest, bool $overwrite = false): array
     {
         $typeDir = $this->resolveTypeDir($manifest->type);
         $modulesTypeDir = $this->modulesDir . '/' . $typeDir;
@@ -211,11 +213,35 @@ final class PluginInstaller
         }
 
         if (is_dir($targetDir)) {
-            return $this->fail("Plugin '{$manifest->slug}' already installed. Uninstall first.");
+            if (!$overwrite) {
+                $existingVersion = '0.0.0';
+                $existingManifest = PluginManifest::fromDirectory($targetDir);
+                if ($existingManifest !== null) {
+                    $existingVersion = $existingManifest->version;
+                }
+                $pluginDir = $manifest->path;
+                $hasMigrations = !empty($manifest->migrations);
+                $migrationsDir = $pluginDir . '/migrations';
+                if (is_dir($migrationsDir)) {
+                    $sqlFiles = glob($migrationsDir . '/*.sql');
+                    if (!empty($sqlFiles)) {
+                        $hasMigrations = true;
+                    }
+                }
+                return [
+                    'success'          => false,
+                    'code'             => 'already_installed',
+                    'slug'             => $manifest->slug,
+                    'existing_version' => $existingVersion,
+                    'new_version'      => $manifest->version,
+                    'has_migrations'   => $hasMigrations,
+                    'error'            => "Plugin '{$manifest->slug}' already installed."
+                ];
+            }
+            $this->removeDir($targetDir);
         }
 
-        /** @phpstan-ignore-next-line */
-        $pluginDir = $manifest->_resolvedDir ?? $tempDir;
+        $pluginDir = $manifest->path;
         if (!rename($pluginDir, $targetDir)) {
             $this->copyDir($pluginDir, $targetDir);
         }
@@ -250,20 +276,20 @@ final class PluginInstaller
     }
 
     /**
-     * Traverses the extraction tree to locate the directory containing plugin.json.
+     * Traverses the extraction tree to locate the directory containing manifest.json.
      *
      * @param string $dir Path to search within.
      * @return string|null The root plugin path, or null if not found.
      */
     private function findPluginRoot(string $dir): ?string
     {
-        if (file_exists($dir . '/plugin.json')) return $dir;
+        if (file_exists($dir . '/manifest.json')) return $dir;
         $entries = scandir($dir);
         if ($entries === false) return null;
         foreach ($entries as $entry) {
             if ($entry === '.' || $entry === '..') continue;
             $subDir = $dir . '/' . $entry;
-            if (is_dir($subDir) && file_exists($subDir . '/plugin.json')) return $subDir;
+            if (is_dir($subDir) && file_exists($subDir . '/manifest.json')) return $subDir;
         }
         return null;
     }
@@ -277,16 +303,20 @@ final class PluginInstaller
     private function removeDir(string $dir): bool
     {
         if (!is_dir($dir)) return false;
-        $items = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST
-        );
-        foreach ($items as $item) {
-            if ($item instanceof \SplFileInfo) {
-                $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+        try {
+            $items = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+            foreach ($items as $item) {
+                if ($item instanceof \SplFileInfo) {
+                    $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+                }
             }
+            return @rmdir($dir);
+        } catch (\Throwable $e) {
+            return false;
         }
-        return @rmdir($dir);
     }
 
     /**
@@ -301,15 +331,19 @@ final class PluginInstaller
     private function copyDir(string $src, string $dst): void
     {
         @mkdir($dst, 0755, true);
-        $items = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($src, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST
-        );
-        foreach ($items as $item) {
-            if ($item instanceof \SplFileInfo) {
-                $target = $dst . '/' . $items->getSubPathname();
-                $item->isDir() ? @mkdir($target, 0755) : @copy($item->getPathname(), $target);
+        try {
+            $items = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($src, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+            foreach ($items as $item) {
+                if ($item instanceof \SplFileInfo) {
+                    $target = $dst . '/' . $items->getSubPathname();
+                    $item->isDir() ? @mkdir($target, 0755) : @copy($item->getPathname(), $target);
+                }
             }
+        } catch (\Throwable $e) {
+            // Ignore copying errors, fallback gracefully
         }
     }
 }

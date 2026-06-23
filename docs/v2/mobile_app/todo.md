@@ -31,8 +31,8 @@
 
 ### 1.3 API Middleware
 - [x] Extend `BearerAuthMiddleware` or create `JwtAuthMiddleware` for JWT validation
-- [x] Create `DeviceFingerprintMiddleware` — validate X-Device-Fingerprint header (integrated into JwtAuthMiddleware)
-- [x] Add rate limiting rule for `/api/mobile/v1/devices`
+- [x] Validate X-Device-Fingerprint header — enforced at token **refresh** (`DevicePairingService::refreshAccessToken`/`validateRequest`). NOTE: the per-request access path (`JwtAuthMiddleware`) authenticates via JWT signature + device-revocation + merchant-match, but does **not** re-check the fingerprint, because the stored `jwt_fingerprint` is derived from `deviceUuid + merchantId` — both present as `did`/`mid` claims inside the token — so re-checking it on every request adds no protection against token theft. Token-theft risk is mitigated by the short 15-min access-token TTL plus active revocation checks.
+- [x] Add rate limiting rule for `/api/mobile/v1/devices` (strict login bucket: 5/300s)
 
 ### 1.4 API Endpoints
 - [x] `POST /api/mobile/v1/devices` — OTP validation + credential issuance

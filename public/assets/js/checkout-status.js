@@ -14,13 +14,13 @@ document.addEventListener("DOMContentLoaded", function() {
     var wrapper = document.getElementById("countdown-wrapper");
     if (wrapper) {
         var redirectUrl = wrapper.getAttribute("data-redirect-url");
-        var token = wrapper.getAttribute("data-token");
+        var paymentId = wrapper.getAttribute("data-payment-id");
         var status = wrapper.getAttribute("data-status");
 
         if (redirectUrl) {
             // Construct target URL with query parameters
             var separator = redirectUrl.indexOf("?") !== -1 ? "&" : "?";
-            var finalUrl = redirectUrl + separator + "token=" + encodeURIComponent(token) + "&status=" + encodeURIComponent(status);
+            var finalUrl = redirectUrl + separator + "payment_id=" + encodeURIComponent(paymentId) + "&status=" + encodeURIComponent(status);
 
             // Update all return/merchant links on the page for instant access
             var returnBtns = document.querySelectorAll('a[href="/"], .st-btn');

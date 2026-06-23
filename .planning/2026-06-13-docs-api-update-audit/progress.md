@@ -35,3 +35,11 @@ API code: B1 SMS retry idempotency (CommLogRepository retrySms +status='failed',
 B3 (device fingerprint): DECIDED NOT to enforce in JwtAuthMiddleware — jwt_fingerprint=sha256(deviceUuid.merchantId), both are did/mid JWT claims, so re-check adds no anti-theft value + risks breaking app if header absent on data reqs. Corrected misleading todo.md claim instead. Theft mitigated by 15-min TTL + revocation.
 DEFERRED (documented, lower value): B6 dead refresh stateful branch (harmless, method_exists-guarded), B8 SMS dedup +/-1s, B10 admin SmsTemplate/Device 0-row 404, B12 admin regex validate-on-save, B13 single-SMS decryption 200.
 NEXT: openapi/README sync (C1-C8), update CLI GitHub-URL fixes, docs/ARCHITECTURE.md + docs/LOCAL_SETUP.md, verify.
+
+## FINAL VERIFICATION (all green)
+- phpunit: 525 tests / 1693 assertions / 1 skipped (same as baseline — no regressions)
+- phpstan: level 9 clean
+- twig-cs-fixer: 79 files clean
+- openapi.yaml: valid YAML (python yaml.safe_load)
+- Targeted areas (Refund|ApiKey|Sms|Webhook|Developer): 122 tests green
+## Deliverables: docs/ARCHITECTURE.md (public) + docs/LOCAL_SETUP.md created. ARCHITECTURE.md (root) 6 fixes. 8 API bugs fixed. Update CLI fixed for GitHub URLs. OpenAPI/README synced (7 fixes).

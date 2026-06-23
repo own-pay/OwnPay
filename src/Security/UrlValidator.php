@@ -205,6 +205,72 @@ final class UrlValidator
     }
 
     /**
+     * Resolves a webhook host to a single public IP address that is safe to connect to,
+     * for pinning into the cURL handle (CURLOPT_RESOLVE).
+     *
+     * This closes the DNS-rebinding (time-of-check/time-of-use) window: isValidWebhookUrl()
+     * validates at check time, but a normal cURL call re-resolves the host at send time and a
+     * malicious resolver can return a public IP for the check and a private IP for the request.
+     * By resolving once here, re-verifying every returned record is public, and pinning the exact
+     * IP for the connection, the address cURL dials is guaranteed to be the one we validated.
+     *
+     * @param string $url The target webhook URL (must already satisfy isValidWebhookUrl).
+     * @param string|null $reason Output parameter set to the failure key when null is returned.
+     * @return string|null A public IP address to pin, or null if the URL is unsafe/unresolvable.
+     */
+    public static function resolveSafeWebhookIp(string $url, ?string &$reason = null): ?string
+    {
+        if (!self::isValidWebhookUrl($url)) {
+            $reason = 'ssrf';
+            return null;
+        }
+
+        $parsed = parse_url($url);
+        $host = is_array($parsed) && isset($parsed['host']) ? (string) $parsed['host'] : '';
+        if ($host === '') {
+            $reason = 'host';
+            return null;
+        }
+
+        // Literal IP host already passed the public-range check in isValidWebhookUrl().
+        if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
+            return $host;
+        }
+
+        $ips = [];
+        $records = @dns_get_record($host, DNS_A | DNS_AAAA);
+        if (is_array($records)) {
+            foreach ($records as $record) {
+                if (($record['type'] ?? '') === 'A' && isset($record['ip']) && is_string($record['ip'])) {
+                    $ips[] = $record['ip'];
+                } elseif (($record['type'] ?? '') === 'AAAA' && isset($record['ipv6']) && is_string($record['ipv6'])) {
+                    $ips[] = $record['ipv6'];
+                }
+            }
+        }
+        if ($ips === []) {
+            $ipv4s = gethostbynamel($host);
+            if (is_array($ipv4s)) {
+                $ips = $ipv4s;
+            }
+        }
+        if ($ips === []) {
+            $reason = 'unresolvable';
+            return null;
+        }
+
+        // Re-verify every resolved address is public, then pin the first one.
+        foreach ($ips as $ip) {
+            if (self::isPrivateIp($ip)) {
+                $reason = 'private';
+                return null;
+            }
+        }
+
+        return $ips[0];
+    }
+
+    /**
      * Cleanses a URL string by blocking unsafe URI schemes (e.g. javascript:, data:) and sanitizing content.
      *
      * @param string $url The raw URL string.

@@ -116,6 +116,28 @@ final class SecurityHeadersMiddleware
                 "report-uri /csp-report",
                 "report-to csp-endpoint",
             ]);
+
+            // Failsafe: mod_fcgid kills the worker when a single response header
+            // line exceeds 8KB ("Premature end of script headers" -> Apache 500).
+            // If gateway-declared sources ever push the CSP past a safe margin,
+            // drop them and serve the strict baseline policy instead of crashing.
+            if (strlen($csp) > 7500) {
+                $this->logHeaderOverflow(strlen($csp));
+                $csp = implode('; ', [
+                    "default-src 'self'",
+                    "script-src 'self' 'nonce-{$nonce}'",
+                    "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
+                    "font-src 'self' data: https://fonts.gstatic.com https:",
+                    "img-src 'self' data: https:",
+                    "connect-src 'self'",
+                    "frame-src 'self'",
+                    "frame-ancestors 'self' https:",
+                    "base-uri 'self'",
+                    "form-action 'self' https:",
+                    "report-uri /csp-report",
+                    "report-to csp-endpoint",
+                ]);
+            }
         } else {
             $csp = implode('; ', [
                 "default-src 'self'",
@@ -133,13 +155,31 @@ final class SecurityHeadersMiddleware
         }
         $response->withHeader($cspHeader, $csp);
 
+        // When the response was routed by a custom (white-label) domain, its body
+        // is brand-specific. Mark it Vary: Host so a shared CDN/proxy cannot serve
+        // one brand's cached checkout page to another brand's domain. Merge with
+        // any existing Vary (e.g. CORS's Vary: Origin) rather than clobbering it.
+        if ($request->getAttribute('custom_domain') !== null) {
+            $existingHeaders = $response->getHeaders();
+            $varyVal = $existingHeaders['Vary'] ?? '';
+            $varyParts = array_values(array_filter(array_map('trim', explode(',', $varyVal))));
+            if (!in_array('Host', $varyParts, true)) {
+                $varyParts[] = 'Host';
+            }
+            $response->withHeader('Vary', implode(', ', $varyParts));
+        }
+
         return $response;
     }
 
     /**
-     * Collect CSP source domains from all gateway plugin manifests.
+     * Collect CSP source domains from the manifests of ACTIVE gateways only.
      *
-     * Reads the "csp" field from each gateway manifest.json under modules/gateways/.
+     * Reads the "csp" field from modules/gateways/{slug}/manifest.json for each
+     * gateway with an active configuration (brand-scoped via BrandContext when the
+     * controller has resolved one, otherwise any active config). Scanning every
+     * installed manifest is forbidden here: with 100+ bundled gateways the merged
+     * CSP exceeded mod_fcgid's 8KB header limit and hard-killed the FastCGI worker.
      * Also fires the 'checkout.csp.sources' filter hook so plugins can add
      * CSP domains dynamically at runtime (e.g., for conditional loading).
      *
@@ -154,7 +194,7 @@ final class SecurityHeadersMiddleware
             'connect_src' => [],
         ];
 
-        // 1. Read CSP declarations from gateway manifests
+        // 1. Read CSP declarations from the manifests of active gateways
         try {
             $configApp = $this->container->get('config.app');
             $modulesPath = '';
@@ -164,26 +204,27 @@ final class SecurityHeadersMiddleware
             $gatewaysDir = $modulesPath . '/gateways';
 
             if ($modulesPath !== '' && is_dir($gatewaysDir)) {
-                $manifests = glob($gatewaysDir . '/*/manifest.json');
-                if ($manifests !== false) {
-                    foreach ($manifests as $manifestPath) {
-                        $content = @file_get_contents($manifestPath);
-                        if ($content === false) {
-                            continue;
-                        }
-                        $manifest = json_decode($content, true);
-                        if (!is_array($manifest) || empty($manifest['csp'])) {
-                            continue;
-                        }
-                        $csp = $manifest['csp'];
-                        if (is_array($csp)) {
-                            foreach (['script_src', 'style_src', 'frame_src', 'connect_src'] as $directive) {
-                                if (!empty($csp[$directive]) && is_array($csp[$directive])) {
-                                    // Sanitize: only allow https:// origins
-                                    foreach ($csp[$directive] as $origin) {
-                                        if (is_string($origin) && $this->isValidCspOrigin($origin)) {
-                                            $sources[$directive][] = $origin;
-                                        }
+                foreach ($this->activeGatewaySlugs() as $slug) {
+                    $manifestPath = $gatewaysDir . '/' . $slug . '/manifest.json';
+                    if (!is_file($manifestPath)) {
+                        continue;
+                    }
+                    $content = @file_get_contents($manifestPath);
+                    if ($content === false) {
+                        continue;
+                    }
+                    $manifest = json_decode($content, true);
+                    if (!is_array($manifest) || empty($manifest['csp'])) {
+                        continue;
+                    }
+                    $csp = $manifest['csp'];
+                    if (is_array($csp)) {
+                        foreach (['script_src', 'style_src', 'frame_src', 'connect_src'] as $directive) {
+                            if (!empty($csp[$directive]) && is_array($csp[$directive])) {
+                                // Sanitize: only allow https:// origins
+                                foreach ($csp[$directive] as $origin) {
+                                    if (is_string($origin) && $this->isValidCspOrigin($origin)) {
+                                        $sources[$directive][] = $origin;
                                     }
                                 }
                             }
@@ -221,6 +262,74 @@ final class SecurityHeadersMiddleware
         }
 
         return $sources;
+    }
+
+    /**
+     * Resolve the slugs of gateways with an active configuration.
+     *
+     * Runs in the response phase, after the controller has resolved the brand via
+     * BrandContext::setActiveBrandId(); the slug list is therefore brand-accurate
+     * on checkout pages. When no brand context exists (e.g. early redirects), it
+     * falls back to every active config across brands — a small superset that is
+     * still bounded by what the owner actually enabled, never the full catalog.
+     *
+     * @return string[] Sanitized gateway slugs safe for filesystem path use.
+     */
+    private function activeGatewaySlugs(): array
+    {
+        $slugs = [];
+        try {
+            $repo = $this->container->get(\OwnPay\Repository\GatewayConfigRepository::class);
+            if (!$repo instanceof \OwnPay\Repository\GatewayConfigRepository) {
+                return [];
+            }
+
+            $brandId = null;
+            if ($this->container->has(\OwnPay\Service\Brand\BrandContext::class)) {
+                $ctx = $this->container->get(\OwnPay\Service\Brand\BrandContext::class);
+                if ($ctx instanceof \OwnPay\Service\Brand\BrandContext) {
+                    $brandId = $ctx->getActiveBrandId();
+                }
+            }
+
+            $rows = ($brandId !== null && $brandId > 0)
+                ? $repo->forTenant($brandId)->listActive()
+                : $repo->listActive();
+
+            foreach ($rows as $row) {
+                $slug = isset($row['slug']) && is_scalar($row['slug']) ? (string) $row['slug'] : '';
+                // Constrain charset before using the slug in a filesystem path.
+                if ($slug !== '' && preg_match('/^[a-z0-9_\-]+$/i', $slug) === 1) {
+                    $slugs[] = $slug;
+                }
+            }
+        } catch (\Throwable) {
+            // DB unavailable — serve the strict baseline CSP without gateway sources
+        }
+        return array_values(array_unique($slugs));
+    }
+
+    /**
+     * Log a CSP header overflow so operators learn gateway sources were dropped.
+     *
+     * @param int $length Byte length of the oversized CSP header value.
+     */
+    private function logHeaderOverflow(int $length): void
+    {
+        try {
+            if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
+                $logger = $this->container->get(\OwnPay\Service\System\Logger::class);
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $logger->warning(
+                        "CSP header reached {$length} bytes (mod_fcgid limit is 8192) — gateway CSP sources dropped for this response. Reduce active gateway count or manifest csp entries."
+                    );
+                    return;
+                }
+            }
+        } catch (\Throwable) {
+            // Fall through to error_log
+        }
+        error_log("[OwnPay] CSP header overflow: {$length} bytes — gateway sources dropped.");
     }
 
     /**

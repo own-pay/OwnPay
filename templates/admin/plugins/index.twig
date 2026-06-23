@@ -6,12 +6,18 @@
 <div class="op-page-header">
     <div>
         <h1>Plugins</h1>
-        <p class="op-text-muted op-mt-1">Manage gateways, addons, and themes for your payment platform.</p>
+        <p class="op-page-subtitle">Manage payment gateway adapters, addon integrations, and sovereign checkout themes.</p>
     </div>
+    {% if is_global_view ?? true %}
     <a href="/admin/plugins/install" class="op-btn op-btn-primary">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:6px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>Upload Plugin
     </a>
+    {% endif %}
 </div>
+
+{% if not (is_global_view ?? true) %}
+{% include 'admin/partials/_all_brands_only.twig' with {title: 'Plugins are managed from All Brands', message: 'Plugins are uploaded once at the platform level, then activated and configured per brand. You can still activate, deactivate and configure plugins for this brand below.'} only %}
+{% endif %}
 
 {# ── Tabs ────────────────────────────────────────────────── #}
 <div class="op-tabs op-mb-4">
@@ -23,18 +29,25 @@
 </div>
 
 {# ── Toolbar (Search & Status) ───────────────────────────── #}
-<div class="op-filter-bar op-mb-4" style="display: flex; gap: 12px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
-    <div style="display: flex; gap: 12px; align-items: center; flex: 1; min-width: 300px;">
+<div class="op-filter-bar op-mb-4" style="display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
+    <div style="display: flex; gap: 8px; align-items: center; flex: 1; min-width: 300px;">
         <div style="position: relative; flex: 1; max-width: 320px;">
             <input type="text" id="pluginSearch" placeholder="Search plugins by name, slug or desc..." class="op-input op-input-sm" style="padding-right: 32px;">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); color: var(--op-text-dim); pointer-events: none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
         </div>
-        <select id="statusFilter" class="op-input op-input-sm" style="max-width: 180px;">
-            <option value="all">All Statuses</option>
-            <option value="active">Active Only</option>
-            <option value="inactive">Inactive Only</option>
-            <option value="uninstalled">Not Installed Only</option>
-        </select>
+        <div class="op-custom-dropdown">
+            <input type="hidden" id="statusFilter" value="all">
+            <button type="button" class="op-custom-dropdown-btn">
+                <span class="op-custom-dropdown-label">All Statuses</span>
+                <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="op-custom-dropdown-menu">
+                <button type="button" class="op-custom-dropdown-option active" data-value="all">All Statuses</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="active">Active Only</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="inactive">Inactive Only</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="uninstalled">Not Installed Only</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -149,7 +162,7 @@
             </div>
             <p class="op-empty-title">No plugins found</p>
             <p class="op-text-muted op-text-sm">Upload a gateway, addon, or theme package to extend your platform.</p>
-            <a href="/admin/plugins/install" class="op-btn op-btn-primary op-mt-3">Upload Plugin</a>
+            {% if is_global_view ?? true %}<a href="/admin/plugins/install" class="op-btn op-btn-primary op-mt-3">Upload Plugin</a>{% endif %}
         </div>
     </div>
 </div>

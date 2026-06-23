@@ -23,6 +23,8 @@ use OwnPay\Support\DateHelper;
  */
 final class CheckoutController
 {
+    use CheckoutPresentationTrait;
+
     /**
      * @var \OwnPay\Container The dependency injection container.
      */
@@ -187,7 +189,11 @@ final class CheckoutController
         $this->events->doAction('checkout.before', $txn);
 
         // Query active manual and API-based gateways configured for this merchant.
-        $manualGateways = $this->manualGw->forTenant($mid)->listActive();
+        // Phase 2c (money-critical): manual gateways resolve as the brand's OWN account over the
+        // platform template, so a brand's customer pays the brand's account — falling back to the
+        // platform default account only when the brand has not configured one.
+        $platformId = ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) ? $brandCtx->getPlatformId() : 0;
+        $manualGateways = $this->manualGw->listActiveForCheckout($mid, $platformId);
         $apiGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
 
         // Read active plugin metadata manifests to map colors, icons, and categories.
@@ -256,10 +262,7 @@ final class CheckoutController
         // Compute cryptographic HMAC checksum binding amount, currency, and reference token to prevent relay tampering.
         // Retrieve the system cryptographic key using fallback chains.
         // Ensure an operational HMAC key is configured in the host environment.
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
-        if (!is_string($hmacKey) || $hmacKey === '') {
-            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
-        }
+        $hmacKey = $this->resolveHmacKey();
         $checkoutHash = hash_hmac('sha256', $txnAmount . '|' . $txnCurrency . '|' . $ref, $hmacKey);
 
         // Build structured instructions and settings configuration maps for manual gateways.
@@ -357,16 +360,6 @@ final class CheckoutController
         }
         $brand = $mid > 0 ? $this->loadBrand($mid) : ['name' => 'Own Pay', 'logo' => '', 'color' => '#0D9488', 'support_email' => ''];
 
-        // Map current transaction state to user-friendly messaging layouts.
-        $statusLabels = [
-            'success' => 'Payment Successful', 'completed' => 'Payment Successful',
-            'failed' => 'Payment Failed', 'cancelled' => 'Payment Cancelled',
-            'canceled' => 'Payment Cancelled', 'expired' => 'Payment Expired',
-            'pending' => 'Payment Pending', 'pending_review' => 'Payment Under Review',
-            'awaiting_verification' => 'Awaiting Verification',
-            'processing' => 'Payment Processing',
-        ];
-
         // Retrieve dynamic currency symbols for status confirmation page.
         if (is_array($txn) && $this->c->has(\OwnPay\Service\Payment\CurrencyService::class)) {
             $currSvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
@@ -382,49 +375,29 @@ final class CheckoutController
         return Response::html($twig->render($tplName, [
             'txn'          => $txn ?? ['trx_id' => $ref],
             'status'       => $status ?: (is_array($txn) && is_string($txn['status'] ?? null) ? $txn['status'] : 'expired'),
-            'status_label' => $statusLabels[$status] ?? ucfirst(str_replace('_', ' ', $status)),
+            'status_label' => $this->statusLabel($status),
             'brand'        => $brand,
             'lang'         => [
-                'success_msg' => is_string($this->settings->get('general', 'checkout_success_msg', '')) ? $this->settings->get('general', 'checkout_success_msg', '') : '',
-                'pending_msg' => is_string($this->settings->get('general', 'checkout_pending_msg', '')) ? $this->settings->get('general', 'checkout_pending_msg', '') : '',
-                'failed_msg'  => is_string($this->settings->get('general', 'checkout_failed_msg', '')) ? $this->settings->get('general', 'checkout_failed_msg', '') : '',
+                'success_msg' => (!empty($brand['checkout_success_msg']) && is_string($brand['checkout_success_msg'])) ? $brand['checkout_success_msg'] : (is_string($this->settings->get('checkout', 'checkout_success_msg', '')) ? $this->settings->get('checkout', 'checkout_success_msg', '') : (is_string($this->settings->get('general', 'checkout_success_msg', '')) ? $this->settings->get('general', 'checkout_success_msg', '') : '')),
+                'pending_msg' => (!empty($brand['checkout_pending_msg']) && is_string($brand['checkout_pending_msg'])) ? $brand['checkout_pending_msg'] : (is_string($this->settings->get('checkout', 'checkout_pending_msg', '')) ? $this->settings->get('checkout', 'checkout_pending_msg', '') : (is_string($this->settings->get('general', 'checkout_pending_msg', '')) ? $this->settings->get('general', 'checkout_pending_msg', '') : '')),
+                'failed_msg'  => (!empty($brand['checkout_failed_msg']) && is_string($brand['checkout_failed_msg'])) ? $brand['checkout_failed_msg'] : (is_string($this->settings->get('checkout', 'checkout_failed_msg', '')) ? $this->settings->get('checkout', 'checkout_failed_msg', '') : (is_string($this->settings->get('general', 'checkout_failed_msg', '')) ? $this->settings->get('general', 'checkout_failed_msg', '') : '')),
             ],
         ]));
     }
 
     /**
-     * Resolves theme styling configurations and brand visual assets for the merchant.
+     * Resolves the HMAC signing key used to bind checkout payloads.
      *
-     * Utilizes BrandThemeService for white-labeled customization when active, falling back
-     * to global default settings if unresolved.
-     *
-     * @param int $mid The merchant identifier.
-     * @return array<string, mixed> The array containing visual style settings.
+     * @return string The configured HMAC key.
+     * @throws \RuntimeException If neither HMAC_KEY nor APP_KEY is configured.
      */
-    private function loadBrand(int $mid): array
+    private function resolveHmacKey(): string
     {
-        // White-label: Use BrandThemeService for full per-brand theming
-        if ($this->c->has(\OwnPay\Service\Brand\BrandThemeService::class)) {
-            $themeSvc = $this->c->get(\OwnPay\Service\Brand\BrandThemeService::class);
-            if ($themeSvc instanceof \OwnPay\Service\Brand\BrandThemeService) {
-                return $themeSvc->getBrandTheme($mid);
-            }
+        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
+        if (!is_string($hmacKey) || $hmacKey === '') {
+            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
         }
-
-        // Fallback: basic brand data
-        $merchant = $this->merchants->find($mid);
-        $sArr = $this->settings->getGroup('general');
-        $merchantName = ($merchant !== null && isset($merchant['name']) && is_string($merchant['name'])) ? $merchant['name'] : '';
-        $appName = isset($sArr['app_name']) ? $sArr['app_name'] : 'Own Pay';
-        $logo = ($merchant !== null && isset($merchant['logo']) && is_string($merchant['logo'])) ? $merchant['logo'] : '';
-        $primaryColor = isset($sArr['theme_primary']) ? $sArr['theme_primary'] : '#0D9488';
-        $supportEmail = isset($sArr['support_email']) ? $sArr['support_email'] : '';
-        return [
-            'name'          => $merchantName !== '' ? $merchantName : $appName,
-            'logo'          => $logo,
-            'color'         => $primaryColor,
-            'support_email' => $supportEmail,
-        ];
+        return $hmacKey;
     }
 
     /**
@@ -580,10 +553,7 @@ final class CheckoutController
         // Enforce security handshake verification checking submitted HMAC against local signature.
         $submittedHashVal = $req->input('checkout_hash', '');
         $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
-        if (!is_string($hmacKey) || $hmacKey === '') {
-            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
-        }
+        $hmacKey = $this->resolveHmacKey();
         $expectedHash = hash_hmac('sha256', $txnAmount . '|' . $txnCurrency . '|' . $token, $hmacKey);
         if (!hash_equals($expectedHash, $submittedHash)) {
             if ($req->isAjax()) {
@@ -688,7 +658,7 @@ final class CheckoutController
                 if ($req->isAjax()) {
                     return Response::json([
                         'success' => false,
-                        'error'   => 'Payment gateway error: ' . $e->getMessage(),
+                        'error'   => 'The payment gateway could not process your request. Please try again or choose another method.',
                     ], 422);
                 }
             }
@@ -735,10 +705,7 @@ final class CheckoutController
         if (empty($submittedHash)) {
             return $this->renderStatus($token, 'expired');
         }
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
-        if (!is_string($hmacKey) || $hmacKey === '') {
-            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
-        }
+        $hmacKey = $this->resolveHmacKey();
         $txnAmountVal = $txn['amount'] ?? '0';
         $txnAmount = (is_string($txnAmountVal) || is_int($txnAmountVal) || is_float($txnAmountVal)) ? (string) $txnAmountVal : '0';
         $txnCurrencyVal = $txn['currency'] ?? 'BDT';
@@ -783,6 +750,13 @@ final class CheckoutController
             }
         }
 
+        // No payment event has occurred yet (txn still on the gateway-selection step): send the
+        // customer back to the checkout page rather than a misleading "pending" status screen. The
+        // callback-capture block below only runs for 'processing', so this never blocks a callback.
+        if (is_array($txn) && in_array($status, ['pending', 'created'], true)) {
+            return Response::redirect("/checkout/{$token}");
+        }
+
         // Redirect callback loop: execute final capture steps when external providers redirect.
         $callbackPaymentIdVal = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
         $callbackPaymentId = is_string($callbackPaymentIdVal) ? $callbackPaymentIdVal : '';
@@ -804,32 +778,28 @@ final class CheckoutController
                 return $this->renderStatus($token, $status);
             }
 
-            if ($this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
+            $gatewayVal = $txn['gateway_slug'] ?? '';
+            $gateway = is_string($gatewayVal) ? $gatewayVal : '';
+            $leaseReleased = false;
+
+            if ($gateway !== '' && $this->c->has(\OwnPay\Service\Payment\GatewayApiService::class)) {
                 try {
                     $svc = $this->c->get(\OwnPay\Service\Payment\GatewayApiService::class);
                     if ($svc instanceof \OwnPay\Service\Payment\GatewayApiService) {
-                        $midVal = $txn['merchant_id'] ?? 0;
-                        $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
-                        
-                        $gatewayVal = $txn['gateway_slug'] ?? '';
-                        $gateway = is_string($gatewayVal) ? $gatewayVal : '';
-                        
                         $queryData = $req->query();
                         $callbackData = array_merge(is_array($queryData) ? $queryData : [], [
                             'paymentID' => $callbackPaymentId,
                             'trx_id'    => is_string($txn['trx_id'] ?? null) ? $txn['trx_id'] : '',
                         ]);
 
-                        if ($gateway !== '') {
-                            $result = $svc->handleCallback($mid, $gateway, $callbackData);
-                            if ($result['success']) {
-                                $status = 'completed';
-                            } elseif (in_array($callbackStatus, ['cancel', 'failure', 'failed'], true)) {
-                                $txnIdVal = $txn['id'] ?? 0;
-                                $txnId = (is_int($txnIdVal) || is_string($txnIdVal)) ? (int) $txnIdVal : 0;
-                                $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'failed', $mid);
-                                $status = 'failed';
-                            }
+                        $result = $svc->handleCallback($mid, $gateway, $callbackData);
+                        if ($result['success']) {
+                            $status = 'completed';
+                            $leaseReleased = true;
+                        } elseif (in_array($callbackStatus, ['cancel', 'failure', 'failed'], true)) {
+                            $this->txnRepo->setGatewayAndStatus($txnId, $gateway, 'failed', $mid);
+                            $status = 'failed';
+                            $leaseReleased = true;
                         }
                     }
                 } catch (\Throwable $e) {
@@ -842,6 +812,18 @@ final class CheckoutController
                         }
                     }
                 }
+            }
+
+            // Release the callback_processing lease whenever no terminal state was
+            // reached, so a later callback retry or webhook can still complete the
+            // payment. Guarded on the lease status so a completion that landed
+            // inside handleCallback is never clobbered back to 'processing'.
+            if (!$leaseReleased) {
+                $db->update(
+                    "UPDATE op_transactions SET status = 'processing' WHERE id = :id AND merchant_id = :mid AND status = 'callback_processing'",
+                    ['id' => $txnId, 'mid' => $mid]
+                );
+                $status = 'processing';
             }
         }
 
@@ -960,10 +942,7 @@ final class CheckoutController
         // Enforce security handshake verification checking submitted HMAC against local signature.
         $submittedHashVal = $req->input('checkout_hash', '');
         $submittedHash = is_string($submittedHashVal) ? $submittedHashVal : '';
-        $hmacKey = $_ENV['HMAC_KEY'] ?? $_SERVER['HMAC_KEY'] ?? getenv('HMAC_KEY') ?: ($_ENV['APP_KEY'] ?? getenv('APP_KEY') ?: '');
-        if (!is_string($hmacKey) || $hmacKey === '') {
-            throw new \RuntimeException('HMAC_KEY or APP_KEY must be configured for checkout security.');
-        }
+        $hmacKey = $this->resolveHmacKey();
         $expectedHash = hash_hmac('sha256', $txnAmount . '|' . $txnCurrency . '|' . $token, $hmacKey);
         if (!hash_equals($expectedHash, $submittedHash)) {
             return Response::json(['success' => false, 'error' => 'Session expired. Please refresh the page.'], 403);
@@ -1048,7 +1027,7 @@ final class CheckoutController
 
                 return Response::json([
                     'success' => false,
-                    'error'   => 'Payment gateway error: ' . $e->getMessage(),
+                    'error'   => 'The payment gateway could not process your request. Please try again or choose another method.',
                 ], 422);
             }
         }

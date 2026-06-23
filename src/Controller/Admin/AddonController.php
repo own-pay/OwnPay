@@ -152,8 +152,9 @@ final class AddonController
         }
 
         return $this->renderAdminPage('admin/addons/index.twig', [
-            'addons'      => $addons,
-            'active_page' => 'addons',
+            'addons'         => $addons,
+            'active_page'    => 'addons',
+            'is_global_view' => $this->isGlobalBrandView(),
         ]);
     }
 }

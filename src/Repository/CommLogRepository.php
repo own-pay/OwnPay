@@ -143,19 +143,67 @@ final class CommLogRepository extends BaseRepository
     }
 
     /**
-     * Resets a failed SMS communication log entry back to queued status for retry.
+     * Resets a FAILED SMS communication log entry back to queued status for retry.
      *
-     * Uses safety-enhanced filtering parameters to block unauthorized actions.
+     * The `status = 'failed'` guard makes retry idempotent: re-issuing a retry on a
+     * row that is already 'queued', 'sending', or 'sent' is a no-op (0 rows), so a
+     * duplicate request can never re-deliver an already-sent SMS.
      *
      * @param int $id The primary key identifier of the log record.
      * @param int $merchantId Active brand/store identifier context.
-     * @return void
+     * @return int Number of rows actually requeued (0 if not found, not owned, or not in 'failed' state).
      */
-    public function retrySms(int $id, int $merchantId): void
+    public function retrySms(int $id, int $merchantId): int
     {
-        $this->db->execute(
-            "UPDATE {$this->table} SET status = 'queued', error = NULL WHERE id = :id AND merchant_id = :mid AND channel = 'sms'",
+        return $this->db->update(
+            "UPDATE {$this->table} SET status = 'queued', error = NULL WHERE id = :id AND merchant_id = :mid AND channel = 'sms' AND status = 'failed'",
             ['id' => $id, 'mid' => $merchantId]
         );
     }
+
+    /**
+     * Lists email log entries for a specific merchant.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param int $limit Maximum records to return.
+     * @return array<int, array<string, mixed>> List of matching communication log records.
+     */
+    public function listEmailQueue(int $merchantId, int $limit = 50): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE channel = 'email' AND merchant_id = :mid ORDER BY created_at DESC LIMIT :lim",
+            ['mid' => $merchantId, 'lim' => $limit]
+        );
+    }
+
+    /**
+     * Lists Telegram log entries for a specific merchant.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param int $limit Maximum records to return.
+     * @return array<int, array<string, mixed>> List of matching communication log records.
+     */
+    public function listTelegramQueue(int $merchantId, int $limit = 50): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE channel = 'telegram' AND merchant_id = :mid ORDER BY created_at DESC LIMIT :lim",
+            ['mid' => $merchantId, 'lim' => $limit]
+        );
+    }
+
+    /**
+     * Lists Webhook log entries for a specific merchant.
+     *
+     * @param int $merchantId Active brand/store identifier context.
+     * @param int $limit Maximum records to return.
+     * @return array<int, array<string, mixed>> List of matching communication log records.
+     */
+    public function listWebhookQueue(int $merchantId, int $limit = 50): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table} WHERE channel = 'webhook' AND merchant_id = :mid ORDER BY created_at DESC LIMIT :lim",
+            ['mid' => $merchantId, 'lim' => $limit]
+        );
+    }
 }
+

@@ -220,21 +220,15 @@ final class DevicePairingService
         }
         $merchantId = $valid['merchant_id'];
 
+        // The device is paired AS the admin who generated the OTP. That identity
+        // is recorded on the token (created_by). Pairing happens over the
+        // stateless mobile API, so there is no session to fall back to — and
+        // falling back to the brand's first superadmin would silently escalate a
+        // low-privileged staffer's device to superadmin. Fail closed instead.
         $createdBy = $valid['created_by'] ?? null;
-        if ($createdBy !== null && $createdBy > 0) {
-            $userId = $createdBy;
-        } else {
-            $sUserId = $_SESSION['auth_user_id'] ?? 0;
-            $userId = is_scalar($sUserId) ? (int) $sUserId : 0;
-            if ($userId === 0) {
-                $db = $this->devices->getDatabase();
-                $admin = $db->fetchOne(
-                    "SELECT id FROM op_merchant_users WHERE merchant_id = :mid AND is_superadmin = 1 AND status = 'active' ORDER BY id ASC LIMIT 1",
-                    ['mid' => $merchantId]
-                );
-                $adminIdVal = $admin['id'] ?? 1;
-                $userId = is_scalar($adminIdVal) ? (int) $adminIdVal : 1;
-            }
+        $userId = is_scalar($createdBy) ? (int) $createdBy : 0;
+        if ($userId <= 0) {
+            return ['success' => false, 'error' => 'PAIRING_CONTEXT_UNRESOLVED'];
         }
 
         $fpHash = hash('sha256', $fingerprint);
@@ -317,6 +311,8 @@ final class DevicePairingService
                 $isStateless = true;
             }
         } catch (\Throwable) {
+            // Malformed/expired/forged refresh token — leave $device null; the
+            // caller handles this as a failed refresh (no token is issued).
         }
 
         if ($jti !== null) {
@@ -349,9 +345,12 @@ final class DevicePairingService
         }
 
         $brandId = (int) ($device['merchant_id'] ?? 1);
-        // BUG-003 FIX: Use extracted userId, fallback to resolving from device
-        if ($userId === 0) {
-            $userId = 1;
+        // Fail closed: a refresh token whose subject does not resolve to a real user MUST NOT be
+        // silently upgraded to user 1 (the superadmin) — that would be a privilege-escalation
+        // fail-open. Legitimate device tokens always carry a positive `sub` set at pairing, so this
+        // only rejects malformed/legacy tokens (e.g. a non-numeric `sub`).
+        if ($userId <= 0) {
+            return ['success' => false, 'error' => 'INVALID_REFRESH_TOKEN'];
         }
 
         $accessToken = $this->jwt->issue($userId, $brandId, $device['device_uuid'] ?? $device['device_id']);

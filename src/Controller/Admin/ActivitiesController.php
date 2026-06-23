@@ -86,6 +86,60 @@ final class ActivitiesController
             'logs'        => $logs,
             'pagination'  => $pagination,
             'active_page' => 'activities',
+            'active_subpage' => 'activities',
+        ]);
+    }
+
+    /**
+     * Renders detailed JSON diff payload for a specific audit log entry.
+     */
+    public function details(Request $req): Response
+    {
+        $idVal = $req->param('id');
+        $id = is_numeric($idVal) ? (int)$idVal : 0;
+
+        $log = $this->auditRepo->find($id);
+        if (!$log) {
+            return Response::html('<div class="op-alert op-alert-danger">Audit log entry not found.</div>', 404);
+        }
+
+        // Check permission: Superadmins can review logs globally; standard staff scope to active brand ID
+        if (!$this->session->isSuperadmin()) {
+            $brand = $this->c->get(BrandContext::class);
+            if (!$brand instanceof BrandContext) {
+                throw new \RuntimeException('BrandContext service unavailable');
+            }
+            $brand->resolveFromRequest($req);
+            $mid = $brand->getActiveBrandId();
+            $logMid = isset($log['merchant_id']) && is_numeric($log['merchant_id']) ? (int)$log['merchant_id'] : null;
+            if ($logMid !== $mid) {
+                return Response::html('<div class="op-alert op-alert-danger">Access denied.</div>', 403);
+            }
+        }
+
+        $oldValStr = isset($log['old_values']) && is_string($log['old_values']) ? $log['old_values'] : '{}';
+        $newValStr = isset($log['new_values']) && is_string($log['new_values']) ? $log['new_values'] : '{}';
+
+        $oldValues = json_decode($oldValStr, true);
+        $newValues = json_decode($newValStr, true);
+
+        // Fetch user name for header details
+        $operator = 'System';
+        $logUserId = isset($log['user_id']) && is_numeric($log['user_id']) ? (int)$log['user_id'] : 0;
+        if ($logUserId > 0) {
+            $db = $this->auditRepo->getDatabase();
+            $userVal = $db->fetchOne("SELECT name FROM op_merchant_users WHERE id = :id", ['id' => $logUserId]);
+            if (is_array($userVal) && isset($userVal['name']) && is_string($userVal['name'])) {
+                $operator = $userVal['name'];
+            }
+        }
+
+        $log['user_name'] = $operator;
+
+        return $this->renderAdminPage('admin/activity-details.twig', [
+            'log'        => $log,
+            'old_values' => is_array($oldValues) ? $oldValues : [],
+            'new_values' => is_array($newValues) ? $newValues : [],
         ]);
     }
 }

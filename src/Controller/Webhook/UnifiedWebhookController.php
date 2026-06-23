@@ -135,7 +135,9 @@ final class UnifiedWebhookController
             try {
                 $svc = $this->c->get(GatewayApiService::class);
                 if ($svc instanceof GatewayApiService) {
-                    $result = $svc->handleCallback($merchantId, $gateway, $callbackData);
+                    // The adapter's verifyWebhook() check passed above, so the payload
+                    // signature (when the adapter implements one) is proven for this call.
+                    $result = $svc->handleCallback($merchantId, $gateway, $callbackData, true);
 
                     $payloadHash = hash('sha256', $rawBody);
                     $this->logDelivery($gateway, $merchantId, $payloadHash);

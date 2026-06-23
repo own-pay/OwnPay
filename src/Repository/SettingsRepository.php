@@ -26,6 +26,59 @@ final class SettingsRepository extends BaseRepository
     protected array $fillable = ['group_name', 'key_name', 'value', 'type', 'merchant_id'];
 
     /**
+     * Per-request memoization of resolved group maps, keyed by
+     * "{group}|{merchant_id-or-empty}". Settings are read many times while
+     * rendering a single page (brand theme, checkout copy, timers); without this
+     * cache every lookup costs one database round-trip. Invalidated on every
+     * write/delete so within-request read-after-write stays consistent.
+     *
+     * @var array<string, array<string, string>>
+     */
+    private array $groupCache = [];
+
+    /**
+     * Per-request memoization of single-key lookups, keyed by "{group}|{key}"
+     * (global) or "{group}|{key}|{merchant_id}" (brand-scoped). Stores the raw
+     * resolved value (null = key absent) so defaults are applied per call.
+     *
+     * @var array<string, string|null>
+     */
+    private array $keyCache = [];
+
+    /**
+     * Drops every memoized setting, forcing fresh database reads.
+     *
+     * Required by callers holding the "clear cache means re-read from DB"
+     * contract (e.g. EnvironmentService::clearCache()) and after out-of-band
+     * writes such as installer imports.
+     */
+    public function flushCache(): void
+    {
+        $this->groupCache = [];
+        $this->keyCache = [];
+    }
+
+    /**
+     * Drops memoized values for a group (global and all brand scopes).
+     *
+     * @param string $group Setting group category.
+     */
+    private function forgetGroup(string $group): void
+    {
+        $prefix = $group . '|';
+        foreach (array_keys($this->groupCache) as $cacheKey) {
+            if (str_starts_with($cacheKey, $prefix)) {
+                unset($this->groupCache[$cacheKey]);
+            }
+        }
+        foreach (array_keys($this->keyCache) as $cacheKey) {
+            if (str_starts_with($cacheKey, $prefix)) {
+                unset($this->keyCache[$cacheKey]);
+            }
+        }
+    }
+
+    /**
      * Retrieves a global setting value.
      *
      * @param string $group Setting group category.
@@ -35,12 +88,18 @@ final class SettingsRepository extends BaseRepository
      */
     public function get(string $group, string $key, ?string $default = null): ?string
     {
+        $cacheKey = $group . '|' . $key;
+        if (array_key_exists($cacheKey, $this->keyCache)) {
+            return $this->keyCache[$cacheKey] ?? $default;
+        }
+
         $row = $this->db->fetchOne(
             "SELECT value FROM {$this->table} WHERE group_name = :g AND key_name = :k AND merchant_id IS NULL LIMIT 1",
             ['g' => $group, 'k' => $key]
         );
-        $val = $row['value'] ?? $default;
-        return is_scalar($val) ? (string) $val : null;
+        $val = $row['value'] ?? null;
+        $this->keyCache[$cacheKey] = is_scalar($val) ? (string) $val : null;
+        return $this->keyCache[$cacheKey] ?? $default;
     }
 
     /**
@@ -63,6 +122,7 @@ final class SettingsRepository extends BaseRepository
         } else {
             $this->create(['group_name' => $group, 'key_name' => $key, 'value' => $value, 'type' => $type, 'merchant_id' => null]);
         }
+        $this->forgetGroup($group);
     }
 
     /**
@@ -73,6 +133,11 @@ final class SettingsRepository extends BaseRepository
      */
     public function getGroup(string $group): array
     {
+        $cacheKey = $group . '|';
+        if (isset($this->groupCache[$cacheKey])) {
+            return $this->groupCache[$cacheKey];
+        }
+
         $rows = $this->db->fetchAll(
             "SELECT key_name, value FROM {$this->table} WHERE group_name = :g AND merchant_id IS NULL",
             ['g' => $group]
@@ -85,7 +150,7 @@ final class SettingsRepository extends BaseRepository
                 $result[$k] = (string) $v;
             }
         }
-        return $result;
+        return $this->groupCache[$cacheKey] = $result;
     }
 
     /**
@@ -115,6 +180,7 @@ final class SettingsRepository extends BaseRepository
      */
     public function deleteGroup(string $group): int
     {
+        $this->forgetGroup($group);
         return $this->db->update(
             "DELETE FROM {$this->table} WHERE group_name = :g",
             ['g' => $group]
@@ -136,6 +202,11 @@ final class SettingsRepository extends BaseRepository
      */
     public function getScoped(string $group, string $key, int $merchantId, ?string $default = null): ?string
     {
+        $cacheKey = $group . '|' . $key . '|' . $merchantId;
+        if (array_key_exists($cacheKey, $this->keyCache)) {
+            return $this->keyCache[$cacheKey] ?? $default;
+        }
+
         // Try brand-specific first
         $row = $this->db->fetchOne(
             "SELECT value FROM {$this->table} WHERE group_name = :g AND key_name = :k AND merchant_id = :mid LIMIT 1",
@@ -143,10 +214,37 @@ final class SettingsRepository extends BaseRepository
         );
         if ($row !== null) {
             $val = $row['value'] ?? null;
-            return is_scalar($val) ? (string) $val : null;
+            $this->keyCache[$cacheKey] = is_scalar($val) ? (string) $val : null;
+            return $this->keyCache[$cacheKey];
         }
-        // Fall back to global
+        // Fall back to global (memoized in get()); brand-level absence is also
+        // cached implicitly by the global key entry on subsequent calls.
         return $this->get($group, $key, $default);
+    }
+
+    /**
+     * Resolves ONLY a brand's own override for a setting, WITHOUT the global fallback.
+     *
+     * Unlike {@see getScoped()}, this returns null when the brand has no override of its
+     * own. It lets the admin UI distinguish "inherits the All-Brands default" (null) from
+     * "explicitly set for this brand" (a concrete value, including an empty string).
+     *
+     * @param string $group Setting group category.
+     * @param string $key Setting key name.
+     * @param int $merchantId Brand / Merchant ID.
+     * @return string|null The brand-specific value, or null when no override exists.
+     */
+    public function getScopedOverride(string $group, string $key, int $merchantId): ?string
+    {
+        $row = $this->db->fetchOne(
+            "SELECT value FROM {$this->table} WHERE group_name = :g AND key_name = :k AND merchant_id = :mid LIMIT 1",
+            ['g' => $group, 'k' => $key, 'mid' => $merchantId]
+        );
+        if ($row === null) {
+            return null;
+        }
+        $val = $row['value'] ?? null;
+        return is_scalar($val) ? (string) $val : null;
     }
 
     /**
@@ -180,6 +278,7 @@ final class SettingsRepository extends BaseRepository
                 'merchant_id' => $merchantId,
             ]);
         }
+        $this->forgetGroup($group);
     }
 
     /**
@@ -209,6 +308,11 @@ final class SettingsRepository extends BaseRepository
      */
     public function getGroupScoped(string $group, int $merchantId): array
     {
+        $cacheKey = $group . '|' . $merchantId;
+        if (isset($this->groupCache[$cacheKey])) {
+            return $this->groupCache[$cacheKey];
+        }
+
         // Start with global values
         $result = $this->getGroup($group);
         // Override with brand-specific values
@@ -223,7 +327,7 @@ final class SettingsRepository extends BaseRepository
                 $result[$k] = (string) $v;
             }
         }
-        return $result;
+        return $this->groupCache[$cacheKey] = $result;
     }
 
     /**
@@ -237,6 +341,7 @@ final class SettingsRepository extends BaseRepository
      */
     public function deleteGroupScoped(string $group, int $merchantId): int
     {
+        $this->forgetGroup($group);
         return $this->db->update(
             "DELETE FROM {$this->table} WHERE group_name = :g AND merchant_id = :mid",
             ['g' => $group, 'mid' => $merchantId]
@@ -252,6 +357,7 @@ final class SettingsRepository extends BaseRepository
      */
     public function deleteSetting(string $group, string $key): int
     {
+        $this->forgetGroup($group);
         return $this->db->update(
             "DELETE FROM {$this->table} WHERE group_name = :g AND key_name = :k AND merchant_id IS NULL",
             ['g' => $group, 'k' => $key]
@@ -263,6 +369,7 @@ final class SettingsRepository extends BaseRepository
      */
     public function deleteSettingScoped(string $group, string $key, int $merchantId): int
     {
+        $this->forgetGroup($group);
         return $this->db->update(
             "DELETE FROM {$this->table} WHERE group_name = :g AND key_name = :k AND merchant_id = :mid",
             ['g' => $group, 'k' => $key, 'mid' => $merchantId]

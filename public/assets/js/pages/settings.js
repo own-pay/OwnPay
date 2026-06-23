@@ -6,8 +6,12 @@
 (function () {
     "use strict";
 
-    // ─── Tab Switching ────────────────────────────────────────────────────────
-    document.querySelectorAll(".op-tab").forEach(function (t) {
+    window.opInitSettingsUI = function () {
+        var container = document.querySelector(".op-settings-layout");
+        if (!container) { return; }
+
+        // ─── Tab Switching ────────────────────────────────────────────────────────
+        document.querySelectorAll(".op-tab").forEach(function (t) {
         t.addEventListener("click", function () {
             document.querySelectorAll(".op-tab, .op-tab-panel").forEach(function (e) {
                 e.classList.remove("active");
@@ -21,10 +25,10 @@
                 history.replaceState(null, null, "#tab-" + this.dataset.tab);
             }
 
-            // Toggle visibility of Save Settings button for Maintenance tab
+            // Toggle visibility of Save Settings button for Maintenance and Queue tabs
             var formActions = document.querySelector(".op-form-actions");
             if (formActions) {
-                if (this.dataset.tab === "optimization") {
+                if (this.dataset.tab === "optimization" || this.dataset.tab === "queue") {
                     formActions.style.display = "none";
                 } else {
                     formActions.style.display = "";
@@ -311,4 +315,74 @@
         });
     });
 
+    // ─── Custom Domain Operations ───────────────────────────────────────────
+    document.querySelectorAll(".op-copy-btn").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var el = document.getElementById(this.dataset.copy);
+            if (!el) {return;}
+            var self = this;
+            window.opCopyText(el.textContent.trim(), self, function () {
+                var orig = self.textContent;
+                self.textContent = "✓ Copied!";
+                self.classList.add("op-btn-success");
+                setTimeout(function () { self.textContent = orig; self.classList.remove("op-btn-success"); }, 1800);
+            });
+        });
+    });
+
+    // Populate the Edit Settings modal dynamically
+    document.querySelectorAll(".op-edit-domain-btn").forEach(function (btn) {
+        btn.addEventListener("click", function (e) {
+            e.stopPropagation();
+            var id = this.dataset.id;
+            var domain = this.dataset.domain;
+            var type = this.dataset.type;
+            var redirectUrl = this.dataset.redirectUrl;
+            var status = this.dataset.status;
+            var dnsVerified = this.dataset.dnsVerified;
+            var isPrimary = this.dataset.isPrimary;
+
+            var modal = document.getElementById("edit-domain-modal");
+            if (modal) {
+                var form = modal.querySelector("form");
+                if (form) {
+                    form.action = "/admin/domains/" + id + "/update";
+                }
+
+                var domainDisplay = modal.querySelector('input[name="domain_display"]');
+                if (domainDisplay) {
+                    domainDisplay.value = domain;
+                }
+
+                var typeInput = modal.querySelector('select[name="type"]');
+                if (typeInput) {
+                    typeInput.value = type;
+                }
+
+                var redirectInput = modal.querySelector('input[name="redirect_url"]');
+                if (redirectInput) {
+                    redirectInput.value = (redirectUrl === "null" || redirectUrl === null || !redirectUrl) ? "" : redirectUrl;
+                }
+
+                var statusInput = modal.querySelector('select[name="status"]');
+                if (statusInput) {
+                    statusInput.value = status;
+                }
+
+                var dnsVerifiedInput = modal.querySelector('select[name="dns_verified"]');
+                if (dnsVerifiedInput) {
+                    dnsVerifiedInput.value = dnsVerified;
+                }
+
+                var isPrimaryInput = modal.querySelector('select[name="is_primary"]');
+                if (isPrimaryInput) {
+                    isPrimaryInput.value = isPrimary;
+                }
+            }
+        });
+    });
+    };
+
+    window.opInitSettingsUI();
 }());

@@ -50,12 +50,32 @@ final class TranslationService
      */
     public function setLocale(string $locale): self
     {
+        // The locale flows into storage file paths (storage/languages/{code}.json), so an
+        // unvalidated value would be a path-traversal vector (CWE-22). Silently ignore an unsafe
+        // code and keep the current locale.
+        if (!$this->isValidCode($locale)) {
+            return $this;
+        }
         if ($this->locale !== $locale) {
             $this->locale = $locale;
             $this->translations = [];
             $this->loaded = false;
         }
         return $this;
+    }
+
+    /**
+     * Validates a language code is a safe BCP-47-style identifier (letters, digits, '-', '_').
+     *
+     * Codes are interpolated into storage file paths, so they MUST NOT contain path separators or
+     * traversal sequences. This is the single guard every file-path operation below relies on.
+     *
+     * @param string $code The language code to validate.
+     * @return bool True when the code is a safe identifier.
+     */
+    private function isValidCode(string $code): bool
+    {
+        return preg_match('/^[A-Za-z0-9_-]{1,35}$/', $code) === 1;
     }
 
     /**
@@ -225,6 +245,9 @@ final class TranslationService
      */
     public function createLanguage(string $code, string $name): void
     {
+        if (!$this->isValidCode($code)) {
+            throw new \InvalidArgumentException('Invalid language code');
+        }
         $enData = $this->db->fetchOne("SELECT translations FROM op_languages WHERE code = 'en'");
         $translations = '{}';
         if ($enData !== null) {
@@ -263,6 +286,9 @@ final class TranslationService
      */
     public function uploadLanguage(string $code, string $name, array $translationsRaw): void
     {
+        if (!$this->isValidCode($code)) {
+            throw new \InvalidArgumentException('Invalid language code');
+        }
         $flat = $this->flattenArray($translationsRaw);
         $json = json_encode($flat, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
 
@@ -306,6 +332,9 @@ final class TranslationService
      */
     public function deleteLanguage(string $code): void
     {
+        if (!$this->isValidCode($code)) {
+            throw new \InvalidArgumentException('Invalid language code');
+        }
         if ($code === 'en') {
             throw new \InvalidArgumentException("Cannot delete base English language");
         }
@@ -358,6 +387,9 @@ final class TranslationService
      */
     public function saveTranslations(string $code, array $strings): void
     {
+        if (!$this->isValidCode($code)) {
+            throw new \InvalidArgumentException('Invalid language code');
+        }
         $json = json_encode($strings, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
         $this->db->execute("UPDATE op_languages SET translations = :translations WHERE code = :code", [
             'code' => $code,
@@ -411,7 +443,13 @@ final class TranslationService
     {
         $rootDir = dirname(__DIR__, 3);
         $storageDir = $rootDir . '/storage/languages';
-        
+
+        // Defense in depth: never build a storage path from an unsafe code (path traversal).
+        // setLocale() already rejects invalid codes; this guards direct/internal callers too.
+        if (!$this->isValidCode($code)) {
+            return $this->decodeTranslationFile($rootDir . '/config/languages/en.json');
+        }
+
         // Ensure storage directory exists
         if (!is_dir($storageDir)) {
             @mkdir($storageDir, 0755, true);
@@ -419,45 +457,72 @@ final class TranslationService
 
         $filePath = $storageDir . '/' . $code . '.json';
 
-        // 1. If it's English ('en') and the file is missing, instantly recover it from config/languages/en.json
-        if ($code === 'en' && !file_exists($filePath)) {
-            $masterPath = $rootDir . '/config/languages/en.json';
-            if (file_exists($masterPath)) {
-                @copy($masterPath, $filePath);
-                @chmod($filePath, 0664);
+        // For English, the shipped master (config/languages/en.json) defines the default
+        // strings. Use it as the BASE layer so newly-added default keys always resolve,
+        // then overlay the storage copy (admin/UI edits) on top. This prevents a stale
+        // storage copy from masking strings added to the shipped master.
+        $base = [];
+        if ($code === 'en') {
+            $base = $this->decodeTranslationFile($rootDir . '/config/languages/en.json');
+
+            // Seed the storage copy from the master when it is missing.
+            if (!file_exists($filePath) && $base !== []) {
+                $json = json_encode($base, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+                if ($json !== false) {
+                    @file_put_contents($filePath, $json, LOCK_EX);
+                    @chmod($filePath, 0664);
+                }
             }
         }
 
-        // 2. If it's a custom language and the file is missing, load translations from the DB and write it back to storage file
+        // If it's a custom language and the file is missing, recover from the DB and write it back.
         if (!file_exists($filePath)) {
             $dbTranslations = $this->loadTranslationsFromDb($code);
-            // Write it to file to restore it
             if (!empty($dbTranslations)) {
                 $json = json_encode($dbTranslations, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 if ($json !== false) {
                     @file_put_contents($filePath, $json, LOCK_EX);
                     @chmod($filePath, 0664);
                 }
-                return $dbTranslations;
+                return array_merge($base, $dbTranslations);
             }
+            return $base;
+        }
+
+        // Overlay the storage copy on top of the base defaults.
+        $stored = $this->decodeTranslationFile($filePath);
+        if ($stored !== []) {
+            return array_merge($base, $stored);
+        }
+
+        // If the storage file read/decode failed, fall back to DB (over base defaults).
+        return array_merge($base, $this->loadTranslationsFromDb($code));
+    }
+
+    /**
+     * Reads a JSON translation file into a flat key-value string map.
+     *
+     * @param string $filePath Absolute path to the JSON file.
+     * @return array<string, string> Flat translations map (empty on missing/invalid file).
+     */
+    private function decodeTranslationFile(string $filePath): array
+    {
+        if (!file_exists($filePath)) {
             return [];
         }
-
-        // 3. Read and decode from the storage file
         $content = @file_get_contents($filePath);
-        if ($content !== false && $content !== '') {
-            $decoded = json_decode($content, true);
-            if (is_array($decoded)) {
-                $result = [];
-                foreach ($decoded as $k => $v) {
-                    $result[(string)$k] = is_scalar($v) ? (string)$v : '';
-                }
-                return $result;
-            }
+        if ($content === false || $content === '') {
+            return [];
         }
-
-        // If file read/decode failed, fallback to DB
-        return $this->loadTranslationsFromDb($code);
+        $decoded = json_decode($content, true);
+        if (!is_array($decoded)) {
+            return [];
+        }
+        $result = [];
+        foreach ($decoded as $k => $v) {
+            $result[(string)$k] = is_scalar($v) ? (string)$v : '';
+        }
+        return $result;
     }
 
     /**

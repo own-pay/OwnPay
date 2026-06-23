@@ -104,16 +104,19 @@ To maintain bulletproof financial audit readiness, OwnPay utilizes a double-entr
   * **Asset / Expense**: Debits increase (+), Credits decrease (-).
   * **Liability / Equity / Revenue**: Credits increase (+), Debits decrease (-).
 
-### 4.3. Universal Plugin System & Sandbox Security
-Plugins (Gateways, Addons, and Themes) reside in `modules/` and dynamically register callbacks via the `EventManager` hook loop. For detailed guides on building plugins, see [Plugin Developer Guide](docs/v2/plugins/developer-guide.md) and [Hooks Reference](docs/v2/plugins/hooks-reference.md).
+### 4.3. Universal Plugin System (WordPress-style full trust)
+Plugins (Gateways, Addons, and Themes) reside in `modules/` and register callbacks via the `EventManager` hook loop. For build guides see [Plugin Developer Guide](docs/v2/plugins/developer-guide.md) and [Hooks Reference](docs/v2/plugins/hooks-reference.md).
 
 ```
-Plugin Discovery ──> Manifest Check ──> Static Code Audit ──> Sandbox Execution
+Discover ──> Manifest Validate ──> Footgun Scan ──> PSR-4 Register ──> register() ──> boot()
 ```
 
-* **Dynamic Discovery**: Scanned via `manifest.json` files containing metadata, entrypoint endpoints, and configuration schemas.
-* **Static Code Audit Scanner**: Prevents unauthorized OS access, checking files for blocklisted dangerous operations (e.g. `exec`, `shell_exec`, `passthru`, `eval`, `system`).
-* **Gateway Permitted Runtime Hooks (C-13 Fix)**: The scanner blocks by denylist (`PluginSandbox::isDangerousFunction()`), not by allowlist. Standard runtime operations like `fwrite` (writing to standard logs/streams), `ini_set` (setting payload sizes), `header` (for payment portal redirects), and `setcookie` are intentionally **absent from the denylist**, so they pass without being flagged — ensuring full plugin capability without compromising core security.
+* **Trust model**: Plugin upload is restricted to the platform owner (`PluginController::upload` → `requireGlobalView`). Installed plugins therefore run with **full application trust** — the same model as WordPress: through the PSR-11 container a plugin can reach any core service (Database, `RefundService`, etc.). The real security boundary is **owner-only upload**, not in-process isolation. Do not install plugins you do not trust.
+* **Dynamic discovery**: `PluginLoader::discover()` scans `modules/{gateways,themes,addons}/*/manifest.json`; `PluginManifest::validate()` enforces the slug regex, plain-filename entrypoint, type whitelist, and traversal-free migrations.
+* **Footgun scanner (NOT a sandbox)**: `PluginLoader::loadPlugin()` token-scans every plugin PHP file and blocks only the two highest-risk primitives — dynamic code evaluation (`eval`) and direct OS-command execution (`exec`, `shell_exec`, `system`, `passthru`, `popen`, `proc_open`, … — see `PluginSandbox::isDangerousFunction()`). Ordinary PHP (reflection, callbacks such as `array_map`/`call_user_func`, file I/O, dynamic calls, `include`/`require`) is permitted. The guard is bypassable by construction; it catches accidents and obvious abuse, it does not isolate untrusted code.
+* **Multi-file plugins**: `PluginLoader` registers a PSR-4 autoloader mapping each plugin's manifest `namespace` to its directory (`{NS}\Sub\Foo` → `<pluginDir>/Sub/Foo.php`), so plugins can ship many classes. Resolution is realpath-contained to the plugin directory.
+* **Declarative manifest wiring**: `routes` are registered by the Router — an optional 4th element selects the middleware group (defaults to `api-public`, so a plugin can declare an authenticated route); `cron` entries (`{name, schedule, class}`) are scheduled by the `CronJobRunner` factory under a `plugin:{slug}:{name}` key; `admin_menu` items (`{label, url}`) are bridged to the `admin.menu.register` hook as escaped, internal-only links. All respect per-brand activation through the `EventManager` owner stack.
+* **Dynamic logo copying**: icons declared in `manifest.json` are copied into the public webroot by `PluginManager::resolveIconPath()`, which rejects non-image extensions (anti `shell.php`-drop).
 
 ### 4.4. White-Label Custom Domain Pipeline
 
@@ -190,6 +193,39 @@ To eliminate legacy SQLite fallbacks and architectural redundancies, environment
 * **Persistent Configuration**: Operations within `EnvironmentService` (e.g. `get()`, `set()`, `delete()`) route through the unified `op_system_settings` database table under the `runtime` group using `SettingsRepository`. `get()` additionally falls back to real OS environment variables (`getenv()`/`$_ENV`/`$_SERVER`) when the database has no stored value — there is no competing key-value store.
 * **Dynamic Settings Bootstrapping**: Static methods within `EnvironmentService` automatically resolve the `SettingsRepository` singleton dynamically if the framework container has not been booted (crucial for PHPUnit initialization).
 
+### 4.9. Transactional Email Notifications (Event-Driven, Per-Brand)
+Admin notification emails are driven entirely by the event system, with sender identity and preferences resolved through the same brand→All-Brands→default cascade as every other setting.
+* **Listeners**: `EmailNotificationService` is registered (in `config/services.php`, inside the `system.boot` hook at priority 20 — after `PaymentCompletionListener`) on `payment.transaction.completed` and `refund.created`. It reads the brand's preferences and dispatches via `CommunicationService::sendEmail()`.
+* **Preference cascade**: The on/off toggles (`email_on_payment` / `email_on_refund`), recipient (`admin_notification_email`) and sender (`mail_from_email` / `mail_from_name`) all live in `op_system_settings` group `general` and resolve via `SettingsRepository::getScoped()` (brand override → All-Brands default → none). Sender defaulting is centralised in `sendEmail()` so every email caller inherits the brand's "From" identity. The admin UI exposes a brand-scoped **Notifications** tab whose blank/“Inherit” inputs map to `getScopedOverride()` / `deleteSettingScoped()` (null = inherit).
+* **Failure isolation**: Every handler is fully wrapped in `try/catch` and only logs on error; combined with `EventManager`'s per-listener exception isolation, an email failure can never disrupt payment completion. Bodies render from `templates/email/*.twig` via `FragmentRenderer`.
+
+### 4.10. Manual Gateways — Platform Templates + Per-Brand Accounts (money-critical)
+Manual (offline) gateways follow a plugin-like "define once, configure per brand" model so a customer's funds always reach the paying brand's own account.
+* **Template vs account**: The **type** (slug, name, logo, colours, input-field schema, currency, limits, SMS rules) is a platform-owned `op_manual_gateways` row (`merchant_id = BrandContext::getPlatformId()`), created **only** from the All Brands view. Each brand may add its **own account** — a row with the *same slug* under its own `merchant_id` carrying the brand's `instructions` (the number/account the customer pays to), QR and optional logo. `UNIQUE(merchant_id, slug)` lets the template and per-brand accounts coexist.
+* **Money routing (the choke point)**: Checkout (`CheckoutController::show`, `PaymentIntentCheckoutController::show`) resolves the offered gateways via `ManualGatewayRepository::listActiveForCheckout($brandId, $platformId)` — one query over `merchant_id IN (brand, platform)` collapsed to one row per slug where the **brand row always wins** and the platform template is the **fallback**. So a configured brand routes to its own account; an unconfigured brand falls back to the platform's default account. This method deliberately bypasses `TenantScope` to read both owners at once.
+* **Governance**: `GatewayController::createManual` is guarded by `AdminPageTrait::requireGlobalView()` (All-Brands-only; closes the brand direct-URL) and writes via `BrandContext::getWriteMerchantId()` (platform id in global view). `editManual`/`toggle`/`delete` use `getWriteMerchantId()` as the owner, so All Brands manages templates and a brand only ever touches its own rows. Brands configure their account through `configureAccount(slug)` (`/admin/gateways/configure/{slug}`), which upserts a brand-owned row, copying the template's type fields on first save. No schema change — the model reuses the existing table plus the `is_platform` owner row from §4.11.
+
+### 4.11. All-Brands Platform Scope & Data Ownership
+The single-owner, multi-brand model has a reserved **platform-owner** record that represents the global
+"All Brands" scope, so All-Brands-level data and configuration have a concrete owner.
+* **The platform row**: one `op_merchants` row with `is_platform = 1` (slug `__platform__`, seeded by
+  migration `013_add_platform_owner.sql`). It is excluded from `BrandContext::getAllBrands()` and the
+  brand switcher, and is never a selectable/active brand. Resolve it via `BrandContext::getPlatformId()`
+  (lazy; the id differs per database — never hard-code it).
+* **Read scoping**: a brand view is hard-scoped to its own `merchant_id` via `TenantScope::forTenant()`;
+  the All-Brands view uses `forAllTenants()` (unscoped) and so reads every brand's rows plus the
+  platform-owned rows. Brand-owned data is readable by that brand and by All Brands; platform-owned data
+  is readable only by All Brands.
+* **Write routing**: `BrandContext::getWriteMerchantId()` returns the platform id in the All-Brands view
+  and the active brand id otherwise. Code that creates All-Brands-owned records (admin-generated API keys,
+  manual-gateway templates) uses this rather than `getActiveBrandId()` (which is 0 in the All-Brands view).
+* **Config cascade**: `SettingsRepository::getScoped(group, key, merchantId)` resolves brand override →
+  All-Brands (global) default → code default; a brand override applies only to that brand.
+* **Staff access**: switching into the All-Brands view requires the `brands.access_all` permission (or
+  `is_superadmin`), enforced in `BrandController::switchBrand`.
+* **Inbound webhook/IPN**: a dedicated `/admin/gateway-webhooks` page documents the per-brand vs All-Brands
+  callback URL (brand custom domain when present, else the platform domain).
+
 ---
 
 ## 5. Security & Request Lifecycle Guardrails
@@ -234,6 +270,21 @@ so later retries or webhooks can still complete the payment. The guard ensures a
 that landed inside `handleCallback()` is never clobbered. Both `CheckoutController` and
 `PaymentIntentCheckoutController` implement this pattern; `WebhookInboundProcessor` accepts
 `callback_processing` transactions as completable.
+
+### 5.6. Self-Service Password Reset (token-based)
+Admin/staff can reset their own password via emailed link. The flow is OWASP-aligned:
+* **Tokens** are 256-bit random values; only their SHA-256 hash is persisted (`op_password_resets`),
+  so a database read never yields a usable link. Tokens are single-use (`used_at`) and expire after
+  1 hour (`expires_at`); all freshness checks use the DB clock. A new request and a successful reset
+  both invalidate the user's other outstanding tokens.
+* **No account enumeration:** `AuthController::forgotSubmit` returns an identical "if an account exists,
+  a link was sent" response whether or not the email matches, and `PasswordResetService::requestReset`
+  is fully exception-wrapped so a mail failure cannot leak existence via an error page.
+* **Orchestration:** `PasswordResetService` (requestReset / tokenIsValid / resetPassword) emails the
+  branded `email/password_reset.twig` through the unified `CommunicationService` (brand-aware From +
+  `DomainUrlService` base URL), and sets the new password with the same Argon2id hash as login.
+* **Surface:** `GET|POST /reset-password` (web-auth group), rate-limited under the login bucket and
+  CSRF-protected; new-password policy mirrors staff creation (min 8 + confirmation match).
 
 ---
 
@@ -285,6 +336,7 @@ The Settlement payout system has been completely decommissioned and its associat
 12. **Settings Registry Integration**: NEVER query or write to a table named `op_env`. Use the `EnvironmentService` (e.g. `EnvironmentService::get()`) or resolve `SettingsRepository` from the container, which persists configuration under `op_system_settings` (group: `runtime`).
 13. **Safe Clipboard Copying**: In administrative portals, all copy-to-clipboard buttons and scripts MUST utilize the global helper `window.opCopyText(text, button, successCallback)` to guarantee compatibility in both secure HTTPS contexts and non-secure HTTP local development setups.
 14. **Dynamic Gateway Logo Copying**: API gateway adapters and plugins MUST declare their icon path inside `manifest.json`. During dashboard rendering, these icons are dynamically copied to the public directory using the `PluginManager::resolveIconPath()` method so they display correctly regardless of their configuration or activation state.
+15. **Route Parameter Regex Constraints**: Dynamic path parameters must strictly match `[a-zA-Z0-9_\-\.]` to prevent route-based injection (e.g. avoiding `@` and `+` symbols), with the sole exception of `{identifier}` (used for customer email or phone lookup) which is permitted to match `@`, `+`, and `%`.
 
 ---
 

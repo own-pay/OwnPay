@@ -74,4 +74,38 @@ class RouterTest extends TestCase
         $this->assertSame('PaymentController', $ctrl);
         $this->assertSame('show', $method);
     }
+
+    public function testIdentifierParameterAllowsEmailAndPhone(): void
+    {
+        $container = new \OwnPay\Container();
+        $router = new \OwnPay\Http\Router($container);
+        $router->get('/api/v1/customers/{identifier}', 'Api\\CustomerController@show');
+
+        // Test matching raw email
+        $requestEmail = new \OwnPay\Http\Request([], [], [
+            'REQUEST_METHOD' => 'GET',
+            'REQUEST_URI' => '/api/v1/customers/john.doe@example.com'
+        ]);
+        $matchEmail = $router->match($requestEmail);
+        $this->assertNotNull($matchEmail);
+        $this->assertSame('john.doe@example.com', $matchEmail['params']['identifier'] ?? null);
+
+        // Test matching raw phone with +
+        $requestPhone = new \OwnPay\Http\Request([], [], [
+            'REQUEST_METHOD' => 'GET',
+            'REQUEST_URI' => '/api/v1/customers/+8801700000000'
+        ]);
+        $matchPhone = $router->match($requestPhone);
+        $this->assertNotNull($matchPhone);
+        $this->assertSame('+8801700000000', $matchPhone['params']['identifier'] ?? null);
+
+        // Test matching URL encoded email
+        $requestEncodedEmail = new \OwnPay\Http\Request([], [], [
+            'REQUEST_METHOD' => 'GET',
+            'REQUEST_URI' => '/api/v1/customers/john.doe%40example.com'
+        ]);
+        $matchEncodedEmail = $router->match($requestEncodedEmail);
+        $this->assertNotNull($matchEncodedEmail);
+        $this->assertSame('john.doe%40example.com', $matchEncodedEmail['params']['identifier'] ?? null);
+    }
 }

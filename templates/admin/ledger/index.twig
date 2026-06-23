@@ -2,7 +2,10 @@
 {% block title %}Ledger — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
-    <h1>Ledger & Accounting</h1>
+    <div>
+        <h1>Ledger & Accounting</h1>
+        <p class="op-page-subtitle">Sovereign double-entry bookkeeping ledgers, account journals, and balance matching.</p>
+    </div>
     <div class="op-header-actions">
         <div class="op-stats-badge">Current Balance: <strong>{{ current_balance }} BDT</strong></div>
     </div>
@@ -24,13 +27,40 @@
                 </thead>
                 <tbody>
                     {% for item in ledger.items %}
-                    <tr>
+                    <tr class="op-ledger-row" style="cursor: pointer;" onclick="document.getElementById('details-{{ item.id }}').classList.toggle('op-hidden')">
                         <td>{{ item.created_at|date("M d, Y H:i") }}</td>
-                        <td><code>{{ item.reference_id }}</code><br><small>{{ item.reference_type }}</small></td>
+                        <td><code>{{ item.reference_id }}</code><br><small class="op-text-muted">{{ item.reference_type }}</small></td>
                         <td><span class="op-badge op-badge-{{ item.event_type == 'payment_received' ? 'success' : 'warning' }}">{{ item.event_type|replace({'_': ' '})|capitalize }}</span></td>
                         <td><strong>{{ item.currency }} {{ item.total_amount }}</strong></td>
-                        <td>{{ item.status|capitalize }}</td>
-                        <td>{{ item.description }}</td>
+                        <td><span class="op-badge op-badge-success">{{ item.status|capitalize }}</span></td>
+                        <td>
+                            {{ item.description }}
+                            <div style="font-size: 11px; color: var(--text-muted, #71717a); margin-top: 4px;">Click to view audit lines</div>
+                        </td>
+                    </tr>
+                    <tr id="details-{{ item.id }}" class="op-hidden" style="background: var(--bg-hover, #f4f4f5);">
+                        <td colspan="6" style="padding: 12px 24px;">
+                            <div style="font-weight: 600; margin-bottom: 8px; font-size: 13px;">Double-Entry Journal Lines:</div>
+                            <div style="display: flex; flex-direction: column; gap: 6px; max-width: 500px;">
+                                {% set entries = item.entries_summary|split(',') %}
+                                {% for entry in entries %}
+                                    {% set parts = entry|split(':') %}
+                                    {% if parts|length == 2 %}
+                                        <div style="display: flex; justify-content: space-between; padding: 4px 8px; border-radius: 4px; font-family: monospace; font-size: 13px; background: var(--bg-card, #ffffff); border: 1px solid var(--border-color, #e4e4e7);">
+                                            <span>
+                                                <span class="op-badge op-badge-{{ parts[0] == 'debit' ? 'info' : 'outline' }}" style="font-size: 10px; padding: 2px 4px;">
+                                                    {{ parts[0]|upper }}
+                                                </span>
+                                                &nbsp;Account
+                                            </span>
+                                            <span style="font-weight: 600; color: {{ parts[0] == 'debit' ? 'var(--info-color, #0284c7)' : 'var(--success-color, #16a34a)' }};">
+                                                {{ parts[0] == 'debit' ? 'DR' : 'CR' }} {{ item.currency }} {{ parts[1] }}
+                                            </span>
+                                        </div>
+                                    {% endif %}
+                                {% endfor %}
+                            </div>
+                        </td>
                     </tr>
                     {% else %}
                     <tr><td colspan="6" class="op-text-center">No ledger entries found.</td></tr>

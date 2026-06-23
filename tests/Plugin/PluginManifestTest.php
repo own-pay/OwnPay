@@ -300,7 +300,7 @@ class PluginManifestTest extends TestCase
         $data['namespace'] = 'CustomNamespace';
         $data['entrypoint'] = 'Gateway.php';
         $m = PluginManifest::fromArray($data);
-        $this->assertSame('OwnPayPlugin\\CustomNamespace\\Gateway', $m->getFullyQualifiedClassName());
+        $this->assertSame('CustomNamespace\\Gateway', $m->getFullyQualifiedClassName());
     }
 
     public function testGetFullyQualifiedClassNameDerivesNamespaceFromSlug(): void
@@ -310,7 +310,7 @@ class PluginManifestTest extends TestCase
         $data['slug']       = 'sms-notifications';
         $data['entrypoint'] = 'Plugin.php';
         $m = PluginManifest::fromArray($data);
-        $this->assertSame('OwnPayPlugin\\SmsNotifications\\Plugin', $m->getFullyQualifiedClassName());
+        $this->assertSame('OwnPay\\Plugins\\SmsNotifications\\Plugin', $m->getFullyQualifiedClassName());
     }
 
     // â”€â”€ Serialisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€

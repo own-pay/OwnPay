@@ -117,22 +117,14 @@ final class PluginSandbox
      */
     public static function isDangerousFunction(string $function): bool
     {
+        // Full-trust footgun list: direct OS-command / process-control primitives that a legitimate
+        // plugin essentially never needs. This is a safety net against accidents and obvious abuse,
+        // NOT an isolation boundary (see PluginLoader's scanner note) — installed plugins are
+        // owner-uploaded and run with full application trust, like WordPress. Ordinary PHP
+        // (callbacks, reflection, file I/O, dynamic calls, include/require) is intentionally allowed.
         $dangerous = [
-            'exec', 'shell_exec', 'system', 'passthru', 'popen', 'proc_open',
-            'eval', 'assert', 'create_function',
-            'file_put_contents',
-            'unlink', 'rmdir', 'rename', 'chmod', 'chown',
-            'putenv',
-            'dl',
-            'call_user_func', 'call_user_func_array', 'forward_static_call', 'forward_static_call_array',
-            'array_map', 'array_filter', 'array_reduce', 'array_walk', 'array_walk_recursive',
-            'array_uintersect', 'array_uintersect_assoc', 'array_uintersect_uassoc',
-            'array_udiff', 'array_udiff_assoc', 'array_udiff_uassoc',
-            'array_diff_ukey', 'array_diff_uassoc', 'array_intersect_ukey',
-            'preg_replace_callback', 'preg_replace_callback_array',
-            'usort', 'uasort', 'uksort', 'register_shutdown_function', 'register_tick_function',
-            'set_exception_handler', 'set_error_handler', 'ob_start',
-            'reflectionfunction', 'reflectionclass', 'reflectionmethod', 'reflectionobject', 'reflectionproperty',
+            'exec', 'shell_exec', 'system', 'passthru', 'popen', 'proc_open', 'proc_nice',
+            'pcntl_exec', 'dl', 'assert', 'create_function',
         ];
         return in_array(strtolower($function), $dangerous, true);
     }

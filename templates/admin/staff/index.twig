@@ -2,7 +2,10 @@
 {% block title %}Staff — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
-    <h1>Staff Members</h1>
+    <div>
+        <h1>Staff Members</h1>
+        <p class="op-page-subtitle">Manage staff members and assign their brand and role-based permissions.</p>
+    </div>
     <a href="/admin/staff/create" class="op-btn op-btn-primary">+ Add Staff</a>
 </div>
 <div class="op-card">
@@ -20,6 +23,12 @@
                     <td><span class="op-badge op-badge-{{ s.status == 'active' ? 'success' : 'muted' }}">{{ s.status }}</span></td>
                     <td class="op-nowrap">
                         <a href="/admin/staff/{{ s.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
+                        {% if s.two_factor_enabled %}
+                        <form method="POST" action="/admin/staff/{{ s.id }}/reset-2fa" class="op-inline-form" onsubmit="return confirm('Reset 2FA for {{ s.name|e('js') }}?')">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="op-btn op-btn-xs op-btn-warning">Reset 2FA</button>
+                        </form>
+                        {% endif %}
                         {% if not s.is_superadmin %}
                         <form method="POST" action="/admin/staff/{{ s.id }}/delete" class="op-inline-form" onsubmit="return confirm('Delete staff {{ s.name|e('js') }}?')">
                             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

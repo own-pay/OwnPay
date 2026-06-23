@@ -146,9 +146,7 @@ class DevicePairingServiceTest extends TestCase
         return new DevicePairingService($deviceRepo, $encryptor, $this->jwt);
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
     //  generatePairingOtp()
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 
     public function testGenerateOtpReturns6DigitCode(): void
     {
@@ -178,15 +176,14 @@ class DevicePairingServiceTest extends TestCase
         $this->assertArrayNotHasKey('error', $result);
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    //  pairDevice() â€” valid OTP
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+    //  pairDevice() -> valid OTP
 
     public function testPairDeviceSuccessWithValidOtp(): void
     {
         $otp = '123456';
         $svc = $this->buildService([
-            'validateResult' => ['id' => 1, 'merchant_id' => 42, 'otp_hash' => hash('sha256', $otp)],
+            'validateResult' => ['id' => 1, 'merchant_id' => 42, 'created_by' => 100, 'otp_hash' => hash('sha256', $otp)],
         ]);
 
         $result = $svc->pairDevice($otp, 'Pixel 7', 'android123:sha256cert');
@@ -206,7 +203,7 @@ class DevicePairingServiceTest extends TestCase
     {
         $otp = '654321';
         $svc = $this->buildService([
-            'validateResult' => ['id' => 1, 'merchant_id' => 7, 'otp_hash' => hash('sha256', $otp)],
+            'validateResult' => ['id' => 1, 'merchant_id' => 7, 'created_by' => 100, 'otp_hash' => hash('sha256', $otp)],
         ]);
 
         $result = $svc->pairDevice($otp, 'Galaxy S24', 'fp_string', '2.1.0', 'android');
@@ -222,9 +219,9 @@ class DevicePairingServiceTest extends TestCase
         );
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    //  pairDevice() â€” invalid / expired / used OTP
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+
+    //  pairDevice() -> invalid / expired / used OTP
+
 
     public function testPairDeviceFailsWithInvalidOtp(): void
     {
@@ -244,15 +241,13 @@ class DevicePairingServiceTest extends TestCase
         $this->assertSame('INVALID_OTP', $result['error']);
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    //  pairDevice() â€” re-pairing (same fingerprint)
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+    //  pairDevice() -> re-pairing (same fingerprint)
 
     public function testPairDeviceRevokesExistingOnRepairing(): void
     {
         $otp = '999999';
         $svc = $this->buildService([
-            'validateResult' => ['id' => 1, 'merchant_id' => 5, 'otp_hash' => hash('sha256', $otp)],
+            'validateResult' => ['id' => 1, 'merchant_id' => 5, 'created_by' => 100, 'otp_hash' => hash('sha256', $otp)],
             'existingDevice' => ['device_uuid' => 'old-uuid-123'],
         ]);
 
@@ -262,33 +257,46 @@ class DevicePairingServiceTest extends TestCase
         $this->assertNotSame('old-uuid-123', $result['device_id']);
     }
 
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-    //  refreshAccessToken()
-    // â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
-
-    public function testRefreshTokenSuccess(): void
+    public function testPairDeviceFailsClosedWhenOtpHasNoCreator(): void
     {
+        // Privilege-escalation guard: an OTP with no recorded creator must NOT
+        // fall back to a superadmin identity — pairing must fail.
+        $otp = '424242';
+        $svc = $this->buildService([
+            'validateResult' => ['id' => 1, 'merchant_id' => 9, 'created_by' => null, 'otp_hash' => hash('sha256', $otp)],
+        ]);
+
+        $result = $svc->pairDevice($otp, 'Rogue Phone', 'fp_rogue');
+
+        $this->assertFalse($result['success']);
+        $this->assertSame('PAIRING_CONTEXT_UNRESOLVED', $result['error']);
+    }
+
+    //  refreshAccessToken()
+
+    public function testRefreshWithUnresolvableSubjectIsRejected(): void
+    {
+        // Privilege-escalation guard: a refresh token whose subject does not resolve to a real user
+        // (here an opaque, non-JWT token with no `sub` claim) MUST be rejected — it must never be
+        // silently upgraded to user 1 (the superadmin). The legitimate JWT happy path (sub > 0) is
+        // covered by tests/Integration/DeviceRefreshPrivilegeTest.
         $refreshToken = bin2hex(random_bytes(32));
         $fingerprint = 'android123:certsha';
         $fpHash = hash('sha256', $fingerprint);
-        $jwtSecret = JwtService::generateSecret();
 
         $svc = $this->buildService([], [
             'refreshDevice' => [
                 'device_uuid'      => 'dev-uuid-abc',
                 'merchant_id'      => 10,
-                'jwt_secret'       => $jwtSecret,
                 'fingerprint_hash' => $fpHash,
+                'status'           => 'active',
             ],
         ]);
 
         $result = $svc->refreshAccessToken($refreshToken, $fingerprint);
 
-        $this->assertTrue($result['success']);
-        $this->assertArrayHasKey('access_token', $result);
-        $this->assertArrayHasKey('refresh_token', $result);
-        $this->assertSame(900, $result['expires_in']);
-        $this->assertNotSame($refreshToken, $result['refresh_token']);
+        $this->assertFalse($result['success']);
+        $this->assertSame('INVALID_REFRESH_TOKEN', $result['error']);
     }
 
     public function testRefreshTokenFailsWithInvalidToken(): void

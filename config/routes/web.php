@@ -16,6 +16,7 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // ─── Public Pages ──────────────────────────────────────────
     $router->get('/', 'Page\\LandingController@index', 'web');
+    $router->get('/rate-limit/emergency-reset', 'Admin\\DeveloperController@emergencyReset', 'web');
 
     // ─── Admin Login (dynamic slug for security) ───────────────
     // Slug is configurable in Settings → Landing Page → Admin Login URL Slug
@@ -60,6 +61,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/logout', 'Admin\\AuthController@logout', 'admin');
     $router->get('/forgot-password',  'Admin\\AuthController@forgotForm',   'web-auth');
     $router->post('/forgot-password', 'Admin\\AuthController@forgotSubmit', 'web-auth');
+    $router->get('/reset-password',   'Admin\\AuthController@resetForm',    'web-auth');
+    $router->post('/reset-password',  'Admin\\AuthController@resetSubmit',  'web-auth');
     $router->get('/2fa',  'Admin\\AuthController@twoFactorForm',   'web-auth');
     $router->post('/2fa', 'Admin\\AuthController@twoFactorVerify', 'web-auth');
 
@@ -88,9 +91,7 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // ─── Admin Panel (SPA-style AJAX fragments) ────────────────
     $router->get('/admin', 'Admin\\DashboardController@index', 'admin');
-
-    // Admin content fragments (loaded via AJAX into SPA shell)
-    $router->get('/admin/fragment/{page}', 'Admin\\DashboardController@fragment', 'admin');
+    $router->get('/admin/contributors', 'Admin\\ContributorController@index', 'admin');
 
     // Onboarding Setup Wizard
     $router->post('/admin/setup-wizard/save-settings', 'Admin\\DashboardController@saveOnboardingSettings', 'admin');
@@ -105,10 +106,19 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/transactions/{id}', 'Admin\\TransactionController@show', 'admin');
     $router->post('/admin/transactions/{id}/update', 'Admin\\TransactionController@updateStatus', 'admin');
 
+    // Payment Intents
+    $router->get('/admin/payment-intents', 'Admin\\PaymentIntentController@index', 'admin');
+    $router->get('/admin/payment-intents/{id}', 'Admin\\PaymentIntentController@show', 'admin');
+
+    // Refunds
+    $router->get('/admin/refunds', 'Admin\\RefundController@index', 'admin');
+    $router->post('/admin/refunds', 'Admin\\RefundController@store', 'admin');
+
     // Invoices
     $router->get('/admin/invoices', 'Admin\\InvoiceController@index', 'admin');
     $router->get('/admin/invoices/create', 'Admin\\InvoiceController@create', 'admin');
     $router->post('/admin/invoices/store', 'Admin\\InvoiceController@store', 'admin');
+    $router->get('/admin/invoices/{id}/pdf', 'Admin\\InvoiceController@pdf', 'admin');
     $router->get('/admin/invoices/{id}', 'Admin\\InvoiceController@show', 'admin');
     $router->post('/admin/invoices/{id}/update', 'Admin\\InvoiceController@update', 'admin');
 
@@ -147,6 +157,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/staff/store', 'Admin\\StaffController@store', 'admin');
     $router->get('/admin/staff/{id}', 'Admin\\StaffController@show', 'admin');
     $router->post('/admin/staff/{id}/update', 'Admin\\StaffController@update', 'admin');
+    $router->post('/admin/staff/{id}/reset-2fa', 'Admin\\StaffController@reset2fa', 'admin');
     $router->post('/admin/staff/{id}/delete', 'Admin\\StaffController@delete', 'admin');
 
     // Roles & Permissions
@@ -159,6 +170,9 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/gateways', 'Admin\\GatewayController@index', 'admin');
     $router->get('/admin/gateways/create-manual', 'Admin\\GatewayController@createManual', 'admin');
     $router->post('/admin/gateways/store-manual', 'Admin\\GatewayController@storeManual', 'admin');
+    // Phase 2c: a brand configures its OWN account for a platform-defined manual gateway template.
+    $router->get('/admin/gateways/configure/{slug}', 'Admin\\GatewayController@configureAccount', 'admin');
+    $router->post('/admin/gateways/configure/{slug}', 'Admin\\GatewayController@configureAccount', 'admin');
     $router->get('/admin/gateways/{id}/edit', 'Admin\\GatewayController@editManual', 'admin');
     $router->post('/admin/gateways/{id}/update', 'Admin\\GatewayController@updateManual', 'admin');
     $router->post('/admin/gateways/{id}/toggle', 'Admin\\GatewayController@toggle', 'admin');
@@ -169,7 +183,10 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/domains', 'Admin\\DomainController@store', 'admin');        // modal posts here
     $router->post('/admin/domains/store', 'Admin\\DomainController@store', 'admin'); // alias
     $router->post('/admin/domains/{id}/verify', 'Admin\\DomainController@verify', 'admin');
+    $router->post('/admin/domains/{id}/primary', 'Admin\\DomainController@primary', 'admin');
     $router->post('/admin/domains/{id}/delete', 'Admin\\DomainController@delete', 'admin');
+    $router->post('/admin/domains/{id}/update', 'Admin\\DomainController@update', 'admin');
+    $router->post('/admin/domains/{id}/check-ssl', 'Admin\\DomainController@checkSsl', 'admin');
 
     // Settings
     $router->get('/admin/settings', 'Admin\\SettingsController@index', 'admin');
@@ -178,6 +195,14 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/settings/upload', 'Admin\\SettingsController@upload', 'admin');
     $router->post('/admin/settings/cron/regenerate', 'Admin\\SettingsController@regenerateCronSecret', 'admin');
     $router->post('/admin/settings/cron/run/{jobName}', 'Admin\\SettingsController@runCronJob', 'admin');
+
+    // Fee Rules
+    $router->get('/admin/fee-rules', 'Admin\\FeeRuleController@index', 'admin');
+    $router->get('/admin/fee-rules/create', 'Admin\\FeeRuleController@create', 'admin');
+    $router->post('/admin/fee-rules/store', 'Admin\\FeeRuleController@store', 'admin');
+    $router->get('/admin/fee-rules/{id}/edit', 'Admin\\FeeRuleController@edit', 'admin');
+    $router->post('/admin/fee-rules/{id}/update', 'Admin\\FeeRuleController@update', 'admin');
+    $router->post('/admin/fee-rules/{id}/delete', 'Admin\\FeeRuleController@delete', 'admin');
 
     // Optimization
     $router->post('/admin/settings/optimize/cache', 'Admin\\SettingsController@optimizeCache', 'admin');
@@ -199,14 +224,15 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/currencies/update', 'Admin\\CurrencyController@update', 'admin');
     $router->post('/admin/currencies/toggle/{code}', 'Admin\\CurrencyController@toggle', 'admin');
     $router->post('/admin/currencies/sync-rates', 'Admin\\CurrencyController@syncRates', 'admin');
-    $router->post('/admin/currencies/update-rates', 'Admin\\CurrencyController@updateRates', 'admin');
 
     // Devices
     $router->get('/admin/devices', 'Admin\\DeviceController@index', 'admin');
+    $router->get('/admin/devices/notifications', 'Admin\\MobileNotificationLogController@index', 'admin');
     $router->post('/admin/devices/generate-otp', 'Admin\\DeviceController@generateOtp', 'admin');
     $router->get('/admin/devices/check-status', 'Admin\\DeviceController@checkStatus', 'admin');
     $router->post('/admin/devices/{id}/revoke', 'Admin\\DeviceController@revoke', 'admin');
     $router->post('/admin/devices/bulk-revoke', 'Admin\\DeviceController@bulkRevoke', 'admin');
+    $router->post('/admin/devices/settings', 'Admin\\DeviceController@saveSettings', 'admin');
 
     // SMS Center
     $router->get('/admin/sms-center',                 'Admin\\SmsTemplateAdminController@index',       'admin');
@@ -218,6 +244,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/sms-center/{id}/edit',      'Admin\\SmsTemplateAdminController@edit',        'admin');
     $router->post('/admin/sms-center/{id}/delete',    'Admin\\SmsTemplateAdminController@delete',      'admin');
     $router->post('/admin/sms-center/test-regex',     'Admin\\SmsTemplateAdminController@testRegex',   'admin');
+    $router->post('/admin/sms-center/queue/{id}/retry', 'Admin\\SmsTemplateAdminController@retryQueueItem', 'admin');
+    $router->post('/admin/sms-center/match', 'Admin\\SmsTemplateAdminController@matchSms', 'admin');
 
     // SMS Data (parsed SMS log)
     $router->get('/admin/sms-data', 'Admin\\SmsDataController@index', 'admin');
@@ -229,18 +257,26 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // Developer Hub
     $router->get('/admin/developer', 'Admin\\DeveloperController@index', 'admin');
+    // Inbound gateway webhook / IPN reference page (URLs + plain-English setup guide)
+    $router->get('/admin/gateway-webhooks', 'Admin\\GatewayWebhookController@index', 'admin');
     $router->post('/admin/developer/webhook-test', 'Admin\\DeveloperController@webhookTest', 'admin');
-    $router->post('/admin/developer/save-limits', 'Admin\\DeveloperController@saveLimits', 'admin');
-    $router->post('/admin/developer/generate-key', 'Admin\\DeveloperController@generateKey', 'admin');
+    $router->post('/admin/developer/rate-limits/reset', 'Admin\\DeveloperController@resetLimit', 'admin');
+    $router->post('/admin/developer/rate-limits/save', 'Admin\\DeveloperController@saveSettings', 'admin');
+    $router->post('/admin/developer/webhooks/store', 'Admin\\WebhookController@store', 'admin');
+    $router->post('/admin/developer/webhooks/{id}/toggle', 'Admin\\WebhookController@toggle', 'admin');
+    $router->post('/admin/developer/webhooks/{id}/delete', 'Admin\\WebhookController@delete', 'admin');
 
     // Reports & Activities
     $router->get('/admin/ledger', 'Admin\\LedgerController@index', 'admin');
     $router->get('/admin/reports', 'Admin\\DashboardController@reports', 'admin');
     $router->get('/admin/reports/export', 'Admin\\DashboardController@exportCsv', 'admin');
     $router->get('/admin/activities', 'Admin\\ActivitiesController@index', 'admin');
+    $router->get('/admin/activities/{id}/details', 'Admin\\ActivitiesController@details', 'admin');
     $router->get('/admin/audit-log',  'Admin\\ActivitiesController@index', 'admin');
     $router->get('/admin/audit-integrity', 'Admin\\AuditIntegrityController@scan', 'admin');
     $router->post('/admin/audit-integrity/scan', 'Admin\\AuditIntegrityController@scan', 'admin');
+    $router->get('/admin/login-attempts', 'Admin\\LoginAttemptController@index', 'admin');
+    $router->post('/admin/login-attempts/unlock', 'Admin\\LoginAttemptController@unlock', 'admin');
 
     // Webhook Events / DLQ
     $router->get('/admin/webhooks/events', 'Admin\\WebhookEventController@index', 'admin');
@@ -254,14 +290,11 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->post('/admin/my-account/2fa/enable', 'Admin\\TwoFactorSetupController@enable', 'admin');
     $router->post('/admin/my-account/2fa/disable', 'Admin\\TwoFactorSetupController@disable', 'admin');
 
-    // FAQ
-    $router->get('/admin/faq', 'Admin\\FaqController@index', 'admin');
-    $router->post('/admin/faq/save', 'Admin\\FaqController@save', 'admin');
-
     // Plugins, Themes, Addons
     $router->get('/admin/plugins', 'Admin\\PluginController@index', 'admin');
     $router->get('/admin/plugins/install', 'Admin\\PluginController@installForm', 'admin');
     $router->post('/admin/plugins/upload', 'Admin\\PluginController@upload', 'admin');
+    $router->post('/admin/plugins/upload/cancel', 'Admin\\PluginController@cancelUpload', 'admin');
     $router->post('/admin/plugins/{slug}/activate', 'Admin\\PluginController@activate', 'admin');
     $router->post('/admin/plugins/{slug}/deactivate', 'Admin\\PluginController@deactivate', 'admin');
     $router->post('/admin/plugins/{slug}/uninstall', 'Admin\\PluginController@uninstall', 'admin');

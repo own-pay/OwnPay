@@ -103,9 +103,7 @@ final class JwtService
     }
 
     /**
-     * Encodes a token response configuration payload.
-     *
-     * Retains compatibility with legacy dashboard test assertion suites.
+     * Encodes a scoped device token and returns it with its expiry metadata.
      *
      * @param string $deviceUuid The companion device registered UUID.
      * @param int $brandId The system brand/merchant owner identifier.

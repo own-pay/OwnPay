@@ -19,17 +19,61 @@ final class DnsVerifier
      */
     public function verifyTxt(string $domain, string $expectedValue): bool
     {
-        $recordName = '_ownpay-verification.' . $domain;
+        $names = [
+            '_ownpay-verify.' . $domain,
+            '_ownpay-verification.' . $domain
+        ];
 
-        $records = @dns_get_record($recordName, DNS_TXT);
-        if ($records === false || empty($records)) {
-            return false;
-        }
+        foreach ($names as $recordName) {
+            // 1. Native dns_get_record lookup
+            $records = @dns_get_record($recordName, DNS_TXT);
+            if (is_array($records) && !empty($records)) {
+                foreach ($records as $record) {
+                    $txt = trim($record['txt'] ?? '');
+                    if ($txt === $expectedValue ||
+                        $txt === 'ownpay-verify=' . $expectedValue ||
+                        $txt === 'ownpay-verification=' . $expectedValue
+                    ) {
+                        return true;
+                    }
+                }
+            }
 
-        foreach ($records as $record) {
-            $txt = $record['txt'] ?? '';
-            if ($txt === $expectedValue) {
-                return true;
+            // 2. DNS-over-HTTPS (DoH) fallback via Cloudflare
+            try {
+                $url = 'https://cloudflare-dns.com/dns-query?name=' . urlencode($recordName) . '&type=TXT';
+                $ch = curl_init();
+                curl_setopt($ch, CURLOPT_URL, $url);
+                curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+                curl_setopt($ch, CURLOPT_HTTPHEADER, ['Accept: application/dns-json']);
+                curl_setopt($ch, CURLOPT_TIMEOUT, 5);
+                $resp = curl_exec($ch);
+                curl_close($ch);
+
+                if (is_string($resp) && $resp !== '') {
+                    $data = json_decode($resp, true);
+                    if (is_array($data) && isset($data['Answer']) && is_array($data['Answer'])) {
+                        foreach ($data['Answer'] as $ans) {
+                            if (is_array($ans)) {
+                                $ansTypeVal = $ans['type'] ?? 0;
+                                $ansType = is_int($ansTypeVal) || is_string($ansTypeVal) ? (int) $ansTypeVal : 0;
+                                if ($ansType === 16) {
+                                    $ansDataVal = $ans['data'] ?? '';
+                                    $ansData = is_string($ansDataVal) ? $ansDataVal : '';
+                                    $txt = trim($ansData, " \t\n\r\0\x0B\"");
+                                    if ($txt === $expectedValue ||
+                                        $txt === 'ownpay-verify=' . $expectedValue ||
+                                        $txt === 'ownpay-verification=' . $expectedValue
+                                    ) {
+                                        return true;
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (\Throwable) {
+                // Ignore transient network errors/timeouts
             }
         }
 

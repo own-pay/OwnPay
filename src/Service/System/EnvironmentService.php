@@ -11,7 +11,8 @@ use OwnPay\Repository\SettingsRepository;
  * Provides utilities to inspect runtime modes (production, development, staging)
  * and accesses the persistent key/value configuration stored within the database.
  * Persistent options map to `op_system_settings` under the 'runtime' settings group,
- * falling back to individual `op_env` records or standard environment variables.
+ * with a read-time fallback to standard OS environment variables (getenv/$_ENV/$_SERVER)
+ * when no stored value exists.
  */
 final class EnvironmentService
 {
@@ -277,10 +278,16 @@ final class EnvironmentService
     /**
      * Clears all configurations stored in the memory cache.
      *
+     * Also flushes the repository-level memoization so the next get() is a true
+     * database read — callers rely on this after out-of-band settings changes.
+     *
      * @return void
      */
     public static function clearCache(): void
     {
         self::$cache = [];
+        if (self::$settingsRepo !== null) {
+            self::$settingsRepo->flushCache();
+        }
     }
 }

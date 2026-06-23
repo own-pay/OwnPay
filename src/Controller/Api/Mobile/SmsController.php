@@ -20,9 +20,19 @@ use OwnPay\Support\DateHelper;
  */
 final class SmsController
 {
+    /** Maximum messages accepted in a single batch submission. */
+    private const MAX_BATCH_MESSAGES = 200;
+
+    /** Maximum byte length of the `sender` field (op_sms_parsed.sender is VARCHAR(100)). */
+    private const MAX_SENDER_BYTES = 100;
+
+    /** Maximum combined byte length of encrypted_payload/body per message (well under the TEXT 65535 limit). */
+    private const MAX_PAYLOAD_BYTES = 16384;
+
     /**
      * @var Container The dependency injection container.
      */
+    /** @phpstan-ignore property.onlyWritten */
     private Container $c;
 
     /**
@@ -92,6 +102,20 @@ final class SmsController
             return Response::apiError('MESSAGES_REQUIRED', 'No messages provided', 'messages', 422);
         }
 
+        // Bound the batch size and per-field lengths BEFORE any processing. Without
+        // these caps a paired device could post a 100k-message batch or a multi-MB
+        // body: a memory/CPU DoS, and oversized values are silently truncated by the
+        // TEXT/VARCHAR columns (op_sms_parsed.body/encrypted_raw TEXT = 65535 bytes,
+        // sender VARCHAR(100)), corrupting stored evidence.
+        if (count($messages) > self::MAX_BATCH_MESSAGES) {
+            return Response::apiError(
+                'BATCH_TOO_LARGE',
+                'A maximum of ' . self::MAX_BATCH_MESSAGES . ' messages may be submitted per request.',
+                'messages',
+                422
+            );
+        }
+
         // Validate messages
         foreach ($messages as $msg) {
             if (!is_array($msg)) {
@@ -102,6 +126,14 @@ final class SmsController
             $bodyVal = $msg['body'] ?? null;
             if (empty($senderVal) || (empty($encryptedPayloadVal) && empty($bodyVal))) {
                 return Response::apiError('INVALID_MESSAGE_PAYLOAD', 'sender and encrypted_payload/body required', 'messages', 422);
+            }
+            if (is_string($senderVal) && strlen($senderVal) > self::MAX_SENDER_BYTES) {
+                return Response::apiError('SENDER_TOO_LONG', 'sender exceeds ' . self::MAX_SENDER_BYTES . ' bytes', 'sender', 422);
+            }
+            $payloadLen = (is_string($encryptedPayloadVal) ? strlen($encryptedPayloadVal) : 0)
+                + (is_string($bodyVal) ? strlen($bodyVal) : 0);
+            if ($payloadLen > self::MAX_PAYLOAD_BYTES) {
+                return Response::apiError('PAYLOAD_TOO_LARGE', 'message payload exceeds ' . self::MAX_PAYLOAD_BYTES . ' bytes', 'messages', 422);
             }
         }
 

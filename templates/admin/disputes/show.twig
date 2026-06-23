@@ -2,7 +2,10 @@
 {% block title %}Dispute #{{ dispute.id }} — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
-    <h1>Dispute: <code>#{{ dispute.id }}</code></h1>
+    <div>
+        <h1>Dispute: <code>#{{ dispute.id }}</code></h1>
+        <p class="op-page-subtitle">Detailed dispute transaction records, status timelines, and resolution comments.</p>
+    </div>
     <a href="/admin/disputes" class="op-btn op-btn-outline">← Back</a>
 </div>
 
@@ -42,7 +45,24 @@
 
                 {% if dispute.evidence is not empty %}
                     <dt>Resolution Proof</dt>
-                    <dd style="white-space: pre-wrap;" class="op-text-muted">{{ dispute.evidence }}</dd>
+                    <dd class="op-text-muted">
+                        {% if dispute.evidence is iterable %}
+                            {% if dispute.evidence.notes is not empty %}
+                                <div style="margin-bottom: 8px;"><strong>Notes:</strong> {{ dispute.evidence.notes }}</div>
+                            {% endif %}
+                            {% if dispute.evidence.shipping_carrier is not empty %}
+                                <div style="margin-bottom: 8px;"><strong>Shipping Carrier:</strong> {{ dispute.evidence.shipping_carrier }}</div>
+                            {% endif %}
+                            {% if dispute.evidence.tracking_number is not empty %}
+                                <div style="margin-bottom: 8px;"><strong>Tracking Number:</strong> {{ dispute.evidence.tracking_number }}</div>
+                            {% endif %}
+                            {% if dispute.evidence.file_path is not empty %}
+                                <div style="margin-bottom: 8px;"><strong>Evidence File:</strong> <a href="{{ dispute.evidence.file_path }}" target="_blank" class="op-link" style="text-decoration: underline;">{{ dispute.evidence.file_path|split('/')|last }}</a></div>
+                            {% endif %}
+                        {% else %}
+                            <div style="white-space: pre-wrap;">{{ dispute.evidence }}</div>
+                        {% endif %}
+                    </dd>
                 {% endif %}
             </dl>
         </div>
@@ -80,7 +100,7 @@
                     <dd>{{ transaction.customer_email|default('—') }}</dd>
 
                     <dt>Gateway</dt>
-                    <dd><span class="op-badge op-badge-outline">{{ transaction.gateway_slug }}</span></dd>
+                    <dd><span class="op-badge op-badge-outline">{{ transaction.gateway_name }}</span></dd>
 
                     <dt>Processed Date</dt>
                     <dd>{{ transaction.created_at|date("M d, Y H:i:s") }}</dd>
@@ -105,7 +125,7 @@
                 <strong>Verdict Finalized:</strong> This dispute has been resolved as <strong>{{ status|upper }}</strong>. The record is now locked for audit trail integrity.
             </div>
         {% else %}
-            <form method="POST" action="/admin/disputes/{{ dispute.id }}/resolve" class="op-settings-form" style="padding: 0;">
+            <form method="POST" action="/admin/disputes/{{ dispute.id }}/resolve" enctype="multipart/form-data" class="op-settings-form" style="padding: 0;">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 
                 <div class="op-form-group">
@@ -119,9 +139,25 @@
                 </div>
 
                 <div class="op-form-group">
+                    <label for="shipping_carrier">Shipping Carrier (Optional)</label>
+                    <input type="text" name="shipping_carrier" id="shipping_carrier" class="op-input" placeholder="e.g. DHL, FedEx, UPS...">
+                </div>
+
+                <div class="op-form-group">
+                    <label for="tracking_number">Tracking Number (Optional)</label>
+                    <input type="text" name="tracking_number" id="tracking_number" class="op-input" placeholder="e.g. 1Z999AA10123456784...">
+                </div>
+
+                <div class="op-form-group">
+                    <label for="evidence_file">Evidence Document / File (Optional)</label>
+                    <input type="file" name="evidence_file" id="evidence_file" class="op-input" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.ico,.pdf,.zip">
+                    <small>Accepted formats: JPG, PNG, WEBP, SVG, PDF, ZIP. Max upload size is determined by system server config.</small>
+                </div>
+
+                <div class="op-form-group">
                     <label for="resolution">Evidence & Resolution Notes</label>
-                    <textarea name="resolution" id="resolution" class="op-input" rows="5" placeholder="Provide tracking numbers, communications transcripts, or reasons justifying this verdict..." style="resize: vertical;"></textarea>
-                    <small>These notes will be recorded timing-safely in the secure dispute ledger database and system audit log.</small>
+                    <textarea name="resolution" id="resolution" class="op-input" rows="5" placeholder="Provide additional communication transcripts, shipping details, or reasons justifying this verdict..." style="resize: vertical;"></textarea>
+                    <small>These notes and files will be recorded timing-safely in the secure dispute ledger database and system audit log.</small>
                 </div>
 
                 <div class="op-form-actions">

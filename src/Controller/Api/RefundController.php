@@ -9,6 +9,8 @@ use OwnPay\Http\Response;
 use OwnPay\Service\Payment\RefundService;
 use OwnPay\Event\EventManager;
 use OwnPay\Service\System\InputSanitizer;
+use OwnPay\Repository\RefundRepository;
+use OwnPay\Service\System\PaginationService;
 
 /**
  * Refund API Controller
@@ -34,17 +36,24 @@ final class RefundController
     private EventManager $events;
 
     /**
+     * @var RefundRepository The refund data repository.
+     */
+    private RefundRepository $repo;
+
+    /**
      * Constructor.
      *
      * @param Container $c The service container instance.
      * @param RefundService $refunds Service layer managing refund lifecycles.
      * @param EventManager $events The system-wide event manager.
+     * @param RefundRepository $repo The refund data repository.
      */
-    public function __construct(Container $c, RefundService $refunds, EventManager $events)
+    public function __construct(Container $c, RefundService $refunds, EventManager $events, RefundRepository $repo)
     {
         $this->c = $c;
         $this->refunds = $refunds;
         $this->events = $events;
+        $this->repo = $repo;
     }
 
     /**
@@ -109,7 +118,7 @@ final class RefundController
                 'reason'         => InputSanitizer::string($reasonStr),
             ]);
             $this->events->doAction('refund.created', $result);
-            return Response::apiSuccess($result, null, 201);
+            return Response::apiSuccess($this->safeFields($result), null, 201);
         } catch (\InvalidArgumentException $e) {
             return Response::apiError('INVALID_REFUND_PARAMETERS', $e->getMessage(), null, 400);
         } catch (\Throwable $e) {
@@ -144,29 +153,116 @@ final class RefundController
         if (!$db instanceof \OwnPay\Core\Database) {
             return Response::apiError('DATABASE_UNAVAILABLE', 'Database service unavailable', null, 500);
         }
+        $txn = $db->fetchOne(
+            "SELECT id FROM op_transactions 
+             WHERE (trx_id = :trx_id OR gateway_trx_id = :gw_trx_id) AND merchant_id = :mid 
+             LIMIT 1",
+            ['trx_id' => $trxId, 'gw_trx_id' => $trxId, 'mid' => $mid]
+        );
+
+        if (!is_array($txn) || !isset($txn['id'])) {
+            if (str_starts_with($trxId, 'OP-') || str_starts_with($trxId, 'OP_')) {
+                return Response::apiError('TRANSACTION_NOT_FOUND', 'Transaction not found', null, 404);
+            } else {
+                return Response::apiError('TRANSACTION_NOT_FOUND', 'Transaction not found using the gateway transaction ID. It may be an incomplete, pending, or failed payment. Try querying with the OwnPay transaction ID.', null, 404);
+            }
+        }
+
+        $transactionId = is_int($txn['id']) || is_string($txn['id']) ? (int)$txn['id'] : 0;
+
         $refund = $db->fetchOne(
-            "SELECT r.* FROM op_refunds r
-              JOIN op_transactions t ON t.id = r.transaction_id
-              WHERE t.trx_id = :trx_id AND r.merchant_id = :mid
-              ORDER BY r.created_at DESC LIMIT 1",
-            ['trx_id' => $trxId, 'mid' => $mid]
+            "SELECT r.*, t.trx_id FROM op_refunds r
+             LEFT JOIN op_transactions t ON t.id = r.transaction_id
+             WHERE r.transaction_id = :txn_id AND r.merchant_id = :mid
+             ORDER BY r.created_at DESC LIMIT 1",
+            ['txn_id' => $transactionId, 'mid' => $mid]
         );
 
         if (!is_array($refund)) {
             return Response::apiError('REFUND_NOT_FOUND', 'Refund not found', null, 404);
         }
 
-        $data = [
-            'id'             => $refund['id'] ?? null,
-            'uuid'           => $refund['uuid'] ?? null,
-            'transaction_id' => $refund['transaction_id'] ?? null,
-            'amount'         => $refund['amount'] ?? null,
-            'reason'         => $refund['reason'] ?? null,
-            'status'         => $refund['status'] ?? null,
-            'processed_at'   => $refund['processed_at'] ?? null,
-            'created_at'     => $refund['created_at'] ?? null,
-        ];
+        return Response::apiSuccess($this->safeFields($refund));
+    }
 
-        return Response::apiSuccess($data);
+    /**
+     * Retrieve a filtered, paginated list of refunds.
+     *
+     * GET /api/v1/refunds
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The JSON response detailing the paginated refund list.
+     */
+    public function index(Request $req): Response
+    {
+        $midVal = $req->getAttribute('merchant_id');
+        $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
+
+        $pageVal = $req->query('page', '1');
+        $page = max(1, is_int($pageVal) || is_string($pageVal) ? (int)$pageVal : 1);
+
+        $perPageVal = $req->query('per_page', '25');
+        $perPage = min(100, max(1, is_int($perPageVal) || is_string($perPageVal) ? (int)$perPageVal : 25));
+
+        $statusVal = $req->query('status', '');
+        $trxIdVal = $req->query('trx_id', '');
+        $txnIdVal = $req->query('transaction_id', '');
+        $fromVal = $req->query('from', '');
+        $toVal = $req->query('to', '');
+
+        /** @var array{status?: string, trx_id?: string, transaction_id?: int|string, date_from?: string, date_to?: string} $filters */
+        $filters = [];
+        if (is_string($statusVal) && $statusVal !== '') {
+            $filters['status'] = $statusVal;
+        }
+        if (is_string($trxIdVal) && $trxIdVal !== '') {
+            $filters['trx_id'] = $trxIdVal;
+        }
+        if ((is_int($txnIdVal) || is_string($txnIdVal)) && (string)$txnIdVal !== '') {
+            $filters['transaction_id'] = $txnIdVal;
+        }
+        if (is_string($fromVal) && $fromVal !== '') {
+            $filters['date_from'] = $fromVal;
+        }
+        if (is_string($toVal) && $toVal !== '') {
+            $filters['date_to'] = $toVal;
+        }
+
+        $scopedRepo = $this->repo->forTenant($mid);
+        $total = $scopedRepo->countFiltered($filters);
+
+        $pagination = PaginationService::calculate($page, $perPage, $total);
+        $refunds = $scopedRepo->listFiltered($filters, $pagination['per_page'], $pagination['offset']);
+
+        $safe = array_map(fn($r) => $this->safeFields($r), $refunds);
+
+        return Response::apiSuccess($safe, [
+            'page'        => $pagination['page'],
+            'per_page'    => $perPage,
+            'total'       => $total,
+            'total_pages' => $pagination['total_pages'],
+        ]);
+    }
+
+    /**
+     * Map refund data to a safe output schema.
+     *
+     * @param array<string, mixed> $r The database refund record array.
+     * @return array<string, mixed> The safe representation.
+     */
+    private function safeFields(array $r): array
+    {
+        return [
+            'id'             => $r['id'] ?? null,
+            'uuid'           => $r['uuid'] ?? null,
+            'transaction_id' => $r['transaction_id'] ?? null,
+            'trx_id'         => $r['trx_id'] ?? null,
+            'gateway_trx_id' => $r['gateway_trx_id'] ?? null,
+            'amount'         => $r['amount'] ?? null,
+            'reason'         => $r['reason'] ?? null,
+            'status'         => $r['status'] ?? null,
+            'processed_at'   => $r['processed_at'] ?? null,
+            'created_at'     => $r['created_at'] ?? null,
+        ];
     }
 }

@@ -282,26 +282,40 @@ final class LedgerRepository extends BaseRepository
      * @param int $limit The number of records to return per page.
      * @return array{items: array<int, array<string, mixed>>, total: int} A structure containing the paginated rows and total count.
      */
-    public function entriesPaginated(int $merchantId, int $page = 1, int $limit = 50): array
+    public function entriesPaginated(?int $merchantId, int $page = 1, int $limit = 50): array
     {
         $offset = ($page - 1) * $limit;
 
+        // merchantId === null => global "All Brands" view: aggregate entries across brands.
+        $countWhere = $merchantId === null ? '' : 'WHERE merchant_id = :mid';
+        $listWhere  = $merchantId === null ? '' : 'WHERE lt.merchant_id = :mid';
+        $countParams = $merchantId === null ? [] : ['mid' => $merchantId];
+
         $totalVal = $this->db->fetchColumn(
-            "SELECT COUNT(*) FROM op_ledger_transactions WHERE merchant_id = :mid",
-            ['mid' => $merchantId]
+            "SELECT COUNT(*) FROM op_ledger_transactions {$countWhere}",
+            $countParams
         );
         $total = is_scalar($totalVal) ? (int) $totalVal : 0;
 
+        $listParams = ['lim' => $limit, 'off' => $offset];
+        if ($merchantId !== null) {
+            $listParams['mid'] = $merchantId;
+        }
         $items = $this->db->fetchAll(
             "SELECT lt.id, lt.uuid, lt.description, lt.reference_type, lt.reference_id, lt.created_at,
+                    COALESCE(MIN(la.currency), 'BDT') as currency,
+                    SUM(CASE WHEN le.type = 'debit' THEN le.amount ELSE 0 END) as total_amount,
+                    'posted' as status,
+                    CASE WHEN lt.reference_type = 'transaction' THEN 'payment_received' ELSE lt.reference_type END as event_type,
                     GROUP_CONCAT(CONCAT(le.type, ':', le.amount) ORDER BY le.id) as entries_summary
              FROM op_ledger_transactions lt
              LEFT JOIN op_ledger_entries le ON le.ledger_transaction_id = lt.id
-             WHERE lt.merchant_id = :mid
+             LEFT JOIN op_ledger_accounts la ON la.id = le.account_id
+             {$listWhere}
              GROUP BY lt.id
              ORDER BY lt.created_at DESC
              LIMIT :lim OFFSET :off",
-            ['mid' => $merchantId, 'lim' => $limit, 'off' => $offset]
+            $listParams
         );
 
         return ['items' => $items, 'total' => $total];

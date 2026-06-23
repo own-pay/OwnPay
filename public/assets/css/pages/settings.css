@@ -161,7 +161,7 @@
     margin: 0 0 6px;
     font-size: 16px;
     font-weight: 600;
-    color: #1a202c;
+    color: var(--op-text);
 }
 
 .op-opt-tool-info p {
@@ -171,7 +171,7 @@
 
 .op-divider {
     border: 0;
-    border-top: 1px solid #e2e8f0;
+    border-top: 1px solid var(--op-border);
     margin: 12px 0;
 }
 
@@ -179,6 +179,11 @@
     background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
     border: 1px dashed #cbd5e1;
     border-radius: 12px;
+}
+
+[data-theme="dark"] .op-gradient-panel {
+    background: linear-gradient(135deg, var(--op-bg-input) 0%, var(--op-bg-hover) 100%);
+    border-color: var(--op-border);
 }
 
 .op-max-width-600 {

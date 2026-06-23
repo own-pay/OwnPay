@@ -4,11 +4,19 @@
 
 {% block content %}
 <div class="op-page-header">
-    <h1>Themes</h1>
+    <div>
+        <h1>Themes</h1>
+        <p class="op-page-subtitle">Select and configure sovereign checkout page styling themes.</p>
+    </div>
+    {% if is_global_view ?? true %}
     <a href="/admin/themes/install" class="op-btn op-btn-primary">
         <span class="op-icon">+</span> Install Theme
     </a>
+    {% endif %}
 </div>
+{% if not (is_global_view ?? true) %}
+{% include 'admin/partials/_all_brands_only.twig' with {title: 'Themes are managed from All Brands', message: 'Themes are uploaded once at the platform level and then selected per brand.'} only %}
+{% endif %}
 
 
 

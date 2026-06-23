@@ -112,7 +112,8 @@ final class BearerAuthMiddleware
             $scopes = $scopesRaw;
         }
         if (!is_array($scopes)) {
-            $scopes = ['read', 'write']; // Default fallback for backwards compatibility
+            // Fail closed: an API key whose scopes cannot be parsed is granted nothing.
+            $scopes = [];
         }
 
         $method = $request->method();

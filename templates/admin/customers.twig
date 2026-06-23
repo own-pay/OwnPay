@@ -5,7 +5,7 @@
 <div class="op-page-header">
     <div>
         <h1>Customers</h1>
-        <p class="op-text-muted op-mt-1">All customers across your active brand.</p>
+        <p class="op-page-subtitle">View customer profiles, contact info, transaction history, and payment lifecycles.</p>
     </div>
     <a href="/admin/customers/create" class="op-btn op-btn-primary">
         <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="op-mr-1" style="vertical-align:middle"><path d="M12 5v14M5 12h14"/></svg>
@@ -29,9 +29,12 @@
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                 <input type="search" name="q" value="{{ filters.q|default('') }}" placeholder="Search name, email, phone…" class="op-input op-filter-input" autofocus>
             </div>
-            <button type="submit" class="op-btn op-btn-primary op-btn-sm">Search</button>
+            <button type="submit" class="op-filter-btn">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                Filter
+            </button>
             {% if filters.q is defined and filters.q %}
-                <a href="/admin/customers" class="op-btn op-btn-outline op-btn-sm">Clear</a>
+                <a href="/admin/customers" class="op-filter-btn">Clear</a>
             {% endif %}
         </form>
     </div>

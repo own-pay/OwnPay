@@ -62,6 +62,8 @@ final class CustomerController
             'id'           => $c['id'],
             'uuid'         => $c['uuid'],
             'name'         => $c['name'] ?? null,
+            'email'        => $c['email'] ?? null,
+            'phone'        => $c['phone'] ?? null,
             'email_masked' => $c['email_masked'] ?? null,
             'phone_masked' => $c['phone_masked'] ?? null,
             'created_at'   => $c['created_at'],
@@ -81,7 +83,7 @@ final class CustomerController
      */
     public function show(Request $req): Response
     {
-        $identifier = trim($req->param('identifier'));
+        $identifier = rawurldecode(trim($req->param('identifier')));
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
 

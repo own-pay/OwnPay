@@ -112,6 +112,36 @@ final class CsrfMiddleware
      */
     private function forbidden(Request $request, string $reason): Response
     {
+        $sessionToken = 'none';
+        if (isset($_SESSION['_csrf_token']) && is_string($_SESSION['_csrf_token'])) {
+            $sessionToken = $_SESSION['_csrf_token'];
+        }
+
+        $submittedToken = $request->post('_csrf_token');
+        if (!is_string($submittedToken)) {
+            $submittedToken = $request->header('X-CSRF-Token');
+            if ($submittedToken === '') {
+                $submittedToken = 'none';
+            }
+        }
+
+        $logMsg = "[CSRF Failure] Path: " . $request->path() . " | Reason: " . $reason;
+        $logMsg .= " | Session Token: " . $sessionToken;
+        $logMsg .= " | Submitted Token: " . $submittedToken;
+
+        try {
+            if (isset($this->container) && $this->container->has(\OwnPay\Service\System\Logger::class)) {
+                $logger = $this->container->get(\OwnPay\Service\System\Logger::class);
+                if ($logger instanceof \OwnPay\Service\System\Logger) {
+                    $logger->warning($logMsg);
+                }
+            } else {
+                error_log($logMsg);
+            }
+        } catch (\Throwable) {
+            error_log($logMsg);
+        }
+
         if ($request->expectsJson()) {
             return Response::json([
                 'success' => false,
@@ -133,11 +163,11 @@ final class CsrfMiddleware
             return Response::redirect($backPath);
         }
 
-        return Response::html('<h1>403 Forbidden</h1><p>CSRF validation failed. Please refresh and try again.</p>', 403);
+        return Response::html("<h1>403 Forbidden</h1><p>CSRF validation failed: " . htmlspecialchars($reason, ENT_QUOTES, 'UTF-8') . ". Please refresh and try again.</p>", 403);
     }
 
     /**
-     * Validates a given token, supporting legacy helpers and HMAC token validation options.
+     * Validates a given token via the shared SecurityHelpers comparison and HMAC token validation.
      *
      * @param string $token The token value to validate.
      * @param Request|null $request The request context when available.

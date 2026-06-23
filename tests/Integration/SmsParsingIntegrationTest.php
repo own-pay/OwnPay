@@ -33,13 +33,6 @@ class SmsParsingIntegrationTest extends IntegrationTestCase
             return;
         }
 
-        echo "\nDB ENV values: " . json_encode([
-            'host' => $_ENV['DB_HOST'] ?? null,
-            'name' => $_ENV['DB_NAME'] ?? null,
-            'user' => $_ENV['DB_USER'] ?? null,
-            'pass' => $_ENV['DB_PASS'] ?? null,
-        ]) . "\n";
-
         $db = Database::getInstance();
         $this->templateRepo = new SmsTemplateRepository($db);
         $this->dataRepo = new SmsDataRepository($db);

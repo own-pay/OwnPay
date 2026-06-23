@@ -169,8 +169,9 @@ final class PluginController
         }
 
         return $this->renderAdminPage('admin/plugins/index.twig', [
-            'plugins'     => $plugins,
-            'active_page' => 'plugins',
+            'plugins'        => $plugins,
+            'active_page'    => 'plugins',
+            'is_global_view' => $this->isGlobalBrandView(),
         ]);
     }
 
@@ -183,6 +184,10 @@ final class PluginController
      */
     public function installForm(Request $request): Response
     {
+        if ($guard = $this->requireGlobalView('/admin/plugins', 'upload a plugin')) {
+            return $guard;
+        }
+
         $maxUpload = min(
             $this->parseSize(ini_get('upload_max_filesize') ?: '2M'),
             $this->parseSize(ini_get('post_max_size') ?: '8M')
@@ -203,6 +208,40 @@ final class PluginController
      */
     public function upload(Request $request): Response
     {
+        if ($guard = $this->requireGlobalView('/admin/plugins', 'upload a plugin')) {
+            return $guard;
+        }
+
+        // 1. Check if this is a confirmed update request
+        $confirmUpdatePost = $request->post('confirm_update');
+        $confirmUpdate = is_scalar($confirmUpdatePost) ? (int) $confirmUpdatePost : 0;
+        $tempZipPost = $request->post('temp_zip');
+        $tempZip = is_string($tempZipPost) ? $tempZipPost : '';
+
+        if ($confirmUpdate === 1 && $tempZip !== '') {
+            $configApp = $this->c->get('config.app');
+            $paths = is_array($configApp) && isset($configApp['paths']) && is_array($configApp['paths']) ? $configApp['paths'] : [];
+            $storagePath = is_string($paths['storage'] ?? null) ? $paths['storage'] : '';
+            $tempUploadsDir = realpath($storagePath . '/temp_uploads');
+            $realTempZip = realpath($tempZip);
+
+            if ($tempUploadsDir === false || $realTempZip === false || !str_starts_with($realTempZip, $tempUploadsDir)) {
+                return $this->redirectBack($request, 'Invalid temporary ZIP path');
+            }
+
+            $result = $this->manager->update($realTempZip);
+            @unlink($realTempZip);
+
+            if (!$result['success']) {
+                return $this->redirectBack($request, $result['error'] ?? 'Update failed');
+            }
+
+            $slug = $result['slug'] ?? 'unknown';
+            $this->session->flashSuccess("Plugin '{$slug}' updated successfully!");
+            return Response::redirect('/admin/plugins');
+        }
+
+        // 2. Standard upload flow
         $file = $request->file('plugin_zip');
         if ($file === null || $file['error'] !== UPLOAD_ERR_OK) {
             return $this->redirectBack($request, 'No file uploaded or upload failed');
@@ -220,11 +259,72 @@ final class PluginController
         $result = $this->manager->install($tmpName);
 
         if (!$result['success']) {
+            if (isset($result['code']) && $result['code'] === 'already_installed') {
+                $configApp = $this->c->get('config.app');
+                $paths = is_array($configApp) && isset($configApp['paths']) && is_array($configApp['paths']) ? $configApp['paths'] : [];
+                $storagePath = is_string($paths['storage'] ?? null) ? $paths['storage'] : '';
+                $tempUploadsDir = $storagePath . '/temp_uploads';
+                if (!is_dir($tempUploadsDir)) {
+                    @mkdir($tempUploadsDir, 0755, true);
+                }
+                $slug = is_string($result['slug'] ?? null) ? $result['slug'] : 'unknown';
+                $tempZipName = $slug . '_' . bin2hex(random_bytes(8)) . '.zip';
+                $persistentTempZip = $tempUploadsDir . '/' . $tempZipName;
+                copy($tmpName, $persistentTempZip);
+
+                $newVersion = is_string($result['new_version'] ?? null) ? $result['new_version'] : '0.0.0';
+                $existingVersion = is_string($result['existing_version'] ?? null) ? $result['existing_version'] : '0.0.0';
+                $compare = version_compare($newVersion, $existingVersion);
+                $versionRelation = 'new';
+                if ($compare === 0) {
+                    $versionRelation = 'same';
+                } elseif ($compare < 0) {
+                    $versionRelation = 'older';
+                }
+
+                return $this->renderAdminPage('admin/plugins/confirm_update.twig', [
+                    'slug'             => $slug,
+                    'existing_version' => $existingVersion,
+                    'new_version'      => $newVersion,
+                    'version_relation' => $versionRelation,
+                    'has_migrations'   => !empty($result['has_migrations']),
+                    'temp_zip'         => $persistentTempZip,
+                    'active_page'      => 'plugins',
+                ]);
+            }
             return $this->redirectBack($request, $result['error'] ?? 'Installation failed');
         }
 
         $slug = $result['slug'] ?? 'unknown';
         $this->session->flashSuccess("Plugin '{$slug}' installed successfully!");
+        return Response::redirect('/admin/plugins');
+    }
+
+    /**
+     * Cancels the update flow and deletes the temporary ZIP file.
+     *
+     * @param Request $request The incoming HTTP request.
+     * @return Response The redirect response.
+     */
+    public function cancelUpload(Request $request): Response
+    {
+        if ($guard = $this->requireGlobalView('/admin/plugins', 'upload a plugin')) {
+            return $guard;
+        }
+
+        $tempZipPost = $request->post('temp_zip');
+        $tempZip = is_string($tempZipPost) ? $tempZipPost : '';
+        if ($tempZip !== '') {
+            $configApp = $this->c->get('config.app');
+            $paths = is_array($configApp) && isset($configApp['paths']) && is_array($configApp['paths']) ? $configApp['paths'] : [];
+            $storagePath = is_string($paths['storage'] ?? null) ? $paths['storage'] : '';
+            $tempUploadsDir = realpath($storagePath . '/temp_uploads');
+            $realTempZip = realpath($tempZip);
+
+            if ($tempUploadsDir !== false && $realTempZip !== false && str_starts_with($realTempZip, $tempUploadsDir)) {
+                @unlink($realTempZip);
+            }
+        }
         return Response::redirect('/admin/plugins');
     }
 
@@ -301,6 +401,10 @@ final class PluginController
      */
     public function uninstall(Request $request): Response
     {
+        if ($guard = $this->requireGlobalView('/admin/plugins', 'uninstall a plugin')) {
+            return $guard;
+        }
+
         $slug = (string) $request->param('slug');
         try {
             $result = $this->manager->uninstall($slug);
@@ -326,6 +430,10 @@ final class PluginController
      */
     public function trash(Request $request): Response
     {
+        if ($guard = $this->requireGlobalView('/admin/plugins', 'manage plugin files')) {
+            return $guard;
+        }
+
         $slug = (string) $request->param('slug');
         $result = $this->manager->trash($slug);
 
@@ -347,6 +455,10 @@ final class PluginController
      */
     public function restore(Request $request): Response
     {
+        if ($guard = $this->requireGlobalView('/admin/plugins', 'manage plugin files')) {
+            return $guard;
+        }
+
         $slug = (string) $request->param('slug');
         $result = $this->manager->restore($slug);
 

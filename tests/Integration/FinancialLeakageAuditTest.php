@@ -93,7 +93,9 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $adapter->method('slug')->willReturn('stripe');
         $adapter->method('initiate')->willReturn(['success' => true, 'redirect_url' => 'https://stripe.com/checkout']);
         $adapter->method('supportedCurrencies')->willReturn(['BDT', 'USD']);
-        $adapter->method('verify')->willReturn(['success' => true, 'gateway_trx_id' => 'GW_TRX_123']);
+        // A legitimate gateway callback reports the provider-verified paid amount;
+        // the core now requires it to match the stored transaction (FIND-004).
+        $adapter->method('verify')->willReturn(['success' => true, 'gateway_trx_id' => 'GW_TRX_123', 'amount' => '100.00']);
         $adapter->method('refund')->willReturn(['success' => true]);
         
         $this->bridge->registerAdapter($adapter);
@@ -174,6 +176,37 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $this->assertSame('100.00', bcadd($cashAcc['balance'], '0', 2));
         $this->assertSame('95.00', bcadd($payableAcc['balance'], '0', 2));
         $this->assertSame('5.00', bcadd($feeAcc['balance'], '0', 2));
+    }
+
+    /**
+     * FIND-004 regression: a callback whose provider-verified amount does NOT match
+     * the stored transaction must never complete the payment or post to the ledger.
+     * This is the core backstop against forged/replayed gateway confirmations.
+     */
+    public function testCallbackWithMismatchedAmountIsRejected(): void
+    {
+        // Adapter that reports success but an amount that differs from the order.
+        $forge = $this->createStub(GatewayAdapterInterface::class);
+        $forge->method('slug')->willReturn('forgegw');
+        $forge->method('supportedCurrencies')->willReturn(['BDT']);
+        $forge->method('verify')->willReturn(['success' => true, 'gateway_trx_id' => 'GW_FORGE', 'amount' => '1.00']);
+        $this->bridge->registerAdapter($forge);
+
+        $this->db->execute(
+            "INSERT INTO op_transactions (id, merchant_id, uuid, trx_id, gateway_slug, amount, fee, net_amount, currency, status, payment_intent_id)
+             VALUES (2002, 1, 'tx-uuid-2', 'TRX2002', 'forgegw', 100.00, 5.00, 95.00, 'BDT', 'pending', 2002)"
+        );
+
+        $res = $this->gatewayApiService->handleCallback(1, 'forgegw', ['trx_id' => 'TRX2002', 'amount' => '1.00']);
+
+        $this->assertFalse($res['success'], 'Mismatched-amount callback must not succeed.');
+        $this->assertSame('Transaction amount mismatch', $res['error'] ?? null);
+
+        // Transaction must remain pending; no ledger transaction may exist for it.
+        $txn = $this->db->fetchOne("SELECT status FROM op_transactions WHERE id = 2002");
+        $this->assertSame('pending', $txn['status'] ?? null);
+        $ledgerCount = (int) $this->db->fetchColumn("SELECT COUNT(*) FROM op_ledger_transactions");
+        $this->assertSame(0, $ledgerCount, 'No ledger postings may occur for a rejected callback.');
     }
 
     /**
@@ -293,18 +326,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         
         // Assert Request 1 succeeded or redirected (meaning it created a transaction)
         $this->assertNotNull($res1);
-        fwrite(STDERR, "\n[DEBUG] res1 Status: " . $res1->getStatusCode() . "\n");
-        fwrite(STDERR, "[DEBUG] res1 Body: " . $res1->getBody() . "\n");
-
-        if ($res1->getStatusCode() === 200) {
-            try {
-                $locks = $this->db->fetchAll("SELECT * FROM performance_schema.data_locks");
-                fwrite(STDERR, "\n[DEBUG] performance_schema.data_locks:\n" . print_r($locks, true) . "\n");
-            } catch (\Throwable) {
-                $trx = $this->db->fetchAll("SELECT * FROM information_schema.innodb_trx");
-                fwrite(STDERR, "\n[DEBUG] information_schema.innodb_trx:\n" . print_r($trx, true) . "\n");
-            }
-        }
 
         // Verify one transaction was created
         $countBefore = (int) $this->db->fetchColumn("SELECT COUNT(*) FROM op_transactions WHERE payment_intent_id = 2001");

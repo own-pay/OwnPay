@@ -13,11 +13,12 @@
 
 ## 1. Project Overview & Business Model
 
-**OwnPay** is an enterprise-grade, open-source payment gateway platform built with PHP 8.2+. 
+**OwnPay** is an enterprise-grade, open-source payment gateway platform built with PHP 8.3+. 
 
 ### The Core Sovereign Model
 * **Single-Owner, Multi-Brand (Store):** OwnPay is NOT a SaaS platform. A single super-administrator owns and controls the entire platform globally. Multiple brands/stores (stored in `op_merchants`) are managed under this owner.
-* **No Self-Registration:** Admin creates brands and invites staff members, who are assigned to specific brands with role-based permissions (`op_roles` + `op_role_permissions`).
+* **"All Brands" platform scope:** A reserved platform-owner row (`op_merchants.is_platform = 1`, resolved via `BrandContext::getPlatformId()`) represents the global "All Brands" scope. Its config is the fallback inherited by every brand. The All-Brands admin view reads across all brands (unscoped `TenantScope`); a brand view is scoped to its own `merchant_id`. Writes route through `BrandContext::getWriteMerchantId()` — the platform id in All-Brands view, else the active brand. This row is excluded from the brand switcher and is never a selectable brand.
+* **No Self-Registration:** Admin creates brands and invites staff members, who are assigned to specific brands with role-based permissions (`op_roles` + `op_role_permissions`). Cross-brand ("All Brands") access is gated by the `brands.access_all` permission.
 * **White-Labeling:** Every brand operates under its own custom domain (`op_domains`) and theme config, completely masking the master `APP_DOMAIN`.
 * **Database Identifier:** The tenant column remains `merchant_id` in all tables.
 
@@ -30,11 +31,11 @@ ownpay/
 ├── config/                     # Application configurations (App, Database, Hooks, Middleware, Services, Routes)
 ├── database/                   # Schema DDL (schema.sql) and seeds
 ├── docs/                       # Migration plans and high-level architectural references
-├── modules/                    # Sandbox-discovered Gateway, Addon, and Theme plugins
+├── modules/                    # Owner-trusted Gateway, Addon, and Theme plugins (WordPress-style)
 ├── public/                     # Single web root entry point (index.php)
 ├── src/                        # PSR-4 Application source (Kernel, Container, Repositories, Services, etc.)
 ├── storage/                    # Storage paths (logs, sessions, cache, backups, .installed marker)
-├── templates/                  # Auto-escaped Twig 3.14 templates (Admin, Checkout, Email, Error)
+├── templates/                  # Auto-escaped Twig 3.26 templates (Admin, Checkout, Email, Error)
 └── tests/                      # PHPUnit test cases
 ```
 

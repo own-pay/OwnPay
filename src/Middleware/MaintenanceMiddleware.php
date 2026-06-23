@@ -3,7 +3,6 @@ declare(strict_types=1);
 
 namespace OwnPay\Middleware;
 
-use OwnPay\Container;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
@@ -11,23 +10,38 @@ use OwnPay\Http\Response;
  * Middleware handling Maintenance Mode checks.
  *
  * Intercepts requests when a maintenance lock file exists at `storage/.maintenance`.
- * Bypasses installation flows, system updates, and active administrative sessions.
+ * Shares its passthrough whitelist with the Kernel's maintenance gate so the two
+ * layers can never disagree about which routes stay reachable.
  */
 final class MaintenanceMiddleware
 {
     /**
-     * @var Container The dependency injection container.
+     * Path prefixes that stay reachable during maintenance.
+     *
+     * Single source of truth shared with the Kernel's maintenance gate (AUD-12):
+     * gateway callbacks/webhooks/cron MUST process during maintenance or payments
+     * are lost, and /login + /admin must work so the operator can disable
+     * maintenance from the panel. Matching is segment-aware ('/login' and
+     * '/login/...', never '/loginfoo').
+     *
+     * @var list<string>
      */
-    private Container $container;
+    public const PASSTHROUGH_PREFIXES = ['/admin', '/login', '/webhook', '/cron', '/checkout'];
 
     /**
-     * Constructs a new MaintenanceMiddleware instance.
+     * Checks a request path against the maintenance passthrough whitelist.
      *
-     * @param Container $container The dependency injection container.
+     * @param string $path Normalized request path.
+     * @return bool True when the path must bypass maintenance blocking.
      */
-    public function __construct(Container $container)
+    public static function isPassthroughPath(string $path): bool
     {
-        $this->container = $container;
+        foreach (self::PASSTHROUGH_PREFIXES as $prefix) {
+            if ($path === $prefix || str_starts_with($path, $prefix . '/')) {
+                return true;
+            }
+        }
+        return false;
     }
 
     /**
@@ -47,19 +61,9 @@ final class MaintenanceMiddleware
             return $next($request);
         }
 
-        // Skip for admin routes when authenticated (allows disabling maintenance from admin)
-        // Start session if needed before checking auth since maintenance mode runs in global group
-        if (str_starts_with($request->path(), '/admin')) {
-            // SESSION-DEDUP FIX: Delegate to SessionMiddleware's shared helper
-            // to ensure idle timeout, ID regeneration, and cookie params stay in sync.
-            SessionMiddleware::ensureStarted($this->container, $request);
-            if (!empty($_SESSION['auth_user_id'])) {
-                return $next($request);
-            }
-        }
-
-        // Skip for /admin/system-update route even without session (escape hatch)
-        if ($request->path() === '/admin/system-update') {
+        // Honor the shared maintenance whitelist (same gate the Kernel applies)
+        // so login, admin, webhooks, cron, and in-flight checkouts keep working.
+        if (self::isPassthroughPath($request->path())) {
             return $next($request);
         }
 

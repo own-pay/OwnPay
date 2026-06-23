@@ -64,8 +64,25 @@ final class DomainUrlService
             return rtrim($appUrl, '/');
         }
 
-        if ($req !== null && $req->host() !== '' && $req->host() !== 'localhost') {
-            return $req->scheme() . '://' . $req->host();
+        // Last-resort fallback (reached only when APP_URL is unset). The Host
+        // header is attacker-controlled, and this value is used to build callback
+        // URLs handed to external payment gateways — an unvalidated Host would let
+        // an attacker redirect gateway callbacks to their own server. Only trust
+        // the request host when it matches the configured APP_DOMAIN or this
+        // brand's verified custom domain.
+        if ($req !== null) {
+            $requestHost = $req->host();
+            $requestHostName = strtolower(explode(':', $requestHost)[0]);
+            if ($requestHostName !== '' && $requestHostName !== 'localhost') {
+                $appDomain = strtolower(explode(':', $this->envGet('APP_DOMAIN'))[0]);
+                $brandDomain = $this->getBrandDomain($merchantId);
+                $brandHostName = $brandDomain !== null ? strtolower($brandDomain) : '';
+                if (($appDomain !== '' && $requestHostName === $appDomain)
+                    || ($brandHostName !== '' && $requestHostName === $brandHostName)
+                ) {
+                    return $req->scheme() . '://' . $requestHost;
+                }
+            }
         }
 
         return 'https://localhost';
@@ -120,10 +137,6 @@ final class DomainUrlService
      */
     public function getBrandDomain(int $merchantId): ?string
     {
-        if ($merchantId === 1) {
-            return null;
-        }
-
         if (array_key_exists($merchantId, $this->domainCache)) {
             return $this->domainCache[$merchantId];
         }

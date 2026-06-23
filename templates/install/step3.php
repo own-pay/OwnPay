@@ -1,17 +1,21 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="light">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="robots" content="noindex,nofollow">
-    <title>Admin Account · Own Pay Setup</title>
-    <link rel="stylesheet" href="/assets/css/installer.css?v=3">
+    <title>Admin Account · OwnPay Setup</title>
+    <link rel="stylesheet" href="/assets/css/installer.css?v=4">
+    <script nonce="<?php echo bin2hex(random_bytes(16)); ?>">
+        (function(){var t=localStorage.getItem('op-theme');if(t==='dark')document.documentElement.setAttribute('data-theme','dark');})();
+    </script>
 </head>
 <body>
 <header class="ins-header">
     <div class="ins-brand">
-        <div class="ins-logo-fallback">OP</div>
-        <span class="ins-name">Own Pay <span>Setup</span></span>
+        <img src="/assets/img/logo-light.svg" alt="OwnPay" class="op-logo-light" style="height: 32px; width: auto;">
+        <img src="/assets/img/logo-dark.svg" alt="OwnPay" class="op-logo-dark" style="height: 32px; width: auto;">
+        <span class="ins-name">OwnPay <span>Setup</span></span>
     </div>
     <div class="ins-steps">
         <div class="ins-step done"><span class="ins-step-num">✓</span><span>Requirements</span></div>
@@ -50,7 +54,7 @@
                 </div>
             </div>
             <div id="adminMsg" class="ins-msg"></div>
-            <button type="submit" class="ins-btn" id="adminBtn">
+            <button type="submit" class="ins-btn ins-btn-primary" id="adminBtn">
                 <span id="adminBtnText">Create Admin Account →</span>
             </button>
         </form>
@@ -96,7 +100,19 @@ document.getElementById('adminForm').addEventListener('submit', async function(e
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(body)
         });
-        var d = await r.json();
+        
+        var text = await r.text();
+        var d;
+        try {
+            d = JSON.parse(text);
+        } catch (e) {
+            msg.className = 'ins-msg ins-msg-err';
+            msg.innerHTML = '<strong>Server Error</strong><br>' + (text.substring(0, 300).replace(/</g, '&lt;').replace(/>/g, '&gt;') || 'Invalid response from server.');
+            btn.disabled = false;
+            btnText.textContent = 'Create Admin Account →';
+            return;
+        }
+
         if (d.success) {
             msg.className = 'ins-msg ins-msg-ok';
             msg.textContent = '✓ Admin account created successfully';
@@ -104,13 +120,13 @@ document.getElementById('adminForm').addEventListener('submit', async function(e
             setTimeout(function() { location.href = '?step=4'; }, 1000);
         } else {
             msg.className = 'ins-msg ins-msg-err';
-            msg.textContent = '✗ ' + (d.error || 'Failed to create account');
+            msg.innerHTML = '<strong>Account Creation Failed</strong><br>' + (d.error || 'Could not create the admin account. The email or username may already be taken.');
             btn.disabled = false;
             btnText.textContent = 'Create Admin Account →';
         }
     } catch (err) {
         msg.className = 'ins-msg ins-msg-err';
-        msg.textContent = '✗ Network connection failed. Please check your PHP server logs.';
+        msg.innerHTML = '<strong>Network Error</strong><br>' + (err.message || 'Could not reach the server. Ensure your PHP server is running.');
         btn.disabled = false;
         btnText.textContent = 'Create Admin Account →';
     }

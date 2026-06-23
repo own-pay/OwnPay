@@ -84,26 +84,84 @@ final class DomainMiddleware
         $repo = $this->container->get(DomainRepository::class);
         $domainRecord = $repo->findByDomain($domain);
 
+        $path = $request->path();
+
+        /** @var \OwnPay\Service\System\Logger|null $logger */
+        $logger = null;
+        if ($this->container->has(\OwnPay\Service\System\Logger::class)) {
+            $loggerObj = $this->container->get(\OwnPay\Service\System\Logger::class);
+            if ($loggerObj instanceof \OwnPay\Service\System\Logger) {
+                $logger = $loggerObj;
+            }
+        }
+
         // Enforce access control: reject requests targeting unrecognized or inactive domain records.
         // This mitigates unscoped domain spoofing and potential routing leakage.
-        if ($domainRecord === null || $domainRecord['status'] !== 'active') {
+        if ($domainRecord === null || $domainRecord['status'] === 'inactive') {
+            if ($logger !== null) {
+                $status = $domainRecord ? $domainRecord['status'] : 'unregistered';
+                $logger->warning("DomainMiddleware: Blocked access to unrecognized or inactive domain [{$domain}] (status: {$status}). Path: [{$path}]");
+            }
             return Response::html('<h1>404 Not Found</h1>', 404);
         }
 
         // Enforce domain verification check: require validated DNS settings for active custom domains.
-        if (!(bool) $domainRecord['dns_verified']) {
+        if (!(bool) $domainRecord['dns_verified'] || $domainRecord['status'] === 'pending') {
             return Response::html('<h1>Domain Not Verified</h1><p>DNS verification pending.</p>', 503);
+        }
+
+        // Root path redirection
+        if ($path === '/' || $path === '') {
+            $redirectUrl = $domainRecord['redirect_url'] ?? '';
+            if (is_string($redirectUrl) && $redirectUrl !== '') {
+                return Response::redirect($redirectUrl);
+            }
+            return Response::html('<h1>404 Not Found</h1>', 404);
         }
 
         // Restrict administrative actions: deny route pathways pointing to `/admin` or `/admin/*`
         // when requested via a merchant's custom domain, throwing a hard 404 response to maintain
         // strict isolation of the primary admin panel.
-        $path = $request->path();
         if (str_starts_with($path, '/admin/') || $path === '/admin') {
+            if ($logger !== null) {
+                $logger->warning("DomainMiddleware: Blocked administrative path [{$path}] on custom domain [{$domain}]");
+            }
             return Response::html('', 404);
         }
 
+        // Enforce strict routing based on domain type (checkout, api)
+        $domainType = $domainRecord['type'] ?? 'checkout';
+        $isAsset = str_starts_with($path, '/assets/') 
+            || str_starts_with($path, '/storage/') 
+            || $path === '/favicon.ico';
+
+        if (!$isAsset) {
+            if ($domainType === 'checkout') {
+                $isCheckoutRoute = str_starts_with($path, '/checkout/') 
+                    || str_starts_with($path, '/invoice/') 
+                    || str_starts_with($path, '/pay/')
+                    || str_starts_with($path, '/webhook/');
+                
+                if (!$isCheckoutRoute) {
+                    if ($logger !== null) {
+                        $logger->warning("DomainMiddleware: Blocked non-checkout path [{$path}] on checkout domain [{$domain}]");
+                    }
+                    return Response::html('<h1>404 Not Found</h1>', 404);
+                }
+            } elseif ($domainType === 'api') {
+                if (!str_starts_with($path, '/api/')) {
+                    if ($logger !== null) {
+                        $logger->warning("DomainMiddleware: Blocked non-API path [{$path}] on API domain [{$domain}]");
+                    }
+                    return Response::html('<h1>404 Not Found</h1>', 404);
+                }
+            }
+        }
+
         if (!isset($domainRecord['merchant_id']) || !is_scalar($domainRecord['merchant_id'])) {
+            if ($logger !== null) {
+                $logger->warning("DomainMiddleware: Invalid merchant_id for domain [{$domain}]");
+            }
             return Response::html('<h1>404 Not Found</h1>', 404);
         }
         $merchantId = (int) $domainRecord['merchant_id'];
@@ -115,6 +173,9 @@ final class DomainMiddleware
         }
         $merchant = $merchantRepo->find($merchantId);
         if ($merchant === null || ($merchant['status'] ?? 'active') !== 'active') {
+            if ($logger !== null) {
+                $logger->warning("DomainMiddleware: Merchant [{$merchantId}] is inactive or suspended for domain [{$domain}]");
+            }
             return Response::html('<h1>404 Not Found</h1>', 404);
         }
 

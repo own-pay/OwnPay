@@ -2,14 +2,26 @@
 {% block title %}Balance Verification — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
-    <h1>Balance Verification</h1>
+    <div>
+        <h1>Balance Verification</h1>
+        <p class="op-page-subtitle">Run automated audits to verify that the double-entry accounting ledger balances perfectly.</p>
+    </div>
     <div class="op-header-actions">
         <form method="POST" action="/admin/balance-verification/run" class="op-filter-bar">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-            <select name="currency" class="op-input op-input-sm">
-                {% for gw in gateways %}<option value="{{ gw.slug }}">{{ gw.name }}</option>{% endfor %}
-                <option value="BDT" selected>BDT</option>
-            </select>
+            <div class="op-custom-dropdown">
+                <input type="hidden" name="currency" value="BDT">
+                <button type="button" class="op-custom-dropdown-btn">
+                    <span class="op-custom-dropdown-label">BDT</span>
+                    <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="op-custom-dropdown-menu">
+                    {% for gw in gateways %}
+                    <button type="button" class="op-custom-dropdown-option" data-value="{{ gw.slug }}">{{ gw.name }}</button>
+                    {% endfor %}
+                    <button type="button" class="op-custom-dropdown-option active" data-value="BDT">BDT</button>
+                </div>
+            </div>
             <button type="submit" class="op-btn op-btn-sm op-btn-primary">Run Verification</button>
         </form>
     </div>

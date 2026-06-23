@@ -1,6 +1,6 @@
 <IfModule mod_rewrite.c>
     RewriteEngine On
-    RewriteBase /
+    # RewriteBase /
 
     # Pass Authorization header to PHP (Apache mod_fcgid strips it by default)
     RewriteCond %{HTTP:Authorization} .+

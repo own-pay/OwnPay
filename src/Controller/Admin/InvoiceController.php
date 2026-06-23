@@ -74,8 +74,10 @@ final class InvoiceController
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         $mid = 0;
+        $isGlobal = false;
         if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
             $brand->resolveFromRequest($req);
+            $isGlobal = $brand->isGlobalView();
             $activeId = $brand->getActiveBrandId();
             if ($activeId !== null) {
                 $mid = $activeId;
@@ -84,7 +86,7 @@ final class InvoiceController
         $pageVal = $req->query('page', '1');
         $page = max(1, is_scalar($pageVal) && is_numeric($pageVal) ? (int) $pageVal : 1);
 
-        $invoices = $this->invoices->listForMerchant($mid, $page);
+        $invoices = $this->invoices->listForMerchant($isGlobal ? null : $mid, $page);
 
         // Decrypt customer names for display
         $enc = $this->c->get(FieldEncryptor::class);
@@ -97,7 +99,7 @@ final class InvoiceController
             unset($inv);
         }
 
-        $pagination = $this->invoices->pagination($mid, $page);
+        $pagination = $this->invoices->pagination($isGlobal ? null : $mid, $page);
 
         /** @var \OwnPay\Service\Domain\DomainUrlService $urlService */
         $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
@@ -142,6 +144,9 @@ final class InvoiceController
         $data = $req->post();
         /** @var array{invoice_number?: string, customer_id?: int|string, due_date?: string|null, notes?: string|null, currency?: string, tax?: float|int|string, discount?: float|int|string, items?: array<int, array{description?: string, quantity?: int|string, unit_price?: float|int|string, amount?: float|int|string}>} $postData */
         $postData = is_array($data) ? $data : [];
+        if ($guard = $this->requireActiveBrand($mid, '/admin/invoices')) {
+            return $guard;
+        }
         $invoice = $this->invoices->create($mid, $postData);
         $this->events->doAction('invoice.created', $invoice);
 
@@ -231,11 +236,16 @@ final class InvoiceController
     }
 
     /**
-     * Generates a dynamic PDF of the target invoice and initiates a file download.
+     * Renders a print-friendly invoice document for the browser.
+     *
+     * InvoiceService::generatePdf() returns a self-contained, print-ready HTML
+     * document (PdfService wraps it with @page/A4 print styles). It is served
+     * inline so the administrator can review it and use the browser's
+     * Print → "Save as PDF" to export — there is no binary-PDF engine bundled.
      *
      * @param Request $req The incoming HTTP request.
      *
-     * @return Response The PDF file download response.
+     * @return Response The printable invoice HTML, or a redirect if not found.
      */
     public function pdf(Request $req): Response
     {
@@ -248,9 +258,15 @@ final class InvoiceController
                 $mid = $activeId;
             }
         }
-        $id         = (int) $req->param('id');
-        $pdfContent = $this->invoices->generatePdf($mid, $id);
-        return Response::download($pdfContent, "invoice-{$id}.pdf", 'application/pdf');
+        $id      = (int) $req->param('id');
+        $content = $this->invoices->generatePdf($mid, $id);
+
+        if ($content === '') {
+            $this->session->flashError('Invoice not found');
+            return Response::redirect('/admin/invoices');
+        }
+
+        return Response::html($content);
     }
 
     /**

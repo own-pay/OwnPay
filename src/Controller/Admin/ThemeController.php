@@ -153,9 +153,10 @@ final class ThemeController
         }
 
         return $this->renderAdminPage('admin/themes/index.twig', [
-            'themes'       => $themes,
-            'active_theme' => $activeTheme,
-            'active_page'  => 'themes',
+            'themes'         => $themes,
+            'active_theme'   => $activeTheme,
+            'active_page'    => 'themes',
+            'is_global_view' => $this->isGlobalBrandView(),
         ]);
     }
 
@@ -168,6 +169,10 @@ final class ThemeController
      */
     public function installForm(Request $request): Response
     {
+        if ($guard = $this->requireGlobalView('/admin/themes', 'upload a theme')) {
+            return $guard;
+        }
+
         $maxUpload = min(
             $this->parseSize(ini_get('upload_max_filesize') ?: '2M'),
             $this->parseSize(ini_get('post_max_size') ?: '8M')
@@ -237,6 +242,10 @@ final class ThemeController
      */
     public function upload(Request $request): Response
     {
+        if ($guard = $this->requireGlobalView('/admin/themes', 'upload a theme')) {
+            return $guard;
+        }
+
         $file = $request->file('theme_zip');
         if ($file === null || $file['error'] !== UPLOAD_ERR_OK) {
             $this->session->flashError('No file uploaded or upload failed');
@@ -271,6 +280,10 @@ final class ThemeController
      */
     public function uninstall(Request $request): Response
     {
+        if ($guard = $this->requireGlobalView('/admin/themes', 'uninstall a theme')) {
+            return $guard;
+        }
+
         $slug        = (string) $request->param('slug');
         $activeTheme = $this->settings->get('appearance', 'active_theme', 'default');
 
@@ -291,18 +304,6 @@ final class ThemeController
         }
 
         return Response::redirect('/admin/themes');
-    }
-
-    /**
-     * Customize settings for a theme redirecting to the theme's plugin configuration page.
-     *
-     * @param Request $request The incoming HTTP request.
-     * @return Response The HTTP redirect response.
-     */
-    public function customize(Request $request): Response
-    {
-        $slug = (string) $request->param('slug');
-        return Response::redirect("/admin/plugins/{$slug}/settings");
     }
 
     /**

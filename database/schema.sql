@@ -18,11 +18,15 @@ CREATE TABLE `op_merchants` (
   `email` VARCHAR(255) NOT NULL,
   `phone` VARCHAR(30) DEFAULT NULL,
   `logo_path` VARCHAR(500) DEFAULT NULL,
+  `color` VARCHAR(7) DEFAULT NULL,
+  `initials` VARCHAR(5) DEFAULT NULL,
+  `description` VARCHAR(255) DEFAULT NULL,
   `timezone` VARCHAR(50) NOT NULL DEFAULT 'Asia/Dhaka',
   `default_currency` CHAR(3) NOT NULL DEFAULT 'BDT',
   `webhook_secret` VARCHAR(128) DEFAULT NULL,
   `settings` JSON DEFAULT NULL,
   `status` ENUM('active','suspended','pending') NOT NULL DEFAULT 'active',
+  `is_platform` TINYINT(1) NOT NULL DEFAULT 0 COMMENT '1 = reserved "All Brands" platform-owner row (not a selectable brand)',
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
@@ -283,6 +287,7 @@ CREATE TABLE `op_transactions` (
   `sender_account` VARCHAR(100) DEFAULT NULL,
   `reference` VARCHAR(200) DEFAULT NULL,
   `gateway_trx_id` VARCHAR(200) DEFAULT NULL,
+  `ip_address` VARCHAR(45) DEFAULT NULL,
   `provider_trx_id` VARCHAR(100) DEFAULT NULL,
   `method` ENUM('api','manual','sms','link','invoice') NOT NULL DEFAULT 'manual',
   `status` ENUM('pending','created','processing','callback_processing','completed','failed','cancelled','expired','refunded','disputed','awaiting_verification','pending_review') NOT NULL DEFAULT 'pending',
@@ -349,6 +354,7 @@ CREATE TABLE `op_payment_links` (
   `amount` DECIMAL(15,2) DEFAULT NULL,
   `currency` CHAR(3) NOT NULL DEFAULT 'BDT',
   `is_amount_fixed` TINYINT(1) NOT NULL DEFAULT 1,
+  `require_address` TINYINT(1) NOT NULL DEFAULT 0,
   `min_amount` DECIMAL(15,2) DEFAULT NULL,
   `max_amount` DECIMAL(15,2) DEFAULT NULL,
   `redirect_url` VARCHAR(1000) DEFAULT NULL,
@@ -477,9 +483,22 @@ CREATE TABLE `op_webhook_deliveries` (
   `attempt` TINYINT UNSIGNED NOT NULL DEFAULT 1,
   `status` ENUM('received','delivered','failed','rejected') NOT NULL DEFAULT 'received',
   `payload_hash` VARCHAR(128) DEFAULT NULL,
+  -- dedup_key backs the inbound idempotency unique index: outbound retries
+  -- legitimately reuse a payload_hash (attempt 1..n), and NULL merchant_id rows
+  -- must still deduplicate, so the key is generated only for inbound rows with
+  -- NULL merchant_id collapsed to 0. VIRTUAL (not STORED): adding a STORED
+  -- generated column forces an ALGORITHM=COPY rebuild that fails on tables
+  -- with foreign keys (MySQL errno 1215).
+  `dedup_key` VARCHAR(150)
+    GENERATED ALWAYS AS (
+      IF(`direction` = 'inbound' AND `payload_hash` IS NOT NULL,
+         CONCAT(IFNULL(`merchant_id`, 0), ':', `payload_hash`),
+         NULL)
+    ) VIRTUAL,
   `error` VARCHAR(500) DEFAULT NULL,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_inbound_dedup` (`dedup_key`),
   KEY `idx_merchant_created` (`merchant_id`, `created_at`),
   KEY `idx_gateway` (`gateway`),
   KEY `idx_direction_status` (`direction`, `status`),
@@ -497,7 +516,9 @@ CREATE TABLE `op_ledger_accounts` (
   `balance` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  UNIQUE KEY `uk_merchant_name` (`merchant_id`, `name`),
+  -- Account identity is (merchant_id, name, currency) so the same account name
+  -- can exist per currency for multi-currency ledgers.
+  UNIQUE KEY `uk_merchant_name_currency` (`merchant_id`, `name`, `currency`),
   CONSTRAINT `fk_la_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
@@ -597,6 +618,20 @@ CREATE TABLE `op_login_attempts` (
   PRIMARY KEY (`id`),
   KEY `idx_email_ip` (`email`, `ip_address`),
   KEY `idx_created` (`created_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `op_password_resets` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `user_id` BIGINT UNSIGNED NOT NULL,
+  `token_hash` CHAR(64) NOT NULL,
+  `expires_at` DATETIME(6) NOT NULL,
+  `used_at` DATETIME(6) DEFAULT NULL,
+  `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_pwreset_token` (`token_hash`),
+  KEY `idx_pwreset_user` (`user_id`),
+  KEY `idx_pwreset_expires` (`expires_at`),
+  CONSTRAINT `fk_pwreset_user` FOREIGN KEY (`user_id`) REFERENCES `op_merchant_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- ─── 10. Devices & SMS ─────────────────────────────────────
@@ -785,6 +820,24 @@ CREATE TABLE `op_queue_jobs` (
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
   KEY `idx_queue_available` (`queue`, `available_at`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+CREATE TABLE `op_job_queue` (
+  `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
+  `type` VARCHAR(100) NOT NULL,
+  `payload` JSON NOT NULL,
+  `status` ENUM('pending', 'processing', 'completed', 'failed') NOT NULL DEFAULT 'pending',
+  `attempts` INT UNSIGNED NOT NULL DEFAULT 0,
+  `priority` INT NOT NULL DEFAULT 0,
+  `available_at` DATETIME(6) DEFAULT NULL,
+  `started_at` DATETIME(6) DEFAULT NULL,
+  `completed_at` DATETIME(6) DEFAULT NULL,
+  `error` TEXT DEFAULT NULL,
+  `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
+  `updated_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6) ON UPDATE CURRENT_TIMESTAMP(6),
+  PRIMARY KEY (`id`),
+  KEY `idx_status_available` (`status`, `available_at`),
+  KEY `idx_priority_created` (`priority`, `created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 CREATE TABLE `op_cache` (

@@ -34,7 +34,7 @@ trigger: always_on
 
 ## 6. Route Parameter Constraints
 - Mapped route parameters parsed by the router are restricted.
-- **Regex Sanitization**: Captured route parameter regular expressions MUST NOT match or allow `@` or `+` symbols. Only `[a-zA-Z0-9_\-\.]` characters are permitted for dynamic path parameters.
+- **Regex Sanitization**: Captured route parameter regular expressions MUST NOT match or allow `@` or `+` symbols, with the sole exception of the `{identifier}` parameter (used for querying customer profiles dynamically by email or phone), which is allowed to capture `+`, `@`, and `%` characters. All other dynamic path parameters must strictly match `[a-zA-Z0-9_\-\.]`.
 
 ## 7. Unified Configuration & Settings Management
 - **No Legacy Settings Tables**: Never query or write to a table named `op_env` or reference SQLite legacy config structures.

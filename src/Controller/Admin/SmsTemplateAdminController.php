@@ -90,6 +90,9 @@ final class SmsTemplateAdminController
         $parsed     = $this->parsedRepo->forTenant($mid)->findUnmatched(100);
         $queue      = $this->commRepo->listSmsQueue($mid);
         $queueStats = $this->commRepo->getSmsQueueStats($mid);
+        $emailQueue = $this->commRepo->listEmailQueue($mid);
+        $telegramQueue = $this->commRepo->listTelegramQueue($mid);
+        $webhookQueue = $this->commRepo->listWebhookQueue($mid);
 
         // Get gateway list for dropdown
         $db = $this->c->get(\OwnPay\Core\Database::class);
@@ -109,6 +112,9 @@ final class SmsTemplateAdminController
             'sms_templates'   => $templates,
             'parsed_sms'      => $parsed,
             'sms_queue'       => $queue,
+            'email_queue'     => $emailQueue,
+            'telegram_queue'  => $telegramQueue,
+            'webhook_queue'   => $webhookQueue,
             'queue_stats'     => $queueStats,
             'template_count'  => count($templates),
             'gateways'        => array_merge($gateways, $manualGateways),
@@ -448,5 +454,108 @@ final class SmsTemplateAdminController
 
         $this->session->flashSuccess("Template for '{$gatewaySlug}' saved from analysis");
         return Response::redirect('/admin/sms-center');
+    }
+
+    /**
+     * Retry a failed SMS log entry from the outbound queue.
+     */
+    public function retryQueueItem(Request $req): Response
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
+
+        $idVal = $req->param('id');
+        $id = is_numeric($idVal) ? (int)$idVal : 0;
+
+        $requeued = $this->commRepo->retrySms($id, $mid);
+
+        if ($requeued > 0) {
+            $this->session->flashSuccess('SMS successfully requeued.');
+        } else {
+            $this->session->flashError('Failed to requeue SMS or SMS is not in failed state.');
+        }
+
+        return Response::redirect('/admin/sms-center#queue');
+    }
+
+    /**
+     * Manually match a parsed SMS to a pending transaction.
+     */
+    public function matchSms(Request $req): Response
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        $mid = 0;
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            $activeId = $brand->getActiveBrandId();
+            if ($activeId !== null) {
+                $mid = $activeId;
+            }
+        }
+
+        $smsIdVal = $req->post('sms_id');
+        $smsId = is_numeric($smsIdVal) ? (int)$smsIdVal : 0;
+
+        $txnIdVal = $req->post('transaction_id');
+        $txnId = is_numeric($txnIdVal) ? (int)$txnIdVal : 0;
+
+        if ($smsId <= 0 || $txnId <= 0) {
+            $this->session->flashError('Both SMS ID and Transaction ID are required.');
+            return Response::redirect('/admin/sms-center#parsed');
+        }
+
+        $txnRepo = $this->c->get(\OwnPay\Repository\TransactionRepository::class);
+        if (!$txnRepo instanceof \OwnPay\Repository\TransactionRepository) {
+            throw new \RuntimeException('TransactionRepository service unavailable');
+        }
+        $txn = $txnRepo->forTenant($mid)->findScoped($txnId);
+        if ($txn === null) {
+            $this->session->flashError('Transaction not found or unauthorized.');
+            return Response::redirect('/admin/sms-center#parsed');
+        }
+
+        $db = $this->c->get(\OwnPay\Core\Database::class);
+        $transactionService = $this->c->get(\OwnPay\Service\Payment\TransactionService::class);
+        $ledgerService = $this->c->get(\OwnPay\Service\Payment\LedgerService::class);
+
+        if (!$db instanceof \OwnPay\Core\Database ||
+            !$transactionService instanceof \OwnPay\Service\Payment\TransactionService ||
+            !$ledgerService instanceof \OwnPay\Service\Payment\LedgerService) {
+            throw new \RuntimeException('Database or payment services unavailable');
+        }
+
+        try {
+            $db->transaction(function () use ($mid, $smsId, $txnId, $txn, $transactionService, $ledgerService) {
+                $this->parsedRepo->forTenant($mid)->linkToTransaction($smsId, $txnId);
+
+                if ($txn['status'] === 'pending') {
+                    $txAmount = isset($txn['amount']) && is_scalar($txn['amount']) ? (string) $txn['amount'] : '0.00';
+                    $txFee = isset($txn['fee']) && is_scalar($txn['fee']) ? (string) $txn['fee'] : '0.00';
+                    $txCurrency = isset($txn['currency']) && is_scalar($txn['currency']) ? (string) $txn['currency'] : 'BDT';
+
+                    $transactionService->complete($txnId, $mid);
+                    $ledgerService->recordPaymentReceived(
+                        $mid,
+                        $txnId,
+                        $txAmount,
+                        $txFee,
+                        $txCurrency
+                    );
+                }
+            });
+
+            $this->session->flashSuccess('SMS successfully matched and transaction completed.');
+        } catch (\Throwable $e) {
+            $this->session->flashError('Match failed: ' . $e->getMessage());
+        }
+
+        return Response::redirect('/admin/sms-center#parsed');
     }
 }

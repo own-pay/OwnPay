@@ -7,6 +7,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Http\Router;
+use OwnPay\View\ErrorPageRenderer;
 
 /**
  * Application kernel - the central orchestrator.
@@ -15,8 +16,9 @@ use OwnPay\Http\Router;
  *   1. Load .env (phpdotenv)
  *   2. Build DI container (config/services.php)
  *   3. Set timezone
- *   4. Load middleware pipeline (config/middleware.php)
- *   5. Boot plugins (PluginLoader::boot)
+ *   4. Boot plugins (PluginLoader::boot) — BEFORE middleware so plugins can
+ *      register middleware via the 'system.middleware.pipeline' filter (AUD-G1)
+ *   5. Load middleware pipeline (config/middleware.php) + apply plugin filter
  *   6. Fire 'system.boot' hook
  *   7. Load routes (config/routes/*.php + plugin routes)
  *   8. Match request - run middleware - dispatch controller
@@ -30,9 +32,21 @@ final class Kernel
     /** @var array<string, array<int, string>> Middleware stacks */
     private array $middlewareConfig = [];
 
+    /**
+     * Lazily-created renderer for last-resort error pages. Instantiated only in
+     * failure paths and deliberately not resolved from the container, so error
+     * pages still render when the container/boot itself is broken.
+     */
+    private ?ErrorPageRenderer $errorPages = null;
+
     public function __construct()
     {
         $this->container = new Container();
+    }
+
+    private function errorPages(): ErrorPageRenderer
+    {
+        return $this->errorPages ??= new ErrorPageRenderer();
     }
 
     /**
@@ -249,16 +263,10 @@ final class Kernel
 
         // Check maintenance mode - let critical routes pass through
         $maintenanceLock = dirname(__DIR__) . '/storage/.maintenance';
-        // AUD-12 FIX: Whitelist admin, login, webhooks, checkout status, and cron.
-        // Gateway callbacks MUST process during maintenance or payments are lost.
-        $maintenanceWhitelist = ['/admin', '/login', '/webhook/', '/cron/', '/checkout/'];
-        $pathAllowed = false;
-        foreach ($maintenanceWhitelist as $prefix) {
-            if (str_starts_with($request->path(), $prefix)) {
-                $pathAllowed = true;
-                break;
-            }
-        }
+        // AUD-12 FIX: Gateway callbacks MUST process during maintenance or payments
+        // are lost. The whitelist lives in MaintenanceMiddleware so this gate and
+        // the pipeline middleware can never disagree about what stays reachable.
+        $pathAllowed = \OwnPay\Middleware\MaintenanceMiddleware::isPassthroughPath($request->path());
         if (file_exists($maintenanceLock) && !$pathAllowed) {
             $info = json_decode(file_get_contents($maintenanceLock) ?: '{}', true);
             if (!is_array($info)) {
@@ -287,7 +295,7 @@ final class Kernel
                     }
                 } catch (\Throwable) { /* fall through */ }
             }
-            return Response::html("<h1>Maintenance</h1><p>{$reason}</p>", 503);
+            return Response::html($this->errorPages()->maintenancePage($reason), 503);
         }
 
         // Match route
@@ -341,14 +349,12 @@ final class Kernel
         foreach (array_reverse($stack) as $middlewareClass) {
             $pipeline = function (Request $req) use ($middlewareClass, $pipeline): Response {
                 if (!class_exists($middlewareClass)) {
-                    // BUG-1 FIX: A missing middleware is ALWAYS a critical config error
-                    // that could silently bypass CSRF, JWT, or permission checks.
-                    // Throw in ALL environments — debug mode must not weaken security.
                     throw new \RuntimeException("Middleware class not found: {$middlewareClass}");
                 }
 
-                // AUD-Phase3: Resolve middleware via DI container for proper autowiring.
-                // Falls back to direct instantiation with container for backward compat.
+                // Resolve middleware via DI container for proper autowiring.
+                // Falls back to direct instantiation with the container if the
+                // middleware class is not explicitly registered in the DI bindings.
                 try {
                     $middleware = $this->container->get($middlewareClass);
                 } catch (\Throwable) {
@@ -426,6 +432,14 @@ final class Kernel
             header_remove('X-Powered-By');
         }
 
+        // Graceful degradation: a database-unavailable condition (connection pool
+        // exhausted, server unreachable) is transient — respond 503 Retry-After so
+        // load balancers and clients retry instead of treating it as a 500 bug.
+        if ($this->isDatabaseUnavailable($e)) {
+            $this->sendServiceUnavailable();
+            return;
+        }
+
         http_response_code(500);
 
         // API requests get JSON (no sensitive data)
@@ -440,7 +454,7 @@ final class Kernel
             header('Content-Type: application/json; charset=UTF-8');
             $payload = ['success' => false, 'message' => 'Internal Server Error'];
             if ($debug) {
-                $payload['error'] = $this->sanitizeErrorMessage($e->getMessage());
+                $payload['error'] = $this->errorPages()->sanitizeErrorMessage($e->getMessage());
             }
             echo json_encode($payload, JSON_UNESCAPED_UNICODE);
             return;
@@ -462,177 +476,65 @@ final class Kernel
                     // Twig unavailable — fall through to inline
                 }
             }
-            echo $this->renderInlineErrorPage();
+            echo $this->errorPages()->internalErrorPage();
             return;
         }
 
         // Debug: styled debug page (never expose raw paths to browser)
-        echo $this->renderDebugErrorPage($e);
+        echo $this->errorPages()->debugErrorPage($e, dirname(__DIR__));
     }
 
     /**
-     * Sanitize error message — strip file paths and credentials.
+     * Detects whether an exception chain represents a transient
+     * database-unavailable condition (connection exhaustion / server down),
+     * which should degrade to 503 rather than a generic 500.
      */
-    private function sanitizeErrorMessage(string $message): string
+    private function isDatabaseUnavailable(\Throwable $e): bool
     {
-        // Strip full file paths
-        $message = preg_replace('#[A-Z]:\\\\[^\s:]+#', '[path]', $message) ?? $message;
-        $message = preg_replace('#/[^\s:]+\.php#', '[path]', $message) ?? $message;
-        // Strip password references
-        $message = preg_replace('#using password: (?:YES|NO)#i', 'using password: ***', $message) ?? $message;
-        return $message;
+        $needles = [
+            'too many connections',
+            'connection refused',
+            'server has gone away',
+            'lost connection',
+            'database connection could not be established',
+        ];
+        for ($cur = $e; $cur !== null; $cur = $cur->getPrevious()) {
+            $message = strtolower($cur->getMessage());
+            foreach ($needles as $needle) {
+                if (str_contains($message, $needle)) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 
     /**
-     * Inline production 500 page — used when Twig is unavailable.
+     * Emit a 503 Service Unavailable response with a Retry-After hint.
+     * Uses a self-contained body (no DB/Twig dependency) so it cannot cascade
+     * during a database outage.
      */
-    private function renderInlineErrorPage(): string
+    private function sendServiceUnavailable(): void
     {
-        return <<<'HTML'
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Error — Own Pay</title>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}
-        .c{text-align:center;max-width:480px;padding:2rem}
-        .icon{width:80px;height:80px;margin:0 auto 1.5rem;border-radius:50%;background:rgba(239,68,68,.15);display:flex;align-items:center;justify-content:center}
-        .icon svg{width:40px;height:40px;color:#ef4444}
-        .code{font-size:4rem;font-weight:800;background:linear-gradient(135deg,#ef4444,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.75rem}
-        h1{font-size:1.25rem;font-weight:600;margin-bottom:.5rem;color:#f1f5f9}
-        p{color:#94a3b8;line-height:1.6;margin-bottom:1.5rem;font-size:.9rem}
-        .btn{display:inline-block;padding:.7rem 1.5rem;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;text-decoration:none;border-radius:.5rem;font-weight:500;font-size:.9rem;transition:all .2s;border:none;cursor:pointer}
-        .btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.4)}
-        .footer{margin-top:2rem;font-size:.75rem;color:#475569}
-    </style>
-</head>
-<body>
-    <div class="c">
-        <div class="icon">
-            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2">
-                <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L4.082 16.5c-.77.833.192 2.5 1.732 2.5z"/>
-            </svg>
-        </div>
-        <div class="code">500</div>
-        <h1>Something went wrong</h1>
-        <p>An unexpected error occurred while processing your request. Our team has been notified and is working on it.</p>
-        <a class="btn" href="/">Back to Home</a>
-        <div class="footer">Own Pay &bull; Secure Payment Gateway</div>
-    </div>
-</body>
-</html>
-HTML;
-    }
-
-    /**
-     * Styled debug error page — shows sanitized details for developers.
-     */
-    private function renderDebugErrorPage(\Throwable $e): string
-    {
-        $class = get_class($e);
-        $message = htmlspecialchars($this->sanitizeErrorMessage($e->getMessage()), ENT_QUOTES, 'UTF-8');
-        $file = htmlspecialchars(str_replace(dirname(__DIR__), '.', $e->getFile()), ENT_QUOTES, 'UTF-8');
-        $line = $e->getLine();
-
-        // Sanitize trace — make paths relative, strip args
-        $traceLines = '';
-        foreach ($e->getTrace() as $i => $frame) {
-            $fPath = isset($frame['file']) ? str_replace(dirname(__DIR__), '.', $frame['file']) : '[internal]';
-            $fLine = $frame['line'] ?? '?';
-            $fFunc = ($frame['class'] ?? '') . ($frame['type'] ?? '') . $frame['function'];
-            $traceLines .= sprintf(
-                '<tr><td class="n">#%d</td><td class="f">%s</td><td class="l">%s</td><td class="fn">%s()</td></tr>',
-                $i,
-                htmlspecialchars($fPath, ENT_QUOTES, 'UTF-8'),
-                htmlspecialchars((string) $fLine, ENT_QUOTES, 'UTF-8'),
-                htmlspecialchars($fFunc, ENT_QUOTES, 'UTF-8')
-            );
+        $retryAfter = 30;
+        http_response_code(503);
+        if (!headers_sent()) {
+            header("Retry-After: {$retryAfter}");
         }
 
-        return <<<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Debug — {$class}</title>
-    <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:'JetBrains Mono',monospace,-apple-system,sans-serif;background:#0c0e14;color:#c9d1d9;min-height:100vh}
-        .header{background:linear-gradient(135deg,#1e1229,#161b22);border-bottom:1px solid #30363d;padding:1.25rem 2rem;display:flex;align-items:center;gap:1rem}
-        .badge{padding:.3rem .7rem;border-radius:.375rem;font-size:.7rem;font-weight:700;letter-spacing:.05em;text-transform:uppercase}
-        .badge-err{background:rgba(248,81,73,.15);color:#f85149;border:1px solid rgba(248,81,73,.3)}
-        .badge-debug{background:rgba(136,98,234,.15);color:#8862ea;border:1px solid rgba(136,98,234,.3)}
-        .title{font-size:1rem;font-weight:600;color:#e6edf3}
-        .main{padding:2rem;max-width:1100px;margin:0 auto}
-        .card{background:#161b22;border:1px solid #30363d;border-radius:.75rem;margin-bottom:1.5rem;overflow:hidden}
-        .card-head{padding:.75rem 1.25rem;background:#1c2129;border-bottom:1px solid #30363d;font-size:.75rem;font-weight:600;color:#8b949e;text-transform:uppercase;letter-spacing:.05em}
-        .card-body{padding:1.25rem}
-        .msg{font-size:1.1rem;color:#f0883e;word-break:break-all;line-height:1.5}
-        .loc{margin-top:.75rem;font-size:.85rem;color:#8b949e}
-        .loc span{color:#58a6ff}
-        table{width:100%;border-collapse:collapse;font-size:.8rem}
-        tr:hover{background:rgba(56,139,253,.06)}
-        td{padding:.5rem .75rem;border-bottom:1px solid #21262d;vertical-align:top}
-        .n{color:#484f58;width:2rem;text-align:right}
-        .f{color:#7ee787;max-width:350px;overflow:hidden;text-overflow:ellipsis}
-        .l{color:#d2a8ff;width:3rem;text-align:center}
-        .fn{color:#79c0ff}
-        .env-bar{display:flex;gap:1rem;flex-wrap:wrap;font-size:.75rem;color:#8b949e}
-        .env-bar span{padding:.25rem .5rem;background:#21262d;border-radius:.25rem}
-        .warn{margin-top:1rem;padding:.75rem 1rem;background:rgba(210,153,34,.08);border:1px solid rgba(210,153,34,.3);border-radius:.5rem;font-size:.75rem;color:#d29922}
-    </style>
-</head>
-<body>
-    <div class="header">
-        <span class="badge badge-err">500</span>
-        <span class="badge badge-debug">DEBUG MODE</span>
-        <span class="title">{$class}</span>
-    </div>
-    <div class="main">
-        <div class="card">
-            <div class="card-head">Exception</div>
-            <div class="card-body">
-                <div class="msg">{$message}</div>
-                <div class="loc">in <span>{$file}</span> on line <span>{$line}</span></div>
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-head">Stack Trace</div>
-            <div class="card-body" style="padding:0">
-                <table>{$traceLines}</table>
-            </div>
-        </div>
-        <div class="card">
-            <div class="card-head">Environment</div>
-            <div class="card-body">
-                <div class="env-bar">
-                    <span>PHP {$this->safePhpVersion()}</span>
-                    <span>OwnPay v0.1.0</span>
-                    <span>{$this->safeEnvName()}</span>
-                </div>
-                <div class="warn">⚠ This debug page is visible because APP_DEBUG=true. Set APP_DEBUG=false in production to show a generic error page.</div>
-            </div>
-        </div>
-    </div>
-</body>
-</html>
-HTML;
-    }
+        $accept = is_string($a = $_SERVER['HTTP_ACCEPT'] ?? '') ? $a : '';
+        $uri = is_string($u = $_SERVER['REQUEST_URI'] ?? '') ? $u : '';
+        if (str_contains($accept, 'application/json') || str_contains($uri, '/api/')) {
+            header('Content-Type: application/json; charset=UTF-8');
+            echo json_encode(
+                ['success' => false, 'message' => 'Service temporarily unavailable. Please retry shortly.'],
+                JSON_UNESCAPED_UNICODE
+            );
+            return;
+        }
 
-    private function safePhpVersion(): string
-    {
-        return PHP_MAJOR_VERSION . '.' . PHP_MINOR_VERSION . '.' . PHP_RELEASE_VERSION;
-    }
-
-    private function safeEnvName(): string
-    {
-        $rawEnv = $_ENV['APP_ENV'] ?? getenv('APP_ENV') ?: 'production';
-        $envStr = is_string($rawEnv) ? $rawEnv : 'production';
-        return htmlspecialchars($envStr, ENT_QUOTES, 'UTF-8');
+        header('Content-Type: text/html; charset=UTF-8');
+        echo $this->errorPages()->serviceUnavailablePage();
     }
 
     /**

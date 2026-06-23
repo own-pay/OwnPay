@@ -99,7 +99,11 @@ return [
     ],
 
     // ─── Install: minimal — no DB available yet ───────────────
+    // RateLimiterMiddleware fails open when its backend is unreachable
+    // (fresh install: no DB), and protects the wizard once a DB exists —
+    // the scenario where re-running it would be dangerous.
     'install' => [
         \OwnPay\Middleware\SecurityHeadersMiddleware::class,
+        \OwnPay\Middleware\RateLimiterMiddleware::class,
     ],
 ];

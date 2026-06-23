@@ -64,16 +64,22 @@ final class CustomerRepository extends BaseRepository
      * @param int $perPage Maximum items per page.
      * @return array{items: array<int, array<string, mixed>>, total: int, page: int, per_page: int, total_pages: int} Pagination envelope.
      */
-    public function paginateWithStats(int $merchantId, string $query, int $page, int $perPage): array
+    public function paginateWithStats(?int $merchantId, string $query, int $page, int $perPage): array
     {
-        $where = "WHERE c.merchant_id = :mid";
-        $params = ['mid' => $merchantId];
+        // merchantId === null => global "All Brands" view: aggregate across all brands.
+        $conds = [];
+        $params = [];
+        if ($merchantId !== null) {
+            $conds[] = "c.merchant_id = :mid";
+            $params['mid'] = $merchantId;
+        }
         if ($query !== '') {
             // Email hash lookup only — cannot search encrypted name/phone by plaintext
             $emailHash = hash('sha256', strtolower(trim($query)));
-            $where .= " AND c.email_hash = :q";
+            $conds[] = "c.email_hash = :q";
             $params['q'] = $emailHash;
         }
+        $where = $conds !== [] ? ('WHERE ' . implode(' AND ', $conds)) : '';
 
         $row = $this->db->fetchOne("SELECT COUNT(*) as cnt FROM op_customers c {$where}", $params);
         $cntVal = is_array($row) ? ($row['cnt'] ?? 0) : 0;

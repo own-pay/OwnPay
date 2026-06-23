@@ -34,8 +34,14 @@ final class PaymentLinkService
      * @param int $merchantId The unique ID of the merchant.
      * @return array<int, array<string, mixed>> The array of payment link records.
      */
-    public function listForMerchant(int $merchantId): array
+    public function listForMerchant(?int $merchantId): array
     {
+        // merchantId === null => global "All Brands" view: aggregate across all brands.
+        if ($merchantId === null) {
+            return $this->db->fetchAll(
+                "SELECT * FROM op_payment_links ORDER BY created_at DESC"
+            );
+        }
         return $this->db->fetchAll(
             "SELECT * FROM op_payment_links WHERE merchant_id = :mid ORDER BY created_at DESC",
             ['mid' => $merchantId]
@@ -80,6 +86,7 @@ final class PaymentLinkService
      *     amount?: float|int|string|null,
      *     currency?: string,
      *     is_amount_fixed?: bool|int,
+     *     require_address?: bool|int,
      *     min_amount?: float|int|string|null,
      *     max_amount?: float|int|string|null,
      *     redirect_url?: string|null,
@@ -94,8 +101,8 @@ final class PaymentLinkService
         $uuid = \Ramsey\Uuid\Uuid::uuid4()->toString();
 
         $id = $this->db->insert(
-            "INSERT INTO op_payment_links (merchant_id, uuid, slug, title, description, amount, currency, is_amount_fixed, min_amount, max_amount, redirect_url, max_uses, expires_at, status, created_at)
-             VALUES (:mid, :uuid, :slug, :title, :desc, :amount, :cur, :fixed, :min, :max, :redir, :uses, :exp, 'active', NOW())",
+            "INSERT INTO op_payment_links (merchant_id, uuid, slug, title, description, amount, currency, is_amount_fixed, require_address, min_amount, max_amount, redirect_url, max_uses, expires_at, status, created_at)
+             VALUES (:mid, :uuid, :slug, :title, :desc, :amount, :cur, :fixed, :req_addr, :min, :max, :redir, :uses, :exp, 'active', NOW())",
             [
                 'mid'   => $merchantId,
                 'uuid'  => $uuid,
@@ -105,6 +112,7 @@ final class PaymentLinkService
                 'amount' => !empty($data['amount']) ? $data['amount'] : null,
                 'cur'   => $data['currency'] ?? 'BDT',
                 'fixed' => isset($data['is_amount_fixed']) ? 1 : 0,
+                'req_addr' => isset($data['require_address']) ? 1 : 0,
                 'min'   => !empty($data['min_amount']) ? $data['min_amount'] : null,
                 'max'   => !empty($data['max_amount']) ? $data['max_amount'] : null,
                 'redir' => !empty($data['redirect_url']) ? $data['redirect_url'] : null,
@@ -126,6 +134,7 @@ final class PaymentLinkService
      *     description?: string|null,
      *     amount?: float|int|string|null,
      *     currency?: string,
+     *     require_address?: bool|int,
      *     status?: string
      * } $data Updated payment link fields.
      * @return array<string, mixed> The updated payment link database record fields.
@@ -133,12 +142,13 @@ final class PaymentLinkService
     public function update(int $merchantId, int $id, array $data): array
     {
         $this->db->update(
-            "UPDATE op_payment_links SET title = :title, description = :desc, amount = :amount, currency = :cur, status = :st, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
+            "UPDATE op_payment_links SET title = :title, description = :desc, amount = :amount, currency = :cur, require_address = :req_addr, status = :st, updated_at = NOW() WHERE id = :id AND merchant_id = :mid",
             [
                 'title'  => $data['title'] ?? '',
                 'desc'   => $data['description'] ?? null,
                 'amount' => $data['amount'] ?? null,
                 'cur'    => $data['currency'] ?? 'BDT',
+                'req_addr' => isset($data['require_address']) ? 1 : 0,
                 'st'     => $data['status'] ?? 'active',
                 'id'     => $id,
                 'mid'    => $merchantId,

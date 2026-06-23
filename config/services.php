@@ -95,7 +95,35 @@ return static function (\OwnPay\Container $c): void {
             ensureString($cfg['database']),
             ensureString($cfg['charset'])
         );
-        $pdo = new \PDO($dsn, is_string($cfg['username'] ?? null) ? $cfg['username'] : null, is_string($cfg['password'] ?? null) ? $cfg['password'] : null, is_array($cfg['options'] ?? null) ? $cfg['options'] : null);
+        $username = is_string($cfg['username'] ?? null) ? $cfg['username'] : null;
+        $password = is_string($cfg['password'] ?? null) ? $cfg['password'] : null;
+        $options  = is_array($cfg['options'] ?? null) ? $cfg['options'] : null;
+
+        // Connection wait strategy: under transient saturation (MySQL
+        // max_connections exhaustion, brief refusals, dropped connections) retry
+        // a few times with linear backoff before giving up, so a short spike does
+        // not immediately surface as an error. Credential/schema errors fail fast.
+        $maxAttempts = max(1, (int) (getenv('DB_CONNECT_RETRIES') ?: 3));
+        $pdo = null;
+        for ($attempt = 1; $attempt <= $maxAttempts; $attempt++) {
+            try {
+                $pdo = new \PDO($dsn, $username, $password, $options);
+                break;
+            } catch (\PDOException $e) {
+                $message = $e->getMessage();
+                $transient = stripos($message, 'too many connections') !== false
+                    || stripos($message, 'Connection refused') !== false
+                    || stripos($message, 'server has gone away') !== false
+                    || stripos($message, 'Lost connection') !== false;
+                if (!$transient || $attempt === $maxAttempts) {
+                    throw $e;
+                }
+                usleep(100000 * $attempt); // 100ms, 200ms, 300ms ... linear backoff
+            }
+        }
+        if (!$pdo instanceof \PDO) {
+            throw new \RuntimeException('Database connection could not be established.');
+        }
         $pdo->exec("SET NAMES '" . ensureString($cfg['charset']) . "' COLLATE '" . ensureString($cfg['collation']) . "'");
         $pdo->exec("SET SESSION sql_mode = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION'");
         return $pdo;
@@ -256,9 +284,13 @@ return static function (\OwnPay\Container $c): void {
                 $trans = $this->c->get(\OwnPay\Service\System\TranslationService::class);
                 if ($trans instanceof \OwnPay\Service\System\TranslationService) {
                     $offsetStr = is_scalar($offset) ? (string)$offset : '';
-                    return $trans->trans($offsetStr);
+                    $value = $trans->trans($offsetStr);
+                    // trans() echoes the key back when it has no translation. Return null in
+                    // that case so template `lang.x ?? 'Fallback'` expressions use their fallback
+                    // instead of rendering the raw key (e.g. "paying_to") on the checkout page.
+                    return $value === $offsetStr ? null : $value;
                 }
-                return $offset;
+                return null;
             }
             public function offsetSet(mixed $offset, mixed $value): void {}
             public function offsetUnset(mixed $offset): void {}
@@ -283,6 +315,24 @@ return static function (\OwnPay\Container $c): void {
     // ─── Smart SMS Analyzer ────────────────────────────────────────
     $c->singleton(\OwnPay\Service\Sms\SmartSmsAnalyzer::class, static function (): \OwnPay\Service\Sms\SmartSmsAnalyzer {
         return new \OwnPay\Service\Sms\SmartSmsAnalyzer();
+    });
+
+    // ─── SMS Parser Orchestrator ───────────────────────────────────
+    // SmsParserService has an intentionally untyped constructor (test-double friendly), so the
+    // container cannot autowire it. It MUST be registered explicitly or Api\Mobile\SmsController
+    // (POST /api/mobile/v1/sms ingestion + GET /api/mobile/v1/sms/queues) fails to resolve at runtime.
+    $c->singleton(\OwnPay\Service\Sms\SmsParserService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Sms\SmsParserService {
+        return new \OwnPay\Service\Sms\SmsParserService(
+            ensureType($c->get(\OwnPay\Repository\PairedDeviceRepository::class), \OwnPay\Repository\PairedDeviceRepository::class),
+            ensureType($c->get(\OwnPay\Repository\SmsTemplateRepository::class), \OwnPay\Repository\SmsTemplateRepository::class),
+            ensureType($c->get(\OwnPay\Repository\SmsDataRepository::class), \OwnPay\Repository\SmsDataRepository::class),
+            ensureType($c->get(\OwnPay\Service\Sms\SmsRegexParser::class), \OwnPay\Service\Sms\SmsRegexParser::class),
+            ensureType($c->get(\OwnPay\Service\Sms\SmsHeuristicParser::class), \OwnPay\Service\Sms\SmsHeuristicParser::class),
+            ensureType($c->get(\OwnPay\Security\FieldEncryptor::class), \OwnPay\Security\FieldEncryptor::class),
+            ensureType($c->get(\OwnPay\Service\Notification\MobileNotificationService::class), \OwnPay\Service\Notification\MobileNotificationService::class),
+            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class),
+        );
     });
 
     // ─── Logger ────────────────────────────────────────────────
@@ -532,12 +582,35 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
+    // Transactional email notifier (per-brand sender + on-payment/on-refund prefs)
+    $c->singleton(\OwnPay\Service\Communication\EmailNotificationService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Communication\EmailNotificationService {
+        return new \OwnPay\Service\Communication\EmailNotificationService(
+            ensureType($c->get(\OwnPay\Service\Communication\CommunicationService::class), \OwnPay\Service\Communication\CommunicationService::class),
+            ensureType($c->get(\OwnPay\Repository\SettingsRepository::class), \OwnPay\Repository\SettingsRepository::class),
+            ensureType($c->get(\OwnPay\View\FragmentRenderer::class), \OwnPay\View\FragmentRenderer::class),
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class)
+        );
+    });
+
+    // Self-service password reset orchestration
+    $c->singleton(\OwnPay\Service\Auth\PasswordResetService::class, static function (\OwnPay\Container $c): \OwnPay\Service\Auth\PasswordResetService {
+        return new \OwnPay\Service\Auth\PasswordResetService(
+            ensureType($c->get(\OwnPay\Repository\MerchantUserRepository::class), \OwnPay\Repository\MerchantUserRepository::class),
+            ensureType($c->get(\OwnPay\Repository\PasswordResetRepository::class), \OwnPay\Repository\PasswordResetRepository::class),
+            ensureType($c->get(\OwnPay\Service\Communication\CommunicationService::class), \OwnPay\Service\Communication\CommunicationService::class),
+            ensureType($c->get(\OwnPay\View\FragmentRenderer::class), \OwnPay\View\FragmentRenderer::class),
+            ensureType($c->get(\OwnPay\Service\Domain\DomainUrlService::class), \OwnPay\Service\Domain\DomainUrlService::class),
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class)
+        );
+    });
+
     // Wiring listener to hook eagerly during boot
     /**
      * Registers payment completion hooks.
      *
      * Hooks into the global EventManager to listen to 'payment.transaction.completed'
-     * and route events to the PaymentCompletionListener.
+     * and route events to the PaymentCompletionListener, plus the transactional email
+     * notifier on completion + refund (priority 20 so payment-state updates run first).
      */
     if (file_exists(dirname(__DIR__) . '/storage/.installed')) {
         try {
@@ -545,6 +618,10 @@ return static function (\OwnPay\Container $c): void {
             $events->addAction('system.boot', static function () use ($c, $events): void {
                 $listener = ensureType($c->get(\OwnPay\Service\Payment\PaymentCompletionListener::class), \OwnPay\Service\Payment\PaymentCompletionListener::class);
                 $events->addAction('payment.transaction.completed', [$listener, 'onTransactionCompleted']);
+
+                $emailNotifier = ensureType($c->get(\OwnPay\Service\Communication\EmailNotificationService::class), \OwnPay\Service\Communication\EmailNotificationService::class);
+                $events->addAction('payment.transaction.completed', [$emailNotifier, 'onTransactionCompleted'], 20);
+                $events->addAction('refund.created', [$emailNotifier, 'onRefundCreated'], 20);
             });
         } catch (\Throwable) {}
     }
@@ -623,6 +700,15 @@ return static function (\OwnPay\Container $c): void {
         );
     });
 
+    $c->singleton(\OwnPay\Cron\RefundReconciliationJob::class, static function (\OwnPay\Container $c): \OwnPay\Cron\RefundReconciliationJob {
+        return new \OwnPay\Cron\RefundReconciliationJob(
+            ensureType($c->get(\OwnPay\Core\Database::class), \OwnPay\Core\Database::class),
+            ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),
+            ensureType($c->get(\OwnPay\Service\System\AuditLogger::class), \OwnPay\Service\System\AuditLogger::class),
+            ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class)
+        );
+    });
+
     $c->singleton(\OwnPay\Cron\CronJobRunner::class, static function (\OwnPay\Container $c): \OwnPay\Cron\CronJobRunner {
         $logger = $c->has(\OwnPay\Service\System\Logger::class) ? ensureType($c->get(\OwnPay\Service\System\Logger::class), \OwnPay\Service\System\Logger::class) : null;
         $runner = new \OwnPay\Cron\CronJobRunner(
@@ -636,8 +722,40 @@ return static function (\OwnPay\Container $c): void {
         $runner->register('BalanceVerification', ensureType($c->get(\OwnPay\Cron\BalanceVerificationJob::class), \OwnPay\Cron\BalanceVerificationJob::class), 'every_5min');
         $runner->register('CurrencyUpdate', ensureType($c->get(\OwnPay\Cron\CurrencyUpdateJob::class), \OwnPay\Cron\CurrencyUpdateJob::class), 'hourly');
         $runner->register('DnsVerification', ensureType($c->get(\OwnPay\Cron\DnsVerificationJob::class), \OwnPay\Cron\DnsVerificationJob::class), 'hourly');
+        $runner->register('RefundReconciliation', ensureType($c->get(\OwnPay\Cron\RefundReconciliationJob::class), \OwnPay\Cron\RefundReconciliationJob::class), 'hourly');
         $runner->register('UpdateCheck', ensureType($c->get(\OwnPay\Cron\UpdateCheckJob::class), \OwnPay\Cron\UpdateCheckJob::class), 'daily');
         $runner->register('SystemUpdate', ensureType($c->get(\OwnPay\Cron\SystemUpdateJob::class), \OwnPay\Cron\SystemUpdateJob::class), 'daily');
+
+        // Plugin-declared cron jobs (manifest "cron"). Plugins are loaded during Kernel boot, so by
+        // the time this runner is built for a /cron run the registry holds their manifests. Each
+        // entry's "class" (a CronJobInterface the plugin ships, resolved via the plugin autoloader)
+        // is scheduled under a slug-namespaced name so it can never collide with a core job.
+        if ($c->has(\OwnPay\Plugin\PluginRegistry::class)) {
+            $pluginRegistry = $c->get(\OwnPay\Plugin\PluginRegistry::class);
+            if ($pluginRegistry instanceof \OwnPay\Plugin\PluginRegistry) {
+                foreach ($pluginRegistry->getLoaded() as $pluginSlug => $pluginInstance) {
+                    $pluginManifest = $pluginRegistry->getManifest($pluginSlug);
+                    if ($pluginManifest === null) {
+                        continue;
+                    }
+                    foreach ($pluginManifest->cron as $cronEntry) {
+                        $jobClass = $cronEntry['class'] ?? '';
+                        $jobName = $cronEntry['name'];
+                        $jobSchedule = $cronEntry['schedule'];
+                        if ($jobClass === '' || $jobName === '' || $jobSchedule === '') {
+                            continue;
+                        }
+                        if (!class_exists($jobClass) || !is_subclass_of($jobClass, \OwnPay\Cron\CronJobInterface::class)) {
+                            continue;
+                        }
+                        $jobInstance = $c->has($jobClass) ? $c->get($jobClass) : new $jobClass();
+                        if ($jobInstance instanceof \OwnPay\Cron\CronJobInterface) {
+                            $runner->register('plugin:' . $pluginSlug . ':' . $jobName, $jobInstance, $jobSchedule);
+                        }
+                    }
+                }
+            }
+        }
 
         return $runner;
     });

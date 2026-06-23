@@ -286,3 +286,37 @@ Resolves brand from:
 3. Verify checkout pages show correct brand's gateways.
 4. Switch between brands in dashboard and confirm data isolation.
 5. Verify "All Brands" global view shows aggregated stats.
+
+---
+
+## Current State (2026-06) — All-Brands Platform Scope & Refinements
+
+The migration above shipped. Since then the model was hardened so that "All Brands" is a concrete,
+owned scope rather than just an unfiltered view. The authoritative reference is
+[ARCHITECTURE.md](../../../ARCHITECTURE.md) §4.11; summary:
+
+- **Platform-owner row.** A reserved `op_merchants` row with `is_platform = 1` (slug `__platform__`,
+  migration `013_add_platform_owner.sql`) owns All-Brands-level data/config. It is excluded from the
+  brand switcher and is never selectable. Resolve via `BrandContext::getPlatformId()` (id varies per DB
+  — never hard-code).
+- **Write routing.** `BrandContext::getWriteMerchantId()` returns the platform id in the All-Brands view,
+  else the active brand id. All-Brands-created operational data (e.g. admin API keys) is owned by the
+  platform row and is therefore visible only to All Brands; brand-created data is visible to that brand
+  and to All Brands.
+- **Config cascade.** `SettingsRepository::getScoped()` resolves brand override → All-Brands default →
+  code default. The All-Brands settings are the fallback every brand inherits until it overrides.
+- **Staff cross-brand access** is gated by the `brands.access_all` permission (migration
+  `014_add_access_all_brands_permission.sql`) in addition to `is_superadmin`.
+- **Manual gateways** use a platform-template + per-brand-account model (ARCHITECTURE.md §4.10): All
+  Brands defines the type/default; each brand sets its own receiving account; checkout routes to the
+  brand's account with the platform template as fallback.
+- **Per-brand notifications.** Transactional admin emails (payment / refund) send through
+  `EmailNotificationService` with a per-brand sender + on/off prefs (settings group `general`); see
+  ARCHITECTURE.md §4.9.
+- **Resolves Q2 (resource sharing):** shared/global resources are modelled as platform-owned rows that
+  brands inherit (gateway configs and settings via the NULL/`getScoped` global fallback; manual-gateway
+  templates via the platform row), rather than a separate `shared` flag.
+
+> [!NOTE]
+> `op_settlements` referenced in the original tables list has since been **decommissioned** (settlement
+> payouts were removed); see ARCHITECTURE.md §6.4.

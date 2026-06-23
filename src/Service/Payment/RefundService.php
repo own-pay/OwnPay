@@ -111,8 +111,14 @@ final class RefundService
             $origAmount = is_scalar($origAmountVal) ? (string) $origAmountVal : '0.00';
             /** @var numeric-string $origAmount */
 
-            if ($amount === null || !is_numeric($amount) || bccomp((string)$amount, '0', 2) <= 0) {
+            // A null/absent amount means "refund the full remaining balance".
+            // An explicitly supplied amount that is non-numeric or non-positive is a
+            // client error and must be rejected — never silently coerced into a full
+            // refund (which would refund far more than the caller intended).
+            if ($amount === null) {
                 $amount = bcsub($origAmount, $alreadyRefunded, 2);
+            } elseif (!is_numeric($amount) || bccomp((string)$amount, '0', 2) <= 0) {
+                throw new InvalidArgumentException('Refund amount must be a positive number');
             }
 
             $amountStr = (string)$amount;

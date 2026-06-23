@@ -75,13 +75,29 @@ final class ApiKeyController
             throw new \RuntimeException('BrandContext service unavailable');
         }
         $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
-        if ($mid === null) {
-            throw new \RuntimeException('No active brand found.');
-        }
+        // All Brands view → platform-owner id: the key and the data it creates are platform-owned
+        // and readable only by All Brands. Brand view → that brand's id: key + data are brand-owned,
+        // readable by the brand AND All Brands (via the unfiltered All-Brands reads).
+        $mid = $brand->getWriteMerchantId();
         $labelVal = $req->post('label', 'Default');
         $label = is_string($labelVal) ? $labelVal : 'Default';
-        $key = $this->keys->generate($mid, $label);
+
+        $scopesVal = $req->post('scopes');
+        $scopes = ['read', 'write'];
+        if (is_array($scopesVal)) {
+            $allowed = ['read', 'write', 'admin'];
+            $valid = [];
+            foreach ($scopesVal as $s) {
+                if (is_string($s) && in_array($s, $allowed, true)) {
+                    $valid[] = $s;
+                }
+            }
+            if (!empty($valid)) {
+                $scopes = array_values(array_unique($valid));
+            }
+        }
+
+        $key = $this->keys->generate($mid, $label, $scopes);
 
         $_SESSION['_generated_api_key'] = $key['key'];
         $_SESSION['_generated_api_key_label'] = $label;
@@ -106,12 +122,14 @@ final class ApiKeyController
             throw new \RuntimeException('BrandContext service unavailable');
         }
         $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
-        if ($mid === null) {
-            throw new \RuntimeException('No active brand found.');
-        }
+        // All Brands view revokes platform-owned keys; a brand view revokes its own.
+        $mid = $brand->getWriteMerchantId();
         $this->keys->revoke($mid, $id);
         $this->session->flashSuccess('API key revoked');
-        return Response::redirect('/admin/settings#tab-api');
+        $referer = $req->header('Referer');
+        $redirectUrl = str_contains($referer, '/admin/settings') 
+            ? '/admin/settings#tab-api' 
+            : '/admin/developer';
+        return Response::redirect($redirectUrl);
     }
 }

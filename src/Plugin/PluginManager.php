@@ -95,7 +95,7 @@ final class PluginManager
      * Fires pre and post installation hooks and registers the plugin record in the DB.
      *
      * @param string $zipPath Absolute path to the plugin ZIP archive.
-     * @return array{success: bool, slug?: string, error?: string} Status of the installation.
+     * @return array{success: bool, error?: string, slug?: string, code?: string, existing_version?: string, new_version?: string, has_migrations?: bool} Status of the installation.
      */
     public function install(string $zipPath): array
     {
@@ -416,6 +416,86 @@ final class PluginManager
     }
 
     /**
+     * Updates an already installed plugin from a local ZIP file.
+     * Overwrites filesystem files, runs pending migrations, and updates the database record.
+     *
+     * @param string $zipPath Absolute path to the plugin ZIP archive.
+     * @return array{success: bool, error?: string, slug?: string, code?: string, existing_version?: string, new_version?: string, has_migrations?: bool} Status of the update.
+     */
+    public function update(string $zipPath): array
+    {
+        $this->events->doAction('plugin.before_update', $zipPath);
+
+        // Perform overwrite installation
+        $result = $this->installer->installFromZip($zipPath, true);
+        if (!$result['success']) {
+            return $result;
+        }
+
+        $slug = $result['slug'] ?? '';
+        if ($slug === '') {
+            return ['success' => false, 'error' => 'Update failed: missing slug.'];
+        }
+
+        $loader = $this->container->get(PluginLoader::class);
+        if (!$loader instanceof PluginLoader) {
+            return ['success' => false, 'error' => 'PluginLoader not found'];
+        }
+        $manifests = $loader->discover();
+        $manifest = $manifests[$slug] ?? null;
+
+        if ($manifest === null) {
+            return ['success' => false, 'error' => 'Plugin updated but manifest not found'];
+        }
+
+        // Run migrations
+        $migrationsDir = $manifest->path . '/migrations';
+        $ran = [];
+        try {
+            $ran = $this->migrator->migrate($slug, $migrationsDir);
+        } catch (\Throwable $e) {
+            return ['success' => false, 'error' => 'Migration failed: ' . $e->getMessage()];
+        }
+
+        // Update database record
+        $plugin = $this->repo->findBySlug($slug);
+        if ($plugin !== null) {
+            $pluginId = is_numeric($plugin['id'] ?? null) ? (int) $plugin['id'] : 0;
+            $this->repo->update($pluginId, [
+                'name'         => $manifest->name,
+                'version'      => $manifest->version,
+                'entrypoint'   => $manifest->entrypoint,
+                'capabilities' => json_encode($manifest->capabilities),
+                'manifest'     => json_encode($manifest->toArray()),
+            ]);
+        } else {
+            // Fallback: create if missing in DB
+            $this->repo->create([
+                'slug'         => $manifest->slug,
+                'name'         => $manifest->name,
+                'type'         => $manifest->type,
+                'version'      => $manifest->version,
+                'entrypoint'   => $manifest->entrypoint,
+                'capabilities' => json_encode($manifest->capabilities),
+                'manifest'     => json_encode($manifest->toArray()),
+                'status'       => 'inactive',
+            ]);
+        }
+
+        // If it's a gateway, update gateway definition (e.g. logo path)
+        if ($manifest->type === 'gateway') {
+            $pluginRecord = $this->repo->findBySlug($slug);
+            if ($pluginRecord !== null) {
+                $this->registerGatewayDefinition($slug, $pluginRecord);
+            }
+        }
+
+        $this->events->doAction('plugin.updated', $slug, $manifest, $ran);
+
+        return ['success' => true, 'slug' => $slug];
+    }
+
+    /**
      * Resolves the absolute directory path of a plugin.
      *
      * @param array<string, mixed> $plugin DB plugin representation.
@@ -580,16 +660,20 @@ final class PluginManager
     private function removeDir(string $dir): bool
     {
         if (!is_dir($dir)) return false;
-        $items = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::CHILD_FIRST
-        );
-        foreach ($items as $item) {
-            if ($item instanceof \SplFileInfo) {
-                $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+        try {
+            $items = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($dir, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::CHILD_FIRST
+            );
+            foreach ($items as $item) {
+                if ($item instanceof \SplFileInfo) {
+                    $item->isDir() ? @rmdir($item->getPathname()) : @unlink($item->getPathname());
+                }
             }
+            return @rmdir($dir);
+        } catch (\Throwable $e) {
+            return false;
         }
-        return @rmdir($dir);
     }
 
     /**
@@ -602,17 +686,22 @@ final class PluginManager
     private function copyDir(string $src, string $dst): void
     {
         @mkdir($dst, 0755, true);
-        $items = new \RecursiveIteratorIterator(
-            new \RecursiveDirectoryIterator($src, \FilesystemIterator::SKIP_DOTS),
-            \RecursiveIteratorIterator::SELF_FIRST
-        );
-        foreach ($items as $item) {
-            if ($item instanceof \SplFileInfo) {
-                $target = $dst . '/' . $items->getSubPathname();
-                $item->isDir() ? @mkdir($target, 0755) : @copy($item->getPathname(), $target);
+        try {
+            $items = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator($src, \FilesystemIterator::SKIP_DOTS),
+                \RecursiveIteratorIterator::SELF_FIRST
+            );
+            foreach ($items as $item) {
+                if ($item instanceof \SplFileInfo) {
+                    $target = $dst . '/' . $items->getSubPathname();
+                    $item->isDir() ? @mkdir($target, 0755) : @copy($item->getPathname(), $target);
+                }
             }
+        } catch (\Throwable $e) {
+            // Ignore copying errors, fallback gracefully
         }
     }
+
 
     /**
      * Registers or updates a gateway plugin in the `op_gateways` table.
@@ -693,11 +782,20 @@ final class PluginManager
             return null;
         }
 
+        // SECURITY: the icon is copied into the public webroot, so its extension
+        // must be a known image type. A plugin manifest declaring icon:'shell.php'
+        // would otherwise drop an executable PHP file under /assets/ — direct RCE
+        // for anyone with plugins.manage. Reject anything that is not an image.
+        $ext = strtolower(pathinfo($iconFile, PATHINFO_EXTENSION));
+        $allowedExt = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'];
+        if (!in_array($ext, $allowedExt, true)) {
+            return null;
+        }
+
         $destDir = $publicPath . '/assets/img/gateways';
         if (!is_dir($destDir)) {
             mkdir($destDir, 0755, true);
         }
-        $ext = pathinfo($iconFile, PATHINFO_EXTENSION);
         $destFile = $slug . '.' . $ext;
         copy($srcPath, $destDir . '/' . $destFile);
 

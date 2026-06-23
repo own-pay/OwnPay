@@ -137,4 +137,50 @@ class WebhookDispatcherTest extends TestCase
             );
         }
     }
+
+    public function testBuildPayloadIncludesGatewayTrxId(): void
+    {
+        $db = $this->createMock(\OwnPay\Core\Database::class);
+        $logger = new \OwnPay\Service\System\Logger('test');
+        $events = new \OwnPay\Event\EventManager();
+        
+        $dispatcher = new \OwnPay\Service\Notification\WebhookDispatcher($db, $logger, $events);
+        
+        $data = [
+            'transaction_id' => 'TXN_123',
+            'gateway_trx_id' => 'GW_456',
+            'amount' => '100.00',
+        ];
+        
+        $payload = $dispatcher->buildPayload('payment.completed', $data);
+        
+        $this->assertSame('GW_456', $payload['gateway_trx_id']);
+        $this->assertSame('TXN_123', $payload['transaction_id']);
+    }
+
+    public function testBuildPayloadQueriesDatabaseForGatewayTrxId(): void
+    {
+        $db = $this->createMock(\OwnPay\Core\Database::class);
+        $logger = new \OwnPay\Service\System\Logger('test');
+        $events = new \OwnPay\Event\EventManager();
+        
+        $db->expects($this->once())
+            ->method('fetchOne')
+            ->with(
+                $this->stringContains('SELECT gateway_trx_id FROM op_transactions'),
+                ['trxId' => 'TXN_123']
+            )
+            ->willReturn(['gateway_trx_id' => 'GW_789']);
+            
+        $dispatcher = new \OwnPay\Service\Notification\WebhookDispatcher($db, $logger, $events);
+        
+        $data = [
+            'transaction_id' => 'TXN_123',
+            'amount' => '100.00',
+        ];
+        
+        $payload = $dispatcher->buildPayload('payment.completed', $data);
+        
+        $this->assertSame('GW_789', $payload['gateway_trx_id']);
+    }
 }

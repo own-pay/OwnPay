@@ -158,35 +158,4 @@ final class CurrencyController
 
         return Response::redirect('/admin/settings/payment');
     }
-
-    /**
-     * Performs bulk manual exchange rate updates.
-     *
-     * @param Request $req The incoming HTTP request.
-     * @return Response The HTTP redirect response.
-     */
-    public function updateRates(Request $req): Response
-    {
-        $rates = $req->post('rates');
-        if (!is_array($rates)) {
-            $this->session->flashError('No exchange rates provided');
-            return Response::redirect('/admin/settings/payment');
-        }
-
-        $svc = $this->c->get(CurrencyService::class);
-        if (!$svc instanceof CurrencyService) {
-            throw new \RuntimeException('CurrencyService unavailable');
-        }
-
-        $count = 0;
-        foreach ($rates as $code => $rate) {
-            if (is_scalar($rate) && trim((string) $rate) !== '' && is_numeric($rate)) {
-                $svc->updateExchangeRate(strtoupper((string) $code), trim((string) $rate));
-                $count++;
-            }
-        }
-
-        $this->session->flashSuccess("Successfully updated {$count} exchange rates.");
-        return Response::redirect('/admin/settings/payment');
-    }
 }

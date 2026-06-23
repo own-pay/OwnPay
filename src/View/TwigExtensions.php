@@ -173,21 +173,49 @@ final class TwigExtensions extends AbstractExtension
          * while preserving safe display components like lists, anchor tags, SVG, and span containers.
          */
         if ($output !== '') {
+            $output = $this->sanitizeHookOutput($output);
+        }
+
+        return $output;
+    }
+
+    /**
+     * Strips structurally dangerous markup from plugin hook output.
+     *
+     * Trust contract: plugins are installed, sandbox-audited server-side code
+     * and their hooks emit HTML by design — plugins MUST escape any user data
+     * they interpolate. This filter is defense-in-depth against a compromised
+     * plugin, not an escaping layer. It removes script-capable elements,
+     * inline event handlers (quoted or unquoted), and javascript: URIs, and
+     * repeats until the output is stable so split-tag tricks such as
+     * <scr<script>ipt> cannot reassemble a stripped element after one pass.
+     *
+     * @param string $output Raw buffered hook output.
+     * @return string The sanitized markup ('' when no stable fixed point is reached).
+     */
+    private function sanitizeHookOutput(string $output): string
+    {
+        for ($pass = 0; $pass < 10; $pass++) {
+            $before = $output;
             $output = preg_replace(
                 '/<\s*(script|iframe|object|embed|form|base|meta|link)[^>]*>.*?<\s*\/\s*\1\s*>/is',
                 '',
                 $output
             ) ?? $output;
             $output = preg_replace(
-                '/<\s*(script|iframe|object|embed|form|base|meta)[^>]*\/?>/i',
+                '/<\s*(script|iframe|object|embed|form|base|meta|link)[^>]*\/?>/i',
                 '',
                 $output
             ) ?? $output;
-            $output = preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']/i', '', $output) ?? $output;
-            $output = preg_replace('/(?:href|src)\s*=\s*["\']javascript:[^"\']*["\']/i', '', $output) ?? $output;
+            $output = preg_replace('/\s+on\w+\s*=\s*("[^"]*"|\'[^\']*\'|[^\s>]+)/i', '', $output) ?? $output;
+            $output = preg_replace('/(?:href|src)\s*=\s*["\']?\s*javascript:[^"\'\s>]*["\']?/i', '', $output) ?? $output;
+            if ($output === $before) {
+                return $output;
+            }
         }
 
-        return $output;
+        // The markup kept mutating across passes — adversarial input. Refuse it.
+        return '';
     }
 
     /**

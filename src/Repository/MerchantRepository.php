@@ -26,6 +26,7 @@ final class MerchantRepository extends BaseRepository
      */
     protected array $fillable = [
         'uuid', 'name', 'slug', 'email', 'phone', 'logo_path',
+        'color', 'initials', 'description',
         'timezone', 'default_currency', 'webhook_secret', 'settings', 'status',
     ];
 

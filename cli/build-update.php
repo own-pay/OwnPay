@@ -245,9 +245,20 @@ if ($breakingChanges) {
 $minPhp = prompt("Minimum required PHP version", "8.2.0");
 $minOwnPay = prompt("Minimum required OwnPay version", "0.1.0");
 
-$defaultUrl = "https://update.ownpay.org/releases/{$version}/ownpay-{$version}.zip";
-$customUrl = prompt("Enter download URL (e.g. GitHub Release URL)", $defaultUrl);
+// The release zip is published as a GitHub Release asset (the canonical update
+// source). The git tag is conventionally "v{version}" and the asset is
+// "ownpay-{version}.zip". UpdateService whitelists github.com /
+// objects.githubusercontent.com / release-assets.githubusercontent.com and
+// follows the 302 to the asset CDN automatically.
+$defaultUrl = "https://github.com/own-pay/OwnPay/releases/download/v{$version}/ownpay-{$version}.zip";
+$customUrl = prompt("Enter download URL (GitHub Release asset URL)", $defaultUrl);
 $customUrl = trim($customUrl) !== "" ? trim($customUrl) : $defaultUrl;
+
+// Derive the metadata URL base from the chosen download URL so checksum.sha256 /
+// signature.sig / changelog.md are referenced alongside the zip (upload them as
+// release assets too). The client verifies using the INLINE checksum_sha256 +
+// signature fields below; these *_url fields are informational/auditing aids.
+$releaseAssetBase = rtrim(str_replace('\\', '/', dirname($customUrl)), '/') . '/';
 
 // -------------------------------------------------------------
 // 4. Changelog Extraction & Editor Integration
@@ -627,11 +638,11 @@ $newReleaseRecord = [
     'version_code'       => preg_replace('/-(alpha|beta|rc|dev)\d*$/i', '', $version),
     'channel'            => $channel,
     'download_url'       => $customUrl,
-    'checksum_url'       => "https://update.ownpay.org/releases/{$version}/checksum.sha256",
+    'checksum_url'       => $releaseAssetBase . 'checksum.sha256',
     'checksum_sha256'    => $sha256,
-    'signature_url'      => $signatureBase64 !== null ? "https://update.ownpay.org/releases/{$version}/signature.sig" : null,
+    'signature_url'      => $signatureBase64 !== null ? $releaseAssetBase . 'signature.sig' : null,
     'signature'          => $signatureBase64,
-    'changelog_url'      => "https://update.ownpay.org/releases/{$version}/changelog.md",
+    'changelog_url'      => $releaseAssetBase . 'changelog.md',
     'changelog'          => $changelogContent,
     'release_date'       => $releaseMetadata['release_date'],
     'size_bytes'         => filesize($zipPath),
@@ -745,9 +756,14 @@ echo "Release Zip file: " . CLI_CYAN . $zipPath . CLI_RESET . " (" . number_form
 echo "Integrity hash:   " . CLI_YELLOW . $sha256 . CLI_RESET . "\n\n";
 
 echo "Next Steps:\n";
-echo "  1. Upload the files inside `update/` to your update server root.\n";
-echo "  2. The update server root directory should contain: \n";
-echo "     - manifest.json\n";
-echo "     - index.html\n";
-echo "     - releases/\n";
-echo "  3. No other config or modification is needed. Ready for production!\n\n";
+echo "  1. Create the GitHub Release and upload the zip as a release asset:\n";
+echo "       Tag:   " . CLI_CYAN . "v{$version}" . CLI_RESET . "\n";
+echo "       Asset: " . CLI_CYAN . $zipName . CLI_RESET . " (from {$zipPath})\n";
+echo "       (optionally also attach checksum.sha256, signature.sig, changelog.md)\n";
+echo "       The download URL must match the manifest: " . CLI_CYAN . $customUrl . CLI_RESET . "\n";
+echo "  2. Publish the manifest so clients can discover the release. Upload\n";
+echo "     " . CLI_CYAN . "update/manifest.json" . CLI_RESET . " to your update server (the host in UPDATE_CHECK_URL,\n";
+echo "     default https://update.ownpay.org/manifest.json). The client verifies the\n";
+echo "     download using the INLINE checksum_sha256 + signature embedded in the manifest.\n";
+echo "  3. The SAME zip doubles as a first-time install: unzip into a web root and\n";
+echo "     browse to /install. Done — ready for production!\n\n";

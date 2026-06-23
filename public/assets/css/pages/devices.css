@@ -1,3 +1,4 @@
+/* OwnPay Devices page styling overrides */
 .op-align-v2-mr6 {
     vertical-align: -2px;
     margin-right: 6px;
@@ -14,13 +15,274 @@
 }
 
 .op-stat-grad-primary {
-    background: linear-gradient(135deg,#6366f1,#8b5cf6) !important;
+    background: linear-gradient(135deg, #6366f1, #8b5cf6) !important;
 }
 
 .op-stat-grad-success {
-    background: linear-gradient(135deg,#22c55e,#16a34a) !important;
+    background: linear-gradient(135deg, #22c55e, #16a34a) !important;
 }
 
 .op-stat-grad-danger {
-    background: linear-gradient(135deg,#ef4444,#dc2626) !important;
+    background: linear-gradient(135deg, #ef4444, #dc2626) !important;
+}
+
+/* ── Pairing Panel Design ── */
+.op-pairing-panel {
+    border: 1px solid var(--op-border);
+    border-radius: var(--op-radius);
+    background: var(--op-bg-card);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.op-pairing-panel .op-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--op-border);
+    padding: 16px 24px;
+}
+
+.op-pairing-step {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.op-step-number {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--op-primary), #8b5cf6);
+    color: #fff;
+    font-size: 13px;
+    font-weight: 700;
+    box-shadow: 0 4px 10px rgb(15 150 237 / 20%);
+}
+
+.op-pairing-step h4 {
+    margin: 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--op-text);
+}
+
+/* ── OTP & QR Display Side-by-Side Flex ── */
+.op-pairing-flex {
+    display: flex;
+    gap: 24px;
+    align-items: stretch;
+    margin-top: 24px;
+    flex-wrap: wrap;
+}
+
+.op-otp-box-wrapper {
+    flex: 1;
+    min-width: 200px;
+    background: var(--op-bg-input);
+    border: 1px solid var(--op-border);
+    border-radius: 12px;
+    padding: 20px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    box-shadow: inset 0 2px 4px rgb(0 0 0 / 2%);
+}
+
+.op-otp-code-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--op-text-muted);
+    font-weight: 600;
+    margin-bottom: 8px;
+}
+
+.op-otp-code {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 4px;
+    color: var(--op-primary);
+    font-family: var(--mono);
+    margin: 8px 0;
+    text-shadow: 0 0 12px rgb(15 150 237 / 10%);
+}
+
+.op-otp-timer {
+    font-size: 12px;
+    color: var(--op-text-muted);
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.op-otp-timer span {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--op-danger);
+}
+
+/* QR Code Box */
+.op-qr-wrapper {
+    flex: 1;
+    min-width: 200px;
+    background: var(--op-bg-input);
+    border: 1px solid var(--op-border);
+    border-radius: 12px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+}
+
+.op-qr-label {
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--op-text-muted);
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.op-qr-code-box {
+    background: #fff; /* Must remain white for scan readability in dark/light mode */
+    padding: 12px;
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgb(0 0 0 / 8%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 140px;
+    height: 140px;
+}
+
+.op-qr-code-box svg {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+.op-qr-placeholder {
+    font-size: 12px;
+    color: #94a3b8;
+    font-style: italic;
+}
+
+/* ── Timeline Pairing Steps ── */
+.op-timeline {
+    position: relative;
+    padding-left: 24px;
+    margin: 16px 0;
+}
+
+.op-timeline::before {
+    content: '';
+    position: absolute;
+    top: 6px;
+    left: 7px;
+    bottom: 6px;
+    width: 2px;
+    background: var(--op-border);
+}
+
+.op-timeline-item {
+    position: relative;
+    margin-bottom: 20px;
+}
+
+.op-timeline-item:last-child {
+    margin-bottom: 0;
+}
+
+.op-timeline-marker {
+    position: absolute;
+    top: 4px;
+    left: -24px;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--op-bg-card);
+    border: 3px solid var(--op-primary);
+    box-sizing: border-box;
+    transition: all 0.2s ease;
+}
+
+.op-timeline-item:hover .op-timeline-marker {
+    transform: scale(1.2);
+    border-color: #8b5cf6;
+}
+
+.op-timeline-content {
+    padding-left: 8px;
+}
+
+.op-timeline-content strong {
+    display: block;
+    font-size: 14px;
+    color: var(--op-text);
+    margin-bottom: 2px;
+}
+
+/* Custom Textareas for keywords */
+.op-font-mono {
+    font-family: var(--mono) !important;
+    font-size: 13px !important;
+    line-height: 1.5 !important;
+}
+
+.op-textarea {
+    resize: vertical;
+}
+
+/* Device List Info styling */
+.op-device-info {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.op-device-icon {
+    width: 36px;
+    height: 36px;
+    border-radius: 8px;
+    background: var(--op-border-light);
+    color: var(--op-text-body);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--op-border);
+}
+
+tr:hover .op-device-icon {
+    background: var(--op-bg-card);
+    color: var(--op-primary);
+    border-color: rgb(15 150 237 / 30%);
+}
+
+.op-status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 6px;
+    vertical-align: middle;
+}
+
+.op-badge-success .op-status-dot {
+    background-color: var(--op-success);
+}
+
+.op-badge-danger .op-status-dot {
+    background-color: var(--op-danger);
+}
+
+.op-badge-muted .op-status-dot {
+    background-color: var(--op-text-muted);
 }

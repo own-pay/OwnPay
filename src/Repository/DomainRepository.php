@@ -72,4 +72,26 @@ final class DomainRepository extends BaseRepository
             "SELECT * FROM {$this->table} WHERE dns_verified = 0 AND status = 'pending'"
         );
     }
+
+    /**
+     * Finds verified+active domains whose ownership proof is older than the grace window.
+     *
+     * Used by the periodic re-verification pass: a domain that was verified once
+     * and never re-checked stays trusted forever, even after the owner removes
+     * the TXT record or loses control of the domain (DNS TOCTOU). Only domains
+     * verified longer ago than $minHours are returned, so freshly verified
+     * domains are not immediately re-checked.
+     *
+     * @param int $minHours Minimum age (hours) since last verification.
+     * @return array<int, array<string, mixed>> Stale verified domain records.
+     */
+    public function findStaleVerified(int $minHours = 24): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table}
+             WHERE dns_verified = 1 AND status = 'active'
+               AND (dns_verified_at IS NULL OR dns_verified_at < DATE_SUB(NOW(6), INTERVAL :hrs HOUR))",
+            ['hrs' => $minHours]
+        );
+    }
 }

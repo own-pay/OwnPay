@@ -76,13 +76,19 @@ final class Authenticator
         }
 
         // Verify active lockout window to prevent brute-force attacks.
+        // Exponential backoff (FIND-007): repeated failures extend the lockout window,
+        // so an attacker cannot resume guessing at full rate after each base window.
         $maxAttempts = (int) (getenv('MAX_LOGIN_ATTEMPTS') ?: 5);
         $window = (int) (getenv('LOCKOUT_DURATION') ?: 300);
-        $recentFails = $attempts->recentFailedCount($email, $ip, $window);
+        $lockRemaining = $attempts->lockoutSecondsRemaining($email, $ip, $window, $maxAttempts);
 
-        if ($recentFails >= $maxAttempts) {
+        if ($lockRemaining > 0) {
             $events->doAction('auth.login.failed', $email, $ip);
-            return ['success' => false, 'error' => 'Account temporarily locked. Try again later.'];
+            $minutes = (int) ceil($lockRemaining / 60);
+            return [
+                'success' => false,
+                'error'   => "Account temporarily locked due to repeated failed attempts. Try again in about {$minutes} minute(s).",
+            ];
         }
 
         $user = $users->findActiveByLogin($email);

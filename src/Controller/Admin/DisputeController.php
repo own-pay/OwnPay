@@ -87,9 +87,10 @@ final class DisputeController
     public function index(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
+        $isGlobal = $this->brand->isGlobalView();
         $mid = $this->brand->getActiveBrandId();
 
-        if ($mid === null) {
+        if ($mid === null && !$isGlobal) {
             $this->session->flashError('Please select a specific brand first.');
             return Response::redirect('/admin');
         }
@@ -98,7 +99,7 @@ final class DisputeController
         $pageVal = (is_int($pageQuery) || is_string($pageQuery) || is_numeric($pageQuery)) ? (int) $pageQuery : 1;
         $page = max(1, $pageVal);
 
-        $paginated = $this->disputes->forTenant((int) $mid)->paginateScoped($page, 20, '1=1', [], 'id DESC');
+        $paginated = ($isGlobal ? $this->disputes->forAllTenants() : $this->disputes->forTenant((int) $mid))->paginateScoped($page, 20, '1=1', [], 'id DESC');
 
         return $this->renderAdminPage('admin/disputes/index.twig', [
             'disputes'    => $paginated['items'],
@@ -133,10 +134,38 @@ final class DisputeController
             return Response::redirect('/admin/disputes');
         }
 
+        if (isset($dispute['evidence']) && is_string($dispute['evidence'])) {
+            $decoded = json_decode($dispute['evidence'], true);
+            if (json_last_error() === JSON_ERROR_NONE && is_array($decoded)) {
+                $dispute['evidence'] = $decoded;
+            }
+        }
+
         $txId = $dispute['transaction_id'] ?? null;
         $transaction = null;
         if (is_int($txId) || is_string($txId) || is_numeric($txId)) {
             $transaction = $this->txnRepo->forTenant((int) $mid)->findScoped((int) $txId);
+            if ($transaction) {
+                if (!empty($transaction['customer_id'])) {
+                    $customerRepo = $this->c->get(\OwnPay\Repository\CustomerRepository::class);
+                    if ($customerRepo instanceof \OwnPay\Repository\CustomerRepository) {
+                        $cId = is_scalar($transaction['customer_id']) ? (int) $transaction['customer_id'] : 0;
+                        $customer = $customerRepo->forTenant((int) $mid)->findScoped($cId);
+                        if ($customer) {
+                            $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
+                            if ($enc instanceof \OwnPay\Security\FieldEncryptor) {
+                                try {
+                                    $transaction['customer_name']  = (!empty($customer['name_enc']) && is_string($customer['name_enc'])) ? $enc->decrypt($customer['name_enc']) : ($customer['name'] ?? '—');
+                                    $transaction['customer_email'] = (!empty($customer['email_enc']) && is_string($customer['email_enc'])) ? $enc->decrypt($customer['email_enc']) : ($customer['email'] ?? '—');
+                                } catch (\Throwable $e) {
+                                    $transaction['customer_name']  = '[encrypted]';
+                                    $transaction['customer_email'] = '[encrypted]';
+                                }
+                            }
+                        }
+                    }
+                }
+            }
         }
 
         return $this->renderAdminPage('admin/disputes/show.twig', [
@@ -181,13 +210,48 @@ final class DisputeController
         $resolutionVal = $postData['resolution'] ?? '';
         $resolution = is_string($resolutionVal) ? InputSanitizer::string(trim($resolutionVal)) : '';
 
+        $shippingCarrierVal = $postData['shipping_carrier'] ?? '';
+        $shippingCarrier = is_string($shippingCarrierVal) ? InputSanitizer::string(trim($shippingCarrierVal)) : '';
+
+        $trackingNumberVal = $postData['tracking_number'] ?? '';
+        $trackingNumber = is_string($trackingNumberVal) ? InputSanitizer::string(trim($trackingNumberVal)) : '';
+
         if (!in_array($status, ['won', 'lost', 'closed'], true)) {
             $this->session->flashError('Invalid resolution status outcome.');
             return Response::redirect("/admin/disputes/{$id}");
         }
 
+        $filePath = '';
+        $evidenceFile = $req->file('evidence_file');
+        if (
+            is_array($evidenceFile)
+            && isset($evidenceFile['error'], $evidenceFile['name'], $evidenceFile['tmp_name'])
+            && is_int($evidenceFile['error'])
+            && is_string($evidenceFile['name'])
+            && is_string($evidenceFile['tmp_name'])
+            && $evidenceFile['error'] === UPLOAD_ERR_OK
+        ) {
+            try {
+                $fs = new \OwnPay\Service\System\FilesystemService(dirname(__DIR__, 3) . '/public/assets');
+                $storedPath = $fs->storeUpload($evidenceFile, 'uploads/disputes');
+                $filePath = '/assets/' . $storedPath;
+            } catch (\Throwable $e) {
+                $this->session->flashError('Invalid file for dispute evidence: ' . $e->getMessage());
+                return Response::redirect("/admin/disputes/{$id}");
+            }
+        }
+
+        $evidenceData = [
+            'notes'            => $resolution,
+            'shipping_carrier' => $shippingCarrier,
+            'tracking_number'  => $trackingNumber,
+            'file_path'        => $filePath,
+            'resolved_by'      => $this->session->currentUser()['id'] ?? null,
+        ];
+        $evidenceJson = json_encode($evidenceData, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE) ?: null;
+
         try {
-            $this->disputeService->resolve((int) $mid, $id, $status, $resolution);
+            $this->disputeService->resolve((int) $mid, $id, $status, $evidenceJson);
             
             // Record audit log for secure tracing
             $db = $this->c->get(\OwnPay\Core\Database::class);
@@ -199,7 +263,13 @@ final class DisputeController
                     'action'      => 'dispute.resolve',
                     'entity_type' => 'dispute',
                     'entity_id'   => $id,
-                    'new_values'  => json_encode(['status' => $status, 'resolution' => $resolution]),
+                    'new_values'  => json_encode([
+                        'status'           => $status,
+                        'resolution'       => $resolution,
+                        'shipping_carrier' => $shippingCarrier,
+                        'tracking_number'  => $trackingNumber,
+                        'file_path'        => $filePath
+                    ]),
                     'ip_address'  => $req->server('REMOTE_ADDR'),
                     'user_agent'  => $req->server('HTTP_USER_AGENT'),
                     'created_at'  => $now,

@@ -1,143 +1,22 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}Custom Domains — {{ app_name }}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/assets/css/pages/domains.css?v=013">
+    <link rel="stylesheet" href="/assets/css/pages/domains.css?v=014">
 {% endblock %}
 {% block content %}
 
 <div class="op-page-header">
     <div>
         <h1>Custom Domains</h1>
-        <p class="op-text-muted op-mt-1">Map your own domain to a brand's checkout and payment pages.</p>
+        <p class="op-page-subtitle">Manage custom domain routings, DNS verification tokens, and SSL certificate statuses.</p>
     </div>
     <button class="op-btn op-btn-primary" data-open-modal="add-domain-modal">
         + Add Domain
     </button>
 </div>
 
-{# ── DNS Setup Guide ─────────────────────────────────────────── #}
-<div class="op-card op-mb-4">
-    <div class="op-card-header">
-        <h3>📋 How to Set Up Your Domain</h3>
-        <button class="op-btn op-btn-xs op-btn-ghost" id="toggle-dns-guide-btn">
-            Toggle Guide
-        </button>
-    </div>
-    <div class="op-card-body op-dns-guide">
-        <div class="op-steps">
-            <div class="op-step">
-                <div class="op-step-num">1</div>
-                <div class="op-step-body">
-                    <h4>Add your domain below</h4>
-                    <p class="op-text-muted">Click <strong>"+ Add Domain"</strong>, enter your full domain name (e.g. <code>pay.yourbusiness.com</code>), and save.</p>
-                </div>
-            </div>
-            <div class="op-step">
-                <div class="op-step-num">2</div>
-                <div class="op-step-body">
-                    <h4>Create a TXT record in your DNS provider</h4>
-                    <p class="op-text-muted op-mb-2">Log into your domain registrar and add this DNS record. The <strong>Name</strong> depends on your specific domain:</p>
-                    <div class="op-dns-record-card">
-                        <div class="op-dns-row">
-                            <span class="op-dns-label">Type</span>
-                            <code class="op-dns-val" id="dns-type-val">TXT</code>
-                            <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="dns-type-val">Copy</button>
-                        </div>
-                        <div class="op-dns-row">
-                            <span class="op-dns-label">Name / Host</span>
-                            <code class="op-dns-val" id="dns-name-val">_ownpay-verify</code>
-                            <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="dns-name-val">Copy</button>
-                        </div>
-                        <div class="op-dns-row">
-                            <span class="op-dns-label">Value</span>
-                            <code class="op-dns-val" id="dns-value-val">ownpay-verify={your-domain-token}</code>
-                            <span class="op-text-muted op-text-xs op-ml-2">(shown in the domain row below after adding)</span>
-                        </div>
-                        <div class="op-dns-row">
-                            <span class="op-dns-label">TTL</span>
-                            <code class="op-dns-val" id="dns-ttl-val">3600</code>
-                            <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="dns-ttl-val">Copy</button>
-                        </div>
-                    </div>
-
-                    {# Per-domain FQDN helper — shows when domains exist #}
-                    {% if domains|length > 0 %}
-                    <div class="op-alert op-alert-success op-mt-2 op-mb-2">
-                        <strong>Your exact record names (copy these):</strong>
-                        <ul class="op-mt-1 op-list-none-p0">
-                        {% for d in domains %}
-                            {% if d.verification_token is defined and d.verification_token %}
-                            <li class="op-mb-1">
-                                <strong>{{ d.domain }}</strong> →
-                                Record Name: <code class="op-dns-val" id="fqdn-{{ d.id }}">_ownpay-verify.{{ d.domain }}</code>
-                                <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="fqdn-{{ d.id }}">Copy</button>
-                                &nbsp;|&nbsp;
-                                Value: <code class="op-dns-val" id="fqdnval-{{ d.id }}">ownpay-verify={{ d.verification_token }}</code>
-                                <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="fqdnval-{{ d.id }}">Copy</button>
-                            </li>
-                            {% endif %}
-                        {% endfor %}
-                        </ul>
-                    </div>
-                    {% endif %}
-
-                    <div class="op-alert op-alert-info op-mt-2">
-                        <strong>What is a TXT record?</strong> It's an invisible text record that proves you own the domain. Your website and email won't be affected — it's read-only for verification.
-                    </div>
-
-                    {# Provider-specific quick tips #}
-                    <details class="op-mt-2">
-                        <summary class="op-text-sm op-cursor-pointer-fw600">📘 Quick Tips by Provider</summary>
-                        <div class="op-mt-1 op-fs-88">
-                            <p><strong>Cloudflare:</strong> Dashboard → DNS → Records → Add Record → Type: TXT, Name: <code>_ownpay-verify</code>, Content: your token value. Set proxy status to DNS only.</p>
-                            <p><strong>GoDaddy:</strong> My Products → DNS → Add Record → Type: TXT, Host: <code>_ownpay-verify</code>, TXT Value: your token value. TTL: 1 hour.</p>
-                            <p><strong>Namecheap:</strong> Domain List → Manage → Advanced DNS → Add New Record → TXT, Host: <code>_ownpay-verify</code>, Value: your token value.</p>
-                            <p><strong>Other:</strong> Look for "DNS Management" or "DNS Zone Editor" in your registrar's dashboard. Add a TXT record with the values shown above.</p>
-                        </div>
-                    </details>
-                </div>
-            </div>
-            <div class="op-step">
-                <div class="op-step-num">3</div>
-                <div class="op-step-body">
-                    <h4>Point an A record to this server</h4>
-                    <p class="op-text-muted op-mb-2">Also add an A record so traffic reaches OwnPay:</p>
-                    <div class="op-dns-record-card">
-                        <div class="op-dns-row">
-                            <span class="op-dns-label">Type</span>
-                            <code class="op-dns-val" id="a-type-val">A</code>
-                        </div>
-                        <div class="op-dns-row">
-                            <span class="op-dns-label">Name / Host</span>
-                            <code class="op-dns-val" id="a-name-val">pay</code>
-                            <span class="op-text-muted op-text-xs op-ml-2">(or @ if pointing root domain)</span>
-                        </div>
-                        <div class="op-dns-row">
-                            <span class="op-dns-label">Value / Points to</span>
-                            <code class="op-dns-val" id="a-ip-val">{{ server_ip }}</code>
-                            <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="a-ip-val">Copy IP</button>
-                        </div>
-                        <div class="op-dns-row">
-                            <span class="op-dns-label">TTL</span>
-                            <code class="op-dns-val">3600</code>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="op-step">
-                <div class="op-step-num">4</div>
-                <div class="op-step-body">
-                    <h4>Wait, then click "Verify"</h4>
-                    <p class="op-text-muted">DNS changes take 5–60 minutes (up to 48 hours in rare cases). Once propagated, click <strong>Verify DNS</strong> on your domain below. A green badge confirms success. ✅</p>
-                    <p class="op-mt-1"><a href="https://dnschecker.org/" target="_blank" rel="noopener" class="op-link">🔍 Check DNS Propagation on dnschecker.org →</a></p>
-                </div>
-            </div>
-        </div>
-    </div>
-</div>
-
 {# ── Domain List ─────────────────────────────────────────────── #}
-<div class="op-card">
+<div class="op-card op-mb-6">
     <div class="op-card-header"><h3>Your Domains</h3></div>
     <div class="op-card-body op-p-0">
         <table class="op-table">
@@ -145,6 +24,9 @@
                 <tr>
                     <th>Domain</th>
                     <th>Brand</th>
+                    <th>Type</th>
+                    <th>Primary</th>
+                    <th>SSL Status</th>
                     <th>TXT Verification Token</th>
                     <th>Status</th>
                     <th>Actions</th>
@@ -155,11 +37,36 @@
                 <tr>
                     <td>
                         <strong>{{ d.domain }}</strong>
-                        {% if d.status == 'verified' %}
+                        {% if d.status == 'active' or d.status == 'verified' %}
                             <a href="https://{{ d.domain }}" target="_blank" class="op-link op-text-xs op-ml-1">↗ Visit</a>
+                        {% endif %}
+                        {% if d.redirect_url %}
+                            <br><small class="op-text-muted">Redirects to: <code>{{ d.redirect_url }}</code></small>
                         {% endif %}
                     </td>
                     <td>{{ d.merchant_name ?? '—' }}</td>
+                    <td><span class="op-badge">{{ d.type|capitalize }}</span></td>
+                    <td>
+                        {% if d.is_primary %}
+                            <span class="op-badge op-badge-primary">★ Primary</span>
+                        {% else %}
+                            <form method="POST" action="/admin/domains/{{ d.id }}/primary" class="op-inline-form">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-xs op-btn-outline">Set Primary</button>
+                            </form>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if d.ssl_status == 'active' %}
+                            <span class="op-badge op-badge-success">✓ Active SSL</span>
+                        {% elseif d.ssl_status == 'pending' %}
+                            <span class="op-badge op-badge-warning">Pending SSL</span>
+                        {% elseif d.ssl_status == 'expired' %}
+                            <span class="op-badge op-badge-danger">Expired SSL</span>
+                        {% else %}
+                            <span class="op-badge op-badge-secondary">None</span>
+                        {% endif %}
+                    </td>
                     <td>
                         {% if d.verification_token is defined and d.verification_token %}
                         <div class="op-copy-row">
@@ -171,8 +78,8 @@
                         {% endif %}
                     </td>
                     <td>
-                        {% if d.status == 'verified' %}
-                            <span class="op-badge op-badge-success">✓ Verified</span>
+                        {% if d.status == 'active' or d.status == 'verified' %}
+                            <span class="op-badge op-badge-success">✓ Active</span>
                         {% elseif d.status == 'pending' %}
                             <span class="op-badge op-badge-warning">Pending DNS</span>
                         {% else %}
@@ -180,24 +87,120 @@
                         {% endif %}
                     </td>
                     <td class="op-actions">
-                        {% if d.status != 'verified' %}
-                        <form method="POST" action="/admin/domains/{{ d.id }}/verify" class="op-inline-form">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="op-btn op-btn-sm op-btn-success">Verify DNS</button>
-                        </form>
-                        {% endif %}
-                        <form method="POST" action="/admin/domains/{{ d.id }}/delete" class="op-inline-form"
-                              data-confirm="Remove {{ d.domain }}? This cannot be undone.">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="op-btn op-btn-sm op-btn-danger">Remove</button>
-                        </form>
+                        <div class="flex gap-1">
+                            {% if d.status != 'active' and d.status != 'verified' %}
+                            <form method="POST" action="/admin/domains/{{ d.id }}/verify" class="op-inline-form">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-sm op-btn-success">Verify DNS</button>
+                            </form>
+                            {% endif %}
+                            
+                            <form method="POST" action="/admin/domains/{{ d.id }}/check-ssl" class="op-inline-form">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-sm op-btn-outline">Check SSL</button>
+                            </form>
+
+                            <button class="op-btn op-btn-sm op-btn-outline op-edit-domain-btn"
+                                    data-id="{{ d.id }}"
+                                    data-domain="{{ d.domain }}"
+                                    data-type="{{ d.type }}"
+                                    data-redirect-url="{{ d.redirect_url }}"
+                                    data-status="{{ d.status }}"
+                                    data-dns-verified="{{ d.dns_verified ? '1' : '0' }}"
+                                    data-is-primary="{{ d.is_primary ? '1' : '0' }}"
+                                    data-open-modal="edit-domain-modal">
+                                Edit
+                            </button>
+
+                            <form method="POST" action="/admin/domains/{{ d.id }}/delete" class="op-inline-form"
+                                  data-confirm="Remove {{ d.domain }}? This cannot be undone.">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-sm op-btn-danger">Remove</button>
+                            </form>
+                        </div>
                     </td>
                 </tr>
             {% else %}
-                <tr><td colspan="5" class="op-empty">No custom domains added yet. Click <strong>"+ Add Domain"</strong> above to get started.</td></tr>
+                <tr><td colspan="8" class="op-empty">No custom domains added yet. Click <strong>"+ Add Domain"</strong> above to get started.</td></tr>
             {% endfor %}
             </tbody>
         </table>
+    </div>
+</div>
+
+{# ── DNS Setup Guide ─────────────────────────────────────────── #}
+<div class="op-card op-mt-6">
+    <div class="op-card-header">
+        <h3>📋 Custom Domain DNS Configuration Guide</h3>
+    </div>
+    <div class="op-card-body op-p-6">
+        <div class="grid op-col-3 gap-6">
+            <!-- Step 1: TXT Verification -->
+            <div class="op-dns-card p-4 border rounded-lg bg-snow">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="op-badge op-badge-primary text-xs">Step 1</span>
+                    <h4 class="font-bold text-md">Ownership Proof (TXT)</h4>
+                </div>
+                <p class="op-text-muted text-sm mb-4">Add a TXT record to prove domain ownership. Safe to do, it won't affect any existing email or website.</p>
+                <div class="op-dns-record-details font-mono text-xs p-2 border rounded bg-white gap-2 flex flex-col">
+                    <div><strong>Type:</strong> TXT</div>
+                    <div><strong>Name/Host:</strong> <code id="guide-txt-host">_ownpay-verify</code> <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="guide-txt-host">Copy</button></div>
+                    <div><strong>Value:</strong> <code>ownpay-verify={token}</code></div>
+                </div>
+            </div>
+            
+            <!-- Step 2: CNAME or A Record -->
+            <div class="op-dns-card p-4 border rounded-lg bg-snow">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="op-badge op-badge-primary text-xs">Step 2</span>
+                    <h4 class="font-bold text-md">Routing Traffic (A / CNAME)</h4>
+                </div>
+                <p class="op-text-muted text-sm mb-4">Route requests to our server. Choose **one** option depending on your domain structure:</p>
+                <div class="op-dns-record-details font-mono text-xs p-2 border rounded bg-white gap-2 flex flex-col">
+                    <div><strong>Option A (Subdomain CNAME):</strong><br>Point CNAME record to: <code id="guide-cname-val">testing.ownpay.org</code> <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="guide-cname-val">Copy</button></div>
+                    <div class="border-t my-1"></div>
+                    <div><strong>Option B (Root A Record):</strong><br>Point A record to IP: <code id="guide-a-val">{{ server_ip }}</code> <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="guide-a-val">Copy</button></div>
+                </div>
+            </div>
+
+            <!-- Step 3: Verification -->
+            <div class="op-dns-card p-4 border rounded-lg bg-snow">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="op-badge op-badge-primary text-xs">Step 3</span>
+                    <h4 class="font-bold text-md">Verification & SSL Check</h4>
+                </div>
+                <p class="op-text-muted text-sm mb-4">DNS propagation takes 5-30 minutes. Once DNS is verified, trigger **Check SSL** to verify that a secure certificate is active.</p>
+                <div class="op-dns-record-details text-xs p-2 border rounded bg-white gap-2 flex flex-col">
+                    <div><strong>Automatic Check:</strong> Run by background cron.</div>
+                    <div><strong>Manual Verification:</strong> Click "Verify DNS" in the domain list.</div>
+                </div>
+            </div>
+        </div>
+
+        {# Per-domain FQDN helper — shows when domains exist #}
+        {% if domains|length > 0 %}
+        <div class="op-alert op-alert-success op-mt-6">
+            <h4 class="font-bold mb-2">Your Domains Configuration Values</h4>
+            <div class="flex flex-col gap-2 font-mono text-xs">
+            {% for d in domains %}
+                {% if d.verification_token is defined and d.verification_token %}
+                <div class="flex items-center justify-between p-2 border rounded bg-white">
+                    <div>
+                        <strong>{{ d.domain }}</strong>:
+                        TXT name: <code id="c-name-{{ d.id }}">_ownpay-verify.{{ d.domain }}</code>
+                        &nbsp;|&nbsp;
+                        Value: <code id="c-val-{{ d.id }}">ownpay-verify={{ d.verification_token }}</code>
+                    </div>
+                    <div class="flex gap-2">
+                        <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="c-name-{{ d.id }}">Copy Name</button>
+                        <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="c-val-{{ d.id }}">Copy Value</button>
+                    </div>
+                </div>
+                {% endif %}
+            {% endfor %}
+            </div>
+        </div>
+        {% endif %}
     </div>
 </div>
 
@@ -219,6 +222,19 @@
                            title="Enter a valid domain name (e.g. pay.example.com)" required autofocus>
                     <small class="op-text-muted">Do not include <code>https://</code> — just the domain name</small>
                 </div>
+                <div class="op-form-group">
+                    <label>Domain Type</label>
+                    <select name="type" class="op-input">
+                        <option value="checkout">Checkout domain</option>
+                        <option value="admin">Admin domain</option>
+                        <option value="api">API domain</option>
+                    </select>
+                </div>
+                <div class="op-form-group">
+                    <label>Redirect URL</label>
+                    <input type="url" name="redirect_url" class="op-input" placeholder="https://example.com/failed-direct">
+                    <small class="op-text-muted">Optional. Redirect target if accessed directly.</small>
+                </div>
                 <div class="op-alert op-alert-info">
                     After adding, you'll see the TXT verification token and server IP to configure in your DNS provider.
                 </div>
@@ -231,7 +247,64 @@
     </div>
 </div>
 
+{# ── Edit Domain Modal ───────────────────────────────────────── #}
+<div class="op-modal" id="edit-domain-modal" hidden>
+    <div class="op-modal-backdrop" data-close-modal="edit-domain-modal"></div>
+    <div class="op-modal-dialog">
+        <div class="op-modal-header">
+            <h3>Edit Custom Domain Settings</h3>
+            <button class="op-modal-close" type="button" data-close-modal="edit-domain-modal">×</button>
+        </div>
+        <form method="POST" action="">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <div class="op-modal-body">
+                <div class="op-form-group">
+                    <label>Domain Name</label>
+                    <input type="text" name="domain_display" class="op-input" disabled>
+                </div>
+                <div class="op-form-group">
+                    <label>Domain Type</label>
+                    <select name="type" class="op-input">
+                        <option value="checkout">Checkout domain</option>
+                        <option value="admin">Admin domain</option>
+                        <option value="api">API domain</option>
+                    </select>
+                </div>
+                <div class="op-form-group">
+                    <label>Redirect URL</label>
+                    <input type="url" name="redirect_url" class="op-input" placeholder="https://example.com/failed-direct">
+                    <small class="op-text-muted">Optional. Redirect target if accessed directly.</small>
+                </div>
+                <div class="op-form-group">
+                    <label>Domain Status</label>
+                    <select name="status" class="op-input">
+                        <option value="active">Active</option>
+                        <option value="pending">Pending DNS</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+                <div class="op-form-group">
+                    <label>DNS Verification State</label>
+                    <select name="dns_verified" class="op-input">
+                        <option value="1">Verified (1)</option>
+                        <option value="0">Unverified / Pending (0)</option>
+                    </select>
+                </div>
+                <div class="op-form-group">
+                    <label>Is Primary Domain</label>
+                    <select name="is_primary" class="op-input">
+                        <option value="1">Yes (Primary)</option>
+                        <option value="0">No (Secondary)</option>
+                    </select>
+                </div>
+            </div>
+            <div class="op-modal-footer">
+                <button type="button" class="op-btn op-btn-outline" data-close-modal="edit-domain-modal">Cancel</button>
+                <button type="submit" class="op-btn op-btn-primary">Save Changes</button>
+            </div>
+        </form>
+    </div>
+</div>
 
 {% endblock %}
-{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/domains.js"></script>{% endblock %}
-
+{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/domains.js?v=003"></script>{% endblock %}

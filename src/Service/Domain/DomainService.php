@@ -37,6 +37,39 @@ final class DomainService
      * @param DnsVerifier $dnsVerifier The DNS verification utility.
      * @param EventManager $events The event dispatcher system.
      */
+    /**
+     * Resolves the platform's own host from configuration for DNS A-record hints.
+     *
+     * The request Host header is attacker-controlled, so it must not drive
+     * gethostbyname() lookups (DNS exfiltration / probing). The configured
+     * APP_DOMAIN / APP_URL is authoritative; the request host is used only as a
+     * last resort when neither is set (misconfigured install).
+     *
+     * @return string The hostname to resolve to the server IP.
+     */
+    private function resolveServerHost(): string
+    {
+        $appDomainVal = $_ENV['APP_DOMAIN'] ?? getenv('APP_DOMAIN') ?: '';
+        $host = is_string($appDomainVal) ? $appDomainVal : '';
+
+        if ($host === '') {
+            $appUrlVal = $_ENV['APP_URL'] ?? getenv('APP_URL') ?: '';
+            $appUrl = is_string($appUrlVal) ? $appUrlVal : '';
+            if ($appUrl !== '') {
+                $parsedAppHost = parse_url($appUrl, PHP_URL_HOST);
+                $host = is_string($parsedAppHost) ? $parsedAppHost : '';
+            }
+        }
+
+        if ($host === '') {
+            $httpHostVal = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
+            $host = is_string($httpHostVal) ? $httpHostVal : '127.0.0.1';
+        }
+
+        $parsed = parse_url("https://{$host}", PHP_URL_HOST);
+        return is_string($parsed) ? $parsed : '127.0.0.1';
+    }
+
     public function __construct(
         DomainRepository $domains,
         DnsVerifier $dnsVerifier,
@@ -58,7 +91,7 @@ final class DomainService
      * @param string $type The domain mapping type (e.g. 'checkout').
      * @return array{success: true, domain_id: int|string, verification_token: string, instructions: string}|array{success: false, error: string} Mapping payload or error response.
      */
-    public function map(int $merchantId, string $domain, string $type = 'checkout'): array
+    public function map(int $merchantId, string $domain, string $type = 'checkout', ?string $redirectUrl = null): array
     {
         if (!$this->isValidDomain($domain)) {
             return ['success' => false, 'error' => 'Invalid domain format'];
@@ -77,15 +110,12 @@ final class DomainService
             'status'             => 'pending',
             'dns_verified'       => 0,
             'verification_token' => $verificationToken,
+            'redirect_url'       => $redirectUrl,
         ]);
 
         $this->events->doAction('domain.mapped', $domain, $merchantId);
 
-        $httpHostVal = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
-        $httpHost = is_string($httpHostVal) ? $httpHostVal : '127.0.0.1';
-        $parsedHost = parse_url("https://{$httpHost}", PHP_URL_HOST);
-        $hostOnly = is_string($parsedHost) ? $parsedHost : $httpHost;
-        $serverIp = gethostbyname($hostOnly);
+        $serverIp = gethostbyname($this->resolveServerHost());
 
         return [
             'success'            => true,
@@ -130,11 +160,7 @@ final class DomainService
             ];
         }
 
-        $httpHostVal = $_SERVER['HTTP_HOST'] ?? '127.0.0.1';
-        $httpHost = is_string($httpHostVal) ? $httpHostVal : '127.0.0.1';
-        $parsedHost = parse_url("https://{$httpHost}", PHP_URL_HOST);
-        $hostOnly = is_string($parsedHost) ? $parsedHost : $httpHost;
-        $serverIp = gethostbyname($hostOnly);
+        $serverIp = gethostbyname($this->resolveServerHost());
         $aRecordOk = $this->dnsVerifier->verifyARecord($domainName, $serverIp);
 
         $this->domains->forTenant($merchantId)->updateScoped($domainId, [
@@ -183,12 +209,10 @@ final class DomainService
      */
     public function merchantUrl(int $merchantId, string $path = '/'): string
     {
-        if ($merchantId !== 1) {
-            $activeDomain = $this->domains->forTenant($merchantId)->findActiveDomain();
-            if ($activeDomain !== null && isset($activeDomain['domain']) && is_string($activeDomain['domain'])) {
-                $scheme = (getenv('APP_HTTPS') === 'true') ? 'https' : 'http';
-                return $scheme . '://' . $activeDomain['domain'] . '/' . ltrim($path, '/');
-            }
+        $activeDomain = $this->domains->forTenant($merchantId)->findActiveDomain();
+        if ($activeDomain !== null && isset($activeDomain['domain']) && is_string($activeDomain['domain'])) {
+            $scheme = (getenv('APP_HTTPS') === 'true') ? 'https' : 'http';
+            return $scheme . '://' . $activeDomain['domain'] . '/' . ltrim($path, '/');
         }
 
         $appDomain = getenv('APP_DOMAIN') ?: 'localhost';
@@ -216,5 +240,36 @@ final class DomainService
     public function verifyDomain(int $domainId, int $merchantId): array
     {
         return $this->verify($domainId, $merchantId);
+    }
+
+    /**
+     * Sets a custom domain as the primary domain for the brand, clearing primary status for other domains of that brand.
+     *
+     * @param int $domainId The domain ID.
+     * @param int $merchantId The brand's merchant ID.
+     * @return void
+     */
+    public function makePrimary(int $domainId, int $merchantId): void
+    {
+        $db = $this->domains->getDatabase();
+        $db->transaction(function () use ($db, $domainId, $merchantId) {
+            // Check if domain belongs to merchant
+            $domain = $this->domains->forTenant($merchantId)->findScoped($domainId);
+            if ($domain === null) {
+                throw new \InvalidArgumentException('Domain not found or unauthorized');
+            }
+
+            // Clear primary status for all domains of this brand
+            $db->update(
+                "UPDATE op_domains SET is_primary = 0 WHERE merchant_id = :mid",
+                ['mid' => $merchantId]
+            );
+
+            // Set this domain as primary
+            $db->update(
+                "UPDATE op_domains SET is_primary = 1 WHERE id = :id AND merchant_id = :mid",
+                ['id' => $domainId, 'mid' => $merchantId]
+            );
+        });
     }
 }

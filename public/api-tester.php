@@ -1,6 +1,46 @@
 <?php
 declare(strict_types=1);
 // Standalone Premium API Tester for OwnPay (Light Theme Edition)
+//
+// LOCAL-DEVELOPMENT TOOL ONLY. This page exercises the live merchant API and
+// bypasses the front controller, so it must never be reachable on a production
+// deployment. The guard below fails safe: it serves the tool only when the
+// environment is explicitly non-production (APP_DEBUG=true, or APP_ENV is a
+// local/dev value) and otherwise returns 404. To use it locally set APP_DEBUG=true
+// (or APP_ENV=local) in .env. Remove this file entirely for the final release.
+(static function (): void {
+    $appEnv = 'production';
+    $appDebug = false;
+
+    $envFile = dirname(__DIR__) . '/.env';
+    if (is_readable($envFile)) {
+        $lines = file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) ?: [];
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || $line[0] === '#' || !str_contains($line, '=')) {
+                continue;
+            }
+            $key = trim(substr($line, 0, strpos($line, '=') ?: 0));
+            $raw = substr($line, (strpos($line, '=') ?: 0) + 1);
+            $hashPos = strpos($raw, '#');
+            if ($hashPos !== false) {
+                $raw = substr($raw, 0, $hashPos);
+            }
+            $val = strtolower(trim($raw, " \t\"'"));
+            if ($key === 'APP_ENV') {
+                $appEnv = $val;
+            } elseif ($key === 'APP_DEBUG') {
+                $appDebug = in_array($val, ['1', 'true', 'on', 'yes'], true);
+            }
+        }
+    }
+
+    $isLocal = $appDebug || in_array($appEnv, ['local', 'development', 'dev', 'testing'], true);
+    if (!$isLocal) {
+        http_response_code(404);
+        exit;
+    }
+})();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -117,14 +157,18 @@ declare(strict_types=1);
         </div>
         
         <!-- Auth Inputs Group -->
-        <div class="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-3/5 xl:w-1/2">
-            <div class="relative w-full sm:w-1/3">
+        <div class="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-2/3 xl:w-3/5">
+            <div class="relative w-full sm:w-1/4">
                 <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[10px] font-bold text-slate-400 tracking-wider">HOST</span>
                 <input type="text" id="baseUrl" value="https://ownpay.org" class="pl-14 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="Base URL">
             </div>
-            <div class="relative w-full sm:w-2/3">
+            <div class="relative w-full sm:w-5/12">
                 <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[10px] font-bold text-slate-400 tracking-wider">api_key</span>
                 <input type="password" id="apiKey" class="pl-16 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="op_apiKey">
+            </div>
+            <div class="relative w-full sm:w-1/3">
+                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-[9px] font-bold text-slate-400 tracking-wider">SUPER_ADMIN</span>
+                <input type="text" id="superAdminEmail" class="pl-24 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="admin@example.com">
             </div>
         </div>
     </header>
@@ -281,22 +325,26 @@ declare(strict_types=1);
             // === MERCHANT API ===
             { id: 'health', category: 'Merchant API — Core System', method: 'GET', path: '/api/v1/health', desc: 'Verify server health diagnostics, runtime version tags, and MySQL connection uptime.', hasBody: false },
             { id: 'payment-init', category: 'Merchant API — Payment Intents', method: 'POST', path: '/api/v1/payments', desc: 'Create a payment intent representing a transaction block. Returns the customer checkout URL.', hasBody: true, defaultBody: '{\n  "amount": 1250.00,\n  "currency": "BDT",\n  "description": "Invoice #8930 Premium Pack",\n  "redirect_url": "https://myshop.com/success",\n  "cancel_url": "https://myshop.com/cancel",\n  "metadata": {\n    "invoice_id": 8930\n  }\n}' },
-            { id: 'payment-show', category: 'Merchant API — Payment Intents', method: 'GET', path: '/api/v1/payments/{trx_id}', desc: 'Retrieve full status logs, tokens, and custom metadata for a specific payment intent.', hasBody: false },
+            { id: 'payment-show', category: 'Merchant API — Payment Intents', method: 'GET', path: '/api/v1/payments/{payment_id}', desc: 'Retrieve payment status by payment intent UUID.', hasBody: false },
             { id: 'tx-list', category: 'Merchant API — Transactions Ledger', method: 'GET', path: '/api/v1/transactions', desc: 'Query paginated list of settled payments with status criteria filter scopes.', hasBody: false },
-            { id: 'tx-show', category: 'Merchant API — Transactions Ledger', method: 'GET', path: '/api/v1/transactions/{trx_id}', desc: 'Fetch transactional details and parameters mapped inside the platform ledger.', hasBody: false },
-            { id: 'refund-create', category: 'Merchant API — Transaction Refunds', method: 'POST', path: '/api/v1/refunds', desc: 'Process a full or partial charge reversal against a settled transaction.', hasBody: true, defaultBody: '{\n  "transaction_id": "OP-10482938",\n  "amount": 250.00,\n  "reason": "Product return request"\n}' },
-            { id: 'refund-show', category: 'Merchant API — Transaction Refunds', method: 'GET', path: '/api/v1/refunds/{trx_id}', desc: 'Audit details of a reversed refund transaction record.', hasBody: false },
+            { id: 'tx-show', category: 'Merchant API — Transactions Ledger', method: 'GET', path: '/api/v1/transactions/{trx_id}', desc: 'Fetch transaction details by OwnPay transaction ID or gateway transaction ID.', hasBody: false },
+            { id: 'refund-create', category: 'Merchant API — Transaction Refunds', method: 'POST', path: '/api/v1/refunds', desc: 'Process a full or partial charge reversal against a settled transaction using transaction ID or gateway transaction ID.', hasBody: true, defaultBody: '{\n  "transaction_id": "OP-10482938",\n  "amount": 250.00,\n  "reason": "Product return request"\n}' },
+            { id: 'refund-list', category: 'Merchant API — Transaction Refunds', method: 'GET', path: '/api/v1/refunds', desc: 'Query paginated list of refunds with status and transaction ID criteria filter scopes.', hasBody: false },
+            { id: 'refund-show', category: 'Merchant API — Transaction Refunds', method: 'GET', path: '/api/v1/refunds/{trx_id}', desc: 'Audit details of a reversed refund transaction record by OwnPay transaction ID or gateway transaction ID.', hasBody: false },
             { id: 'customer-list', category: 'Merchant API — Customer Profiles', method: 'GET', path: '/api/v1/customers', desc: 'List customer profiles registered under the merchant context.', hasBody: false },
             { id: 'customer-show', category: 'Merchant API — Customer Profiles', method: 'GET', path: '/api/v1/customers/{identifier}', desc: 'Query customer credentials by database ID, email address, or phone string.', hasBody: false },
             { id: 'customer-create', category: 'Merchant API — Customer Profiles', method: 'POST', path: '/api/v1/customers', desc: 'Register a new customer record under the brand tenant.', hasBody: true, defaultBody: '{\n  "name": "Jane Doe",\n  "email": "jane@example.com",\n  "phone": "+8801700000000"\n}' },
-            { id: 'apikey-list', category: 'Merchant API — Credentials', method: 'GET', path: '/api/v1/api-keys', desc: 'List active API keys partially masked for audit views.', hasBody: false },
-            { id: 'apikey-create', category: 'Merchant API — Credentials', method: 'POST', path: '/api/v1/api-keys', desc: 'Generate a new API key scoped to the merchant brand.', hasBody: true, defaultBody: '{\n  "name": "Production Server Key"\n}' },
+            { id: 'apikey-list', category: 'Merchant API — Credentials', method: 'GET', path: '/api/v1/api-keys', desc: 'List active API keys partially masked for audit views. Requires superadmin verification.', hasBody: false },
+            { id: 'apikey-create', category: 'Merchant API — Credentials', method: 'POST', path: '/api/v1/api-keys', desc: 'Generate a new API key scoped to the merchant brand with custom privileges.', hasBody: true, defaultBody: '{\n  "name": "Production Server Key",\n  "scopes": ["read", "write", "admin"]\n}' },
             { id: 'apikey-revoke', category: 'Merchant API — Credentials', method: 'DELETE', path: '/api/v1/api-keys/{id}', desc: 'Revoke and permanently decommission an API key by ID.', hasBody: false },
             { id: 'webhook-test', category: 'Merchant API — Outbound Webhooks', method: 'POST', path: '/api/v1/webhooks/tests', desc: 'Trigger a test HMAC-SHA256 signature event log callback.', hasBody: false },
             { id: 'webhook-deliveries', category: 'Merchant API — Outbound Webhooks', method: 'GET', path: '/api/v1/webhooks/deliveries', desc: 'Trace outbound webhooks logs history status responses.', hasBody: false }
         ];
 
         let activeEndpoint = null;
+        if (window.location.origin) {
+            document.getElementById('baseUrl').value = window.location.origin;
+        }
         const sidebarList = document.getElementById('sidebarList');
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -473,6 +521,11 @@ declare(strict_types=1);
 
             if (apiKey) {
                 options.headers['Authorization'] = `Bearer ${apiKey}`;
+            }
+
+            const superAdminEmail = document.getElementById('superAdminEmail').value.trim();
+            if (superAdminEmail) {
+                options.headers['X-Super-Admin-Email'] = superAdminEmail;
             }
 
             let reqBodyRaw = '';

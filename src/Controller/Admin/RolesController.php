@@ -115,6 +115,10 @@ final class RolesController
             }
         }
 
+        if ($guard = $this->requireActiveBrand($mid, '/admin/roles')) {
+            return $guard;
+        }
+
         $nameRaw = $req->post('name') ?? '';
         $name = trim(is_string($nameRaw) ? $nameRaw : '');
         $descRaw = $req->post('description') ?? '';

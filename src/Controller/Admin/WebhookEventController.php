@@ -92,10 +92,18 @@ final class WebhookEventController
 
         $pagination = PaginationService::calculate($page, $perPage, $total);
 
+        // Fetch recent webhook deliveries
+        $dispatcher = $this->c->get(\OwnPay\Service\Notification\WebhookDispatcher::class);
+        if (!$dispatcher instanceof \OwnPay\Service\Notification\WebhookDispatcher) {
+            throw new \RuntimeException('WebhookDispatcher service unavailable');
+        }
+        $deliveries = $dispatcher->listDeliveries($mid, 50);
+
         return $this->renderAdminPage('admin/webhooks/events.twig', [
-            'events'      => $events,
-            'pagination'  => $pagination,
-            'active_page' => 'webhook_events',
+            'events'             => $events,
+            'pagination'         => $pagination,
+            'active_page'        => 'webhook_events',
+            'webhook_deliveries' => $deliveries,
         ]);
     }
 

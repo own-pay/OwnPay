@@ -1,14 +1,14 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}Paired Devices — {{ app_name }}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/assets/css/pages/devices.css?v=013">
+    <link rel="stylesheet" href="/assets/css/pages/devices.css?v=014">
 {% endblock %}
 {% block content %}
 
 <div class="op-page-header">
     <div>
-        <h1>📱 Paired Devices</h1>
-        <p class="op-text-muted op-mt-1">Manage mobile companion app connections for this brand.</p>
+        <h1>📱 Devices Hub</h1>
+        <p class="op-page-subtitle">Manage companion mobile devices authorized to synchronize SMS transactions and customize filtering rules.</p>
     </div>
     <button class="op-btn op-btn-primary" id="pair-device-btn">
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-align-v2-mr6"><path d="M12 5v14M5 12h14"/></svg>Pair New Device
@@ -21,162 +21,243 @@
 </div>
 {% endif %}
 
-{# ── Stats Cards ─────────────────────────────────────────── #}
-{% if stats is defined %}
-<div class="op-stats-grid op-mb-4">
-    <div class="op-stat-card">
-        <div class="op-stat-icon op-stat-grad-primary">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
-        </div>
-        <div class="op-stat-content">
-            <span class="op-stat-value">{{ stats.total }}</span>
-            <span class="op-stat-label">Total Devices</span>
-        </div>
-    </div>
-    <div class="op-stat-card op-stat-success">
-        <div class="op-stat-icon op-stat-grad-success">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
-        </div>
-        <div class="op-stat-content">
-            <span class="op-stat-value">{{ stats.active }}</span>
-            <span class="op-stat-label">Active</span>
-        </div>
-    </div>
-    <div class="op-stat-card">
-        <div class="op-stat-icon op-stat-grad-danger">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-        </div>
-        <div class="op-stat-content">
-            <span class="op-stat-value">{{ stats.revoked }}</span>
-            <span class="op-stat-label">Revoked</span>
-        </div>
-    </div>
+{# ── Navigation Tabs ──────────────────────────────────────── #}
+<div class="op-tabs op-mb-4" id="devices-tabs">
+    <button class="op-tab active" data-tab="devices">
+        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        <span>Paired Devices</span>
+    </button>
+    <button class="op-tab" data-tab="settings">
+        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <span>Mobile App Settings</span>
+    </button>
 </div>
-{% endif %}
 
-{# ── Pairing Panel ───────────────────────────────────────── #}
-<div class="op-card op-mb-4 op-pairing-panel op-d-none" id="pairing-panel">
-    <div class="op-card-header">
-        <h3>🔗 Pair Mobile Device</h3>
-        <button class="op-btn op-btn-xs op-btn-ghost" id="close-pairing-panel">✕ Close</button>
+{# ── TAB 1: Devices Overview ──────────────────────────────── #}
+<div class="op-tab-panel active" id="tab-devices">
+    {# ── Stats Cards ── #}
+    {% if stats is defined %}
+    <div class="op-stats-grid op-mb-4">
+        <div class="op-stat-card">
+            <div class="op-stat-icon op-stat-grad-primary">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+            </div>
+            <div class="op-stat-content">
+                <span class="op-stat-value">{{ stats.total }}</span>
+                <span class="op-stat-label">Total Devices</span>
+            </div>
+        </div>
+        <div class="op-stat-card op-stat-success">
+            <div class="op-stat-icon op-stat-grad-success">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            </div>
+            <div class="op-stat-content">
+                <span class="op-stat-value">{{ stats.active }}</span>
+                <span class="op-stat-label">Active</span>
+            </div>
+        </div>
+        <div class="op-stat-card">
+            <div class="op-stat-icon op-stat-grad-danger">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+            </div>
+            <div class="op-stat-content">
+                <span class="op-stat-value">{{ stats.revoked }}</span>
+                <span class="op-stat-label">Revoked</span>
+            </div>
+        </div>
     </div>
-    <div class="op-card-body">
-        <div class="op-form-row op-align-start">
-            <div class="op-col-6">
-                <div class="op-pairing-step">
-                    <span class="op-step-number">1</span>
-                    <h4>Generate Pairing Code</h4>
-                </div>
-                <p class="op-text-muted op-mb-3">Click below to generate a one-time 6-digit pairing code. Valid for 5 minutes.</p>
-                <button class="op-btn op-btn-primary op-btn-lg" id="gen-otp-btn">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-align-v3-mr6"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Generate Pairing Code
-                </button>
+    {% endif %}
 
-                <div id="otp-display" class="op-mt-4 op-d-none">
-                    <div class="op-otp-container">
-                        <div class="op-otp-code" id="otp-value">——————</div>
-                        <div class="op-otp-timer">Expires in <span id="otp-timer">5:00</span></div>
+    {# ── Pairing Panel ── #}
+    <div class="op-card op-mb-4 op-pairing-panel op-d-none" id="pairing-panel">
+        <div class="op-card-header">
+            <h3>🔗 Pair Mobile Device</h3>
+            <button class="op-btn op-btn-xs op-btn-ghost" id="close-pairing-panel">✕ Close</button>
+        </div>
+        <div class="op-card-body">
+            <div class="op-form-row op-align-start">
+                <div class="op-col-6">
+                    <div class="op-pairing-step">
+                        <span class="op-step-number">1</span>
+                        <h4>Generate Pairing Code</h4>
+                    </div>
+                    <p class="op-text-muted op-mb-4">Click below to generate a one-time 6-digit pairing code or scan the QR code using the OwnPay app.</p>
+                    <button class="op-btn op-btn-primary op-btn-lg" id="gen-otp-btn">
+                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-align-v3-mr6"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Generate Code
+                    </button>
+
+                    <div id="otp-display" class="op-mt-4 op-d-none">
+                        <div class="op-pairing-flex">
+                            <div class="op-otp-box-wrapper">
+                                <div class="op-otp-code-label">Verification Code</div>
+                                <div class="op-otp-code" id="otp-value">——————</div>
+                                <div class="op-otp-timer">Expires in <span id="otp-timer">5:00</span></div>
+                            </div>
+                            <div class="op-qr-wrapper">
+                                <div class="op-qr-label">Or Scan QR Code</div>
+                                <div class="op-qr-code-box" id="qr-container">
+                                    <div class="op-qr-placeholder">Generating...</div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="op-col-6">
+                    <div class="op-pairing-step">
+                        <span class="op-step-number">2</span>
+                        <h4>Pairing Walkthrough</h4>
+                    </div>
+                    <div class="op-timeline">
+                        <div class="op-timeline-item">
+                            <div class="op-timeline-marker"></div>
+                            <div class="op-timeline-content">
+                                <strong>Open App</strong>
+                                <p class="op-text-muted op-text-xs">Launch the OwnPay Companion App on your mobile device.</p>
+                            </div>
+                        </div>
+                        <div class="op-timeline-item">
+                            <div class="op-timeline-marker"></div>
+                            <div class="op-timeline-content">
+                                <strong>Scan or Enter Code</strong>
+                                <p class="op-text-muted op-text-xs">Scan the QR code displayed here or tap "Pair with Code" and type the 6-digit PIN.</p>
+                            </div>
+                        </div>
+                        <div class="op-timeline-item">
+                            <div class="op-timeline-marker"></div>
+                            <div class="op-timeline-content">
+                                <strong>Authorize Connection</strong>
+                                <p class="op-text-muted op-text-xs">Accept the pairing request. The device will authenticate and register immediately.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="op-alert op-alert-info op-mt-4">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-align-v2-mr4"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                        <strong>Security:</strong> All communication uses encrypted TLS. Pair tokens rotate on device checks automatically.
                     </div>
                 </div>
             </div>
-            <div class="op-col-6">
-                <div class="op-pairing-step">
-                    <span class="op-step-number">2</span>
-                    <h4>Enter in Mobile App</h4>
-                </div>
-                <ol class="op-steps-list">
-                    <li>Open <strong>OwnPay</strong> companion app on phone</li>
-                    <li>Tap <strong>"Pair with Admin"</strong></li>
-                    <li>Enter the 6-digit code shown on the left</li>
-                    <li>Phone confirms — device appears below</li>
-                </ol>
-                <div class="op-alert op-alert-info op-mt-3">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-align-v2-mr4"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                    <strong>Security:</strong> Code is single-use and expires in 5 minutes. Device fingerprint is verified on pairing.
-                </div>
+        </div>
+    </div>
+
+    {# ── Device List Table ── #}
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>Connected Devices</h3>
+            {% if devices|length > 0 %}
+            <form method="POST" action="/admin/devices/bulk-revoke" id="bulk-revoke-form" data-confirm="Revoke ALL selected devices?">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <button type="submit" class="op-btn op-btn-sm op-btn-danger" id="bulk-revoke-btn" disabled>
+                    Revoke Selected
+                </button>
+            </form>
+            {% endif %}
+        </div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
+                <table class="op-table">
+                    <thead>
+                        <tr>
+                            {% if devices|length > 0 %}<th width="40"><input type="checkbox" id="select-all"></th>{% endif %}
+                            <th>Device</th>
+                            <th>Platform</th>
+                            <th>Status</th>
+                            <th>Last Seen</th>
+                            <th>Paired</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for d in devices %}
+                        <tr>
+                            <td><input type="checkbox" class="device-checkbox" name="device_ids[]" value="{{ d.device_id }}" form="bulk-revoke-form"></td>
+                            <td>
+                                <div class="op-device-info">
+                                    <div class="op-device-icon">
+                                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+                                    </div>
+                                    <div>
+                                        <strong>{{ d.device_name ?? 'Unknown Device' }}</strong>
+                                        <div class="op-text-xs op-text-muted"><code>{{ d.device_id|slice(0, 8) }}…</code></div>
+                                    </div>
+                                </div>
+                            </td>
+                            <td><span class="op-text-muted">{{ d.platform ?? '—' }}</span></td>
+                            <td>
+                                <span class="op-badge op-badge-{{ d.status == 'active' ? 'success' : (d.status == 'revoked' ? 'danger' : 'muted') }}">
+                                    <span class="op-status-dot"></span>{{ d.status|capitalize }}
+                                </span>
+                            </td>
+                            <td class="op-text-muted">{{ d.last_heartbeat ?? 'Never' }}</td>
+                            <td class="op-text-muted">{{ d.paired_at ? d.paired_at|date('M d, Y') : '—' }}</td>
+                            <td>
+                                {% if d.status == 'active' %}
+                                <form method="POST" action="/admin/devices/{{ d.device_id }}/revoke" class="op-inline-form" data-confirm="Revoke {{ d.device_name ?? d.device_id }}?">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-sm op-btn-danger">Revoke</button>
+                                </form>
+                                {% else %}
+                                <span class="op-text-muted op-text-xs">—</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="7" class="op-empty-state">
+                                <div class="op-empty-icon">
+                                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+                                </div>
+                                <p class="op-empty-title">No devices paired yet</p>
+                                <p class="op-text-muted op-text-sm">Connect your mobile companion app to start forwarding SMS messages.</p>
+                                <button class="op-btn op-btn-sm op-btn-primary op-mt-2" id="pair-first-device-btn">Pair First Device</button>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
             </div>
         </div>
     </div>
 </div>
 
-{# ── Device List ─────────────────────────────────────────── #}
-<div class="op-card">
-    <div class="op-card-header">
-        <h3>Connected Devices</h3>
-        {% if devices|length > 0 %}
-        <form method="POST" action="/admin/devices/bulk-revoke" id="bulk-revoke-form" data-confirm="Revoke ALL selected devices?">
-            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-            <button type="submit" class="op-btn op-btn-sm op-btn-danger"
-                    id="bulk-revoke-btn" disabled>
-                Revoke Selected
-            </button>
-        </form>
-        {% endif %}
-    </div>
-    <div class="op-card-body op-p-0">
-        <table class="op-table">
-            <thead>
-                <tr>
-                    {% if devices|length > 0 %}<th width="40"><input type="checkbox" id="select-all"></th>{% endif %}
-                    <th>Device</th>
-                    <th>Platform</th>
-                    <th>Status</th>
-                    <th>Last Seen</th>
-                    <th>Paired</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for d in devices %}
-                <tr>
-                    <td><input type="checkbox" class="device-checkbox" name="device_ids[]" value="{{ d.device_id }}" form="bulk-revoke-form"></td>
-                    <td>
-                        <div class="op-device-info">
-                            <div class="op-device-icon">
-                                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
-                            </div>
-                            <div>
-                                <strong>{{ d.device_name ?? 'Unknown Device' }}</strong>
-                                <div class="op-text-xs op-text-muted"><code>{{ d.device_id|slice(0, 8) }}…</code></div>
-                            </div>
-                        </div>
-                    </td>
-                    <td><span class="op-text-muted">{{ d.platform ?? '—' }}</span></td>
-                    <td>
-                        <span class="op-badge op-badge-{{ d.status == 'active' ? 'success' : (d.status == 'revoked' ? 'danger' : 'muted') }}">
-                            <span class="op-status-dot"></span>{{ d.status|capitalize }}
-                        </span>
-                    </td>
-                    <td class="op-text-muted">{{ d.last_heartbeat ?? 'Never' }}</td>
-                    <td class="op-text-muted">{{ d.paired_at ? d.paired_at|date('M d, Y') : '—' }}</td>
-                    <td>
-                        {% if d.status == 'active' %}
-                        <form method="POST" action="/admin/devices/{{ d.device_id }}/revoke" class="op-inline-form"
-                              data-confirm="Revoke {{ d.device_name ?? d.device_id }}?">
-                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                            <button type="submit" class="op-btn op-btn-sm op-btn-danger">Revoke</button>
-                        </form>
-                        {% else %}
-                        <span class="op-text-muted op-text-xs">—</span>
-                        {% endif %}
-                    </td>
-                </tr>
-                {% else %}
-                <tr>
-                    <td colspan="7" class="op-empty-state">
-                        <div class="op-empty-icon">
-                            <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1" opacity="0.3"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
-                        </div>
-                        <p class="op-empty-title">No devices paired yet</p>
-                        <p class="op-text-muted op-text-sm">Connect your mobile companion app to start forwarding SMS messages.</p>
-                        <button class="op-btn op-btn-sm op-btn-primary op-mt-2" id="pair-first-device-btn">Pair First Device</button>
-                    </td>
-                </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    </div>
+{# ── TAB 2: App Settings ──────────────────────────────────── #}
+<div class="op-tab-panel" id="tab-settings">
+    <form method="POST" action="/admin/devices/settings" class="op-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        
+        <div class="op-card">
+            <div class="op-card-header">
+                <h3>Companion App Configuration</h3>
+            </div>
+            <div class="op-card-body">
+                <div class="op-alert op-alert-info op-mb-4">
+                    These filter keywords dictate how your paired devices capture SMS receipts. The app filters out non-financial messages locally, optimizing battery and protecting your privacy.
+                </div>
+
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label class="op-form-label">Positive Keywords <span class="op-required">*</span></label>
+                        <textarea name="sms_positive_keywords" rows="8" class="op-input op-textarea op-font-mono" placeholder="received&#10;credited&#10;TrxID&#10;deposited&#10;Tk">{{ sms_positive_keywords }}</textarea>
+                        <small class="op-form-help">One keyword per line. SMS must match at least one of these to trigger processing.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label class="op-form-label">Negative Keywords <span class="op-required">*</span></label>
+                        <textarea name="sms_negative_keywords" rows="8" class="op-input op-textarea op-font-mono" placeholder="OTP&#10;PIN&#10;password&#10;verify&#10;code">{{ sms_negative_keywords }}</textarea>
+                        <small class="op-form-help">One keyword per line. Messages containing any of these are instantly discarded on the device.</small>
+                    </div>
+                </div>
+
+                <div class="op-form-group op-mt-3">
+                    <label class="op-form-label">Rules Refresh Interval (hours)</label>
+                    <input type="number" name="sms_filter_rules_check_interval_hours" value="{{ sms_filter_rules_check_interval_hours }}" class="op-input op-max-width-200" min="1" max="168">
+                    <small class="op-form-help">How frequently the companion app pulls updated rules from the server.</small>
+                </div>
+            </div>
+            <div class="op-card-footer op-text-right">
+                <button type="submit" class="op-btn op-btn-primary">Save Settings</button>
+            </div>
+        </div>
+    </form>
 </div>
 
 {% endblock %}
-{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/devices.js"></script>{% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/devices.js?v=015"></script>{% endblock %}

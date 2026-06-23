@@ -110,6 +110,18 @@ final class JwtAuthMiddleware
                 ], 401);
             }
 
+            // The repository lookup falls back to globally-scoped (merchant_id IS
+            // NULL) devices, which would otherwise authenticate against ANY
+            // merchant's JWT. Devices must be bound to exactly the merchant in the
+            // token — reject anything whose merchant_id doesn't match.
+            $deviceMid = isset($device['merchant_id']) && is_numeric($device['merchant_id']) ? (int) $device['merchant_id'] : 0;
+            if ($deviceMid !== $mid) {
+                return Response::json([
+                    'success' => false,
+                    'message' => 'Device merchant mismatch',
+                ], 401);
+            }
+
             // Inject into request
             $request->setAttribute('jwt_payload', (array) $payload);
             $request->setAttribute('merchant_id', $mid);

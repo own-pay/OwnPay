@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Repository;
 
 use Ramsey\Uuid\Uuid;
+use OwnPay\Enum\TransactionStatus;
 use OwnPay\Support\DateHelper;
 
 /**
@@ -26,7 +27,7 @@ final class TransactionRepository extends BaseRepository
     protected array $fillable = [
         'merchant_id', 'uuid', 'trx_id', 'payment_intent_id', 'customer_id',
         'gateway_slug', 'amount', 'fee', 'net_amount', 'currency',
-        'sender_account', 'reference', 'gateway_trx_id', 'method',
+        'sender_account', 'reference', 'gateway_trx_id', 'ip_address', 'method',
         'status', 'metadata', 'completed_at',
     ];
 
@@ -107,15 +108,78 @@ final class TransactionRepository extends BaseRepository
     /**
      * Marks a transaction as completed and updates the completion timestamp.
      *
+     * The status guard enforces the state machine at the data layer: terminal
+     * transactions (TransactionStatus::terminal()) are never re-completed, so
+     * concurrent callbacks for the same transaction complete it exactly once
+     * even when their application-level status pre-checks interleave.
+     *
      * @param int $id Primary key identifier.
-     * @return int Number of affected rows.
+     * @return int Number of affected rows (0 when the transaction was already terminal).
      */
-    public function markCompleted(int $id): int
+    public function markCompletedIfNotTerminal(int $id): int
     {
-        return $this->updateScoped($id, [
-            'status' => 'completed',
-            'completed_at' => DateHelper::nowMicro(),
-        ]);
+        [$placeholders, $params] = $this->terminalStatusPlaceholders();
+        $params['completed_at'] = DateHelper::nowMicro();
+        $params['id'] = $id;
+        $params['mid'] = $this->requireTenant();
+
+        return $this->db->update(
+            "UPDATE {$this->table}
+             SET status = 'completed', completed_at = :completed_at
+             WHERE id = :id AND merchant_id = :mid AND status NOT IN ({$placeholders})",
+            $params
+        );
+    }
+
+    /**
+     * Transitions a transaction to a non-completed status unless it is already terminal.
+     *
+     * Metadata is merged atomically via JSON_MERGE_PATCH so existing keys
+     * (invoice_id, payment_link_id, conversion audit trail) survive — the
+     * generated columns idx_invoice_id/idx_payment_link_id are derived from
+     * this JSON and would silently detach if it were overwritten.
+     *
+     * @param int $id Primary key identifier.
+     * @param string $status Target transaction status string.
+     * @param array<string, mixed> $mergeMeta Optional metadata keys to merge in.
+     * @return int Number of affected rows (0 when the transaction was already terminal).
+     */
+    public function markStatusIfNotTerminal(int $id, string $status, array $mergeMeta = []): int
+    {
+        [$placeholders, $params] = $this->terminalStatusPlaceholders();
+        $params['status'] = $status;
+        $params['id'] = $id;
+        $params['mid'] = $this->requireTenant();
+
+        $metaSet = '';
+        if ($mergeMeta !== []) {
+            $metaSet = ", metadata = JSON_MERGE_PATCH(COALESCE(metadata, '{}'), :meta_patch)";
+            $params['meta_patch'] = json_encode($mergeMeta);
+        }
+
+        return $this->db->update(
+            "UPDATE {$this->table}
+             SET status = :status{$metaSet}
+             WHERE id = :id AND merchant_id = :mid AND status NOT IN ({$placeholders})",
+            $params
+        );
+    }
+
+    /**
+     * Builds the bound placeholder list for terminal statuses.
+     *
+     * @return array{0: string, 1: array<string, string>} Placeholder SQL fragment and bind params.
+     */
+    private function terminalStatusPlaceholders(): array
+    {
+        $placeholders = [];
+        $params = [];
+        foreach (TransactionStatus::terminal() as $i => $status) {
+            $key = "term{$i}";
+            $placeholders[] = ":{$key}";
+            $params[$key] = $status->value;
+        }
+        return [implode(', ', $placeholders), $params];
     }
 
     /**
@@ -126,9 +190,15 @@ final class TransactionRepository extends BaseRepository
      */
     public function findByGatewayTrxId(string $gatewayTrxId): ?array
     {
+        if ($this->tenantId !== null) {
+            return $this->db->fetchOne(
+                "SELECT * FROM {$this->table} WHERE gateway_trx_id = :gtid AND merchant_id = :mid LIMIT 1",
+                ['gtid' => $gatewayTrxId, 'mid' => $this->tenantId]
+            );
+        }
         return $this->db->fetchOne(
-            "SELECT * FROM {$this->table} WHERE gateway_trx_id = :gtid AND merchant_id = :mid LIMIT 1",
-            ['gtid' => $gatewayTrxId, 'mid' => $this->requireTenant()]
+            "SELECT * FROM {$this->table} WHERE gateway_trx_id = :gtid LIMIT 1",
+            ['gtid' => $gatewayTrxId]
         );
     }
 
@@ -181,8 +251,14 @@ final class TransactionRepository extends BaseRepository
      */
     public function countFiltered(array $filters): int
     {
-        $where = "merchant_id = :mid";
-        $params = ['mid' => $this->requireTenant()];
+        // tenantId === null => global "All Brands" view: aggregate across every brand.
+        if ($this->tenantId === null) {
+            $where = "1=1";
+            $params = [];
+        } else {
+            $where = "merchant_id = :mid";
+            $params = ['mid' => $this->tenantId];
+        }
 
         if (!empty($filters['status'])) {
             $where .= " AND status = :status";
@@ -209,6 +285,34 @@ final class TransactionRepository extends BaseRepository
     }
 
     /**
+     * Retrieves a single record by primary key restricted within the active tenant context,
+     * joining the gateways table to get the display name.
+     *
+     * @param int|string $id Primary key identifier.
+     * @return array<string, mixed>|null Database row array, or null if not found.
+     */
+    public function findScoped(int|string $id): ?array
+    {
+        // tenantId === null => global read (superadmin "All Brands"): find regardless of brand.
+        if ($this->tenantId === null) {
+            return $this->db->fetchOne(
+                "SELECT t.*, COALESCE(g.name, t.gateway_slug) as gateway_name
+                 FROM {$this->table} t
+                 LEFT JOIN op_gateways g ON g.slug = t.gateway_slug
+                 WHERE t.id = :id LIMIT 1",
+                ['id' => $id]
+            );
+        }
+        return $this->db->fetchOne(
+            "SELECT t.*, COALESCE(g.name, t.gateway_slug) as gateway_name
+             FROM {$this->table} t
+             LEFT JOIN op_gateways g ON g.slug = t.gateway_slug
+             WHERE t.id = :id AND t.merchant_id = :mid LIMIT 1",
+            ['id' => $id, 'mid' => $this->tenantId]
+        );
+    }
+
+    /**
      * Lists transactions matching specific filters with sorting and pagination, scoped by active tenant.
      *
      * @param array{status?: string, gateway?: string, q?: string, date_from?: string, date_to?: string} $filters Filtering criteria.
@@ -218,8 +322,14 @@ final class TransactionRepository extends BaseRepository
      */
     public function listFiltered(array $filters, int $limit, int $offset): array
     {
-        $where = "t.merchant_id = :mid";
-        $params = ['mid' => $this->requireTenant()];
+        // tenantId === null => global "All Brands" view: aggregate across every brand.
+        if ($this->tenantId === null) {
+            $where = "1=1";
+            $params = [];
+        } else {
+            $where = "t.merchant_id = :mid";
+            $params = ['mid' => $this->tenantId];
+        }
 
         if (!empty($filters['status'])) {
             $where .= " AND t.status = :status";
@@ -243,13 +353,15 @@ final class TransactionRepository extends BaseRepository
         }
 
         return $this->db->fetchAll(
-            "SELECT t.*, c.name_enc as customer_name 
+            "SELECT t.*, c.name_enc as customer_name, COALESCE(g.name, t.gateway_slug) as gateway_name
              FROM {$this->table} t 
              LEFT JOIN op_customers c ON c.id = t.customer_id 
+             LEFT JOIN op_gateways g ON g.slug = t.gateway_slug
              WHERE {$where} ORDER BY t.created_at DESC LIMIT :lim OFFSET :off",
             array_merge($params, ['lim' => $limit, 'off' => $offset])
         );
     }
+
 
     /**
      * Retrieves aggregated transaction metrics for global or brand-specific dashboards.
@@ -297,7 +409,7 @@ final class TransactionRepository extends BaseRepository
         $params = $isGlobal ? [] : ['mid' => $merchantId];
 
         return $this->db->fetchAll(
-            "SELECT t.*, c.name_enc as customer_name
+            "SELECT t.*, c.name_enc as customer_name, c.email_enc as customer_email
              FROM op_transactions t
              LEFT JOIN op_customers c ON c.id = t.customer_id
              WHERE 1=1 {$merchantWhere}
@@ -533,9 +645,15 @@ final class TransactionRepository extends BaseRepository
      * @param string|null $gateway Optional gateway slug filter.
      * @return array<int, array<string, mixed>> Report records list.
      */
-    public function getReportData(int $merchantId, string $from, string $to, ?string $gateway = null): array
+    public function getReportData(?int $merchantId, string $from, string $to, ?string $gateway = null): array
     {
-        $params = ['from' => $from . ' 00:00:00', 'to' => $to . ' 23:59:59', 'mid' => $merchantId];
+        $params = ['from' => $from . ' 00:00:00', 'to' => $to . ' 23:59:59'];
+        // merchantId === null => global "All Brands" view: aggregate across all brands.
+        $merchantWhere = '';
+        if ($merchantId !== null) {
+            $merchantWhere = 'merchant_id = :mid AND';
+            $params['mid'] = $merchantId;
+        }
         $gatewayWhere = '';
         if ($gateway !== null && $gateway !== '') {
             $gatewayWhere = 'AND gateway_slug = :gw';
@@ -551,8 +669,7 @@ final class TransactionRepository extends BaseRepository
                 SUM(CASE WHEN status='refunded' THEN amount ELSE 0 END) as refunds,
                 COUNT(CASE WHEN status='failed' THEN 1 END) as failed_count
              FROM {$this->table}
-             WHERE merchant_id = :mid
-               AND created_at BETWEEN :from AND :to
+             WHERE {$merchantWhere} created_at BETWEEN :from AND :to
                {$gatewayWhere}
              GROUP BY DATE(created_at), gateway_slug
              ORDER BY date DESC",
@@ -566,8 +683,15 @@ final class TransactionRepository extends BaseRepository
      * @param int $merchantId Active brand/store identifier context.
      * @return array<int, array<string, mixed>> List of used gateway descriptors.
      */
-    public function getDistinctGateways(int $merchantId): array
+    public function getDistinctGateways(?int $merchantId = null): array
     {
+        // null merchantId => global "All Brands" view: distinct gateways across all brands.
+        if ($merchantId === null) {
+            return $this->db->fetchAll(
+                "SELECT DISTINCT gateway_slug as slug, gateway_slug as name
+                 FROM {$this->table} WHERE gateway_slug IS NOT NULL AND gateway_slug <> ''"
+            );
+        }
         return $this->db->fetchAll(
             "SELECT DISTINCT gateway_slug as slug, gateway_slug as name
              FROM {$this->table} WHERE merchant_id = :mid",
@@ -584,9 +708,15 @@ final class TransactionRepository extends BaseRepository
      * @param string|null $gateway Optional gateway slug filter.
      * @return array<int, array<string, mixed>> Export-ready rows.
      */
-    public function getExportData(int $merchantId, string $from, string $to, ?string $gateway = null): array
+    public function getExportData(?int $merchantId, string $from, string $to, ?string $gateway = null): array
     {
-        $params = ['from' => $from . ' 00:00:00', 'to' => $to . ' 23:59:59', 'mid' => $merchantId];
+        $params = ['from' => $from . ' 00:00:00', 'to' => $to . ' 23:59:59'];
+        // merchantId === null => global "All Brands" view: export across all brands.
+        $merchantWhere = '';
+        if ($merchantId !== null) {
+            $merchantWhere = 'merchant_id = :mid AND';
+            $params['mid'] = $merchantId;
+        }
         $gatewayWhere = '';
         if ($gateway !== null && $gateway !== '') {
             $gatewayWhere = 'AND gateway_slug = :gw';
@@ -596,8 +726,7 @@ final class TransactionRepository extends BaseRepository
         return $this->db->fetchAll(
             "SELECT id, gateway_slug, currency, amount, status, created_at
              FROM {$this->table}
-             WHERE merchant_id = :mid
-               AND created_at BETWEEN :from AND :to
+             WHERE {$merchantWhere} created_at BETWEEN :from AND :to
                {$gatewayWhere}
              ORDER BY created_at DESC",
             $params

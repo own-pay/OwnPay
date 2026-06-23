@@ -29,6 +29,11 @@ final class InstallerController
     private string $markerFile;
 
     /**
+     * @var bool|null Memoized result of the database installed-state probe.
+     */
+    private ?bool $dbProbeResult = null;
+
+    /**
      * InstallerController constructor.
      */
     public function __construct()
@@ -45,7 +50,7 @@ final class InstallerController
      */
     public function show(Request $req): Response
     {
-        if ($this->isInstalled()) {
+        if ($this->isInstalled($req)) {
             return Response::html($this->renderPhpTemplate('install/locked.php', []));
         }
         $stepQuery = $req->query('step', '1');
@@ -82,7 +87,7 @@ final class InstallerController
      */
     public function testDatabase(Request $req): Response
     {
-        if ($this->isInstalled()) {
+        if ($this->isInstalled($req)) {
             return Response::json(['success' => false, 'error' => 'Already installed'], 403);
         }
         $body = $req->json();
@@ -169,7 +174,7 @@ final class InstallerController
      */
     public function importSchema(Request $req): Response
     {
-        if ($this->isInstalled()) {
+        if ($this->isInstalled($req)) {
             return Response::json(['success' => false, 'error' => 'Already installed'], 403);
         }
         $body = $req->json();
@@ -252,7 +257,15 @@ final class InstallerController
             $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
 
             // Write temp env to storage/ (not webroot) to prevent credential exposure.
-            $env = "DB_HOST={$host}\nDB_PORT={$port}\nDB_NAME={$name}\nDB_USER={$user}\nDB_PASS={$pass}\nDB_PREFIX={$prefix}\n";
+            // Every value is rendered as a safe, single-line, quoted token: a DB
+            // password (or any field) containing a newline would otherwise inject
+            // extra lines into .env.temp and, downstream, into the final .env.
+            $env = 'DB_HOST=' . $this->envToken($host) . "\n"
+                 . 'DB_PORT=' . $this->envToken((string) $port) . "\n"
+                 . 'DB_NAME=' . $this->envToken($name) . "\n"
+                 . 'DB_USER=' . $this->envToken($user) . "\n"
+                 . 'DB_PASS=' . $this->envToken($pass) . "\n"
+                 . 'DB_PREFIX=' . $this->envToken($prefix) . "\n";
             file_put_contents($this->rootDir . '/storage/.env.temp', $env, LOCK_EX);
             @chmod($this->rootDir . '/storage/.env.temp', 0640);
 
@@ -287,10 +300,11 @@ final class InstallerController
             if (count($parts) === 2) {
                 $key = trim($parts[0]);
                 $val = trim($parts[1]);
-                if (
-                    (str_starts_with($val, '"') && str_ends_with($val, '"')) ||
-                    (str_starts_with($val, "'") && str_ends_with($val, "'"))
-                ) {
+                if (strlen($val) >= 2 && str_starts_with($val, '"') && str_ends_with($val, '"')) {
+                    // Reverse envToken()'s escaping: any "\X" collapses to "X"
+                    // (handles \\ , \" , \$ in a single left-to-right pass).
+                    $val = (string) preg_replace('/\\\\(.)/s', '$1', substr($val, 1, -1));
+                } elseif (strlen($val) >= 2 && str_starts_with($val, "'") && str_ends_with($val, "'")) {
                     $val = substr($val, 1, -1);
                 }
                 $vars[$key] = $val;
@@ -307,7 +321,7 @@ final class InstallerController
      */
     public function createAdmin(Request $req): Response
     {
-        if ($this->isInstalled()) {
+        if ($this->isInstalled($req)) {
             return Response::json(['success' => false, 'error' => 'Already installed'], 403);
         }
         $body = $req->json();
@@ -414,6 +428,7 @@ final class InstallerController
                 ['gateways.manage',       'Manage Gateways',          'gateways'],
                 ['brands.view',           'View Brands',              'people'],
                 ['brands.manage',         'Manage Brands',            'people'],
+                ['brands.access_all',     'Access All Brands view',   'people'],
                 ['staff.view',            'View Staff',               'people'],
                 ['staff.manage',          'Manage Staff',             'people'],
                 ['settings.view',         'View Settings',            'system'],
@@ -471,7 +486,7 @@ final class InstallerController
      */
     public function finalize(Request $req): Response
     {
-        if ($this->isInstalled()) {
+        if ($this->isInstalled($req)) {
             return Response::json(['success' => false, 'error' => 'Already installed'], 403);
         }
         $body = $req->json();
@@ -504,8 +519,12 @@ final class InstallerController
                 return Response::json(['success' => false, 'error' => 'Database config corrupted. Please go back to Step 2.'], 500);
             }
 
-            // Resolve APP_URL and APP_DOMAIN dynamically from request host
-            $httpHost = $req->server('HTTP_HOST') ?: 'localhost';
+            // Resolve APP_URL and APP_DOMAIN dynamically from request host.
+            // HTTP_HOST is attacker-controlled; validate it as a bare host[:port]
+            // so it cannot inject newlines/extra directives into the written .env
+            // or poison the absolute URLs later used in links and emails.
+            $httpHostRaw = $req->server('HTTP_HOST') ?: 'localhost';
+            $httpHost = preg_match('/^[A-Za-z0-9.\-]+(:[0-9]{1,5})?$/', $httpHostRaw) === 1 ? $httpHostRaw : 'localhost';
             $scheme = ($req->server('HTTPS') === 'on' || $req->server('HTTP_X_FORWARDED_PROTO') === 'https') ? 'https' : 'http';
             $appUrl = "{$scheme}://{$httpHost}";
             $appDomain = parse_url($appUrl, PHP_URL_HOST) ?: $httpHost;
@@ -519,28 +538,32 @@ final class InstallerController
                 return Response::json(['success' => false, 'error' => 'Failed to read .env.example'], 500);
             }
 
+            // Every written value is rendered through envToken(): control
+            // characters (newlines) are stripped and the value is quoted/escaped
+            // so a crafted DB password, app name, or Host header cannot inject
+            // additional .env directives (e.g. APP_DEBUG=true).
             $replacements = [
-                'APP_NAME' => "\"{$appName}\"",
+                'APP_NAME' => $this->envToken($appName),
                 'APP_ENV' => 'production',
                 'APP_DEBUG' => 'false',
-                'APP_URL' => $appUrl,
-                'APP_DOMAIN' => $appDomain,
-                'APP_TIMEZONE' => $timezone,
-                'APP_CURRENCY' => $currency,
-                
-                'DB_HOST' => $dbEnv['DB_HOST'] ?? 'localhost',
-                'DB_PORT' => $dbEnv['DB_PORT'] ?? '3306',
-                'DB_NAME' => $dbEnv['DB_NAME'] ?? 'ownpay',
-                'DB_USER' => $dbEnv['DB_USER'] ?? 'root',
-                'DB_PASS' => $dbEnv['DB_PASS'] ?? '',
-                'DB_PREFIX' => $dbEnv['DB_PREFIX'] ?? 'op_',
-                
+                'APP_URL' => $this->envToken($appUrl),
+                'APP_DOMAIN' => $this->envToken($appDomain),
+                'APP_TIMEZONE' => $this->envToken($timezone),
+                'APP_CURRENCY' => $this->envToken($currency),
+
+                'DB_HOST' => $this->envToken($dbEnv['DB_HOST'] ?? 'localhost'),
+                'DB_PORT' => $this->envToken($dbEnv['DB_PORT'] ?? '3306'),
+                'DB_NAME' => $this->envToken($dbEnv['DB_NAME'] ?? 'ownpay'),
+                'DB_USER' => $this->envToken($dbEnv['DB_USER'] ?? 'root'),
+                'DB_PASS' => $this->envToken($dbEnv['DB_PASS'] ?? ''),
+                'DB_PREFIX' => $this->envToken($dbEnv['DB_PREFIX'] ?? 'op_'),
+
                 'APP_KEY' => $appKey,
                 'ENCRYPTION_KEY' => $encryptionKey,
                 'HMAC_KEY' => $hmacKey,
                 'JWT_SECRET' => $jwtSecret,
                 'AUDIT_HMAC_SECRET' => $auditHmacSecret,
-                
+
                 'CACHE_DRIVER' => 'file',
                 'QUEUE_DRIVER' => 'file',
             ];
@@ -637,6 +660,24 @@ final class InstallerController
     }
 
     /**
+     * Renders a value as a safe, single-line, double-quoted .env token.
+     *
+     * Strips all control characters (newlines included) so a value can never
+     * span multiple lines and inject additional environment directives, then
+     * escapes backslash, double-quote and dollar so the value round-trips
+     * correctly through both parseTempEnv() and the production phpdotenv parser.
+     *
+     * @param string $raw The raw value to encode.
+     * @return string The quoted, escaped .env token.
+     */
+    private function envToken(string $raw): string
+    {
+        $clean = (string) preg_replace('/[\x00-\x1F\x7F]/', '', $raw);
+        $escaped = str_replace(['\\', '"', '$'], ['\\\\', '\\"', '\\$'], $clean);
+        return '"' . $escaped . '"';
+    }
+
+    /**
      * Sanitize error message — strip file paths and credentials.
      *
      * @param string $message The raw error message.
@@ -678,17 +719,110 @@ final class InstallerController
             ['name' => 'Writable: storage/','required' => 'Yes',    'current' => $storageWritable ? 'Yes' : 'No',                 'ok' => $storageWritable],
             ['name' => 'Writable: public/', 'required' => 'Yes',    'current' => $publicWritable ? 'Yes' : 'No',                  'ok' => $publicWritable],
             ['name' => 'Composer vendor/', 'required' => 'Exists', 'current' => is_dir($this->rootDir . '/vendor') ? 'Yes' : 'No', 'ok' => is_dir($this->rootDir . '/vendor')],
+            ['name' => 'Argon2id Hashing', 'required' => 'Enabled', 'current' => defined('PASSWORD_ARGON2ID') ? 'Yes' : 'No',   'ok' => defined('PASSWORD_ARGON2ID')],
         ];
     }
 
     /**
-     * Checks if the installation marker exists.
+     * Checks if the system is installed.
      *
+     * The marker file is the fast path, but it is NOT the only authority:
+     * if the marker is deleted (accidentally or maliciously) while the
+     * configured database still holds a superadmin, the wizard must stay
+     * locked — otherwise an unauthenticated visitor could drop every table
+     * via importSchema() or mint a fresh superadmin via createAdmin().
+     * A deliberate reinstall over a populated database requires the
+     * INSTALL_FORCE_KEY escape hatch (or deleting .env as well).
+     *
+     * @param Request|null $req The incoming HTTP request, when available, to honor the force key.
      * @return bool True if already installed, false otherwise.
      */
-    private function isInstalled(): bool
+    private function isInstalled(?Request $req = null): bool
     {
-        return file_exists($this->markerFile);
+        if (file_exists($this->markerFile)) {
+            return true;
+        }
+
+        if (!$this->databaseLooksInstalled()) {
+            return false;
+        }
+
+        if ($req !== null && $this->forceKeyMatches($req)) {
+            return false;
+        }
+
+        // Self-heal: restore the marker so the rest of the application
+        // (Kernel install-lock redirect) immediately recovers as well.
+        @file_put_contents(
+            $this->markerFile,
+            "Installed: " . DateHelper::iso() . "\nRestored: database probe (marker file was missing)\n",
+            LOCK_EX
+        );
+        @chmod($this->markerFile, 0640);
+        error_log('[OwnPay] SECURITY: storage/.installed was missing but the configured database already contains a superadmin — marker self-healed, installer locked.');
+
+        return true;
+    }
+
+    /**
+     * Probes the database configured in the live environment for an existing installation.
+     *
+     * Returns false on any connection or query failure: a fresh install has
+     * no .env / no reachable database, and must never be blocked by this probe.
+     *
+     * @return bool True when the configured database contains a superadmin user.
+     */
+    private function databaseLooksInstalled(): bool
+    {
+        if ($this->dbProbeResult !== null) {
+            return $this->dbProbeResult;
+        }
+
+        $host = $_ENV['DB_HOST'] ?? null;
+        $name = $_ENV['DB_NAME'] ?? null;
+        $user = $_ENV['DB_USER'] ?? null;
+        if (!is_string($host) || $host === '' || !is_string($name) || $name === '' || !is_string($user) || $user === '') {
+            return $this->dbProbeResult = false;
+        }
+        $passVal = $_ENV['DB_PASS'] ?? '';
+        $pass = is_string($passVal) ? $passVal : '';
+        $portVal = $_ENV['DB_PORT'] ?? 3306;
+        $port = is_scalar($portVal) ? (int) $portVal : 3306;
+        $prefixVal = $_ENV['DB_PREFIX'] ?? 'op_';
+        $prefix = is_string($prefixVal) && preg_match('/^[a-z0-9_]{1,30}$/i', $prefixVal) ? $prefixVal : 'op_';
+
+        try {
+            $pdo = new \PDO("mysql:host={$host};port={$port};dbname={$name};charset=utf8mb4", $user, $pass, [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_TIMEOUT => 2,
+            ]);
+            $stmt = $pdo->query("SELECT 1 FROM `{$prefix}merchant_users` WHERE is_superadmin = 1 LIMIT 1");
+            return $this->dbProbeResult = ($stmt !== false && $stmt->fetch() !== false);
+        } catch (\Throwable) {
+            return $this->dbProbeResult = false;
+        }
+    }
+
+    /**
+     * Validates the reinstall force key supplied with the request.
+     *
+     * The key must be explicitly configured via the INSTALL_FORCE_KEY
+     * environment variable and at least 16 characters long — an unset or
+     * trivially short value never unlocks a populated installation.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return bool True when a sufficiently strong key is configured and matches.
+     */
+    private function forceKeyMatches(Request $req): bool
+    {
+        $configuredVal = $_ENV['INSTALL_FORCE_KEY'] ?? '';
+        $configured = is_string($configuredVal) ? $configuredVal : '';
+        if (strlen($configured) < 16) {
+            return false;
+        }
+
+        $provided = $req->header('X-Install-Force-Key');
+        return $provided !== '' && hash_equals($configured, $provided);
     }
 
     /**

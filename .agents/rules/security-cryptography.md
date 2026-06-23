@@ -10,16 +10,16 @@ description: Apply for security/cryptography reviews, auth audits, JWT/token/pas
 
 # Security & Cryptography Rules — OwnPay Platform (May 2026)
 
-These rules define cryptographic, authentication, and security enforcement standards for the PHP 8.2+ codebase. All rules are mandatory.
+These rules define cryptographic, authentication, and security enforcement standards for the PHP 8.3+ codebase. All rules are mandatory.
 
 ---
 
 ## 1. Authentication & Password Security
 - User passwords MUST use **Argon2id** (`PASSWORD_ARGON2ID`) — never MD5, SHA1, bcrypt, or plain SHA256.
-- Argon2id parameters MUST meet OWASP 2025 minimums: `memory_cost ≥ 65536` (64MB), `time_cost ≥ 3`, `threads ≥ 4`.
-- Store hashes in `password` column of `op_merchant_users` — never in plaintext or as reversible encryption.
+- Argon2id parameters MUST match `Authenticator::hashPassword()` (OWASP-aligned): `memory_cost = 65536` (64MB), `time_cost = 4`, `threads = 1`.
+- Store hashes in the `password_hash` column of `op_merchant_users` — never in plaintext or as reversible encryption.
 - `password_verify()` MUST be used for verification.
-- Reset tokens MUST use `random_bytes(32)` encoded as hex/base64 — never `rand()`, `mt_rand()`, or `uniqid()`. They must expire in 1 hour and be single-use.
+- Reset tokens MUST use `random_bytes(32)` encoded as hex — never `rand()`, `mt_rand()`, or `uniqid()`. Only the **SHA-256 hash** of the token is persisted (`op_password_resets.token_hash`); the plaintext exists only in the emailed link. Tokens expire in 1 hour and are single-use (`used_at`). Implemented by `PasswordResetService` (`/reset-password`); the request flow MUST NOT reveal whether an account exists.
 - Account lockout: max 5 failed logins within 15 minutes triggers a temporary lockout with exponential backoff.
 - RBAC validation via `PermissionMiddleware` is required for all administrative routes.
 - Superadmin accounts MUST enforce 2FA — login MUST be blocked without TOTP.

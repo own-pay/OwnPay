@@ -38,10 +38,9 @@ INSERT INTO `op_permissions` (`slug`, `name`, `group_name`) VALUES
 ('staff.create', 'Create Staff', 'staff'),
 ('staff.update', 'Update Staff', 'staff'),
 ('staff.delete', 'Delete Staff', 'staff'),
--- Brands (AUD-10: route map uses 'brands', not 'merchants')
 ('brands.view', 'View Brands', 'brands'),
 ('brands.manage', 'Manage Brands', 'brands'),
--- Merchants (legacy compat)
+-- Merchants
 ('merchants.view', 'View Merchants', 'merchants'),
 ('merchants.create', 'Create Merchants', 'merchants'),
 ('merchants.update', 'Update Merchants', 'merchants'),
@@ -72,5 +71,4 @@ INSERT INTO `op_permissions` (`slug`, `name`, `group_name`) VALUES
 ('system.audit', 'View Audit Log', 'system'),
 ('system.reports', 'View Reports', 'system'),
 ('system.balance', 'Balance Verification', 'system'),
--- Admin (AUD-10: default-deny fallback permission for unmapped admin routes)
 ('admin.access', 'Basic Admin Access', 'admin');

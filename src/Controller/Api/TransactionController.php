@@ -113,9 +113,16 @@ final class TransactionController
         }
 
         $txn = $this->txns->forTenant($mid)->findByTrxId($trxId);
+        if ($txn === null) {
+            $txn = $this->txns->forTenant($mid)->findByGatewayTrxId($trxId);
+        }
 
         if ($txn === null) {
-            return Response::apiError('TRANSACTION_NOT_FOUND', 'Transaction not found', null, 404);
+            if (str_starts_with($trxId, 'OP-') || str_starts_with($trxId, 'OP_')) {
+                return Response::apiError('TRANSACTION_NOT_FOUND', 'Transaction not found', null, 404);
+            } else {
+                return Response::apiError('TRANSACTION_NOT_FOUND', 'Transaction not found using the gateway transaction ID. It may be an incomplete, pending, or failed payment. Try querying with the OwnPay transaction ID.', null, 404);
+            }
         }
 
         return Response::apiSuccess($this->safeFields($txn));
@@ -132,6 +139,7 @@ final class TransactionController
         return [
             'id'          => $t['id'],
             'trx_id'      => $t['trx_id'],
+            'gateway_trx_id' => $t['gateway_trx_id'] ?? null,
             'amount'      => $t['amount'],
             'currency'    => $t['currency'],
             'fee'          => $t['fee'] ?? '0.00',

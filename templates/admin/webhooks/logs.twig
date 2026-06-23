@@ -2,10 +2,13 @@
 {% block title %}Webhook Event Delivery Logs — {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
+    <div>
+        <h1>Webhook Event #{{ event.id }}</h1>
+        <p class="op-page-subtitle">Real-time delivery attempts, payloads, and response codes of outbound webhook notifications.</p>
+    </div>
     <div class="op-header-actions" style="margin-bottom: 1rem">
         <a href="/admin/webhooks/events" class="op-btn op-btn-sm op-btn-secondary">← Back to Queue</a>
     </div>
-    <h1>Webhook Event #{{ event.id }}</h1>
 </div>
 
 <div class="op-grid op-grid-2 op-gap-4 op-mt-4">

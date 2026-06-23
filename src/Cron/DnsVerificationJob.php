@@ -22,8 +22,8 @@ final class DnsVerificationJob
     }
 
     /**
-     * Run verification for all pending domains.
-     * @return array{verified: int, failed: int}
+     * Run verification for pending domains and re-verification for stale active ones.
+     * @return array{verified: int, failed: int, revoked: int}
      */
     public function run(): array
     {
@@ -67,6 +67,32 @@ final class DnsVerificationJob
             }
         }
 
-        return ['verified' => $verified, 'failed' => $failed];
+        // Continuous re-verification (DNS TOCTOU fix): a domain verified once is
+        // otherwise trusted forever. Re-check active domains whose proof is older
+        // than the grace window; if the TXT record no longer proves ownership,
+        // revert the domain to 'pending' so it stops routing brand traffic until
+        // re-proven. Merchants must keep their _ownpay-verification TXT record in
+        // place — standard for continuously validated custom domains.
+        $revoked = 0;
+        $stale = $this->domains->findStaleVerified(24);
+        foreach ($stale as $domain) {
+            if (!isset($domain['domain'], $domain['verification_token'], $domain['id']) ||
+                !is_string($domain['domain']) || !is_string($domain['verification_token']) || !is_scalar($domain['id'])) {
+                continue;
+            }
+            $domainId = (int) $domain['id'];
+            $stillValid = $this->verifier->verifyTxt($domain['domain'], $domain['verification_token']);
+            if ($stillValid) {
+                $this->domains->update($domainId, ['dns_verified_at' => DateHelper::now()]);
+            } else {
+                $this->domains->update($domainId, [
+                    'dns_verified' => 0,
+                    'status'       => 'pending',
+                ]);
+                $revoked++;
+            }
+        }
+
+        return ['verified' => $verified, 'failed' => $failed, 'revoked' => $revoked];
     }
 }

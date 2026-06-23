@@ -1,11 +1,32 @@
 /**
  * OwnPay Admin — Devices Page JS
- * Handles: pairing panel toggle, OTP generation + countdown timer, bulk select.
+ * Handles: tab switching, pairing panel toggle, OTP generation + QR code, countdown timer, bulk select.
  */
 (function () {
     "use strict";
 
     var csrf = window.OP_CSRF || "";
+
+    // ─── Tab Switching ────────────────────────────────────────────────────────
+    document.querySelectorAll(".op-tab").forEach(function (t) {
+        t.addEventListener("click", function () {
+            document.querySelectorAll(".op-tab, .op-tab-panel").forEach(function (e) {
+                e.classList.remove("active");
+            });
+            this.classList.add("active");
+            var panel = document.getElementById("tab-" + this.dataset.tab);
+            if (panel) { panel.classList.add("active"); }
+            if (window.location.hash !== "#tab-" + this.dataset.tab) {
+                history.replaceState(null, null, "#tab-" + this.dataset.tab);
+            }
+        });
+    });
+
+    // Hash-based tab activation
+    if (window.location.hash) {
+        var hashTab = document.querySelector('.op-tab[data-tab="' + window.location.hash.replace("#tab-", "") + '"]');
+        if (hashTab) { hashTab.click(); }
+    }
 
     // ─── Toggle Pairing Panel ─────────────────────────────────────────────────
     var pairBtn = document.getElementById("pair-device-btn");
@@ -30,7 +51,7 @@
         });
     }
 
-    // ─── Generate OTP ─────────────────────────────────────────────────────────
+    // ─── Generate OTP & QR Code ───────────────────────────────────────────────
     var timerInterval = null;
     var genOtpBtn = document.getElementById("gen-otp-btn");
     if (genOtpBtn) {
@@ -47,19 +68,24 @@
             .then(function (r) { return r.json(); })
             .then(function (data) {
                 if (data.success) {
-                    // Update CSRF token for subsequent requests (rotated by server)
-                    if (data.csrf_token) {csrf = data.csrf_token;}
+                    // Update CSRF token for subsequent requests
+                    if (data.csrf_token) { csrf = data.csrf_token; }
 
                     var display = document.getElementById("otp-display");
                     var otpEl   = document.getElementById("otp-value");
                     var timerEl = document.getElementById("otp-timer");
+                    var qrContainer = document.getElementById("qr-container");
 
                     if (display) {
                         display.classList.remove("op-d-none");
                     }
                     otpEl.textContent = data.otp;
 
-                    if (timerInterval) {clearInterval(timerInterval);}
+                    if (qrContainer && data.qr_svg) {
+                        qrContainer.innerHTML = data.qr_svg;
+                    }
+
+                    if (timerInterval) { clearInterval(timerInterval); }
                     var secs = data.expires_in || 300;
                     var tick = function () {
                         var m = Math.floor(secs / 60);
@@ -69,6 +95,9 @@
                             clearInterval(timerInterval);
                             otpEl.textContent = "EXPIRED";
                             timerEl.textContent = "";
+                            if (qrContainer) {
+                                qrContainer.innerHTML = '<div class="op-qr-placeholder" style="color: var(--op-danger);">Expired</div>';
+                            }
                         }
                     };
                     tick();
@@ -78,7 +107,7 @@
                 }
             })
             .catch(function () { alert("Network error"); })
-            .finally(function () { btn.disabled = false; btn.textContent = "Generate Pairing Code"; });
+            .finally(function () { btn.disabled = false; btn.textContent = "Generate Code"; });
         });
     }
 

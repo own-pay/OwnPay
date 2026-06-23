@@ -1,13 +1,60 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}Settings — {{ app_name }}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/assets/css/pages/settings.css?v=013">
+    <link rel="stylesheet" href="/assets/css/pages/settings.css?v=014">
 {% endblock %}
 {% block content %}
-<div class="op-page-header"><h1>Settings</h1></div>
+<div class="op-page-header"><div>
+        <h1>Settings</h1>
+        <p class="op-page-subtitle">Configure system settings, custom themes, email configurations, and platform integrations.</p>
+    </div></div>
 
 <div class="op-settings-layout">
     <aside class="op-settings-sidebar" id="settings-tabs">
+        {% if is_brand_view %}
+        <!-- Brand Settings Group -->
+        <div class="op-sidebar-group">
+            <div class="op-sidebar-group-title">Brand Settings</div>
+            <nav class="op-sidebar-nav">
+                <button type="button" class="op-tab {{ default_tab == 'branding' or default_tab is empty ? 'active' : '' }}" data-tab="branding">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                    </span>
+                    Identity &amp; Branding
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'checkout' ? 'active' : '' }}" data-tab="checkout">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                    </span>
+                    Checkout Settings
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'domains' ? 'active' : '' }}" data-tab="domains">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                    </span>
+                    Custom Domains
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'faq' ? 'active' : '' }}" data-tab="faq">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </span>
+                    Checkout FAQs
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'payment' ? 'active' : '' }}" data-tab="payment">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    </span>
+                    Currency Settings
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'notifications' ? 'active' : '' }}" data-tab="notifications">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    </span>
+                    Email Notifications
+                </button>
+            </nav>
+        </div>
+        {% else %}
         <!-- Basic Settings Group -->
         <div class="op-sidebar-group">
             <div class="op-sidebar-group-title">Basic Settings</div>
@@ -22,7 +69,7 @@
                     <span class="op-tab-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
                     </span>
-                    Branding
+                    Branding Defaults
                 </button>
                 <button type="button" class="op-tab {{ default_tab == 'faq' ? 'active' : '' }}" data-tab="faq">
                     <span class="op-tab-icon">
@@ -37,12 +84,6 @@
         <div class="op-sidebar-group">
             <div class="op-sidebar-group-title">Appearance & Portal</div>
             <nav class="op-sidebar-nav">
-                <button type="button" class="op-tab {{ default_tab == 'theme' ? 'active' : '' }}" data-tab="theme">
-                    <span class="op-tab-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.7255 3.09032 17.1962 4.85857 19C5.35848 19.5 5.25 20.5 4.5 21C3.75 21.5 3 22 12 22Z"></path><circle cx="7.5" cy="10.5" r="1.5"></circle><circle cx="11.5" cy="7.5" r="1.5"></circle><circle cx="16.5" cy="9.5" r="1.5"></circle><circle cx="15.5" cy="14.5" r="1.5"></circle></svg>
-                    </span>
-                    Theme
-                </button>
                 <button type="button" class="op-tab {{ default_tab == 'landing' ? 'active' : '' }}" data-tab="landing">
                     <span class="op-tab-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
@@ -66,7 +107,7 @@
                     <span class="op-tab-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
                     </span>
-                    Payment Settings
+                    Currency Settings
                 </button>
                 <button type="button" class="op-tab {{ default_tab == 'email' ? 'active' : '' }}" data-tab="email">
                     <span class="op-tab-icon">
@@ -79,12 +120,6 @@
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
                     </span>
                     Notifications
-                </button>
-                <button type="button" class="op-tab {{ default_tab == 'mobile' ? 'active' : '' }}" data-tab="mobile">
-                    <span class="op-tab-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"></rect><line x1="12" y1="18" x2="12.01" y2="18"></line></svg>
-                    </span>
-                    Mobile App
                 </button>
             </nav>
         </div>
@@ -99,12 +134,6 @@
                     </span>
                     Security
                 </button>
-                <button type="button" class="op-tab {{ default_tab == 'api' ? 'active' : '' }}" data-tab="api">
-                    <span class="op-tab-icon">
-                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path></svg>
-                    </span>
-                    API Credentials
-                </button>
                 <button type="button" class="op-tab {{ default_tab == 'cron' ? 'active' : '' }}" data-tab="cron">
                     <span class="op-tab-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
@@ -117,6 +146,12 @@
                     </span>
                     Language
                 </button>
+                <button type="button" class="op-tab {{ default_tab == 'queue' ? 'active' : '' }}" data-tab="queue">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                    </span>
+                    Queue Monitor
+                </button>
                 <button type="button" class="op-tab op-tab-highlight {{ default_tab == 'optimization' ? 'active' : '' }}" data-tab="optimization">
                     <span class="op-tab-icon">
                         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
@@ -126,6 +161,7 @@
                 {{ hook('admin.settings.tabs')|raw }}
             </nav>
         </div>
+        {% endif %}
     </aside>
     <div class="op-settings-main">
 
@@ -134,6 +170,7 @@
     <input type="hidden" name="_tab" id="active-tab-input" value="{{ default_tab ?? 'general' }}">
 
     {# ── General Tab ────────────────────────────────────────── #}
+    {% if not is_brand_view %}
     <div class="op-tab-panel {{ default_tab == 'general' ? 'active' : '' }}" id="tab-general">
         <div class="op-card">
             <div class="op-card-header"><h3>Application Settings</h3></div>
@@ -156,16 +193,18 @@
                         <select name="timezone" class="op-input">
                             {% for tz in timezones %}<option value="{{ tz }}" {{ (settings.timezone ?? 'Asia/Dhaka') == tz ? 'selected' : '' }}>{{ tz }}</option>{% endfor %}
                         </select>
+                        <small class="op-text-muted">The default system timezone used for logging and displaying transaction times.</small>
                     </div>
                     <div class="op-form-group op-col-6">
                         <label>Support Email</label>
                         <input type="email" name="support_email" value="{{ settings.support_email ?? '' }}" class="op-input" placeholder="support@example.com">
-                        <small class="op-text-muted">Shown on checkout and error pages</small>
+                        <small class="op-text-muted">Shown on checkout and error pages for public support inquiries.</small>
                     </div>
                 </div>
                 <div class="op-form-group">
                     <label>Footer Text</label>
                     <input type="text" name="footer_text" value="{{ settings.footer_text ?? '' }}" class="op-input" placeholder="© 2026 Your Company. All rights reserved.">
+                    <small class="op-text-muted">Global copyright or branding text shown at the bottom of public portal pages.</small>
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
@@ -173,6 +212,7 @@
                         <span class="op-toggle-switch"></span>
                         <span>Maintenance Mode</span>
                     </label>
+                    <small class="op-text-muted op-d-block op-mt-1">Toggling this active will block public access to checkout/landing pages with a 503 response.</small>
                     <small class="op-text-muted op-text-warning {% if not (settings.maintenance_mode ?? 0) %}op-d-none{% endif %}" id="maintenance-warning">
                         ⚠ Site is in maintenance mode. Public users see a 503 page. Admin panel stays accessible.
                     </small>
@@ -181,6 +221,7 @@
         </div>
         {{ hook('admin.settings.general')|raw }}
     </div>
+    {% endif %}
 
     {# ── Branding Tab ────────────────────────────────────────── #}
     <div class="op-tab-panel {{ default_tab == 'branding' ? 'active' : '' }}" id="tab-branding">
@@ -238,6 +279,25 @@
                 </div>
             </div>
         </div>
+        {% if not is_brand_view %}
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>Theme Customization</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Primary Theme Color</label>
+                        <input type="color" name="primary_color" value="{{ theme.primary_color ?? '#6C5CE7' }}" class="op-input-color">
+                        <small class="op-text-muted">The main theme color used for buttons, links, active tabs, and primary highlights across default views.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Accent Theme Color</label>
+                        <input type="color" name="accent_color" value="{{ theme.accent_color ?? '#00CEC9' }}" class="op-input-color">
+                        <small class="op-text-muted">The theme accent color used for secondary hover states and minor visual highlights.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <div class="op-card">
             <div class="op-card-header"><h3>Site Identity &amp; SEO</h3></div>
             <div class="op-card-body">
@@ -261,16 +321,90 @@
                 <div class="op-form-group">
                     <label>Site Keywords</label>
                     <input type="text" name="site_keywords" value="{{ branding.site_keywords ?? '' }}" class="op-input" placeholder="payment gateway, fintech, self-hosted">
+                    <small class="op-text-muted">Comma-separated list of keywords that search engines index for your landing page.</small>
                 </div>
                 <div class="op-form-group">
                     <label>Brand Tagline</label>
                     <input type="text" name="brand_tagline" value="{{ branding.brand_tagline ?? '' }}" class="op-input" placeholder="Payments you actually own">
+                    <small class="op-text-muted">A short, catchy phrase representing your payment service (shown on landing page header).</small>
                 </div>
             </div>
         </div>
+        {% endif %}
+
+        {% if is_brand_view %}
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>Brand Profile</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Brand Name *</label>
+                        <input type="text" name="brand_name" value="{{ brand.name ?? '' }}" class="op-input" required>
+                        <small class="op-text-muted">The public name of the brand/merchant store.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Contact Email *</label>
+                        <input type="email" name="brand_email" value="{{ brand.email ?? '' }}" class="op-input" required>
+                        <small class="op-text-muted">Primary contact email address for administrative notifications.</small>
+                    </div>
+                </div>
+                <div class="op-form-row op-mt-3">
+                    <div class="op-form-group op-col-6">
+                        <label>Phone Number</label>
+                        <input type="text" name="brand_phone" value="{{ brand.phone ?? '' }}" class="op-input" placeholder="+123456789">
+                        <small class="op-text-muted">Official business phone number for the brand store.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Timezone</label>
+                        <select name="brand_timezone" class="op-input">
+                            {% for tz in timezones %}
+                                <option value="{{ tz }}" {{ (brand.timezone ?? 'Asia/Dhaka') == tz ? 'selected' : '' }}>{{ tz }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="op-text-muted">The timezone used to stamp transactions and activities.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>Brand Customization</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Primary Theme Color</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="color" name="primary_color" value="{{ branding.primary_color ?? '#0D9488' }}" class="op-input-color" style="width: 60px; height: 38px; padding: 2px; cursor: pointer; border: 1px solid var(--border-color, #e2e8f0);">
+                            <span class="op-text-muted op-text-sm">Sets primary button & accents</span>
+                        </div>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Accent Theme Color</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="color" name="accent_color" value="{{ branding.accent_color ?? '#0F766E' }}" class="op-input-color" style="width: 60px; height: 38px; padding: 2px; cursor: pointer; border: 1px solid var(--border-color, #e2e8f0);">
+                            <span class="op-text-muted op-text-sm">Hover states and highlights</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="op-form-row op-mt-3">
+                    <div class="op-form-group op-col-6">
+                        <label>Support Contact Email</label>
+                        <input type="email" name="support_email" value="{{ settings.support_email ?? '' }}" class="op-input" placeholder="support@brand.com">
+                        <small class="op-text-muted">Customer queries from checkout will route here.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Custom Checkout Footer Text</label>
+                        <input type="text" name="footer_text" value="{{ settings.footer_text ?? '' }}" class="op-input" placeholder="Secured by {{ brand.name ?? 'Brand' }} · 256-bit encryption">
+                        <small class="op-text-muted">Displays at the bottom of the checkout view footer.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
         {{ hook('admin.settings.branding')|raw }}
     </div>
 
+    {% if not is_brand_view %}
     {# ── Landing Page Tab ─────────────────────────────────────── #}
     <div class="op-tab-panel {{ default_tab == 'landing' ? 'active' : '' }}" id="tab-landing">
         <div class="op-card op-mb-4">
@@ -288,20 +422,24 @@
                     <div class="op-form-group op-col-6">
                         <label>Hero Title</label>
                         <input type="text" name="landing_title" value="{{ landing.landing_title ?? '' }}" class="op-input" placeholder="The Payment Gateway You Actually Own">
+                        <small class="op-text-muted">The main large title header displayed in the hero section of the landing page.</small>
                     </div>
                     <div class="op-form-group op-col-6">
                         <label>Hero Subtitle</label>
                         <input type="text" name="landing_subtitle" value="{{ landing.landing_subtitle ?? '' }}" class="op-input" placeholder="Self-hosted, multi-brand…">
+                        <small class="op-text-muted">A short descriptive paragraph below the title explaining the service.</small>
                     </div>
                 </div>
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
                         <label>CTA Button Text</label>
                         <input type="text" name="landing_cta_text" value="{{ landing.landing_cta_text ?? 'Get Started' }}" class="op-input">
+                        <small class="op-text-muted">The label displayed on the primary call-to-action button.</small>
                     </div>
                     <div class="op-form-group op-col-6">
                         <label>CTA Button URL</label>
                         <input type="url" name="landing_cta_url" value="{{ landing.landing_cta_url ?? '' }}" class="op-input" placeholder="https://ownpay.org">
+                        <small class="op-text-muted">Destination web URL when a visitor clicks the call-to-action button.</small>
                     </div>
                 </div>
                 <div class="op-form-row">
@@ -311,6 +449,7 @@
                             <span class="op-toggle-switch"></span>
                             <span>Show Features Section</span>
                         </label>
+                        <small class="op-text-muted op-d-block op-mt-1">Toggle whether the features list grid is visible on the landing page.</small>
                     </div>
                     <div class="op-form-group op-col-6">
                         <label class="op-toggle-label">
@@ -318,16 +457,10 @@
                             <span class="op-toggle-switch"></span>
                             <span>Show FAQ Section</span>
                         </label>
+                        <small class="op-text-muted op-d-block op-mt-1">Toggle whether the frequently asked questions list is visible on the landing page.</small>
                     </div>
                 </div>
-                <div class="op-form-group">
-                    <label>Admin Login URL Slug <span class="op-badge op-badge-warning">Security</span></label>
-                    <div class="op-input-group">
-                        <span class="op-input-prefix">{{ settings.base_url ?? '' }}/</span>
-                        <input type="text" name="admin_login_slug" value="{{ landing.admin_login_slug ?? 'login' }}" class="op-input" placeholder="login" pattern="[a-z0-9\-]+" title="Lowercase letters, numbers, hyphens only">
-                    </div>
-                    <small class="op-text-muted op-text-warning">⚠ Change this to make your admin login URL harder to guess. Default: <code>/login</code>. After saving, bookmark the new URL — old URL stops working.</small>
-                </div>
+
             </div>
         </div>
         <div class="op-card">
@@ -349,11 +482,28 @@
         </div>
         {{ hook('admin.settings.landing')|raw }}
     </div>
+    {% endif %}
 
-    {# ── Payment Tab ────────────────────────────────────────── #}
+    {# ── Currency Settings Tab ────────────────────────────────────────── #}
     <div class="op-tab-panel {{ default_tab == 'payment' ? 'active' : '' }}" id="tab-payment">
+        {% if is_brand_view %}
         <div class="op-card">
-            <div class="op-card-header"><h3>Payment Settings</h3></div>
+            <div class="op-card-header"><h3>Currency Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group op-col-6 op-p-0">
+                    <label>Default Currency</label>
+                    <select name="brand_currency" class="op-input">
+                        {% for cur in currencies %}
+                            <option value="{{ cur.code }}" {{ (brand.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} — {{ cur.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="op-text-muted">The default ledger and transaction pricing currency for this brand.</small>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="op-card">
+            <div class="op-card-header"><h3>Currency Settings</h3></div>
             <div class="op-card-body">
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
@@ -361,6 +511,7 @@
                         <select name="default_currency" class="op-input">
                             {% for cur in currencies %}<option value="{{ cur.code }}" {{ (settings.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} — {{ cur.name }}</option>{% endfor %}
                         </select>
+                        <small class="op-text-muted">The primary ledger and base currency for platform-wide pricing calculations.</small>
                     </div>
                     <div class="op-form-group op-col-6">
                         <label>Exchange Rate Update Mode</label>
@@ -368,22 +519,24 @@
                             <option value="auto" {{ (settings.exchange_rate_mode ?? 'auto') == 'auto' ? 'selected' : '' }}>Automatic</option>
                             <option value="manual" {{ (settings.exchange_rate_mode ?? '') == 'manual' ? 'selected' : '' }}>Manual</option>
                         </select>
+                        <small class="op-text-muted">Choose whether exchange rates are updated automatically via API or updated manually in the table below.</small>
                     </div>
                 </div>
                 <div class="op-form-group">
                     <label>Custom Exchange Rate API URL</label>
                     <input type="text" name="exchange_rate_api_url" value="{{ settings.exchange_rate_api_url ?? '' }}" class="op-input" placeholder="e.g., https://custom-api.example.com/v1/currencies/{currency}.json">
-                    <small class="op-text-muted">Optional. Leave blank to use Fawaz Ahmed API CDN fallbacks. Use <code>{currency}</code> placeholder for base currency code.</small>
+                    <small class="op-text-muted">Optional. Leave blank to use <a href="https://github.com/fawazahmed0/exchange-api" target="_blank" rel="noopener noreferrer" class="op-text-primary op-underline">Fawaz Ahmed API</a> CDN. Use <code>{currency}</code> placeholder for base currency code.</small>
                 </div>
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
                         <label>Payment Expiry (minutes)</label>
                         <input type="number" name="payment_expiry_minutes" value="{{ settings.payment_expiry_minutes ?? 30 }}" class="op-input" min="5" max="1440">
-                        <small class="op-text-muted">How long before unpaid checkout sessions expire</small>
+                        <small class="op-text-muted">The duration in minutes before an unpaid checkout session is marked as expired and cancelled.</small>
                     </div>
                     <div class="op-form-group op-col-6">
                         <label>Invoice Due Days (default)</label>
                         <input type="number" name="invoice_due_days" value="{{ settings.invoice_due_days ?? 7 }}" class="op-input" min="1" max="365">
+                        <small class="op-text-muted">The default number of days allowed for customers to pay newly generated invoices.</small>
                     </div>
                 </div>
                 <div class="op-form-group">
@@ -392,14 +545,16 @@
                         <span class="op-toggle-switch"></span>
                         <span>Auto-approve verified payments</span>
                     </label>
-                    <small class="op-text-muted">When enabled, SMS-verified payments are approved automatically</small>
+                    <small class="op-text-muted op-d-block op-mt-1">When enabled, payments matched via SMS parsing are approved automatically without manual review.</small>
                 </div>
             </div>
         </div>
+        {% endif %}
 
         <div class="op-card op-mt-4">
             <div class="op-card-header">
                 <h3>Currencies &amp; Exchange Rates</h3>
+                {% if not is_brand_view %}
                 <div class="op-header-actions">
                     <button type="button" id="btn-sync-rates" class="op-btn op-btn-sm op-btn-outline">
                         🔄 Sync Rates Now
@@ -408,6 +563,7 @@
                         ➕ Add Currency
                     </button>
                 </div>
+                {% endif %}
             </div>
             <div class="op-card-body">
                 <div class="op-form-group">
@@ -423,8 +579,8 @@
                                 <th>Symbol</th>
                                 <th>Decimals</th>
                                 <th>Status</th>
-                                <th>Exchange Rate (per {{ settings.default_currency ?? 'BDT' }})</th>
-                                <th>Actions</th>
+                                <th>Exchange Rate (per {{ base_currency ?? 'BDT' }})</th>
+                                {% if not is_brand_view %}<th>Actions</th>{% endif %}
                             </tr>
                         </thead>
                         <tbody>
@@ -443,15 +599,17 @@
                                 </td>
                                 <td>
                                     <div class="op-flex op-items-center op-gap-2">
-                                        <input type="text" name="currencies[{{ cur.code }}][rate]" value="{{ cur.rate }}" class="op-input op-input-sm op-currency-rate-input" {% if (settings.exchange_rate_mode ?? 'auto') == 'auto' %}readonly title="Automatic exchange rates mode is enabled. Change mode to Manual to edit rates manually."{% endif %}>
-                                        <small class="op-text-muted">{{ settings.default_currency ?? 'BDT' }}</small>
+                                        <input type="text" name="currencies[{{ cur.code }}][rate]" value="{{ cur.rate }}" class="op-input op-input-sm op-currency-rate-input" {% if (settings.exchange_rate_mode ?? 'auto') == 'auto' or is_brand_view %}readonly title="Exchange rates are read-only in brand settings or when Automatic mode is enabled."{% endif %}>
+                                        <small class="op-text-muted">{{ base_currency ?? 'BDT' }}</small>
                                     </div>
                                 </td>
+                                {% if not is_brand_view %}
                                 <td>
                                     <button type="button" class="op-btn op-btn-xs btn-toggle-currency {{ cur.status == 'active' ? 'op-btn-danger' : 'op-btn-success' }}" data-code="{{ cur.code }}">
                                         {{ cur.status == 'active' ? 'Deactivate' : 'Activate' }}
                                     </button>
                                 </td>
+                                {% endif %}
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -462,103 +620,74 @@
         {{ hook('admin.settings.payment')|raw }}
     </div>
 
+    {% if not is_brand_view %}
     {# ── Email Tab ──────────────────────────────────────────── #}
     <div class="op-tab-panel {{ default_tab == 'email' ? 'active' : '' }}" id="tab-email">
         <div class="op-card">
             <div class="op-card-header"><h3>Email / SMTP Configuration</h3></div>
             <div class="op-card-body">
                 <div class="op-form-row">
-                    <div class="op-form-group op-col-8">
+                    <div class="op-form-group op-col-6">
                         <label>SMTP Host</label>
-                        <input type="text" name="smtp_host" value="{{ settings.smtp_host ?? '' }}" class="op-input" placeholder="smtp.gmail.com">
+                        <input type="text" name="smtp_host" value="{{ settings.smtp_host ?? '' }}" class="op-input" placeholder="smtp.mailtrap.io">
+                        <small class="op-text-muted">The hostname of your outgoing SMTP server (e.g. mail.smtpbucket.com).</small>
                     </div>
-                    <div class="op-form-group op-col-4">
+                    <div class="op-form-group op-col-6">
                         <label>SMTP Port</label>
-                        <input type="number" name="smtp_port" value="{{ settings.smtp_port ?? 587 }}" class="op-input">
+                        <input type="number" name="smtp_port" value="{{ settings.smtp_port ?? 2525 }}" class="op-input" min="1" max="65535">
+                        <small class="op-text-muted">The port number required by the mail server (usually 587, 465, or 25).</small>
                     </div>
                 </div>
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
-                        <label>Encryption</label>
-                        <select name="smtp_encryption" class="op-input">
-                            <option value="tls" {{ (settings.smtp_encryption ?? 'tls') == 'tls' ? 'selected' : '' }}>TLS</option>
-                            <option value="ssl" {{ (settings.smtp_encryption ?? '') == 'ssl' ? 'selected' : '' }}>SSL</option>
-                            <option value="none" {{ (settings.smtp_encryption ?? '') == 'none' ? 'selected' : '' }}>None</option>
-                        </select>
+                        <label>SMTP Username</label>
+                        <input type="text" name="smtp_user" value="{{ settings.smtp_user ?? '' }}" class="op-input">
+                        <small class="op-text-muted">The username credential used to authenticate with your SMTP mail server.</small>
                     </div>
                     <div class="op-form-group op-col-6">
-                        <label>SMTP Username</label>
-                        <input type="text" name="smtp_username" value="{{ settings.smtp_username ?? '' }}" class="op-input">
+                        <label>SMTP Password</label>
+                        <input type="password" name="smtp_pass" value="{{ settings.smtp_pass ?? '' }}" class="op-input">
+                        <small class="op-text-muted">The password credential used to authenticate with your SMTP mail server.</small>
                     </div>
                 </div>
-                <div class="op-form-group">
-                    <label>SMTP Password</label>
-                    <input type="password" name="smtp_password" value="{{ settings.smtp_password ?? '' }}" class="op-input" autocomplete="new-password">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>SMTP Encryption</label>
+                        <select name="smtp_secure" class="op-input">
+                            <option value="" {{ (settings.smtp_secure ?? '') == '' ? 'selected' : '' }}>None</option>
+                            <option value="ssl" {{ (settings.smtp_secure ?? '') == 'ssl' ? 'selected' : '' }}>SSL</option>
+                            <option value="tls" {{ (settings.smtp_secure ?? '') == 'tls' ? 'selected' : '' }}>TLS</option>
+                        </select>
+                        <small class="op-text-muted">The transport layer security protocol (TLS recommended, SSL, or None).</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Test Target Email Address</label>
+                        <div class="op-input-group">
+                            <input type="email" id="test-email-target" class="op-input" placeholder="you@domain.com">
+                            <button type="button" id="btn-test-smtp" class="op-btn op-btn-outline">Test Connection</button>
+                        </div>
+                        <small class="op-text-muted">Provide a temporary email recipient address to send a verification test message.</small>
+                    </div>
                 </div>
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
                         <label>From Email</label>
-                        <input type="email" name="mail_from_email" value="{{ settings.mail_from_email ?? '' }}" class="op-input" placeholder="noreply@yourdomain.com">
+                        <input type="email" name="mail_from_email" value="{{ settings.mail_from_email ?? '' }}" class="op-input" placeholder="no-reply@ownpay.org">
+                        <small class="op-text-muted">The email address from which outgoing system emails appear to be sent.</small>
                     </div>
                     <div class="op-form-group op-col-6">
                         <label>From Name</label>
                         <input type="text" name="mail_from_name" value="{{ settings.mail_from_name ?? '' }}" class="op-input" placeholder="Own Pay">
+                        <small class="op-text-muted">The friendly sender name associated with outgoing system emails.</small>
                     </div>
                 </div>
             </div>
         </div>
         {{ hook('admin.settings.email')|raw }}
     </div>
+    {% endif %}
 
-    {# ── API Tab ────────────────────────────────────────────── #}
-    <div class="op-tab-panel {{ default_tab == 'api' ? 'active' : '' }}" id="tab-api">
-        <div class="op-card">
-            <div class="op-card-header"><h3>Webhook & Rate Limits</h3></div>
-            <div class="op-card-body">
-                <div class="op-form-group">
-                    <label>Webhook URL</label>
-                    <input type="url" name="webhook_url" value="{{ settings.webhook_url ?? '' }}" class="op-input" placeholder="https://yoursite.com/webhook">
-                    <small class="op-text-muted">Receive payment event notifications at this URL</small>
-                </div>
-                <div class="op-form-group">
-                    <label>API Rate Limit (requests/min)</label>
-                    <input type="number" name="api_rate_limit" value="{{ settings.api_rate_limit ?? 60 }}" class="op-input" min="10" max="1000">
-                </div>
-            </div>
-        </div>
-
-        <div class="op-card op-mt-4">
-            <div class="op-card-header"><h3>API Keys</h3></div>
-            <div class="op-card-body">
-                <table class="op-table">
-                    <thead><tr><th>Label</th><th>Prefix</th><th>Created</th><th>Actions</th></tr></thead>
-                    <tbody>
-                        {% for key in api_keys %}
-                        <tr>
-                            <td>{{ key.name }}</td>
-                            <td><code>{{ key.key_prefix }}****</code></td>
-                            <td>{{ key.created_at|date('Y-m-d H:i') }}</td>
-                            <td>
-                                <button type="submit" form="revoke-form-{{ key.id }}" class="op-btn op-btn-sm op-btn-danger btn-revoke-key">Revoke</button>
-                            </td>
-                        </tr>
-                        {% else %}
-                        <tr><td colspan="4" class="op-text-center op-text-muted">No API keys found.</td></tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-
-                <div class="op-mt-3 op-d-flex op-align-end">
-                    <div class="op-form-group op-mr-2 op-mb-0">
-                        <input type="text" name="label" form="generate-form" class="op-input op-input-sm" placeholder="New Key Label" required>
-                    </div>
-                    <button type="submit" form="generate-form" class="op-btn op-btn-sm op-btn-primary">Generate New Key</button>
-                </div>
-            </div>
-        </div>
-        {{ hook('admin.settings.api')|raw }}
-    </div>
-
+    {% if not is_brand_view %}
     {# ── Security Tab ───────────────────────────────────────── #}
     <div class="op-tab-panel {{ default_tab == 'security' ? 'active' : '' }}" id="tab-security">
         <div class="op-card">
@@ -566,25 +695,27 @@
             <div class="op-card-body">
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
-                        <label>Session Timeout (minutes)</label>
-                        <input type="number" name="session_timeout" value="{{ settings.session_timeout ?? 120 }}" class="op-input" min="5" max="1440">
+                        <label>Session Lifetime (minutes)</label>
+                        <input type="number" name="session_lifetime" value="{{ settings.session_lifetime ?? 120 }}" class="op-input" min="5" max="1440">
+                        <small class="op-text-muted">The duration of inactivity in minutes before an administrator session expires and requires re-login.</small>
                     </div>
                     <div class="op-form-group op-col-6">
-                        <label>Max Login Attempts (per 5 min)</label>
-                        <input type="number" name="max_login_attempts" value="{{ settings.max_login_attempts ?? 5 }}" class="op-input" min="1" max="20">
+                        <label>Max Login Attempts</label>
+                        <input type="number" name="max_login_attempts" value="{{ settings.max_login_attempts ?? 5 }}" class="op-input" min="3" max="20">
+                        <small class="op-text-muted">The maximum number of failed login attempts allowed before the account is temporarily locked.</small>
                     </div>
                 </div>
-                <div class="op-form-group">
-                    <label>IP Allowlist</label>
-                    <textarea name="ip_allowlist" rows="3" class="op-input" placeholder="One IP per line (leave empty = allow all)">{{ settings.ip_allowlist ?? '' }}</textarea>
-                    <small class="op-text-muted">Leave empty to allow all IPs. One IP per line.</small>
-                </div>
-                <div class="op-form-group">
-                    <label class="op-toggle-label">
-                        <input type="checkbox" name="force_https" value="1" {{ (settings.force_https ?? 1) ? 'checked' : '' }}>
-                        <span class="op-toggle-switch"></span>
-                        <span>Force HTTPS</span>
-                    </label>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Lockout Time (minutes)</label>
+                        <input type="number" name="lockout_time" value="{{ settings.lockout_time ?? 15 }}" class="op-input" min="1" max="1440">
+                        <small class="op-text-muted">The period in minutes an account remains locked out after exceeding the maximum failed attempts.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Password Min Length</label>
+                        <input type="number" name="password_min_length" value="{{ settings.password_min_length ?? 8 }}" class="op-input" min="6" max="32">
+                        <small class="op-text-muted">The minimum required length for administrative and staff account passwords.</small>
+                    </div>
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
@@ -592,11 +723,22 @@
                         <span class="op-toggle-switch"></span>
                         <span>Require 2FA for all staff</span>
                     </label>
+                    <small class="op-text-muted op-d-block op-mt-1">When active, all staff members must configure and verify two-factor authentication (TOTP) to access the panel.</small>
+                </div>
+                <hr class="op-divider">
+                <div class="op-form-group">
+                    <label>Admin Login URL Slug</label>
+                    <div class="op-input-group">
+                        <span class="op-input-prefix">{{ settings.base_url ?? '' }}/</span>
+                        <input type="text" name="admin_login_slug" value="{{ landing.admin_login_slug ?? 'login' }}" class="op-input" placeholder="login" pattern="[a-z0-9\-]+" title="Lowercase letters, numbers, hyphens only">
+                    </div>
+                    <small class="op-text-muted op-text-warning">⚠ Change this to make your admin login URL harder to guess. Default: <code>/login</code>. After saving, bookmark the new URL — old URL stops working.</small>
                 </div>
             </div>
         </div>
         {{ hook('admin.settings.security')|raw }}
     </div>
+    {% endif %}
 
     {# ── Checkout Tab ───────────────────────────────────────── #}
     <div class="op-tab-panel {{ default_tab == 'checkout' ? 'active' : '' }}" id="tab-checkout">
@@ -606,14 +748,17 @@
                 <div class="op-form-group">
                     <label>Success Message</label>
                     <textarea name="checkout_success_msg" rows="2" class="op-input">{{ checkout_settings.checkout_success_msg ?? 'Payment completed successfully! Thank you for your payment.' }}</textarea>
+                    <small class="op-text-muted">The message displayed to customers on a successful transaction completion.</small>
                 </div>
                 <div class="op-form-group">
                     <label>Pending Message</label>
                     <textarea name="checkout_pending_msg" rows="2" class="op-input">{{ checkout_settings.checkout_pending_msg ?? 'Your payment is being verified. You will receive a confirmation shortly.' }}</textarea>
+                    <small class="op-text-muted">The message displayed to customers when their payment is queued/pending verification.</small>
                 </div>
                 <div class="op-form-group">
                     <label>Failed/Expired Message</label>
                     <textarea name="checkout_failed_msg" rows="2" class="op-input">{{ checkout_settings.checkout_failed_msg ?? 'This payment session has expired or was cancelled.' }}</textarea>
+                    <small class="op-text-muted">The message displayed to customers if the checkout session fails or expires.</small>
                 </div>
             </div>
         </div>
@@ -627,11 +772,14 @@
                         <span class="op-toggle-switch"></span>
                         <span>Enable Checkout Timer</span>
                     </label>
-                    <small class="op-text-muted">When enabled, a countdown timer is shown on the checkout page. When it expires, the payment session is cancelled.</small>
+                    <small class="op-text-muted op-d-block op-mt-1">When active, a countdown timer is shown on checkout page. Upon expiry, the transaction is automatically cancelled.</small>
                 </div>
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
-                        <label>Timer Duration (seconds)</label>
+                        <label>
+                            Timer Duration (seconds)
+                            <span class="op-help-tooltip" data-tooltip="Seconds before the checkout session expires automatically.">ⓘ</span>
+                        </label>
                         <input type="number" name="timer_seconds" value="{{ checkout_settings.timer_seconds ?? 600 }}" class="op-input" min="60" max="3600" step="30">
                         <small class="op-text-muted">Default: 600 (10 minutes). Range: 60–3600 seconds.</small>
                     </div>
@@ -648,13 +796,34 @@
                         <span class="op-toggle-switch"></span>
                         <span>Show FAQ Button on Checkout</span>
                     </label>
-                    <small class="op-text-muted">When enabled, a FAQ button appears on the checkout page. Manage FAQ content in the FAQ tab.</small>
+                    <small class="op-text-muted op-d-block op-mt-1">Toggle the display of the FAQ help widget on the checkout page. FAQ questions can be defined in the FAQ tab.</small>
                 </div>
             </div>
         </div>
+
+        {% if is_brand_view and is_superadmin %}
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>Custom CSS &amp; JavaScript</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label>Custom CSS Overrides</label>
+                    <textarea name="custom_css" class="op-input op-input-monospace" rows="6" placeholder="/* Append custom CSS rules for checkout theme */" style="font-family: monospace; font-size: 13px;">{{ checkout_settings.custom_css ?? '' }}</textarea>
+                    <small class="op-text-muted">Applied to the brand's checkout pages. Be careful with styling.</small>
+                </div>
+                <div class="op-form-group op-mt-3">
+                    <label>Custom JavaScript</label>
+                    <textarea name="custom_js" class="op-input op-input-monospace" rows="6" placeholder="// Custom analytics or interface script hooks" style="font-family: monospace; font-size: 13px;">{{ checkout_settings.custom_js ?? '' }}</textarea>
+                    <small class="op-text-muted">Injected at the bottom of the checkout page. Do not include <code>&lt;script&gt;</code> tags.</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         {{ hook('admin.settings.checkout')|raw }}
     </div>
 
+    {# ── Notifications Tab ──────────────────────────────────── #}
+    {% if not is_brand_view %}
     {# ── Notifications Tab ──────────────────────────────────── #}
     <div class="op-tab-panel {{ default_tab == 'notification' ? 'active' : '' }}" id="tab-notification">
         <div class="op-card">
@@ -663,7 +832,7 @@
                 <div class="op-form-group">
                     <label>Admin Notification Email</label>
                     <input type="email" name="admin_notification_email" value="{{ settings.admin_notification_email ?? '' }}" class="op-input" placeholder="admin@example.com">
-                    <small class="op-text-muted">Receive payment notifications at this email</small>
+                    <small class="op-text-muted">Receive payment and refund status alerts at this administrative email address.</small>
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
@@ -671,6 +840,7 @@
                         <span class="op-toggle-switch"></span>
                         <span>Email on new payment</span>
                     </label>
+                    <small class="op-text-muted op-d-block op-mt-1">Toggling this active will send an automated notification email to the administrator for every successful new payment.</small>
                 </div>
                 <div class="op-form-group">
                     <label class="op-toggle-label">
@@ -678,31 +848,64 @@
                         <span class="op-toggle-switch"></span>
                         <span>Email on refund</span>
                     </label>
+                    <small class="op-text-muted op-d-block op-mt-1">Toggling this active will send an automated notification email to the administrator for every refund processed.</small>
                 </div>
             </div>
         </div>
         {{ hook('admin.settings.notification')|raw }}
     </div>
+    {% endif %}
 
-    {# ── Theme Tab ──────────────────────────────────────────── #}
-    <div class="op-tab-panel {{ default_tab == 'theme' ? 'active' : '' }}" id="tab-theme">
+    {# ── Brand Email Notifications Tab (per-brand sender + prefs, inherits All Brands) ── #}
+    {% if is_brand_view %}
+    <div class="op-tab-panel {{ default_tab == 'notifications' ? 'active' : '' }}" id="tab-notifications">
         <div class="op-card">
-            <div class="op-card-header"><h3>Theme Customization</h3></div>
+            <div class="op-card-header"><h3>Email &amp; Notifications</h3></div>
             <div class="op-card-body">
+                <p class="op-text-muted op-mb-3">These apply to this brand only. Leave a field blank (or choose “Inherit”) to use the All&nbsp;Brands default.</p>
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
-                        <label>Primary Color</label>
-                        <input type="color" name="primary_color" value="{{ theme.primary_color ?? '#6C5CE7' }}" class="op-input-color">
+                        <label>From Name</label>
+                        <input type="text" name="mail_from_name" value="{{ settings.mail_from_name ?? '' }}" class="op-input" placeholder="{{ inherited.mail_from_name ?? '' }}">
+                        <small class="op-text-muted">Sender name on this brand's emails. Blank = inherit{% if inherited.mail_from_name %} ({{ inherited.mail_from_name }}){% endif %}.</small>
                     </div>
                     <div class="op-form-group op-col-6">
-                        <label>Accent Color</label>
-                        <input type="color" name="accent_color" value="{{ theme.accent_color ?? '#00CEC9' }}" class="op-input-color">
+                        <label>From Email</label>
+                        <input type="email" name="mail_from_email" value="{{ settings.mail_from_email ?? '' }}" class="op-input" placeholder="{{ inherited.mail_from_email ?? '' }}">
+                        <small class="op-text-muted">Sender address. Blank = inherit{% if inherited.mail_from_email %} ({{ inherited.mail_from_email }}){% endif %}.</small>
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label>Notification Email</label>
+                    <input type="email" name="admin_notification_email" value="{{ settings.admin_notification_email ?? '' }}" class="op-input" placeholder="{{ inherited.admin_notification_email ?? '' }}">
+                    <small class="op-text-muted">Where this brand receives payment &amp; refund alerts. Blank = inherit{% if inherited.admin_notification_email %} ({{ inherited.admin_notification_email }}){% endif %}.</small>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Email on new payment</label>
+                        <select name="email_on_payment" class="op-input">
+                            <option value="" {{ (settings.email_on_payment ?? '') == '' ? 'selected' : '' }}>Inherit ({{ inherited.email_on_payment == '1' ? 'On' : 'Off' }})</option>
+                            <option value="1" {{ (settings.email_on_payment ?? '') == '1' ? 'selected' : '' }}>On</option>
+                            <option value="0" {{ (settings.email_on_payment ?? '') == '0' ? 'selected' : '' }}>Off</option>
+                        </select>
+                        <small class="op-text-muted">Notify on every successful payment for this brand.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Email on refund</label>
+                        <select name="email_on_refund" class="op-input">
+                            <option value="" {{ (settings.email_on_refund ?? '') == '' ? 'selected' : '' }}>Inherit ({{ inherited.email_on_refund == '1' ? 'On' : 'Off' }})</option>
+                            <option value="1" {{ (settings.email_on_refund ?? '') == '1' ? 'selected' : '' }}>On</option>
+                            <option value="0" {{ (settings.email_on_refund ?? '') == '0' ? 'selected' : '' }}>Off</option>
+                        </select>
+                        <small class="op-text-muted">Notify on every processed refund for this brand.</small>
                     </div>
                 </div>
             </div>
         </div>
-        {{ hook('admin.settings.theme')|raw }}
     </div>
+    {% endif %}
+
+
 
     {# ── FAQ Tab ─────────────────────────────────────────────── #}
     <div class="op-tab-panel {{ default_tab == 'faq' ? 'active' : '' }}" id="tab-faq">
@@ -722,57 +925,200 @@
         {{ hook('admin.settings.faq')|raw }}
     </div>
 
-    {# ── Mobile App Tab ────────────────────────────────────── #}
-    <div class="op-tab-panel {{ default_tab == 'mobile' ? 'active' : '' }}" id="tab-mobile">
-        <div class="op-card">
-            <div class="op-card-header"><h3>Mobile Companion App Settings</h3></div>
-            <div class="op-card-body">
-                <div class="op-alert op-alert-info op-mb-3">
-                    These settings control how the OwnPay mobile companion app filters and forwards SMS messages. The app uses a whitelist of approved senders and keyword filters to ensure only payment-related messages reach the server.
-                </div>
+    {# ── Custom Domains Tab ─────────────────────────────────────── #}
+    {% if is_brand_view %}
+    <div class="op-tab-panel {{ default_tab == 'domains' ? 'active' : '' }}" id="tab-domains">
+        <div class="op-page-header" style="margin-top: 0; padding-top: 0; border-bottom: none;">
+            <div>
+                <h3>Custom Domains</h3>
+                <p class="op-text-muted op-mt-1">Map your own domain to a brand's checkout and payment pages.</p>
+            </div>
+            <button type="button" class="op-btn op-btn-primary" id="btn-add-domain-trigger" data-open-modal="add-domain-modal">
+                + Add Domain
+            </button>
+        </div>
 
-                <h4 class="op-mb-2">SMS Filter Keywords</h4>
-                <div class="op-form-row">
-                    <div class="op-form-group op-col-6">
-                        <label>Positive Keywords <small class="op-text-muted">(one per line)</small></label>
-                        <textarea name="sms_positive_keywords" rows="5" class="op-input" placeholder="received&#10;credited&#10;TrxID&#10;deposited&#10;Tk">{{ settings.sms_positive_keywords ?? '' }}</textarea>
-                        <small class="op-text-muted">SMS containing these words are forwarded to OwnPay</small>
-                    </div>
-                    <div class="op-form-group op-col-6">
-                        <label>Negative Keywords <small class="op-text-muted">(one per line)</small></label>
-                        <textarea name="sms_negative_keywords" rows="5" class="op-input" placeholder="OTP&#10;PIN&#10;password&#10;verify&#10;code">{{ settings.sms_negative_keywords ?? '' }}</textarea>
-                        <small class="op-text-muted">SMS containing these words are <strong>blocked</strong> (privacy protection)</small>
-                    </div>
-                </div>
+        {# ── Domain List ── #}
+        <div class="op-card op-mb-6">
+            <div class="op-card-header"><h3>Your Domains</h3></div>
+            <div class="op-card-body op-p-0">
+                <div class="op-table-responsive">
+                    <table class="op-table">
+                        <thead>
+                            <tr>
+                                <th>Domain</th>
+                                <th>Type</th>
+                                <th>Primary</th>
+                                <th>SSL Status</th>
+                                <th>TXT Verification Token</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for d in domains %}
+                            <tr>
+                                <td>
+                                    <strong>{{ d.domain }}</strong>
+                                    {% if d.status == 'active' or d.status == 'verified' %}
+                                        <a href="https://{{ d.domain }}" target="_blank" class="op-link op-text-xs op-ml-1">↗ Visit</a>
+                                    {% endif %}
+                                    {% if d.redirect_url %}
+                                        <br><small class="op-text-muted">Redirects to: <code>{{ d.redirect_url }}</code></small>
+                                    {% endif %}
+                                </td>
+                                <td><span class="op-badge">{{ d.type|capitalize }}</span></td>
+                                <td>
+                                    {% if d.is_primary %}
+                                        <span class="op-badge op-badge-primary">★ Primary</span>
+                                    {% else %}
+                                        <button type="submit" form="primary-domain-form-{{ d.id }}" class="op-btn op-btn-xs op-btn-outline">Set Primary</button>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if d.ssl_status == 'active' %}
+                                        <span class="op-badge op-badge-success">✓ Active SSL</span>
+                                    {% elseif d.ssl_status == 'pending' %}
+                                        <span class="op-badge op-badge-warning">Pending SSL</span>
+                                    {% elseif d.ssl_status == 'expired' %}
+                                        <span class="op-badge op-badge-danger">Expired SSL</span>
+                                    {% else %}
+                                        <span class="op-badge op-badge-secondary">None</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if d.verification_token is defined and d.verification_token %}
+                                    <div class="op-copy-row">
+                                        <code class="op-text-xs" id="tok-{{ d.id }}">ownpay-verify={{ d.verification_token }}</code>
+                                        <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="tok-{{ d.id }}">Copy</button>
+                                    </div>
+                                    {% else %}
+                                        <span class="op-text-muted op-text-xs">—</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if d.status == 'active' or d.status == 'verified' %}
+                                        <span class="op-badge op-badge-success">✓ Active</span>
+                                    {% elseif d.status == 'pending' %}
+                                        <span class="op-badge op-badge-warning">Pending DNS</span>
+                                    {% else %}
+                                        <span class="op-badge op-badge-danger">{{ d.status|capitalize }}</span>
+                                    {% endif %}
+                                </td>
+                                <td class="op-actions">
+                                    <div style="display: flex; gap: 4px;">
+                                        {% if d.status != 'active' and d.status != 'verified' %}
+                                        <button type="submit" form="verify-domain-form-{{ d.id }}" class="op-btn op-btn-sm op-btn-success">Verify DNS</button>
+                                        {% endif %}
+                                        
+                                        <button type="submit" form="ssl-domain-form-{{ d.id }}" class="op-btn op-btn-sm op-btn-outline">Check SSL</button>
 
-                <div class="op-form-group">
-                    <label>Filter Rules Refresh Interval (hours)</label>
-                    <input type="number" name="sms_filter_rules_check_interval_hours" value="{{ settings.sms_filter_rules_check_interval_hours ?? 24 }}" class="op-input op-max-width-200" min="1" max="168">
-                    <small class="op-text-muted">How often the mobile app re-fetches filter rules from the server</small>
-                </div>
+                                        <button type="button" class="op-btn op-btn-sm op-btn-outline op-edit-domain-btn"
+                                                data-id="{{ d.id }}"
+                                                data-domain="{{ d.domain }}"
+                                                data-type="{{ d.type }}"
+                                                data-redirect-url="{{ d.redirect_url }}"
+                                                data-status="{{ d.status }}"
+                                                data-dns-verified="{{ d.dns_verified ? '1' : '0' }}"
+                                                data-is-primary="{{ d.is_primary ? '1' : '0' }}"
+                                                data-open-modal="edit-domain-modal">
+                                            Edit
+                                        </button>
 
-                <hr class="op-divider">
-
-                <h4 class="op-mb-2">Quick Links</h4>
-                <div class="op-form-row">
-                    <div class="op-form-group op-col-4">
-                        <a href="/admin/sms-center" class="op-btn op-btn-outline op-btn-block">📱 SMS Center & Templates</a>
-                    </div>
-                    <div class="op-form-group op-col-4">
-                        <a href="/admin/devices" class="op-btn op-btn-outline op-btn-block">📲 Paired Devices</a>
-                    </div>
-                    <div class="op-form-group op-col-4">
-                        <a href="/admin/developer#endpoints" class="op-btn op-btn-outline op-btn-block">🔗 API Endpoints</a>
-                    </div>
-                </div>
-
-                <div class="op-alert op-alert-warning op-mt-2">
-                    <strong>Sender Whitelist:</strong> The sender whitelist is managed in <a href="/admin/sms-center" class="op-link">SMS Center → Templates</a>. Only senders defined there will be forwarded by the mobile app.
+                                        <button type="submit" form="delete-domain-form-{{ d.id }}" class="op-btn op-btn-sm op-btn-danger"
+                                              data-confirm="Remove {{ d.domain }}? This cannot be undone.">Remove</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="7" class="op-empty">No custom domains added yet. Click <strong>"+ Add Domain"</strong> above to get started.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
-        {{ hook('admin.settings.mobile')|raw }}
+
+        {# ── DNS Setup Guide ── #}
+        <div class="op-card op-mt-6">
+            <div class="op-card-header">
+                <h3>📋 Custom Domain DNS Configuration Guide</h3>
+            </div>
+            <div class="op-card-body op-p-6">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+                    <!-- Step 1: TXT Verification -->
+                    <div class="op-dns-card p-4 border rounded-lg bg-snow" style="border: 1px solid var(--border-color, #e2e8f0); padding: 1rem; border-radius: 0.5rem; background: var(--bg-snow, #f8fafc);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <span class="op-badge op-badge-primary text-xs" style="font-size: 0.75rem;">Step 1</span>
+                            <h4 class="font-bold text-md" style="margin: 0; font-weight: bold;">Ownership Proof (TXT)</h4>
+                        </div>
+                        <p class="op-text-muted text-sm mb-4" style="font-size: 0.875rem; color: var(--text-muted, #64748b);">Add a TXT record to prove domain ownership. Safe to do, it won't affect any existing email or website.</p>
+                        <div class="op-dns-record-details font-mono text-xs p-2 border rounded bg-white gap-2" style="font-family: monospace; font-size: 0.75rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 0.25rem; background: #fff; padding: 0.5rem; display: flex; flex-col: column; gap: 0.5rem; flex-direction: column;">
+                            <div><strong>Type:</strong> TXT</div>
+                            <div><strong>Name/Host:</strong> <code id="guide-txt-host">_ownpay-verify</code> <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="guide-txt-host">Copy</button></div>
+                            <div><strong>Value:</strong> <code>ownpay-verify={token}</code></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 2: CNAME or A Record -->
+                    <div class="op-dns-card p-4 border rounded-lg bg-snow" style="border: 1px solid var(--border-color, #e2e8f0); padding: 1rem; border-radius: 0.5rem; background: var(--bg-snow, #f8fafc);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <span class="op-badge op-badge-primary text-xs" style="font-size: 0.75rem;">Step 2</span>
+                            <h4 class="font-bold text-md" style="margin: 0; font-weight: bold;">Routing Traffic (A / CNAME)</h4>
+                        </div>
+                        <p class="op-text-muted text-sm mb-4" style="font-size: 0.875rem; color: var(--text-muted, #64748b);">Route requests to our server. Choose **one** option depending on your domain structure:</p>
+                        <div class="op-dns-record-details font-mono text-xs p-2 border rounded bg-white gap-2" style="font-family: monospace; font-size: 0.75rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 0.25rem; background: #fff; padding: 0.5rem; display: flex; flex-col: column; gap: 0.5rem; flex-direction: column;">
+                            <div><strong>Option A (Subdomain CNAME):</strong><br>Point CNAME record to: <code id="guide-cname-val">testing.ownpay.org</code> <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="guide-cname-val">Copy</button></div>
+                            <div class="border-t my-1" style="border-top: 1px solid var(--border-color, #e2e8f0); margin: 0.25rem 0;"></div>
+                            <div><strong>Option B (Root A Record):</strong><br>Point A record to IP: <code id="guide-a-val">{{ server_ip }}</code> <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="guide-a-val">Copy</button></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Verification -->
+                    <div class="op-dns-card p-4 border rounded-lg bg-snow" style="border: 1px solid var(--border-color, #e2e8f0); padding: 1rem; border-radius: 0.5rem; background: var(--bg-snow, #f8fafc);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <span class="op-badge op-badge-primary text-xs" style="font-size: 0.75rem;">Step 3</span>
+                            <h4 class="font-bold text-md" style="margin: 0; font-weight: bold;">Verification & SSL Check</h4>
+                        </div>
+                        <p class="op-text-muted text-sm mb-4" style="font-size: 0.875rem; color: var(--text-muted, #64748b);">DNS propagation takes 5-30 minutes. Once DNS is verified, trigger **Check SSL** to verify that a secure certificate is active.</p>
+                        <div class="op-dns-record-details text-xs p-2 border rounded bg-white gap-2" style="font-size: 0.75rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 0.25rem; background: #fff; padding: 0.5rem; display: flex; flex-col: column; gap: 0.5rem; flex-direction: column;">
+                            <div><strong>Automatic Check:</strong> Run by background cron.</div>
+                            <div><strong>Manual Verification:</strong> Click "Verify DNS" in the domain list.</div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if domains|length > 0 %}
+                <div class="op-alert op-alert-success op-mt-6" style="margin-top: 1.5rem;">
+                    <h4 class="font-bold mb-2" style="font-weight: bold; margin-bottom: 0.5rem;">Your Domains Configuration Values</h4>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-family: monospace; font-size: 0.75rem;">
+                    {% for d in domains %}
+                        {% if d.verification_token is defined and d.verification_token %}
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 0.25rem; background: #fff;">
+                            <div>
+                                <strong>{{ d.domain }}</strong>:
+                                TXT name: <code id="c-name-{{ d.id }}">_ownpay-verify.{{ d.domain }}</code>
+                                &nbsp;|&nbsp;
+                                Value: <code id="c-val-{{ d.id }}">ownpay-verify={{ d.verification_token }}</code>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="c-name-{{ d.id }}">Copy Name</button>
+                                <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="c-val-{{ d.id }}">Copy Value</button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
     </div>
+    {% endif %}
+
+    {% if not is_brand_view %}
+    {# ── Mobile App Tab ────────────────────────────────────── #}
+
 
     {# ── Cron Jobs Tab ────────────────────────────────────── #}
     <div class="op-tab-panel {{ default_tab == 'cron' ? 'active' : '' }}" id="tab-cron">
@@ -1025,8 +1371,9 @@
             </div>
         </div>
     </div>
+    {% endif %}
 
-    <div class="op-form-actions op-mt-4" {% if default_tab == 'optimization' %}style="display: none;"{% endif %}>
+    <div class="op-form-actions op-mt-4" {% if default_tab == 'optimization' or default_tab == 'queue' or default_tab == 'domains' %}style="display: none;"{% endif %}>
         <button type="submit" class="op-btn op-btn-primary op-btn-lg op-btn-flex-center">
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
             Save Settings
@@ -1034,8 +1381,9 @@
     </div>
 </form>
 
-{# ── Optimization & Maintenance Tab ────────────────────────────────────── #}
-<div class="op-tab-panel {{ default_tab == 'optimization' ? 'active' : '' }}" id="tab-optimization">
+    {% if not is_brand_view %}
+    {# ── Optimization & Maintenance Tab ────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'optimization' ? 'active' : '' }}" id="tab-optimization">
     <div class="op-card op-mb-4">
         <div class="op-card-header">
             <h3>Platform Resource Metrics</h3>
@@ -1216,10 +1564,100 @@
         </button>
     </div>
 </div>
+    
+    {# ── Queue Monitor Tab ────────────────────────────────────────── #}
+    <div class="op-tab-panel {{ default_tab == 'queue' ? 'active' : '' }}" id="tab-queue">
+        <div class="op-card op-mb-4">
+            <div class="op-card-header">
+                <h3>Queue System Configuration</h3>
+            </div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Queue Driver</label>
+                        <div class="op-input op-readonly" style="font-weight: bold; text-transform: uppercase;">
+                            {{ queue_driver_stats.driver }}
+                        </div>
+                        <small class="op-text-muted">Configured via <code>QUEUE_DRIVER</code> in your <code>.env</code> file.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-row op-gap-4 op-mb-4">
+            <div class="op-col-6">
+                <div class="op-card">
+                    <div class="op-card-header">
+                        <h3>File/Redis Driver Queue Sizes</h3>
+                    </div>
+                    <div class="op-card-body op-p-0">
+                        <div class="op-table-responsive">
+                            <table class="op-table">
+                                <thead>
+                                    <tr>
+                                        <th>Queue/Channel Name</th>
+                                        <th>Pending Jobs Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for qName, size in queue_driver_stats.sizes %}
+                                    <tr>
+                                        <td><code>{{ qName }}</code></td>
+                                        <td><strong>{{ size }}</strong></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="op-col-6">
+                <div class="op-card">
+                    <div class="op-card-header">
+                        <h3>Database Job Queue (op_job_queue)</h3>
+                    </div>
+                    <div class="op-card-body op-p-0">
+                        <div class="op-table-responsive">
+                            <table class="op-table">
+                                <thead>
+                                    <tr>
+                                        <th>Job Status</th>
+                                        <th>Jobs Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td><span class="op-badge op-badge-warning">Pending</span></td>
+                                        <td><strong>{{ db_queue_stats.pending }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="op-badge op-badge-info">Processing</span></td>
+                                        <td><strong>{{ db_queue_stats.processing }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="op-badge op-badge-success">Completed</span></td>
+                                        <td><strong>{{ db_queue_stats.completed }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td><span class="op-badge op-badge-danger">Failed</span></td>
+                                        <td><strong>{{ db_queue_stats.failed }}</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
     </div> {# op-settings-main #}
 </div> {# op-settings-layout #}
 
-<form id="optimize-cache-form" method="POST" action="/admin/settings/optimize/cache">
+    {% if not is_brand_view %}
+    <form id="optimize-cache-form" method="POST" action="/admin/settings/optimize/cache">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 </form>
 <form id="optimize-db-form" method="POST" action="/admin/settings/optimize/database">
@@ -1313,6 +1751,7 @@
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 </form>
 {% endfor %}
+    {% endif %}
 
 
 
@@ -1326,7 +1765,8 @@
     <input type="file" name="site_favicon" accept="image/*,.ico" id="favicon-file-input" class="op-hidden">
 </form>
 
-<form id="currency-toggle-form" method="POST" action="" class="op-hidden">
+    {% if not is_brand_view %}
+    <form id="currency-toggle-form" method="POST" action="" class="op-hidden">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 </form>
 
@@ -1380,6 +1820,127 @@
         </form>
     </div>
 </div>
+{% endif %}
+
+{% if is_brand_view %}
+    {# ── Domain Action Forms ── #}
+    {% for d in domains %}
+        <form id="primary-domain-form-{{ d.id }}" method="POST" action="/admin/domains/{{ d.id }}/primary" style="display:none;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+        <form id="verify-domain-form-{{ d.id }}" method="POST" action="/admin/domains/{{ d.id }}/verify" style="display:none;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+        <form id="ssl-domain-form-{{ d.id }}" method="POST" action="/admin/domains/{{ d.id }}/check-ssl" style="display:none;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+        <form id="delete-domain-form-{{ d.id }}" method="POST" action="/admin/domains/{{ d.id }}/delete" style="display:none;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+    {% endfor %}
+
+    <!-- Add Custom Domain Modal -->
+    <div class="op-modal" id="add-domain-modal" hidden>
+        <div class="op-modal-backdrop" data-close-modal="add-domain-modal"></div>
+        <div class="op-modal-dialog">
+            <div class="op-modal-header">
+                <h3>Add Custom Domain</h3>
+                <button class="op-modal-close" type="button" data-close-modal="add-domain-modal">×</button>
+            </div>
+            <form method="POST" action="/admin/domains">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <div class="op-modal-body">
+                    <div class="op-form-group">
+                        <label>Domain Name *</label>
+                        <input type="text" name="domain" class="op-input op-input-lg" placeholder="pay.yourbusiness.com"
+                               pattern="^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
+                               title="Enter a valid domain name (e.g. pay.example.com)" required autofocus>
+                        <small class="op-text-muted">Do not include <code>https://</code> — just the domain name</small>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Domain Type</label>
+                        <select name="type" class="op-input">
+                            <option value="checkout">Checkout domain</option>
+                            <option value="admin">Admin domain</option>
+                            <option value="api">API domain</option>
+                        </select>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Redirect URL</label>
+                        <input type="url" name="redirect_url" class="op-input" placeholder="https://example.com/failed-direct">
+                        <small class="op-text-muted">Optional. Redirect target if accessed directly.</small>
+                    </div>
+                    <div class="op-alert op-alert-info">
+                        After adding, you'll see the TXT verification token and server IP to configure in your DNS provider.
+                    </div>
+                </div>
+                <div class="op-modal-footer">
+                    <button type="button" class="op-btn op-btn-outline" data-close-modal="add-domain-modal">Cancel</button>
+                    <button type="submit" class="op-btn op-btn-primary">Add Domain</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Custom Domain Modal -->
+    <div class="op-modal" id="edit-domain-modal" hidden>
+        <div class="op-modal-backdrop" data-close-modal="edit-domain-modal"></div>
+        <div class="op-modal-dialog">
+            <div class="op-modal-header">
+                <h3>Edit Custom Domain Settings</h3>
+                <button class="op-modal-close" type="button" data-close-modal="edit-domain-modal">×</button>
+            </div>
+            <form method="POST" action="">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <div class="op-modal-body">
+                    <div class="op-form-group">
+                        <label>Domain Name</label>
+                        <input type="text" name="domain_display" class="op-input" disabled>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Domain Type</label>
+                        <select name="type" class="op-input">
+                            <option value="checkout">Checkout domain</option>
+                            <option value="admin">Admin domain</option>
+                            <option value="api">API domain</option>
+                        </select>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Redirect URL</label>
+                        <input type="url" name="redirect_url" class="op-input" placeholder="https://example.com/failed-direct">
+                        <small class="op-text-muted">Optional. Redirect target if accessed directly.</small>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Domain Status</label>
+                        <select name="status" class="op-input">
+                            <option value="active">Active</option>
+                            <option value="pending">Pending DNS</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="op-form-group">
+                        <label>DNS Verification State</label>
+                        <select name="dns_verified" class="op-input">
+                            <option value="1">Verified (1)</option>
+                            <option value="0">Unverified / Pending (0)</option>
+                        </select>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Is Primary Domain</label>
+                        <select name="is_primary" class="op-input">
+                            <option value="1">Yes (Primary)</option>
+                            <option value="0">No (Secondary)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="op-modal-footer">
+                    <button type="button" class="op-btn op-btn-outline" data-close-modal="edit-domain-modal">Cancel</button>
+                    <button type="submit" class="op-btn op-btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}
 
 {% endblock %}
 {% block scripts %}

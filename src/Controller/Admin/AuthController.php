@@ -216,8 +216,27 @@ final class AuthController
             return $this->renderAdminPage('page/2fa.twig', ['error' => '2FA secret could not be decrypted.']);
         }
 
-        if (!\OwnPay\Middleware\TwoFactorMiddleware::verifyTotp($decryptedSecret, $code)) {
+        // FIND-006: TOTP replay protection must be durable and per-user, not per-session.
+        // Load the last consumed time slice for this user from the cache so a code that
+        // was already used cannot be replayed from a different session within its window.
+        $replayKey = 'totp_replay_' . $userIdFromDb;
+        $cache = $this->c->has(\OwnPay\Cache\CacheInterface::class)
+            ? $this->c->get(\OwnPay\Cache\CacheInterface::class)
+            : null;
+        $lastUsedWindow = 0;
+        if ($cache instanceof \OwnPay\Cache\CacheInterface) {
+            $storedWindow = $cache->get($replayKey);
+            $lastUsedWindow = is_numeric($storedWindow) ? (int) $storedWindow : 0;
+        }
+
+        if (!\OwnPay\Middleware\TwoFactorMiddleware::verifyTotp($decryptedSecret, $code, 1, $lastUsedWindow)) {
             return $this->renderAdminPage('page/2fa.twig', ['error' => 'Invalid or expired 2FA code. Please try again.']);
+        }
+
+        // Persist the consumed time slice so the same code cannot be replayed elsewhere.
+        // TTL comfortably exceeds the ±1 step (30s) drift window.
+        if ($cache instanceof \OwnPay\Cache\CacheInterface) {
+            $cache->set($replayKey, $lastUsedWindow, 120);
         }
 
         // Full session bootstrap via Authenticator
@@ -249,7 +268,6 @@ final class AuthController
      */
     public function forgotForm(Request $req): Response
     {
-        // OwnPay is single-owner system. Password resets are done by superadmin, not self-service email.
         $supportEmail = $this->settings->get('general', 'support_email', '');
         $supportEmailStr = is_string($supportEmail) ? $supportEmail : '';
         return $this->renderAdminPage('page/forgot.twig', [
@@ -258,7 +276,9 @@ final class AuthController
     }
 
     /**
-     * Logs the request to reset a password and provides administrative instructions.
+     * Issues a self-service password reset link to the submitted email (if it maps to an account).
+     *
+     * The response is identical whether or not the account exists, to prevent account enumeration.
      *
      * @param Request $req The incoming HTTP request.
      *
@@ -275,14 +295,85 @@ final class AuthController
             ]);
         }
 
-        // Log the request and show honest message.
-        // In a single-owner system, the admin resets passwords manually.
+        // Send the reset link only if the email maps to an active account; the message below is shown
+        // either way so an attacker cannot probe which emails are registered.
+        $this->passwordReset()->requestReset($email);
         $this->audit->log('password_reset.requested', 'user', null, null, ['email' => $email]);
         $this->events->doAction('auth.forgot_password', ['email' => $email]);
 
         return $this->renderAdminPage('page/forgot.twig', [
-            'success' => 'Your password reset request has been logged. Please contact your system administrator to reset your password.',
+            'success' => 'If an account exists for that email, a password reset link has been sent. It expires in 1 hour.',
         ]);
+    }
+
+    /**
+     * Renders the new-password form for a valid reset token (or an invalid-link notice).
+     *
+     * @param Request $req The incoming HTTP request (expects ?token=...).
+     *
+     * @return Response The reset page response.
+     */
+    public function resetForm(Request $req): Response
+    {
+        $tokenVal = $req->query('token', '');
+        $token = is_string($tokenVal) ? $tokenVal : '';
+
+        if (!$this->passwordReset()->tokenIsValid($token)) {
+            return $this->renderAdminPage('page/reset.twig', [
+                'invalid' => true,
+                'error'   => 'This password reset link is invalid or has expired. Please request a new one.',
+            ]);
+        }
+
+        return $this->renderAdminPage('page/reset.twig', ['token' => $token]);
+    }
+
+    /**
+     * Validates the token + new password and applies the password change.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response Redirect to login on success, or the form re-rendered with an error.
+     */
+    public function resetSubmit(Request $req): Response
+    {
+        $tokenVal = $req->post('token', '');
+        $token = is_string($tokenVal) ? $tokenVal : '';
+        $pwVal = $req->post('password', '');
+        $password = is_string($pwVal) ? $pwVal : '';
+        $confirmVal = $req->post('password_confirm', '');
+        $confirm = is_string($confirmVal) ? $confirmVal : '';
+
+        $result = $this->passwordReset()->resetPassword($token, $password, $confirm);
+
+        if ($result['success'] !== true) {
+            // If the token is dead, drop to the invalid-link state (no form); otherwise re-show the form.
+            // resetPassword() always returns 'error' on failure, so it is safe to read directly here.
+            $tokenAlive = $this->passwordReset()->tokenIsValid($token);
+            return $this->renderAdminPage('page/reset.twig', [
+                'token'   => $tokenAlive ? $token : '',
+                'invalid' => !$tokenAlive,
+                'error'   => $result['error'],
+            ]);
+        }
+
+        $this->audit->log('password_reset.completed', 'user', null);
+        $this->session->flashSuccess('Your password has been reset. Please sign in with your new password.');
+        return Response::redirect('/login');
+    }
+
+    /**
+     * Resolves the password reset service from the container.
+     *
+     * @return \OwnPay\Service\Auth\PasswordResetService The password reset orchestrator.
+     */
+    private function passwordReset(): \OwnPay\Service\Auth\PasswordResetService
+    {
+        $svc = $this->c->get(\OwnPay\Service\Auth\PasswordResetService::class);
+        if (!$svc instanceof \OwnPay\Service\Auth\PasswordResetService) {
+            throw new \RuntimeException('PasswordResetService not available.');
+        }
+        return $svc;
     }
 
     /**
@@ -307,7 +398,9 @@ final class AuthController
             if (is_string($slug) && $slug !== '' && preg_match('/^[a-z0-9\-]+$/', $slug)) {
                 $loginSlug = $slug;
             }
-        } catch (\Throwable) {}
+        } catch (\Throwable) {
+            // Settings unavailable — keep the safe default 'login' slug.
+        }
         return Response::redirect('/' . $loginSlug);
     }
 

@@ -176,6 +176,26 @@ final class LanguageSystemTest extends IntegrationTestCase
     }
 
     /**
+     * Robustly removes a file, retrying briefly to absorb a transient Windows file lock left by a
+     * prior test's handle. Without this, an @-suppressed unlink can silently fail under full-suite
+     * load, leaving the file and flaking the following assertFileDoesNotExist().
+     *
+     * @param string $path Absolute path to remove.
+     * @return void
+     */
+    private function removeFile(string $path): void
+    {
+        for ($i = 0; $i < 10 && file_exists($path); $i++) {
+            @unlink($path);
+            clearstatcache(true, $path);
+            if (!file_exists($path)) {
+                break;
+            }
+            usleep(20000); // 20ms — allow a lingering handle to release on Windows
+        }
+    }
+
+    /**
      * Test automatic recovery of language JSON files if they are missing in storage.
      */
     public function testAutomaticLanguageFileRecovery(): void
@@ -186,9 +206,7 @@ final class LanguageSystemTest extends IntegrationTestCase
 
         // 1. Force clear cache and delete storage en.json if it exists
         $this->translationService->clearCache();
-        if (file_exists($enFile)) {
-            @unlink($enFile);
-        }
+        $this->removeFile($enFile);
 
         $this->assertFileDoesNotExist($enFile);
 
@@ -205,7 +223,7 @@ final class LanguageSystemTest extends IntegrationTestCase
         $this->assertFileExists($testLocaleFile);
 
         // Delete testlocale.json from storage
-        @unlink($testLocaleFile);
+        $this->removeFile($testLocaleFile);
         $this->assertFileDoesNotExist($testLocaleFile);
 
         // Clear in-memory caches and switch active locale

@@ -7,6 +7,8 @@ use OwnPay\Container;
 use OwnPay\Service\Admin\AdminSession;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Repository\SettingsRepository;
+use OwnPay\Service\System\AuditService;
 
 /**
  * Class DeviceController
@@ -30,15 +32,29 @@ final class DeviceController
     private AdminSession $session;
 
     /**
+     * @var SettingsRepository The settings repository.
+     */
+    private SettingsRepository $settingsRepo;
+
+    /**
+     * @var AuditService The application audit logging service.
+     */
+    private AuditService $audit;
+
+    /**
      * DeviceController constructor.
      *
-     * @param Container    $c       The dependency injection container.
-     * @param AdminSession $session The administrative session service.
+     * @param Container          $c            The dependency injection container.
+     * @param AdminSession       $session      The administrative session service.
+     * @param SettingsRepository $settingsRepo The settings repository.
+     * @param AuditService       $audit        The application audit logging service.
      */
-    public function __construct(Container $c, AdminSession $session)
+    public function __construct(Container $c, AdminSession $session, SettingsRepository $settingsRepo, AuditService $audit)
     {
         $this->c = $c;
         $this->session = $session;
+        $this->settingsRepo = $settingsRepo;
+        $this->audit = $audit;
     }
 
     /**
@@ -66,12 +82,21 @@ final class DeviceController
     public function index(Request $req): Response
     {
         $svc = $this->getService();
+        
+        $smsSettings = $this->settingsRepo->getGroup('sms');
+        $sms_positive_keywords = $smsSettings['positive_keywords'] ?? '';
+        $sms_negative_keywords = $smsSettings['negative_keywords'] ?? '';
+        $sms_filter_rules_check_interval_hours = $smsSettings['filter_rules_check_interval_hours'] ?? '24';
+
         if ($svc === null) {
             return $this->renderAdminPage('admin/devices/index.twig', [
                 'devices'      => [],
                 'stats'        => ['total' => 0, 'active' => 0, 'revoked' => 0],
                 'active_page'  => 'devices',
                 'config_error' => 'Device pairing requires ENCRYPTION_KEY and JWT_SECRET in your .env file. Run the installer or add them manually.',
+                'sms_positive_keywords' => $sms_positive_keywords,
+                'sms_negative_keywords' => $sms_negative_keywords,
+                'sms_filter_rules_check_interval_hours' => $sms_filter_rules_check_interval_hours,
             ]);
         }
 
@@ -97,6 +122,9 @@ final class DeviceController
             'devices'     => $list,
             'stats'       => $stats,
             'active_page' => 'devices',
+            'sms_positive_keywords' => $sms_positive_keywords,
+            'sms_negative_keywords' => $sms_negative_keywords,
+            'sms_filter_rules_check_interval_hours' => $sms_filter_rules_check_interval_hours,
         ]);
     }
 
@@ -125,7 +153,15 @@ final class DeviceController
         }
 
         try {
-            $result = $svc->generatePairingOtp($mid);
+            // Bind the OTP to the admin who created it. Without this the pairing
+            // token's created_by is null and the stateless pairing API would fall
+            // back to the brand's first superadmin — a privilege escalation where
+            // a low-privileged staffer's device gets a superadmin-scoped token.
+            $adminId = $this->session->userId();
+            if ($adminId === null) {
+                return Response::json(['success' => false, 'error' => 'Not authenticated']);
+            }
+            $result = $svc->generatePairingOtp($mid, $adminId);
             if (!isset($result['otp'])) {
                 return Response::json(['success' => false, 'error' => $result['error']]);
             }
@@ -270,5 +306,44 @@ final class DeviceController
             'success' => true,
             'paired'  => $activeCount > 0
         ]);
+    }
+
+    /**
+     * Saves companion mobile app settings.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response The redirect response.
+     */
+    public function saveSettings(Request $req): Response
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
+        $brand->resolveFromRequest($req);
+        $mid = $brand->getActiveBrandId();
+        if ($mid === null) {
+            throw new \RuntimeException('No active brand found.');
+        }
+
+        $postData = $req->post();
+        $data = is_array($postData) ? $postData : [];
+
+        // Save settings under 'sms' group
+        if (isset($data['sms_positive_keywords'])) {
+            $this->settingsRepo->set('sms', 'positive_keywords', \OwnPay\Service\System\InputSanitizer::string(is_scalar($data['sms_positive_keywords']) ? (string) $data['sms_positive_keywords'] : ''));
+        }
+        if (isset($data['sms_negative_keywords'])) {
+            $this->settingsRepo->set('sms', 'negative_keywords', \OwnPay\Service\System\InputSanitizer::string(is_scalar($data['sms_negative_keywords']) ? (string) $data['sms_negative_keywords'] : ''));
+        }
+        if (isset($data['sms_filter_rules_check_interval_hours'])) {
+            $this->settingsRepo->set('sms', 'filter_rules_check_interval_hours', \OwnPay\Service\System\InputSanitizer::string(is_scalar($data['sms_filter_rules_check_interval_hours']) ? (string) $data['sms_filter_rules_check_interval_hours'] : '24'));
+        }
+
+        $this->audit->log('brand.settings.saved', 'devices', $mid, null, ['tab' => 'mobile']);
+        $this->session->flashSuccess('Mobile settings saved successfully.');
+
+        return Response::redirect('/admin/devices#tab-settings');
     }
 }

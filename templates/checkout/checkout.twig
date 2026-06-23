@@ -6,9 +6,10 @@
     <meta name="robots" content="noindex,nofollow">
     <title>{{ lang.checkout ?? 'Secure Checkout' }} — {{ brand.name }}</title>
     {% if brand.favicon|default('') %}<link rel="shortcut icon" href="{{ brand.favicon }}">{% endif %}
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="/assets/css/checkout.css">
+    <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
+    <link rel="stylesheet" href="/assets/css/reset.css?v=016">
+    <link rel="stylesheet" href="/assets/css/animations.css?v=014">
+    <link rel="stylesheet" href="/assets/css/checkout.css?v=014">
     <meta name="csrf-token" content="{{ csrf_token }}">
     {{ hook('checkout.head')|raw }}
     <meta name="csp-nonce" content="{{ csp_nonce }}">

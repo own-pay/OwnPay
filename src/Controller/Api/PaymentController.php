@@ -270,46 +270,83 @@ final class PaymentController
     }
 
     /**
-     * Retrieve details for a specific transaction by transaction ID.
+     * Retrieve details for a specific payment intent by payment intent UUID.
      *
-     * GET /api/v1/payments/{trx_id}
+     * GET /api/v1/payments/{payment_id}
      *
      * @param Request $req The incoming HTTP request.
-     * @return Response The JSON response detailing transaction parameters or error states.
+     * @return Response The JSON response detailing payment intent parameters or error states.
      */
     public function show(Request $req): Response
     {
-        $trxIdVal = $req->param('trx_id');
-        $trxId = trim($trxIdVal);
+        $paymentIdVal = $req->param('payment_id');
+        $paymentId = trim($paymentIdVal);
         $midVal = $req->getAttribute('merchant_id');
         $mid = is_int($midVal) || is_string($midVal) ? (int)$midVal : 0;
 
-        if ($trxId === '') {
-            return Response::apiError('TRANSACTION_ID_REQUIRED', 'Transaction ID required', 'trx_id', 422);
+        if ($paymentId === '') {
+            return Response::apiError('PAYMENT_ID_REQUIRED', 'Payment ID required', 'payment_id', 422);
         }
 
-        $payment = $this->transactions->forTenant($mid)->findByTrxId($trxId);
+        // Validate UUID format
+        if (!preg_match('/^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}$/i', $paymentId)) {
+            return Response::apiError('INVALID_PAYMENT_ID', 'Invalid Payment ID format', 'payment_id', 422);
+        }
 
-        if (!is_array($payment)) {
+        // Retrieve the payment intent by UUID
+        $intent = $this->paymentService->findByUuid($paymentId);
+
+        if ($intent === null) {
             return Response::apiError('PAYMENT_NOT_FOUND', 'Payment not found', null, 404);
         }
 
-        $response = [
-            'id'           => $payment['id'] ?? null,
-            'trx_id'       => $payment['trx_id'] ?? null,
-            'amount'       => $payment['amount'] ?? null,
-            'currency'     => $payment['currency'] ?? null,
-            'fee'          => $payment['fee'] ?? '0.00',
-            'status'       => $payment['status'] ?? null,
-            'gateway'      => $payment['gateway_slug'] ?? null,
-            'method'       => $payment['method'] ?? null,
-            'reference'    => $payment['reference'] ?? null,
-            'created_at'   => $payment['created_at'] ?? null,
-            'completed_at' => $payment['completed_at'] ?? null,
-        ];
+        $intentMerchantIdVal = $intent['merchant_id'] ?? 0;
+        $intentMerchantId = is_scalar($intentMerchantIdVal) ? (int)$intentMerchantIdVal : 0;
+
+        if ($intentMerchantId !== $mid) {
+            return Response::apiError('PAYMENT_NOT_FOUND', 'Payment not found', null, 404);
+        }
+
+        // Retrieve the latest transaction linked to this payment intent
+        $intentIdVal = $intent['id'] ?? 0;
+        $intentId = is_scalar($intentIdVal) ? (int)$intentIdVal : 0;
+        $payment = $this->transactions->forTenant($mid)->findByIntentId($intentId);
+
+        if (is_array($payment)) {
+            $response = [
+                'id'             => $payment['id'] ?? null,
+                'trx_id'         => $payment['trx_id'] ?? null,
+                'gateway_trx_id' => $payment['gateway_trx_id'] ?? null,
+                'amount'         => $payment['amount'] ?? null,
+                'currency'       => $payment['currency'] ?? null,
+                'fee'            => $payment['fee'] ?? '0.00',
+                'status'         => $payment['status'] ?? null,
+                'gateway'        => $payment['gateway_slug'] ?? null,
+                'method'         => $payment['method'] ?? null,
+                'reference'      => $payment['reference'] ?? null,
+                'created_at'     => $payment['created_at'] ?? null,
+                'completed_at'   => $payment['completed_at'] ?? null,
+            ];
+        } else {
+            // No transaction has been created yet, return the payment intent status
+            $response = [
+                'id'             => null,
+                'trx_id'         => null,
+                'gateway_trx_id' => null,
+                'amount'         => $intent['amount'] ?? null,
+                'currency'       => $intent['currency'] ?? null,
+                'fee'            => '0.00',
+                'status'         => $intent['status'] ?? null,
+                'gateway'        => null,
+                'method'         => null,
+                'reference'      => $intent['description'] ?? null,
+                'created_at'     => $intent['created_at'] ?? null,
+                'completed_at'   => null,
+            ];
+        }
 
         // Resolve decrypted customer PII details mapped via foreign key.
-        $customerIdVal = $payment['customer_id'] ?? null;
+        $customerIdVal = is_array($payment) ? ($payment['customer_id'] ?? null) : ($intent['customer_id'] ?? null);
         $customerId = (is_int($customerIdVal) || is_string($customerIdVal)) ? (int)$customerIdVal : 0;
         if ($customerId > 0) {
             try {

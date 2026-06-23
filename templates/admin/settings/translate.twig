@@ -1,7 +1,7 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}Translate {{ name }} — {{ app_name }}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/assets/css/pages/settings.css?v=013">
+    <link rel="stylesheet" href="/assets/css/pages/settings.css?v=014">
     <style>
         .op-translation-row.hidden {
             display: none !important;
@@ -49,6 +49,7 @@
             Back to Languages
         </a>
         <h1>Translate Language: {{ name }} (<code>{{ code }}</code>)</h1>
+        <p class="op-page-subtitle">Add or translate language key-value strings to localize checkout views.</p>
     </div>
 </div>
 
@@ -57,14 +58,21 @@
         <input type="text" id="translation-search" class="op-input" placeholder="Search translation keys or text...">
     </div>
     <div class="op-filter-select-group" style="min-width: 200px;">
-        <select id="prefix-filter" class="op-input">
-            <option value="all">All Sections</option>
-            <option value="menu">Menu / Sidebar (menu.*)</option>
-            <option value="common">Common UI (common.*)</option>
-            <option value="dashboard">Dashboard (dashboard.*)</option>
-            <option value="settings">Settings (settings.*)</option>
-            <option value="language">Language (language.*)</option>
-        </select>
+        <div class="op-custom-dropdown">
+            <input type="hidden" id="prefix-filter" value="all">
+            <button type="button" class="op-custom-dropdown-btn" style="width:100%">
+                <span class="op-custom-dropdown-label">All Sections</span>
+                <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="op-custom-dropdown-menu">
+                <button type="button" class="op-custom-dropdown-option active" data-value="all">All Sections</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="menu">Menu / Sidebar (menu.*)</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="common">Common UI (common.*)</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="dashboard">Dashboard (dashboard.*)</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="settings">Settings (settings.*)</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="language">Language (language.*)</button>
+            </div>
+        </div>
     </div>
 </div>
 

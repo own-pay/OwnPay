@@ -90,25 +90,52 @@ final class GatewayController
      */
     public function index(Request $request): Response
     {
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
-            throw new \RuntimeException('BrandContext service not found.');
-        }
-        $brand->resolveFromRequest($request);
-        $merchantId = $brand->getActiveBrandId();
-        if ($merchantId === null) {
-            throw new \RuntimeException('Brand ID not resolved.');
-        }
+        $brand = $this->brandContext($request);
+        $platformId = $brand->getPlatformId();
+        $isGlobal = $this->isGlobalBrandView();
+        $brandId = $brand->getActiveBrandId();
+        // API gateway per-brand activation keys off the real brand id (0 / unresolved in All Brands view) —
+        // preserve that existing behaviour; only manual gateways adopt the Phase 2c template model below.
+        $apiContextId = ($brandId !== null && $brandId > 0) ? $brandId : 0;
 
-        $manualGateways = $this->manualGateways->forTenant($merchantId)->listAll();
-
-        foreach ($manualGateways as &$mg) {
-            $inputFieldsVal = $mg['input_fields'] ?? '[]';
-            $mg['input_fields'] = json_decode(is_string($inputFieldsVal) ? $inputFieldsVal : '[]', true);
-            $colorsVal = $mg['colors'] ?? '{}';
-            $mg['colors'] = json_decode(is_string($colorsVal) ? $colorsVal : '{}', true);
+        // Manual gateways (Phase 2c, model A: platform templates + per-brand account overrides).
+        $manualGateways = [];
+        if ($isGlobal) {
+            // All Brands manages the platform-owned templates (the gateway TYPES + default accounts).
+            foreach ($this->manualGateways->forTenant($platformId)->listAll() as $row) {
+                $row = $this->decodeManualRow($row);
+                $row['is_own'] = true;       // platform-owned; All Brands may edit/disable/delete
+                $row['is_template'] = true;
+                $row['configured'] = true;
+                $manualGateways[] = $row;
+            }
+        } else {
+            // Brand view: the brand's own account rows, plus platform templates it has not configured.
+            $ownSlugs = [];
+            foreach ($this->manualGateways->forTenant($apiContextId)->listAll() as $row) {
+                $slugVal = $row['slug'] ?? '';
+                if (is_string($slugVal) && $slugVal !== '') {
+                    $ownSlugs[$slugVal] = true;
+                }
+                $row = $this->decodeManualRow($row);
+                $row['is_own'] = true;       // brand owns its account row → edit/toggle/delete
+                $row['is_template'] = false;
+                $row['configured'] = true;
+                $manualGateways[] = $row;
+            }
+            foreach ($this->manualGateways->forTenant($platformId)->listActive() as $row) {
+                $slugVal = $row['slug'] ?? '';
+                $slug = is_string($slugVal) ? $slugVal : '';
+                if ($slug === '' || isset($ownSlugs[$slug])) {
+                    continue; // brand already has its own account for this template
+                }
+                $row = $this->decodeManualRow($row);
+                $row['is_own'] = false;      // platform default → offer "Configure account"
+                $row['is_template'] = true;
+                $row['configured'] = false;
+                $manualGateways[] = $row;
+            }
         }
-        unset($mg);
 
         // Build API gateway list: filesystem discovery + op_plugins status
         /** @var \OwnPay\Repository\PluginRepository $pluginRepo */
@@ -129,7 +156,7 @@ final class GatewayController
 
         // Also get gateway configs (credentials) per slug
         $configuredGateways = [];
-        foreach ($this->apiConfigs->forTenant($merchantId)->listActive() as $g) {
+        foreach ($this->apiConfigs->forTenant($apiContextId)->listActive() as $g) {
             if (isset($g['slug']) && is_string($g['slug'])) {
                 $configuredGateways[$g['slug']] = $g;
             }
@@ -147,7 +174,7 @@ final class GatewayController
             $installed = $installedPlugins[$manifest->slug] ?? null;
             $configured = $configuredGateways[$manifest->slug] ?? null;
 
-            $isBrandActive = $pluginRepo->isPluginActiveForBrand($manifest->slug, $merchantId);
+            $isBrandActive = $pluginRepo->isPluginActiveForBrand($manifest->slug, $apiContextId);
 
             // Determine display status
             if ($installed === null) {
@@ -175,6 +202,7 @@ final class GatewayController
             'api_gateways'    => $apiGateways,
             'manual_gateways' => $manualGateways,
             'active_page'     => 'gateways',
+            'is_global_view'  => $isGlobal,
         ]);
     }
 
@@ -187,11 +215,19 @@ final class GatewayController
      */
     public function createManual(Request $request): Response
     {
+        // Phase 2c: only "All Brands" defines manual gateway TYPES (platform-owned templates). A brand
+        // cannot create gateway types — it configures its own account for a platform template instead
+        // (see configureAccount). Guarding BOTH GET and POST also closes the brand direct-URL to
+        // /admin/gateways/create-manual and /admin/gateways/store-manual.
+        if ($guard = $this->requireGlobalView('/admin/gateways', 'add a manual gateway type')) {
+            return $guard;
+        }
+
         if ($request->method() === 'GET') {
             return $this->renderAdminPage('admin/gateways/create-manual.twig', ['old' => [], 'active_page' => 'gateways']);
         }
 
-        $merchantId = $this->resolveMerchant($request);
+        $ownerId = $this->resolveOwnerId($request); // All Brands view → platform-owner id
         $postData = $request->post();
         $data = is_array($postData) ? $postData : [];
         $errors = $this->validateManualGateway($data);
@@ -206,9 +242,76 @@ final class GatewayController
         $record['status'] = 'active';
         $this->applyUploads($record);
 
-        $gid = $this->manualGateways->forTenant($merchantId)->createScoped($record);
+        $gid = $this->manualGateways->forTenant($ownerId)->createScoped($record);
         $this->audit->log('gateway.created', 'manual_gateway', (int) $gid, null, ['name' => $record['name']]);
-        $this->session->flashSuccess('Gateway created!');
+        $this->session->flashSuccess('Gateway template created!');
+        return Response::redirect('/admin/gateways');
+    }
+
+    /**
+     * Brand-facing: configure THIS brand's own account for a platform-defined manual gateway template.
+     *
+     * Phase 2c (model A): brands cannot create gateway types, but each brand sets its own account
+     * details (the instructions/number a customer pays to, plus optional QR/logo). Saving upserts a
+     * brand-owned op_manual_gateways row for the template's slug (copying the template's TYPE fields
+     * on first save), which then WINS over the platform template at that brand's checkout. Only
+     * available in a specific brand view — All Brands edits the template directly via editManual.
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return Response The configure-account page or redirect response.
+     */
+    public function configureAccount(Request $request): Response
+    {
+        $brand = $this->brandContext($request);
+        $brandId = $brand->getActiveBrandId();
+        if ($this->isGlobalBrandView() || $brandId === null || $brandId <= 0) {
+            $this->session->flashError('Switch to a specific brand to configure its payment account.');
+            return Response::redirect('/admin/gateways');
+        }
+
+        $platformId = $brand->getPlatformId();
+        $slug = InputSanitizer::slug((string) $request->param('slug'));
+        $template = $this->manualGateways->forTenant($platformId)->findBySlug($slug);
+        if ($template === null) {
+            $this->session->flashError('Gateway template not found.');
+            return Response::redirect('/admin/gateways');
+        }
+
+        $existing = $this->manualGateways->forTenant($brandId)->findBySlug($slug);
+
+        if ($request->method() === 'GET') {
+            return $this->renderAdminPage('admin/gateways/configure-account.twig', [
+                'template'                   => $this->decodeManualRow($template),
+                'account'                    => $existing !== null ? $this->decodeManualRow($existing) : null,
+                'instructions_text'          => $existing !== null ? $this->instructionsToText($existing['instructions'] ?? null) : '',
+                'template_instructions_text' => $this->instructionsToText($template['instructions'] ?? null),
+                'active_page'                => 'gateways',
+            ]);
+        }
+
+        $postData = $request->post();
+        $data = is_array($postData) ? $postData : [];
+        $instructionsVal = $data['instructions'] ?? '';
+        $instructions = $this->buildInstructionsJson(is_string($instructionsVal) ? $instructionsVal : '');
+
+        // Account-level fields only (brand-editable); the TYPE is owned by the platform template.
+        $account = ['instructions' => $instructions];
+        $this->applyUploads($account);
+
+        if ($existing !== null) {
+            $idVal = $existing['id'] ?? 0;
+            $id = (is_int($idVal) || is_string($idVal)) ? (int) $idVal : 0;
+            $this->manualGateways->forTenant($brandId)->updateScoped($id, $account);
+            $this->audit->log('gateway.account_configured', 'manual_gateway', $id, null, ['slug' => $slug]);
+        } else {
+            // First save: copy the template's TYPE definition, then apply the brand's account values.
+            $record = $this->accountFromTemplate($template, $account);
+            $gid = $this->manualGateways->forTenant($brandId)->createScoped($record);
+            $this->audit->log('gateway.account_configured', 'manual_gateway', (int) $gid, null, ['slug' => $slug]);
+        }
+
+        $this->session->flashSuccess('Payment account saved for this brand!');
         return Response::redirect('/admin/gateways');
     }
 
@@ -221,7 +324,7 @@ final class GatewayController
      */
     public function editManual(Request $request): Response
     {
-        $merchantId = $this->resolveMerchant($request);
+        $merchantId = $this->resolveOwnerId($request);
         $id = (int) $request->param('id');
         $gateway = $this->manualGateways->forTenant($merchantId)->findScoped($id);
 
@@ -264,7 +367,7 @@ final class GatewayController
      */
     public function toggleStatus(Request $request): Response
     {
-        $merchantId = $this->resolveMerchant($request);
+        $merchantId = $this->resolveOwnerId($request);
         $id = (int) $request->param('id');
         $gateway = $this->manualGateways->forTenant($merchantId)->findScoped($id);
         if ($gateway !== null) {
@@ -312,7 +415,7 @@ final class GatewayController
      */
     public function delete(Request $request): Response
     {
-        $merchantId = $this->resolveMerchant($request);
+        $merchantId = $this->resolveOwnerId($request);
         $gid = (int) $request->param('id');
         $this->manualGateways->forTenant($merchantId)->deleteScoped($gid);
         $this->audit->log('gateway.deleted', 'manual_gateway', $gid);
@@ -323,24 +426,113 @@ final class GatewayController
     // ── Extracted Helpers ─────────────────────────────────────────
 
     /**
-     * Resolves the active merchant context ID from the request.
+     * Resolves and returns the request-scoped BrandContext (active brand resolved from the request).
      *
      * @param Request $request The incoming HTTP request.
      *
-     * @return int The resolved merchant ID.
+     * @return \OwnPay\Service\Brand\BrandContext The resolved brand context.
      */
-    private function resolveMerchant(Request $request): int
+    private function brandContext(Request $request): \OwnPay\Service\Brand\BrandContext
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
             throw new \RuntimeException('BrandContext service not found.');
         }
         $brand->resolveFromRequest($request);
-        $merchantId = $brand->getActiveBrandId();
-        if ($merchantId === null) {
-            throw new \RuntimeException('Merchant ID not resolved.');
+        return $brand;
+    }
+
+    /**
+     * Resolves the merchant id that OWNS manual-gateway writes for the current view: All Brands view
+     * → the platform-owner id (manage TYPE templates); a specific brand → its own id (manage that
+     * brand's account rows). Mirrors BrandContext::getWriteMerchantId().
+     *
+     * @param Request $request The incoming HTTP request.
+     *
+     * @return int The owner merchant ID.
+     */
+    private function resolveOwnerId(Request $request): int
+    {
+        return $this->brandContext($request)->getWriteMerchantId();
+    }
+
+    /**
+     * Decodes a raw manual-gateway DB row's JSON columns (input_fields, colors) for display.
+     *
+     * @param array<string, mixed> $row Raw database row.
+     *
+     * @return array<string, mixed> Row with input_fields/colors decoded to arrays.
+     */
+    private function decodeManualRow(array $row): array
+    {
+        $inputFieldsVal = $row['input_fields'] ?? '[]';
+        $row['input_fields'] = json_decode(is_string($inputFieldsVal) ? $inputFieldsVal : '[]', true);
+        $colorsVal = $row['colors'] ?? '{}';
+        $row['colors'] = json_decode(is_string($colorsVal) ? $colorsVal : '{}', true);
+        return $row;
+    }
+
+    /**
+     * Converts a stored instructions JSON value ({"steps":[...]}, a list, or a plain string) into
+     * newline-separated plain text suitable for prefilling a textarea.
+     *
+     * @param mixed $instructions Raw instructions column value.
+     *
+     * @return string Human-editable instructions text.
+     */
+    private function instructionsToText(mixed $instructions): string
+    {
+        if (!is_string($instructions) || $instructions === '') {
+            return '';
         }
-        return $merchantId;
+        $decoded = json_decode($instructions, true);
+        if (is_array($decoded)) {
+            $steps = (isset($decoded['steps']) && is_array($decoded['steps'])) ? $decoded['steps'] : $decoded;
+            $lines = [];
+            foreach ($steps as $step) {
+                if (is_scalar($step)) {
+                    $lines[] = (string) $step;
+                }
+            }
+            return implode("\n", $lines);
+        }
+        return is_scalar($decoded) ? (string) $decoded : $instructions;
+    }
+
+    /**
+     * Builds a brand-owned account record from a platform template, applying the brand's account
+     * overrides (instructions + any uploaded logo/QR). The TYPE definition is copied verbatim from the
+     * template so the brand row is self-contained; the slug is kept identical so checkout resolution
+     * (ManualGatewayRepository::listActiveForCheckout) lets the brand row WIN over the template.
+     *
+     * @param array<string, mixed> $template The platform template row (raw DB values).
+     * @param array<string, mixed> $account  Brand account overrides (instructions, logo_path, qr_code_path).
+     *
+     * @return array<string, mixed> The new brand-owned manual gateway record.
+     */
+    private function accountFromTemplate(array $template, array $account): array
+    {
+        $logoVal = $account['logo_path'] ?? ($template['logo_path'] ?? null);
+        $qrVal = $account['qr_code_path'] ?? ($template['qr_code_path'] ?? null);
+        $instructionsVal = $account['instructions'] ?? ($template['instructions'] ?? null);
+
+        return [
+            'slug'               => is_string($template['slug'] ?? null) ? $template['slug'] : '',
+            'name'               => is_string($template['name'] ?? null) ? $template['name'] : '',
+            'logo_path'          => is_string($logoVal) ? $logoVal : null,
+            'qr_code_path'       => is_string($qrVal) ? $qrVal : null,
+            'colors'             => is_string($template['colors'] ?? null) ? $template['colors'] : null,
+            'input_fields'       => is_string($template['input_fields'] ?? null) ? $template['input_fields'] : null,
+            'instructions'       => is_string($instructionsVal) ? $instructionsVal : null,
+            'sms_verification'   => is_scalar($template['sms_verification'] ?? null) ? (int) $template['sms_verification'] : 0,
+            'sms_sender_pattern' => is_string($template['sms_sender_pattern'] ?? null) ? $template['sms_sender_pattern'] : null,
+            'sms_regex_template' => is_string($template['sms_regex_template'] ?? null) ? $template['sms_regex_template'] : null,
+            'currency'           => is_string($template['currency'] ?? null) ? $template['currency'] : 'BDT',
+            'min_amount'         => is_scalar($template['min_amount'] ?? null) ? (string) $template['min_amount'] : null,
+            'max_amount'         => is_scalar($template['max_amount'] ?? null) ? (string) $template['max_amount'] : null,
+            'sort_order'         => is_scalar($template['sort_order'] ?? null) ? (int) $template['sort_order'] : 0,
+            'status'             => 'active',
+        ];
     }
 
     /**
@@ -368,6 +560,9 @@ final class GatewayController
             }
         }
 
+        $smsSenderPatternVal = $data['sms_sender_pattern'] ?? '';
+        $smsRegexTemplateVal = $data['sms_regex_template'] ?? '';
+
         return [
             'name'             => InputSanitizer::string(is_string($nameVal) ? $nameVal : ''),
             'instructions'     => $this->buildInstructionsJson(is_string($instructionsVal) ? $instructionsVal : ''),
@@ -376,6 +571,8 @@ final class GatewayController
             'min_amount'       => InputSanitizer::decimal(is_string($minVal) ? $minVal : '0'),
             'max_amount'       => InputSanitizer::decimal(is_string($maxVal) ? $maxVal : '0'),
             'sms_verification' => isset($data['sms_verification']) ? 1 : 0,
+            'sms_sender_pattern' => InputSanitizer::string(is_string($smsSenderPatternVal) ? $smsSenderPatternVal : ''),
+            'sms_regex_template' => InputSanitizer::string(is_string($smsRegexTemplateVal) ? $smsRegexTemplateVal : ''),
         ];
     }
 

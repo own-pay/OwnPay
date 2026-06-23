@@ -1,9 +1,8 @@
 /**
  * OwnPay Admin — SMS Center Page JS
- * Handles: tab switching, live regex tester, Smart SMS Analyzer (Method B),
- *          AI Prompt Generator (Method C).
- *
- * Requires: window.OP_CSRF (set by base template) or data-csrf attribute.
+ * Handles: tab switching, sandbox sub-tab switching, live regex tester,
+ *          Smart SMS Analyzer (Method B), AI Prompt Generator (Method C),
+ *          and the new AI JSON template auto-importer.
  */
 (function () {
     "use strict";
@@ -28,35 +27,35 @@
             });
             this.classList.add("active");
             var panel = document.getElementById("tab-" + this.dataset.tab);
-            if (panel) {panel.classList.add("active");}
+            if (panel) { panel.classList.add("active"); }
         });
     });
 
-    // ─── Create Template Panel Toggling ──────────────────────────────────────
-    var btnToggleCreate = document.getElementById("btn-toggle-create-template");
-    var btnCancelCreate = document.getElementById("btn-cancel-create-template");
-    var createPanel = document.getElementById("create-template-panel");
-
-    if (btnToggleCreate && createPanel) {
-        btnToggleCreate.addEventListener("click", function () {
-            createPanel.classList.toggle("op-d-none");
-        });
-    }
-    if (btnCancelCreate && createPanel) {
-        btnCancelCreate.addEventListener("click", function () {
-            createPanel.classList.add("op-d-none");
-        });
-    }
-
-    // ─── Confirm Delete Template Form Submissions ─────────────────────────────
-    document.querySelectorAll(".delete-template-form").forEach(function (form) {
-        form.addEventListener("submit", function (e) {
-            var confirmMsg = this.getAttribute("data-confirm") || "Are you sure?";
-            if (!confirm(confirmMsg)) {
-                e.preventDefault();
-            }
+    // ─── Sandbox Sub-Tab Switching ───────────────────────────────────────────
+    document.querySelectorAll("#sandbox-tabs .op-sandbox-tab").forEach(function (tab) {
+        tab.addEventListener("click", function () {
+            document.querySelectorAll("#sandbox-tabs .op-sandbox-tab, .op-sandbox-panel").forEach(function (e) {
+                e.classList.remove("active");
+            });
+            this.classList.add("active");
+            var panel = document.getElementById("sandbox-panel-" + this.dataset.sandboxTab);
+            if (panel) { panel.classList.add("active"); }
         });
     });
+
+    // ─── Create Template Modal Toggling ──────────────────────────────────────
+    var btnOpenModal = document.getElementById("btn-open-create-modal");
+    var createModal = document.getElementById("create-template-modal");
+    var createForm = document.getElementById("create-template-form");
+
+    if (btnOpenModal && createModal) {
+        btnOpenModal.addEventListener("click", function () {
+            createModal.removeAttribute("hidden");
+            createModal.hidden = false;
+            var focusEl = createModal.querySelector("select[name='gateway_slug']");
+            if (focusEl) { focusEl.focus(); }
+        });
+    }
 
     // ─── Live Regex Tester ────────────────────────────────────────────────────
     var testBtn = document.getElementById("test-regex-btn");
@@ -88,7 +87,7 @@
                     box.textContent = "Error: " + data.error;
                 } else if (data.matched) {
                     box.className = "op-alert op-alert-success";
-                    box.innerHTML = "<strong>✓ Match found!</strong><br>Field: <code>" + escapeHtml(data.field) + "</code><br>Extracted: <code>" + escapeHtml(data.match || "(empty)") + "</code><br>Full matches: <code>" + escapeHtml(JSON.stringify(data.full)) + "</code>";
+                    box.innerHTML = "<strong>✓ Match found!</strong><br>Field: <code>" + escapeHtml(data.field) + "</code><br>Extracted: <code>" + escapeHtml(data.match || "(empty)") + "</code>";
                 } else {
                     box.className = "op-alert op-alert-warning";
                     box.textContent = "✗ No match. Adjust your regex pattern.";
@@ -132,34 +131,32 @@
                 var badge = document.getElementById("confidence-badge");
                 if (d.sender_whitelisted) {
                     badge.className = "op-badge op-badge-success";
-                    badge.textContent = "✓ Sender Whitelisted";
+                    badge.textContent = "✓ Whitelisted";
                 } else {
                     badge.className = "op-badge op-badge-warning";
-                    badge.textContent = "⚠ Sender Not in Whitelist";
+                    badge.textContent = "⚠ Unwhitelisted";
                 }
 
                 var rows = [
                     ["Sender (From)", d.sender || sender, "info"],
-                    ["Whitelisted",   d.sender_whitelisted ? "Yes ✓" : "No — add as template sender", d.sender_whitelisted ? "high" : "low"],
                     ["Credit SMS",    d.is_credit ? "Yes" : "No", d.is_credit ? "high" : "low"],
                     ["Amount",        d.amount    || "—", (d.confidence && d.confidence.amount)  || "—"],
                     ["TrxID",         d.trx_id    || "—", (d.confidence && d.confidence.trx_id)  || "—"],
-                    ["Balance",       d.balance   || "—", (d.confidence && d.confidence.balance) || "—"],
                 ];
 
                 document.getElementById("analyze-fields").innerHTML =
-                    '<table class="op-table op-analyze-table">' +
-                    "<thead><tr><th>Field</th><th>Extracted</th><th>Confidence</th></tr></thead><tbody>" +
+                    '<table class="op-table op-analyze-table" style="font-size:0.75rem; width:100%;">' +
+                    "<thead><tr><th>Field</th><th>Match</th><th>Conf.</th></tr></thead><tbody>" +
                     rows.map(function (r) {
                         var cls = r[2] === "high" ? "success" : r[2] === "medium" ? "warning" : r[2] === "info" ? "info" : "muted";
-                        return "<tr><td>" + escapeHtml(r[0]) + "</td><td><code>" + escapeHtml(r[1]) + '</code></td><td><span class="op-badge op-badge-' + cls + '">' + escapeHtml(r[2]) + "</span></td></tr>";
+                        return "<tr><td style='padding:6px;'>" + escapeHtml(r[0]) + "</td><td style='padding:6px;'><code>" + escapeHtml(r[1]) + "</code></td><td style='padding:6px;'><span class='op-badge op-badge-" + cls + "' style='font-size:10px; padding:2px 4px;'>" + escapeHtml(r[2]) + "</span></td></tr>";
                     }).join("") +
                     "</tbody></table>";
 
                 document.getElementById("save-sender-pattern").value = sender;
-                if (d.suggested_regexes && d.suggested_regexes.amount_regex) {document.getElementById("save-amount-regex").value = d.suggested_regexes.amount_regex;}
-                if (d.suggested_regexes && d.suggested_regexes.trx_id_regex) {document.getElementById("save-trxid-regex").value = d.suggested_regexes.trx_id_regex;}
-                if (d.suggested_regexes && d.suggested_regexes.sender_regex) {document.getElementById("save-sender-regex").value = d.suggested_regexes.sender_regex;}
+                if (d.suggested_regexes && d.suggested_regexes.amount_regex) { document.getElementById("save-amount-regex").value = d.suggested_regexes.amount_regex; }
+                if (d.suggested_regexes && d.suggested_regexes.trx_id_regex) { document.getElementById("save-trxid-regex").value = d.suggested_regexes.trx_id_regex; }
+                if (d.suggested_regexes && d.suggested_regexes.sender_regex) { document.getElementById("save-sender-regex").value = d.suggested_regexes.sender_regex; }
             })
             .catch(function () { alert("Network error — could not analyze SMS"); })
             .finally(function () { btnText.textContent = "⚡ Analyze SMS"; btn.disabled = false; });
@@ -204,19 +201,19 @@
                 if (promptResultPanel) { promptResultPanel.classList.remove("op-d-none"); }
             })
             .catch(function () { alert("Network error — could not generate prompt"); })
-            .finally(function () { btnText.textContent = "✨ Generate AI Prompt"; btn.disabled = false; });
+            .finally(function () { btnText.textContent = "🤖 Generate Prompt"; btn.disabled = false; });
         });
     }
 
+    // ─── Safe Clipboard Copying (Rule 3.6 Compliance) ────────────────────────
     var copyAiBtn = document.getElementById("copy-ai-prompt-btn");
     if (copyAiBtn) {
         copyAiBtn.addEventListener("click", function () {
             var text = document.getElementById("ai-prompt-text").textContent;
-            var lbl  = document.getElementById("copy-btn-label");
-            navigator.clipboard.writeText(text).then(function () {
-                lbl.textContent = "✓ Copied!";
-                setTimeout(function () { lbl.textContent = "📋 Copy Prompt"; }, 2000);
-            }).catch(function () {
+            if (window.opCopyText) {
+                window.opCopyText(text, this);
+            } else {
+                // Inline fallback
                 var ta = document.createElement("textarea");
                 ta.value = text;
                 ta.style.fontSize = "12pt";
@@ -226,12 +223,14 @@
                 ta.select();
                 document.execCommand("copy");
                 document.body.removeChild(ta);
-                lbl.textContent = "✓ Copied!";
-                setTimeout(function () { lbl.textContent = "📋 Copy Prompt"; }, 2000);
-            });
+                var lbl = document.getElementById("copy-btn-label");
+                if (lbl) {
+                    lbl.textContent = "✓ Copied!";
+                    setTimeout(function () { lbl.textContent = "Copy Prompt"; }, 2000);
+                }
+            }
         });
     }
-
 
     var clearAiBtn = document.getElementById("clear-ai-btn");
     if (clearAiBtn) {
@@ -240,6 +239,57 @@
             document.getElementById("ai-sms-input").value = "";
             var promptResultPanel = document.getElementById("ai-prompt-result");
             if (promptResultPanel) { promptResultPanel.classList.add("op-d-none"); }
+        });
+    }
+
+    // ─── AI JSON Importer Auto-fill Logic ────────────────────────────────────
+    var btnImportAiJson = document.getElementById("btn-import-ai-json");
+    if (btnImportAiJson) {
+        btnImportAiJson.addEventListener("click", function () {
+            var rawJson = document.getElementById("ai-json-response-input").value.trim();
+            if (!rawJson) {
+                if (window.opShowToast) {
+                    window.opShowToast("Please paste the AI JSON response first.", "warning");
+                } else {
+                    alert("Please paste the AI JSON response first.");
+                }
+                return;
+            }
+
+            try {
+                // Strip markdown code fences if present (e.g. ```json ... ```)
+                var cleanJson = rawJson;
+                if (cleanJson.indexOf("```") === 0) {
+                    cleanJson = cleanJson.replace(/^```json\s*/i, "").replace(/^```\s*/, "").replace(/\s*```$/, "");
+                }
+
+                var parsed = JSON.parse(cleanJson);
+                if (createForm) {
+                    createForm.querySelector("select[name='gateway_slug']").value = parsed.gateway_slug || "";
+                    createForm.querySelector("input[name='sender_pattern']").value = parsed.sender_pattern || "";
+                    createForm.querySelector("input[name='amount_regex']").value = parsed.amount_regex || "";
+                    createForm.querySelector("input[name='trx_id_regex']").value = parsed.trx_id_regex || "";
+                    createForm.querySelector("input[name='sender_regex']").value = parsed.sender_regex || "";
+                    createForm.querySelector("input[name='priority']").value = parsed.priority !== undefined ? parsed.priority : 10;
+                    createForm.querySelector("select[name='status']").value = parsed.status || "active";
+
+                    // Open the template creation modal
+                    if (createModal) {
+                        createModal.removeAttribute("hidden");
+                        createModal.hidden = false;
+                    }
+
+                    if (window.opShowToast) {
+                        window.opShowToast("Configuration loaded successfully! Please verify and click Create.", "success");
+                    }
+                }
+            } catch (ex) {
+                if (window.opShowToast) {
+                    window.opShowToast("JSON parsing error: " + ex.message, "danger");
+                } else {
+                    alert("Failed to parse JSON. Please check JSON format correctness.");
+                }
+            }
         });
     }
 

@@ -72,7 +72,7 @@ final class PaymentLinkController
     public function index(Request $req): Response
     {
         $mid = $this->resolveMerchant($req);
-        $list = $this->links->listForMerchant($mid);
+        $list = $this->links->listForMerchant($this->isGlobalView() ? null : $mid);
 
         /** @var \OwnPay\Service\Domain\DomainUrlService $urlService */
         $urlService = $this->c->get(\OwnPay\Service\Domain\DomainUrlService::class);
@@ -107,6 +107,9 @@ final class PaymentLinkController
         $postData = $req->post();
         /** @var array{title?: string, slug?: string, description?: string|null, amount?: float|int|string|null, currency?: string, is_amount_fixed?: bool|int, min_amount?: float|int|string|null, max_amount?: float|int|string|null} $data */
         $data = is_array($postData) ? $postData : [];
+        if ($guard = $this->requireActiveBrand($mid, '/admin/payment-links')) {
+            return $guard;
+        }
         $link = $this->links->create($mid, $data);
         $this->events->doAction('payment_link.created', $link);
         $this->session->flashSuccess('Payment link created');
@@ -203,6 +206,17 @@ final class PaymentLinkController
             throw new \RuntimeException('Brand ID not resolved.');
         }
         return $mid;
+    }
+
+    /**
+     * Whether the admin is in the global "All Brands" (superadmin) view.
+     *
+     * @return bool True when operating across all brands.
+     */
+    private function isGlobalView(): bool
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        return $brand instanceof \OwnPay\Service\Brand\BrandContext && $brand->isGlobalView();
     }
 
     /**

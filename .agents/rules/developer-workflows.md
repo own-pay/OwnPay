@@ -72,7 +72,7 @@ When writing or editing Merchant (Brand) status forms:
 * **Never** use the option label `"inactive"` as it does not exist in the database schema and will trigger PDO truncation warnings and crash upon saving.
 
 ### 3.2 Manual Gateway Logo Prefixes
-All manual payment gateway logo paths (`logo_path`) and QR code paths (`qr_path`) rendered in Twig templates (such as `manual-gateway.twig`, `edit-manual.twig`) MUST be prefixed with `/storage/`:
+All manual payment gateway logo paths (`logo_path`) and QR code paths (`qr_path`) rendered in Twig templates (such as `_manual-popup.twig`, `edit-manual.twig`) MUST be prefixed with `/storage/`:
 ```html
 <!-- Correct -->
 <img src="/storage/{{ mg.logo_path }}" alt="Logo">

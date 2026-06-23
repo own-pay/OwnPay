@@ -75,18 +75,21 @@ final class PaymentCompletionListener
         $linkIdVal = $meta['payment_link_id'] ?? null;
         $linkId = is_scalar($linkIdVal) ? (int) $linkIdVal : null;
         if ($linkId !== null) {
-            $this->linkRepo->forTenant($merchantId);
-            $this->linkRepo->incrementUseCount($linkId);
+            // TenantScope::forTenant() returns a scoped CLONE — capture it.
+            // Discarding the return value leaves the singleton repo unscoped,
+            // causing findScoped() to throw and max_uses auto-deactivation to silently never run.
+            $scopedLinks = $this->linkRepo->forTenant($merchantId);
+            $scopedLinks->incrementUseCount($linkId);
 
             // Check max_uses
-            $link = $this->linkRepo->findScoped($linkId);
+            $link = $scopedLinks->findScoped($linkId);
             if ($link) {
                 $maxUsesVal = $link['max_uses'] ?? 0;
                 $useCountVal = $link['use_count'] ?? 0;
                 $maxUses = is_scalar($maxUsesVal) ? (int) $maxUsesVal : 0;
                 $useCount = is_scalar($useCountVal) ? (int) $useCountVal : 0;
                 if ($maxUses > 0 && $useCount >= $maxUses) {
-                    $this->linkRepo->updateScoped($linkId, ['status' => 'inactive']);
+                    $scopedLinks->updateScoped($linkId, ['status' => 'inactive']);
                 }
             }
         }

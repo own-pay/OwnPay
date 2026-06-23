@@ -56,18 +56,25 @@ The Mobile API implements strict Token Rotation on the token refreshes endpoint:
 
 ## 3. Global Response & Error Formats
 
-All API responses are returned as JSON. Successful responses contain a `success: true` root key alongside resource nodes.
+All API responses are returned as JSON. Successful responses contain a `success: true` root key; the resource payload is nested under a **`data`** key.
 
 ### Success Format Example (GET `/api/v1/health`)
 ```json
 {
   "success": true,
-  "version": "0.1.0",
-  "server_time": "2026-05-21T02:40:00+06:00"
+  "data": {
+    "status": "healthy",
+    "version": "0.1.0",
+    "db": "connected",
+    "gateways": 3,
+    "customers": 142,
+    "time": "2026-05-21T02:40:00+06:00"
+  }
 }
 ```
 
 ### Error Format Example (422 Unprocessable Entity)
+Validation and business-logic errors use this envelope:
 ```json
 {
   "success": false,
@@ -82,6 +89,11 @@ All API responses are returned as JSON. Successful responses contain a `success:
   "request_id": "req_6656c12345678"
 }
 ```
+
+> **Authentication/authorization errors use a simpler shape.** Missing/invalid/expired/revoked
+> credentials, insufficient scope, and suspended-merchant rejections (HTTP `401`/`403`)
+> return `{ "success": false, "message": "..." }` — without `error`/`errors`/`request_id`.
+> Always branch on the HTTP status code first, then read `message` (auth) or `errors` (validation).
 
 ### HTTP Status Codes
 * `200 OK` — Request successful.
@@ -105,9 +117,13 @@ This creates a new payment intent and returns the checkout URL. You should redir
 * `amount` (float, required): Minimum `0.01`. The transaction total.
 * `currency` (string, required): 3-letter ISO 4217 code (e.g. `BDT`, `USD`).
 * `description` (string, optional): Max 255 characters description.
-* `redirect_url` (string, required): URL redirected to after successful payment.
-* `cancel_url` (string, required): URL redirected to if cancelled.
+* `callback_url` (string, optional): Webhook URL for status changes; also used as the default for `redirect_url`/`cancel_url` when those are omitted.
+* `redirect_url` (string, optional): URL redirected to after successful payment.
+* `cancel_url` (string, optional): URL redirected to if cancelled.
 * `metadata` (object, optional): Custom key-value pairs for reconciliation.
+
+> Only `amount` and `currency` are required. The response payload is nested under `data`:
+> `{ "success": true, "data": { "payment_id", "token", "checkout_url", "status" } }`.
 
 #### Bash (cURL)
 ```bash
@@ -237,7 +253,7 @@ The API endpoints are organized into four primary functional categories mapping 
 #### Payment Lifecycle
 * `POST /api/v1/payments` — Starts a payment intent lifecycle.
   * *Request Body*: [See Recipe A Specifications](#recipe-a-initiating-a-payment-intent-post-apiv1payments)
-* `GET /api/v1/payments/{trx_id}` — Resolves complete status and metadata parameters of a payment intent by its unique transaction ID.
+* `GET /api/v1/payments/{payment_id}` — Resolves complete status and metadata parameters of a payment intent by its unique payment intent UUID.
 
 #### Transaction Audit Ledger
 * `GET /api/v1/transactions` — Queries paginated settled transaction audit records.
@@ -247,6 +263,8 @@ The API endpoints are organized into four primary functional categories mapping 
 #### Refunds & Reversals
 * `POST /api/v1/refunds` — Creates a refund against a completed transaction.
   * *Request Body*: `{"transaction_id": "OP-10482938", "amount": 250.00, "reason": "Customer return"}` (with limits up to the total original transaction balance).
+* `GET /api/v1/refunds` — Queries a paginated list of refund history records under the merchant context.
+  * *Query Parameters*: `page` (integer, default `1`), `per_page` (integer, default `25`, max `100`), `status` (enum: `pending`, `completed`, `failed`), `trx_id` (string), `transaction_id` (integer), `from` (string, date), `to` (string, date).
 * `GET /api/v1/refunds/{trx_id}` — Resolves audit details of a processed refund.
 
 #### Customer Profiles
@@ -277,7 +295,7 @@ All Mobile companion APIs require Bearer JWT authorization generated during pair
 * `POST /api/mobile/v1/devices/heartbeats` — Submits a quick ping to update connection status.
 * `DELETE /api/mobile/v1/devices/{id}` — Self-revokes the active device session.
 * `POST /api/mobile/v1/devices/bulk-revocations` — Revokes multiple registered devices concurrently.
-  * *Request Body*: `{"ids": [12, 13]}`
+  * *Request Body*: `{"device_ids": [12, 13]}`
 * `POST /api/mobile/v1/devices/token-refreshes` — Exchange a valid refresh token for rotated credentials.
   * *Request Body*: `{"refresh_token": "<REFRESH_TOKEN>"}`
 * `GET /api/mobile/v1/devices/statuses` — Check JWT session validity and resolve active brand metadata.

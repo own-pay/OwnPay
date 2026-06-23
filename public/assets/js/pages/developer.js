@@ -27,16 +27,22 @@
     }
 
     // Listen for hash changes (e.g. sidebar links clicked while on this page)
-    window.addEventListener("hashchange", function () {
-        if (window.location.hash) {
-            var tab = document.querySelector('#dev-tabs .op-tab[data-tab="' + window.location.hash.slice(1) + '"]');
-            if (tab) {tab.click();}
-        }
-    });
+    if (!window.opDevHashRegistered) {
+        window.opDevHashRegistered = true;
+        window.addEventListener("hashchange", function () {
+            if (window.location.hash) {
+                var devTabs = document.getElementById("dev-tabs");
+                if (!devTabs) { return; }
+                var tab = devTabs.querySelector('.op-tab[data-tab="' + window.location.hash.slice(1) + '"]');
+                if (tab) {tab.click();}
+            }
+        });
+    }
 
     // ─── Copy Buttons (.op-copy-btn) ─────────────────────────────────────────
     document.querySelectorAll(".op-copy-btn").forEach(function (btn) {
-        btn.addEventListener("click", function () {
+        btn.addEventListener("click", function (e) {
+            e.stopPropagation();
             var target = document.getElementById(this.dataset.copy);
             if (!target) {return;}
             var self = this;
@@ -144,5 +150,35 @@
     if (newKeyReveal) {
         newKeyReveal.scrollIntoView({ behavior: "smooth", block: "center" });
     }
+
+    // Webhook form modal pre-population
+    window.prepareWebhookForm = function (webhook) {
+        var idField = document.getElementById("webhook-id-field");
+        var urlField = document.getElementById("webhook-url-field");
+        var secretField = document.getElementById("webhook-secret-field");
+        var titleEl = document.getElementById("webhook-modal-title");
+        var checkboxes = document.querySelectorAll(".webhook-event-checkbox");
+
+        checkboxes.forEach(function (cb) { cb.checked = false; });
+
+        if (webhook) {
+            if (titleEl) { titleEl.textContent = "Edit Webhook Endpoint"; }
+            if (idField) { idField.value = webhook.id; }
+            if (urlField) { urlField.value = webhook.url; }
+            if (secretField) { secretField.value = webhook.secret; }
+            
+            var events = webhook.decoded_events || [];
+            checkboxes.forEach(function (cb) {
+                if (events.indexOf(cb.value) !== -1) {
+                    cb.checked = true;
+                }
+            });
+        } else {
+            if (titleEl) { titleEl.textContent = "Add Webhook Endpoint"; }
+            if (idField) { idField.value = ""; }
+            if (urlField) { urlField.value = ""; }
+            if (secretField) { secretField.value = ""; }
+        }
+    };
 
 }());

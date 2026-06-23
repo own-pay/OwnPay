@@ -33,6 +33,11 @@ final class BrandContext
     private ?array $brandsCache = null;
 
     /**
+     * @var int|null Cache of the reserved "All Brands" platform-owner merchant id.
+     */
+    private ?int $platformId = null;
+
+    /**
      * BrandContext constructor.
      *
      * @param Database $db The database engine.
@@ -56,25 +61,41 @@ final class BrandContext
      */
     public function resolveFromRequest(Request $req): ?int
     {
+        $resolved = null;
+
         // 1. Request attribute resolution
         $fromReq = $req->getAttribute('merchant_id');
         if ($fromReq !== null && is_scalar($fromReq)) {
-            $this->activeBrandId = (int) $fromReq;
-            return $this->activeBrandId;
+            $resolved = (int) $fromReq;
         }
 
         // 2. Session state checks (guarding against CLI or API bootstrap environments)
-        if (session_status() === PHP_SESSION_ACTIVE) {
+        if ($resolved === null && session_status() === PHP_SESSION_ACTIVE) {
             $abId = $_SESSION['active_brand_id'] ?? null;
             if (is_scalar($abId)) {
-                $this->activeBrandId = (int) $abId;
+                $resolved = (int) $abId;
+            } else {
+                $amId = $_SESSION['auth_merchant_id'] ?? null;
+                if (is_scalar($amId)) {
+                    $resolved = (int) $amId;
+                }
+            }
+        }
+
+        // Verify that the resolved merchant ID actually exists in the database (0 is valid for global/all-brands view).
+        // If it does not exist (e.g. database reseeded), clear the invalid session state.
+        if ($resolved !== null) {
+            if ($resolved === 0) {
+                $this->activeBrandId = 0;
                 return $this->activeBrandId;
             }
-
-            $amId = $_SESSION['auth_merchant_id'] ?? null;
-            if (is_scalar($amId)) {
-                $this->activeBrandId = (int) $amId;
+            $exists = $this->db->fetchOne("SELECT id FROM op_merchants WHERE id = :id", ['id' => $resolved]);
+            if ($exists) {
+                $this->activeBrandId = $resolved;
                 return $this->activeBrandId;
+            }
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                unset($_SESSION['active_brand_id'], $_SESSION['auth_merchant_id']);
             }
         }
 
@@ -82,6 +103,10 @@ final class BrandContext
         $first = $this->db->fetchOne("SELECT id FROM op_merchants ORDER BY id ASC LIMIT 1");
         if ($first && isset($first['id']) && is_scalar($first['id'])) {
             $this->activeBrandId = (int) $first['id'];
+            if (session_status() === PHP_SESSION_ACTIVE) {
+                $_SESSION['active_brand_id'] = $this->activeBrandId;
+                $_SESSION['auth_merchant_id'] = $this->activeBrandId;
+            }
         }
 
         return $this->activeBrandId;
@@ -110,6 +135,57 @@ final class BrandContext
         }
 
         return null;
+    }
+
+    /**
+     * Resolves the id of the reserved "All Brands" platform-owner merchant row.
+     *
+     * This row owns All-Brands-scoped data (data created under an All-Brands API key, or in the
+     * All Brands admin view). Its id varies per database (auto-increment), so it is ALWAYS resolved
+     * via the is_platform flag, never hard-coded. Lazily ensures the row exists as a safety net so
+     * All-Brands writes can never fail on a missing platform owner.
+     *
+     * @return int The platform-owner merchant id.
+     */
+    public function getPlatformId(): int
+    {
+        if ($this->platformId !== null) {
+            return $this->platformId;
+        }
+
+        $row = $this->db->fetchOne("SELECT id FROM op_merchants WHERE is_platform = 1 ORDER BY id ASC LIMIT 1");
+        if ($row !== null && isset($row['id']) && is_scalar($row['id'])) {
+            return $this->platformId = (int) $row['id'];
+        }
+
+        // Safety net (fresh/partial installs, reseeded test DBs): create the reserved row idempotently.
+        $this->db->execute(
+            "INSERT IGNORE INTO op_merchants (uuid, name, slug, email, timezone, default_currency, status, is_platform, created_at, updated_at)
+             VALUES (:uuid, 'All Brands (Platform)', '__platform__', 'platform@ownpay.local', 'UTC', 'USD', 'active', 1, NOW(6), NOW(6))",
+            ['uuid' => '00000000-0000-4000-8000-0000000000aa']
+        );
+        $row = $this->db->fetchOne("SELECT id FROM op_merchants WHERE is_platform = 1 ORDER BY id ASC LIMIT 1");
+        $id = ($row !== null && isset($row['id']) && is_scalar($row['id'])) ? (int) $row['id'] : 0;
+
+        return $this->platformId = $id;
+    }
+
+    /**
+     * Resolves the merchant id to OWN newly-created records.
+     *
+     * - All Brands (global) view → the platform-owner id (data is platform-owned and stays readable
+     *   only by All Brands).
+     * - A specific brand view → that brand's id (data is brand-owned, readable by the brand + All Brands).
+     *
+     * @return int The owner merchant id for write operations.
+     */
+    public function getWriteMerchantId(): int
+    {
+        if ($this->isGlobalView()) {
+            return $this->getPlatformId();
+        }
+        $id = $this->getActiveBrandId();
+        return ($id !== null && $id > 0) ? $id : $this->getPlatformId();
     }
 
     /**
@@ -166,8 +242,9 @@ final class BrandContext
             return $this->brandsCache;
         }
 
+        // Exclude the reserved platform-owner row: it is the "All Brands" scope, not a selectable brand.
         $this->brandsCache = $this->db->fetchAll(
-            "SELECT id, name, slug, logo_path, status FROM op_merchants ORDER BY name ASC"
+            "SELECT id, name, slug, logo_path, color, initials, description, status FROM op_merchants WHERE is_platform = 0 ORDER BY name ASC"
         );
 
         return $this->brandsCache;
@@ -181,7 +258,7 @@ final class BrandContext
     public function getActiveBrand(): ?array
     {
         $id = $this->getActiveBrandId();
-        if ($id === null) {
+        if ($id === null || $id === 0) {
             return null;
         }
         return $this->db->fetchOne("SELECT * FROM op_merchants WHERE id = :id", ['id' => $id]);
