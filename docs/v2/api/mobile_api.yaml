@@ -1,0 +1,804 @@
+openapi: 3.1.0
+info:
+  title: OwnPay Mobile Companion App API
+  description: |
+    The OwnPay Mobile API is exposed exclusively to the paired mobile companion application.
+    It contains endpoints to complete initial device pairing, submit heartbeats to report online statuses, refresh authentication tokens, upload received SMS messages (supporting batch processing up to 200 items), fetch pending outbound SMS queues, acknowledge push notifications, and retrieve dashboard statistics.
+    
+    ### Security and Cryptography
+    - Except for `/api/mobile/v1/devices` (bootstrap pairing) and `/api/mobile/v1/devices/token-refreshes` (token refresh), all endpoints require authentication using a JSON Web Token (JWT) in the HTTP `Authorization` header.
+      ```http
+      Authorization: Bearer <jwt_access_token>
+      ```
+    - Device fingerprints are checked during token refreshes.
+    - Endpoints are brand-scoped; data visibility is restricted to the specific brand/merchant.
+  version: 1.0.0
+servers:
+  - url: https://{brand_domain}
+    description: Master brand domain hosting OwnPay gateway.
+    variables:
+      brand_domain:
+        default: ownpay.org
+        description: The domain of the specific white-labeled gateway.
+paths:
+  /api/mobile/v1/devices:
+    post:
+      summary: Pair Mobile Companion Device
+      description: |
+        Pairs a new physical mobile device running the companion app with a merchant brand profile.
+        Requires a valid numeric pairing code generated from the brand admin dashboard and a unique hardware device identifier.
+        On success, returns the encryption key (AES-256 key) used for local message storage, short-lived JWT access token, and long-lived refresh token.
+      operationId: pairMobileDevice
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PairDeviceRequest'
+      responses:
+        "201":
+          description: Device paired and registered successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairDeviceResponse'
+        "400":
+          description: Pairing failed due to an invalid/expired pairing code.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+        "422":
+          description: Validation error. Both pairing_code and device_id are required.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+
+  /api/mobile/v1/devices/heartbeats:
+    post:
+      summary: Submit Device Heartbeat
+      description: |
+        Pings the server to report that the device is online and checking for transactions.
+        The server updates the `last_heartbeat` timestamp in the database.
+      operationId: submitHeartbeat
+      responses:
+        "200":
+          description: Heartbeat acknowledged.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      server_time:
+                        type: string
+                        format: date-time
+                        example: "2026-06-23T14:15:45Z"
+
+  /api/mobile/v1/devices/{id}:
+    delete:
+      summary: Revoke Paired Device
+      description: |
+        Revokes a paired device. The device identifier can be its database integer ID or UUID string.
+      operationId: revokeDevice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The database ID or UUID of the device to revoke.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Device revoked.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      message:
+                        type: string
+                        example: "Device revoked"
+
+  /api/mobile/v1/devices/bulk-revocations:
+    post:
+      summary: Bulk Revoke Devices
+      description: |
+        Revokes multiple paired devices under the brand context at once.
+      operationId: bulkRevokeDevices
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - device_ids
+              properties:
+                device_ids:
+                  type: array
+                  description: Array of device UUID strings to revoke.
+                  items:
+                    type: string
+                  example: ["a810b445-564a-4e20-80a5-f1261d7b328a", "b901c556-675b-5f31-91b6-02372e8c439b"]
+      responses:
+        "200":
+          description: Bulk revocation outcome details.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      revoked:
+                        type: integer
+                        description: Count of devices successfully revoked.
+                        example: 2
+        "422":
+          description: Validation error. device_ids must be a non-empty array.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+
+  /api/mobile/v1/devices/token-refreshes:
+    post:
+      summary: Refresh Access Token
+      description: |
+        Refreshes a short-lived access JWT (valid for 24h) using a long-lived refresh JWT (issued with a 30-day TTL).
+        Performs fingerprint checking for device identification validation.
+      operationId: refreshToken
+      security: []
+      parameters:
+        - name: X-Device-Fingerprint
+          in: header
+          required: false
+          description: Unique device hardware fingerprint hash. Required if not passed in the request body.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        "200":
+          description: Tokens refreshed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        "401":
+          description: Authentication failed. The device may have been revoked, or the fingerprint does not match.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+        "422":
+          description: Validation error (e.g. missing refresh_token or fingerprint).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+
+  /api/mobile/v1/devices/statuses:
+    get:
+      summary: Retrieve Device Connection Status
+      description: |
+        Retrieves the paired companion device's status details, its registered name, and platform identifiers from the database.
+      operationId: getDeviceStatus
+      responses:
+        "200":
+          description: Status retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/DeviceStatusResponse'
+        "404":
+          description: Device not found in the database.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+
+  /api/mobile/v1/sms:
+    post:
+      summary: Submit Received SMS
+      description: |
+        Submits SMS payloads received on the physical companion device to the server.
+        The server parses the payload using brand-configured regex rules to verify customer transaction payments.
+        Supports batch processing up to 200 messages to prevent visual details from getting lost during connection drops.
+        Enforces maximum length limits (100 bytes for sender, 16384 bytes for body) to block DoS attempts.
+      operationId: submitSms
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/SubmitSmsRequest'
+      responses:
+        "200":
+          description: SMS processed successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmitSmsResponse'
+        "400":
+          description: Processing failed for a single message payload (e.g. SMS rejected as invalid format).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsStatusResponse'
+        "422":
+          description: Validation failed (e.g. batch size exceeds 200, sender name too long, or body size exceeds 16KB).
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiErrorsResponse'
+
+  /api/mobile/v1/sms/queues:
+    get:
+      summary: Get Pending Outbound SMS
+      description: |
+        Lists up to 20 pending outbound SMS messages configured by the merchant panel that are waiting to be dispatched through this device's SIM.
+      operationId: getSmsQueue
+      responses:
+        "200":
+          description: Pending SMS list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OutboundSmsQueueResponse'
+
+  /api/mobile/v1/notifications:
+    get:
+      summary: List Companion App Notifications
+      description: |
+        Retrieves the queue of push notifications dispatched for the authenticated device.
+      operationId: listNotifications
+      responses:
+        "200":
+          description: Notifications list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/NotificationsListResponse'
+
+  /api/mobile/v1/notifications/acknowledgements:
+    post:
+      summary: Acknowledge Push Notifications
+      description: |
+        Marks a list of push notifications as read.
+        The request scopes operations by the device's UUID to block IDOR attacks, ensuring devices cannot silence other devices' notifications.
+      operationId: acknowledgeNotifications
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AcknowledgeNotificationsRequest'
+      responses:
+        "200":
+          description: Acknowledgment recorded.
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  success:
+                    type: boolean
+                    example: true
+                  data:
+                    type: object
+                    properties:
+                      acknowledged:
+                        type: integer
+                        description: Count of notifications successfully marked as read.
+                        example: 3
+        "422":
+          description: Missing notification IDs.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+
+  /api/mobile/v1/dashboard:
+    get:
+      summary: Retrieve Dashboard Summary
+      description: |
+        Retrieves today's completed revenue volume, pending counts, active transaction logs (limit 5),
+        and the count of unread push notifications.
+      operationId: getMobileDashboard
+      parameters:
+        - name: X-API-Version
+          in: header
+          required: false
+          schema:
+            type: string
+          description: Gateway application version.
+      responses:
+        "200":
+          description: Dashboard stats.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MobileDashboardResponse'
+
+  /api/mobile/v1/config/filter-rules:
+    get:
+      summary: Retrieve SMS Filter Rules
+      description: |
+        Retrieves the dynamic privacy configuration, whitelisted senders, and positive/negative keywords.
+        The companion app uses this to screen incoming SMS locally before transmitting payloads to the server, protecting customer privacy.
+      operationId: getSmsFilterRules
+      responses:
+        "200":
+          description: Dynamic filter rules.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsFilterRulesResponse'
+
+security:
+  - JWTAuth: []
+
+components:
+  securitySchemes:
+    JWTAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: Enter your Short-lived access JWT token.
+  schemas:
+    PairDeviceRequest:
+      type: object
+      required:
+        - pairing_code
+        - device_id
+      properties:
+        pairing_code:
+          type: string
+          description: The 6-digit numeric pairing code displayed on the merchant settings dashboard.
+          example: "482931"
+        device_id:
+          type: string
+          description: Hardware identifier unique to the companion device.
+          example: "358291039201921"
+        device_name:
+          type: string
+          default: "Unknown"
+          example: "Samsung SM-G991B"
+        app_version:
+          type: string
+          default: "1.0.0"
+          example: "v1.2.4"
+        platform:
+          type: string
+          default: "android"
+          enum: [android, ios]
+          example: "android"
+
+    PairDeviceResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              description: Short-lived access token (JWT) valid for 24 hours.
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..."
+            device_uuid:
+              type: string
+              format: uuid
+              description: Unique system identifier assigned to the paired device.
+              example: "b810d1c8-bc1e-4df1-b2f4-83b9c9d2b2f4"
+            refresh_token:
+              type: string
+              description: Long-lived refresh token (JWT) valid for 30 days.
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh..."
+            aes_key:
+              type: string
+              description: Base64-encoded AES-256 key utilized to sign or encrypt data locally.
+              example: "YTI4MzkxOGQyNzM4MTk4MmFjOTIzYjg5..."
+            expires_in:
+              type: integer
+              description: Expiration duration of the access token in seconds.
+              example: 86400
+
+    RefreshTokenRequest:
+      type: object
+      required:
+        - refresh_token
+      properties:
+        refresh_token:
+          type: string
+          description: Long-lived refresh JWT.
+          example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh..."
+        fingerprint:
+          type: string
+          description: Hardware fingerprint signature. Required if the `X-Device-Fingerprint` header is missing.
+          example: "a6829d10e83b1"
+
+    RefreshTokenResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            access_token:
+              type: string
+              description: Fresh access JWT.
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.newaccess..."
+            refresh_token:
+              type: string
+              description: Fresh refresh JWT.
+              example: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.newrefresh..."
+            expires_in:
+              type: integer
+              example: 86400
+            server_time:
+              type: string
+              format: date-time
+              example: "2026-06-23T14:25:00Z"
+
+    DeviceStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            device_id:
+              type: string
+              description: Device UUID.
+              example: "b810d1c8-bc1e-4df1-b2f4-83b9c9d2b2f4"
+            device_name:
+              type: string
+              example: "Samsung SM-G991B"
+            platform:
+              type: string
+              example: "android"
+            status:
+              type: string
+              enum: [active, suspended, revoked]
+              example: "active"
+            last_heartbeat:
+              type: string
+              format: date-time
+              nullable: true
+              example: "2026-06-23T14:15:00Z"
+            merchant_id:
+              type: integer
+              example: 1
+            server_time:
+              type: string
+              format: date-time
+              example: "2026-06-23T14:15:45Z"
+
+    SubmitSmsRequest:
+      type: object
+      description: Can be a single SMS object payload, a batch array of objects, or a wrapper object containing a messages array.
+      properties:
+        messages:
+          type: array
+          items:
+            $ref: '#/components/schemas/SingleSmsPayload'
+      example:
+        messages:
+          - sender: "bKash"
+            body: "You have received Tk 500.00 from 01700000000. Ref INV-10029. Fee Tk 0.00. Balance Tk 15400.00. TrxID A8K9D2J3S"
+            local_id: 104
+            received_at: "2026-06-23 14:17:12"
+
+    SingleSmsPayload:
+      type: object
+      required:
+        - sender
+      properties:
+        sender:
+          type: string
+          maxLength: 100
+          description: The sender address (e.g. bKash, Nagad, or phone number).
+          example: "bKash"
+        encrypted_payload:
+          type: string
+          maxLength: 16384
+          description: Base64-encoded encrypted SMS text. Preferred format.
+          example: "T3BlblNlY3VyZUV4YW1wbGU..."
+        body:
+          type: string
+          maxLength: 16384
+          description: Plaintext SMS message body.
+          example: "You have received Tk 500.00 from 01700000000. Ref INV-10029. Fee Tk 0.00. Balance Tk 15400.00. TrxID A8K9D2J3S"
+        local_id:
+          type: integer
+          nullable: true
+          description: Local database primary key of the SMS on the mobile app.
+          example: 104
+        received_at:
+          type: string
+          description: ISO-like timestamp representing when the SMS was received on the device.
+          example: "2026-06-23 14:17:12"
+
+    SubmitSmsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SmsStatusResponse/properties/data'
+
+    SmsStatusResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            status:
+              type: string
+              enum: [accepted, duplicate, rejected]
+              example: "accepted"
+            server_ref:
+              type: string
+              nullable: true
+              description: Transaction reference ID generated on OwnPay server.
+              example: "OP-481029304"
+            error:
+              type: string
+              nullable: true
+              example: null
+
+    OutboundSmsQueueResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 452
+              phone:
+                type: string
+                example: "+8801700000000"
+              message:
+                type: string
+                example: "Your payment of Tk 500.00 has been verified."
+              status:
+                type: string
+                example: "pending"
+              created_at:
+                type: string
+                format: date-time
+                example: "2026-06-23T14:17:15Z"
+
+    NotificationsListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 87
+              type:
+                type: string
+                example: "transaction_pending"
+              title:
+                type: string
+                example: "Payment pending verification"
+              body:
+                type: string
+                example: "Tk 500.00 pending on bKash"
+              data:
+                type: string
+                nullable: true
+                description: JSON payload details as string.
+                example: '{"trx_id":"OP-481029304","amount":"500.00"}'
+              read_at:
+                type: string
+                format: date-time
+                nullable: true
+                example: null
+              created_at:
+                type: string
+                format: date-time
+                example: "2026-06-23T14:17:12Z"
+
+    AcknowledgeNotificationsRequest:
+      type: object
+      required:
+        - ids
+      properties:
+        ids:
+          type: array
+          items:
+            type: integer
+          example: [87, 88]
+
+    MobileDashboardResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            today:
+              type: object
+              properties:
+                revenue:
+                  type: string
+                  example: "4500.00"
+                total:
+                  type: integer
+                  example: 12
+                pending:
+                  type: integer
+                  example: 2
+            recent_transactions:
+              type: array
+              items:
+                type: object
+                properties:
+                  trx_id:
+                    type: string
+                    example: "OP-481029304"
+                  amount:
+                    type: string
+                    example: "500.00"
+                  currency:
+                    type: string
+                    example: "BDT"
+                  status:
+                    type: string
+                    example: "completed"
+                  gateway:
+                    type: string
+                    nullable: true
+                    example: "bkash-merchant"
+                  created_at:
+                    type: string
+                    format: date-time
+                    example: "2026-06-23T14:17:12Z"
+            unread_notifications:
+              type: integer
+              example: 5
+            server_time:
+              type: string
+              format: date-time
+              example: "2026-06-23T14:15:45Z"
+
+    SmsFilterRulesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            version:
+              type: integer
+              example: 1
+            updated_at:
+              type: string
+              format: date-time
+              example: "2026-06-23T14:15:45Z"
+            allowed_senders:
+              type: array
+              items:
+                type: string
+              example: ["bKash", "Nagad", "16247"]
+            positive_keywords:
+              type: array
+              items:
+                type: string
+              example: ["received", "credited", "TrxID", "Tk", "BDT"]
+            negative_keywords:
+              type: array
+              items:
+                type: string
+              example: ["OTP", "PIN", "password", "verify"]
+            check_interval_hours:
+              type: integer
+              example: 24
+
+    ApiErrorsResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Validation failed"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                example: "VALIDATION_FAILED"
+              message:
+                type: string
+                example: "sender exceeds 100 bytes"
+              field:
+                type: string
+                example: "sender"
+        request_id:
+          type: string
+          example: "8f5a2e9b0c7d4e5f"
+
+    ApiSingleErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Invalid pairing code"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                example: "INVALID_PAIRING_CODE"
+              message:
+                type: string
+                example: "Invalid pairing code"
+              field:
+                type: string
+                nullable: true
+                example: null
+        request_id:
+          type: string
+          example: "8f5a2e9b0c7d4e5f"

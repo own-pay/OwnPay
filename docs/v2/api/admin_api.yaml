@@ -1,0 +1,421 @@
+openapi: 3.1.0
+info:
+  title: OwnPay Brand Administrative API
+  description: |
+    The OwnPay Administrative API is used by per-merchant/brand administrators to configure and audit their gateway components.
+    It exposes endpoints under `/api/admin/v1` to manage regex-based SMS parsing templates, inspect and retry failed messages in the outbound SMS communication queue, list/revoke paired companion devices, and verify white-labeled custom domains.
+    
+    ### Authentication
+    Administrative endpoints require Bearer authentication using an API key generated with the `admin` privilege scope.
+    ```http
+    Authorization: Bearer <admin_api_key>
+    ```
+    All actions executed via this API are strictly isolated and scoped to the brand/merchant associated with the provided credentials.
+    Note that administrative API routes are protected and are **only** accessible on the master domain configured via the `APP_DOMAIN` environment variable (e.g. `ownpay.org`), and are blocked on custom brand domains.
+  version: 1.0.0
+servers:
+  - url: https://{master_domain}/api/admin/v1
+    description: Master administrative API server.
+    variables:
+      master_domain:
+        default: ownpay.org
+        description: The APP_DOMAIN host where the administrative panel is accessible.
+paths:
+  /sms-templates:
+    get:
+      summary: List SMS Templates
+      description: |
+        Retrieves all SMS parsing templates configured for the brand, sorted by priority and creation date.
+        These templates define the regex patterns used to match transaction information (like sender address, amount, and reference code) from incoming companion app payloads.
+      operationId: listSmsTemplates
+      responses:
+        "200":
+          description: List of SMS templates.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsTemplatesResponse'
+
+  /sms-templates/{id}:
+    put:
+      summary: Update SMS Template
+      description: |
+        Updates the properties (like regex expressions, gateway associations, priority order, or active status) of an existing SMS parsing template.
+      operationId: updateSmsTemplate
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The integer ID of the SMS template to update.
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateSmsTemplateRequest'
+      responses:
+        "200":
+          description: Template updated successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+
+  /sms-queues:
+    get:
+      summary: List Outbound SMS Queue
+      description: |
+        Retrieves up to 100 recent outbound SMS communication log entries queued or processed under this brand.
+      operationId: listSmsQueue
+      responses:
+        "200":
+          description: Recent SMS log entries retrieved successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SmsQueueResponse'
+
+  /sms-queues/{id}/retries:
+    post:
+      summary: Retry Outbound SMS
+      description: |
+        Re-queues a failed outbound SMS record for another delivery attempt.
+        To avoid duplicate message dispatch, the operation is blocked and returns a `409` conflict if the SMS is not currently in a failed state (e.g. already sent or sending).
+      operationId: retryOutboundSms
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The integer ID of the outbound SMS communication log.
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: SMS requeued for retry successfully.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        "409":
+          description: SMS is not in a failed state and cannot be retried.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+        "400":
+          description: Request failed during processing.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+
+  /devices:
+    get:
+      summary: List Paired Companion Devices
+      description: |
+        Retrieves all active paired companion devices registered for the brand.
+      operationId: listPairedDevices
+      responses:
+        "200":
+          description: Paired devices list.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PairedDevicesListResponse'
+
+  /devices/{id}:
+    delete:
+      summary: Revoke Paired Device
+      description: |
+        Revokes a paired companion device, deleting its record and terminating its API authorization.
+      operationId: revokePairedDevice
+      parameters:
+        - name: id
+          in: path
+          required: true
+          description: The unique UUID string of the paired device.
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Device revoked.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/MessageResponse'
+        "400":
+          description: Revocation failed on the server.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+
+  /domains/verifications:
+    post:
+      summary: Verify Custom Domain
+      description: |
+        Triggers DNS ownership verification checks for a white-labeled custom domain associated with the brand.
+      operationId: verifyCustomDomain
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/VerifyDomainRequest'
+      responses:
+        "200":
+          description: Verification executed. Returns the outcome.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VerifyDomainResponse'
+        "422":
+          description: Missing domain_id parameter.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSingleErrorResponse'
+
+security:
+  - AdminBearerAuth: []
+
+components:
+  securitySchemes:
+    AdminBearerAuth:
+      type: http
+      scheme: bearer
+      description: Enter the Admin scope Bearer API key.
+  schemas:
+    SmsTemplatesResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 3
+              merchant_id:
+                type: integer
+                example: 1
+              gateway_slug:
+                type: string
+                example: "bkash-personal"
+              sender_pattern:
+                type: string
+                description: Plain pattern matching SMS sender address.
+                example: "bKash"
+              amount_regex:
+                type: string
+                description: Regex pattern containing captures for amount.
+                example: "received Tk ([0-9,.]+)"
+              trx_id_regex:
+                type: string
+                description: Regex pattern containing captures for transaction reference.
+                example: "TrxID ([A-Z0-9]+)"
+              sender_regex:
+                type: string
+                description: Regex pattern containing captures for customer phone.
+                example: "from ([0-9]+)"
+              priority:
+                type: integer
+                example: 1
+              status:
+                type: string
+                enum: [active, inactive]
+                example: "active"
+              created_at:
+                type: string
+                format: date-time
+                example: "2026-06-23T14:15:45Z"
+              updated_at:
+                type: string
+                format: date-time
+                nullable: true
+                example: null
+
+    UpdateSmsTemplateRequest:
+      type: object
+      properties:
+        gateway_slug:
+          type: string
+          example: "bkash-personal"
+        sender_pattern:
+          type: string
+          example: "bKash"
+        amount_regex:
+          type: string
+          example: "received Tk ([0-9,.]+)"
+        trx_id_regex:
+          type: string
+          example: "TrxID ([A-Z0-9]+)"
+        sender_regex:
+          type: string
+          example: "from ([0-9]+)"
+        priority:
+          type: integer
+          example: 2
+        status:
+          type: string
+          enum: [active, inactive]
+          example: "active"
+
+    SmsQueueResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 842
+              merchant_id:
+                type: integer
+                example: 1
+              phone:
+                type: string
+                example: "+8801700000000"
+              message:
+                type: string
+                example: "Payment has been processed."
+              status:
+                type: string
+                enum: [pending, sent, failed, processing]
+                example: "failed"
+              attempts:
+                type: integer
+                example: 3
+              last_attempt_at:
+                type: string
+                format: date-time
+                nullable: true
+                example: "2026-06-23T14:22:15Z"
+              error_message:
+                type: string
+                nullable: true
+                example: "SIM not ready or network drop"
+              created_at:
+                type: string
+                format: date-time
+                example: "2026-06-23T14:20:00Z"
+
+    PairedDevicesListResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: array
+          items:
+            type: object
+            properties:
+              id:
+                type: integer
+                example: 2
+              merchant_id:
+                type: integer
+                example: 1
+              device_id:
+                type: string
+                format: uuid
+                example: "b810d1c8-bc1e-4df1-b2f4-83b9c9d2b2f4"
+              device_name:
+                type: string
+                example: "Samsung SM-G991B"
+              platform:
+                type: string
+                example: "android"
+              app_version:
+                type: string
+                example: "1.2.4"
+              status:
+                type: string
+                enum: [active, suspended, revoked]
+                example: "active"
+              last_heartbeat:
+                type: string
+                format: date-time
+                nullable: true
+                example: "2026-06-23T14:25:00Z"
+              created_at:
+                type: string
+                format: date-time
+                example: "2026-06-22T08:00:00Z"
+
+    VerifyDomainRequest:
+      type: object
+      required:
+        - domain_id
+      properties:
+        domain_id:
+          type: integer
+          description: Database primary key ID of the custom domain entry to verify.
+          example: 8
+
+    VerifyDomainResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            verified:
+              type: boolean
+              description: True if DNS checks passed and ownership verified, otherwise false.
+              example: true
+
+    MessageResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+          properties:
+            message:
+              type: string
+              example: "Action executed successfully"
+
+    ApiSingleErrorResponse:
+      type: object
+      properties:
+        success:
+          type: boolean
+          example: false
+        error:
+          type: string
+          example: "Error message details"
+        errors:
+          type: array
+          items:
+            type: object
+            properties:
+              code:
+                type: string
+                example: "ERROR_CODE"
+              message:
+                type: string
+                example: "Error message details"
+              field:
+                type: string
+                nullable: true
+                example: null
+        request_id:
+          type: string
+          example: "8f5a2e9b0c7d4e5f"
