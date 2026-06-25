@@ -119,6 +119,7 @@ body.op-auth-page {
   width: auto;
   height: auto;
   background: none;
+  -webkit-backdrop-filter: none;
   backdrop-filter: none;
   border-radius: 0;
   display: flex;
@@ -779,6 +780,7 @@ body.op-auth-page {
 
 .op-rotating-wrapper {
   background-color: rgba(255, 255, 255, 0.15);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   color: #ffffff;
   padding: 0.125rem 0.6rem;

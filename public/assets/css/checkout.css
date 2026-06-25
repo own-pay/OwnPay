@@ -25,7 +25,7 @@
 .ck-left { display: flex; flex-direction: column; width: 390px; flex-shrink: 0; padding: 40px; position: relative; z-index: 10; background: linear-gradient(160deg, #080D1A 0%, #1A2038 55%, #2D3555 100%); color: #fff; }
 .ck-left::before { content: ''; position: absolute; width: 700px; height: 700px; background: radial-gradient(circle, rgb(13 148 136 / 8%) 0%, transparent 60%); top: -250px; right: -250px; pointer-events: none; }
 .ck-brand { display: flex; align-items: center; gap: 16px; margin-bottom: 48px; }
-.ck-brand-logo { width: 52px; height: 52px; border-radius: 16px; background: rgb(255 255 255 / 10%); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; border: 1px solid rgb(255 255 255 / 8%); }
+.ck-brand-logo { width: 52px; height: 52px; border-radius: 16px; background: rgb(255 255 255 / 10%); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px); display: flex; align-items: center; justify-content: center; border: 1px solid rgb(255 255 255 / 8%); }
 .ck-brand-img { width: 28px; height: 28px; border-radius: 6px; object-fit: contain; }
 .ck-brand-img-sm { width: 24px; height: 24px; border-radius: 4px; object-fit: contain; }
 .ck-label-xs { font-size: 11px; color: rgb(255 255 255 / 35%); font-weight: 600; text-transform: uppercase; letter-spacing: 0.15em; }
@@ -109,7 +109,7 @@
 
 /* ========================= POPUP ========================= */
 .ck-popup { position: fixed; inset: 0; z-index: 500; display: flex; align-items: center; justify-content: center; padding: 16px; }
-.ck-popup-backdrop { position: absolute; inset: 0; background: rgb(8 13 26 / 55%); backdrop-filter: blur(20px); }
+.ck-popup-backdrop { position: absolute; inset: 0; background: rgb(8 13 26 / 55%); -webkit-backdrop-filter: blur(20px); backdrop-filter: blur(20px); }
 .ck-popup-dialog { position: relative; z-index: 1; width: 100%; max-width: 460px; max-height: 92vh; overflow-y: auto; background: var(--white); border-radius: 28px; box-shadow: 0 40px 80px rgb(0 0 0 / 18%); }
 .ck-popup-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px; border-bottom: 1px solid var(--cloud); }
 .ck-popup-gw-info { display: flex; align-items: center; gap: 12px; }
@@ -134,8 +134,8 @@
 
 /* ========================= MODALS ========================= */
 .ck-modal { position: fixed; inset: 0; z-index: 200; display: flex; align-items: center; justify-content: center; }
-.ck-modal-backdrop { position: absolute; inset: 0; background: rgb(8 13 26 / 45%); backdrop-filter: blur(14px); }
-.ck-modal-dialog { position: relative; background: rgb(255 255 255 / 96%); backdrop-filter: blur(24px); border-radius: 24px; padding: 28px; max-width: 400px; width: 92%; box-shadow: 0 32px 64px rgb(0 0 0 / 14%); }
+.ck-modal-backdrop { position: absolute; inset: 0; background: rgb(8 13 26 / 45%); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+.ck-modal-dialog { position: relative; background: rgb(255 255 255 / 96%); -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px); border-radius: 24px; padding: 28px; max-width: 400px; width: 92%; box-shadow: 0 32px 64px rgb(0 0 0 / 14%); }
 .ck-modal-dialog h3 { font-size: 17px; font-weight: 700; margin-bottom: 10px; }
 .ck-modal-dialog p { font-size: 14px; color: var(--ink-4); line-height: 1.6; }
 .ck-modal-actions { display: flex; gap: 10px; margin-top: 20px; }
@@ -199,6 +199,7 @@
     align-items: center;
     justify-content: center;
     z-index: 9999;
+    -webkit-backdrop-filter: blur(4px);
     backdrop-filter: blur(4px);
 }
 

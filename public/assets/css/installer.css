@@ -71,6 +71,7 @@ body {
     justify-content: space-between;
     gap: 24px;
     background: rgb(248 249 252 / 85%);
+    -webkit-backdrop-filter: blur(12px);
     backdrop-filter: blur(12px);
     border-bottom: 1px solid var(--op-border);
 }

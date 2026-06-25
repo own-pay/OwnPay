@@ -46,6 +46,7 @@ body.op-landing {
   width: 100%;
   z-index: 1000;
   background: rgb(255 255 255 / 90%);
+  -webkit-backdrop-filter: blur(12px);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid var(--border-light);
   transition: var(--transition-smooth);

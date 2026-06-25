@@ -8,7 +8,13 @@ export default {
     "media-feature-range-notation": null,
     "keyframes-name-pattern": null,
     "declaration-block-single-line-max-declarations": null,
-    "no-duplicate-selectors": null
+    "no-duplicate-selectors": null,
+    "property-no-vendor-prefix": [
+      true,
+      {
+        ignoreProperties: ["backdrop-filter", "text-size-adjust"]
+      }
+    ]
   },
   ignoreFiles: [
     "node_modules/**/*",
