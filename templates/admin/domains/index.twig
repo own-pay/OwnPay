@@ -36,7 +36,7 @@
             <tbody>
             {% for d in domains %}
                 <tr>
-                    <td>
+                    <td data-label="Domain">
                         <strong>{{ d.domain }}</strong>
                         {% if d.status == 'active' or d.status == 'verified' %}
                             <a href="https://{{ d.domain }}" target="_blank" class="op-link op-text-xs op-ml-1">↗ Visit</a>
@@ -45,9 +45,9 @@
                             <br><small class="op-text-muted">Redirects to: <code>{{ d.redirect_url }}</code></small>
                         {% endif %}
                     </td>
-                    <td>{{ d.merchant_name ?? '—' }}</td>
-                    <td><span class="op-badge">{{ d.type|capitalize }}</span></td>
-                    <td>
+                    <td data-label="Brand">{{ d.merchant_name ?? '—' }}</td>
+                    <td data-label="Type"><span class="op-badge">{{ d.type|capitalize }}</span></td>
+                    <td data-label="Primary">
                         {% if d.is_primary %}
                             <span class="op-badge op-badge-primary">★ Primary</span>
                         {% else %}
@@ -57,7 +57,7 @@
                             </form>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-label="SSL Status">
                         {% if d.ssl_status == 'active' %}
                             <span class="op-badge op-badge-success">✓ Active SSL</span>
                         {% elseif d.ssl_status == 'pending' %}
@@ -68,7 +68,7 @@
                             <span class="op-badge op-badge-secondary">None</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-label="TXT Token">
                         {% if d.verification_token is defined and d.verification_token %}
                         <div class="op-copy-row">
                             <code class="op-text-xs" id="tok-{{ d.id }}">ownpay-verify={{ d.verification_token }}</code>
@@ -78,7 +78,7 @@
                             <span class="op-text-muted op-text-xs">—</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-label="Status">
                         {% if d.status == 'active' or d.status == 'verified' %}
                             <span class="op-badge op-badge-success">✓ Active</span>
                         {% elseif d.status == 'pending' %}
@@ -87,7 +87,7 @@
                             <span class="op-badge op-badge-danger">{{ d.status|capitalize }}</span>
                         {% endif %}
                     </td>
-                    <td class="op-actions">
+                    <td data-label="Actions" class="op-actions">
                         <div class="flex gap-1">
                             {% if d.status != 'active' and d.status != 'verified' %}
                             <form method="POST" action="/admin/domains/{{ d.id }}/verify" class="op-inline-form">

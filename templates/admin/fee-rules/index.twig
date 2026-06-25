@@ -35,19 +35,19 @@
             <tbody>
             {% for rule in rules %}
                 <tr>
-                    <td>
+                    <td data-label="Brand / Store">
                         <strong>{{ rule.brand_name }}</strong>
                     </td>
-                    <td>
+                    <td data-label="Gateway">
                         <span class="op-text-semibold">{{ rule.gateway_name }}</span>
                     </td>
-                    <td>
+                    <td data-label="Currency">
                         <span class="op-badge op-badge-outline">{{ rule.currency }}</span>
                     </td>
-                    <td>
+                    <td data-label="Fee Type">
                         <span class="op-text-capitalize">{{ rule.type }}</span>
                     </td>
-                    <td>
+                    <td data-label="Value / Details">
                         {% if rule.type == 'flat' %}
                             {{ rule.currency }} {{ rule.value|number_format(2) }}
                         {% elseif rule.type == 'percentage' %}
@@ -56,7 +56,7 @@
                             <span class="op-text-muted">Tiered rules configured</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-label="Min / Max Caps">
                         {% if rule.min_fee or rule.max_fee %}
                             <span class="op-text-sm">
                                 Min: {{ rule.min_fee ? (rule.currency ~ ' ' ~ rule.min_fee|number_format(2)) : 'None' }} <br>
@@ -66,14 +66,14 @@
                             <span class="op-text-muted">—</span>
                         {% endif %}
                     </td>
-                    <td>
+                    <td data-label="Status">
                         {% if rule.status == 'active' %}
                             <span class="op-badge op-badge-success">Active</span>
                         {% else %}
                             <span class="op-badge op-badge-danger">Inactive</span>
                         {% endif %}
                     </td>
-                    <td class="op-actions">
+                    <td data-label="Actions" class="op-actions">
                         <a href="/admin/fee-rules/{{ rule.id }}/edit" class="op-btn op-btn-sm op-btn-outline">Edit</a>
                         
                         <form method="POST" action="/admin/fee-rules/{{ rule.id }}/delete" class="op-inline-form"

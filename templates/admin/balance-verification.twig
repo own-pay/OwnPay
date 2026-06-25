@@ -36,11 +36,11 @@
             <tbody>
                 {% for r in balance_results %}
                 <tr>
-                    <td>{{ r.currency }}</td>
-                    <td>{{ r.expected ?? '0.00' }}</td>
-                    <td>{{ r.actual ?? '0.00' }}</td>
-                    <td>{{ r.variance ?? '0.00' }}</td>
-                    <td>
+                    <td data-label="Currency">{{ r.currency }}</td>
+                    <td data-label="Expected">{{ r.expected ?? '0.00' }}</td>
+                    <td data-label="Actual">{{ r.actual ?? '0.00' }}</td>
+                    <td data-label="Variance">{{ r.variance ?? '0.00' }}</td>
+                    <td data-label="Status">
                         {% if (r.variance ?? 0) == 0 %}
                             <span class="op-badge op-badge-success">Balanced</span>
                         {% else %}

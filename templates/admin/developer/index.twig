@@ -74,20 +74,20 @@
                 <tbody>
                     {% for key in api_keys %}
                     <tr>
-                        <td><strong>{{ key.name }}</strong></td>
-                        <td>
+                        <td data-label="Label"><strong>{{ key.name }}</strong></td>
+                        <td data-label="Key Prefix">
                             <code class="op-code-pill">{{ key.key_prefix }}••••••••••••••••</code>
                         </td>
-                        <td>
+                        <td data-label="Scopes">
                             {% for scope in key.scopes %}
                                 <span class="op-badge op-badge-{{ scope == 'admin' ? 'danger' : 'info' }}">{{ scope }}</span>
                             {% else %}
                                 <span class="op-text-muted">—</span>
                             {% endfor %}
                         </td>
-                        <td>{{ key.created_at|date('M d, Y') }}</td>
-                        <td>{{ key.last_used_at ? key.last_used_at|date('M d, Y H:i') : '—' }}</td>
-                        <td>
+                        <td data-label="Created">{{ key.created_at|date('M d, Y') }}</td>
+                        <td data-label="Last Used">{{ key.last_used_at ? key.last_used_at|date('M d, Y H:i') : '—' }}</td>
+                        <td data-label="Actions">
                             <form method="POST" action="/admin/api-keys/{{ key.id }}/revoke" class="op-inline-form" data-confirm="Revoke this API key? All requests using it will fail immediately.">
                                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                 <button type="submit" class="op-btn op-btn-sm op-btn-danger">Revoke</button>
@@ -175,10 +175,10 @@
                 <tbody>
                     {% for ep in routes %}
                     <tr>
-                        <td>
+                        <td data-label="Method">
                             <span class="op-method-badge op-method-{{ ep.method|lower }}">{{ ep.method }}</span>
                         </td>
-                        <td>
+                        <td data-label="Endpoint">
                             <div class="op-copy-row">
                                 <code class="op-text-sm">{{ base_url }}{{ ep.path }}</code>
                                 <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="{{ base_url }}{{ ep.path }}" title="Copy URL">
@@ -186,10 +186,10 @@
                                 </button>
                             </div>
                         </td>
-                        <td>
+                        <td data-label="Auth">
                             <span class="op-badge op-badge-{{ ep.auth == 'Bearer' ? 'info' : (ep.auth == 'JWT' ? 'warning' : (ep.auth == 'None' ? 'muted' : 'success')) }}">{{ ep.auth }}</span>
                         </td>
-                        <td class="op-text-sm op-text-muted">{{ ep.desc }}</td>
+                        <td data-label="Description" class="op-text-sm op-text-muted">{{ ep.desc }}</td>
                     </tr>
                     {% endfor %}
                 </tbody>
@@ -224,20 +224,20 @@
                     <tbody>
                         {% for wh in webhooks %}
                         <tr>
-                            <td><code class="op-text-sm">{{ wh.url }}</code></td>
-                            <td>
+                            <td data-label="URL"><code class="op-text-sm">{{ wh.url }}</code></td>
+                            <td data-label="Status">
                                 <span class="op-badge op-badge-{{ wh.status == 'active' ? 'success' : 'muted' }}">
                                     {{ wh.status|capitalize }}
                                 </span>
                             </td>
-                            <td>
+                            <td data-label="Events">
                                 {% for evt in wh.decoded_events %}
                                     <span class="op-badge op-badge-outline op-text-xs op-badge-inline">{{ evt }}</span>
                                 {% else %}
                                     <span class="op-text-muted op-text-xs">None</span>
                                 {% endfor %}
                             </td>
-                            <td>
+                            <td data-label="Secret">
                                 <div class="op-flex-gap-8 op-flex-align-center">
                                     <code class="op-text-xs" id="wh-sec-{{ wh.id }}">{{ wh.secret|slice(0, 8) }}••••••••••••••••</code>
                                     <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="{{ wh.secret }}" title="Copy Secret">
@@ -245,7 +245,7 @@
                                     </button>
                                 </div>
                             </td>
-                            <td class="op-text-right">
+                            <td data-label="Actions" class="op-text-right">
                                 <button type="button" class="op-btn op-btn-xs op-btn-outline op-mr-1"
                                         data-open-modal="webhook-modal"
                                         onclick='window.prepareWebhookForm({{ wh|json_encode|raw }})'>
@@ -282,14 +282,14 @@
             <table class="op-table">
                 <thead><tr><th>Event</th><th>Trigger</th></tr></thead>
                 <tbody>
-                    <tr><td><code>payment.completed</code></td><td>Transaction confirmed and marked completed</td></tr>
-                    <tr><td><code>payment.failed</code></td><td>Payment attempt failed or expired</td></tr>
-                    <tr><td><code>payment.pending</code></td><td>Payment received, awaiting verification</td></tr>
-                    <tr><td><code>refund.created</code></td><td>Refund request submitted</td></tr>
-                    <tr><td><code>refund.completed</code></td><td>Refund processed successfully</td></tr>
-                    <tr><td><code>invoice.paid</code></td><td>Invoice marked as paid</td></tr>
-                    <tr><td><code>customer.created</code></td><td>New customer record created</td></tr>
-                    <tr><td><code>webhook.test</code></td><td>Manual test event sent from Developer Hub</td></tr>
+                    <tr><td data-label="Event"><code>payment.completed</code></td><td data-label="Trigger">Transaction confirmed and marked completed</td></tr>
+                    <tr><td data-label="Event"><code>payment.failed</code></td><td data-label="Trigger">Payment attempt failed or expired</td></tr>
+                    <tr><td data-label="Event"><code>payment.pending</code></td><td data-label="Trigger">Payment received, awaiting verification</td></tr>
+                    <tr><td data-label="Event"><code>refund.created</code></td><td data-label="Trigger">Refund request submitted</td></tr>
+                    <tr><td data-label="Event"><code>refund.completed</code></td><td data-label="Trigger">Refund processed successfully</td></tr>
+                    <tr><td data-label="Event"><code>invoice.paid</code></td><td data-label="Trigger">Invoice marked as paid</td></tr>
+                    <tr><td data-label="Event"><code>customer.created</code></td><td data-label="Trigger">New customer record created</td></tr>
+                    <tr><td data-label="Event"><code>webhook.test</code></td><td data-label="Trigger">Manual test event sent from Developer Hub</td></tr>
                 </tbody>
             </table>
             </div>
@@ -435,10 +435,10 @@ if (!hash_equals($expected, $signature)) {
                         <tbody id="rules-tbody">
                             {% for index, rule in rate_limit_rules %}
                             <tr data-index="{{ index }}">
-                                <td>
+                                <td data-label="Path Pattern">
                                     <input type="text" name="rules[{{ index }}][path]" class="op-input op-input-sm op-input-monospace" value="{{ rule.path }}" placeholder="e.g. /api/v1/payments/*" required>
                                 </td>
-                                <td>
+                                <td data-label="HTTP Method">
                                     <select name="rules[{{ index }}][method]" class="op-input op-input-sm">
                                         <option value="ALL" {% if rule.method == 'ALL' %}selected{% endif %}>ALL METHODS</option>
                                         <option value="GET" {% if rule.method == 'GET' %}selected{% endif %}>GET</option>
@@ -448,13 +448,13 @@ if (!hash_equals($expected, $signature)) {
                                         <option value="PATCH" {% if rule.method == 'PATCH' %}selected{% endif %}>PATCH</option>
                                     </select>
                                 </td>
-                                <td>
+                                <td data-label="Max Requests">
                                     <input type="number" name="rules[{{ index }}][limit]" class="op-input op-input-sm" value="{{ rule.limit }}" min="1" required>
                                 </td>
-                                <td>
+                                <td data-label="Window">
                                     <input type="number" name="rules[{{ index }}][window]" class="op-input op-input-sm" value="{{ rule.window }}" min="1" required>
                                 </td>
-                                <td class="op-text-right">
+                                <td data-label="Actions" class="op-text-right">
                                     <button type="button" class="op-btn op-btn-xs op-btn-danger remove-rule-btn">Remove</button>
                                 </td>
                             </tr>
@@ -503,10 +503,10 @@ if (!hash_equals($expected, $signature)) {
                     <tbody>
                         {% for rule in rate_limit_rules %}
                         <tr>
-                            <td><code>{{ rule.path }}</code></td>
-                            <td><span class="op-badge op-badge-info">{{ rule.method }}</span></td>
-                            <td><strong>{{ rule.limit }}</strong> hits</td>
-                            <td>every <strong>{{ rule.window }}</strong> seconds</td>
+                            <td data-label="Path"><code>{{ rule.path }}</code></td>
+                            <td data-label="Method"><span class="op-badge op-badge-info">{{ rule.method }}</span></td>
+                            <td data-label="Max Requests"><strong>{{ rule.limit }}</strong> hits</td>
+                            <td data-label="Window">every <strong>{{ rule.window }}</strong> seconds</td>
                         </tr>
                         {% else %}
                         <tr>
@@ -559,13 +559,13 @@ if (!hash_equals($expected, $signature)) {
                     <tbody>
                         {% for limit in active_limits %}
                         <tr>
-                            <td><code>{{ limit.key_name }}</code></td>
-                            <td>{{ limit.hits }}</td>
-                            <td>
+                            <td data-label="Bucket"><code>{{ limit.key_name }}</code></td>
+                            <td data-label="Hits">{{ limit.hits }}</td>
+                            <td data-label="Expires In">
                                 {% set remaining = limit.expires_at - now %}
                                 {{ remaining > 0 ? remaining ~ 's' : 'Expired' }}
                             </td>
-                            <td class="op-text-right">
+                            <td data-label="Actions" class="op-text-right">
                                 {% if is_superadmin %}
                                 <form method="POST" action="/admin/developer/rate-limits/reset" class="op-inline-form" onsubmit="return confirm('Reset rate limit bucket for this key?');">
                                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
@@ -624,9 +624,9 @@ document.addEventListener('DOMContentLoaded', function() {
 
             var row = document.createElement('tr');
             row.setAttribute('data-index', ruleIndex);
-            row.innerHTML = '<td>' +
+            row.innerHTML = '<td data-label="Path Pattern">' +
                 '<input type="text" name="rules[' + ruleIndex + '][path]" class="op-input op-input-sm op-input-monospace" placeholder="e.g. /api/v1/payments/*" required>' +
-                '</td><td>' +
+                '</td><td data-label="HTTP Method">' +
                 '<select name="rules[' + ruleIndex + '][method]" class="op-input op-input-sm">' +
                 '<option value="ALL">ALL METHODS</option>' +
                 '<option value="GET">GET</option>' +
@@ -635,11 +635,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 '<option value="DELETE">DELETE</option>' +
                 '<option value="PATCH">PATCH</option>' +
                 '</select>' +
-                '</td><td>' +
+                '</td><td data-label="Max Requests">' +
                 '<input type="number" name="rules[' + ruleIndex + '][limit]" class="op-input op-input-sm" value="60" min="1" required>' +
-                '</td><td>' +
+                '</td><td data-label="Window">' +
                 '<input type="number" name="rules[' + ruleIndex + '][window]" class="op-input op-input-sm" value="60" min="1" required>' +
-                '</td><td class="op-text-right">' +
+                '</td><td data-label="Actions" class="op-text-right">' +
                 '<button type="button" class="op-btn op-btn-xs op-btn-danger remove-rule-btn">Remove</button>' +
                 '</td>';
             

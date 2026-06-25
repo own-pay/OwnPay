@@ -15,13 +15,13 @@
             <tbody>
                 {% for m in brand_list %}
                 <tr>
-                    <td>{{ m.id }}</td>
-                    <td><strong>{{ m.name }}</strong></td>
-                    <td><code>{{ m.domain is defined and m.domain ? m.domain : '—' }}</code></td>
-                    <td>{{ m.default_currency ?? 'BDT' }}</td>
-                    <td><span class="op-badge op-badge-{{ m.status == 'active' ? 'success' : 'muted' }}">{{ m.status }}</span></td>
-                    <td>{{ m.created_at|date("M d, Y") }}</td>
-                    <td class="op-nowrap">
+                    <td data-label="ID">{{ m.id }}</td>
+                    <td data-label="Business"><strong>{{ m.name }}</strong></td>
+                    <td data-label="Domain"><code>{{ m.domain is defined and m.domain ? m.domain : '—' }}</code></td>
+                    <td data-label="Currency">{{ m.default_currency ?? 'BDT' }}</td>
+                    <td data-label="Status"><span class="op-badge op-badge-{{ m.status == 'active' ? 'success' : 'muted' }}">{{ m.status }}</span></td>
+                    <td data-label="Created">{{ m.created_at|date("M d, Y") }}</td>
+                    <td data-label="Actions" class="op-nowrap">
                         <a href="/admin/brands/{{ m.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
                         {% if brand_list|length > 1 %}
                         <form method="POST" action="/admin/brands/{{ m.id }}/delete" class="op-inline-form" onsubmit="return confirm('⚠️ DELETE brand \'{{ m.name|e('js') }}\'? This removes ALL associated data (transactions, customers, gateways). This action is IRREVERSIBLE.')">

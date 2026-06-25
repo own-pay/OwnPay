@@ -5,7 +5,7 @@
 {% block head %}
     <link rel="stylesheet" href="/assets/css/pages/dashboard.css?v=025">
     {% if onboarding_completed == 0 %}
-        <link rel="stylesheet" href="/assets/css/pages/setup-wizard.css?v=015">
+        <link rel="stylesheet" href="/assets/css/pages/setup-wizard.css?v=016">
     {% endif %}
 {% endblock %}
 
@@ -121,13 +121,13 @@
                     <tbody>
                         {% for tx in dashboard.recent_tx %}
                         <tr>
-                            <td>
+                            <td data-label="Client">
                                 <div class="dash-td-client-name">{{ tx.name }}</div>
                                 <div class="dash-td-client-email">{{ tx.email }}</div>
                             </td>
-                            <td>{{ tx.description|default('Payment') }}</td>
-                            <td>{{ tx.amount }}</td>
-                            <td class="dash-td-align-right">{{ tx.time }}</td>
+                            <td data-label="Description">{{ tx.description|default('Payment') }}</td>
+                            <td data-label="Amount">{{ tx.amount }}</td>
+                            <td data-label="Date" class="dash-td-align-right">{{ tx.time }}</td>
                         </tr>
                         {% endfor %}
                     </tbody>

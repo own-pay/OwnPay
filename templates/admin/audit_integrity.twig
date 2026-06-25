@@ -49,12 +49,12 @@
                         <tbody>
                             {% for log in compromised %}
                                 <tr>
-                                    <td>#{{ log.id }}</td>
-                                    <td><strong class="op-text-danger">{{ log.action }}</strong></td>
-                                    <td>{{ log.user_id ?? 'System' }}</td>
-                                    <td>{{ log.ip_address ?? 'N/A' }}</td>
-                                    <td>{{ log.created_at }}</td>
-                                    <td><code class="op-text-muted">{{ log.signature|slice(0, 8) }}...</code></td>
+                                    <td data-label="Log ID">#{{ log.id }}</td>
+                                    <td data-label="Action"><strong class="op-text-danger">{{ log.action }}</strong></td>
+                                    <td data-label="Operator ID">{{ log.user_id ?? 'System' }}</td>
+                                    <td data-label="IP Address">{{ log.ip_address ?? 'N/A' }}</td>
+                                    <td data-label="Timestamp">{{ log.created_at }}</td>
+                                    <td data-label="Signature"><code class="op-text-muted">{{ log.signature|slice(0, 8) }}...</code></td>
                                 </tr>
                             {% endfor %}
                         </tbody>

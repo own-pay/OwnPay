@@ -66,9 +66,9 @@
                 <tbody>
                 {% for gw in gateways %}
                     <tr>
-                        <td><strong>{{ gw.name }}</strong></td>
-                        <td><code class="op-code-pill">{{ gw.url }}</code></td>
-                        <td class="op-text-right"><button type="button" class="op-btn op-btn-xs op-btn-outline" data-copy="{{ gw.url }}">Copy</button></td>
+                        <td data-label="Gateway"><strong>{{ gw.name }}</strong></td>
+                        <td data-label="Webhook URL"><code class="op-code-pill">{{ gw.url }}</code></td>
+                        <td data-label="Action" class="op-text-right"><button type="button" class="op-btn op-btn-xs op-btn-outline" data-copy="{{ gw.url }}">Copy</button></td>
                     </tr>
                 {% endfor %}
                 </tbody>

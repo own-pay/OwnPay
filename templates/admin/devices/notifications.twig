@@ -60,18 +60,18 @@
                 <tbody>
                     {% for notification in notifications %}
                     <tr>
-                        <td><code class="op-text-xs" style="font-size: 11px;">{{ notification.device_uuid }}</code></td>
-                        <td><span class="op-badge op-badge-outline">{{ notification.type }}</span></td>
-                        <td><strong>{{ notification.title }}</strong></td>
-                        <td class="op-text-sm">{{ notification.body|default('—') }}</td>
-                        <td>
+                        <td data-label="Device UUID"><code class="op-text-xs" style="font-size: 11px;">{{ notification.device_uuid }}</code></td>
+                        <td data-label="Type"><span class="op-badge op-badge-outline">{{ notification.type }}</span></td>
+                        <td data-label="Title"><strong>{{ notification.title }}</strong></td>
+                        <td data-label="Body" class="op-text-sm">{{ notification.body|default('—') }}</td>
+                        <td data-label="Read Status">
                             {% if notification.is_read %}
                                 <span class="op-badge op-badge-success" title="Read at: {{ notification.read_at }}">Read</span>
                             {% else %}
                                 <span class="op-badge op-badge-warning">Sent (Unread)</span>
                             {% endif %}
                         </td>
-                        <td class="op-text-muted op-text-sm">{{ notification.created_at|date("M d, Y H:i:s") }}</td>
+                        <td data-label="Sent At" class="op-text-muted op-text-sm">{{ notification.created_at|date("M d, Y H:i:s") }}</td>
                     </tr>
                     {% else %}
                     <tr>

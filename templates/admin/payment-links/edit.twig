@@ -45,7 +45,24 @@
                 </div>
                 <div class="op-form-group">
                     <label>Expires At</label>
-                    <input type="datetime-local" name="expires_at" value="{{ link.expires_at ?? '' }}" class="op-input">
+                    <div class="op-date-picker">
+                        <input type="hidden" name="expires_at" value="{{ link.expires_at ?? '' }}">
+                        <div class="op-date-picker-group">
+                            <input type="text" class="op-date-picker-input" placeholder="Select expiry date" value="{{ link.expires_at ?? '' }}" readonly>
+                            <button type="button" class="op-date-picker-trigger" aria-label="Pick date">
+                                <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+                            </button>
+                        </div>
+                        <div class="op-calendar-popover">
+                            <div class="op-calendar-header">
+                                <button type="button" class="op-calendar-nav-btn op-calendar-prev"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+                                <div class="op-calendar-heading"></div>
+                                <button type="button" class="op-calendar-nav-btn op-calendar-next"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+                            </div>
+                            <div class="op-calendar-grid-header"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+                            <div class="op-calendar-grid-body"></div>
+                        </div>
+                    </div>
                 </div>
                 <div class="op-form-group">
                     <label class="op-checkbox-label">

@@ -30,20 +30,20 @@
             <tbody>
             {% for role in roles %}
                 <tr>
-                    <td><strong>{{ role.name }}</strong></td>
-                    <td><code class="op-text-xs">{{ role.slug }}</code></td>
-                    <td class="op-text-muted">{{ role.description|default('—') }}</td>
-                    <td>
+                    <td data-label="Role"><strong>{{ role.name }}</strong></td>
+                    <td data-label="Slug"><code class="op-text-xs">{{ role.slug }}</code></td>
+                    <td data-label="Description" class="op-text-muted">{{ role.description|default('—') }}</td>
+                    <td data-label="Permissions">
                         <span class="op-badge op-badge-info">{{ role.permission_count }} permissions</span>
                     </td>
-                    <td>
+                    <td data-label="Type">
                         {% if role.is_system %}
                             <span class="op-badge op-badge-warning">System</span>
                         {% else %}
                             <span class="op-badge op-badge-muted">Custom</span>
                         {% endif %}
                     </td>
-                    <td class="op-actions">
+                    <td data-label="Actions" class="op-actions">
                         <button class="op-btn op-btn-sm op-btn-outline btn-edit-role"
                                 data-role="{{ role|json_encode|e('html_attr') }}">
                             Edit

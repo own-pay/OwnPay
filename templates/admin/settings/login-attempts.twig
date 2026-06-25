@@ -32,22 +32,22 @@
                 <tbody>
                     {% for attempt in attempts %}
                     <tr>
-                        <td class="op-text-sm op-text-muted" style="white-space:nowrap">
+                        <td data-label="Time" class="op-text-sm op-text-muted" style="white-space:nowrap">
                             {{ attempt.created_at ? attempt.created_at|date('M d, Y H:i:s') : '—' }}
                         </td>
-                        <td><strong>{{ attempt.email }}</strong></td>
-                        <td class="op-text-sm">{{ attempt.ip_address }}</td>
-                        <td>
+                        <td data-label="Email"><strong>{{ attempt.email }}</strong></td>
+                        <td data-label="IP Address" class="op-text-sm">{{ attempt.ip_address }}</td>
+                        <td data-label="Status">
                             {% if attempt.success %}
                             <span class="op-badge op-badge-success">Success</span>
                             {% else %}
                             <span class="op-badge op-badge-danger">Failed</span>
                             {% endif %}
                         </td>
-                        <td class="op-text-sm op-text-muted" style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="{{ attempt.user_agent }}">
+                        <td data-label="User Agent" class="op-text-sm op-text-muted" style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="{{ attempt.user_agent }}">
                             {{ attempt.user_agent ?? '—' }}
                         </td>
-                        <td class="op-text-right">
+                        <td data-label="Actions" class="op-text-right">
                             {% if not attempt.success %}
                             <div class="op-btn-group" style="display:inline-flex; gap:4px;">
                                 <form method="POST" action="/admin/login-attempts/unlock" style="display:inline;" onsubmit="return confirm('Clear lockout and unlock login attempts for this Email?');">

@@ -34,10 +34,10 @@
                 <tbody>
                     {% for txn in transactions %}
                     <tr>
-                        <td><code>{{ txn.id }}</code></td>
-                        <td>{{ txn.currency }} {{ txn.amount }}</td>
-                        <td><span class="op-badge op-badge-{{ txn.status }}">{{ txn.status|capitalize }}</span></td>
-                        <td>{{ txn.created_at|date("M d, Y H:i") }}</td>
+                        <td data-label="Txn ID"><code>{{ txn.id }}</code></td>
+                        <td data-label="Amount">{{ txn.currency }} {{ txn.amount }}</td>
+                        <td data-label="Status"><span class="op-badge op-badge-{{ txn.status }}">{{ txn.status|capitalize }}</span></td>
+                        <td data-label="Date">{{ txn.created_at|date("M d, Y H:i") }}</td>
                     </tr>
                     {% else %}
                     <tr><td colspan="4" class="op-text-center">No transactions found.</td></tr>

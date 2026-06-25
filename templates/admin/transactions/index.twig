@@ -38,7 +38,7 @@
             <input type="hidden" name="status" value="{{ filters.status|default('') }}">
             <div class="op-filter-field">
                 <div class="op-filter-search-wrap">
-                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     <input type="search" name="q" value="{{ filters.q|default('') }}" placeholder="TrxID, amount…" class="op-input op-input-sm op-search-input">
                 </div>
             </div>
@@ -138,7 +138,7 @@
                 <tbody>
                     {% for txn in transactions %}
                     <tr>
-                        <td>
+                        <td data-label="TRX">
                             <div style="display: flex; align-items: center; gap: 4px;">
                                 <code class="op-trx-id">{{ txn.trx_id }}</code>
                                 <button type="button" class="op-btn-ghost op-copy-btn" data-copy="{{ txn.trx_id }}" title="Copy TRX ID" style="flex-shrink: 0;">
@@ -146,16 +146,16 @@
                                 </button>
                             </div>
                         </td>
-                        <td>{{ txn.customer_name|default('—') }}</td>
-                        <td><strong>{{ txn.currency }} {{ txn.amount }}</strong></td>
-                        <td><span class="op-badge op-badge-outline">{{ txn.gateway_name }}</span></td>
-                        <td>
+                        <td data-label="Customer">{{ txn.customer_name|default('—') }}</td>
+                        <td data-label="Amount"><strong>{{ txn.currency }} {{ txn.amount }}</strong></td>
+                        <td data-label="Gateway"><span class="op-badge op-badge-outline">{{ txn.gateway_name }}</span></td>
+                        <td data-label="Status">
                             <span class="op-badge op-badge-{{ txn.status == 'completed' ? 'success' : (txn.status == 'pending' ? 'warning' : (txn.status == 'refunded' ? 'info' : 'danger')) }}">
                                 {{ txn.status|capitalize }}
                             </span>
                         </td>
-                        <td class="op-text-muted op-text-sm">{{ txn.created_at|date("M d, Y H:i") }}</td>
-                        <td>
+                        <td data-label="Date" class="op-text-muted op-text-sm">{{ txn.created_at|date("M d, Y H:i") }}</td>
+                        <td data-label="Action">
                             <a href="/admin/transactions/{{ txn.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
                         </td>
                     </tr>

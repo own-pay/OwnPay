@@ -31,19 +31,19 @@
                 <tbody>
                     {% for dispute in disputes %}
                     <tr>
-                        <td><strong>#{{ dispute.id }}</strong></td>
-                        <td>
+                        <td data-label="ID"><strong>#{{ dispute.id }}</strong></td>
+                        <td data-label="Txn ID">
                             <a href="/admin/transactions/{{ dispute.transaction_id }}" class="op-link">
                                 <code class="op-trx-id">Txn #{{ dispute.transaction_id }}</code>
                             </a>
                         </td>
-                        <td>
+                        <td data-label="Reason">
                             <span class="op-text-bold">{{ dispute.reason|capitalize }}</span>
                         </td>
-                        <td>
+                        <td data-label="Amount">
                             <strong>{{ dispute.amount }}</strong>
                         </td>
-                        <td>
+                        <td data-label="Status">
                             {% set status = dispute.status|lower %}
                             <span class="op-badge op-badge-{{ status == 'won' ? 'success' : (status == 'lost' ? 'danger' : (status == 'closed' ? 'secondary' : 'warning')) }}">
                                 {% if status == 'won' or status == 'lost' or status == 'closed' %}
@@ -53,11 +53,11 @@
                                 {% endif %}
                             </span>
                         </td>
-                        <td class="op-text-muted op-text-sm">
+                        <td data-label="Date" class="op-text-muted op-text-sm">
                             {{ dispute.created_at|date("M d, Y H:i") }}
                         </td>
-                        <td>
-                            <a href="/admin/disputes/{{ dispute.id }}" class="op-btn op-btn-xs op-btn-primary">
+                        <td data-label="Actions">
+                            <a href="/admin/disputes/{{ dispute.id }}" class="op-btn op-btn-xs op-btn-outline">
                                 Manage
                             </a>
                         </td>

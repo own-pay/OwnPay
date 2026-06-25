@@ -15,12 +15,12 @@
             <tbody>
                 {% for inv in invoices %}
                 <tr>
-                    <td><code>{{ inv.invoice_number }}</code></td>
-                    <td>{{ inv.customer_name ?? '—' }}</td>
-                    <td><strong>{{ inv.currency }} {{ inv.total }}</strong></td>
-                    <td><span class="op-badge op-badge-{{ inv.status == 'paid' ? 'success' : (inv.status == 'overdue' ? 'danger' : 'warning') }}">{{ inv.status }}</span></td>
-                    <td>{{ inv.due_date }}</td>
-                    <td>
+                    <td data-label="#"><code>{{ inv.invoice_number }}</code></td>
+                    <td data-label="Customer">{{ inv.customer_name ?? '—' }}</td>
+                    <td data-label="Amount"><strong>{{ inv.currency }} {{ inv.total }}</strong></td>
+                    <td data-label="Status"><span class="op-badge op-badge-{{ inv.status == 'paid' ? 'success' : (inv.status == 'overdue' ? 'danger' : 'warning') }}">{{ inv.status }}</span></td>
+                    <td data-label="Due Date">{{ inv.due_date }}</td>
+                    <td data-label="Actions">
                         <a href="/admin/invoices/{{ inv.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
                         <a href="/admin/invoices/{{ inv.id }}/pdf" target="_blank" rel="noopener" class="op-btn op-btn-xs op-btn-outline">Print</a>
                         <button data-copy="{{ base_url }}/invoice/{{ inv.token }}" class="op-btn op-btn-xs op-btn-outline">Copy Link</button>

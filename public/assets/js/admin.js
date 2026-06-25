@@ -344,7 +344,14 @@
                     currentViewDate = new Date(selectedDate.getFullYear(), selectedDate.getMonth(), 1);
                 }
                 popover.classList.toggle("active");
-                if (popover.classList.contains("active")) { renderCalendar(); }
+                if (popover.classList.contains("active")) {
+                    renderCalendar();
+                    popover.classList.remove("flip-up");
+                    var rect = popover.getBoundingClientRect();
+                    if (rect.bottom > window.innerHeight - 16) {
+                        popover.classList.add("flip-up");
+                    }
+                }
             }
 
             inputEl.addEventListener("click", togglePopover);

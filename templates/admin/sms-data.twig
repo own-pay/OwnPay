@@ -30,13 +30,13 @@
             <tbody>
                 {% for sms in sms_data %}
                 <tr>
-                    <td>{{ sms.sender }}</td>
-                    <td>{{ sms.amount ?? '—' }}</td>
-                    <td><code>{{ sms.trx_id ?? '—' }}</code></td>
-                    <td>{{ sms.gateway_slug ?? '—' }}</td>
-                    <td><span class="op-badge op-badge-{{ sms.match_status == 'matched' ? 'success' : (sms.match_status == 'pending' ? 'warning' : 'muted') }}">{{ sms.match_status ?? '—' }}</span></td>
-                    <td class="op-text-sm">{{ sms.body ?? '—' }}</td>
-                    <td>{{ sms.received_at is defined and sms.received_at ? sms.received_at|date("M d, H:i") : '—' }}</td>
+                    <td data-label="Sender">{{ sms.sender }}</td>
+                    <td data-label="Amount">{{ sms.amount ?? '—' }}</td>
+                    <td data-label="TRX ID"><code>{{ sms.trx_id ?? '—' }}</code></td>
+                    <td data-label="Gateway">{{ sms.gateway_slug ?? '—' }}</td>
+                    <td data-label="Status"><span class="op-badge op-badge-{{ sms.match_status == 'matched' ? 'success' : (sms.match_status == 'pending' ? 'warning' : 'muted') }}">{{ sms.match_status ?? '—' }}</span></td>
+                    <td data-label="Message" class="op-text-sm">{{ sms.body ?? '—' }}</td>
+                    <td data-label="Received">{{ sms.received_at is defined and sms.received_at ? sms.received_at|date("M d, H:i") : '—' }}</td>
                 </tr>
                 {% else %}
                 <tr><td colspan="7" class="op-text-center op-text-muted">No parsed SMS data found.</td></tr>

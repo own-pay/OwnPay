@@ -167,15 +167,15 @@
             <tbody>
                 {% for gw in report.by_gateway %}
                 <tr>
-                    <td>
+                    <td data-label="Gateway">
                         <div class="op-gateway-name">
                             <span class="op-gateway-dot" style="background:var(--op-primary)"></span>
                             <strong>{{ gw.name }}</strong>
                         </div>
                     </td>
-                    <td class="op-text-right">{{ gw.count }}</td>
-                    <td class="op-text-right"><strong>{{ gw.revenue }}</strong></td>
-                    <td class="op-text-right op-text-muted">{{ gw.fees }}</td>
+                    <td data-label="Transactions" class="op-text-right">{{ gw.count }}</td>
+                    <td data-label="Revenue" class="op-text-right"><strong>{{ gw.revenue }}</strong></td>
+                    <td data-label="Fees" class="op-text-right op-text-muted">{{ gw.fees }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

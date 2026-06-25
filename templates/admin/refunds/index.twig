@@ -36,7 +36,7 @@
             <input type="hidden" name="status" value="{{ filters.status|default('') }}">
             <div class="op-filter-field op-flex-1">
                 <div class="op-filter-search-wrap">
-                    <svg width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
                     <input type="search" name="q" value="{{ filters.q|default('') }}" placeholder="Search reason or refund UUID…" class="op-input op-input-sm op-search-input">
                 </div>
             </div>
@@ -70,31 +70,31 @@
                 <tbody>
                     {% for ref in refunds %}
                     <tr>
-                        <td>
+                        <td data-label="Refund ID">
                             <span class="op-text-monospace op-text-sm" title="{{ ref.uuid }}">
                                 {{ ref.uuid|slice(0, 8) }}...
                             </span>
                         </td>
-                        <td>
+                        <td data-label="Transaction">
                             <a href="/admin/transactions/{{ ref.transaction_id }}" class="op-btn op-btn-xs op-btn-outline op-text-monospace">
                                 View Trx #{{ ref.transaction_id }}
                             </a>
                         </td>
-                        <td>
+                        <td data-label="Amount">
                             <strong class="op-text-danger">- {{ ref.amount }}</strong>
                         </td>
-                        <td>
+                        <td data-label="Reason">
                             <span class="op-text-sm op-text-muted">{{ ref.reason|default('—') }}</span>
                         </td>
-                        <td>
+                        <td data-label="Status">
                             <span class="op-badge op-badge-{{ ref.status == 'completed' ? 'success' : (ref.status == 'pending' ? 'warning' : 'danger') }}">
                                 {{ ref.status|capitalize }}
                             </span>
                         </td>
-                        <td class="op-text-muted op-text-sm">
+                        <td data-label="Processed" class="op-text-muted op-text-sm">
                             {{ ref.processed_at ? ref.processed_at|date("M d, Y H:i") : '—' }}
                         </td>
-                        <td class="op-text-muted op-text-sm">
+                        <td data-label="Date" class="op-text-muted op-text-sm">
                             {{ ref.created_at|date("M d, Y H:i") }}
                         </td>
                     </tr>

@@ -87,10 +87,10 @@
             <tbody>
                 {% for sms in sms_data %}
                 <tr>
-                    <td>{{ sms.sender }}</td>
-                    <td>{{ sms.parsed_amount ?? '—' }}</td>
-                    <td><code>{{ sms.parsed_trx_id ?? '—' }}</code></td>
-                    <td>{{ sms.received_at }}</td>
+                    <td data-label="From">{{ sms.sender }}</td>
+                    <td data-label="Amount">{{ sms.parsed_amount ?? '—' }}</td>
+                    <td data-label="TRX ID"><code>{{ sms.parsed_trx_id ?? '—' }}</code></td>
+                    <td data-label="Received">{{ sms.received_at }}</td>
                 </tr>
                 {% endfor %}
             </tbody>

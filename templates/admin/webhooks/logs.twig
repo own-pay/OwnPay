@@ -59,7 +59,7 @@
                 <div class="op-mt-4">
                     <form method="POST" action="/admin/webhooks/events/{{ event.id }}/replay">
                         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                        <button type="submit" class="op-btn op-btn-primary w-100">Force Replay/Redeliver Now</button>
+                        <button type="submit" class="op-btn op-btn-primary op-btn-block">Force Replay/Redeliver Now</button>
                     </form>
                 </div>
             {% endif %}
@@ -96,8 +96,8 @@
                 <tbody>
                     {% for log in logs %}
                         <tr>
-                            <td class="op-text-sm op-text-muted" style="white-space:nowrap">{{ log.created_at|date('M d, H:i:s') }}</td>
-                            <td>
+                            <td data-label="Time" class="op-text-sm op-text-muted" style="white-space:nowrap">{{ log.created_at|date('M d, H:i:s') }}</td>
+                            <td data-label="Status Code">
                                 {% if log.response_code >= 200 and log.response_code < 300 %}
                                     <span class="op-badge op-badge-success">HTTP {{ log.response_code }}</span>
                                 {% elseif log.response_code %}
@@ -106,14 +106,14 @@
                                     <span class="op-badge op-badge-danger">Failed</span>
                                 {% endif %}
                             </td>
-                            <td class="op-text-sm">
+                            <td data-label="Duration" class="op-text-sm">
                                 {{ log.duration_ms ? log.duration_ms ~ ' ms' : '—' }}
                             </td>
-                            <td>
+                            <td data-label="Response / Error">
                                 {% if log.error %}
                                     <span class="op-text-danger"><strong class="op-text-sm">Error:</strong> <code>{{ log.error }}</code></span>
                                 {% elseif log.response_body %}
-                                    <pre class="op-text-sm" style="margin:0; max-height:100px; overflow-y:auto; background:#1e1e24; padding:0.5rem; border-radius:4px; color:#a9b2c3"><code>{{ log.response_body }}</code></pre>
+                                    <pre class="op-code-block op-text-sm" style="margin:0; max-height:100px; overflow-y:auto;"><code>{{ log.response_body }}</code></pre>
                                 {% else %}
                                     <span class="op-text-muted">Empty response</span>
                                 {% endif %}

@@ -597,25 +597,25 @@
                         <tbody>
                             {% for cur in currencies %}
                             <tr class="currency-row" data-code="{{ cur.code }}" data-name="{{ cur.name }}">
-                                <td><strong>{{ cur.code }}</strong></td>
-                                <td>{{ cur.name }}</td>
-                                <td><code class="op-badge op-badge-outline">{{ cur.symbol }}</code></td>
-                                <td>{{ cur.decimal_places }}</td>
-                                <td>
+                                <td data-label="Code"><strong>{{ cur.code }}</strong></td>
+                                <td data-label="Name">{{ cur.name }}</td>
+                                <td data-label="Symbol"><code class="op-badge op-badge-outline">{{ cur.symbol }}</code></td>
+                                <td data-label="Decimals">{{ cur.decimal_places }}</td>
+                                <td data-label="Status">
                                     {% if cur.status == 'active' %}
                                     <span class="op-badge op-badge-success">Active</span>
                                     {% else %}
                                     <span class="op-badge op-badge-muted">Inactive</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="Rate">
                                     <div class="op-flex op-items-center op-gap-2">
                                         <input type="text" name="currencies[{{ cur.code }}][rate]" value="{{ cur.rate }}" class="op-input op-input-sm op-currency-rate-input" {% if (settings.exchange_rate_mode ?? 'auto') == 'auto' or is_brand_view %}readonly title="Exchange rates are read-only in brand settings or when Automatic mode is enabled."{% endif %}>
                                         <small class="op-text-muted">{{ base_currency ?? 'BDT' }}</small>
                                     </div>
                                 </td>
                                 {% if not is_brand_view %}
-                                <td>
+                                <td data-label="Actions">
                                     <button type="button" class="op-btn op-btn-xs btn-toggle-currency {{ cur.status == 'active' ? 'op-btn-danger' : 'op-btn-success' }}" data-code="{{ cur.code }}">
                                         {{ cur.status == 'active' ? 'Deactivate' : 'Activate' }}
                                     </button>
@@ -969,7 +969,7 @@
                         <tbody>
                         {% for d in domains %}
                             <tr>
-                                <td>
+                                <td data-label="Domain">
                                     <strong>{{ d.domain }}</strong>
                                     {% if d.status == 'active' or d.status == 'verified' %}
                                         <a href="https://{{ d.domain }}" target="_blank" class="op-link op-text-xs op-ml-1">↗ Visit</a>
@@ -978,15 +978,15 @@
                                         <br><small class="op-text-muted">Redirects to: <code>{{ d.redirect_url }}</code></small>
                                     {% endif %}
                                 </td>
-                                <td><span class="op-badge">{{ d.type|capitalize }}</span></td>
-                                <td>
+                                <td data-label="Type"><span class="op-badge">{{ d.type|capitalize }}</span></td>
+                                <td data-label="Primary">
                                     {% if d.is_primary %}
                                         <span class="op-badge op-badge-primary">★ Primary</span>
                                     {% else %}
                                         <button type="submit" form="primary-domain-form-{{ d.id }}" class="op-btn op-btn-xs op-btn-outline">Set Primary</button>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="SSL">
                                     {% if d.ssl_status == 'active' %}
                                         <span class="op-badge op-badge-success">✓ Active SSL</span>
                                     {% elseif d.ssl_status == 'pending' %}
@@ -997,7 +997,7 @@
                                         <span class="op-badge op-badge-secondary">None</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="TXT Token">
                                     {% if d.verification_token is defined and d.verification_token %}
                                     <div class="op-copy-row">
                                         <code class="op-text-xs" id="tok-{{ d.id }}">ownpay-verify={{ d.verification_token }}</code>
@@ -1007,7 +1007,7 @@
                                         <span class="op-text-muted op-text-xs">—</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="Status">
                                     {% if d.status == 'active' or d.status == 'verified' %}
                                         <span class="op-badge op-badge-success">✓ Active</span>
                                     {% elseif d.status == 'pending' %}
@@ -1016,7 +1016,7 @@
                                         <span class="op-badge op-badge-danger">{{ d.status|capitalize }}</span>
                                     {% endif %}
                                 </td>
-                                <td class="op-actions">
+                                <td data-label="Actions" class="op-actions">
                                     <div style="display: flex; gap: 4px;">
                                         {% if d.status != 'active' and d.status != 'verified' %}
                                         <button type="submit" form="verify-domain-form-{{ d.id }}" class="op-btn op-btn-sm op-btn-success">Verify DNS</button>
@@ -1226,16 +1226,16 @@
                     <tbody>
                         {% for job in cron_jobs %}
                         <tr>
-                            <td>
+                            <td data-label="Job Name">
                                 <div class="op-cron-job-name">{{ job.name }}</div>
                                 <div class="op-cron-job-desc">{{ job.description }}</div>
                             </td>
-                            <td>
+                            <td data-label="Schedule">
                                 <span class="op-badge op-badge-info op-cron-job-badge-info">
                                     ⏱ {{ job.schedule }}
                                 </span>
                             </td>
-                            <td>
+                            <td data-label="Last Run">
                                 {% if job.last_run == 'Never' %}
                                 <span class="op-badge op-badge-warning op-cron-job-badge-warn">
                                     <span class="op-status-dot op-status-dot-warning"></span>
@@ -1248,7 +1248,7 @@
                                 </span>
                                 {% endif %}
                             </td>
-                            <td class="op-text-right">
+                            <td data-label="Action" class="op-text-right">
                                 <button type="submit" form="cron-run-form-{{ job.name }}" class="op-btn op-btn-sm op-btn-primary op-btn-flex-center">
                                     <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
                                     Run Now
@@ -1307,23 +1307,23 @@
                         <tbody>
                             {% for lang in languages %}
                             <tr>
-                                <td><code>{{ lang.code }}</code></td>
-                                <td>{{ lang.name }}</td>
-                                <td>
+                                <td data-label="Code"><code>{{ lang.code }}</code></td>
+                                <td data-label="Name">{{ lang.name }}</td>
+                                <td data-label="Status">
                                     {% if lang.status == 'active' %}
                                         <span class="op-badge op-badge-success">Active</span>
                                     {% else %}
                                         <span class="op-badge op-badge-muted">Inactive</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="Default">
                                     {% if lang.is_default %}
                                         <span class="op-badge op-badge-primary">Default</span>
                                     {% else %}
                                         <span class="op-text-muted">—</span>
                                     {% endif %}
                                 </td>
-                                <td>
+                                <td data-label="Actions">
                                     <div class="op-flex op-gap-2">
                                         <a href="/admin/settings/language/{{ lang.code }}/translate" class="op-btn op-btn-sm op-btn-outline">Translate</a>
                                         {% if lang.code != 'en' %}
@@ -1610,8 +1610,8 @@
                                 <tbody>
                                     {% for qName, size in queue_driver_stats.sizes %}
                                     <tr>
-                                        <td><code>{{ qName }}</code></td>
-                                        <td><strong>{{ size }}</strong></td>
+                                        <td data-label="Queue Name"><code>{{ qName }}</code></td>
+                                        <td data-label="Pending Jobs"><strong>{{ size }}</strong></td>
                                     </tr>
                                     {% endfor %}
                                 </tbody>
@@ -1636,20 +1636,20 @@
                                 </thead>
                                 <tbody>
                                     <tr>
-                                        <td><span class="op-badge op-badge-warning">Pending</span></td>
-                                        <td><strong>{{ db_queue_stats.pending }}</strong></td>
+                                        <td data-label="Status"><span class="op-badge op-badge-warning">Pending</span></td>
+                                        <td data-label="Count"><strong>{{ db_queue_stats.pending }}</strong></td>
                                     </tr>
                                     <tr>
-                                        <td><span class="op-badge op-badge-info">Processing</span></td>
-                                        <td><strong>{{ db_queue_stats.processing }}</strong></td>
+                                        <td data-label="Status"><span class="op-badge op-badge-info">Processing</span></td>
+                                        <td data-label="Count"><strong>{{ db_queue_stats.processing }}</strong></td>
                                     </tr>
                                     <tr>
-                                        <td><span class="op-badge op-badge-success">Completed</span></td>
-                                        <td><strong>{{ db_queue_stats.completed }}</strong></td>
+                                        <td data-label="Status"><span class="op-badge op-badge-success">Completed</span></td>
+                                        <td data-label="Count"><strong>{{ db_queue_stats.completed }}</strong></td>
                                     </tr>
                                     <tr>
-                                        <td><span class="op-badge op-badge-danger">Failed</span></td>
-                                        <td><strong>{{ db_queue_stats.failed }}</strong></td>
+                                        <td data-label="Status"><span class="op-badge op-badge-danger">Failed</span></td>
+                                        <td data-label="Count"><strong>{{ db_queue_stats.failed }}</strong></td>
                                     </tr>
                                 </tbody>
                             </table>

@@ -59,7 +59,7 @@
                 <tbody>
                     {% for c in customers %}
                     <tr>
-                        <td>
+                        <td data-label="Customer">
                             <a href="/admin/customers/{{ c.id }}" class="op-customer-link">
                                 <span class="op-avatar-sm">{{ c.name|slice(0, 1)|upper }}</span>
                                 <div>
@@ -68,14 +68,14 @@
                                 </div>
                             </a>
                         </td>
-                        <td>{{ c.email|default('—') }}</td>
-                        <td>{{ c.phone|default('—') }}</td>
-                        <td>
+                        <td data-label="Email">{{ c.email|default('—') }}</td>
+                        <td data-label="Phone">{{ c.phone|default('—') }}</td>
+                        <td data-label="Txns">
                             <span class="op-badge op-badge-outline">{{ c.txn_count|default(0) }}</span>
                         </td>
-                        <td><strong>{{ c.currency|default('BDT') }} {{ c.total_spent|default('0.00') }}</strong></td>
-                        <td class="op-text-muted">{{ c.created_at|date("M d, Y") }}</td>
-                        <td class="op-nowrap">
+                        <td data-label="Spent"><strong>{{ c.currency|default('BDT') }} {{ c.total_spent|default('0.00') }}</strong></td>
+                        <td data-label="Joined" class="op-text-muted">{{ c.created_at|date("M d, Y") }}</td>
+                        <td data-label="Actions" class="op-nowrap">
                             <a href="/admin/customers/{{ c.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
                             <form method="POST" action="/admin/customers/{{ c.id }}/delete" class="op-inline-form"
                                   onsubmit="return confirm('Delete customer {{ c.name|e('js') }}? This cannot be undone.')">

@@ -269,8 +269,10 @@ final class TransactionRepository extends BaseRepository
             $params['gw'] = $filters['gateway'];
         }
         if (!empty($filters['q'])) {
-            $where .= " AND (trx_id LIKE :q OR customer_id LIKE :q OR reference LIKE :q)";
-            $params['q'] = '%' . $filters['q'] . '%';
+            $where .= " AND (trx_id LIKE :q1 OR customer_id LIKE :q2 OR reference LIKE :q3)";
+            $params['q1'] = '%' . $filters['q'] . '%';
+            $params['q2'] = '%' . $filters['q'] . '%';
+            $params['q3'] = '%' . $filters['q'] . '%';
         }
         if (!empty($filters['date_from'])) {
             $where .= " AND created_at >= :date_from";
@@ -340,8 +342,10 @@ final class TransactionRepository extends BaseRepository
             $params['gw'] = $filters['gateway'];
         }
         if (!empty($filters['q'])) {
-            $where .= " AND (t.trx_id LIKE :q OR t.customer_id LIKE :q OR t.reference LIKE :q)";
-            $params['q'] = '%' . $filters['q'] . '%';
+            $where .= " AND (t.trx_id LIKE :q1 OR t.customer_id LIKE :q2 OR t.reference LIKE :q3)";
+            $params['q1'] = '%' . $filters['q'] . '%';
+            $params['q2'] = '%' . $filters['q'] . '%';
+            $params['q3'] = '%' . $filters['q'] . '%';
         }
         if (!empty($filters['date_from'])) {
             $where .= " AND t.created_at >= :date_from";

@@ -9,14 +9,14 @@
 </div>
 
 <div class="op-filter-bar op-mb-4">
-    <form method="GET" action="/admin/payment-intents" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%;">
+    <form method="GET" action="/admin/payment-intents" class="op-filter-bar">
         <div class="op-form-group op-flex-grow op-mb-0">
             <input type="text" name="q" class="op-input" placeholder="Search by UUID, description, currency..." value="{{ filters.q }}">
         </div>
-        <div class="op-form-group op-mb-0" style="min-width: 180px;">
+        <div class="op-form-group op-mb-0 op-mw-200">
             <div class="op-custom-dropdown" data-auto-submit>
                 <input type="hidden" name="status" value="{{ filters.status }}">
-                <button type="button" class="op-custom-dropdown-btn" style="width:100%">
+                <button type="button" class="op-custom-dropdown-btn op-w-full">
                     <span class="op-custom-dropdown-label">{{ filters.status ? filters.status|capitalize : 'All Statuses' }}</span>
                     <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
                 </button>
@@ -59,17 +59,17 @@
                 <tbody>
                     {% for intent in payment_intents %}
                     <tr>
-                        <td><code class="op-trx-id" style="font-size: 11px;">{{ intent.uuid }}</code></td>
-                        <td>{{ intent.description|default('—') }}</td>
-                        <td><strong>{{ intent.currency }} {{ intent.amount }}</strong></td>
-                        <td>
+                        <td data-label="UUID"><code class="op-trx-id" style="font-size: 11px;">{{ intent.uuid }}</code></td>
+                        <td data-label="Description">{{ intent.description|default('—') }}</td>
+                        <td data-label="Amount"><strong>{{ intent.currency }} {{ intent.amount }}</strong></td>
+                        <td data-label="Status">
                             <span class="op-badge op-badge-{{ intent.status == 'completed' ? 'success' : (intent.status == 'pending' ? 'warning' : (intent.status == 'processing' ? 'info' : 'danger')) }}">
                                 {{ intent.status|capitalize }}
                             </span>
                         </td>
-                        <td class="op-text-sm">{{ intent.expires_at ? intent.expires_at|date("M d, Y H:i") : '—' }}</td>
-                        <td class="op-text-muted op-text-sm">{{ intent.created_at|date("M d, Y H:i") }}</td>
-                        <td>
+                        <td data-label="Expires" class="op-text-sm">{{ intent.expires_at ? intent.expires_at|date("M d, Y H:i") : '—' }}</td>
+                        <td data-label="Created" class="op-text-muted op-text-sm">{{ intent.created_at|date("M d, Y H:i") }}</td>
+                        <td data-label="Actions">
                             <a href="/admin/payment-intents/{{ intent.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
                         </td>
                     </tr>
