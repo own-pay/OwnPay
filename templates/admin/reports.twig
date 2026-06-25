@@ -3,12 +3,12 @@
 {% block content %}
 <div class="op-page-header">
     <div>
-        <h1>📊 Reports</h1>
+        <h1>Reports</h1>
         <p class="op-page-subtitle">Analyze transaction volume, payment channel performance, and currency distribution.</p>
     </div>
     <div class="op-header-actions">
         <a href="/admin/reports/export?{{ query_string }}" class="op-btn op-btn-outline">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-mr-1"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>Export CSV
         </a>
     </div>
 </div>
@@ -64,7 +64,7 @@
                     <label class="op-text-sm op-text-muted">Gateway</label>
                     <div class="op-custom-dropdown" data-auto-submit>
                         <input type="hidden" name="gateway" value="{{ filters.gateway ?? '' }}">
-                        <button type="button" class="op-custom-dropdown-btn" style="width:100%">
+                        <button type="button" class="op-custom-dropdown-btn op-w-full">
                             <span class="op-custom-dropdown-label">{{ filters.gateway ?? '' ? gateways|filter(g => g.slug == filters.gateway)|first.name : 'All Gateways' }}</span>
                             <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
                         </button>
@@ -77,8 +77,8 @@
                     </div>
                 </div>
                 <div class="op-form-group op-col-3">
-                    <button type="submit" class="op-btn op-btn-primary" style="width:100%">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align:-2px;margin-right:4px"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Generate Report
+                    <button type="submit" class="op-btn op-btn-primary op-btn-block">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-mr-1"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>Generate Report
                     </button>
                 </div>
             </div>
@@ -89,8 +89,8 @@
 {# ── Stats Grid ──────────────────────────────────────────── #}
 <div class="op-stats-grid op-mb-4">
     <div class="op-stat-card op-stat-primary">
-        <div class="op-stat-icon" style="background:linear-gradient(135deg,#6366f1,#8b5cf6)">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
+        <div class="op-stat-icon op-stat-grad-primary">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="12" y1="1" x2="12" y2="23"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
         </div>
         <div class="op-stat-content">
             <span class="op-stat-value">{{ report.total_revenue ?? '0.00' }}</span>
@@ -98,8 +98,8 @@
         </div>
     </div>
     <div class="op-stat-card op-stat-success">
-        <div class="op-stat-icon" style="background:linear-gradient(135deg,#22c55e,#16a34a)">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+        <div class="op-stat-icon op-stat-grad-success">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
         </div>
         <div class="op-stat-content">
             <span class="op-stat-value">{{ report.total_transactions ?? 0 }}</span>
@@ -107,8 +107,8 @@
         </div>
     </div>
     <div class="op-stat-card op-stat-info">
-        <div class="op-stat-icon" style="background:linear-gradient(135deg,#3b82f6,#2563eb)">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
+        <div class="op-stat-icon op-stat-grad-info">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 20V10"/><path d="M12 20V4"/><path d="M6 20v-6"/></svg>
         </div>
         <div class="op-stat-content">
             <span class="op-stat-value">{{ report.avg_transaction ?? '0.00' }}</span>
@@ -116,8 +116,8 @@
         </div>
     </div>
     <div class="op-stat-card op-stat-warning">
-        <div class="op-stat-icon" style="background:linear-gradient(135deg,#f59e0b,#d97706)">
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+        <div class="op-stat-icon op-stat-grad-warning">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
         </div>
         <div class="op-stat-content">
             <span class="op-stat-value">{{ report.total_fees ?? '0.00' }}</span>

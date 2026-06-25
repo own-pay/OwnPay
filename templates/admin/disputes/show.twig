@@ -48,16 +48,16 @@
                     <dd class="op-text-muted">
                         {% if dispute.evidence is iterable %}
                             {% if dispute.evidence.notes is not empty %}
-                                <div style="margin-bottom: 8px;"><strong>Notes:</strong> {{ dispute.evidence.notes }}</div>
+                                <div class="op-mb-2"><strong>Notes:</strong> {{ dispute.evidence.notes }}</div>
                             {% endif %}
                             {% if dispute.evidence.shipping_carrier is not empty %}
-                                <div style="margin-bottom: 8px;"><strong>Shipping Carrier:</strong> {{ dispute.evidence.shipping_carrier }}</div>
+                                <div class="op-mb-2"><strong>Shipping Carrier:</strong> {{ dispute.evidence.shipping_carrier }}</div>
                             {% endif %}
                             {% if dispute.evidence.tracking_number is not empty %}
-                                <div style="margin-bottom: 8px;"><strong>Tracking Number:</strong> {{ dispute.evidence.tracking_number }}</div>
+                                <div class="op-mb-2"><strong>Tracking Number:</strong> {{ dispute.evidence.tracking_number }}</div>
                             {% endif %}
                             {% if dispute.evidence.file_path is not empty %}
-                                <div style="margin-bottom: 8px;"><strong>Evidence File:</strong> <a href="{{ dispute.evidence.file_path }}" target="_blank" class="op-link" style="text-decoration: underline;">{{ dispute.evidence.file_path|split('/')|last }}</a></div>
+                                <div class="op-mb-2"><strong>Evidence File:</strong> <a href="{{ dispute.evidence.file_path }}" target="_blank" class="op-link op-text-decoration-underline">{{ dispute.evidence.file_path|split('/')|last }}</a></div>
                             {% endif %}
                         {% else %}
                             <div style="white-space: pre-wrap;">{{ dispute.evidence }}</div>
@@ -78,7 +78,7 @@
                 <dl class="op-detail-list">
                     <dt>TRX ID</dt>
                     <dd>
-                        <a href="/admin/transactions/{{ transaction.id }}" class="op-link" style="font-family: monospace;">
+                        <a href="/admin/transactions/{{ transaction.id }}" class="op-link op-font-mono">
                             {{ transaction.trx_id }}
                         </a>
                     </dd>
@@ -106,7 +106,7 @@
                     <dd>{{ transaction.created_at|date("M d, Y H:i:s") }}</dd>
                 </dl>
             {% else %}
-                <div class="op-empty-state" style="padding: 20px;">
+                <div class="op-empty-state">
                     <p class="op-text-danger">Linked transaction (ID: {{ dispute.transaction_id }}) could not be resolved or was deleted.</p>
                 </div>
             {% endif %}
@@ -121,11 +121,11 @@
     </div>
     <div class="op-card-body">
         {% if status == 'won' or status == 'lost' or status == 'closed' %}
-            <div class="op-alert op-alert-success" style="margin-bottom: 0;">
+            <div class="op-alert op-alert-success op-mb-0">
                 <strong>Verdict Finalized:</strong> This dispute has been resolved as <strong>{{ status|upper }}</strong>. The record is now locked for audit trail integrity.
             </div>
         {% else %}
-            <form method="POST" action="/admin/disputes/{{ dispute.id }}/resolve" enctype="multipart/form-data" class="op-settings-form" style="padding: 0;">
+            <form method="POST" action="/admin/disputes/{{ dispute.id }}/resolve" enctype="multipart/form-data" class="op-settings-form">
                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 
                 <div class="op-form-group">
@@ -156,7 +156,7 @@
 
                 <div class="op-form-group">
                     <label for="resolution">Evidence & Resolution Notes</label>
-                    <textarea name="resolution" id="resolution" class="op-input" rows="5" placeholder="Provide additional communication transcripts, shipping details, or reasons justifying this verdict..." style="resize: vertical;"></textarea>
+                    <textarea name="resolution" id="resolution" class="op-input op-resize-vertical" rows="5" placeholder="Provide additional communication transcripts, shipping details, or reasons justifying this verdict..."></textarea>
                     <small>These notes and files will be recorded timing-safely in the secure dispute ledger database and system audit log.</small>
                 </div>
 

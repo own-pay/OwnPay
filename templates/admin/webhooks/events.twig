@@ -9,8 +9,8 @@
 </div>
 
 <div class="op-card">
-    <div class="op-card-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-        <h3 style="margin: 0;">Merchant Event Delivery Queue (DLQ)</h3>
+    <div class="op-card-header op-flex-col op-items-start op-gap-4">
+        <h3 class="op-mb-0">Merchant Event Delivery Queue (DLQ)</h3>
         <span class="op-text-muted op-text-sm">This queue sends transaction updates (like payments) to your merchants' websites. If a merchant's site goes offline, the system automatically saves the message and retries sending it later so that transaction details are never lost.</span>
     </div>
     <div class="op-card-body op-p-0">
@@ -61,11 +61,11 @@
                                 {% endif %}
                             </td>
                             <td class="op-text-right">
-                                <div class="op-btn-group" style="display: inline-flex; gap: 4px; justify-content: flex-end;">
+                                <div class="op-btn-group">
                                     <a href="/admin/webhooks/events/{{ event.id }}/logs" class="op-btn op-btn-xs op-btn-secondary">Logs</a>
                                     
                                     {% if event.status == 'failed' %}
-                                        <form method="POST" action="/admin/webhooks/events/{{ event.id }}/replay" style="margin:0">
+                                        <form method="POST" action="/admin/webhooks/events/{{ event.id }}/replay" class="op-inline-form">
                                             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                             <button type="submit" class="op-btn op-btn-xs op-btn-primary">Replay</button>
                                         </form>
@@ -94,8 +94,8 @@
 
 {# ── Webhook Deliveries ────────────────────────────────────────── #}
 <div class="op-card op-mt-4">
-    <div class="op-card-header" style="flex-direction: column; align-items: flex-start; gap: 4px;">
-        <h3 style="margin: 0;">Gateway &amp; Integration Traffic Logs</h3>
+    <div class="op-card-header op-flex-col op-items-start op-gap-4">
+        <h3 class="op-mb-0">Gateway &amp; Integration Traffic Logs</h3>
         <span class="op-text-muted op-text-sm">This logs all webhook traffic moving in and out of the platform, including payment updates from gateways (inbound) and notifications sent to merchants (outbound). It is important for checking network response times and debugging connections.</span>
     </div>
     <div class="op-card-body op-p-0">
@@ -135,7 +135,7 @@
                     </tr>
                     {% else %}
                     <tr>
-                        <td colspan="8" class="op-text-center op-text-muted op-py-8" style="text-align: center; padding: 32px 0;">No webhook delivery logs recorded.</td>
+                        <td colspan="8" class="op-empty">No webhook delivery logs recorded.</td>
                     </tr>
                     {% endfor %}
                 </tbody>

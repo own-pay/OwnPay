@@ -18,6 +18,7 @@
         <h3>Processing Fee Rules</h3>
     </div>
     <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
         <table class="op-table">
             <thead>
                 <tr>
@@ -91,20 +92,21 @@
             {% endfor %}
             </tbody>
         </table>
+        </div>
     </div>
 </div>
 
 {% if pagination.total_pages > 1 %}
-<div class="op-pagination op-mt-4">
+<nav class="op-pagination op-mt-4">
     {% if pagination.page > 1 %}
-        <a href="/admin/fee-rules?page={{ pagination.page - 1 }}" class="op-btn op-btn-sm op-btn-outline">← Previous</a>
+        <a href="/admin/fee-rules?page={{ pagination.page - 1 }}" class="op-page-link">← Previous</a>
     {% endif %}
     
-    <span class="op-pagination-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
     
     {% if pagination.page < pagination.total_pages %}
-        <a href="/admin/fee-rules?page={{ pagination.page + 1 }}" class="op-btn op-btn-sm op-btn-outline">Next →</a>
+        <a href="/admin/fee-rules?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>
     {% endif %}
-</div>
+</nav>
 {% endif %}
 {% endblock %}

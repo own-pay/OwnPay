@@ -1,7 +1,7 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}Developer Hub — {{ app_name }}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/assets/css/pages/developer.css?v=013">
+    <link rel="stylesheet" href="/assets/css/pages/developer.css?v=014">
 {% endblock %}
 {% block content %}
 <div class="op-page-header">
@@ -68,6 +68,7 @@
             <span class="op-text-muted op-text-sm">Use Bearer token authentication: <code>Authorization: Bearer &lt;key&gt;</code></span>
         </div>
         <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
             <table class="op-table">
                 <thead><tr><th>Label</th><th>Key Prefix</th><th>Scopes</th><th>Created</th><th>Last Used</th><th>Actions</th></tr></thead>
                 <tbody>
@@ -98,6 +99,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 
@@ -115,15 +117,15 @@
                     <div class="op-form-group op-col-6">
                         <label>API Key Scopes *</label>
                         <div class="op-flex-gap-16 op-flex-wrap op-mt-2">
-                            <label class="op-flex-gap-8 op-flex-align-center op-cursor-pointer">
+                            <label class="op-scope-label">
                                 <input type="checkbox" name="scopes[]" value="read" checked>
                                 <span>Read</span>
                             </label>
-                            <label class="op-flex-gap-8 op-flex-align-center op-cursor-pointer">
+                            <label class="op-scope-label">
                                 <input type="checkbox" name="scopes[]" value="write" checked>
                                 <span>Write</span>
                             </label>
-                            <label class="op-flex-gap-8 op-flex-align-center op-cursor-pointer op-text-danger" style="font-weight: 600;">
+                            <label class="op-scope-label op-text-danger op-font-semibold">
                                 <input type="checkbox" name="scopes[]" value="admin">
                                 <span>Admin (Administrative Access)</span>
                             </label>
@@ -167,6 +169,7 @@
     <div class="op-card op-mb-3">
         <div class="op-card-header"><h3>{{ section }}</h3></div>
         <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
             <table class="op-table op-endpoint-table">
                 <thead><tr><th width="80">Method</th><th>Endpoint</th><th width="90">Auth</th><th>Description</th></tr></thead>
                 <tbody>
@@ -191,6 +194,7 @@
                     {% endfor %}
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
     {% endfor %}
@@ -201,7 +205,7 @@
 ══════════════════════════════════════════════════════════ #}
 <div class="op-tab-panel" id="tab-webhooks">
     <div class="op-card op-mb-4">
-        <div class="op-card-header op-flex-row-space-between" style="display: flex; justify-content: space-between; align-items: center;">
+        <div class="op-card-header op-flex-row-space-between">
             <h3>Webhook Endpoints</h3>
             <button type="button" class="op-btn op-btn-sm op-btn-primary" data-open-modal="webhook-modal" onclick="window.prepareWebhookForm()">+ Add Endpoint</button>
         </div>
@@ -228,13 +232,13 @@
                             </td>
                             <td>
                                 {% for evt in wh.decoded_events %}
-                                    <span class="op-badge op-badge-outline op-text-xs" style="margin-right: 4px; margin-bottom: 4px; display: inline-block;">{{ evt }}</span>
+                                    <span class="op-badge op-badge-outline op-text-xs op-badge-inline">{{ evt }}</span>
                                 {% else %}
                                     <span class="op-text-muted op-text-xs">None</span>
                                 {% endfor %}
                             </td>
                             <td>
-                                <div class="op-flex-gap-8 op-flex-align-center" style="display: flex; gap: 8px; align-items: center;">
+                                <div class="op-flex-gap-8 op-flex-align-center">
                                     <code class="op-text-xs" id="wh-sec-{{ wh.id }}">{{ wh.secret|slice(0, 8) }}••••••••••••••••</code>
                                     <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="{{ wh.secret }}" title="Copy Secret">
                                         <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
@@ -247,13 +251,13 @@
                                         onclick='window.prepareWebhookForm({{ wh|json_encode|raw }})'>
                                     Edit
                                 </button>
-                                <form method="POST" action="/admin/developer/webhooks/{{ wh.id }}/toggle" style="display:inline;">
+                                <form method="POST" action="/admin/developer/webhooks/{{ wh.id }}/toggle" class="op-inline-form">
                                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                     <button type="submit" class="op-btn op-btn-xs op-btn-outline {{ wh.status == 'active' ? 'op-text-warning' : 'op-text-success' }}">
                                         {{ wh.status == 'active' ? 'Deactivate' : 'Activate' }}
                                     </button>
                                 </form>
-                                <form method="POST" action="/admin/developer/webhooks/{{ wh.id }}/delete" style="display:inline;" data-confirm="Are you sure you want to delete this webhook endpoint?">
+                                <form method="POST" action="/admin/developer/webhooks/{{ wh.id }}/delete" class="op-inline-form" data-confirm="Are you sure you want to delete this webhook endpoint?">
                                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                     <button type="submit" class="op-btn op-btn-xs op-btn-danger op-ml-1">Delete</button>
                                 </form>
@@ -261,7 +265,7 @@
                         </tr>
                         {% else %}
                         <tr>
-                            <td colspan="5" class="op-text-center op-text-muted op-py-8" style="text-align: center; padding: 32px 0;">No webhook endpoints configured. Click "+ Add Endpoint" to register one.</td>
+                            <td colspan="5" class="op-empty">No webhook endpoints configured. Click "+ Add Endpoint" to register one.</td>
                         </tr>
                         {% endfor %}
                     </tbody>
@@ -274,6 +278,7 @@
     <div class="op-card">
         <div class="op-card-header"><h3>Webhook Events Reference</h3></div>
         <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
             <table class="op-table">
                 <thead><tr><th>Event</th><th>Trigger</th></tr></thead>
                 <tbody>
@@ -287,6 +292,7 @@
                     <tr><td><code>webhook.test</code></td><td>Manual test event sent from Developer Hub</td></tr>
                 </tbody>
             </table>
+            </div>
         </div>
     </div>
 </div>
@@ -299,9 +305,9 @@
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
             <input type="hidden" name="id" value="" id="webhook-id-field">
             
-            <div class="op-modal-header" style="display: flex; justify-content: space-between; align-items: center;">
-                <h4 id="webhook-modal-title" style="margin: 0;">Add Webhook Endpoint</h4>
-                <button type="button" class="op-modal-close" data-close-modal="webhook-modal" style="background: none; border: none; font-size: 20px; cursor: pointer;">×</button>
+            <div class="op-modal-header">
+                <h4 id="webhook-modal-title">Add Webhook Endpoint</h4>
+                <button type="button" class="op-modal-close" data-close-modal="webhook-modal">&times;</button>
             </div>
             <div class="op-modal-body">
                 <div class="op-form-group">
@@ -316,7 +322,7 @@
                 </div>
                 <div class="op-form-group">
                     <label>Subscribed Events *</label>
-                    <div class="op-grid op-grid-2 op-mt-2" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+                    <div class="op-grid op-grid-2 op-mt-2">
                         {% set webhook_events = [
                             'payment.completed',
                             'payment.failed',
@@ -327,7 +333,7 @@
                             'customer.created'
                         ] %}
                         {% for ev in webhook_events %}
-                        <label class="op-flex-gap-8 op-flex-align-center op-cursor-pointer op-mb-2" style="display: flex; gap: 8px; align-items: center; cursor: pointer;">
+                        <label class="op-checkbox-label op-mb-2">
                             <input type="checkbox" name="events[]" value="{{ ev }}" class="webhook-event-checkbox">
                             <span class="op-text-sm">{{ ev }}</span>
                         </label>
@@ -461,7 +467,7 @@ if (!hash_equals($expected, $signature)) {
                     </table>
                 </div>
             </div>
-            <div class="op-card-footer op-py-3 op-px-4 op-flex-row-space-between" style="display:flex; justify-content:space-between; align-items:center; background:rgba(30,41,59,0.1); border-top:1px solid rgba(255,255,255,0.06);">
+            <div class="op-card-footer op-flex-row-space-between">
                 <button type="button" class="op-btn op-btn-sm op-btn-secondary" id="add-rule-btn">+ Add Rule</button>
                 <button type="submit" class="op-btn op-btn-sm op-btn-primary">Save Rate Limiting Config</button>
             </div>
@@ -561,7 +567,7 @@ if (!hash_equals($expected, $signature)) {
                             </td>
                             <td class="op-text-right">
                                 {% if is_superadmin %}
-                                <form method="POST" action="/admin/developer/rate-limits/reset" style="display:inline;" onsubmit="return confirm('Reset rate limit bucket for this key?');">
+                                <form method="POST" action="/admin/developer/rate-limits/reset" class="op-inline-form" onsubmit="return confirm('Reset rate limit bucket for this key?');">
                                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
                                     <input type="hidden" name="key" value="{{ limit.key_name }}">
                                     <button type="submit" class="op-btn op-btn-xs op-btn-danger">Reset</button>

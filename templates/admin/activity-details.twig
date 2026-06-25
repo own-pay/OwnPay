@@ -1,5 +1,5 @@
-<div class="op-activity-details" style="padding: 5px;">
-    <div style="margin-bottom: 20px; line-height: 1.6;">
+<div class="op-activity-details op-p-2">
+    <div class="op-mb-4 op-line-height-1-6">
         <p><strong>Action:</strong> <span class="op-badge op-badge-muted">{{ log.action }}</span></p>
         <p><strong>Performed By:</strong> {{ log.user_name }} (ID: {{ log.user_id ?? 'System' }})</p>
         <p><strong>Target Entity:</strong> {{ log.entity_type ?? 'N/A' }} {% if log.entity_id %}(ID: {{ log.entity_id }}){% endif %}</p>
@@ -10,12 +10,12 @@
 
     <div class="op-form-row">
         <div class="op-form-group op-col-6">
-            <label style="font-weight: 600; display: block; margin-bottom: 8px;">Old Values (Before Change)</label>
-            <pre class="op-code-block" style="background: var(--bg-hover, #f4f4f5); padding: 12px; border-radius: 6px; overflow-x: auto; font-family: monospace; font-size: 13px; max-height: 350px; border: 1px solid var(--border-color, #e4e4e7); color: var(--text-color, #09090b);">{{ old_values ? old_values|json_encode(constant('JSON_PRETTY_PRINT')) : '{}' }}</pre>
+            <label class="op-font-bold op-display-block op-mb-2">Old Values (Before Change)</label>
+            <pre class="op-pre op-code-block-scroll">{{ old_values ? old_values|json_encode(constant('JSON_PRETTY_PRINT')) : '{}' }}</pre>
         </div>
         <div class="op-form-group op-col-6">
-            <label style="font-weight: 600; display: block; margin-bottom: 8px;">New Values (After Change)</label>
-            <pre class="op-code-block" style="background: var(--bg-hover, #f4f4f5); padding: 12px; border-radius: 6px; overflow-x: auto; font-family: monospace; font-size: 13px; max-height: 350px; border: 1px solid var(--border-color, #e4e4e7); color: var(--text-color, #09090b);">{{ new_values ? new_values|json_encode(constant('JSON_PRETTY_PRINT')) : '{}' }}</pre>
+            <label class="op-font-bold op-display-block op-mb-2">New Values (After Change)</label>
+            <pre class="op-pre op-code-block-scroll">{{ new_values ? new_values|json_encode(constant('JSON_PRETTY_PRINT')) : '{}' }}</pre>
         </div>
     </div>
 </div>

@@ -1,17 +1,25 @@
 /* ═══════════════════════════════════════════════════════
-   sms-center.css — OwnPay Admin SMS Center redone
+   sms-center.css — OwnPay Admin SMS Center
+   Page-specific overrides only. Global styles from admin.css.
    ═══════════════════════════════════════════════════════ */
 
-/* Main tab SVG icons */
-.op-tab {
-    display: flex !important;
-    align-items: center !important;
-    gap: 8px !important;
+/* SMS match form */
+.op-sms-match-input {
+    width: 70px;
+    padding: 2px 4px;
+    height: 26px;
+    min-height: 26px;
 }
 
-.op-tab-svg {
-    flex-shrink: 0;
-    transition: color 0.2s ease;
+.op-sms-match-btn {
+    height: 26px;
+    padding: 2px 8px;
+}
+
+/* Dashed card variant */
+.op-card-dashed {
+    border-style: dashed;
+    background: var(--op-bg-hover);
 }
 
 /* Two-column layout grid for templates & sandbox */
@@ -23,31 +31,45 @@
     margin-bottom: 32px;
 }
 
+.op-sms-left-panel,
+.op-sms-right-panel {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
 @media (min-width: 1024px) {
     .op-sms-workspace {
         grid-template-columns: 1.6fr 1fr;
     }
 }
 
-/* Sandbox card & tab interface */
+/* Sandbox card */
 .op-sandbox-card {
     background: var(--op-bg-card);
     border: 1px solid var(--op-border);
     border-radius: var(--op-radius);
     box-shadow: var(--op-shadow);
     overflow: hidden;
-    position: sticky;
-    top: 24px;
     transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-width: 0;
+}
+
+@media (min-width: 1024px) {
+    .op-sandbox-card {
+        position: sticky;
+        top: 24px;
+    }
 }
 
 .op-sandbox-card:hover {
     box-shadow: var(--op-shadow-hover);
 }
 
+/* Sandbox header */
 .op-sandbox-header {
     background: var(--op-bg-hover);
-    padding: 16px 20px;
+    padding: 14px 16px;
     border-bottom: 1px solid var(--op-border);
     display: flex;
     flex-direction: column;
@@ -56,7 +78,7 @@
 
 .op-sandbox-header h3 {
     margin: 0;
-    font-size: 1.1rem;
+    font-size: 1rem;
     font-weight: 600;
     color: var(--op-text);
     display: flex;
@@ -64,20 +86,27 @@
     gap: 8px;
 }
 
+/* Sandbox sub-tabs */
 .op-sandbox-nav {
     display: flex;
     background: var(--op-bg-hover);
     border-bottom: 1px solid var(--op-border);
     padding: 0 12px;
-    gap: 4px;
+    gap: 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
 }
 
+.op-sandbox-nav::-webkit-scrollbar { display: none; }
+
 .op-sandbox-tab {
-    padding: 12px 16px;
+    padding: 10px 14px;
     background: none;
     border: none;
     color: var(--op-text-muted);
-    font-size: 0.825rem;
+    font-size: 13px;
     font-weight: 500;
     cursor: pointer;
     border-bottom: 2px solid transparent;
@@ -85,6 +114,8 @@
     display: flex;
     align-items: center;
     gap: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
 .op-sandbox-tab:hover {
@@ -98,7 +129,9 @@
 }
 
 .op-sandbox-body {
-    padding: 20px;
+    padding: 16px;
+    overflow-wrap: break-word;
+    word-break: break-word;
 }
 
 .op-sandbox-panel {
@@ -166,14 +199,38 @@
     to { opacity: 1; transform: translateY(0); }
 }
 
+/* Mobile compact */
+@media (max-width: 768px) {
+    .op-sandbox-header {
+        padding: 10px 12px;
+    }
+
+    .op-sandbox-header h3 {
+        font-size: 14px;
+    }
+
+    .op-sandbox-nav {
+        padding: 0 8px;
+    }
+
+    .op-sandbox-tab {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    .op-sandbox-body {
+        padding: 12px;
+    }
+
+    .op-sms-workspace {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+}
+
 /* Style native select options to prevent invisible text in dark/light modes */
 select.op-input option {
     background-color: var(--op-bg-card) !important;
     color: var(--op-text) !important;
-}
-
-/* Ensure active tab SVG inherits active primary color */
-.op-tab.active .op-tab-svg {
-    color: var(--op-primary) !important;
 }
 

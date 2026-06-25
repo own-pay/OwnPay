@@ -60,10 +60,10 @@
                     <label>Avatar / Profile Photo</label>
                     {% if user is not null and user.avatar_path is defined and user.avatar_path %}
                         <div class="op-mb-2">
-                            <img src="{{ user.avatar_path }}" alt="Current Avatar" style="max-height: 48px; border-radius: 50%;">
+                            <img src="{{ user.avatar_path }}" alt="Current Avatar" class="op-avatar-sm">
                         </div>
                     {% endif %}
-                    <input type="file" name="avatar" accept="image/*" class="op-input" style="padding: 6px;">
+                    <input type="file" name="avatar" accept="image/*" class="op-input op-input-file">
                 </div>
             </div>
             <div class="op-form-group">
@@ -81,9 +81,9 @@
             {% if user is not null and user.two_factor_enabled %}
             <div class="op-form-group op-mt-4">
                 <label>Two-Factor Authentication (2FA)</label>
-                <div class="op-alert op-alert-info" style="display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; margin: 0; background: var(--bg-hover, #f4f4f5); border: 1px solid var(--border-color, #e4e4e7); border-radius: 6px;">
+                <div class="op-alert op-alert-info op-flex-row op-justify-between op-items-center">
                     <span class="op-text-sm">Two-Factor Authentication is currently enabled for this staff member.</span>
-                    <button type="submit" form="reset-2fa-form" class="op-btn op-btn-sm op-btn-danger" style="margin: 0;">Reset 2FA</button>
+                    <button type="submit" form="reset-2fa-form" class="op-btn op-btn-sm op-btn-danger">Reset 2FA</button>
                 </div>
             </div>
             {% endif %}
@@ -93,7 +93,7 @@
 </form>
 
 {% if user is not null and user.id is defined and user.id %}
-<form id="reset-2fa-form" method="POST" action="/admin/staff/{{ user.id }}/reset-2fa" style="display:none;">
+<form id="reset-2fa-form" method="POST" action="/admin/staff/{{ user.id }}/reset-2fa" class="op-d-none">
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
 </form>
 {% endif %}
