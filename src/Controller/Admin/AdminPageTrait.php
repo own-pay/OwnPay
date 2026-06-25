@@ -151,7 +151,7 @@ trait AdminPageTrait
             'my_account'        => 'account',
         ];
         $docPath = $docMap[is_string($activePage) ? $activePage : ''] ?? '';
-        $data['doc_url'] = 'https://learn.ownpay.org/docs' . ($docPath !== '' ? '/' . $docPath : '');
+        $data['doc_url'] = 'https://learn.ownpay.org/user-guide' . ($docPath !== '' ? '/' . $docPath : '');
 
         return Response::html($twig->render($tpl, $data));
     }
