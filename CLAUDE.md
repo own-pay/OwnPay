@@ -1,7 +1,3 @@
----
-trigger: always_on
----
-
 # Agent Operating Rules
 
 > **These rules are non-negotiable. Every rule applies to every task, every time. No exceptions. No excuses. No shortcuts.**
@@ -106,6 +102,7 @@ You MUST apply industry best practices at all times:
 MUST NOT introduce any package that is **deprecated**, **unmaintained**, **end-of-life**, or carries known unresolved CVEs.
 
 Before adding any dependency, verify:
+
 - It is actively maintained with recent releases.
 - It is the current community standard for the problem it solves.
 - It has no known, unpatched security vulnerabilities.
@@ -123,7 +120,7 @@ Never add a heavy dependency to solve a problem solvable with a few lines of nat
 - Edge cases identified during implementation must be handled — not noted and deferred.
 - Error handling must be implemented — not scaffolded with empty catch blocks.
 
-### 5.2 — No Placeholders. No TODOs. No Stubs.
+### 5.2 — No Placeholders. No TODOs. No Stubs
 
 The following are **strictly prohibited** in any delivered code:
 
@@ -163,23 +160,27 @@ Every line of code must be secure by default. Treat all external input as advers
 ### 6.2 — Mandatory Security Practices
 
 **Input & Data Handling**
+
 - Validate and sanitize all user input at the point of entry — server-side, always.
 - Never rely on client-side validation as the sole guard.
 - Use parameterized queries or prepared statements for all database operations. SQL injection is never acceptable.
 - Sanitize all output to prevent XSS. Never inject raw user content into the DOM or template output.
 
 **Authentication & Authorization**
+
 - Use battle-tested libraries for authentication and token handling. Never roll your own crypto.
 - Passwords must be hashed with bcrypt, argon2, or scrypt. Never MD5, SHA1, or plain-text.
 - Authorization must be enforced server-side. Never rely on frontend access control as the only guard.
 - Apply the principle of least privilege: every user, role, and service gets only the minimum access required.
 
 **Secrets & Configuration**
+
 - Never commit secrets, API keys, credentials, or tokens to source code or version control.
 - All secrets must be loaded from environment variables or a secrets manager.
 - `.env` files must always be in `.gitignore`.
 
 **Infrastructure & Transport**
+
 - Enforce HTTPS. Never transmit sensitive data over plain HTTP.
 - Set appropriate security headers (CSP, HSTS, X-Frame-Options, X-Content-Type-Options) where applicable.
 - Never expose internal stack traces, file paths, or system info to the client in error responses.
@@ -193,6 +194,7 @@ Every line of code must be secure by default. Treat all external input as advers
 ### 7.1 — Update AGENTS.md on Architectural Changes
 
 When making any change that affects the overall system architecture, you MUST update `AGENTS.md` to reflect:
+
 - The nature of the change and the reason for it.
 - New conventions or patterns introduced.
 - Modules, services, or components added, removed, or significantly restructured.
@@ -200,6 +202,7 @@ When making any change that affects the overall system architecture, you MUST up
 ### 7.2 — Update ARCHITECTURE.md on Structural Changes
 
 When making any change that affects system structure, you MUST update `ARCHITECTURE.md` to reflect:
+
 - New modules, services, layers, or data flows.
 - Changes to existing component relationships or dependency graphs.
 - Decisions that future engineers need to understand.

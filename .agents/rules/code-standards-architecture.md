@@ -1,5 +1,5 @@
 ---
-trigger: always_on
+trigger: manual
 ---
 
 # ISO-27001 & PCI-DSS Secure Coding & Architecture Compliance (Static System Hardening)
