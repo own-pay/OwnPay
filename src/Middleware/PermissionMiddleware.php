@@ -224,7 +224,6 @@ final class PermissionMiddleware
             '/admin/themes'               => 'plugins.view',
             '/admin/system-update'        => 'system.update',
             '/admin/activities'           => 'system.audit',
-            '/admin/audit-log'            => 'system.audit',
             '/admin/audit-integrity'      => 'system.audit',
             '/admin/login-attempts'       => 'system.audit',
             '/admin/reports'              => 'system.reports',

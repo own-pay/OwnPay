@@ -272,7 +272,6 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/reports/export', 'Admin\\DashboardController@exportCsv', 'admin');
     $router->get('/admin/activities', 'Admin\\ActivitiesController@index', 'admin');
     $router->get('/admin/activities/{id}/details', 'Admin\\ActivitiesController@details', 'admin');
-    $router->get('/admin/audit-log',  'Admin\\ActivitiesController@index', 'admin');
     $router->get('/admin/audit-integrity', 'Admin\\AuditIntegrityController@scan', 'admin');
     $router->post('/admin/audit-integrity/scan', 'Admin\\AuditIntegrityController@scan', 'admin');
     $router->get('/admin/login-attempts', 'Admin\\LoginAttemptController@index', 'admin');
