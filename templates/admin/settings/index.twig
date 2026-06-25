@@ -1,13 +1,24 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}Settings — {{ app_name }}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/assets/css/pages/settings.css?v=014">
+    <link rel="stylesheet" href="/assets/css/pages/settings.css?v=018">
 {% endblock %}
 {% block content %}
-<div class="op-page-header"><div>
+<div class="op-page-header">
+    <div class="op-page-header-left">
         <h1>Settings</h1>
         <p class="op-page-subtitle">Configure system settings, custom themes, email configurations, and platform integrations.</p>
-    </div></div>
+    </div>
+    <div class="op-tab-scroll-hint" id="tab-scroll-hint">
+        <button type="button" class="op-tab-scroll-btn" id="tab-scroll-left" aria-label="Scroll tabs left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="op-tab-scroll-label">Scroll</span>
+        <button type="button" class="op-tab-scroll-btn" id="tab-scroll-right" aria-label="Scroll tabs right">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+    </div>
+</div>
 
 <div class="op-settings-layout">
     <aside class="op-settings-sidebar" id="settings-tabs">
@@ -557,10 +568,10 @@
                 {% if not is_brand_view %}
                 <div class="op-header-actions">
                     <button type="button" id="btn-sync-rates" class="op-btn op-btn-sm op-btn-outline">
-                        🔄 Sync Rates Now
+                         Sync Rates Now
                     </button>
                     <button type="button" id="btn-add-currency" class="op-btn op-btn-sm op-btn-primary">
-                        ➕ Add Currency
+                         Add Currency
                     </button>
                 </div>
                 {% endif %}
@@ -677,7 +688,7 @@
                     </div>
                     <div class="op-form-group op-col-6">
                         <label>From Name</label>
-                        <input type="text" name="mail_from_name" value="{{ settings.mail_from_name ?? '' }}" class="op-input" placeholder="OwnPay">
+                        <input type="text" name="mail_from_name" value="{{ settings.mail_from_name ?? '' }}" class="op-input" placeholder="Own Pay">
                         <small class="op-text-muted">The friendly sender name associated with outgoing system emails.</small>
                     </div>
                 </div>
@@ -1158,7 +1169,7 @@
                     <small class="op-text-muted op-cron-help-text">Used to authenticate public cron requests securely. Keep this secret private.</small>
                     <div class="op-mt-3">
                         <button type="submit" form="cron-regenerate-form" class="op-btn op-btn-sm op-btn-danger" id="btn-cron-regenerate">
-                            🔄 Regenerate Secret
+                             Regenerate Secret
                         </button>
                     </div>
                 </div>
@@ -1509,14 +1520,14 @@
                     <p class="op-text-muted op-text-sm">Wipes expired login attempts, webhook delivery records, communication logs, and audit entries older than the configured retention period. Clears dead guest user sessions.</p>
                     <div class="op-form-group op-mt-2">
                         <label class="op-text-sm">Log Retention Period:</label>
-                        <select id="log-retention-select" class="op-input op-input-sm" style="max-width: 180px; display: inline-block; margin-left: 8px;">
+                        <select id="log-retention-select" class="op-input op-input-sm op-retention-select">
                             <option value="30" {{ opt_settings.log_retention_days == 30 ? 'selected' : '' }}>30 days</option>
                             <option value="60" {{ opt_settings.log_retention_days == 60 ? 'selected' : '' }}>60 days</option>
                             <option value="90" {{ opt_settings.log_retention_days == 90 ? 'selected' : '' }}>90 days (Recommended)</option>
                             <option value="180" {{ opt_settings.log_retention_days == 180 ? 'selected' : '' }}>180 days</option>
                         </select>
                     </div>
-                    <small class="op-text-muted op-mt-1" style="display: block;">
+                    <small class="op-text-muted op-mt-1 op-opt-last-run">
                         Last executed: 
                         {% if opt_settings.last_logs_purge %}
                             <strong>{{ opt_settings.last_logs_purge|time_ago }}</strong> ({{ opt_settings.last_logs_purge|datetime }})
@@ -1575,20 +1586,17 @@
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
                         <label>Queue Driver</label>
-                        <div class="op-input op-readonly" style="font-weight: bold; text-transform: uppercase;">
-                            {{ queue_driver_stats.driver }}
-                        </div>
+                        <div class="op-input op-readonly">{{ queue_driver_stats.driver }}</div>
                         <small class="op-text-muted">Configured via <code>QUEUE_DRIVER</code> in your <code>.env</code> file.</small>
                     </div>
                 </div>
             </div>
         </div>
 
-        <div class="op-row op-gap-4 op-mb-4">
-            <div class="op-col-6">
-                <div class="op-card">
-                    <div class="op-card-header">
-                        <h3>File/Redis Driver Queue Sizes</h3>
+        <div class="op-stack op-mb-4">
+            <div class="op-card op-mb-4">
+                <div class="op-card-header">
+                    <h3>File/Redis Driver Queue Sizes</h3>
                     </div>
                     <div class="op-card-body op-p-0">
                         <div class="op-table-responsive">
@@ -1613,10 +1621,9 @@
                 </div>
             </div>
 
-            <div class="op-col-6">
-                <div class="op-card">
-                    <div class="op-card-header">
-                        <h3>Database Job Queue (op_job_queue)</h3>
+            <div class="op-card">
+                <div class="op-card-header">
+                    <h3>Database Job Queue (op_job_queue)</h3>
                     </div>
                     <div class="op-card-body op-p-0">
                         <div class="op-table-responsive">

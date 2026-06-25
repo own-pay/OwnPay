@@ -382,6 +382,19 @@
             }
         });
     });
+
+    // ─── Tab Scroll Arrows ──────────────────────────────────────────────────
+    var sidebar = document.getElementById("settings-tabs");
+    var scrollLeft = document.getElementById("tab-scroll-left");
+    var scrollRight = document.getElementById("tab-scroll-right");
+    if (sidebar && scrollLeft && scrollRight) {
+        scrollLeft.addEventListener("click", function () {
+            sidebar.scrollBy({ left: -120, behavior: "smooth" });
+        });
+        scrollRight.addEventListener("click", function () {
+            sidebar.scrollBy({ left: 120, behavior: "smooth" });
+        });
+    }
     };
 
     window.opInitSettingsUI();
