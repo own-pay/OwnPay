@@ -27,20 +27,22 @@
 }
 
 [data-theme="dark"] {
-    --op-bg: #000;
-    --op-bg-card: #141414;
-    --op-bg-input: #1A1A1A;
-    --op-bg-hover: #222;
-    --op-text: #F8FAFC;
-    --op-text-body: #CBD5E1;
-    --op-text-muted: #64748B;
-    --op-border: #2A2A2A;
+    --op-bg: #0e0e10;
+    --op-bg-card: #18181b;
+    --op-bg-input: #1e1e22;
+    --op-bg-hover: #27272a;
+    --op-text: #F4F4F5;
+    --op-text-body: #A1A1AA;
+    --op-text-muted: #71717A;
+    --op-border: #27272a;
     --op-border-light: #333;
-    --op-shadow: 0 2px 10px rgb(0 0 0 / 50%);
-    --op-shadow-hover: 0 8px 20px rgb(0 0 0 / 50%);
+    --op-shadow: 0 2px 10px rgb(0 0 0 / 40%);
+    --op-shadow-hover: 0 8px 20px rgb(0 0 0 / 40%);
 }
 
-*, *::before, *::after {
+*,
+*::before,
+*::after {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -207,8 +209,15 @@ body {
 }
 
 @keyframes cardFadeIn {
-    from { opacity: 0; transform: translateY(15px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(15px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .ins-card h1 {
@@ -378,8 +387,15 @@ body {
 }
 
 @keyframes msgSlide {
-    from { opacity: 0; transform: translateY(-4px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(-4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 .ins-msg:not(:empty) {
@@ -524,9 +540,17 @@ body {
     border-radius: 50%;
 }
 
-.ins-terminal-dot.r { background: #EF4444; }
-.ins-terminal-dot.y { background: #F59E0B; }
-.ins-terminal-dot.g { background: #10B981; }
+.ins-terminal-dot.r {
+    background: #EF4444;
+}
+
+.ins-terminal-dot.y {
+    background: #F59E0B;
+}
+
+.ins-terminal-dot.g {
+    background: #10B981;
+}
 
 .ins-terminal-body {
     padding: 16px;
@@ -550,12 +574,23 @@ body {
 }
 
 @keyframes termLineFade {
-    to { opacity: 1; transform: translateY(0); }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-.ins-term-log.ok { color: #34D399; }
-.ins-term-log.err { color: #F87171; }
-.ins-term-log.info { color: #38BDF8; }
+.ins-term-log.ok {
+    color: #34D399;
+}
+
+.ins-term-log.err {
+    color: #F87171;
+}
+
+.ins-term-log.info {
+    color: #38BDF8;
+}
 
 /* ─── Schema Review Summary List ─── */
 .ins-review-card {
@@ -608,7 +643,9 @@ body {
 }
 
 @keyframes spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* ─── Success Panel ─── */
@@ -692,9 +729,20 @@ body {
     width: 0;
 }
 
-.ins-pw-weak .ins-pw-bar { width: 33%; background: var(--op-danger); }
-.ins-pw-med .ins-pw-bar { width: 66%; background: var(--op-warning); }
-.ins-pw-strong .ins-pw-bar { width: 100%; background: var(--op-success); }
+.ins-pw-weak .ins-pw-bar {
+    width: 33%;
+    background: var(--op-danger);
+}
+
+.ins-pw-med .ins-pw-bar {
+    width: 66%;
+    background: var(--op-warning);
+}
+
+.ins-pw-strong .ins-pw-bar {
+    width: 100%;
+    background: var(--op-success);
+}
 
 /* ─── Locked Page ─── */
 .ins-locked {
@@ -727,12 +775,29 @@ body {
 
 /* ─── Responsive ─── */
 @media (max-width: 640px) {
-    .ins-row { flex-direction: column; }
-    .ins-field-sm { max-width: 100%; }
-    .ins-card { padding: 24px 20px; }
-    .ins-header { padding: 0 16px; }
-    .ins-step span:not(.ins-step-num) { display: none; }
-    .ins-steps { gap: 4px; }
+    .ins-row {
+        flex-direction: column;
+    }
+
+    .ins-field-sm {
+        max-width: 100%;
+    }
+
+    .ins-card {
+        padding: 24px 20px;
+    }
+
+    .ins-header {
+        padding: 0 16px;
+    }
+
+    .ins-step span:not(.ins-step-num) {
+        display: none;
+    }
+
+    .ins-steps {
+        gap: 4px;
+    }
 }
 
 /* ─── Utility Classes ─── */
