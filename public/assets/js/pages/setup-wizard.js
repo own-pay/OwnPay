@@ -15,15 +15,27 @@
         const otpEl = document.getElementById("op-wizard-otp-display");
         const otpText = otpEl ? otpEl.textContent : "";
         if (otpText && otpText !== "------") {
-            navigator.clipboard.writeText(otpText).then(() => {
-                const copiedEl = document.getElementById("op-wizard-otp-copied");
-                if (copiedEl) {
-                    copiedEl.style.display = "inline";
-                    setTimeout(() => {
-                        copiedEl.style.display = "none";
-                    }, 2000);
-                }
-            });
+            if (typeof window.opCopyText === "function") {
+                window.opCopyText(otpText, otpEl, function () {
+                    const copiedEl = document.getElementById("op-wizard-otp-copied");
+                    if (copiedEl) {
+                        copiedEl.style.display = "inline";
+                        setTimeout(() => {
+                            copiedEl.style.display = "none";
+                        }, 2000);
+                    }
+                });
+            } else {
+                navigator.clipboard.writeText(otpText).then(() => {
+                    const copiedEl = document.getElementById("op-wizard-otp-copied");
+                    if (copiedEl) {
+                        copiedEl.style.display = "inline";
+                        setTimeout(() => {
+                            copiedEl.style.display = "none";
+                        }, 2000);
+                    }
+                });
+            }
         }
     }
 
@@ -537,7 +549,7 @@
     }
 
     function dismissWizard() {
-        if (!confirm("Are you sure you want to dismiss the setup wizard? You can configure settings, email, and brands manually later.")) {
+        if (!confirm(window.OP_LANG && window.OP_LANG["wizard.dismiss_confirm"] ? window.OP_LANG["wizard.dismiss_confirm"] : "Are you sure you want to dismiss the setup wizard? You can configure settings later.")) {
             return;
         }
         clearWizardMessages();
