@@ -8,12 +8,10 @@
         <h1>{{ plugin.name }} Settings</h1>
         <p class="op-page-subtitle">Configure credential keys and operational parameters for the selected plugin integration.</p>
     </div>
-    {% if plugin.type == 'addon' %}
-        <a href="/admin/addons" class="op-btn op-btn-outline">← Back to Addons</a>
-    {% elseif plugin.type == 'gateway' %}
+    {% if plugin.type == 'gateway' %}
         <a href="/admin/gateways" class="op-btn op-btn-outline">← Back to Gateways</a>
     {% else %}
-        <a href="/admin/plugins" class="op-btn op-btn-outline">← Back to Plugins</a>
+        <a href="/admin/plugins" class="op-btn op-btn-outline">← Back to Plugins & Addons</a>
     {% endif %}
 </div>
 

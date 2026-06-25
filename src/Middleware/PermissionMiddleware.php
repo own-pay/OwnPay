@@ -222,7 +222,6 @@ final class PermissionMiddleware
             '/admin/devices'              => 'devices.view',
             '/admin/plugins'              => 'plugins.view',
             '/admin/themes'               => 'plugins.view',
-            '/admin/addons'               => 'plugins.view',
             '/admin/system-update'        => 'system.update',
             '/admin/activities'           => 'system.audit',
             '/admin/audit-log'            => 'system.audit',

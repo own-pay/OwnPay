@@ -671,7 +671,7 @@ final class PluginController
     private function redirectTarget(Request $request): string
     {
         $referer = $request->header('Referer');
-        foreach (['/admin/gateways', '/admin/addons', '/admin/themes'] as $path) {
+        foreach (['/admin/gateways', '/admin/themes'] as $path) {
             if (str_contains($referer, $path)) {
                 return $path;
             }
