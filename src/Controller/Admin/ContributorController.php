@@ -52,28 +52,12 @@ final class ContributorController
     {
         $contributors = [
             [
-                'initials' => 'FN',
-                'name'     => 'Fattain Naime',
-                'role'     => 'Founder & Lead Developer',
-                'commits'  => 542
-            ],
-            [
-                'initials' => 'TH',
-                'name'     => 'Tahira Akter Hira',
-                'role'     => 'Logo & Brand Design',
-                'commits'  => 1
-            ],
-            [
-                'initials' => 'AI',
-                'name'     => 'M Azmain Israq',
-                'role'     => 'UI/UX Designer',
-                'commits'  => 45
-            ],
-            [
-                'initials' => 'HI',
-                'name'     => 'Hamidullah Ismail',
-                'role'     => 'Features & Reviewer',
-                'commits'  => 2
+                'initials'   => 'FN',
+                'name'       => 'Fattain Naime',
+                'role'       => 'Founder of OwnPay',
+                'commits'    => 542,
+                'avatar_url' => 'https://github.com/fattain-naime.png',
+                'github_url' => 'https://github.com/fattain-naime'
             ]
         ];
 
