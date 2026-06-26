@@ -22,7 +22,7 @@ If the mechanics of the plugin loader, event manager, sandboxing, or manifest fo
 ### 3. API Changes & OpenAPI Documentation
 If REST/GraphQL API routes, payload structures, parameter options, or JSON response schemas are introduced, edited, or deprecated:
 * **MUST UPDATE:** All API documentation under [docs/v2/api/](docs/v2/api/) to reflect changes.
-* **Format Constraint:** All API definitions MUST follow the **OpenAPI 3.2.0** specification standard strictly.
+* **Format Constraint:** All API definitions MUST follow the **OpenAPI 3.1.1** specification standard strictly.
 
 ### 4. General Documentation Maintenance
 * **Strict Synchronization:** Ensure all Markdown specifications under [docs/v2/](docs/v2/) remain fully synchronized and up to date with the latest code state before completing the task. Never complete a task leaving stale documentation behind.
