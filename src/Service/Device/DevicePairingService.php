@@ -446,12 +446,16 @@ final class DevicePairingService
      * Revokes a companion device.
      *
      * @param string $deviceUuid Cryptographic identifier of the device.
-     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int|null $merchantId Unique identifier of the merchant/brand.
      * @return bool True if device was successfully revoked; false otherwise.
      */
-    public function revoke(string $deviceUuid, int $merchantId): bool
+    public function revoke(string $deviceUuid, ?int $merchantId): bool
     {
-        $device = $this->devices->forTenant($merchantId)->findByDeviceId($deviceUuid);
+        $repo = ($merchantId === null || $merchantId === 0)
+            ? $this->devices->forAllTenants()
+            : $this->devices->forTenant($merchantId);
+
+        $device = $repo->findByDeviceId($deviceUuid);
         if ($device === null) {
             return false;
         }
@@ -461,10 +465,18 @@ final class DevicePairingService
             return false;
         }
 
-        $this->devices->forTenant($merchantId)
-            ->updateScoped((int) $deviceIdVal, ['status' => 'revoked']);
+        $deviceMerchantId = null;
+        if (isset($device['merchant_id']) && is_scalar($device['merchant_id'])) {
+            $deviceMerchantId = (int) $device['merchant_id'];
+        }
 
-        $this->events->doAction('mobile.device.revoked', $deviceUuid, $merchantId);
+        $updateRepo = ($deviceMerchantId === null)
+            ? $this->devices->forAllTenants()
+            : $this->devices->forTenant($deviceMerchantId);
+
+        $updateRepo->updateScoped((int) $deviceIdVal, ['status' => 'revoked']);
+
+        $this->events->doAction('mobile.device.revoked', $deviceUuid, $deviceMerchantId ?? 0);
         return true;
     }
 
@@ -480,13 +492,14 @@ final class DevicePairingService
     }
 
     /**
-     * Lists active registered companion devices for a merchant.
-     *
-     * @param int $merchantId Unique identifier of the merchant/brand.
+     * @param int|null $merchantId Unique identifier of the merchant/brand.
      * @return array<int, array<string, mixed>> List of active devices.
      */
-    public function listDevices(int $merchantId): array
+    public function listDevices(?int $merchantId): array
     {
+        if ($merchantId === null || $merchantId === 0) {
+            return $this->devices->forAllTenants()->listActive();
+        }
         return $this->devices->forTenant($merchantId)->listActive();
     }
 }

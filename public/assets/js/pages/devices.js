@@ -82,7 +82,11 @@
                     otpEl.textContent = data.otp;
 
                     if (qrContainer && data.qr_svg) {
-                        qrContainer.innerHTML = data.qr_svg;
+                        if (data.qr_svg.indexOf("<svg") === 0) {
+                            qrContainer.innerHTML = data.qr_svg;
+                        } else {
+                            qrContainer.innerHTML = '<img src="' + data.qr_svg + '" alt="QR Code" style="width: 100%; height: 100%; display: block; margin: 0 auto;">';
+                        }
                     }
 
                     if (timerInterval) { clearInterval(timerInterval); }

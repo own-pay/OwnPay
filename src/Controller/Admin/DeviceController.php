@@ -147,10 +147,7 @@ final class DeviceController
             throw new \RuntimeException('BrandContext service unavailable');
         }
         $brand->resolveFromRequest($req);
-        $mid = $brand->getActiveBrandId();
-        if ($mid === null) {
-            throw new \RuntimeException('No active brand found.');
-        }
+        $mid = $brand->getWriteMerchantId();
 
         try {
             // Bind the OTP to the admin who created it. Without this the pairing

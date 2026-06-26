@@ -132,6 +132,11 @@ class PairedDeviceRepository extends BaseRepository
      */
     public function listActive(): array
     {
+        if ($this->tenantId === null) {
+            return $this->db->fetchAll(
+                "SELECT * FROM {$this->table} WHERE status = 'active' ORDER BY paired_at DESC"
+            );
+        }
         return $this->db->fetchAll(
             "SELECT * FROM {$this->table} WHERE merchant_id = :mid AND status = 'active' ORDER BY paired_at DESC",
             ['mid' => $this->requireTenant()]
