@@ -1160,6 +1160,22 @@ components:
             invoice_id: 12948
             product: "Ultra Gaming Chair"
           description: "Arbitrary JSON payload linked to the transaction for merchant query acceleration"
+        customer_name:
+          type: string
+          maxLength: 150
+          example: "Fattain Naime"
+          description: "Optional customer name to associate and save with the transaction"
+        customer_mail:
+          type: string
+          format: email
+          maxLength: 255
+          example: "ping@ownpay.org"
+          description: "Optional customer email/mail address to associate and save with the transaction"
+        customer_phone:
+          type: string
+          maxLength: 30
+          example: "+8801700000000"
+          description: "Optional customer mobile/phone number to associate and save with the transaction"
 
     PaymentIntentResponse:
       type: object

@@ -141,8 +141,8 @@ declare(strict_types=1);
 <body class="h-screen flex flex-col overflow-hidden bg-slate-50">
 
     <!-- Premium Top Navigation Header -->
-    <header class="bg-white/95 border-b border-slate-200/80 px-6 py-4 flex flex-col lg:flex-row justify-between items-center gap-4 z-10 premium-shadow">
-        <div class="flex items-center justify-between w-full lg:w-auto">
+    <header class="bg-white/95 border-b border-slate-200/80 px-6 py-4 flex justify-between items-center z-10 premium-shadow">
+        <div class="flex items-center justify-between w-full">
             <a href="https://ownpay.org" target="_blank" class="flex items-center gap-3">
                 <img src="https://ownpay.org/ownpay_logo.png" alt="OwnPay Logo" class="h-8 object-contain">
                 <span class="h-5 w-[1px] bg-slate-200 hidden sm:inline-block"></span>
@@ -154,22 +154,6 @@ declare(strict_types=1);
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
                 </svg>
             </button>
-        </div>
-        
-        <!-- Auth Inputs Group -->
-        <div class="flex flex-col sm:flex-row gap-3 items-center w-full lg:w-2/3 xl:w-3/5">
-            <div class="relative w-full sm:w-1/4">
-                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[10px] font-bold text-slate-400 tracking-wider">HOST</span>
-                <input type="text" id="baseUrl" value="https://ownpay.org" class="pl-14 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="Base URL">
-            </div>
-            <div class="relative w-full sm:w-5/12">
-                <span class="absolute inset-y-0 left-0 pl-3.5 flex items-center text-[10px] font-bold text-slate-400 tracking-wider">api_key</span>
-                <input type="password" id="apiKey" class="pl-16 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="op_apiKey">
-            </div>
-            <div class="relative w-full sm:w-1/3">
-                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-[9px] font-bold text-slate-400 tracking-wider">SUPER_ADMIN</span>
-                <input type="text" id="superAdminEmail" class="pl-24 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="admin@example.com">
-            </div>
         </div>
     </header>
 
@@ -188,6 +172,29 @@ declare(strict_types=1);
             </div>
             
             <div class="flex-1 overflow-y-auto pr-1 flex flex-col gap-1" id="sidebarList">
+                <!-- Environment Configuration Section -->
+                <div class="mb-4 pb-4 border-b border-slate-200 flex flex-col gap-3 px-1.5">
+                    <span class="font-extrabold text-slate-700 text-[10px] tracking-wider uppercase mb-1 flex items-center gap-1.5">
+                        <svg class="w-3.5 h-3.5 text-brand-500" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"></path>
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                        </svg>
+                        Environment Config
+                    </span>
+                    
+                    <div class="relative w-full">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-[9px] font-bold text-slate-400 tracking-wider">HOST</span>
+                        <input type="text" id="baseUrl" class="pl-14 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="Base URL">
+                    </div>
+                    <div class="relative w-full">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-[9px] font-bold text-slate-400 tracking-wider font-mono">api_key</span>
+                        <input type="password" id="apiKey" class="pl-16 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="op_apiKey">
+                    </div>
+                    <div class="relative w-full">
+                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-[9px] font-bold text-slate-400 tracking-wider">ADMIN MAIL</span>
+                        <input type="text" id="superAdminEmail" class="pl-24 w-full bg-slate-50 border border-slate-200 rounded-xl py-2 px-3.5 text-xs focus:border-brand-500 focus:bg-white outline-none transition font-mono" placeholder="admin@example.com">
+                    </div>
+                </div>
                 <!-- Programmatically populated endpoint categories -->
             </div>
         </aside>
@@ -225,10 +232,10 @@ declare(strict_types=1);
                 
                 <!-- Official Documentation Links -->
                 <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-3 w-full mt-2">
-                    <a href="https://docs.ownpay.org" target="_blank" class="flex items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 text-slate-600 hover:text-brand-700 transition font-semibold text-xs">API Docs</a>
-                    <a href="https://learn.ownpay.org" target="_blank" class="flex items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 text-slate-600 hover:text-brand-700 transition font-semibold text-xs">Academy</a>
                     <a href="https://ownpay.org" target="_blank" class="flex items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 text-slate-600 hover:text-brand-700 transition font-semibold text-xs">Website</a>
                     <a href="https://github.com/own-pay/ownpay" target="_blank" class="flex items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 text-slate-600 hover:text-brand-700 transition font-semibold text-xs">GitHub</a>
+                    <a href="https://docs.ownpay.org" target="_blank" class="flex items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 text-slate-600 hover:text-brand-700 transition font-semibold text-xs">Api Reference</a>
+                    <a href="https://learn.ownpay.org" target="_blank" class="flex items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 text-slate-600 hover:text-brand-700 transition font-semibold text-xs">Academy</a>
                     <a href="https://facebook.com/ownpay.org" target="_blank" class="flex items-center justify-center p-3 rounded-xl border border-slate-200 hover:border-brand-500 hover:bg-brand-50/50 text-slate-600 hover:text-brand-700 transition font-semibold text-xs">Facebook</a>
                 </div>
             </section>
@@ -309,22 +316,48 @@ declare(strict_types=1);
     <!-- Universal Responsive Page Footer -->
     <footer class="bg-white border-t border-slate-200/80 py-4 px-6 text-center text-[10px] text-slate-450 flex flex-col sm:flex-row justify-between items-center gap-3 z-10 premium-shadow">
         <div class="text-slate-500">
-            &copy; 2026 <a href="https://ownpay.org" class="font-bold text-slate-600 hover:text-brand-600 transition">OwnPay</a> — Built by the Community, for the Community
+            &copy; 2026 <a href="https://ownpay.org" class="font-bold text-slate-600 hover:text-brand-600 transition">OwnPay</a> - Built by the <b><i>Community</i></b>, for the <b><i>Community</i></b>
         </div>
         <div class="flex flex-wrap justify-center gap-3.5 font-semibold text-slate-500">
-            <a href="https://docs.ownpay.org" target="_blank" class="hover:text-brand-600 transition">Docs</a>
-            <a href="https://learn.ownpay.org" target="_blank" class="hover:text-brand-600 transition">Learn</a>
+            <a href="https://docs.ownpay.org" target="_blank" class="hover:text-brand-600 transition">Api Reference</a>
+            <a href="https://learn.ownpay.org" target="_blank" class="hover:text-brand-600 transition">Academy</a>
             <a href="https://ownpay.org" target="_blank" class="hover:text-brand-600 transition">Website</a>
             <a href="https://github.com/own-pay/ownpay" target="_blank" class="hover:text-brand-600 transition">GitHub</a>
             <a href="https://facebook.com/ownpay.org" target="_blank" class="hover:text-brand-600 transition">Facebook</a>
         </div>
     </footer>
 
+    <!-- Custom Premium Alert Modal -->
+    <div id="customAlertModal" class="fixed inset-0 z-50 flex items-center justify-center hidden">
+        <!-- Backdrop -->
+        <div id="customAlertBackdrop" class="absolute inset-0 bg-slate-900/60 backdrop-blur-sm transition-opacity duration-300"></div>
+        
+        <!-- Modal Content Card -->
+        <div id="customAlertCard" class="bg-white border border-slate-200/80 rounded-3xl p-6 shadow-2xl max-w-sm w-full mx-4 transform scale-95 opacity-0 transition-all duration-300 relative z-10 flex flex-col gap-4">
+            <div class="flex items-start gap-4">
+                <!-- Dynamic Icon Container -->
+                <div id="customAlertIconContainer" class="p-3 rounded-2xl flex-shrink-0 border flex items-center justify-center">
+                    <!-- Icon gets injected here -->
+                </div>
+                <div class="flex-1 min-w-0">
+                    <h3 id="customAlertTitle" class="font-bold text-slate-800 text-sm tracking-tight truncate">Notification</h3>
+                    <p id="customAlertMessage" class="text-xs text-slate-500 mt-1 leading-relaxed break-words"></p>
+                </div>
+            </div>
+            
+            <div class="flex justify-end gap-2 mt-2">
+                <button id="customAlertCloseBtn" class="bg-brand-600 hover:bg-brand-500 text-white font-semibold text-xs py-2.5 px-6 rounded-xl shadow-md shadow-brand-500/10 hover:shadow-lg transition duration-200">
+                    Dismiss
+                </button>
+            </div>
+        </div>
+    </div>
+
     <script>
         const endpoints = [
             // === MERCHANT API ===
             { id: 'health', category: 'Merchant API — Core System', method: 'GET', path: '/api/v1/health', desc: 'Verify server health diagnostics, runtime version tags, and MySQL connection uptime.', hasBody: false },
-            { id: 'payment-init', category: 'Merchant API — Payment Intents', method: 'POST', path: '/api/v1/payments', desc: 'Create a payment intent representing a transaction block. Returns the customer checkout URL.', hasBody: true, defaultBody: '{\n  "amount": 1250.00,\n  "currency": "BDT",\n  "description": "Invoice #8930 Premium Pack",\n  "redirect_url": "https://myshop.com/success",\n  "cancel_url": "https://myshop.com/cancel",\n  "metadata": {\n    "invoice_id": 8930\n  }\n}' },
+            { id: 'payment-init', category: 'Merchant API — Payment Intents', method: 'POST', path: '/api/v1/payments', desc: 'Create a payment intent representing a transaction block. Returns the customer checkout URL.', hasBody: true, defaultBody: '{\n  "amount": 1250.00,\n  "currency": "BDT",\n  "description": "Invoice #8930 Premium Pack",\n  "redirect_url": "https://myshop.com/success",\n  "cancel_url": "https://myshop.com/cancel",\n  "customer_name": "John Doe",\n  "customer_mail": "john@example.com",\n  "customer_phone": "+8801700000000",\n  "metadata": {\n    "invoice_id": 8930\n  }\n}' },
             { id: 'payment-show', category: 'Merchant API — Payment Intents', method: 'GET', path: '/api/v1/payments/{payment_id}', desc: 'Retrieve payment status by payment intent UUID.', hasBody: false },
             { id: 'tx-list', category: 'Merchant API — Transactions Ledger', method: 'GET', path: '/api/v1/transactions', desc: 'Query paginated list of settled payments with status criteria filter scopes.', hasBody: false },
             { id: 'tx-show', category: 'Merchant API — Transactions Ledger', method: 'GET', path: '/api/v1/transactions/{trx_id}', desc: 'Fetch transaction details by OwnPay transaction ID or gateway transaction ID.', hasBody: false },
@@ -342,9 +375,40 @@ declare(strict_types=1);
         ];
 
         let activeEndpoint = null;
-        if (window.location.origin) {
-            document.getElementById('baseUrl').value = window.location.origin;
+
+        // Load configuration inputs from sessionStorage with fallbacks
+        const baseUrlInput = document.getElementById('baseUrl');
+        const apiKeyInput = document.getElementById('apiKey');
+        const superAdminEmailInput = document.getElementById('superAdminEmail');
+
+        const storedBaseUrl = sessionStorage.getItem('baseUrl');
+        const storedApiKey = sessionStorage.getItem('apiKey');
+        const storedSuperAdminEmail = sessionStorage.getItem('superAdminEmail');
+
+        if (storedBaseUrl) {
+            baseUrlInput.value = storedBaseUrl;
+        } else if (window.location.origin) {
+            baseUrlInput.value = window.location.origin;
         }
+
+        if (storedApiKey) {
+            apiKeyInput.value = storedApiKey;
+        }
+
+        if (storedSuperAdminEmail) {
+            superAdminEmailInput.value = storedSuperAdminEmail;
+        }
+
+        // Live persistence of values to sessionStorage on user input
+        baseUrlInput.addEventListener('input', () => {
+            sessionStorage.setItem('baseUrl', baseUrlInput.value);
+        });
+        apiKeyInput.addEventListener('input', () => {
+            sessionStorage.setItem('apiKey', apiKeyInput.value.trim());
+        });
+        superAdminEmailInput.addEventListener('input', () => {
+            sessionStorage.setItem('superAdminEmail', superAdminEmailInput.value.trim());
+        });
         const sidebarList = document.getElementById('sidebarList');
         const sidebar = document.getElementById('sidebar');
         const sidebarOverlay = document.getElementById('sidebarOverlay');
@@ -458,7 +522,7 @@ declare(strict_types=1);
                 const parsed = JSON.parse(body);
                 document.getElementById('reqBody').value = JSON.stringify(parsed, null, 2);
             } catch (e) {
-                alert('Invalid JSON formatting.');
+                showAlert('Invalid JSON formatting.', 'JSON Error', 'error');
             }
         });
 
@@ -489,7 +553,7 @@ declare(strict_types=1);
             
             const isPublicEndpoint = activeEndpoint.id === 'health';
             if (!apiKey && !isPublicEndpoint) {
-                alert('An API Key / Bearer JWT is required to query authenticated endpoints.');
+                showAlert('An API Key / Bearer JWT is required to query authenticated endpoints.', 'Authentication Required', 'warning');
                 return;
             }
 
@@ -507,7 +571,7 @@ declare(strict_types=1);
             });
 
             if (missingParams) {
-                alert('Please provide values for all dynamic path variables.');
+                showAlert('Please provide values for all dynamic path variables.', 'Missing Parameters', 'warning');
                 return;
             }
 
@@ -538,7 +602,7 @@ declare(strict_types=1);
                         options.body = bodyVal;
                         reqBodyRaw = bodyVal;
                     } catch (e) {
-                        alert('Malformed JSON syntax in body.');
+                        showAlert('Malformed JSON syntax in body.', 'JSON Body Error', 'error');
                         return;
                     }
                 }
@@ -619,6 +683,62 @@ declare(strict_types=1);
                 document.getElementById('loader').classList.add('hidden');
             }
         });
+
+        // Custom Alert modal controls
+        function showAlert(message, title = 'Notice', type = 'warning') {
+            const modal = document.getElementById('customAlertModal');
+            const card = document.getElementById('customAlertCard');
+            const iconContainer = document.getElementById('customAlertIconContainer');
+            const titleEl = document.getElementById('customAlertTitle');
+            const messageEl = document.getElementById('customAlertMessage');
+            
+            titleEl.textContent = title;
+            messageEl.textContent = message;
+            
+            if (type === 'error') {
+                iconContainer.className = 'p-3 bg-rose-50 text-rose-500 rounded-2xl border border-rose-100 flex-shrink-0';
+                iconContainer.innerHTML = `
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                `;
+            } else if (type === 'success') {
+                iconContainer.className = 'p-3 bg-emerald-50 text-emerald-500 rounded-2xl border border-emerald-100 flex-shrink-0';
+                iconContainer.innerHTML = `
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                    </svg>
+                `;
+            } else {
+                iconContainer.className = 'p-3 bg-amber-50 text-amber-500 rounded-2xl border border-amber-100 flex-shrink-0';
+                iconContainer.innerHTML = `
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                    </svg>
+                `;
+            }
+            
+            modal.classList.remove('hidden');
+            requestAnimationFrame(() => {
+                card.classList.remove('scale-95', 'opacity-0');
+                card.classList.add('scale-100', 'opacity-100');
+            });
+        }
+
+        function hideAlert() {
+            const modal = document.getElementById('customAlertModal');
+            const card = document.getElementById('customAlertCard');
+            
+            card.classList.remove('scale-100', 'opacity-100');
+            card.classList.add('scale-95', 'opacity-0');
+            
+            setTimeout(() => {
+                modal.classList.add('hidden');
+            }, 300);
+        }
+
+        document.getElementById('customAlertCloseBtn').addEventListener('click', hideAlert);
+        document.getElementById('customAlertBackdrop').addEventListener('click', hideAlert);
     </script>
 </body>
 </html>

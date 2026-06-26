@@ -50,7 +50,10 @@ When a customer clicks checkout, your server POSTs to the initiate endpoint to d
     "reference": "ORDER-10048",
     "callback_url": "https://my-store.com/webhooks/ownpay",
     "redirect_url": "https://my-store.com/checkout/success",
-    "cancel_url": "https://my-store.com/checkout/cancel"
+    "cancel_url": "https://my-store.com/checkout/cancel",
+    "customer_name": "John Doe",
+    "customer_mail": "john@example.com",
+    "customer_phone": "+8801700000000"
   }
   ```
 - **Response:**

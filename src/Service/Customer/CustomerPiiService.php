@@ -178,6 +178,11 @@ final class CustomerPiiService
             $encrypted['email_hash'] = $this->encryptor->deterministicHash($emailVal);
         }
 
+        $phoneVal = $data['phone'] ?? '';
+        if (is_string($phoneVal) && $phoneVal !== '') {
+            $encrypted['phone_hash'] = $this->encryptor->deterministicHash($phoneVal);
+        }
+
         $repo = $this->customers->forTenant($merchantId);
         $repo->updateScoped($customerId, $encrypted);
         $customer = $repo->findScoped($customerId);

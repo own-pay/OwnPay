@@ -120,6 +120,9 @@ This creates a new payment intent and returns the checkout URL. You should redir
 * `callback_url` (string, optional): Webhook URL for status changes; also used as the default for `redirect_url`/`cancel_url` when those are omitted.
 * `redirect_url` (string, optional): URL redirected to after successful payment.
 * `cancel_url` (string, optional): URL redirected to if cancelled.
+* `customer_name` (string, optional): Max 150 characters. Customer's full name.
+* `customer_mail` (string, optional): Max 255 characters. Customer's email address (can also use `customer_email`).
+* `customer_phone` (string, optional): Max 30 characters. Customer's mobile or phone number.
 * `metadata` (object, optional): Custom key-value pairs for reconciliation.
 
 > Only `amount` and `currency` are required. The response payload is nested under `data`:
@@ -136,9 +139,11 @@ curl -X POST https://pay.merchantbrand.com/api/v1/payments \
     "description": "Premium Subscription - Invoice #5403",
     "redirect_url": "https://merchantbrand.com/payment/success",
     "cancel_url": "https://merchantbrand.com/payment/cancel",
+    "customer_name": "John Doe",
+    "customer_mail": "john@example.com",
+    "customer_phone": "+8801700000000",
     "metadata": {
-      "order_id": "ORD-5403",
-      "customer_email": "buyer@example.com"
+      "order_id": "ORD-5403"
     }
   }'
 ```
@@ -162,6 +167,9 @@ $response = $client->post('https://pay.merchantbrand.com/api/v1/payments', [
         'description' => 'Premium Subscription - Invoice #5403',
         'redirect_url' => 'https://merchantbrand.com/payment/success',
         'cancel_url' => 'https://merchantbrand.com/payment/cancel',
+        'customer_name' => 'John Doe',
+        'customer_mail' => 'john@example.com',
+        'customer_phone' => '+8801700000000'
     ]
 ]);
 

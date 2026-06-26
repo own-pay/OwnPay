@@ -73,7 +73,7 @@ final class PaymentController
         $bodyCallbackUrl = $body['callback_url'] ?? null;
         $bodyRedirectUrl = $body['redirect_url'] ?? null;
         $bodyCancelUrl = $body['cancel_url'] ?? null;
-        $bodyCustomerEmail = $body['customer_email'] ?? null;
+        $bodyCustomerEmail = $body['customer_mail'] ?? $body['customer_email'] ?? null;
         $bodyCustomerName = $body['customer_name'] ?? null;
         $bodyCustomerPhone = $body['customer_phone'] ?? null;
         $bodyReference = $body['reference'] ?? null;
@@ -187,6 +187,17 @@ final class PaymentController
                     if (is_array($existing)) {
                         $existingIdVal = $existing['id'] ?? 0;
                         $customerId = is_int($existingIdVal) || is_string($existingIdVal) ? (int)$existingIdVal : 0;
+                        
+                        $updateData = [];
+                        if ($customerName !== null && $customerName !== '' && ($existing['name'] ?? '') !== $customerName) {
+                            $updateData['name'] = $customerName;
+                        }
+                        if ($customerPhone !== null && $customerPhone !== '' && ($existing['phone'] ?? '') !== $customerPhone) {
+                            $updateData['phone'] = $customerPhone;
+                        }
+                        if ($updateData !== []) {
+                            $piiSvc->update($mid, $customerId, $updateData);
+                        }
                     } else {
                         $created = $piiSvc->create($mid, [
                             'name'  => $customerName ?? 'API Customer',
