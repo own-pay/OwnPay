@@ -1124,4 +1124,40 @@
         }
     }, true);
 
+    // ─── Custom Alert Override ──────────────────────────────────
+    window.alert = function (message) {
+        var modal = document.getElementById("op-alert-modal");
+        if (!modal) {
+            modal = document.createElement("div");
+            modal.className = "op-modal";
+            modal.id = "op-alert-modal";
+            modal.hidden = true;
+            modal.innerHTML = 
+                '<div class="op-modal-backdrop" id="op-alert-modal-backdrop"></div>' +
+                '<div class="op-modal-dialog">' +
+                '    <div class="op-modal-header">' +
+                '        <h4 id="op-alert-modal-title">Alert</h4>' +
+                '        <button type="button" class="op-modal-close" id="op-alert-modal-close">&times;</button>' +
+                "    </div>" +
+                '    <div class="op-modal-body">' +
+                '        <p id="op-alert-modal-message" style="word-break: break-word; line-height: 1.6; color: var(--op-text);"></p>' +
+                "    </div>" +
+                '    <div class="op-modal-footer">' +
+                '        <button type="button" class="op-btn op-btn-primary" id="op-alert-modal-ok">OK</button>' +
+                "    </div>" +
+                "</div>";
+            document.body.appendChild(modal);
+
+            var closeModal = function() {
+                modal.hidden = true;
+            };
+            document.getElementById("op-alert-modal-close").addEventListener("click", closeModal);
+            document.getElementById("op-alert-modal-backdrop").addEventListener("click", closeModal);
+            document.getElementById("op-alert-modal-ok").addEventListener("click", closeModal);
+        }
+
+        document.getElementById("op-alert-modal-message").textContent = message;
+        modal.hidden = false;
+    };
+
 })();

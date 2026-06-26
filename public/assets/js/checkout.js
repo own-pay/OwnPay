@@ -556,4 +556,34 @@
             }
         }
     }, true);
+
+    // ---------- CUSTOM ALERT OVERRIDE ----------
+    window.alert = function (message) {
+        var modal = document.getElementById("ck-alert-modal");
+        if (!modal) {
+            modal = document.createElement("div");
+            modal.id = "ck-alert-modal";
+            modal.className = "ck-modal ck-hidden";
+            modal.innerHTML = 
+                '<div class="ck-modal-backdrop" id="ck-alert-modal-backdrop"></div>' +
+                '<div class="ck-modal-dialog">' +
+                "    <h3>Alert</h3>" +
+                '    <p id="ck-alert-modal-message" style="word-break: break-word; margin: 15px 0; line-height: 1.6; color: var(--ink);"></p>' +
+                '    <div class="ck-modal-actions">' +
+                '        <button type="button" id="ck-alert-modal-ok" class="ck-modal-btn-outline ck-modal-full" style="margin-top: 0;">OK</button>' +
+                "    </div>" +
+                "</div>";
+            document.body.appendChild(modal);
+
+            var closeModal = function() {
+                modal.classList.add("ck-hidden");
+            };
+            document.getElementById("ck-alert-modal-backdrop").addEventListener("click", closeModal);
+            document.getElementById("ck-alert-modal-ok").addEventListener("click", closeModal);
+        }
+
+        document.getElementById("ck-alert-modal-message").textContent = message;
+        modal.classList.remove("ck-hidden");
+    };
+
 })();
