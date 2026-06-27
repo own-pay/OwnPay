@@ -1,34 +1,37 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}Paired Devices — {{ app_name }}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/assets/css/pages/devices.css?v=014">
+    <link rel="stylesheet" href="/assets/css/pages/devices.css?v=021">
 {% endblock %}
 {% block content %}
 
 <div class="op-page-header">
     <div>
-        <h1>📱 Devices Hub</h1>
+        <h1>Devices Hub</h1>
         <p class="op-page-subtitle">Manage companion mobile devices authorized to synchronize SMS transactions and customize filtering rules.</p>
     </div>
-    <button class="op-btn op-btn-primary" id="pair-device-btn">
-        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-align-v2-mr6"><path d="M12 5v14M5 12h14"/></svg>Pair New Device
-    </button>
+    <div class="op-header-actions">
+        <button class="op-btn op-btn-primary op-pairing-trigger" data-open-modal="pairing-modal">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+            Pair New Device
+        </button>
+    </div>
 </div>
 
 {% if config_error is defined and config_error %}
 <div class="op-alert op-alert-warning op-mb-4">
-    <strong>⚠ Configuration Required:</strong> {{ config_error }}
+    <strong>Configuration Required:</strong> {{ config_error }}
 </div>
 {% endif %}
 
 {# ── Navigation Tabs ──────────────────────────────────────── #}
 <div class="op-tabs op-mb-4" id="devices-tabs">
     <button class="op-tab active" data-tab="devices">
-        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
+        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
         <span>Paired Devices</span>
     </button>
     <button class="op-tab" data-tab="settings">
-        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="margin-right: 6px; display: inline-block; vertical-align: middle;"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+        <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Mobile App Settings</span>
     </button>
 </div>
@@ -37,10 +40,10 @@
 <div class="op-tab-panel active" id="tab-devices">
     {# ── Stats Cards ── #}
     {% if stats is defined %}
-    <div class="op-stats-grid op-mb-4">
-        <div class="op-stat-card">
-            <div class="op-stat-icon op-stat-grad-primary">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+    <div class="op-stats-grid op-devices-stats op-mb-4">
+        <div class="op-stat-card op-stat-primary">
+            <div class="op-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
             </div>
             <div class="op-stat-content">
                 <span class="op-stat-value">{{ stats.total }}</span>
@@ -48,17 +51,17 @@
             </div>
         </div>
         <div class="op-stat-card op-stat-success">
-            <div class="op-stat-icon op-stat-grad-success">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+            <div class="op-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
             </div>
             <div class="op-stat-content">
                 <span class="op-stat-value">{{ stats.active }}</span>
                 <span class="op-stat-label">Active</span>
             </div>
         </div>
-        <div class="op-stat-card">
-            <div class="op-stat-icon op-stat-grad-danger">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+        <div class="op-stat-card op-stat-danger">
+            <div class="op-stat-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
             </div>
             <div class="op-stat-content">
                 <span class="op-stat-value">{{ stats.revoked }}</span>
@@ -67,77 +70,6 @@
         </div>
     </div>
     {% endif %}
-
-    {# ── Pairing Panel ── #}
-    <div class="op-card op-mb-4 op-pairing-panel op-d-none" id="pairing-panel">
-        <div class="op-card-header">
-            <h3>🔗 Pair Mobile Device</h3>
-            <button class="op-btn op-btn-xs op-btn-ghost" id="close-pairing-panel">✕ Close</button>
-        </div>
-        <div class="op-card-body">
-            <div class="op-form-row op-align-start">
-                <div class="op-col-6">
-                    <div class="op-pairing-step">
-                        <span class="op-step-number">1</span>
-                        <h4>Generate Pairing Code</h4>
-                    </div>
-                    <p class="op-text-muted op-mb-4">Click below to generate a one-time 6-digit pairing code or scan the QR code using the OwnPay app.</p>
-                    <button class="op-btn op-btn-primary op-btn-lg" id="gen-otp-btn">
-                        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-align-v3-mr6"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>Generate Code
-                    </button>
-
-                    <div id="otp-display" class="op-mt-4 op-d-none">
-                        <div class="op-pairing-flex">
-                            <div class="op-otp-box-wrapper">
-                                <div class="op-otp-code-label">Verification Code</div>
-                                <div class="op-otp-code" id="otp-value">——————</div>
-                                <div class="op-otp-timer">Expires in <span id="otp-timer">5:00</span></div>
-                            </div>
-                            <div class="op-qr-wrapper">
-                                <div class="op-qr-label">Or Scan QR Code</div>
-                                <div class="op-qr-code-box" id="qr-container">
-                                    <div class="op-qr-placeholder">Generating...</div>
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="op-col-6">
-                    <div class="op-pairing-step">
-                        <span class="op-step-number">2</span>
-                        <h4>Pairing Walkthrough</h4>
-                    </div>
-                    <div class="op-timeline">
-                        <div class="op-timeline-item">
-                            <div class="op-timeline-marker"></div>
-                            <div class="op-timeline-content">
-                                <strong>Open App</strong>
-                                <p class="op-text-muted op-text-xs">Launch the OwnPay Companion App on your mobile device.</p>
-                            </div>
-                        </div>
-                        <div class="op-timeline-item">
-                            <div class="op-timeline-marker"></div>
-                            <div class="op-timeline-content">
-                                <strong>Scan or Enter Code</strong>
-                                <p class="op-text-muted op-text-xs">Scan the QR code displayed here or tap "Pair with Code" and type the 6-digit PIN.</p>
-                            </div>
-                        </div>
-                        <div class="op-timeline-item">
-                            <div class="op-timeline-marker"></div>
-                            <div class="op-timeline-content">
-                                <strong>Authorize Connection</strong>
-                                <p class="op-text-muted op-text-xs">Accept the pairing request. The device will authenticate and register immediately.</p>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="op-alert op-alert-info op-mt-4">
-                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-align-v2-mr4"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-                        <strong>Security:</strong> All communication uses encrypted TLS. Pair tokens rotate on device checks automatically.
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
 
     {# ── Device List Table ── #}
     <div class="op-card">
@@ -177,7 +109,7 @@
                                     </div>
                                     <div>
                                         <strong>{{ d.device_name ?? 'Unknown Device' }}</strong>
-                                        <div class="op-text-xs op-text-muted"><code>{{ d.device_id|slice(0, 8) }}…</code></div>
+                                        <div class="op-text-xs op-text-muted"><code>{{ d.device_id|slice(0, 8) }}...</code></div>
                                     </div>
                                 </div>
                             </td>
@@ -208,7 +140,7 @@
                                 </div>
                                 <p class="op-empty-title">No devices paired yet</p>
                                 <p class="op-text-muted op-text-sm">Connect your mobile companion app to start forwarding SMS messages.</p>
-                                <button class="op-btn op-btn-sm op-btn-primary op-mt-2" id="pair-first-device-btn">Pair First Device</button>
+                                <button class="op-btn op-btn-sm op-btn-primary op-mt-2" data-open-modal="pairing-modal">Pair First Device</button>
                             </td>
                         </tr>
                         {% endfor %}
@@ -259,5 +191,84 @@
     </form>
 </div>
 
+{# ═══════════════════════════════════════════════════════════
+   PAIR NEW DEVICE DIALOG
+   ═══════════════════════════════════════════════════════════ #}
+<div class="op-modal" id="pairing-modal" hidden>
+    <div class="op-modal-backdrop" data-close-modal="pairing-modal"></div>
+    <div class="op-modal-dialog op-pairing-dialog">
+        <div class="op-modal-header">
+            <h3>Pair New Device</h3>
+            <button type="button" class="op-modal-close" data-close-modal="pairing-modal">&times;</button>
+        </div>
+        <div class="op-modal-body op-pairing-body">
+            {# ── Phase 1: Generate ── #}
+            <div class="op-pairing-phase op-pairing-phase-1" id="pairing-phase-1">
+                <div class="op-pairing-hero">
+                    <div class="op-pairing-hero-icon">
+                        <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="5" y="2" width="14" height="20" rx="2"/><line x1="12" y1="18" x2="12" y2="18.01"/></svg>
+                    </div>
+                    <h4>Connect your phone</h4>
+                    <p>Generate a one-time code to pair the OwnPay companion app. The code expires in 5 minutes.</p>
+                </div>
+                <button class="op-btn op-btn-primary op-btn-lg op-pairing-gen-btn" id="gen-otp-btn">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <span>Generate Pairing Code</span>
+                </button>
+                <div class="op-pairing-steps-row">
+                    <div class="op-pairing-step-item">
+                        <span class="op-pairing-step-num">1</span>
+                        <span>Generate code</span>
+                    </div>
+                    <div class="op-pairing-step-arrow">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+                    <div class="op-pairing-step-item">
+                        <span class="op-pairing-step-num">2</span>
+                        <span>Open app &amp; scan</span>
+                    </div>
+                    <div class="op-pairing-step-arrow">
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="9 18 15 12 9 6"/></svg>
+                    </div>
+                    <div class="op-pairing-step-item">
+                        <span class="op-pairing-step-num">3</span>
+                        <span>Authorize</span>
+                    </div>
+                </div>
+            </div>
+
+            {# ── Phase 2: Code + QR ── #}
+            <div class="op-pairing-phase op-pairing-phase-2 op-d-none" id="pairing-phase-2">
+                <div class="op-pairing-code-section">
+                    <div class="op-pairing-code-block">
+                        <div class="op-pairing-code-label">Your pairing code</div>
+                        <div class="op-pairing-code" id="otp-value">------</div>
+                        <div class="op-pairing-timer">
+                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                            <span id="otp-timer">5:00</span> remaining
+                        </div>
+                    </div>
+                    <div class="op-pairing-qr-block">
+                        <div class="op-qr-container" id="qr-container">
+                            <div class="op-qr-placeholder">Generating...</div>
+                        </div>
+                        <div class="op-pairing-qr-label">Scan with OwnPay app</div>
+                    </div>
+                </div>
+                <div class="op-pairing-done-row">
+                <button class="op-btn op-btn-ghost op-btn-sm" id="pairing-regenerate-btn">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    <span>Regenerate</span>
+                </button>
+                    <button class="op-btn op-btn-primary op-btn-sm" data-close-modal="pairing-modal">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Done
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
 {% endblock %}
-{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/devices.js?v=016"></script>{% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/devices.js?v=021"></script>{% endblock %}

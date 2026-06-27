@@ -3,7 +3,7 @@
   "slug": "adyen",
   "version": "1.0.0",
   "description": "Adyen payment gateway integration for OwnPay",
-  "author": "OwnPay Core",
+  "author": "OwnPay",
   "type": "gateway",
   "entrypoint": "AdyenGateway.php",
   "namespace": "OwnPay\\Modules\\Gateways\\Adyen",
@@ -12,7 +12,7 @@
   ],
   "requires": {
     "core": ">=0.1.0",
-    "php": ">=8.1"
+    "php": ">=8.3"
   },
   "category": "global",
   "color": "#00CC66",
@@ -38,5 +38,5 @@
     "gateway.process",
     "gateway.refund"
   ],
-  "icon": "icon.svg"
+  "icon": "icon.png"
 }
