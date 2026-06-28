@@ -2143,3 +2143,25 @@ components:
           type: array
           items:
             $ref: '#/components/schemas/AdminDevice'
+
+    PaginationMeta:
+      type: object
+      description: Standard pagination metadata returned in paginated list responses.
+      required: [page, per_page, total_records, total_pages]
+      properties:
+        page:
+          type: integer
+          description: Current page number (1-indexed).
+          example: 1
+        per_page:
+          type: integer
+          description: Number of records returned per page.
+          example: 20
+        total_records:
+          type: integer
+          description: Total number of records matching the query.
+          example: 145
+        total_pages:
+          type: integer
+          description: Total number of pages available.
+          example: 8

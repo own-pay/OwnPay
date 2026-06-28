@@ -49,7 +49,7 @@ money never a double. Reuse `RetryPolicy`, `QueuedSms`, `ApiClient` (now unwraps
 ## Increment 6b — audit-trail UI (user: "yes")
 
 ### Phase 6 — Audit domain + cubit (+ `deleteFailed` queue op)
-**Status:** in_progress
+**Status:** complete
 - `features/audit/domain/audit_entry.dart`: `AuditEntry` value object built from `QueuedSms` — carries
   ONLY safe metadata (localId, sender, receivedAt, status, retryCount, failureReason, serverRef);
   **structurally no `encryptedPayload`** (SECURITY.md §7/§9 — defense-in-depth).
@@ -60,18 +60,18 @@ money never a double. Reuse `RetryPolicy`, `QueuedSms`, `ApiClient` (now unwraps
   failed + reloads, retryNow calls `SyncWorker.syncNow` + reloads.
 
 ### Phase 7 — Audit screen/view + widget tests
-**Status:** pending
+**Status:** complete
 - `audit_screen.dart`: `AuditScreen` (BlocProvider → `..load()`) + `AuditView` (SegmentedButton filter,
   metadata list with status chips, empty states, Retry-now action, Clear-failed w/ confirm).
 - `test/audit/audit_view_test.dart`: renders metadata, filter switches, **never renders the payload**,
   clear-failed/retry wired, empty states.
 
 ### Phase 8 — Routing + entry point + purge wiring
-**Status:** pending
+**Status:** complete
 - `/audit` route; a Home AppBar action → `/audit`; `main` cold-start `purgeApproved(now − syncedRetention)`.
 
 ### Phase 9 — Green + docs
-**Status:** pending
+**Status:** complete
 - analyze + test green; ROADMAP Phase 3 audit line → done; HANDOFF (6b done; next = inc 7); memory.
 
 ## Errors Encountered

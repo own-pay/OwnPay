@@ -31,6 +31,11 @@ class PairedDeviceRepository extends BaseRepository
     ];
 
     /**
+     * Seconds since the last heartbeat within which an active device is considered "online".
+     */
+    public const ONLINE_THRESHOLD_SECONDS = 180;
+
+    /**
      * Finds a device record by its unique device UUID string.
      *
      * Overrides BaseRepository::findByUuid because this table has a `device_id` column 
@@ -139,6 +144,53 @@ class PairedDeviceRepository extends BaseRepository
         }
         return $this->db->fetchAll(
             "SELECT * FROM {$this->table} WHERE merchant_id = :mid AND status = 'active' ORDER BY paired_at DESC",
+            ['mid' => $this->requireTenant()]
+        );
+    }
+
+    /**
+     * Returns the most recently paired ACTIVE device whose paired_at is at or after the given
+     * baseline timestamp — used to detect a device that just completed pairing.
+     *
+     * @param string $since Baseline timestamp (DB datetime, e.g. the OTP-generation time).
+     * @return array<string, mixed>|null The newest matching device, or null if none.
+     */
+    public function findNewestActiveSince(string $since): ?array
+    {
+        if ($this->tenantId === null) {
+            return $this->db->fetchOne(
+                "SELECT * FROM {$this->table} WHERE status = 'active' AND paired_at >= :since ORDER BY paired_at DESC LIMIT 1",
+                ['since' => $since]
+            );
+        }
+        return $this->db->fetchOne(
+            "SELECT * FROM {$this->table} WHERE merchant_id = :mid AND status = 'active' AND paired_at >= :since ORDER BY paired_at DESC LIMIT 1",
+            ['mid' => $this->requireTenant(), 'since' => $since]
+        );
+    }
+
+    /**
+     * Lists every device for the active tenant (any status) with a derived `online` flag.
+     *
+     * `online` is computed on the DB clock — an active device whose last heartbeat falls within
+     * ONLINE_THRESHOLD_SECONDS. Revoked/inactive devices are always offline (frozen), so the admin
+     * live view can show them without their status ever flipping back to connected.
+     *
+     * @return array<int, array<string, mixed>> Devices, each with an additional integer `online` column.
+     */
+    public function listWithLiveStatus(): array
+    {
+        $threshold = (int) self::ONLINE_THRESHOLD_SECONDS;
+        $online = "(status = 'active' AND last_heartbeat IS NOT NULL "
+            . "AND last_heartbeat >= DATE_SUB(NOW(6), INTERVAL {$threshold} SECOND)) AS online";
+
+        if ($this->tenantId === null) {
+            return $this->db->fetchAll(
+                "SELECT *, {$online} FROM {$this->table} ORDER BY paired_at DESC"
+            );
+        }
+        return $this->db->fetchAll(
+            "SELECT *, {$online} FROM {$this->table} WHERE merchant_id = :mid ORDER BY paired_at DESC",
             ['mid' => $this->requireTenant()]
         );
     }

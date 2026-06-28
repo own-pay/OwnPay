@@ -230,6 +230,8 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/devices/notifications', 'Admin\\MobileNotificationLogController@index', 'admin');
     $router->post('/admin/devices/generate-otp', 'Admin\\DeviceController@generateOtp', 'admin');
     $router->get('/admin/devices/check-status', 'Admin\\DeviceController@checkStatus', 'admin');
+    $router->get('/admin/devices/pairing-status', 'Admin\\DeviceController@pairingStatus', 'admin');
+    $router->get('/admin/devices/statuses', 'Admin\\DeviceController@statuses', 'admin');
     $router->post('/admin/devices/{id}/revoke', 'Admin\\DeviceController@revoke', 'admin');
     $router->post('/admin/devices/bulk-revoke', 'Admin\\DeviceController@bulkRevoke', 'admin');
     $router->post('/admin/devices/settings', 'Admin\\DeviceController@saveSettings', 'admin');

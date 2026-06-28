@@ -1,7 +1,7 @@
 {% extends 'admin/layout/base.twig' %}
 {% block title %}Paired Devices — {{ app_name }}{% endblock %}
 {% block head %}
-    <link rel="stylesheet" href="/assets/css/pages/devices.css?v=021">
+    <link rel="stylesheet" href="/assets/css/pages/devices.css?v=022">
 {% endblock %}
 {% block content %}
 
@@ -75,14 +75,21 @@
     <div class="op-card">
         <div class="op-card-header">
             <h3>Connected Devices</h3>
-            {% if devices|length > 0 %}
-            <form method="POST" action="/admin/devices/bulk-revoke" id="bulk-revoke-form" data-confirm="Revoke ALL selected devices?">
-                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
-                <button type="submit" class="op-btn op-btn-sm op-btn-danger" id="bulk-revoke-btn" disabled>
-                    Revoke Selected
+            <div class="op-card-header-actions">
+                <span class="op-devices-refresh-hint" id="devices-refresh-hint" aria-live="polite"></span>
+                <button type="button" class="op-btn op-btn-sm op-btn-ghost" id="devices-refresh-btn" title="Refresh device status">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                    <span>Refresh</span>
                 </button>
-            </form>
-            {% endif %}
+                {% if devices|length > 0 %}
+                <form method="POST" action="/admin/devices/bulk-revoke" id="bulk-revoke-form" data-confirm="Revoke ALL selected devices?">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-danger" id="bulk-revoke-btn" disabled>
+                        Revoke Selected
+                    </button>
+                </form>
+                {% endif %}
+            </div>
         </div>
         <div class="op-card-body op-p-0">
             <div class="op-table-responsive">
@@ -100,7 +107,7 @@
                     </thead>
                     <tbody>
                         {% for d in devices %}
-                        <tr>
+                        <tr data-device-row="{{ d.device_id }}">
                             <td data-label="Select"><input type="checkbox" class="device-checkbox" name="device_ids[]" value="{{ d.device_id }}" form="bulk-revoke-form"></td>
                             <td data-label="Device">
                                 <div class="op-device-info">
@@ -115,11 +122,19 @@
                             </td>
                             <td data-label="Platform"><span class="op-text-muted">{{ d.platform ?? '—' }}</span></td>
                             <td data-label="Status">
-                                <span class="op-badge op-badge-{{ d.status == 'active' ? 'success' : (d.status == 'revoked' ? 'danger' : 'muted') }}">
-                                    <span class="op-status-dot"></span>{{ d.status|capitalize }}
+                                <span class="op-device-livestatus" data-device-status>
+                                    {% if d.status == 'active' and d.online %}
+                                        <span class="op-badge op-badge-success"><span class="op-status-dot op-status-dot--pulse"></span>Online</span>
+                                    {% elseif d.status == 'active' %}
+                                        <span class="op-badge op-badge-muted"><span class="op-status-dot"></span>Idle</span>
+                                    {% elseif d.status == 'revoked' %}
+                                        <span class="op-badge op-badge-danger"><span class="op-status-dot"></span>Revoked</span>
+                                    {% else %}
+                                        <span class="op-badge op-badge-muted"><span class="op-status-dot"></span>{{ d.status|capitalize }}</span>
+                                    {% endif %}
                                 </span>
                             </td>
-                            <td data-label="Last Seen" class="op-text-muted">{{ d.last_heartbeat ?? 'Never' }}</td>
+                            <td data-label="Last Seen" class="op-text-muted op-device-lastseen" data-heartbeat="{{ d.last_heartbeat }}">{{ d.last_heartbeat ?? 'Never' }}</td>
                             <td data-label="Paired" class="op-text-muted">{{ d.paired_at ? d.paired_at|date('M d, Y') : '—' }}</td>
                             <td data-label="Actions">
                                 {% if d.status == 'active' %}
@@ -255,6 +270,10 @@
                         <div class="op-pairing-qr-label">Scan with OwnPay app</div>
                     </div>
                 </div>
+                <div class="op-pairing-waiting" id="pairing-waiting">
+                    <span class="op-pairing-waiting-spinner" aria-hidden="true"></span>
+                    <span>Waiting for your phone to connect&hellip;</span>
+                </div>
                 <div class="op-pairing-done-row">
                 <button class="op-btn op-btn-ghost op-btn-sm" id="pairing-regenerate-btn">
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
@@ -266,9 +285,24 @@
                     </button>
                 </div>
             </div>
+
+            {# ── Phase 3: Connected (auto-shown when the device finishes pairing) ── #}
+            <div class="op-pairing-phase op-pairing-phase-3 op-d-none" id="pairing-phase-3">
+                <div class="op-pairing-success-icon">
+                    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>
+                </div>
+                <h4>Device connected</h4>
+                <p><strong id="paired-device-name">Your device</strong> is paired and now verifying SMS.</p>
+                <div class="op-pairing-done-row op-pairing-done-row--center">
+                    <button class="op-btn op-btn-primary op-btn-sm" id="pairing-finish-btn">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"/></svg>
+                        Done
+                    </button>
+                </div>
+            </div>
         </div>
     </div>
 </div>
 
 {% endblock %}
-{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/devices.js?v=021"></script>{% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/devices.js?v=022"></script>{% endblock %}

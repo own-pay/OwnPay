@@ -502,4 +502,34 @@ final class DevicePairingService
         }
         return $this->devices->forTenant($merchantId)->listActive();
     }
+
+    /**
+     * Returns the most recently paired ACTIVE device for the brand (or all brands) since a baseline
+     * timestamp — used by the admin pairing screen to detect a device that just connected.
+     *
+     * @param int|null $merchantId Brand id, or null/0 for the All-Brands scope.
+     * @param string $since Baseline timestamp (the OTP-generation time).
+     * @return array<string, mixed>|null The newly paired device, or null if none yet.
+     */
+    public function findNewlyPairedSince(?int $merchantId, string $since): ?array
+    {
+        $repo = ($merchantId === null || $merchantId === 0)
+            ? $this->devices->forAllTenants()
+            : $this->devices->forTenant($merchantId);
+        return $repo->findNewestActiveSince($since);
+    }
+
+    /**
+     * Lists devices (any status) with a derived live `online` flag for the brand (or all brands).
+     *
+     * @param int|null $merchantId Brand id, or null/0 for the All-Brands scope.
+     * @return array<int, array<string, mixed>> Devices, each with an `online` column.
+     */
+    public function listDeviceStatuses(?int $merchantId): array
+    {
+        $repo = ($merchantId === null || $merchantId === 0)
+            ? $this->devices->forAllTenants()
+            : $this->devices->forTenant($merchantId);
+        return $repo->listWithLiveStatus();
+    }
 }

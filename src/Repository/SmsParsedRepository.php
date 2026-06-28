@@ -65,6 +65,31 @@ final class SmsParsedRepository extends BaseRepository
     }
 
     /**
+     * Re-attributes a parsed SMS captured by an all-brands device to the brand that owns the
+     * matched transaction, and links it.
+     *
+     * This is the single legitimate path that moves an op_sms_parsed row across the tenant
+     * boundary: the global SMS-verification resolution for platform-scoped (all-brands) devices,
+     * where the owning brand is only known once a transaction is matched. {@see updateScoped()}
+     * deliberately forbids merchant_id changes (anti cross-tenant migration), so this is a
+     * separate, explicit, primary-key-targeted update invoked only by the verification cron.
+     *
+     * @param int $smsId The internal primary identifier of the SMS record.
+     * @param int $transactionId The internal primary identifier of the matched transaction.
+     * @param int $resolvedBrandId The brand that owns the matched transaction.
+     * @return int The number of affected database rows.
+     */
+    public function rebindToBrand(int $smsId, int $transactionId, int $resolvedBrandId): int
+    {
+        return $this->db->update(
+            "UPDATE {$this->table}
+             SET merchant_id = :brand, transaction_id = :tx, match_status = 'matched'
+             WHERE {$this->primaryKey} = :id",
+            ['brand' => $resolvedBrandId, 'tx' => $transactionId, 'id' => $smsId]
+        );
+    }
+
+    /**
      * Lists all SMS data structures linked directly to a specific transaction.
      *
      * @param int $transactionId The internal primary identifier of the transaction.

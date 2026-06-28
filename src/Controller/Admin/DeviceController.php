@@ -110,7 +110,9 @@ final class DeviceController
             throw new \RuntimeException('No active brand found.');
         }
 
-        $list = $svc->listDevices($mid);
+        // listDeviceStatuses returns every device (any status) plus a derived `online` flag, so the
+        // table shows revoked devices frozen and renders the correct live dot on first paint.
+        $list = $svc->listDeviceStatuses($mid);
 
         $stats = [
             'total'   => count($list),
@@ -187,12 +189,24 @@ final class DeviceController
             $qrcode = new \chillerlan\QRCode\QRCode($options);
             $qrSvg = $qrcode->render($qrPayload);
 
+            // Capture the OTP-generation moment on the DB clock so the pairing dialog can poll
+            // pairing-status with a baseline comparable to op_paired_devices.paired_at (DB default).
+            $dbConn = $this->c->get(\OwnPay\Core\Database::class);
+            $generatedAt = \OwnPay\Support\DateHelper::nowMicro();
+            if ($dbConn instanceof \OwnPay\Core\Database) {
+                $nowVal = $dbConn->fetchColumn("SELECT NOW(6)");
+                if (is_scalar($nowVal)) {
+                    $generatedAt = (string) $nowVal;
+                }
+            }
+
             return Response::json([
-                'success'    => true,
-                'otp'        => $result['otp'],
-                'expires_in' => $result['expires_in'],
-                'qr_svg'     => $qrSvg,
-                'csrf_token' => \OwnPay\Security\SecurityHelpers::csrfToken(),
+                'success'      => true,
+                'otp'          => $result['otp'],
+                'expires_in'   => $result['expires_in'],
+                'generated_at' => $generatedAt,
+                'qr_svg'       => $qrSvg,
+                'csrf_token'   => \OwnPay\Security\SecurityHelpers::csrfToken(),
             ]);
         } catch (\Throwable $e) {
             return Response::json(['success' => false, 'error' => $e->getMessage()]);
@@ -303,6 +317,97 @@ final class DeviceController
             'success' => true,
             'paired'  => $activeCount > 0
         ]);
+    }
+
+    /**
+     * Detects whether a device has completed pairing since the supplied baseline timestamp (the
+     * `generated_at` returned by generateOtp), so the pairing dialog can flip to a "device connected"
+     * state in real time without a manual refresh.
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response JSON: { success, connected, device_name?, platform?, paired_at? }.
+     */
+    public function pairingStatus(Request $req): Response
+    {
+        $svc = $this->getService();
+        if ($svc === null) {
+            return Response::json(['success' => false, 'error' => 'Device service not configured']);
+        }
+
+        $sinceVal = $req->query('since');
+        $since = is_string($sinceVal) ? trim($sinceVal) : '';
+        // Accept only a DB datetime baseline (optionally with microseconds); never let arbitrary
+        // input reach the query. Anything else is treated as "nothing paired yet".
+        if (preg_match('/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}(\.\d{1,6})?$/', $since) !== 1) {
+            return Response::json(['success' => false, 'error' => 'Invalid or missing since timestamp']);
+        }
+
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
+        $brand->resolveFromRequest($req);
+        // Detection is scoped to the same owner the OTP was written under (platform id in the
+        // All-Brands view, otherwise the active brand), so it finds the device that just paired.
+        $mid = $brand->getWriteMerchantId();
+
+        $device = $svc->findNewlyPairedSince($mid, $since);
+        if ($device === null) {
+            return Response::json(['success' => true, 'connected' => false]);
+        }
+
+        return Response::json([
+            'success'     => true,
+            'connected'   => true,
+            'device_name' => isset($device['device_name']) && is_scalar($device['device_name']) ? (string) $device['device_name'] : null,
+            'platform'    => isset($device['platform']) && is_scalar($device['platform']) ? (string) $device['platform'] : null,
+            'paired_at'   => isset($device['paired_at']) && is_scalar($device['paired_at']) ? (string) $device['paired_at'] : null,
+        ]);
+    }
+
+    /**
+     * Returns the live status of every device for the active brand (or all brands) with a derived
+     * online/offline flag, for the device list's real-time view. Revoked devices are reported frozen
+     * (never online).
+     *
+     * @param Request $req The incoming HTTP request.
+     *
+     * @return Response JSON: { success, devices: [ { device_id, device_name, platform, status, last_heartbeat, paired_at, online } ] }.
+     */
+    public function statuses(Request $req): Response
+    {
+        $svc = $this->getService();
+        if ($svc === null) {
+            return Response::json(['success' => false, 'error' => 'Device service not configured']);
+        }
+
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if (!$brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            throw new \RuntimeException('BrandContext service unavailable');
+        }
+        $brand->resolveFromRequest($req);
+        // Same scoping as the device list: a specific brand sees its own devices; the All-Brands
+        // view (active brand id 0/null) aggregates every brand.
+        $mid = $brand->getActiveBrandId();
+
+        $devices = $svc->listDeviceStatuses($mid);
+        $out = [];
+        foreach ($devices as $d) {
+            $deviceId = $d['device_id'] ?? '';
+            $onlineRaw = $d['online'] ?? 0;
+            $out[] = [
+                'device_id'      => is_scalar($deviceId) ? (string) $deviceId : '',
+                'device_name'    => isset($d['device_name']) && is_scalar($d['device_name']) ? (string) $d['device_name'] : null,
+                'platform'       => isset($d['platform']) && is_scalar($d['platform']) ? (string) $d['platform'] : null,
+                'status'         => isset($d['status']) && is_scalar($d['status']) ? (string) $d['status'] : '',
+                'last_heartbeat' => isset($d['last_heartbeat']) && is_scalar($d['last_heartbeat']) ? (string) $d['last_heartbeat'] : null,
+                'paired_at'      => isset($d['paired_at']) && is_scalar($d['paired_at']) ? (string) $d['paired_at'] : null,
+                'online'         => is_scalar($onlineRaw) && (int) $onlineRaw === 1,
+            ];
+        }
+
+        return Response::json(['success' => true, 'devices' => $out]);
     }
 
     /**

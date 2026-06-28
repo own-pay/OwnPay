@@ -20,4 +20,14 @@
 ### Test results
 - `flutter analyze` → No issues. `flutter test` → **All passed (79)** (+17 this increment). No android/ change.
 
-### Next = Increment 6b (audit-trail UI), then inc 7 (incl. wiring `SyncWorker.onReauthRequired` → re-pair).
+### Increment 6b (audit UI) — COMPLETE
+- `AuditEntry` (metadata-only, no payload), `AuditCubit` (load/filter/clearFailed/retryNow), `AuditView`
+  (SegmentedButton, status chips Confirmed/Failed/Queued, confirmed clear-failed, empty states).
+- `SyncWorker implements Syncer` (presentation depends on the `Syncer` domain interface, not the worker).
+- `SmsQueueStore.deleteFailed()` (+ Hive impl + real-Hive test). `/audit` route + Home AppBar entry
+  (`context.push`); `main` cold-start `purgeApproved`. Shared `test/audit/audit_fakes.dart`.
+- Verified: analyze clean; `flutter test` **All passed (90)** (+11). No android/ change.
+- Docs: ROADMAP, HANDOFF, memory. (Did NOT re-attest: `.active_plan` was intentionally repointed to a
+  different (WC gateway) plan by the user — left as-is; planning hooks are inactive anyway.)
+
+### Next = Increment 7 (dashboard 7a → re-pair/lifecycle 7b → settings 7c → notifications 7d).

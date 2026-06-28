@@ -285,6 +285,97 @@ tr:hover .op-device-icon {
 }
 
 /* ═══════════════════════════════════════════════════════
+   LIVE STATUS + REFRESH
+   ═══════════════════════════════════════════════════════ */
+.op-card-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.op-devices-refresh-hint {
+    font-size: 11px;
+    color: var(--op-text-muted);
+}
+
+#devices-refresh-btn svg { transition: transform 0.2s; }
+.op-spin svg { animation: op-spin 0.8s linear infinite; }
+
+@keyframes op-spin { to { transform: rotate(360deg); } }
+
+/* Online dot pulses; idle/revoked dots stay static (frozen). */
+.op-status-dot--pulse {
+    animation: op-dot-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes op-dot-pulse {
+    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgb(34 197 94 / 45%); }
+    50% { opacity: 0.6; box-shadow: 0 0 0 4px rgb(34 197 94 / 0%); }
+}
+
+/* ═══════════════════════════════════════════════════════
+   PAIRING — WAITING + CONNECTED (PHASE 3)
+   ═══════════════════════════════════════════════════════ */
+.op-pairing-waiting {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--op-text-muted);
+    margin-bottom: 14px;
+}
+
+.op-pairing-waiting-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--op-border);
+    border-top-color: var(--op-primary);
+    border-radius: 50%;
+    animation: op-spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+.op-pairing-success-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgb(34 197 94 / 12%);
+    color: var(--op-success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 8px auto 18px;
+    animation: op-success-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes op-success-pop {
+    0% { transform: scale(0.4); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+}
+
+.op-pairing-phase-3 h4 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--op-text);
+    margin: 0 0 6px;
+}
+
+.op-pairing-phase-3 p {
+    font-size: 13px;
+    color: var(--op-text-muted);
+    line-height: 1.5;
+    margin: 0 0 20px;
+    max-width: 320px;
+}
+
+.op-pairing-done-row--center {
+    justify-content: center;
+    border-top: none;
+    padding-top: 0;
+}
+
+/* ═══════════════════════════════════════════════════════
    RESPONSIVE
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
