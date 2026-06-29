@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Transaction {{ txn.trx_id }} — {{ app_name }}{% endblock %}
+{% block title %}Transaction {{ txn.trx_id }} - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <h1>Transaction: <code>{{ txn.trx_id }}</code></h1>
@@ -16,9 +16,9 @@
                 <dt>Fee</dt><dd>{{ txn.currency }} {{ txn.fee ?? '0.00' }}</dd>
                 <dt>Net</dt><dd>{{ txn.currency }} {{ txn.net_amount ?? txn.amount }}</dd>
                 <dt>Gateway</dt><dd>{{ txn.gateway_name }}</dd>
-                <dt>Gateway TRX</dt><dd><code>{{ txn.gateway_trx_id ?? '—' }}</code></dd>
+                <dt>Gateway TRX</dt><dd><code>{{ txn.gateway_trx_id ?? '-' }}</code></dd>
                 <dt>Created</dt><dd>{{ txn.created_at }}</dd>
-                <dt>Updated</dt><dd>{{ txn.updated_at ?? '—' }}</dd>
+                <dt>Updated</dt><dd>{{ txn.updated_at ?? '-' }}</dd>
             </dl>
         </div>
     </div>
@@ -27,10 +27,10 @@
         <div class="op-card-header"><h3>Customer</h3></div>
         <div class="op-card-body">
             <dl class="op-detail-list">
-                <dt>Name</dt><dd>{{ txn.customer_name ?? '—' }}</dd>
-                <dt>Email</dt><dd>{{ txn.customer_email ?? '—' }}</dd>
-                <dt>Phone</dt><dd>{{ txn.customer_phone ?? '—' }}</dd>
-                <dt>IP</dt><dd><code>{{ txn.ip_address ?? '—' }}</code></dd>
+                <dt>Name</dt><dd>{{ txn.customer_name ?? '-' }}</dd>
+                <dt>Email</dt><dd>{{ txn.customer_email ?? '-' }}</dd>
+                <dt>Phone</dt><dd>{{ txn.customer_phone ?? '-' }}</dd>
+                <dt>IP</dt><dd><code>{{ txn.ip_address ?? '-' }}</code></dd>
             </dl>
         </div>
     </div>
@@ -88,8 +88,8 @@
                 {% for sms in sms_data %}
                 <tr>
                     <td data-label="From">{{ sms.sender }}</td>
-                    <td data-label="Amount">{{ sms.parsed_amount ?? '—' }}</td>
-                    <td data-label="TRX ID"><code>{{ sms.parsed_trx_id ?? '—' }}</code></td>
+                    <td data-label="Amount">{{ sms.parsed_amount ?? '-' }}</td>
+                    <td data-label="TRX ID"><code>{{ sms.parsed_trx_id ?? '-' }}</code></td>
                     <td data-label="Received">{{ sms.received_at }}</td>
                 </tr>
                 {% endfor %}

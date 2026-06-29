@@ -94,14 +94,11 @@ final class GatewayController
         $platformId = $brand->getPlatformId();
         $isGlobal = $this->isGlobalBrandView();
         $brandId = $brand->getActiveBrandId();
-        // API gateway per-brand activation keys off the real brand id (0 / unresolved in All Brands view) —
-        // preserve that existing behaviour; only manual gateways adopt the Phase 2c template model below.
         $apiContextId = ($brandId !== null && $brandId > 0) ? $brandId : 0;
 
-        // Manual gateways (Phase 2c, model A: platform templates + per-brand account overrides).
+        // Manual gateways (model A: platform templates + per-brand account overrides).
         $manualGateways = [];
         if ($isGlobal) {
-            // All Brands manages the platform-owned templates (the gateway TYPES + default accounts).
             foreach ($this->manualGateways->forTenant($platformId)->listAll() as $row) {
                 $row = $this->decodeManualRow($row);
                 $row['is_own'] = true;       // platform-owned; All Brands may edit/disable/delete
@@ -215,10 +212,6 @@ final class GatewayController
      */
     public function createManual(Request $request): Response
     {
-        // Phase 2c: only "All Brands" defines manual gateway TYPES (platform-owned templates). A brand
-        // cannot create gateway types — it configures its own account for a platform template instead
-        // (see configureAccount). Guarding BOTH GET and POST also closes the brand direct-URL to
-        // /admin/gateways/create-manual and /admin/gateways/store-manual.
         if ($guard = $this->requireGlobalView('/admin/gateways', 'add a manual gateway type')) {
             return $guard;
         }
@@ -250,12 +243,6 @@ final class GatewayController
 
     /**
      * Brand-facing: configure THIS brand's own account for a platform-defined manual gateway template.
-     *
-     * Phase 2c (model A): brands cannot create gateway types, but each brand sets its own account
-     * details (the instructions/number a customer pays to, plus optional QR/logo). Saving upserts a
-     * brand-owned op_manual_gateways row for the template's slug (copying the template's TYPE fields
-     * on first save), which then WINS over the platform template at that brand's checkout. Only
-     * available in a specific brand view — All Brands edits the template directly via editManual.
      *
      * @param Request $request The incoming HTTP request.
      *
@@ -423,8 +410,7 @@ final class GatewayController
         return Response::redirect('/admin/gateways');
     }
 
-    // ── Extracted Helpers ─────────────────────────────────────────
-
+    // ---- Extracted Helpers
     /**
      * Resolves and returns the request-scoped BrandContext (active brand resolved from the request).
      *
@@ -570,7 +556,7 @@ final class GatewayController
             'input_fields'     => $this->buildFieldsJson($fieldsArray),
             'min_amount'       => InputSanitizer::decimal(is_string($minVal) ? $minVal : '0'),
             'max_amount'       => InputSanitizer::decimal(is_string($maxVal) ? $maxVal : '0'),
-            'sms_verification' => isset($data['sms_verification']) ? 1 : 0,
+            'sms_verification' => 1,
             'sms_sender_pattern' => InputSanitizer::string(is_string($smsSenderPatternVal) ? $smsSenderPatternVal : ''),
             'sms_regex_template' => InputSanitizer::string(is_string($smsRegexTemplateVal) ? $smsRegexTemplateVal : ''),
         ];

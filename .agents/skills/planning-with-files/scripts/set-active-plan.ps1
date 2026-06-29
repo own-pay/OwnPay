@@ -1,8 +1,8 @@
 # planning-with-files: set or display the active plan pointer (PowerShell).
 #
 # Usage:
-#   .\set-active-plan.ps1 <plan_id>   — pin .planning\.active_plan to plan_id
-#   .\set-active-plan.ps1             — print the current active plan (if any)
+#   .\set-active-plan.ps1 <plan_id>   - pin .planning\.active_plan to plan_id
+#   .\set-active-plan.ps1             - print the current active plan (if any)
 
 param(
     [string]$PlanId = ""

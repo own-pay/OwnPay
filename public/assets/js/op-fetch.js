@@ -1,13 +1,13 @@
 /**
- * OwnPay Fetch Wrapper — CSRF-protected AJAX.
+ * OwnPay Fetch Wrapper - CSRF-protected AJAX.
  * OWASP: Auto-attaches CSRF token, validates response, prevents open redirect.
  */
-(function() {
+(function () {
     "use strict";
 
     function getCsrfToken() {
         const meta = document.querySelector('meta[name="csrf-token"]');
-        if (meta) {return meta.getAttribute("content");}
+        if (meta) { return meta.getAttribute("content"); }
         const input = document.querySelector('input[name="_csrf_token"]');
         return input ? input.value : "";
     }
@@ -17,7 +17,7 @@
      * @param {object} options
      * @returns {Promise<{ok: boolean, status: number, data: any, error?: string}>}
      */
-    window.opFetch = async function(url, options = {}) {
+    window.opFetch = async function (url, options = {}) {
         // OWASP: Prevent open redirect / SSRF via URL validation
         if (url.startsWith("//") || /^https?:\/\//i.test(url)) {
             const allowed = window.location.origin;
@@ -74,23 +74,23 @@
     /**
      * Shorthand POST
      */
-    window.opPost = function(url, body) {
+    window.opPost = function (url, body) {
         return window.opFetch(url, { method: "POST", body: body });
     };
 
     /**
      * Shorthand DELETE
      */
-    window.opDelete = function(url) {
+    window.opDelete = function (url) {
         return window.opFetch(url, { method: "DELETE" });
     };
 
     /**
      * Load HTML fragment into container (SPA-style).
      */
-    window.opLoadFragment = async function(url, containerId) {
+    window.opLoadFragment = async function (url, containerId) {
         const container = document.getElementById(containerId);
-        if (!container) {return;}
+        if (!container) { return; }
         container.innerHTML = '<div class="op-loading">Loading...</div>';
         const result = await window.opFetch(url);
         if (result.ok) {

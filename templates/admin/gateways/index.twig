@@ -1,6 +1,6 @@
 {% extends 'admin/layout/base.twig' %}
 
-{% block title %}Gateways — {{ app_name }}{% endblock %}
+{% block title %}Gateways - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
@@ -158,7 +158,7 @@
                 {% if (mg.is_template ?? false) and not (mg.is_own ?? false) %}
                     <span class="op-badge op-badge-info" title="Defined by All Brands. Uses the platform default account until you configure your own.">Platform default</span>
                 {% elseif not (is_global_view ?? true) and (mg.is_own ?? false) %}
-                    <span class="op-badge op-badge-primary" title="Your brand's own account — customers pay this.">Your account</span>
+                    <span class="op-badge op-badge-primary" title="Your brand's own account - customers pay this.">Your account</span>
                 {% endif %}
                 <span class="op-badge {{ mg.sms_verification ? 'op-badge-success' : 'op-badge-muted' }}">SMS: {{ mg.sms_verification ? 'ON' : 'OFF' }}</span>
             </div>

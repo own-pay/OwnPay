@@ -281,7 +281,7 @@ final class RateLimiterMiddleware
      *
      * The returned value is THIS request's authoritative position in the window
      * (Redis INCR / the DB upsert are each atomic), so the caller can decide
-     * allow/deny on it without a separate read — closing the read-then-increment
+     * allow/deny on it without a separate read - closing the read-then-increment
      * race where concurrent requests all see the same sub-limit value.
      *
      * @param string $key The rate limit key.
@@ -291,7 +291,7 @@ final class RateLimiterMiddleware
      */
     private function incrementAndCount(string $key, int $now, int $window): int
     {
-        // Try Redis (atomic via native INCR — no TOCTOU)
+        // Try Redis (atomic via native INCR - no TOCTOU)
         if ($this->container->has(\OwnPay\Cache\RedisCache::class)) {
             try {
                 $cache = $this->container->get(\OwnPay\Cache\RedisCache::class);
@@ -299,7 +299,7 @@ final class RateLimiterMiddleware
                     $redis = $cache->redis();
                     $prefixedKey = 'op:' . $key;
 
-                    // Native Redis INCR — single atomic op returning the new count.
+                    // Native Redis INCR - single atomic op returning the new count.
                     $hits = $redis->incr($prefixedKey);
                     $count = is_scalar($hits) ? (int) $hits : 1;
 
@@ -315,7 +315,7 @@ final class RateLimiterMiddleware
             }
         }
 
-        // Atomic upsert — no TOCTOU race
+        // Atomic upsert - no TOCTOU race
         $db = $this->container->get(\OwnPay\Core\Database::class);
         if (!$db instanceof \OwnPay\Core\Database) {
             return 1;

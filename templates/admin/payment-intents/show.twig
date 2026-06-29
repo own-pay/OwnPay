@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Payment Intent Details — {{ app_name }}{% endblock %}
+{% block title %}Payment Intent Details - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-back-navigation op-mb-3">
     <a href="/admin/payment-intents" class="op-back-link">← Back to Payment Intents</a>
@@ -43,7 +43,7 @@
                 <div class="op-form-group">
                     <label>Description</label>
                     <div class="op-input op-readonly" style="height: auto; min-height: 38px;">
-                        {{ intent.description|default('—') }}
+                        {{ intent.description|default('-') }}
                     </div>
                 </div>
 
@@ -64,15 +64,15 @@
             <div class="op-card-body">
                 <div class="op-form-group">
                     <label>Redirect URL (Return Path)</label>
-                    <input type="text" class="op-input op-readonly" value="{{ intent.redirect_url|default('—') }}" readonly>
+                    <input type="text" class="op-input op-readonly" value="{{ intent.redirect_url|default('-') }}" readonly>
                 </div>
                 <div class="op-form-group">
                     <label>Cancel URL</label>
-                    <input type="text" class="op-input op-readonly" value="{{ intent.cancel_url|default('—') }}" readonly>
+                    <input type="text" class="op-input op-readonly" value="{{ intent.cancel_url|default('-') }}" readonly>
                 </div>
                 <div class="op-form-group">
                     <label>Webhook Notifications Endpoint</label>
-                    <input type="text" class="op-input op-readonly" value="{{ intent.webhook_url|default('—') }}" readonly>
+                    <input type="text" class="op-input op-readonly" value="{{ intent.webhook_url|default('-') }}" readonly>
                 </div>
             </div>
         </div>
@@ -91,7 +91,7 @@
                 </div>
                 <div class="op-mb-3">
                     <strong class="op-d-block op-text-muted">Expires At</strong>
-                    <span>{{ intent.expires_at ? intent.expires_at|date("M d, Y H:i:s") : '—' }}</span>
+                    <span>{{ intent.expires_at ? intent.expires_at|date("M d, Y H:i:s") : '-' }}</span>
                 </div>
                 <div>
                     <strong class="op-d-block op-text-muted">Last Updated</strong>

@@ -5,11 +5,12 @@ metadata:
   type: project
 ---
 
-# Task: VitePress Documentation Site — OwnPay
+# Task: VitePress Documentation Site - OwnPay
 
 **Goal:** Create `ownpay-documentation` at `C:\laragon\www\ownpay-documentation` using VitePress 1.6.4. Incorporate existing user guide docs from `C:\laragon\backup\OwnPay\docs\user_guide\`. Output GitHub Actions CI/CD guide.
 
 ## Constraints
+
 - VitePress 1.6.4 (latest stable 2026)
 - No TypeScript config
 - Domain: `learn.ownpay.org`
@@ -32,6 +33,7 @@ metadata:
 | 7 | Output GitHub Actions CI/CD guide | not_started |
 
 ## Directory Structure Target
+
 ```
 ownpay-documentation/
 ├── .vitepress/
@@ -65,5 +67,6 @@ ownpay-documentation/
 ```
 
 ## Errors Encountered
+
 | Error | Attempt | Resolution |
 |-------|---------|------------|

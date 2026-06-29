@@ -86,7 +86,7 @@
         if (storedExpiry) {
             expiryTimestamp = Number(storedExpiry);
         } else {
-            // First visit — use server-calculated remaining, store expiry
+            // First visit - use server-calculated remaining, store expiry
             expiryTimestamp = Date.now() + serverRemaining * 1000;
             if (serverRemaining > 0) {
                 localStorage.setItem(storageKey, String(expiryTimestamp));
@@ -153,10 +153,10 @@
     window.goT = function (t) {
         document.querySelectorAll(".ck-tab").forEach(function (b) { b.classList.remove("on"); });
         var tab = document.querySelector('.ck-tab[data-t="' + t + '"]');
-        if (tab) {tab.classList.add("on");}
+        if (tab) { tab.classList.add("on"); }
         document.querySelectorAll(".ck-tc").forEach(function (c) { c.classList.add("ck-hidden"); });
         var pane = document.getElementById("t-" + t);
-        if (pane) {pane.classList.remove("ck-hidden");}
+        if (pane) { pane.classList.remove("ck-hidden"); }
     };
 
     // ---------- GATEWAY PICK ----------
@@ -166,13 +166,13 @@
     window.pickGW = function (cardEl, tab, slug, name, mode) {
         var gridId = tab === "card" ? "cardG" : tab === "mfs" ? "mfsG" : "bankG";
         var grid = document.getElementById(gridId);
-        if (grid) {grid.querySelectorAll(".ck-gw").forEach(function (c) { c.classList.remove("on"); });}
+        if (grid) { grid.querySelectorAll(".ck-gw").forEach(function (c) { c.classList.remove("on"); }); }
         cardEl.classList.add("on");
         gwState[tab] = { slug: slug, name: name, mode: mode };
 
         var btnId = tab === "card" ? "cardBtn" : tab === "mfs" ? "mfsBtn" : "bankBtn";
         var btn = document.getElementById(btnId);
-        if (!btn) {return;}
+        if (!btn) { return; }
         btn.disabled = false;
         btn.className = "ck-pay-btn ck-pay-active";
         btn.textContent = mode === "manual" ? ("Pay manually via " + name) : ("Continue with " + name);
@@ -181,7 +181,7 @@
 
     function executeGW(tab) {
         var s = gwState[tab];
-        if (!s.slug) {return;}
+        if (!s.slug) { return; }
         if (s.mode === "manual") {
             openManualPopup(s.slug, s.name);
             return;
@@ -190,7 +190,7 @@
         // ARCHITECTURE FIX: Use AJAX POST instead of form submit.
         // Server returns JSON { success, redirect_url } or { success: false, error }.
         // On success: browser does hard redirect OUT to external gateway (Stripe/bKash).
-        // On failure: inline error shown on checkout page — user can retry.
+        // On failure: inline error shown on checkout page - user can retry.
         showLoading();
 
         var csrf = document.getElementById("op-csrf");
@@ -213,7 +213,7 @@
                     return;
                 }
 
-                // FAILURE: Gateway API returned an error — show on checkout page.
+                // FAILURE: Gateway API returned an error - show on checkout page.
                 hideLoading();
                 var errorMsg = (res.data && res.data.error)
                     ? res.data.error
@@ -229,21 +229,21 @@
     // U-01 FIX: Loading overlay for gateway redirects
     function showLoading() {
         var existing = document.getElementById("ck-loading");
-        if (existing) {return;}
+        if (existing) { return; }
         var overlay = document.createElement("div");
         overlay.id = "ck-loading";
         overlay.className = "ck-loading-overlay";
-        
+
         var content = document.createElement("div");
         content.className = "ck-loading-content";
-        
+
         var spinner = document.createElement("div");
         spinner.className = "ck-loading-spinner";
-        
+
         var text = document.createElement("p");
         text.className = "ck-loading-text";
         text.textContent = "Connecting to payment gateway…";
-        
+
         content.appendChild(spinner);
         content.appendChild(text);
         overlay.appendChild(content);
@@ -252,14 +252,14 @@
 
     function hideLoading() {
         var overlay = document.getElementById("ck-loading");
-        if (overlay) {overlay.remove();}
+        if (overlay) { overlay.remove(); }
     }
 
     // Show inline error toast on the checkout page (no page navigation)
     function showCheckoutError(msg) {
         // Remove any existing error toast
         var existing = document.getElementById("ck-error-toast");
-        if (existing) {existing.remove();}
+        if (existing) { existing.remove(); }
 
         var toast = document.createElement("div");
         toast.id = "ck-error-toast";
@@ -297,9 +297,9 @@
         var meta = (cfg.gatewayMeta && cfg.gatewayMeta[slug]) || { color: "#0D9488", type: "Send Money", logoText: "" };
         var gwData = manualGateways[slug] || {};
         var nameEl = document.getElementById("mpName");
-        if (nameEl) {nameEl.textContent = name;}
+        if (nameEl) { nameEl.textContent = name; }
         var typeEl = document.getElementById("mpType");
-        if (typeEl) {typeEl.textContent = meta.type || "Send Money";}
+        if (typeEl) { typeEl.textContent = meta.type || "Send Money"; }
         var iconEl = document.getElementById("mpIcon");
         if (iconEl) {
             iconEl.className = "ck-popup-gw-icon";
@@ -350,7 +350,7 @@
         var amountEl = document.querySelector("#mpStep1 .ck-popup-value");
         if (amountEl && gwData.converted_amount && gwData.converted_currency) {
             var convSymbol = gwData.converted_currency === "BDT" ? "৳" : gwData.converted_currency + " ";
-            var formatted = parseFloat(gwData.converted_amount).toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            var formatted = parseFloat(gwData.converted_amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             amountEl.textContent = convSymbol + formatted;
             // Also add a small conversion note
             var noteEl = document.getElementById("mpConvNote");
@@ -364,19 +364,19 @@
         } else if (amountEl) {
             // Reset to original amount for non-converted gateways
             var origSymbol = cfg.originalCurrencySymbol || "$";
-            var origAmount = parseFloat(cfg.originalAmount || "0").toLocaleString(undefined, {minimumFractionDigits: 2, maximumFractionDigits: 2});
+            var origAmount = parseFloat(cfg.originalAmount || "0").toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
             amountEl.textContent = origSymbol + origAmount;
             var existingNote = document.getElementById("mpConvNote");
-            if (existingNote) {existingNote.remove();}
+            if (existingNote) { existingNote.remove(); }
         }
 
         var popup = document.getElementById("manualPopup");
-        if (popup) {popup.classList.remove("ck-hidden");}
+        if (popup) { popup.classList.remove("ck-hidden"); }
     }
 
     window.closeManual = function () {
         var p = document.getElementById("manualPopup");
-        if (p) {p.classList.add("ck-hidden");}
+        if (p) { p.classList.add("ck-hidden"); }
     };
 
     // L-05 FIX: Support both forward and backward navigation in manual popup
@@ -414,9 +414,9 @@
         };
 
         var csrfEl = document.getElementById("op-csrf");
-        if (csrfEl) {fields["_csrf_token"] = csrfEl.value;}
+        if (csrfEl) { fields["_csrf_token"] = csrfEl.value; }
         var hashEl = document.getElementById("op-checkout-hash");
-        if (hashEl) {fields["checkout_hash"] = hashEl.value;}
+        if (hashEl) { fields["checkout_hash"] = hashEl.value; }
 
         // Add verification data as payment_details
         fields["payment_details[sender_number]"] = data.get("sender_number") || "";
@@ -439,11 +439,11 @@
     // ---------- MODALS ----------
     window.openMdl = function (id) {
         var e = document.getElementById(id);
-        if (e) {e.classList.remove("ck-hidden");}
+        if (e) { e.classList.remove("ck-hidden"); }
     };
     window.closeMdl = function (id) {
         var e = document.getElementById(id);
-        if (e) {e.classList.add("ck-hidden");}
+        if (e) { e.classList.add("ck-hidden"); }
     };
 
     // ---------- COPY ----------
@@ -478,17 +478,17 @@
 
     // ---------- EXPRESS CHECKOUT ----------
     window.doQP = function (provider) {
-        if (typeof window.opPost !== "function") {return;}
+        if (typeof window.opPost !== "function") { return; }
         showLoading();
         var csrf = document.getElementById("op-csrf");
         var hashEl = document.getElementById("op-checkout-hash");
-        
+
         var payload = {
             provider: provider,
             checkout_hash: hashEl ? hashEl.value : "",
             _csrf_token: csrf ? csrf.value : ""
         };
-        
+
         window.opPost(basePath + "/express", payload)
             .then(function (res) {
                 if (res.ok && res.data && res.data.success && res.data.redirect_url) {
@@ -564,7 +564,7 @@
             modal = document.createElement("div");
             modal.id = "ck-alert-modal";
             modal.className = "ck-modal ck-hidden";
-            modal.innerHTML = 
+            modal.innerHTML =
                 '<div class="ck-modal-backdrop" id="ck-alert-modal-backdrop"></div>' +
                 '<div class="ck-modal-dialog">' +
                 "    <h3>Alert</h3>" +
@@ -575,7 +575,7 @@
                 "</div>";
             document.body.appendChild(modal);
 
-            var closeModal = function() {
+            var closeModal = function () {
                 modal.classList.add("ck-hidden");
             };
             document.getElementById("ck-alert-modal-backdrop").addEventListener("click", closeModal);

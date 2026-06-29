@@ -58,7 +58,6 @@ final class TransactionService
      */
     public function create(int $merchantId, array $data): array
     {
-        // Pre-create filter — plugins can modify data
         $res = $this->events->applyFilter('payment.transaction.before_create', $data, $merchantId);
         $data = is_array($res) ? $res : $data;
 
@@ -102,10 +101,6 @@ final class TransactionService
             throw new \RuntimeException('Failed to retrieve completed transaction.');
         }
 
-        // No row transitioned: the transaction was already terminal — e.g. a
-        // concurrent callback completed it first, or a caller attempted to
-        // resurrect a failed/cancelled/refunded transaction. Completion events
-        // and audit entries must not fire for a transition that never happened.
         if ($affected === 0) {
             return $transaction;
         }

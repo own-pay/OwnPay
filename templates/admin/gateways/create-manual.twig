@@ -1,6 +1,6 @@
 {% extends 'admin/layout/base.twig' %}
 
-{% block title %}Create Manual Gateway — {{ app_name }}{% endblock %}
+{% block title %}Create Manual Gateway - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
@@ -87,11 +87,9 @@
                     <small>0 = unlimited</small>
                 </div>
                 <div class="op-form-group op-col-4">
-                    <label class="op-checkbox-label">
-                        <input type="checkbox" name="sms_verification" value="1" {{ (old.sms_verification ?? false) ? 'checked' : '' }}>
-                        Enable SMS Verification
-                    </label>
-                    <small>Auto-verify via companion app SMS parsing.</small>
+                    <label>SMS Verification</label>
+                    <p class="op-mb-0"><span class="op-badge op-badge-success">Always on</span></p>
+                    <small class="op-text-muted">Auto-verify via the companion app's SMS parsing - mandatory for manual gateways.</small>
                 </div>
             </div>
             <div class="op-form-row op-mt-3" id="sms-patterns-row">

@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Paired Devices — {{ app_name }}{% endblock %}
+{% block title %}Paired Devices - {{ app_name }}{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/assets/css/pages/devices.css?v=022">
 {% endblock %}
@@ -24,7 +24,7 @@
 </div>
 {% endif %}
 
-{# ── Navigation Tabs ──────────────────────────────────────── #}
+{# -- Navigation Tabs ---------------------------------------- #}
 <div class="op-tabs op-mb-4" id="devices-tabs">
     <button class="op-tab active" data-tab="devices">
         <svg class="op-tab-svg" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>
@@ -36,9 +36,9 @@
     </button>
 </div>
 
-{# ── TAB 1: Devices Overview ──────────────────────────────── #}
+{# -- TAB 1: Devices Overview -------------------------------- #}
 <div class="op-tab-panel active" id="tab-devices">
-    {# ── Stats Cards ── #}
+    {# -- Stats Cards -- #}
     {% if stats is defined %}
     <div class="op-stats-grid op-devices-stats op-mb-4">
         <div class="op-stat-card op-stat-primary">
@@ -71,7 +71,7 @@
     </div>
     {% endif %}
 
-    {# ── Device List Table ── #}
+    {# -- Device List Table -- #}
     <div class="op-card">
         <div class="op-card-header">
             <h3>Connected Devices</h3>
@@ -120,7 +120,7 @@
                                     </div>
                                 </div>
                             </td>
-                            <td data-label="Platform"><span class="op-text-muted">{{ d.platform ?? '—' }}</span></td>
+                            <td data-label="Platform"><span class="op-text-muted">{{ d.platform ?? '-' }}</span></td>
                             <td data-label="Status">
                                 <span class="op-device-livestatus" data-device-status>
                                     {% if d.status == 'active' and d.online %}
@@ -135,7 +135,7 @@
                                 </span>
                             </td>
                             <td data-label="Last Seen" class="op-text-muted op-device-lastseen" data-heartbeat="{{ d.last_heartbeat }}">{{ d.last_heartbeat ?? 'Never' }}</td>
-                            <td data-label="Paired" class="op-text-muted">{{ d.paired_at ? d.paired_at|date('M d, Y') : '—' }}</td>
+                            <td data-label="Paired" class="op-text-muted">{{ d.paired_at ? d.paired_at|date('M d, Y') : '-' }}</td>
                             <td data-label="Actions">
                                 {% if d.status == 'active' %}
                                 <form method="POST" action="/admin/devices/{{ d.device_id }}/revoke" class="op-inline-form" data-confirm="Revoke {{ d.device_name ?? d.device_id }}?">
@@ -143,7 +143,7 @@
                                     <button type="submit" class="op-btn op-btn-sm op-btn-danger">Revoke</button>
                                 </form>
                                 {% else %}
-                                <span class="op-text-muted op-text-xs">—</span>
+                                <span class="op-text-muted op-text-xs">-</span>
                                 {% endif %}
                             </td>
                         </tr>
@@ -166,7 +166,7 @@
     </div>
 </div>
 
-{# ── TAB 2: App Settings ──────────────────────────────────── #}
+{# -- TAB 2: App Settings ------------------------------------ #}
 <div class="op-tab-panel" id="tab-settings">
     <form method="POST" action="/admin/devices/settings" class="op-form">
         <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
@@ -217,7 +217,7 @@
             <button type="button" class="op-modal-close" data-close-modal="pairing-modal">&times;</button>
         </div>
         <div class="op-modal-body op-pairing-body">
-            {# ── Phase 1: Generate ── #}
+            {# -- Phase 1: Generate -- #}
             <div class="op-pairing-phase op-pairing-phase-1" id="pairing-phase-1">
                 <div class="op-pairing-hero">
                     <div class="op-pairing-hero-icon">
@@ -252,7 +252,7 @@
                 </div>
             </div>
 
-            {# ── Phase 2: Code + QR ── #}
+            {# -- Phase 2: Code + QR -- #}
             <div class="op-pairing-phase op-pairing-phase-2 op-d-none" id="pairing-phase-2">
                 <div class="op-pairing-code-section">
                     <div class="op-pairing-code-block">
@@ -286,7 +286,7 @@
                 </div>
             </div>
 
-            {# ── Phase 3: Connected (auto-shown when the device finishes pairing) ── #}
+            {# -- Phase 3: Connected (auto-shown when the device finishes pairing) -- #}
             <div class="op-pairing-phase op-pairing-phase-3 op-d-none" id="pairing-phase-3">
                 <div class="op-pairing-success-icon">
                     <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>

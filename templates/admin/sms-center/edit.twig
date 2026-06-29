@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Edit Parsing Template — {{ app_name }}{% endblock %}
+{% block title %}Edit Parsing Template - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -17,9 +17,9 @@
         <div class="op-card-body">
             <div class="op-form-row">
                 <div class="op-form-group op-col-4">
-                    <label>Gateway <span class="op-text-danger">*</span></label>
-                    <select name="gateway_slug" class="op-input" required>
-                        <option value="">— Select —</option>
+                    <label>Gateway <span class="op-text-muted op-text-xs">(optional)</span></label>
+                    <select name="gateway_slug" class="op-input">
+                        <option value="">- None -</option>
                         {% for gw in gateways %}
                         <option value="{{ gw.slug }}" {{ gw.slug == template.gateway_slug ? 'selected' : '' }}>{{ gw.name }}</option>
                         {% endfor %}
@@ -50,17 +50,17 @@
             <div class="op-form-group">
                 <label>Amount Regex <span class="op-text-danger">*</span></label>
                 <input type="text" name="amount_regex" id="edit-amount-regex" class="op-input op-font-mono" value="{{ template.amount_regex }}" required>
-                <small class="op-text-muted">Example: <code>Tk\s*([\d,]+\.?\d*)</code> — extracts "1500.00" from "Tk 1,500.00"</small>
+                <small class="op-text-muted">Example: <code>Tk\s*([\d,]+\.?\d*)</code> - extracts "1500.00" from "Tk 1,500.00"</small>
             </div>
             <div class="op-form-group">
                 <label>Transaction ID Regex</label>
                 <input type="text" name="trx_id_regex" id="edit-trxid-regex" class="op-input op-font-mono" value="{{ template.trx_id_regex }}">
-                <small class="op-text-muted">Example: <code>TrxID\s*(\w+)</code> — extracts "ABC123XYZ" from "TrxID ABC123XYZ"</small>
+                <small class="op-text-muted">Example: <code>TrxID\s*(\w+)</code> - extracts "ABC123XYZ" from "TrxID ABC123XYZ"</small>
             </div>
             <div class="op-form-group">
                 <label>Sender Account Regex</label>
                 <input type="text" name="sender_regex" id="edit-sender-regex" class="op-input op-font-mono" value="{{ template.sender_regex }}">
-                <small class="op-text-muted">Example: <code>from\s*(01\d{9})</code> — extracts phone number</small>
+                <small class="op-text-muted">Example: <code>from\s*(01\d{9})</code> - extracts phone number</small>
             </div>
         </div>
     </div>

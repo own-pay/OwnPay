@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Settings — {{ app_name }}{% endblock %}
+{% block title %}Settings - {{ app_name }}{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/assets/css/pages/settings.css?v=018">
 {% endblock %}
@@ -180,7 +180,7 @@
     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="_tab" id="active-tab-input" value="{{ default_tab ?? 'general' }}">
 
-    {# ── General Tab ────────────────────────────────────────── #}
+    {# -- General Tab ------------------------------------------ #}
     {% if not is_brand_view %}
     <div class="op-tab-panel {{ default_tab == 'general' ? 'active' : '' }}" id="tab-general">
         <div class="op-card">
@@ -234,13 +234,13 @@
     </div>
     {% endif %}
 
-    {# ── Branding Tab ────────────────────────────────────────── #}
+    {# -- Branding Tab ------------------------------------------ #}
     <div class="op-tab-panel {{ default_tab == 'branding' ? 'active' : '' }}" id="tab-branding">
         <div class="op-card op-mb-4">
             <div class="op-card-header"><h3>Logo & Favicon</h3></div>
             <div class="op-card-body">
                 <div class="op-form-row">
-                    {# ── Site Logo ─────────────── #}
+                    {# -- Site Logo --------------- #}
                     <div class="op-form-group op-col-6">
                         <label>Site Logo</label>
                         <p class="op-text-muted op-text-sm op-mb-2">Recommended: 200×60px PNG or SVG</p>
@@ -264,7 +264,7 @@
                         </div>
                     </div>
 
-                    {# ── Favicon ───────────────── #}
+                    {# -- Favicon ----------------- #}
                     <div class="op-form-group op-col-6">
                         <label>Favicon</label>
                         <p class="op-text-muted op-text-sm op-mb-2">Recommended: 32×32px ICO or PNG</p>
@@ -320,7 +320,7 @@
                     </div>
                     <div class="op-form-group op-col-6">
                         <label>Site Title (SEO)</label>
-                        <input type="text" name="site_seo_title" value="{{ branding.site_seo_title ?? '' }}" class="op-input" placeholder="{{ app_name }} — Secure Payments">
+                        <input type="text" name="site_seo_title" value="{{ branding.site_seo_title ?? '' }}" class="op-input" placeholder="{{ app_name }} - Secure Payments">
                         <small class="op-text-muted">Used in landing page &lt;title&gt; tag</small>
                     </div>
                 </div>
@@ -416,7 +416,7 @@
     </div>
 
     {% if not is_brand_view %}
-    {# ── Landing Page Tab ─────────────────────────────────────── #}
+    {# -- Landing Page Tab --------------------------------------- #}
     <div class="op-tab-panel {{ default_tab == 'landing' ? 'active' : '' }}" id="tab-landing">
         <div class="op-card op-mb-4">
             <div class="op-card-header"><h3>Landing Page Settings</h3></div>
@@ -495,7 +495,7 @@
     </div>
     {% endif %}
 
-    {# ── Currency Settings Tab ────────────────────────────────────────── #}
+    {# -- Currency Settings Tab ------------------------------------------ #}
     <div class="op-tab-panel {{ default_tab == 'payment' ? 'active' : '' }}" id="tab-payment">
         {% if is_brand_view %}
         <div class="op-card">
@@ -505,7 +505,7 @@
                     <label>Default Currency</label>
                     <select name="brand_currency" class="op-input">
                         {% for cur in currencies %}
-                            <option value="{{ cur.code }}" {{ (brand.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} — {{ cur.name }}</option>
+                            <option value="{{ cur.code }}" {{ (brand.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} - {{ cur.name }}</option>
                         {% endfor %}
                     </select>
                     <small class="op-text-muted">The default ledger and transaction pricing currency for this brand.</small>
@@ -520,7 +520,7 @@
                     <div class="op-form-group op-col-6">
                         <label>Default Currency</label>
                         <select name="default_currency" class="op-input">
-                            {% for cur in currencies %}<option value="{{ cur.code }}" {{ (settings.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} — {{ cur.name }}</option>{% endfor %}
+                            {% for cur in currencies %}<option value="{{ cur.code }}" {{ (settings.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} - {{ cur.name }}</option>{% endfor %}
                         </select>
                         <small class="op-text-muted">The primary ledger and base currency for platform-wide pricing calculations.</small>
                     </div>
@@ -632,7 +632,7 @@
     </div>
 
     {% if not is_brand_view %}
-    {# ── Email Tab ──────────────────────────────────────────── #}
+    {# -- Email Tab -------------------------------------------- #}
     <div class="op-tab-panel {{ default_tab == 'email' ? 'active' : '' }}" id="tab-email">
         <div class="op-card">
             <div class="op-card-header"><h3>Email / SMTP Configuration</h3></div>
@@ -699,7 +699,7 @@
     {% endif %}
 
     {% if not is_brand_view %}
-    {# ── Security Tab ───────────────────────────────────────── #}
+    {# -- Security Tab ----------------------------------------- #}
     <div class="op-tab-panel {{ default_tab == 'security' ? 'active' : '' }}" id="tab-security">
         <div class="op-card">
             <div class="op-card-header"><h3>Security Settings</h3></div>
@@ -743,7 +743,7 @@
                         <span class="op-input-prefix">{{ settings.base_url ?? '' }}/</span>
                         <input type="text" name="admin_login_slug" value="{{ landing.admin_login_slug ?? 'login' }}" class="op-input" placeholder="login" pattern="[a-z0-9\-]+" title="Lowercase letters, numbers, hyphens only">
                     </div>
-                    <small class="op-text-muted op-text-warning">⚠ Change this to make your admin login URL harder to guess. Default: <code>/login</code>. After saving, bookmark the new URL — old URL stops working.</small>
+                    <small class="op-text-muted op-text-warning">⚠ Change this to make your admin login URL harder to guess. Default: <code>/login</code>. After saving, bookmark the new URL - old URL stops working.</small>
                 </div>
             </div>
         </div>
@@ -751,7 +751,7 @@
     </div>
     {% endif %}
 
-    {# ── Checkout Tab ───────────────────────────────────────── #}
+    {# -- Checkout Tab ----------------------------------------- #}
     <div class="op-tab-panel {{ default_tab == 'checkout' ? 'active' : '' }}" id="tab-checkout">
         <div class="op-card">
             <div class="op-card-header"><h3>Checkout Page Settings</h3></div>
@@ -833,9 +833,9 @@
         {{ hook('admin.settings.checkout')|raw }}
     </div>
 
-    {# ── Notifications Tab ──────────────────────────────────── #}
+    {# -- Notifications Tab ------------------------------------ #}
     {% if not is_brand_view %}
-    {# ── Notifications Tab ──────────────────────────────────── #}
+    {# -- Notifications Tab ------------------------------------ #}
     <div class="op-tab-panel {{ default_tab == 'notification' ? 'active' : '' }}" id="tab-notification">
         <div class="op-card">
             <div class="op-card-header"><h3>Notification Preferences</h3></div>
@@ -867,7 +867,7 @@
     </div>
     {% endif %}
 
-    {# ── Brand Email Notifications Tab (per-brand sender + prefs, inherits All Brands) ── #}
+    {# -- Brand Email Notifications Tab (per-brand sender + prefs, inherits All Brands) -- #}
     {% if is_brand_view %}
     <div class="op-tab-panel {{ default_tab == 'notifications' ? 'active' : '' }}" id="tab-notifications">
         <div class="op-card">
@@ -918,7 +918,7 @@
 
 
 
-    {# ── FAQ Tab ─────────────────────────────────────────────── #}
+    {# -- FAQ Tab ----------------------------------------------- #}
     <div class="op-tab-panel {{ default_tab == 'faq' ? 'active' : '' }}" id="tab-faq">
         <div class="op-card">
             <div class="op-card-header"><h3>Checkout FAQ</h3></div>
@@ -936,7 +936,7 @@
         {{ hook('admin.settings.faq')|raw }}
     </div>
 
-    {# ── Custom Domains Tab ─────────────────────────────────────── #}
+    {# -- Custom Domains Tab --------------------------------------- #}
     {% if is_brand_view %}
     <div class="op-tab-panel {{ default_tab == 'domains' ? 'active' : '' }}" id="tab-domains">
         <div class="op-page-header" style="margin-top: 0; padding-top: 0; border-bottom: none;">
@@ -949,7 +949,7 @@
             </button>
         </div>
 
-        {# ── Domain List ── #}
+        {# -- Domain List -- #}
         <div class="op-card op-mb-6">
             <div class="op-card-header"><h3>Your Domains</h3></div>
             <div class="op-card-body op-p-0">
@@ -1004,7 +1004,7 @@
                                         <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="tok-{{ d.id }}">Copy</button>
                                     </div>
                                     {% else %}
-                                        <span class="op-text-muted op-text-xs">—</span>
+                                        <span class="op-text-muted op-text-xs">-</span>
                                     {% endif %}
                                 </td>
                                 <td data-label="Status">
@@ -1050,7 +1050,7 @@
             </div>
         </div>
 
-        {# ── DNS Setup Guide ── #}
+        {# -- DNS Setup Guide -- #}
         <div class="op-card op-mt-6">
             <div class="op-card-header">
                 <h3>📋 Custom Domain DNS Configuration Guide</h3>
@@ -1128,10 +1128,10 @@
     {% endif %}
 
     {% if not is_brand_view %}
-    {# ── Mobile App Tab ────────────────────────────────────── #}
+    {# -- Mobile App Tab -------------------------------------- #}
 
 
-    {# ── Cron Jobs Tab ────────────────────────────────────── #}
+    {# -- Cron Jobs Tab -------------------------------------- #}
     <div class="op-tab-panel {{ default_tab == 'cron' ? 'active' : '' }}" id="tab-cron">
         <div class="op-alert op-alert-info op-mb-4">
             <div class="op-cron-alert-content">
@@ -1267,7 +1267,7 @@
         {{ hook('admin.settings.cron')|raw }}
     </div>
 
-    {# ── Language Tab ────────────────────────────────────────── #}
+    {# -- Language Tab ------------------------------------------ #}
     <div class="op-tab-panel {{ default_tab == 'language' ? 'active' : '' }}" id="tab-language">
         <div class="op-card op-mb-4">
             <div class="op-card-header"><h3>System Default Language</h3></div>
@@ -1320,7 +1320,7 @@
                                     {% if lang.is_default %}
                                         <span class="op-badge op-badge-primary">Default</span>
                                     {% else %}
-                                        <span class="op-text-muted">—</span>
+                                        <span class="op-text-muted">-</span>
                                     {% endif %}
                                 </td>
                                 <td data-label="Actions">
@@ -1393,7 +1393,7 @@
 </form>
 
     {% if not is_brand_view %}
-    {# ── Optimization & Maintenance Tab ────────────────────────────────────── #}
+    {# -- Optimization & Maintenance Tab -------------------------------------- #}
     <div class="op-tab-panel {{ default_tab == 'optimization' ? 'active' : '' }}" id="tab-optimization">
     <div class="op-card op-mb-4">
         <div class="op-card-header">
@@ -1576,7 +1576,7 @@
     </div>
 </div>
     
-    {# ── Queue Monitor Tab ────────────────────────────────────────── #}
+    {# -- Queue Monitor Tab ------------------------------------------ #}
     <div class="op-tab-panel {{ default_tab == 'queue' ? 'active' : '' }}" id="tab-queue">
         <div class="op-card op-mb-4">
             <div class="op-card-header">
@@ -1830,7 +1830,7 @@
 {% endif %}
 
 {% if is_brand_view %}
-    {# ── Domain Action Forms ── #}
+    {# -- Domain Action Forms -- #}
     {% for d in domains %}
         <form id="primary-domain-form-{{ d.id }}" method="POST" action="/admin/domains/{{ d.id }}/primary" style="display:none;">
             <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
@@ -1862,7 +1862,7 @@
                         <input type="text" name="domain" class="op-input op-input-lg" placeholder="pay.yourbusiness.com"
                                pattern="^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
                                title="Enter a valid domain name (e.g. pay.example.com)" required autofocus>
-                        <small class="op-text-muted">Do not include <code>https://</code> — just the domain name</small>
+                        <small class="op-text-muted">Do not include <code>https://</code> - just the domain name</small>
                     </div>
                     <div class="op-form-group">
                         <label>Domain Type</label>

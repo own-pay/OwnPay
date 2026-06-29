@@ -1,5 +1,5 @@
 /**
- * OwnPay Enterprise Installer v4 — Dashboard-Matched Design System
+ * OwnPay Enterprise Installer v4 - Dashboard-Matched Design System
  * Uses the same design tokens and components as the admin dashboard.
  */
 
@@ -59,7 +59,7 @@ body {
     overflow-x: hidden;
 }
 
-/* ─── Header ─── */
+/* --- Header --- */
 .ins-header {
     position: sticky;
     top: 0;
@@ -114,7 +114,7 @@ body {
     font-size: 14px;
 }
 
-/* ─── Step indicators ─── */
+/* --- Step indicators --- */
 .ins-steps {
     display: flex;
     align-items: center;
@@ -184,7 +184,7 @@ body {
     background: var(--op-success);
 }
 
-/* ─── Main Content Layout ─── */
+/* --- Main Content Layout --- */
 .ins-main {
     flex: 1;
     padding: 48px 24px;
@@ -236,7 +236,7 @@ body {
     line-height: 1.6;
 }
 
-/* ─── Forms ─── */
+/* --- Forms --- */
 .ins-form {
     display: flex;
     flex-direction: column;
@@ -306,7 +306,7 @@ body {
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='16' height='16' viewBox='0 0 24 24' fill='none' stroke='%2364748B' stroke-width='2'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
 }
 
-/* ─── Buttons (exact match to dashboard) ─── */
+/* --- Buttons (exact match to dashboard) --- */
 .ins-btn {
     display: inline-flex;
     align-items: center;
@@ -377,7 +377,7 @@ body {
     box-shadow: none !important;
 }
 
-/* ─── Messages ─── */
+/* --- Messages --- */
 .ins-msg {
     font-size: 13px;
     padding: 12px 16px;
@@ -419,7 +419,7 @@ body {
     font-weight: 500;
 }
 
-/* ─── Requirements list ─── */
+/* --- Requirements list --- */
 .ins-req-list {
     display: flex;
     flex-direction: column;
@@ -502,7 +502,7 @@ body {
     line-height: 1.5;
 }
 
-/* ─── Dynamic Connection Terminal Probes ─── */
+/* --- Dynamic Connection Terminal Probes --- */
 .ins-terminal-box {
     margin-top: 16px;
     border-radius: 10px;
@@ -593,7 +593,7 @@ body {
     color: #38BDF8;
 }
 
-/* ─── Schema Review Summary List ─── */
+/* --- Schema Review Summary List --- */
 .ins-review-card {
     border: 1px solid var(--op-border);
     border-radius: 10px;
@@ -632,7 +632,7 @@ body {
     font-size: 13px;
 }
 
-/* ─── Loading Spinners ─── */
+/* --- Loading Spinners --- */
 .ins-spinner {
     width: 18px;
     height: 18px;
@@ -649,7 +649,7 @@ body {
     }
 }
 
-/* ─── Success Panel ─── */
+/* --- Success Panel --- */
 .ins-done {
     text-align: center;
     animation: cardFadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1);
@@ -714,7 +714,7 @@ body {
     border: 1px solid rgb(15 151 237 / 15%);
 }
 
-/* ─── Password Strength Meter ─── */
+/* --- Password Strength Meter --- */
 .ins-pw-meter {
     height: 4px;
     border-radius: 4px;
@@ -745,7 +745,7 @@ body {
     background: var(--op-success);
 }
 
-/* ─── Locked Page ─── */
+/* --- Locked Page --- */
 .ins-locked {
     text-align: center;
 }
@@ -764,7 +764,7 @@ body {
     border: 1px solid rgb(15 151 237 / 15%);
 }
 
-/* ─── Footer ─── */
+/* --- Footer --- */
 .ins-footer {
     text-align: center;
     padding: 16px;
@@ -774,7 +774,7 @@ body {
     background: var(--op-bg-card);
 }
 
-/* ─── Responsive ─── */
+/* --- Responsive --- */
 @media (max-width: 640px) {
     .ins-row {
         flex-direction: column;
@@ -801,7 +801,7 @@ body {
     }
 }
 
-/* ─── Utility Classes ─── */
+/* --- Utility Classes --- */
 .ins-locked-p1 {
     margin-bottom: 16px;
 }

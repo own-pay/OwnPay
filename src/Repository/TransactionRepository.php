@@ -135,7 +135,7 @@ final class TransactionRepository extends BaseRepository
      * Transitions a transaction to a non-completed status unless it is already terminal.
      *
      * Metadata is merged atomically via JSON_MERGE_PATCH so existing keys
-     * (invoice_id, payment_link_id, conversion audit trail) survive — the
+     * (invoice_id, payment_link_id, conversion audit trail) survive - the
      * generated columns idx_invoice_id/idx_payment_link_id are derived from
      * this JSON and would silently detach if it were overwritten.
      *
@@ -442,7 +442,7 @@ final class TransactionRepository extends BaseRepository
         );
     }
 
-    // ─── Checkout-facing methods (no tenant scope — used by public checkout page) ───
+    // --- Checkout-facing methods (no tenant scope - used by public checkout page) ---
 
     /**
      * Finds a pending or created transaction with associated merchant information.
@@ -638,7 +638,7 @@ final class TransactionRepository extends BaseRepository
         }
     }
 
-    // ─── Report/Export methods (for admin dashboard) ───
+    // --- Report/Export methods (for admin dashboard) ---
 
     /**
      * Retrieves daily report breakdown by gateway for date range.

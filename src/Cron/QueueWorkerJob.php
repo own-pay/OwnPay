@@ -96,8 +96,6 @@ final class QueueWorkerJob
             $type = $job['type'];
             $payloadRaw = $job['payload'];
 
-            // Acquire exclusive database lock on the job record atomically to avoid race conditions.
-            // Check updated row count; if zero, another worker process has already claimed this execution sequence.
             $affected = $this->db->update(
                 "UPDATE op_job_queue SET status = 'processing', started_at = NOW() WHERE id = :id AND status = 'pending'",
                 ['id' => $jobId]

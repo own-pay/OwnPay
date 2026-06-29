@@ -1,6 +1,6 @@
 {% extends 'admin/layout/base.twig' %}
 
-{% block title %}{{ __('fee_rules.title') }} — {{ app_name }}{% endblock %}
+{% block title %}{{ __('fee_rules.title') }} - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
@@ -63,7 +63,7 @@
                                 Max: {{ rule.max_fee ? (rule.currency ~ ' ' ~ rule.max_fee|number_format(2)) : 'None' }}
                             </span>
                         {% else %}
-                            <span class="op-text-muted">—</span>
+                            <span class="op-text-muted">-</span>
                         {% endif %}
                     </td>
                     <td data-label="Status">

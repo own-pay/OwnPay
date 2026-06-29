@@ -10,7 +10,7 @@ use OwnPay\Http\Response;
 use Twig\Environment as Twig;
 
 /**
- * Base controller — all controllers extend this.
+ * Base controller - all controllers extend this.
  *
  * Provides:
  * - DI container access
@@ -28,7 +28,7 @@ abstract class BaseController
         $this->container = $container;
     }
 
-    // ——— Rendering —————————————————————————————————————————————
+    // --- Rendering
 
     /**
      * Render a Twig template.
@@ -110,8 +110,7 @@ abstract class BaseController
         return Response::html($html);
     }
 
-    // ——— JSON ——————————————————————————————————————————————————
-
+    // --- JSON
     /**
      * Return a JSON success response.
      *
@@ -164,14 +163,14 @@ abstract class BaseController
         ])->withApiVersion();
     }
 
-    // ——— Redirect ——————————————————————————————————————————————
+    // --- Redirect
 
     protected function redirect(string $url, int $status = 302): Response
     {
         return Response::redirect($url, $status);
     }
 
-    // ——— Session Helpers ———————————————————————————————————————
+    // --- Session Helpers
 
     /**
      * Set a flash message (stored in session, shown once).
@@ -202,7 +201,7 @@ abstract class BaseController
         return ['success' => null, 'error' => null];
     }
 
-    // ——— DI Helpers ————————————————————————————————————————————
+    // --- DI Helpers
 
     /**
      * Get the EventManager instance.

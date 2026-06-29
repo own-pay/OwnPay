@@ -12,7 +12,7 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * AdminFeaturesIntegrationTest — Integration tests for Part 5 admin features.
+ * AdminFeaturesIntegrationTest - Integration tests for Part 5 admin features.
  *
  * Tests:
  *   1. SMS Template CRUD round-trip
@@ -67,7 +67,7 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    // ─── Test 1: Template CRUD ───────────────────────────────────────────
+    // --- Test 1: Template CRUD -------------------------------------------
 
     public function testTemplateCrudRoundTrip(): void
     {
@@ -103,7 +103,7 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         $this->assertNull($deleted);
     }
 
-    // ─── Test 2: updateParsedData ───────────────────────────────────────────
+    // --- Test 2: updateParsedData -------------------------------------------
 
     public function testUpdateParsedDataForReprocess(): void
     {
@@ -136,7 +136,7 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         $this->assertNotNull($record['created_at']);
     }
 
-    // ─── Test 3: Notification cleanup ───────────────────────────────────────
+    // --- Test 3: Notification cleanup ---------------------------------------
 
     public function testNotificationCleanup(): void
     {
@@ -166,7 +166,7 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         $this->assertIsArray($remaining);
     }
 
-    // ─── Test 4: SMS stats aggregation ───────────────────────────────────────
+    // --- Test 4: SMS stats aggregation ---------------------------------------
 
     public function testSmsStatsAggregation(): void
     {

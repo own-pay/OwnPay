@@ -1,5 +1,5 @@
 /**
- * OwnPay Admin — Plugins Page JS
+ * OwnPay Admin - Plugins Page JS
  * Categorized tab filtering, status dropdown filtering, and real-time local search.
  */
 (function () {
@@ -18,7 +18,7 @@
         cards.forEach(function (card) {
             var status = card.dataset.status;
             var type = card.dataset.type;
-            
+
             var titleEl = card.querySelector(".op-plugin-card-title");
             var slugEl = card.querySelector(".op-plugin-card-slug");
             var descEl = card.querySelector(".op-plugin-card-desc");
@@ -77,7 +77,7 @@
             tabs.forEach(function (t) { t.classList.remove("active"); });
             tab.classList.add("active");
             activeTab = tab.dataset.tab;
-            
+
             // If selecting Trash, we hide the status dropdown to avoid confusion
             if (activeTab === "trash") {
                 if (statusSelect) {

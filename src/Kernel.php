@@ -16,7 +16,7 @@ use OwnPay\View\ErrorPageRenderer;
  *   1. Load .env (phpdotenv)
  *   2. Build DI container (config/services.php)
  *   3. Set timezone
- *   4. Boot plugins (PluginLoader::boot) — BEFORE middleware so plugins can
+ *   4. Boot plugins (PluginLoader::boot) - BEFORE middleware so plugins can
  *      register middleware via the 'system.middleware.pipeline' filter (AUD-G1)
  *   5. Load middleware pipeline (config/middleware.php) + apply plugin filter
  *   6. Fire 'system.boot' hook
@@ -59,7 +59,6 @@ final class Kernel
 
             $request = Request::capture();
 
-            // AUD-G4: system.request filter — plugins can modify request before processing
             $events = $this->container->get(EventManager::class);
             if (!$events instanceof EventManager) {
                 throw new \RuntimeException("EventManager not found");
@@ -71,7 +70,6 @@ final class Kernel
 
             $response = $this->processRequest($request);
 
-            // AUD-G4: system.response filter — plugins can modify response before send
             $filteredResponse = $events->applyFilter('system.response', $response, $request);
             if ($filteredResponse instanceof Response) {
                 $response = $filteredResponse;
@@ -107,7 +105,6 @@ final class Kernel
         $registerServices = require $rootDir . '/config/services.php';
         $registerServices($this->container);
 
-        // 2b. Bootstrap EnvironmentService with DB-backed persistence
         try {
             if ($this->container->has(\OwnPay\Repository\SettingsRepository::class)) {
                 $settingsRepo = $this->container->get(\OwnPay\Repository\SettingsRepository::class);
@@ -116,10 +113,8 @@ final class Kernel
                 }
             }
         } catch (\Throwable) {
-            // DB not ready (install phase) — EnvironmentService stays in-memory mode
         }
 
-        // 2c. AUD-G3: Wire EventManager into Database for query hooks
         try {
             if ($this->container->has(\OwnPay\Core\Database::class)) {
                 $db = $this->container->get(\OwnPay\Core\Database::class);
@@ -139,7 +134,7 @@ final class Kernel
                 }
             }
         } catch (\Throwable) {
-            // Graceful — hooks/sandbox just won't enforce/fire
+            // Graceful - hooks/sandbox just won't enforce/fire
         }
 
         // 3. Set timezone
@@ -150,17 +145,12 @@ final class Kernel
         }
         date_default_timezone_set($tz);
 
-        // 4. Boot plugins FIRST — so they can register middleware filters
-        // AUD-G1 fix: Moved plugin boot BEFORE middleware filter application.
-        // Previously plugins booted AFTER the filter, making it impossible for
-        // plugins to inject custom middleware via 'system.middleware.pipeline'.
         if ($this->container->has(\OwnPay\Plugin\PluginLoader::class)) {
             try {
                 /** @var \OwnPay\Plugin\PluginLoader $pluginLoader */
                 $pluginLoader = $this->container->get(\OwnPay\Plugin\PluginLoader::class);
                 $pluginLoader->boot();
             } catch (\Throwable $e) {
-                // Plugin boot failure must not crash the system
                 $this->safeLog('Plugin boot error: ' . $e->getMessage(), 'error');
             }
         }
@@ -168,7 +158,6 @@ final class Kernel
         // 5. Load middleware config
         $this->middlewareConfig = require $rootDir . '/config/middleware.php';
 
-        // Apply filter — plugins can now modify this since they booted above
         $events = $this->container->get(EventManager::class);
         if (!$events instanceof EventManager) {
             throw new \RuntimeException("EventManager not found");
@@ -193,7 +182,6 @@ final class Kernel
             $this->middlewareConfig = $validatedConfig;
         }
 
-        // AUD-21 FIX: Assert security-critical middleware cannot be removed by plugins.
         $requiredAdmin = [
             \OwnPay\Middleware\SessionMiddleware::class,
             \OwnPay\Middleware\CsrfMiddleware::class,
@@ -202,7 +190,7 @@ final class Kernel
         foreach ($requiredAdmin as $mw) {
             if (!in_array($mw, $this->middlewareConfig['admin'] ?? [], true)) {
                 $this->middlewareConfig['admin'][] = $mw;
-                $this->safeLog("Security middleware {$mw} was removed by plugin — re-added", 'warning');
+                $this->safeLog("Security middleware {$mw} was removed by plugin - re-added", 'warning');
             }
         }
 
@@ -210,9 +198,6 @@ final class Kernel
         $events->doAction('system.boot');
 
         // 7. Load routes
-        // Fail-fast if JWT_SECRET is missing or too short.
-        // Prevents JwtAuthMiddleware from returning 500 at runtime,
-        // which leaks configuration state to attackers.
         if ($this->isInstalled()) {
             $jwtSecretRaw = getenv('JWT_SECRET') ?: ($_ENV['JWT_SECRET'] ?? '');
             $jwtSecret = is_string($jwtSecretRaw) ? $jwtSecretRaw : '';
@@ -223,8 +208,6 @@ final class Kernel
                 );
             }
 
-            // Validate APP_KEY and ENCRYPTION_KEY minimum entropy.
-            // Keys shorter than 32 bytes provide insufficient cryptographic strength.
             $appKeyRaw = getenv('APP_KEY') ?: ($_ENV['APP_KEY'] ?? '');
             $appKey = is_string($appKeyRaw) ? $appKeyRaw : '';
             if (strlen($appKey) < 32) {
@@ -261,11 +244,7 @@ final class Kernel
             return Response::redirect('/install');
         }
 
-        // Check maintenance mode - let critical routes pass through
         $maintenanceLock = dirname(__DIR__) . '/storage/.maintenance';
-        // AUD-12 FIX: Gateway callbacks MUST process during maintenance or payments
-        // are lost. The whitelist lives in MaintenanceMiddleware so this gate and
-        // the pipeline middleware can never disagree about what stays reachable.
         $pathAllowed = \OwnPay\Middleware\MaintenanceMiddleware::isPassthroughPath($request->path());
         if (file_exists($maintenanceLock) && !$pathAllowed) {
             $info = json_decode(file_get_contents($maintenanceLock) ?: '{}', true);
@@ -308,8 +287,6 @@ final class Kernel
         // Set route params on request
         $request->setRouteParams($match['params']);
 
-        // AUD-G4: system.route.matched action — plugins can react to route match
-        // Useful for logging, analytics, access control, route-level caching
         $events = $this->container->get(EventManager::class);
         if ($events instanceof EventManager) {
             $events->doAction('system.route.matched', $match, $request);
@@ -343,7 +320,6 @@ final class Kernel
         // Remove duplicates while preserving order
         $stack = array_values(array_unique($stack));
 
-        // Build pipeline: wrap core handler inside middleware layers (inside-out)
         $pipeline = $core;
 
         foreach (array_reverse($stack) as $middlewareClass) {
@@ -352,9 +328,6 @@ final class Kernel
                     throw new \RuntimeException("Middleware class not found: {$middlewareClass}");
                 }
 
-                // Resolve middleware via DI container for proper autowiring.
-                // Falls back to direct instantiation with the container if the
-                // middleware class is not explicitly registered in the DI bindings.
                 try {
                     $middleware = $this->container->get($middlewareClass);
                 } catch (\Throwable) {
@@ -432,9 +405,6 @@ final class Kernel
             header_remove('X-Powered-By');
         }
 
-        // Graceful degradation: a database-unavailable condition (connection pool
-        // exhausted, server unreachable) is transient — respond 503 Retry-After so
-        // load balancers and clients retry instead of treating it as a 500 bug.
         if ($this->isDatabaseUnavailable($e)) {
             $this->sendServiceUnavailable();
             return;
@@ -460,7 +430,7 @@ final class Kernel
             return;
         }
 
-        // HTML response — try Twig template first
+        // HTML response - try Twig template first
         header('Content-Type: text/html; charset=UTF-8');
 
         if (!$debug) {
@@ -473,7 +443,7 @@ final class Kernel
                         return;
                     }
                 } catch (\Throwable) {
-                    // Twig unavailable — fall through to inline
+                    // Twig unavailable - fall through to inline
                 }
             }
             echo $this->errorPages()->internalErrorPage();

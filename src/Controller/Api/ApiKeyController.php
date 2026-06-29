@@ -54,7 +54,7 @@ final class ApiKeyController
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
         $list = $this->keys->list($mid);
 
-        // OWASP: Never expose full key or hash, only prefix
+        // Never expose full key or hash, only prefix
         $safe = array_map(fn(array $k) => [
             'id'         => $k['id'],
             'name'       => $k['name'] ?? 'Unnamed',
@@ -143,8 +143,6 @@ final class ApiKeyController
         try {
             $revoked = $this->keys->revoke($mid, $id);
             if ($revoked === 0) {
-                // No key matched: unknown id or owned by another merchant. Return 404
-                // so the caller cannot mistake a no-op for a real revocation.
                 return Response::apiError('KEY_NOT_FOUND', 'API key not found', 'id', 404);
             }
             return Response::apiSuccess(['message' => 'Key revoked']);

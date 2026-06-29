@@ -65,70 +65,6 @@ final class JwtAuthMiddleware
 
         try {
             $payload = JWT::decode($token, new Key($secret, 'HS256'));
-
-            // Validate required claims
-            if (!isset($payload->sub, $payload->mid, $payload->did) ||
-                !is_scalar($payload->mid) || !is_scalar($payload->did)) {
-                return Response::json([
-                    'success' => false,
-                    'message' => 'Invalid JWT claims',
-                ], 401);
-            }
-
-            $mid = (int) $payload->mid;
-            $did = (string) $payload->did;
-
-            // iss and aud are now REQUIRED — reject tokens without them.
-            // Previously these were only checked IF present, allowing bypass via
-            // crafted tokens that omit these claims entirely.
-            $expectedIss = getenv('APP_NAME') ?: 'OwnPay';
-            $expectedAud = 'ownpay-mobile';
-
-            if (!isset($payload->iss) || $payload->iss !== $expectedIss) {
-                return Response::json([
-                    'success' => false,
-                    'message' => 'Invalid JWT issuer',
-                ], 401);
-            }
-            if (!isset($payload->aud) || $payload->aud !== $expectedAud) {
-                return Response::json([
-                    'success' => false,
-                    'message' => 'Invalid JWT audience',
-                ], 401);
-            }
-
-            // Check device not revoked before granting access
-            $deviceRepo = $this->container->get(\OwnPay\Repository\PairedDeviceRepository::class);
-            if (!$deviceRepo instanceof \OwnPay\Repository\PairedDeviceRepository) {
-                throw new \RuntimeException("PairedDeviceRepository not found in container");
-            }
-            $device = $deviceRepo->forTenant($mid)->findByDeviceId($did);
-            if ($device === null || ($device['status'] ?? '') === 'revoked') {
-                return Response::json([
-                    'success' => false,
-                    'message' => 'Device revoked or not found',
-                ], 401);
-            }
-
-            // The repository lookup falls back to globally-scoped (merchant_id IS
-            // NULL) devices, which would otherwise authenticate against ANY
-            // merchant's JWT. Devices must be bound to exactly the merchant in the
-            // token — reject anything whose merchant_id doesn't match.
-            $deviceMid = isset($device['merchant_id']) && is_numeric($device['merchant_id']) ? (int) $device['merchant_id'] : 0;
-            if ($deviceMid !== $mid) {
-                return Response::json([
-                    'success' => false,
-                    'message' => 'Device merchant mismatch',
-                ], 401);
-            }
-
-            // Inject into request
-            $request->setAttribute('jwt_payload', (array) $payload);
-            $request->setAttribute('merchant_id', $mid);
-            $request->setAttribute('device_id', $did);
-
-            return $next($request);
-
         } catch (\Firebase\JWT\ExpiredException $e) {
             return Response::json([
                 'success' => false,
@@ -140,5 +76,61 @@ final class JwtAuthMiddleware
                 'message' => 'Invalid JWT token',
             ], 401);
         }
+
+        // Validate required claims
+        if (!isset($payload->sub, $payload->mid, $payload->did) ||
+            !is_scalar($payload->mid) || !is_scalar($payload->did)) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Invalid JWT claims',
+            ], 401);
+        }
+
+        $mid = (int) $payload->mid;
+        $did = (string) $payload->did;
+
+        $expectedIss = \OwnPay\Service\Auth\JwtService::ISSUER;
+        $expectedAud = 'ownpay-mobile';
+
+        if (!isset($payload->iss) || $payload->iss !== $expectedIss) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Invalid JWT issuer',
+            ], 401);
+        }
+        if (!isset($payload->aud) || $payload->aud !== $expectedAud) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Invalid JWT audience',
+            ], 401);
+        }
+
+        // Check device not revoked before granting access
+        $deviceRepo = $this->container->get(\OwnPay\Repository\PairedDeviceRepository::class);
+        if (!$deviceRepo instanceof \OwnPay\Repository\PairedDeviceRepository) {
+            throw new \RuntimeException("PairedDeviceRepository not found in container");
+        }
+        $device = $deviceRepo->forTenant($mid)->findByDeviceId($did);
+        if ($device === null || ($device['status'] ?? '') === 'revoked') {
+            return Response::json([
+                'success' => false,
+                'message' => 'Device revoked or not found',
+            ], 401);
+        }
+
+        $deviceMid = isset($device['merchant_id']) && is_numeric($device['merchant_id']) ? (int) $device['merchant_id'] : 0;
+        if ($deviceMid !== $mid) {
+            return Response::json([
+                'success' => false,
+                'message' => 'Device merchant mismatch',
+            ], 401);
+        }
+
+        // Inject into request
+        $request->setAttribute('jwt_payload', (array) $payload);
+        $request->setAttribute('merchant_id', $mid);
+        $request->setAttribute('device_id', $did);
+
+        return $next($request);
     }
 }

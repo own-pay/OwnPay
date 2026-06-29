@@ -42,11 +42,11 @@
                 <div class="ins-field">
                     <label for="currency">Default Currency</label>
                     <select id="currency" name="currency">
-                        <option value="BDT">BDT — Bangladeshi Taka</option>
-                        <option value="USD">USD — US Dollar</option>
-                        <option value="EUR">EUR — Euro</option>
-                        <option value="GBP">GBP — British Pound</option>
-                        <option value="INR">INR — Indian Rupee</option>
+                        <option value="BDT">BDT - Bangladeshi Taka</option>
+                        <option value="USD">USD - US Dollar</option>
+                        <option value="EUR">EUR - Euro</option>
+                        <option value="GBP">GBP - British Pound</option>
+                        <option value="INR">INR - Indian Rupee</option>
                     </select>
                 </div>
                 <div class="ins-field">

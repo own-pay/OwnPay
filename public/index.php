@@ -2,18 +2,18 @@
 declare(strict_types=1);
 
 /**
- * OwnPay v0.1.0 — Single Front Controller.
+ * OwnPay - Single Front Controller.
  *
  * ALL requests route through this file via .htaccess rewrites.
  * This is the only PHP file in the public/ directory.
  */
 
-// ─── Error Reporting ───────────────────────────────────────────
+// Error Reporting
 error_reporting(E_ALL);
 ini_set('display_errors', '0');
 ini_set('log_errors', '1');
 
-// ─── Autoload ──────────────────────────────────────────────────
+// Autoload
 $autoload = dirname(__DIR__) . '/vendor/autoload.php';
 if (!file_exists($autoload)) {
     http_response_code(500);
@@ -25,6 +25,6 @@ if (!file_exists($autoload)) {
 }
 require_once $autoload;
 
-// ─── Boot & Handle ─────────────────────────────────────────────
+// Boot & Handle
 $kernel = new \OwnPay\Kernel();
 $kernel->handle();

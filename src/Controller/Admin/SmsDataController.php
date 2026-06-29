@@ -57,13 +57,10 @@ final class SmsDataController
     public function index(Request $req): Response
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $mid = 0;
+        $activeId = null;
         if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
             $brand->resolveFromRequest($req);
             $activeId = $brand->getActiveBrandId();
-            if ($activeId !== null) {
-                $mid = $activeId;
-            }
         }
 
         $pageVal = $req->query('page', '1');
@@ -71,7 +68,15 @@ final class SmsDataController
         $statusVal = $req->query('status', '');
         $status = is_string($statusVal) && $statusVal !== '' ? $statusVal : null;
 
-        $repo   = $this->smsRepo->forTenant($mid);
+        // All-Brands (global) view lists captures across every brand — including platform-owned captures
+        // from devices paired under "All Brands" (stored under the platform merchant), which is exactly
+        // where the companion app's SMS land. A specific brand view scopes to that brand only.
+        if ($this->isGlobalBrandView()) {
+            $repo = $this->smsRepo->forAllTenants();
+        } else {
+            $mid = ($activeId !== null && $activeId > 0) ? $activeId : 0;
+            $repo = $this->smsRepo->forTenant($mid);
+        }
         $perPage = 20;
         $offset  = ($page - 1) * $perPage;
         $result  = $repo->listPaginated($perPage, $offset, $status);

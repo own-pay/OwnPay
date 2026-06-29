@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 /**
- * HTTP Client — A secure wrapper for executing outbound cURL requests.
+ * HTTP Client - A secure wrapper for executing outbound cURL requests.
  *
  * Implements security hardening guidelines such as timeouts (connection/transfer)
  * and SSRF (Server-Side Request Forgery) protection by verifying requested URLs

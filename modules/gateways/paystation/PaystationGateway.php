@@ -11,7 +11,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * PayStation Gateway — PluginInterface + GatewayAdapterInterface.
+ * PayStation Gateway - PluginInterface + GatewayAdapterInterface.
  */
 final class PaystationGateway implements PluginInterface, GatewayAdapterInterface
 {

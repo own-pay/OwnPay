@@ -11,7 +11,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * Aamarpay payment gateway — PluginInterface + GatewayAdapterInterface.
+ * Aamarpay payment gateway - PluginInterface + GatewayAdapterInterface.
  */
 final class AamarpayGateway implements PluginInterface, GatewayAdapterInterface
 {

@@ -150,7 +150,7 @@ class PairedDeviceRepository extends BaseRepository
 
     /**
      * Returns the most recently paired ACTIVE device whose paired_at is at or after the given
-     * baseline timestamp — used to detect a device that just completed pairing.
+     * baseline timestamp - used to detect a device that just completed pairing.
      *
      * @param string $since Baseline timestamp (DB datetime, e.g. the OTP-generation time).
      * @return array<string, mixed>|null The newest matching device, or null if none.
@@ -172,7 +172,7 @@ class PairedDeviceRepository extends BaseRepository
     /**
      * Lists every device for the active tenant (any status) with a derived `online` flag.
      *
-     * `online` is computed on the DB clock — an active device whose last heartbeat falls within
+     * `online` is computed on the DB clock - an active device whose last heartbeat falls within
      * ONLINE_THRESHOLD_SECONDS. Revoked/inactive devices are always offline (frozen), so the admin
      * live view can show them without their status ever flipping back to connected.
      *
@@ -192,6 +192,28 @@ class PairedDeviceRepository extends BaseRepository
         return $this->db->fetchAll(
             "SELECT *, {$online} FROM {$this->table} WHERE merchant_id = :mid ORDER BY paired_at DESC",
             ['mid' => $this->requireTenant()]
+        );
+    }
+
+    /**
+     * Lists the devices a specific BRAND should see - its own devices PLUS the global "All Brands"
+     * (platform) devices, which serve every brand - each with the derived `online` flag. This is why a
+     * device paired under All Brands also appears under each brand (issue #3). The platform id varies per
+     * database, so the caller resolves it via BrandContext::getPlatformId() and passes it in.
+     *
+     * @param int $brandId    The brand's own merchant id.
+     * @param int $platformId The reserved All-Brands (platform) merchant id.
+     * @return array<int, array<string, mixed>> Devices, each with an additional integer `online` column.
+     */
+    public function listWithLiveStatusForBrand(int $brandId, int $platformId): array
+    {
+        $threshold = (int) self::ONLINE_THRESHOLD_SECONDS;
+        $online = "(status = 'active' AND last_heartbeat IS NOT NULL "
+            . "AND last_heartbeat >= DATE_SUB(NOW(6), INTERVAL {$threshold} SECOND)) AS online";
+
+        return $this->db->fetchAll(
+            "SELECT *, {$online} FROM {$this->table} WHERE merchant_id = :mid OR merchant_id = :pid ORDER BY paired_at DESC",
+            ['mid' => $brandId, 'pid' => $platformId]
         );
     }
 

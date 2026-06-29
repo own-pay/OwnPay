@@ -58,9 +58,9 @@ final class SecurityRemediationTest extends TestCase
         rmdir($dir);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // 1. Apple Pay / Google Pay live mode mock rejection
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     public function testApplePayRejectsMocksInLiveMode(): void
     {
@@ -110,9 +110,9 @@ final class SecurityRemediationTest extends TestCase
         $this->assertSame('success', $resTest['status']);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // 2. SVG Upload Sanitization
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     public function testFilesystemServiceAllowsSafeSvg(): void
     {
@@ -150,9 +150,9 @@ final class SecurityRemediationTest extends TestCase
         ];
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // 3. Plugin Scanner Banned Expressions & Dynamic Code Blocks
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     #[DataProvider('provideBlockedPluginPayloads')]
     public function testPluginLoaderScannerBlocksMaliciousCode(string $code, string $expectedExceptionMessage): void
@@ -288,7 +288,7 @@ PHP;
         $method = $reflection->getMethod('loadPlugin');
         $method->setAccessible(true);
 
-        // Must NOT throw — ordinary PHP is permitted under the full-trust model.
+        // Must NOT throw - ordinary PHP is permitted under the full-trust model.
         $method->invoke($loader, ['slug' => $slug, 'type' => 'addon']);
 
         $this->assertNotNull($registry->get($slug), 'plugin should load and register');
@@ -300,7 +300,7 @@ PHP;
 
     /**
      * Full-trust footgun guard: under the WordPress-style model (owner-only plugin upload), the
-     * load-time scanner flags only the highest-risk, almost-never-legitimate primitives — direct OS
+     * load-time scanner flags only the highest-risk, almost-never-legitimate primitives - direct OS
      * command invocation and dynamic code evaluation. Ordinary PHP (callbacks, reflection, dynamic
      * calls, include/require, file I/O) is intentionally permitted and is exercised by
      * testPluginScannerAllowsOrdinaryPhp(). This guard is a safety net, not an isolation boundary.
@@ -330,9 +330,9 @@ PHP;
         ];
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // 4. Login Slug Caching
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     public function testMiddlewareResolvesLoginSlugFromCache(): void
     {
@@ -399,9 +399,9 @@ PHP;
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // 5. GET logout route removal
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     public function testLogoutRouteIsPostOnly(): void
     {
@@ -436,9 +436,9 @@ PHP;
         $this->assertTrue($hasPostLogout, 'POST /logout route must exist');
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // 6. SQL Sandbox Hook Bypass & Filter Check
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     public function testSqlSandboxHookBypassBlock(): void
     {
@@ -517,9 +517,9 @@ PHP;
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // 7. HttpClient Redirect SSRF Block
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     public function testHttpClientRedirectSsrfBlocked(): void
     {
@@ -572,9 +572,9 @@ PHP;
         $client->get('https://httpbin.org/redirect-to?url=//127.0.0.1/&status_code=302');
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // 8. BrandController Referer Open Redirect Validation
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     public function testBrandControllerRefererOpenRedirect(): void
     {
@@ -623,9 +623,9 @@ PHP;
         }
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // 9. DeveloperController Webhook Tester SSRF Validation
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     public function testDeveloperWebhookTesterSsrf(): void
     {
@@ -657,9 +657,9 @@ PHP;
         $this->assertSame('Invalid webhook URL', $data['error']);
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
     // 10. HttpClient Cross-Origin Redirect Header Stripping
-    // ─────────────────────────────────────────────────────────────────────────
+    // -------------------------------------------------------------------------
 
     public function testHttpClientStripsSensitiveHeadersOnCrossOriginRedirect(): void
     {

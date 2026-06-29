@@ -151,7 +151,7 @@ final class PluginLoader
             }
         }
 
-        // Boot phase — all plugins registered, now boot
+        // Boot phase - all plugins registered, now boot
         foreach ($this->registry->getLoaded() as $slug => $instance) {
             try {
                 $instance->boot($this->container);
@@ -162,8 +162,7 @@ final class PluginLoader
         }
 
         // Auto-register gateway adapters with the central GatewayBridge.
-        // Gateway plugins implement GatewayAdapterInterface but typically leave
-        // their boot() methods blank. We automatically register them here.
+        // Gateway plugins implement GatewayAdapterInterface but typically leave their boot() methods blank. We automatically register them here.
         if ($this->container->has(\OwnPay\Gateway\GatewayBridge::class)) {
             $bridge = $this->container->get(\OwnPay\Gateway\GatewayBridge::class);
             if ($bridge instanceof \OwnPay\Gateway\GatewayBridge) {
@@ -219,17 +218,6 @@ final class PluginLoader
             throw new \RuntimeException("Entrypoint not found: {$entrypointFile}");
         }
 
-        // Full-trust footgun guard (NOT an isolation boundary).
-        //
-        // Only the platform owner can upload plugins (PluginController::upload is gated by
-        // requireGlobalView), so installed plugins run with full application trust — the same model
-        // as WordPress. Accordingly this scan deliberately flags ONLY the two highest-risk,
-        // almost-never-legitimate primitives in plugin code: dynamic code evaluation and direct OS
-        // command execution. Everything else a real plugin needs — reflection, PDO, file I/O,
-        // callbacks (array_map, call_user_func, ...), dynamic calls, include/require, and multi-file
-        // classes via the PSR-4 autoloader registered below — is permitted. This guard is bypassable
-        // by construction (e.g. an indirected call); it is a safety net against accidents and obvious
-        // abuse, not a sandbox. The real trust boundary is owner-only upload.
         $phpFiles = $this->findPhpFiles($manifest->path);
         foreach ($phpFiles as $phpFile) {
             $content = (string) file_get_contents($phpFile);
@@ -255,8 +243,7 @@ final class PluginLoader
                         continue;
                     }
 
-                    // Skip method calls ($x->system()), static calls (X::system()), and
-                    // function declarations (function system()) of a same-named symbol.
+                    // Skip method calls ($x->system()), static calls (X::system()), and function declarations (function system()) of a same-named symbol.
                     $prev = $i - 1;
                     while ($prev >= 0 && is_array($tokens[$prev]) && $tokens[$prev][0] === T_WHITESPACE) {
                         $prev--;
@@ -287,7 +274,7 @@ final class PluginLoader
         }
 
         // Register this plugin's namespace so additional classes it ships (beyond the entrypoint)
-        // autoload from its own directory — enabling real multi-file plugins.
+        // autoload from its own directory - enabling real multi-file plugins.
         $this->registerPluginNamespace($manifest);
 
         require_once $entrypointFile;
@@ -302,7 +289,6 @@ final class PluginLoader
             throw new \RuntimeException("Plugin {$slug} must implement PluginInterface");
         }
 
-        // AUD-G8: Establish plugin sandbox instance based on capabilities declared in its manifest.
         $capabilities = $manifest->capabilities ?? [];
         $sandbox = new PluginSandbox($manifest->path, $capabilities);
 
@@ -419,7 +405,7 @@ final class PluginLoader
             }
             $label = is_string($item['label'] ?? null) ? trim($item['label']) : '';
             $url = is_string($item['url'] ?? null) ? trim($item['url']) : '';
-            // Internal admin links only — never emit off-site or javascript: targets.
+            // Internal admin links only - never emit off-site or javascript: targets.
             if ($label === '' || !str_starts_with($url, '/')) {
                 continue;
             }

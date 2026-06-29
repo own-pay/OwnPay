@@ -47,7 +47,7 @@ declare(strict_types=1);
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>OwnPay — Official Merchant API Tester</title>
+    <title>OwnPay - Official Merchant API Tester</title>
     <link rel="icon" type="image/png" href="https://ownpay.org/ownpay_icon.png">
     <!-- Premium Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -356,22 +356,22 @@ declare(strict_types=1);
     <script>
         const endpoints = [
             // === MERCHANT API ===
-            { id: 'health', category: 'Merchant API — Core System', method: 'GET', path: '/api/v1/health', desc: 'Verify server health diagnostics, runtime version tags, and MySQL connection uptime.', hasBody: false },
-            { id: 'payment-init', category: 'Merchant API — Payment Intents', method: 'POST', path: '/api/v1/payments', desc: 'Create a payment intent representing a transaction block. Returns the customer checkout URL.', hasBody: true, defaultBody: '{\n  "amount": 1250.00,\n  "currency": "BDT",\n  "description": "Invoice #8930 Premium Pack",\n  "redirect_url": "https://myshop.com/success",\n  "cancel_url": "https://myshop.com/cancel",\n  "customer_name": "John Doe",\n  "customer_mail": "john@example.com",\n  "customer_phone": "+8801700000000",\n  "metadata": {\n    "invoice_id": 8930\n  }\n}' },
-            { id: 'payment-show', category: 'Merchant API — Payment Intents', method: 'GET', path: '/api/v1/payments/{payment_id}', desc: 'Retrieve payment status by payment intent UUID.', hasBody: false },
-            { id: 'tx-list', category: 'Merchant API — Transactions Ledger', method: 'GET', path: '/api/v1/transactions', desc: 'Query paginated list of settled payments with status criteria filter scopes.', hasBody: false },
-            { id: 'tx-show', category: 'Merchant API — Transactions Ledger', method: 'GET', path: '/api/v1/transactions/{trx_id}', desc: 'Fetch transaction details by OwnPay transaction ID or gateway transaction ID.', hasBody: false },
-            { id: 'refund-create', category: 'Merchant API — Transaction Refunds', method: 'POST', path: '/api/v1/refunds', desc: 'Process a full or partial charge reversal against a settled transaction using transaction ID or gateway transaction ID.', hasBody: true, defaultBody: '{\n  "transaction_id": "OP-10482938",\n  "amount": 250.00,\n  "reason": "Product return request"\n}' },
-            { id: 'refund-list', category: 'Merchant API — Transaction Refunds', method: 'GET', path: '/api/v1/refunds', desc: 'Query paginated list of refunds with status and transaction ID criteria filter scopes.', hasBody: false },
-            { id: 'refund-show', category: 'Merchant API — Transaction Refunds', method: 'GET', path: '/api/v1/refunds/{trx_id}', desc: 'Audit details of a reversed refund transaction record by OwnPay transaction ID or gateway transaction ID.', hasBody: false },
-            { id: 'customer-list', category: 'Merchant API — Customer Profiles', method: 'GET', path: '/api/v1/customers', desc: 'List customer profiles registered under the merchant context.', hasBody: false },
-            { id: 'customer-show', category: 'Merchant API — Customer Profiles', method: 'GET', path: '/api/v1/customers/{identifier}', desc: 'Query customer credentials by database ID, email address, or phone string.', hasBody: false },
-            { id: 'customer-create', category: 'Merchant API — Customer Profiles', method: 'POST', path: '/api/v1/customers', desc: 'Register a new customer record under the brand tenant.', hasBody: true, defaultBody: '{\n  "name": "Jane Doe",\n  "email": "jane@example.com",\n  "phone": "+8801700000000"\n}' },
-            { id: 'apikey-list', category: 'Merchant API — Credentials', method: 'GET', path: '/api/v1/api-keys', desc: 'List active API keys partially masked for audit views. Requires superadmin verification.', hasBody: false },
-            { id: 'apikey-create', category: 'Merchant API — Credentials', method: 'POST', path: '/api/v1/api-keys', desc: 'Generate a new API key scoped to the merchant brand with custom privileges.', hasBody: true, defaultBody: '{\n  "name": "Production Server Key",\n  "scopes": ["read", "write", "admin"]\n}' },
-            { id: 'apikey-revoke', category: 'Merchant API — Credentials', method: 'DELETE', path: '/api/v1/api-keys/{id}', desc: 'Revoke and permanently decommission an API key by ID.', hasBody: false },
-            { id: 'webhook-test', category: 'Merchant API — Outbound Webhooks', method: 'POST', path: '/api/v1/webhooks/tests', desc: 'Trigger a test HMAC-SHA256 signature event log callback.', hasBody: false },
-            { id: 'webhook-deliveries', category: 'Merchant API — Outbound Webhooks', method: 'GET', path: '/api/v1/webhooks/deliveries', desc: 'Trace outbound webhooks logs history status responses.', hasBody: false }
+            { id: 'health', category: 'Merchant API - Core System', method: 'GET', path: '/api/v1/health', desc: 'Verify server health diagnostics, runtime version tags, and MySQL connection uptime.', hasBody: false },
+            { id: 'payment-init', category: 'Merchant API - Payment Intents', method: 'POST', path: '/api/v1/payments', desc: 'Create a payment intent representing a transaction block. Returns the customer checkout URL.', hasBody: true, defaultBody: '{\n  "amount": 1250.00,\n  "currency": "BDT",\n  "description": "Invoice #8930 Premium Pack",\n  "redirect_url": "https://myshop.com/success",\n  "cancel_url": "https://myshop.com/cancel",\n  "customer_name": "John Doe",\n  "customer_mail": "john@example.com",\n  "customer_phone": "+8801700000000",\n  "metadata": {\n    "invoice_id": 8930\n  }\n}' },
+            { id: 'payment-show', category: 'Merchant API - Payment Intents', method: 'GET', path: '/api/v1/payments/{payment_id}', desc: 'Retrieve payment status by payment intent UUID.', hasBody: false },
+            { id: 'tx-list', category: 'Merchant API - Transactions Ledger', method: 'GET', path: '/api/v1/transactions', desc: 'Query paginated list of settled payments with status criteria filter scopes.', hasBody: false },
+            { id: 'tx-show', category: 'Merchant API - Transactions Ledger', method: 'GET', path: '/api/v1/transactions/{trx_id}', desc: 'Fetch transaction details by OwnPay transaction ID or gateway transaction ID.', hasBody: false },
+            { id: 'refund-create', category: 'Merchant API - Transaction Refunds', method: 'POST', path: '/api/v1/refunds', desc: 'Process a full or partial charge reversal against a settled transaction using transaction ID or gateway transaction ID.', hasBody: true, defaultBody: '{\n  "transaction_id": "OP-10482938",\n  "amount": 250.00,\n  "reason": "Product return request"\n}' },
+            { id: 'refund-list', category: 'Merchant API - Transaction Refunds', method: 'GET', path: '/api/v1/refunds', desc: 'Query paginated list of refunds with status and transaction ID criteria filter scopes.', hasBody: false },
+            { id: 'refund-show', category: 'Merchant API - Transaction Refunds', method: 'GET', path: '/api/v1/refunds/{trx_id}', desc: 'Audit details of a reversed refund transaction record by OwnPay transaction ID or gateway transaction ID.', hasBody: false },
+            { id: 'customer-list', category: 'Merchant API - Customer Profiles', method: 'GET', path: '/api/v1/customers', desc: 'List customer profiles registered under the merchant context.', hasBody: false },
+            { id: 'customer-show', category: 'Merchant API - Customer Profiles', method: 'GET', path: '/api/v1/customers/{identifier}', desc: 'Query customer credentials by database ID, email address, or phone string.', hasBody: false },
+            { id: 'customer-create', category: 'Merchant API - Customer Profiles', method: 'POST', path: '/api/v1/customers', desc: 'Register a new customer record under the brand tenant.', hasBody: true, defaultBody: '{\n  "name": "Jane Doe",\n  "email": "jane@example.com",\n  "phone": "+8801700000000"\n}' },
+            { id: 'apikey-list', category: 'Merchant API - Credentials', method: 'GET', path: '/api/v1/api-keys', desc: 'List active API keys partially masked for audit views. Requires superadmin verification.', hasBody: false },
+            { id: 'apikey-create', category: 'Merchant API - Credentials', method: 'POST', path: '/api/v1/api-keys', desc: 'Generate a new API key scoped to the merchant brand with custom privileges.', hasBody: true, defaultBody: '{\n  "name": "Production Server Key",\n  "scopes": ["read", "write", "admin"]\n}' },
+            { id: 'apikey-revoke', category: 'Merchant API - Credentials', method: 'DELETE', path: '/api/v1/api-keys/{id}', desc: 'Revoke and permanently decommission an API key by ID.', hasBody: false },
+            { id: 'webhook-test', category: 'Merchant API - Outbound Webhooks', method: 'POST', path: '/api/v1/webhooks/tests', desc: 'Trigger a test HMAC-SHA256 signature event log callback.', hasBody: false },
+            { id: 'webhook-deliveries', category: 'Merchant API - Outbound Webhooks', method: 'GET', path: '/api/v1/webhooks/deliveries', desc: 'Trace outbound webhooks logs history status responses.', hasBody: false }
         ];
 
         let activeEndpoint = null;

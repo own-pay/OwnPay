@@ -51,8 +51,6 @@ final class InvoiceService
     private function normalizeMoney(mixed $raw): string
     {
         $s = is_scalar($raw) && !is_bool($raw) ? trim((string) $raw) : '';
-        // Regex rejects negatives and scientific notation; is_numeric narrows
-        // the type to numeric-string for the bcmath call.
         if (!preg_match('/^\d{1,13}(\.\d+)?$/', $s) || !is_numeric($s)) {
             return '0.00';
         }
@@ -70,7 +68,6 @@ final class InvoiceService
     public function listForMerchant(?int $merchantId, int $page = 1, int $perPage = 25): array
     {
         $offset = ($page - 1) * $perPage;
-        // merchantId === null => global "All Brands" view: aggregate across all brands.
         $where = $merchantId === null ? '' : 'WHERE i.merchant_id = :mid';
         $params = ['lim' => $perPage, 'off' => $offset];
         if ($merchantId !== null) {
@@ -96,7 +93,6 @@ final class InvoiceService
      */
     public function pagination(?int $merchantId, int $page = 1, int $perPage = 25): array
     {
-        // merchantId === null => global "All Brands" view: count across all brands.
         if ($merchantId === null) {
             $totalVal = $this->db->fetchColumn("SELECT COUNT(*) FROM op_invoices");
         } else {
@@ -161,13 +157,9 @@ final class InvoiceService
         $number = $data['invoice_number'] ?? ('INV-' . strtoupper(substr(uniqid(), -8)));
         $token  = bin2hex(random_bytes(32));
         $uuid   = \Ramsey\Uuid\Uuid::uuid4()->toString();
-
-        // Sanitize: empty strings → null for nullable DB columns
         $customerId = !empty($data['customer_id']) ? (int) $data['customer_id'] : null;
         $dueDate    = !empty($data['due_date']) ? $data['due_date'] : null;
         $notes      = !empty($data['notes']) ? $data['notes'] : null;
-
-        // Calculate totals from line items
         $items = $data['items'] ?? [];
         $subtotal = '0.00';
         foreach ($items as &$item) {
@@ -237,7 +229,6 @@ final class InvoiceService
      */
     public function update(int $merchantId, int $id, array $data): array
     {
-        // First verify that invoice exists and belongs to merchant
         $invoice = $this->db->fetchOne(
             "SELECT id FROM op_invoices WHERE id = :id AND merchant_id = :mid",
             ['id' => $id, 'mid' => $merchantId]
@@ -246,10 +237,6 @@ final class InvoiceService
             return [];
         }
 
-        // Calculate totals from line items. An update must carry its line items
-        // (the edit form resubmits them); refusing an empty set prevents a
-        // missing/empty `items` payload from silently deleting every line item
-        // and zeroing the invoice total.
         $items = $data['items'] ?? [];
         if ($items === []) {
             throw new \InvalidArgumentException('Invoice update must include at least one line item.');
@@ -280,16 +267,12 @@ final class InvoiceService
             $status = 'draft';
         }
 
-        // Sanitize nullable fields
         $customerId = !empty($data['customer_id']) ? (int) $data['customer_id'] : null;
         $dueDate    = !empty($data['due_date']) ? $data['due_date'] : null;
         $notes      = !empty($data['notes']) ? $data['notes'] : null;
 
         $currency = is_string($data['currency'] ?? null) ? $data['currency'] : 'BDT';
 
-        // Wrap the header update + line-item rebuild in one transaction so a
-        // failure mid-rebuild can never leave the invoice with its items deleted
-        // but not re-inserted (a corrupted, item-less invoice).
         $this->db->transaction(function () use (
             $id, $merchantId, $customerId, $subtotal, $tax, $discount, $total, $currency, $notes, $dueDate, $status, $items
         ): void {
@@ -369,7 +352,6 @@ final class InvoiceService
         </table>
         HTML;
 
-        // Generate printable invoice using PdfService
         $filePath = $this->pdf->generateInvoice($invoice, $template);
         if (file_exists($filePath)) {
             $content = @file_get_contents($filePath);

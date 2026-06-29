@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════
-   system-update.css — OwnPay System Update
-   Mission Control Aesthetic — Precise, Technical, Alive
+   system-update.css - OwnPay System Update
+   Mission Control Aesthetic - Precise, Technical, Alive
    ═══════════════════════════════════════════════════════ */
 
-/* ── Local Tokens ───────────────────────────────────── */
+/* -- Local Tokens ------------------------------------- */
 :root {
   --su-glow: rgb(15 151 237 / 12%);
   --su-glow-strong: rgb(15 151 237 / 25%);
@@ -19,7 +19,7 @@
   --su-teal-glow: rgb(13 148 136 / 18%);
 }
 
-/* ── Layout ─────────────────────────────────────────── */
+/* -- Layout ------------------------------------------- */
 .op-update-hero-row {
   display: grid;
   grid-template-columns: 1.6fr 1fr;
@@ -57,7 +57,7 @@
   align-items: start;
 }
 
-/* ── Premium Card Base ──────────────────────────────── */
+/* -- Premium Card Base -------------------------------- */
 .op-card.op-premium-card {
   background: var(--op-bg-card);
   border: 1px solid var(--su-line);
@@ -97,7 +97,7 @@
   color: var(--op-warning);
 }
 
-/* ── Status Pill (Header) ───────────────────────────── */
+/* -- Status Pill (Header) ----------------------------- */
 .op-pulse-indicator {
   display: inline-block;
   width: 8px;
@@ -118,6 +118,7 @@
 }
 
 @keyframes su-pulse {
+
   0%,
   100% {
     box-shadow: 0 0 0 0 currentcolor;
@@ -152,7 +153,7 @@
 }
 
 /* ═══════════════════════════════════════════════════════
-   PIPELINE BANNER — The Signature Element
+   PIPELINE BANNER - The Signature Element
    A glowing deployment flow with connected version nodes
    ═══════════════════════════════════════════════════════ */
 .op-pipeline-banner {
@@ -398,7 +399,7 @@
   margin-top: 4px;
 }
 
-/* ── Changelog Accordion ────────────────────────────── */
+/* -- Changelog Accordion ------------------------------ */
 .op-changelog-compact {
   border: 1px solid var(--su-line);
   border-radius: 10px;
@@ -1253,6 +1254,7 @@ input[type="radio"]:checked+.op-segment-label {
    RESPONSIVE
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+
   .op-update-hero-row,
   .op-update-info-row {
     grid-template-columns: 1fr;
@@ -1264,7 +1266,7 @@ input[type="radio"]:checked+.op-segment-label {
     gap: 12px;
   }
 
-  /* Pipeline — keep horizontal but compact */
+  /* Pipeline - keep horizontal but compact */
   .op-pipeline-banner {
     padding: 16px 12px;
     border-radius: 10px;

@@ -66,3 +66,5 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->delete('/api/admin/v1/devices/{id}',       'Api\\Admin\\DeviceController@revoke',        'admin-api');
     $router->post('/api/admin/v1/domains/verifications', 'Api\\Admin\\DomainController@verify',        'admin-api');
 };
+
+// Without discussion do not create new endpoint. Open a issue or discussation on github. /own-pay/ownpay

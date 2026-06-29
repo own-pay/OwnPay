@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Transactions — {{ app_name }}{% endblock %}
+{% block title %}Transactions - {{ app_name }}{% endblock %}
 {% block content %}
 
 <div class="op-page-header">
@@ -12,7 +12,7 @@
     </div>
 </div>
 
-{# ── Status Chips ──────────────────────────────────────────────── #}
+{# -- Status Chips ------------------------------------------------ #}
 <div class="op-filter-chips-row op-mb-3">
     {% set statuses = [
         {key: '', label: 'All'},
@@ -31,7 +31,7 @@
     {% endfor %}
 </div>
 
-{# ── Advanced Filters ──────────────────────────────────────────── #}
+{# -- Advanced Filters -------------------------------------------- #}
 <div class="op-card op-mb-4">
     <div class="op-card-body">
         <form method="GET" class="op-advanced-filters" id="txn-filter-form">
@@ -119,7 +119,7 @@
     </div>
 </div>
 
-{# ── Transactions Table ────────────────────────────────────────── #}
+{# -- Transactions Table ------------------------------------------ #}
 <div class="op-card">
     <div class="op-card-body op-p-0">
         <div class="op-table-responsive">
@@ -146,7 +146,7 @@
                                 </button>
                             </div>
                         </td>
-                        <td data-label="Customer">{{ txn.customer_name|default('—') }}</td>
+                        <td data-label="Customer">{{ txn.customer_name|default('-') }}</td>
                         <td data-label="Amount"><strong>{{ txn.currency }} {{ txn.amount }}</strong></td>
                         <td data-label="Gateway"><span class="op-badge op-badge-outline">{{ txn.gateway_name }}</span></td>
                         <td data-label="Status">
@@ -172,7 +172,7 @@
     </div>
 </div>
 
-{# ── Pagination ────────────────────────────────────────────────── #}
+{# -- Pagination -------------------------------------------------- #}
 {% if pagination is defined and pagination.total_pages > 1 %}
 {% set qs = '' %}
 {% if filters.q is not empty %}{% set qs = qs ~ '&q=' ~ filters.q|url_encode %}{% endif %}

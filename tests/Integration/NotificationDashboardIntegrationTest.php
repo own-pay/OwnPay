@@ -11,7 +11,7 @@ use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * NotificationDashboardIntegrationTest — End-to-end tests for Part 4.
+ * NotificationDashboardIntegrationTest - End-to-end tests for Part 4.
  *
  * Requires live DB. Tests:
  *   1. Notification create → poll → markRead round-trip
@@ -63,7 +63,7 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    // ─── Test 1: Create → Poll → MarkRead round-trip ───────────────────────
+    // --- Test 1: Create → Poll → MarkRead round-trip -----------------------
 
     public function testCreatePollMarkReadRoundTrip(): void
     {
@@ -77,7 +77,7 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
         );
         $this->assertGreaterThan(0, $id);
 
-        // Poll — should appear
+        // Poll - should appear
         $notifications = $this->notifRepo->pollSince(self::TEST_DEVICE_UUID);
         $found = array_filter($notifications, fn ($n) => (int)$n['id'] === $id);
         $this->assertNotEmpty($found, 'Notification should appear in poll');
@@ -97,7 +97,7 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
         $this->assertNotNull($row['read_at']);
     }
 
-    // ─── Test 2: Cursor-based polling ─────────────────────────────────────
+    // --- Test 2: Cursor-based polling -------------------------------------
 
     public function testCursorBasedPolling(): void
     {
@@ -114,19 +114,19 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
             'Cursor Test Payment', 'Tk 100.00'
         );
 
-        // Poll since the past cursor — should get the notification
+        // Poll since the past cursor - should get the notification
         $results = $this->notifRepo->pollSince(self::TEST_DEVICE_UUID, $cursorBefore);
         $this->assertNotEmpty($results, 'Should have notifications newer than past cursor');
         $resultIds = array_map('intval', array_column($results, 'id'));
         $this->assertContains($id1, $resultIds);
 
-        // Poll since a FUTURE cursor — should get nothing for this device
+        // Poll since a FUTURE cursor - should get nothing for this device
         $futureCursor = date('Y-m-d H:i:s', $dbTime + 3600);
         $futureResults = $this->notifRepo->pollSince(self::TEST_DEVICE_UUID, $futureCursor);
         $this->assertEmpty($futureResults, 'Should have no notifications newer than future cursor');
     }
 
-    // ─── Test 3: Unread count ─────────────────────────────────────────────
+    // --- Test 3: Unread count ---------------------------------------------
 
     public function testUnreadCount(): void
     {
@@ -150,7 +150,7 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
         $this->assertSame($initial + 1, $this->notifRepo->countUnread(1, self::TEST_DEVICE_UUID));
     }
 
-    // ─── Test 4: Service-level poll response structure ────────────────────
+    // --- Test 4: Service-level poll response structure --------------------
 
     public function testServicePollResponseStructure(): void
     {
@@ -172,7 +172,7 @@ final class NotificationDashboardIntegrationTest extends IntegrationTestCase
         $this->assertEquals(1500, $notif['payload']['amount']);
     }
 
-    // ─── Test 5: Dashboard summary SQL ─────────────────────────────────────
+    // --- Test 5: Dashboard summary SQL -------------------------------------
 
     public function testDashboardSummaryQuery(): void
     {

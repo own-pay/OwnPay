@@ -782,10 +782,6 @@ final class PluginManager
             return null;
         }
 
-        // SECURITY: the icon is copied into the public webroot, so its extension
-        // must be a known image type. A plugin manifest declaring icon:'shell.php'
-        // would otherwise drop an executable PHP file under /assets/ — direct RCE
-        // for anyone with plugins.manage. Reject anything that is not an image.
         $ext = strtolower(pathinfo($iconFile, PATHINFO_EXTENSION));
         $allowedExt = ['png', 'jpg', 'jpeg', 'gif', 'svg', 'webp', 'ico'];
         if (!in_array($ext, $allowedExt, true)) {

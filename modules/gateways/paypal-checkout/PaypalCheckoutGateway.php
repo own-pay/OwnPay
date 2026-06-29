@@ -11,7 +11,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * PayPal Checkout Gateway — PluginInterface + GatewayAdapterInterface.
+ * PayPal Checkout Gateway - PluginInterface + GatewayAdapterInterface.
  */
 final class PaypalCheckoutGateway implements PluginInterface, GatewayAdapterInterface
 {

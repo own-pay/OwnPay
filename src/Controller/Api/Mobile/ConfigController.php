@@ -13,7 +13,7 @@ use OwnPay\Support\DateHelper;
 /**
  * Class ConfigController
  *
- * Mobile Config API — returns dynamic filter rules for the mobile companion app.
+ * Mobile Config API - returns dynamic filter rules for the mobile companion app.
  * The mobile app uses this response to:
  *  - Know which SMS senders (From field) are whitelisted
  *  - Filter positive/negative keywords before sending to server
@@ -59,9 +59,7 @@ final class ConfigController
     {
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
- 
-        // Collect unique active sender patterns for this brand (the whitelist)
-        $templates      = $this->smsTemplates->forTenant($mid)->listActive();
+        $templates      = $this->smsTemplates->listActiveForDevice($mid);
         $allowedSenders = [];
         foreach ($templates as $tpl) {
             $senderVal = $tpl['sender_pattern'] ?? '';

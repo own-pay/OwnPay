@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Webhook Event Delivery Logs — {{ app_name }}{% endblock %}
+{% block title %}Webhook Event Delivery Logs - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -107,7 +107,7 @@
                                 {% endif %}
                             </td>
                             <td data-label="Duration" class="op-text-sm">
-                                {{ log.duration_ms ? log.duration_ms ~ ' ms' : '—' }}
+                                {{ log.duration_ms ? log.duration_ms ~ ' ms' : '-' }}
                             </td>
                             <td data-label="Response / Error">
                                 {% if log.error %}

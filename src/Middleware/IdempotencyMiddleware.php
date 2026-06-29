@@ -103,7 +103,7 @@ final class IdempotencyMiddleware
             /** @var Response $response */
             $response = $next($request);
 
-            // Only cache successful responses (2xx) — don't cache transient server errors
+            // Only cache successful responses (2xx) - don't cache transient server errors
             if ($response->getStatusCode() >= 200 && $response->getStatusCode() < 300) {
                 $bodyDecoded = json_decode($response->getBody(), true);
                 $body = is_array($bodyDecoded) ? $bodyDecoded : [];

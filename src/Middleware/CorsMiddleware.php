@@ -66,7 +66,7 @@ final class CorsMiddleware
             return $response;
         }
 
-        // Wildcard mode — allow all origins
+        // Wildcard mode - allow all origins
         if (in_array('*', $allowedOrigins, true)) {
             $response->withHeader('Access-Control-Allow-Origin', '*');
             $response->withHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, PATCH, OPTIONS');

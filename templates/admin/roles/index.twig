@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Roles & Permissions — {{ app_name }}{% endblock %}
+{% block title %}Roles & Permissions - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -11,7 +11,7 @@
     </button>
 </div>
 
-{# ── Roles List ───────────────────────────────────────── #}
+{# -- Roles List ----------------------------------------- #}
 <div class="op-card">
     <div class="op-card-header"><h3>Active Roles</h3></div>
     <div class="op-card-body op-p-0">
@@ -32,7 +32,7 @@
                 <tr>
                     <td data-label="Role"><strong>{{ role.name }}</strong></td>
                     <td data-label="Slug"><code class="op-text-xs">{{ role.slug }}</code></td>
-                    <td data-label="Description" class="op-text-muted">{{ role.description|default('—') }}</td>
+                    <td data-label="Description" class="op-text-muted">{{ role.description|default('-') }}</td>
                     <td data-label="Permissions">
                         <span class="op-badge op-badge-info">{{ role.permission_count }} permissions</span>
                     </td>
@@ -66,7 +66,7 @@
     </div>
 </div>
 
-{# ── Permission Reference ──────────────────────────────── #}
+{# -- Permission Reference -------------------------------- #}
 {% if permissions|length > 0 %}
 <div class="op-card op-mt-4">
     <div class="op-card-header"><h3>Available Permissions</h3></div>
@@ -88,7 +88,7 @@
 </div>
 {% endif %}
 
-{# ── Create Role Modal ──────────────────────────────────── #}
+{# -- Create Role Modal ------------------------------------ #}
 <div class="op-modal" id="add-role-modal" hidden>
     <div class="op-modal-backdrop" data-close-modal="add-role-modal"></div>
     <div class="op-modal-dialog">
@@ -116,7 +116,7 @@
     </div>
 </div>
 
-{# ── Edit Role Modal ────────────────────────────────────── #}
+{# -- Edit Role Modal -------------------------------------- #}
 <div class="op-modal" id="edit-role-modal" hidden>
     <div class="op-modal-backdrop" data-close-modal="edit-role-modal"></div>
     <div class="op-modal-dialog op-modal-lg">

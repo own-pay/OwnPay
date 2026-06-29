@@ -11,7 +11,7 @@ use OwnPay\Support\DateHelper;
  *
  * Scopes CRUD operations per active tenant via the TenantScope trait.
  * Manages short-lived OTP tokens used in the 5-minute device pairing handshake.
- * OTPs are stored as SHA-256 hashes — raw OTP only lives in the QR code.
+ * OTPs are stored as SHA-256 hashes - raw OTP only lives in the QR code.
  */
 final class DevicePairingTokenRepository extends BaseRepository
 {

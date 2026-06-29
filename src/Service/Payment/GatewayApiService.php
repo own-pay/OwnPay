@@ -96,7 +96,7 @@ final class GatewayApiService
             $merchantId
         );
 
-        // When called from checkout, the transaction already exists — skip creation
+        // When called from checkout, the transaction already exists - skip creation
         if (!empty($params['existing_txn'])) {
             $transaction = ['trx_id' => $params['trx_id']];
         } else {
@@ -129,17 +129,12 @@ final class GatewayApiService
                 'success'      => true,
                 'transaction'  => $transaction,
                 'redirect_url' => is_string($result['redirect_url'] ?? null) ? $result['redirect_url'] : null,
-                // Defense-in-depth — sanitize form_html even from
-                // trusted gateway plugins. Strip event handlers and javascript: URIs
-                // while preserving forms, inputs, and inline auto-submit scripts.
                 'form_html'    => self::sanitizeFormHtml(is_string($result['form_html'] ?? null) ? $result['form_html'] : null),
             ];
 
             return $output;
 
         } catch (\RuntimeException $e) {
-            // Gateway adapter not registered / config error — surface to caller
-            // Only mark transaction as failed if we own it (direct API flow, not checkout)
             $txnId = $transaction['id'] ?? null;
             if (is_scalar($txnId)) {
                 $this->transactions->fail((int) $txnId, $merchantId, $e->getMessage());
@@ -169,10 +164,6 @@ final class GatewayApiService
      */
     public function handleCallback(int $merchantId, string $gatewaySlug, array $callbackData, bool $webhookVerified = false): array
     {
-        // The `_op_webhook_verified` flag may only originate from this code path.
-        // Strip any caller/user-supplied value, then re-add it solely when the
-        // ingress proved the payload signature. Adapters whose payloads are only
-        // trustworthy behind their own verifyWebhook() crypto check rely on it.
         unset($callbackData['_op_webhook_verified']);
         if ($webhookVerified) {
             $callbackData['_op_webhook_verified'] = true;
@@ -184,9 +175,6 @@ final class GatewayApiService
             return ['success' => false, 'error' => 'Verification failed'];
         }
 
-        // Resolve transaction using multiple callback field names.
-        // Different gateways use different parameter names for the merchant trx reference:
-        //   SSLCommerz → tran_id, Stripe → reference, bKash → trx_id
         $trxId = '';
         $trxIdFields = ['trx_id', 'tran_id', 'order_id', 'reference', 'merchant_order_id'];
         foreach ($trxIdFields as $field) {
@@ -197,9 +185,6 @@ final class GatewayApiService
             }
         }
 
-        // Nested webhook payloads (Stripe events, Adyen notifications, ...) carry
-        // the merchant reference inside the provider object; adapters surface it
-        // as `trx_id` in their verification result.
         if ($trxId === '') {
             $vTrx = $verification['trx_id'] ?? null;
             if (is_scalar($vTrx) && (string) $vTrx !== '') {
@@ -207,10 +192,8 @@ final class GatewayApiService
             }
         }
 
-        // Fallback: lookup by gateway_trx_id (bank/gateway reference)
         $gwTrxId = $verification['gateway_trx_id'] ?? null;
 
-        // Use database transaction and FOR UPDATE lock to completely prevent concurrency race conditions
         $db = \OwnPay\Core\Database::getInstance();
         $transaction = null;
         $amountMismatch = false;
@@ -232,11 +215,6 @@ final class GatewayApiService
                 }
 
                 if ($transaction !== null) {
-                    // FIND-004: a completion MUST carry a provider-verified amount that
-                    // matches the expected charge. Missing or non-numeric amounts fail
-                    // closed. When automatic currency conversion occurred, the gateway
-                    // charged metadata.converted_amount — compare against that instead
-                    // of the original-currency amount stored on the transaction row.
                     $expectedVal = $transaction['amount'] ?? null;
                     $metaRaw = $transaction['metadata'] ?? null;
                     $meta = is_string($metaRaw) ? json_decode($metaRaw, true) : null;
@@ -295,7 +273,7 @@ final class GatewayApiService
     }
 
     /**
-     * Sanitize gateway form_html — defense-in-depth.
+     * Sanitize gateway form_html - defense-in-depth.
      *
      * Removes dangerous scripts and attributes while keeping basic form inputs, submit buttons,
      * and inline submission scripts (e.g. document.forms[0].submit()) intact.
@@ -309,40 +287,33 @@ final class GatewayApiService
             return $html;
         }
 
-        // 1. Strip all event handler attributes (on*)
-        $html = (string) preg_replace('/\s+on\w+\s*=\s*["\'][^"\']*["\']/i', '', $html);
-        // Also handle unquoted: onclick=alert(1)
-        $html = (string) preg_replace('/\s+on\w+\s*=\s*[^\s>]+/i', '', $html);
-
-        // 2. Strip javascript: URIs in href/action/src/formaction attributes
+        $html = (string) preg_replace(
+            '/\s+on\w+\s*=\s*["\'][^"\']*["\']/i', '', 
+            $html);
+        $html = (string) preg_replace(
+            '/\s+on\w+\s*=\s*[^\s>]+/i', '', 
+            $html);
         $html = (string) preg_replace(
             '/(href|action|src|formaction)\s*=\s*["\']?\s*javascript\s*:/i',
             '$1="about:blank" data-sanitized="',
             $html
         );
 
-        // 3. Parse <script> tags: strip external scripts, and restrict inline scripts only to safe form auto-submission
         $html = (string) preg_replace_callback('/<script\b[^>]*>(.*?)<\/script>/is', function ($matches) {
             $scriptAttrs = $matches[0];
             $scriptContent = $matches[1];
 
-            // If it has a src attribute, it's an external script. Block it.
             if (preg_match('/\bsrc\s*=/i', $scriptAttrs)) {
                 return '';
             }
-
-            // Clean whitespaces and check if the content matches allowed auto-submit patterns
             $cleaned = preg_replace('/\s+/', '', $scriptContent);
             $cleanedContent = trim(is_string($cleaned) ? $cleaned : '');
-            
-            // Allow only standard forms of auto-submitting the parent redirect form
             $allowedPattern = '/^(?:(?:window\.onload\s*=\s*function\(\s*\)\s*\{)?\s*document\.(?:forms\[0\]|forms\[[\'"][a-zA-Z0-9_\-]+[\'"]\]|getElementById\([\'"][a-zA-Z0-9_\-]+[\'"]\))\.submit\(\s*\);?\s*\}?)$/i';
             
             if (preg_match($allowedPattern, $cleanedContent)) {
                 return "<script>" . trim($scriptContent) . "</script>";
             }
 
-            // Default-deny: neutralize arbitrary javascript to a safe form submission
             return "<script>document.forms[0].submit();</script>";
         }, $html);
 

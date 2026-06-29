@@ -131,7 +131,7 @@ final class EasypaisaGateway implements PluginInterface, GatewayAdapterInterface
             $hashValid = hash_equals(strtolower($generatedHash), strtolower($secureHash));
         } else {
             // Fallback for sandbox / testing when hash key is not configured and
-            // mode is sandbox. Never accept an unsigned callback in production —
+            // mode is sandbox. Never accept an unsigned callback in production -
             // a gateway left in sandbox mode must not complete real transactions.
             $mode = $this->getString($credentials['mode'] ?? 'sandbox');
             $hashValid = ($mode === 'sandbox') && !$this->isProductionEnv();
@@ -163,7 +163,7 @@ final class EasypaisaGateway implements PluginInterface, GatewayAdapterInterface
 
         // Parse the body the same way UnifiedWebhookController builds callbackData
         // (JSON first, form-encoded fallback) and verify the secureHash over the
-        // sorted parameter string — mirrors verify()'s HMAC so the ingress gate
+        // sorted parameter string - mirrors verify()'s HMAC so the ingress gate
         // is a real, constant-time signature check, not an unconditional accept.
         $data = json_decode($rawBody, true);
         if (!is_array($data)) {

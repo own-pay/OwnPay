@@ -8,19 +8,19 @@ description: Apply for security audits, reviews, vulnerabilities, risk/pentest t
 > [!IMPORTANT]
 > **COMPLIANCE MANDATE:** You are operating as a senior software architect and developer with 20+ years of experience in trillion-dollar fintech platforms. In this offline local environment, you are fully authorized to develop, optimize, refactor, and implement features, as well as conduct thorough secure-coding compliance audits, acting as an internal compliance and system hardening authority.
 
-# Security Audit — OwnPay (OWASP Top 10:2025) Part 1/2
+# Security Audit - OwnPay (OWASP Top 10:2025) Part 1/2
 
 > **Load alongside**: `senior-security` skill + `security-cryptography` rule + `security-audit-part2` rule for complete coverage.
 
 ---
 
-## OWASP Top 10:2025 — Change Map (vs 2021)
+## OWASP Top 10:2025 - Change Map (vs 2021)
 
 | 2025 | Category | Change |
 |---|---|---|
 | **A01** | Broken Access Control | SSRF consolidated here (was A10:2021) · 40 CWEs |
 | **A02** | Security Misconfiguration | ↑ Up from #5 |
-| **A03** | Software Supply Chain Failures | 🆕 New — replaces Vulnerable Components |
+| **A03** | Software Supply Chain Failures | 🆕 New - replaces Vulnerable Components |
 | **A04** | Cryptographic Failures | Retained |
 | **A05** | Injection | Retained |
 | **A06** | Insecure Design | Retained → see Part 2 |
@@ -36,8 +36,8 @@ description: Apply for security audits, reviews, vulnerabilities, risk/pentest t
 - [ ] Entry points mapped (routes, APIs, webhooks, uploads, cron)
 - [ ] Data flow documented (input → processing → storage → output)
 - [ ] Trust boundaries identified (guest / customer / staff / superadmin / gateway)
-- [ ] `composer.lock` reviewed — run `composer audit`
-- [ ] `.env` scoped — no keys in source, DB, or logs
+- [ ] `composer.lock` reviewed - run `composer audit`
+- [ ] `.env` scoped - no keys in source, DB, or logs
 - [ ] OwnPay context: active brands, custom domains, installed plugins
 
 ---
@@ -46,7 +46,7 @@ description: Apply for security audits, reviews, vulnerabilities, risk/pentest t
 
 ```
 Entry Points
-  /admin/*          Admin panel (APP_DOMAIN only — DomainMiddleware blocks on custom domains)
+  /admin/*          Admin panel (APP_DOMAIN only - DomainMiddleware blocks on custom domains)
   /checkout/*       Public payment flow
   /api/*            REST API
   /api/mobile/v1/*  Mobile JWT API
@@ -58,7 +58,7 @@ Trust Boundaries
   Unauthenticated   Public/guest checkout only
   Customer          Checkout session, no admin access
   Staff             Brand-scoped RBAC (PermissionMiddleware)
-  Superadmin        Global — forAllTenants() permitted only here
+  Superadmin        Global - forAllTenants() permitted only here
   Gateway callback  signature-verified + IP-allowlisted
   Mobile device     Device-pinned JWT (op_paired_devices)
 
@@ -69,13 +69,14 @@ Privileged Operations (highest audit priority)
 
 ---
 
-## 2) OWASP Top 10:2025 — A01 through A05
+## 2) OWASP Top 10:2025 - A01 through A05
 
 ---
 
-### A01:2025 — Broken Access Control *(CRITICAL — 40 CWEs, includes SSRF)*
+### A01:2025 - Broken Access Control *(CRITICAL - 40 CWEs, includes SSRF)*
 
 **Authorization & IDOR**
+
 ```
 - Are all /admin/* routes protected by PermissionMiddleware?
 - Is BrandContext::resolveFromRequest() called before every brand-scoped query?
@@ -86,6 +87,7 @@ Privileged Operations (highest audit priority)
 ```
 
 **SSRF (consolidated from A10:2021)**
+
 ```
 - Can a user supply a URL the server fetches? (webhook URLs, gateway callbacks)
 - Are outbound HTTP requests validated against an allowlist?
@@ -96,6 +98,7 @@ Privileged Operations (highest audit priority)
 ```
 
 **CORS & Custom Domains**
+
 ```
 - Is CORS configured with specific origin allowlists? (no wildcard + credentials)
 - Does DomainMiddleware return 404 for /admin/* on all custom domains?
@@ -105,9 +108,10 @@ Privileged Operations (highest audit priority)
 
 ---
 
-### A02:2025 — Security Misconfiguration *(HIGH)*
+### A02:2025 - Security Misconfiguration *(HIGH)*
 
 **Runtime**
+
 ```
 - Is APP_DEBUG=false in production? (stack traces must never reach browser)
 - Are default credentials changed? (admin@example.com / admin12345 are insecure defaults)
@@ -116,8 +120,9 @@ Privileged Operations (highest audit priority)
 ```
 
 **Security Headers** (set by SecurityHeadersMiddleware)
+
 ```
-Required — flag HIGH if missing:
+Required - flag HIGH if missing:
   Strict-Transport-Security: max-age=63072000; includeSubDomains; preload
   Content-Security-Policy: (nonce-based; no unsafe-inline)
     Minimum: default-src 'self'; object-src 'none'; base-uri 'self';
@@ -129,7 +134,7 @@ Required — flag HIGH if missing:
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
 
-Deprecated — flag MEDIUM if present:
+Deprecated - flag MEDIUM if present:
   X-XSS-Protection  ← remove; harmful in some browsers
 
 CSP Rules:
@@ -139,10 +144,12 @@ CSP Rules:
 
 ---
 
-### A03:2025 — Software Supply Chain Failures *(HIGH — NEW)*
+### A03:2025 - Software Supply Chain Failures *(HIGH - NEW)*
+>
 > CWEs: 1104, 1329, 1357, 1395, 447, 937
 
 **Composer Dependencies**
+
 ```
 - Run: composer audit          ← check ALL findings; block on CRITICAL/HIGH
 - Run: composer outdated       ← identify outdated packages
@@ -151,6 +158,7 @@ CSP Rules:
 ```
 
 **SBOM & Integrity**
+
 ```
 - Is a Software Bill of Materials maintained for all direct + transitive deps?
 - Are dependency hashes verified on install?
@@ -158,6 +166,7 @@ CSP Rules:
 ```
 
 **CI/CD Pipeline**
+
 ```
 - Are CI/CD actions pinned to commit SHA (not floating tags)?
 - Are build secrets stored in secrets manager (not env vars in CI config)?
@@ -165,6 +174,7 @@ CSP Rules:
 ```
 
 **Plugin Supply Chain (OwnPay-specific)**
+
 ```
 - Are all gateway/addon plugins from verified, audited sources?
 - Is PluginSandbox scan run programmatically before plugin activation?
@@ -175,14 +185,14 @@ CSP Rules:
 
 ---
 
-### A04:2025 — Cryptographic Failures *(CRITICAL)*
+### A04:2025 - Cryptographic Failures *(CRITICAL)*
 
 ```
 Passwords
   - Argon2id (PASSWORD_ARGON2ID) with OWASP 2025 params:
     memory_cost >= 65536 (64MB), time_cost >= 3, threads >= 4
-  - password_verify() used (timing-safe) — never === on hash strings
-  - Reset tokens: random_bytes(32) — never rand()/uniqid()
+  - password_verify() used (timing-safe) - never === on hash strings
+  - Reset tokens: random_bytes(32) - never rand()/uniqid()
   - Reset tokens expire in 1 hour, invalidated on single use
 
 Keys & Secrets
@@ -198,30 +208,33 @@ Encryption at Rest
 
 Transit & Tokens
   - TLS 1.3 preferred, TLS 1.2 minimum (never TLS 1.0/1.1/SSL 3.0)
-  - All security tokens generated with random_bytes() — never rand()/mt_rand()
-  - Webhook signatures: HMAC-SHA256 — never MD5-HMAC or SHA1-HMAC
+  - All security tokens generated with random_bytes() - never rand()/mt_rand()
+  - Webhook signatures: HMAC-SHA256 - never MD5-HMAC or SHA1-HMAC
   - PII masked via PIIMasker in all log output
 ```
 
 ---
 
-### A05:2025 — Injection *(CRITICAL)*
+### A05:2025 - Injection *(CRITICAL)*
 
 **SQL Injection**
+
 ```
-- ALL SQL queries via PDO prepared statements — zero string interpolation
+- ALL SQL queries via PDO prepared statements - zero string interpolation
 - Dynamic ORDER BY / column names protected with strict allowlists
 - No raw query building in BaseRepository or child repositories
 ```
 
 **Twig SSTI (Server-Side Template Injection)**
+
 ```
-- Is $twig->createTemplate($userInput) ever called? (CRITICAL — RCE on Twig 3.x)
+- Is $twig->createTemplate($userInput) ever called? (CRITICAL - RCE on Twig 3.x)
 - Are brand.custom_css and brand.custom_js sanitized before persistence?
 - Is |raw used ONLY on pre-sanitized, explicitly trusted content?
 ```
 
 **Command Injection**
+
 ```
 - User input never passed to: exec(), shell_exec(), passthru(), system(),
   popen(), proc_open(), or backtick operators
@@ -230,6 +243,7 @@ Transit & Tokens
 ```
 
 **Path Traversal & Other**
+
 ```
 - User input never in include(), require(), or raw file paths
 - File paths canonicalized and validated before use

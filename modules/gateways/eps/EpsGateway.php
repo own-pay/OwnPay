@@ -11,7 +11,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * EPS payment gateway — PluginInterface + GatewayAdapterInterface.
+ * EPS payment gateway - PluginInterface + GatewayAdapterInterface.
  */
 final class EpsGateway implements PluginInterface, GatewayAdapterInterface
 {

@@ -12,7 +12,7 @@ use OwnPay\Plugin\PluginInterface;
 use OwnPay\Modules\Addons\ExampleKit\Service\PingTracker;
 
 /**
- * Example Kit — a reference addon exercising every plugin extension point in one place:
+ * Example Kit - a reference addon exercising every plugin extension point in one place:
  *  - multi-file classes autoloaded from this plugin's directory (Service/, Cron/);
  *  - manifest-declared routes, including an authenticated admin route (see manifest.json);
  *  - a manifest-declared cron job (Cron/HeartbeatJob);
@@ -52,7 +52,7 @@ final class Plugin implements PluginInterface
 
     public function register(EventManager $events, Container $container): void
     {
-        // React to completed payments — delegates to the autoloaded PingTracker collaborator.
+        // React to completed payments - delegates to the autoloaded PingTracker collaborator.
         $events->addAction('payment.transaction.completed', [$this, 'onTransactionCompleted'], 20);
     }
 
@@ -63,7 +63,7 @@ final class Plugin implements PluginInterface
 
     public function deactivate(Container $container): void
     {
-        // Nothing to tear down — routes/cron/menu are only wired while the plugin is active.
+        // Nothing to tear down - routes/cron/menu are only wired while the plugin is active.
     }
 
     public function uninstall(Container $container): void
@@ -99,7 +99,7 @@ final class Plugin implements PluginInterface
     }
 
     /**
-     * Reads the plugin's configured greeting from scoped settings — demonstrates pulling a core
+     * Reads the plugin's configured greeting from scoped settings - demonstrates pulling a core
      * service (SettingsRepository) from the DI container captured in boot().
      *
      * @return string The configured greeting, or the default.

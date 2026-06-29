@@ -1,6 +1,6 @@
 {% extends 'admin/layout/base.twig' %}
 
-{% block title %}Dashboard — {{ app_name }}{% endblock %}
+{% block title %}Dashboard - {{ app_name }}{% endblock %}
 
 {% block head %}
     <link rel="stylesheet" href="/assets/css/pages/dashboard.css?v=025">
@@ -17,7 +17,7 @@
 
 {{ hook('admin.dashboard.before')|raw }}
 
-{# ── Page Header ── #}
+{# -- Page Header -- #}
 <div class="dash-header">
     <div>
         <h1 class="dash-page-title">Dashboard</h1>
@@ -25,7 +25,7 @@
     </div>
 </div>
 
-{# ── KPI Grid ── #}
+{# -- KPI Grid -- #}
 <div class="dash-kpi-grid">
     {# Total Payments #}
     <div class="dash-card">
@@ -80,7 +80,7 @@
     </div>
 </div>
 
-{# ── Main Grid: Chart + Transaction History | Gauge + Updates ── #}
+{# -- Main Grid: Chart + Transaction History | Gauge + Updates -- #}
 <div class="dash-main-grid">
     <div class="dash-stack-grid">
         {# Revenue Chart #}

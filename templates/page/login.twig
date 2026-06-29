@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login — {{ app_name ?? 'OwnPay' }}</title>
+    <title>Login - {{ app_name ?? 'OwnPay' }}</title>
     <meta name="robots" content="noindex, nofollow">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
@@ -314,7 +314,7 @@
         setInterval(function() { triggerBlink('black'); }, 5500);
         updateCharacters();
 
-        /* ── Texts Reveal: stagger header entrance ── */
+        /* -- Texts Reveal: stagger header entrance -- */
         var headerStagger = document.getElementById('header-stagger');
         if (headerStagger) {
             headerStagger.classList.remove('is-hiding');
@@ -323,7 +323,7 @@
             headerStagger.classList.add('is-shown');
         }
 
-        /* ── Error State Shake ── */
+        /* -- Error State Shake -- */
         var errorWrap = document.getElementById('error-wrap');
         var errorAlert = errorWrap ? errorWrap.querySelector('.op-alert') : null;
         if (errorAlert) {
@@ -347,7 +347,7 @@
             }, shakeMs + hold);
         }
 
-        /* ── Hero Text Rotation ── */
+        /* -- Hero Text Rotation -- */
         var heroTexts = [
             "your money, stays yours.",
             "your gateway, your rules.",

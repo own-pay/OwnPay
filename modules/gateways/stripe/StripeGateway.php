@@ -29,7 +29,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
     {
         return [
             'name' => 'Stripe', 'slug' => 'stripe', 'version' => '1.0.0',
-            'description' => 'Stripe payment gateway — cards, wallets, international payments',
+            'description' => 'Stripe payment gateway - cards, wallets, international payments',
             'author' => 'OwnPay Core', 'type' => 'gateway',
         ];
     }
@@ -214,7 +214,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'failed'];
         }
 
-        // ALWAYS verify server-side via Stripe API — never trust inbound payload
+        // ALWAYS verify server-side via Stripe API - never trust inbound payload
         $secretKey = $credentials['secret_key'];
 
         $ch = curl_init('https://api.stripe.com/v1/checkout/sessions/' . urlencode($sessionId));
@@ -273,7 +273,7 @@ final class StripeGateway implements PluginInterface, GatewayAdapterInterface
     {
         $webhookSecret = $credentials['webhook_secret'] ?? '';
         if ($webhookSecret === '') {
-            // No webhook secret configured — fail closed
+            // No webhook secret configured - fail closed
             return false;
         }
 

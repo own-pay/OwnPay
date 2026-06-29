@@ -317,6 +317,7 @@ final class SmsParserServiceTest extends TestCase
             private bool $isDup;
             private int $counter = 0;
             public function __construct(bool $isDup) { $this->isDup = $isDup; }
+            public function forTenant(int $merchantId): self { return $this; }
             public function isDuplicate(string $deviceUuid, string $sender, string $receivedAt): bool {
                 return $this->isDup;
             }

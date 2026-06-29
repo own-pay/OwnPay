@@ -140,10 +140,6 @@ final class AmazonPayGateway implements PluginInterface, GatewayAdapterInterface
 
     public function verify(array $callbackData, array $credentials): array
     {
-        // FIND-001: redirect/callback parameters are not cryptographically
-        // authenticated. Only complete when the core proved the webhook
-        // signature for this payload (sets _op_webhook_verified in
-        // GatewayApiService::handleCallback after verifyWebhook passes).
         if (($callbackData['_op_webhook_verified'] ?? false) !== true) {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'unverified'];
         }
@@ -164,12 +160,6 @@ final class AmazonPayGateway implements PluginInterface, GatewayAdapterInterface
         if ($signature === '') {
             return false;
         }
-
-        // FIND-002: fail closed. verify() carries no independent crypto check —
-        // it trusts the _op_webhook_verified flag set when this method returns
-        // true — so an unconditional `return true` here meant any forged webhook
-        // was accepted. The signature MUST match the HMAC of the raw body under
-        // the merchant's configured secret, compared in constant time.
         $webhookSecret = $this->getString($credentials['webhook_secret'] ?? $credentials['store_id'] ?? null);
         if ($webhookSecret === '') {
             return false;

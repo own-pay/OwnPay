@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Developer Hub — {{ app_name }}{% endblock %}
+{% block title %}Developer Hub - {{ app_name }}{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/assets/css/pages/developer.css?v=014">
 {% endblock %}
@@ -32,7 +32,7 @@
         <div class="op-card-header op-new-key-reveal-header">
             <h3 class="op-flex-gap-8 op-flex-align-center">
                 <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
-                New API Key Generated — {{ generated_key_label }}
+                New API Key Generated - {{ generated_key_label }}
             </h3>
         </div>
         <div class="op-card-body">
@@ -57,7 +57,7 @@
             <div id="copy-feedback" class="op-feedback-text"></div>
             <p class="op-text-muted op-text-sm op-mt-3 op-line-height-1-6">
                 Use this key in the <code>Authorization</code> header: <code>Authorization: Bearer {{ generated_key }}</code><br>
-                Add it to your environment variables — <strong>never commit API keys to source code.</strong>
+                Add it to your environment variables - <strong>never commit API keys to source code.</strong>
             </p>
         </div>
     </div>
@@ -82,11 +82,11 @@
                             {% for scope in key.scopes %}
                                 <span class="op-badge op-badge-{{ scope == 'admin' ? 'danger' : 'info' }}">{{ scope }}</span>
                             {% else %}
-                                <span class="op-text-muted">—</span>
+                                <span class="op-text-muted">-</span>
                             {% endfor %}
                         </td>
                         <td data-label="Created">{{ key.created_at|date('M d, Y') }}</td>
-                        <td data-label="Last Used">{{ key.last_used_at ? key.last_used_at|date('M d, Y H:i') : '—' }}</td>
+                        <td data-label="Last Used">{{ key.last_used_at ? key.last_used_at|date('M d, Y H:i') : '-' }}</td>
                         <td data-label="Actions">
                             <form method="POST" action="/admin/api-keys/{{ key.id }}/revoke" class="op-inline-form" data-confirm="Revoke this API key? All requests using it will fail immediately.">
                                 <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

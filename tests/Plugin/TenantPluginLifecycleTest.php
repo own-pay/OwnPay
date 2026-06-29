@@ -16,7 +16,7 @@ use OwnPay\Event\EventManager;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * TenantPluginLifecycleTest — Automated integration tests for brand-scoped plugin activation/deactivation
+ * TenantPluginLifecycleTest - Automated integration tests for brand-scoped plugin activation/deactivation
  * and global deletion block if a plugin is active on any brand.
  *
  * @group Integration

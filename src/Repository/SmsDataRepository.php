@@ -80,13 +80,17 @@ final class SmsDataRepository extends BaseRepository
      */
     public function listPaginated(int $limit = 20, int $offset = 0, ?string $status = null): array
     {
-        $where = "merchant_id = :mid";
-        $params = ['mid' => $this->requireTenant()];
-
+        $conds = [];
+        $params = [];
+        if ($this->tenantId !== null) {
+            $conds[] = "merchant_id = :mid";
+            $params['mid'] = $this->tenantId;
+        }
         if ($status !== null) {
-            $where .= " AND match_status = :status";
+            $conds[] = "match_status = :status";
             $params['status'] = $status;
         }
+        $where = $conds === [] ? '1=1' : implode(' AND ', $conds);
 
         $total = $this->db->count($this->table, $where, $params);
 

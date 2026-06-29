@@ -177,7 +177,7 @@ class WebhookIdempotencyTest extends IntegrationTestCase
         );
 
         // A racing duplicate that slipped past the SELECT fast path must die
-        // on the unique index — this is what makes concurrent identical
+        // on the unique index - this is what makes concurrent identical
         // deliveries safe regardless of application-level checks.
         try {
             $this->db->execute(
@@ -190,7 +190,7 @@ class WebhookIdempotencyTest extends IntegrationTestCase
             $this->assertSame(1062, (int) ($e->errorInfo[1] ?? 0));
         }
 
-        // Outbound retries legitimately reuse a payload hash — they must NOT
+        // Outbound retries legitimately reuse a payload hash - they must NOT
         // be constrained (dedup_key is NULL for outbound rows).
         $this->db->execute(
             "INSERT INTO op_webhook_deliveries (merchant_id, gateway, event, url, direction, status, payload_hash, attempt, created_at)
@@ -319,7 +319,7 @@ class WebhookIdempotencyTest extends IntegrationTestCase
         $this->assertIsString($txn['metadata']);
         $meta = json_decode($txn['metadata'], true);
         $this->assertIsArray($meta);
-        $this->assertSame(77, $meta['invoice_id'] ?? null, 'fail() must merge metadata, not overwrite it — invoice linkage was lost');
+        $this->assertSame(77, $meta['invoice_id'] ?? null, 'fail() must merge metadata, not overwrite it - invoice linkage was lost');
         $this->assertSame('gateway timeout', $meta['failure_reason'] ?? null);
     }
 }

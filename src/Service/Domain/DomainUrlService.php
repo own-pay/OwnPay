@@ -64,12 +64,6 @@ final class DomainUrlService
             return rtrim($appUrl, '/');
         }
 
-        // Last-resort fallback (reached only when APP_URL is unset). The Host
-        // header is attacker-controlled, and this value is used to build callback
-        // URLs handed to external payment gateways — an unvalidated Host would let
-        // an attacker redirect gateway callbacks to their own server. Only trust
-        // the request host when it matches the configured APP_DOMAIN or this
-        // brand's verified custom domain.
         if ($req !== null) {
             $requestHost = $req->host();
             $requestHostName = strtolower(explode(':', $requestHost)[0]);

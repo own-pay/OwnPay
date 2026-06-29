@@ -253,7 +253,7 @@ final class DeveloperController
     {
         return [
             'Health' => [
-                ['method' => 'GET',    'path' => '/api/v1/health',                          'auth' => 'None',   'desc' => 'Health check — returns system status, version, and DB connectivity'],
+                ['method' => 'GET',    'path' => '/api/v1/health',                          'auth' => 'None',   'desc' => 'Health check - returns system status, version, and DB connectivity'],
             ],
             'Payments' => [
                 ['method' => 'POST',   'path' => '/api/v1/payments',                        'auth' => 'Bearer', 'desc' => 'Initiate a new payment intent. Returns checkout_url and payment_id'],
@@ -281,6 +281,9 @@ final class DeveloperController
                 ['method' => 'POST',   'path' => '/api/v1/webhooks/tests',                  'auth' => 'Bearer', 'desc' => 'Send a test event to your webhook URL'],
                 ['method' => 'GET',    'path' => '/api/v1/webhooks/deliveries',              'auth' => 'Bearer', 'desc' => 'List recent webhook delivery attempts with status'],
             ],
+            'Webhooks (Incoming / IPN)' => [
+                ['method' => 'POST',   'path' => '/webhook/{gateway}',                      'auth' => 'Sig',    'desc' => 'Unified IPN endpoint for gateway callbacks. Replace {gateway} with gateway slug (e.g. bkash-api, stripe)'],
+            ],
             'Mobile Device API' => [
                 ['method' => 'POST',   'path' => '/api/mobile/v1/devices',                  'auth' => 'OTP',    'desc' => 'Pair mobile device using 6-digit OTP from admin panel'],
                 ['method' => 'POST',   'path' => '/api/mobile/v1/devices/heartbeats',        'auth' => 'JWT',    'desc' => 'Update device last-seen timestamp and heartbeat'],
@@ -290,13 +293,10 @@ final class DeveloperController
                 ['method' => 'GET',    'path' => '/api/mobile/v1/sms/queues',                'auth' => 'JWT',    'desc' => 'Retrieve outbound SMS messages queued for processing/delivery'],
                 ['method' => 'GET',    'path' => '/api/mobile/v1/notifications',            'auth' => 'JWT',    'desc' => 'Poll for unread payment notifications'],
                 ['method' => 'POST',   'path' => '/api/mobile/v1/notifications/acknowledgements', 'auth' => 'JWT', 'desc' => 'Acknowledge / mark notifications as read'],
-                ['method' => 'GET',    'path' => '/api/mobile/v1/dashboard',                'auth' => 'JWT',    'desc' => 'Mobile dashboard summary — today totals, recent transactions'],
+                ['method' => 'GET',    'path' => '/api/mobile/v1/dashboard',                'auth' => 'JWT',    'desc' => 'Mobile dashboard summary - today totals, recent transactions'],
                 ['method' => 'GET',    'path' => '/api/mobile/v1/config/filter-rules',      'auth' => 'JWT',    'desc' => 'Fetch configured filtering rules for mobile SMS privacy gate'],
                 ['method' => 'POST',   'path' => '/api/mobile/v1/devices/token-refreshes',   'auth' => 'OTP/JWT', 'desc' => 'Refresh mobile API access token using refresh token'],
                 ['method' => 'GET',    'path' => '/api/mobile/v1/devices/statuses',         'auth' => 'JWT',    'desc' => 'Get overall status and registration details of the paired device'],
-            ],
-            'Webhooks (Incoming / IPN)' => [
-                ['method' => 'POST',   'path' => '/webhook/{gateway}',                      'auth' => 'Sig',    'desc' => 'Unified IPN endpoint for gateway callbacks. Replace {gateway} with gateway slug (e.g. bkash-api, stripe)'],
             ],
         ];
     }

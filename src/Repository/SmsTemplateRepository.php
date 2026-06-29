@@ -97,8 +97,7 @@ final class SmsTemplateRepository extends BaseRepository
         return $result;
     }
 
-    // ─── Admin methods ───────────────────────────────────────────
-
+    // --- Admin methods
     /**
      * Retrieves all templates registered for a merchant for administration display.
      *
@@ -221,6 +220,33 @@ final class SmsTemplateRepository extends BaseRepository
     {
         return $this->db->fetchAll(
             "SELECT * FROM {$this->table} WHERE status = 'active' AND (merchant_id IS NULL OR merchant_id = :mid) ORDER BY priority ASC",
+            ['mid' => $merchantId]
+        );
+    }
+
+    /**
+     * Retrieves the active templates a paired companion DEVICE should use to build its on-device sender
+     * whitelist: the device's OWN brand templates, PLUS true globals (merchant_id NULL), PLUS the reserved
+     * "All Brands" (platform) templates. This is what makes an All-Brands template apply to EVERY device
+     * regardless of which brand the device paired under - without it, a device scoped to brand X (or to the
+     * platform) never sees templates owned by a different scope, so its whitelist comes back empty and the
+     * fail-closed on-device gate drops every SMS. The platform id is resolved via the is_platform flag
+     * (its value varies per database), never hard-coded.
+     *
+     * @param int $merchantId The device's own brand/merchant id (from its JWT scope).
+     * @return array<int, array<string, mixed>> Active template records ordered by priority ascending.
+     */
+    public function listActiveForDevice(int $merchantId): array
+    {
+        return $this->db->fetchAll(
+            "SELECT * FROM {$this->table}
+             WHERE status = 'active'
+               AND (
+                 merchant_id IS NULL
+                 OR merchant_id = :mid
+                 OR merchant_id = (SELECT id FROM op_merchants WHERE is_platform = 1 ORDER BY id ASC LIMIT 1)
+               )
+             ORDER BY priority ASC",
             ['mid' => $merchantId]
         );
     }

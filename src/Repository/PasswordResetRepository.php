@@ -34,7 +34,7 @@ final class PasswordResetRepository extends BaseRepository
      */
     public function createToken(int $userId, string $tokenHash): void
     {
-        $ttl = self::TTL_SECONDS; // trusted constant — safe to inline (placeholders are unreliable inside INTERVAL)
+        $ttl = self::TTL_SECONDS; // trusted constant - safe to inline (placeholders are unreliable inside INTERVAL)
         $this->db->execute(
             "INSERT INTO {$this->table} (user_id, token_hash, expires_at)
              VALUES (:uid, :hash, DATE_ADD(NOW(6), INTERVAL {$ttl} SECOND))",

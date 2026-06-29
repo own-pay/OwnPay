@@ -15,7 +15,7 @@ use OwnPay\Repository\InvoiceRepository;
 use OwnPay\Repository\SettingsRepository;
 
 /**
- * SMS Gateway Addon — Twilio, Vonage, custom HTTP API.
+ * SMS Gateway Addon - Twilio, Vonage, custom HTTP API.
  * Hooks into sms.send to dispatch SMS via configured provider.
  * OWASP: Secrets from DB only (never logged), SSRF-safe URL validation for custom API.
  */

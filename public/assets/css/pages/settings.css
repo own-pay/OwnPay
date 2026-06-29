@@ -1,4 +1,7 @@
-#logo-upload-form, #favicon-upload-form, #logo-file-input, #favicon-file-input {
+#logo-upload-form,
+#favicon-upload-form,
+#logo-file-input,
+#favicon-file-input {
     display: none !important;
 }
 
@@ -48,7 +51,7 @@
     position: relative !important;
 }
 
-/* ─── Platform Optimization Tab Styles ────────────────────────────────── */
+/* --- Platform Optimization Tab Styles ---------------------------------- */
 .op-grid-4 {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
@@ -129,10 +132,21 @@
     border: 1px solid var(--op-border);
 }
 
-.op-gradient-blue .op-metric-icon { color: #0F97ED; }
-.op-gradient-purple .op-metric-icon { color: #8B5CF6; }
-.op-gradient-green .op-metric-icon { color: #10B981; }
-.op-gradient-orange .op-metric-icon { color: #F59E0B; }
+.op-gradient-blue .op-metric-icon {
+    color: #0F97ED;
+}
+
+.op-gradient-purple .op-metric-icon {
+    color: #8B5CF6;
+}
+
+.op-gradient-green .op-metric-icon {
+    color: #10B981;
+}
+
+.op-gradient-orange .op-metric-icon {
+    color: #F59E0B;
+}
 
 .op-metric-value {
     font-size: 20px;
@@ -190,7 +204,7 @@
     display: block;
 }
 
-/* ─── Cron Job Tab Styles ────────────────────────────────────────── */
+/* --- Cron Job Tab Styles ------------------------------------------ */
 .op-cron-alert-content {
     display: flex;
     align-items: flex-start;
@@ -311,9 +325,17 @@
     vertical-align: middle;
 }
 
-.op-status-dot-warning { background: var(--op-warning); }
-.op-status-dot-success { background: var(--op-success); }
-.op-status-dot-danger { background: var(--op-danger); }
+.op-status-dot-warning {
+    background: var(--op-warning);
+}
+
+.op-status-dot-success {
+    background: var(--op-success);
+}
+
+.op-status-dot-danger {
+    background: var(--op-danger);
+}
 
 @media (max-width: 768px) {
     .op-opt-tool-row {
@@ -387,10 +409,12 @@
 }
 
 @keyframes op-spin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
-/* ─── Premium Vertical Settings Layout ────────────────────────────────── */
+/* --- Premium Vertical Settings Layout ---------------------------------- */
 .op-settings-layout {
     display: flex;
     gap: 32px;
@@ -507,15 +531,16 @@
     color: #ef4444 !important;
 }
 
-/* Scroll hint — hidden on desktop */
+/* Scroll hint - hidden on desktop */
 .op-tab-scroll-hint {
     display: none;
 }
 
 /* ═══════════════════════════════════════════════════════
-   MOBILE — Compact settings for ≤768px
+   MOBILE - Compact settings for ≤768px
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
+
     /* Page header */
     .op-page-header {
         margin-top: 16px;
@@ -530,14 +555,14 @@
         display: none;
     }
 
-    /* Settings layout — stacked */
+    /* Settings layout - stacked */
     .op-settings-layout {
         flex-direction: column;
         gap: 16px;
         margin-top: 12px;
     }
 
-    /* Sidebar — horizontal scroll strip, override ALL desktop flex-col rules */
+    /* Sidebar - horizontal scroll strip, override ALL desktop flex-col rules */
     .op-settings-layout .op-settings-sidebar {
         display: flex !important;
         flex-direction: row !important;
@@ -563,16 +588,26 @@
 
     /* Initial scroll hint animation */
     @keyframes tabScrollHint {
-        0%, 100% { transform: translateX(0); }
-        40% { transform: translateX(-20px); }
-        60% { transform: translateX(-20px); }
+
+        0%,
+        100% {
+            transform: translateX(0);
+        }
+
+        40% {
+            transform: translateX(-20px);
+        }
+
+        60% {
+            transform: translateX(-20px);
+        }
     }
 
     .op-settings-layout .op-sidebar-nav {
         animation: tabScrollHint 2.5s cubic-bezier(0.22, 1, 0.36, 1) 0.5s 1;
     }
 
-    /* Scroll controls — in page header, right aligned */
+    /* Scroll controls - in page header, right aligned */
     .op-tab-scroll-hint {
         display: flex !important;
         align-items: center;
@@ -618,7 +653,7 @@
         transform: scale(0.92);
     }
 
-    /* Groups — inline, no wrapping */
+    /* Groups - inline, no wrapping */
     .op-settings-layout .op-sidebar-group {
         display: flex !important;
         flex-direction: row !important;
@@ -639,7 +674,7 @@
         overflow: hidden !important;
     }
 
-    /* Navs — inline */
+    /* Navs - inline */
     .op-settings-layout .op-sidebar-nav {
         display: flex !important;
         flex-direction: row !important;
@@ -650,7 +685,7 @@
         flex-shrink: 0 !important;
     }
 
-    /* Tabs — compact pills */
+    /* Tabs - compact pills */
     .op-settings-layout .op-settings-sidebar .op-tab {
         width: auto !important;
         min-width: 0 !important;
@@ -696,7 +731,7 @@
         padding: 12px 16px 16px;
     }
 
-    /* Form rows — single column */
+    /* Form rows - single column */
     .op-settings-main .op-form-row {
         flex-direction: column;
         gap: 0;
@@ -957,4 +992,3 @@
         font-size: 12px;
     }
 }
-

@@ -74,7 +74,7 @@ final class CustomerRepository extends BaseRepository
             $params['mid'] = $merchantId;
         }
         if ($query !== '') {
-            // Email hash lookup only — cannot search encrypted name/phone by plaintext
+            // Email hash lookup only - cannot search encrypted name/phone by plaintext
             $emailHash = hash('sha256', strtolower(trim($query)));
             $conds[] = "c.email_hash = :q";
             $params['q'] = $emailHash;

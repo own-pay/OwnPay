@@ -1,6 +1,6 @@
 {
   "name": "own-pay/ownpay",
-  "description": "OwnPay v0.1.0 — Enterprise-grade Open-Source Payment Gateway",
+  "description": "OwnPay v0.1.0 - Enterprise-grade Open-Source Payment Gateway",
   "type": "project",
   "license": "AGPL-3.0-or-later",
   "require": {
@@ -20,7 +20,9 @@
     "psr-4": {
       "OwnPay\\": "src/"
     },
-    "exclude-from-classmap": ["src/**/*Test.php"]
+    "exclude-from-classmap": [
+      "src/**/*Test.php"
+    ]
   },
   "autoload-dev": {
     "psr-4": {

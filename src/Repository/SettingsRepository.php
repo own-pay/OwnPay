@@ -187,7 +187,7 @@ final class SettingsRepository extends BaseRepository
         );
     }
 
-    // ── Brand-Scoped Settings ─────────────────────────
+    // -- Brand-Scoped Settings
 
     /**
      * Resolves a configuration value utilizing brand-specific override cascading.

@@ -1,4 +1,4 @@
-# Phase 1 Discovery Report — End-to-End Browser Security & Functionality Audit
+# Phase 1 Discovery Report - End-to-End Browser Security & Functionality Audit
 
 This report documents all discoveries made during the full unauthenticated and authenticated browser audit of the OwnPay platform at `https://ownpay.test`.
 
@@ -17,6 +17,7 @@ This report documents all discoveries made during the full unauthenticated and a
 ## FINDINGS
 
 ### ID: FIND-001
+
 - **Severity:** HIGH
 - **Page:** multiple pages (e.g. `/`, `/admin/transactions`, `/admin/disputes`, `/admin/gateways`, `/admin/customers`, `/admin/reports`, `/admin/activities`, `/admin/plugins`).
 - **Trigger:** Initial page navigation and view rendering.
@@ -29,6 +30,7 @@ This report documents all discoveries made during the full unauthenticated and a
 ---
 
 ### ID: FIND-002
+
 - **Severity:** HIGH
 - **Page:** `/install` (all setup step templates and locked lockout template)
 - **Trigger:** Navigating to installer setup steps.
@@ -41,6 +43,7 @@ This report documents all discoveries made during the full unauthenticated and a
 ---
 
 ### ID: FIND-003
+
 - **Severity:** LOW
 - **Page:** `/install` (all steps and locked view)
 - **Trigger:** Navigating to installer setup steps.
@@ -53,6 +56,7 @@ This report documents all discoveries made during the full unauthenticated and a
 ---
 
 ### ID: FIND-004
+
 - **Severity:** LOW
 - **Page:** `/login` / `/forgot-password`
 - **Trigger:** Initial page load of authentication screens.

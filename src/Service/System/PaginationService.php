@@ -24,7 +24,7 @@ final class PaginationService
     public static function calculate(int $page, int $perPage, int $total): array
     {
         $page = max(1, $page);
-        $perPage = max(1, min($perPage, 200)); // Cap at 200 elements to prevent memory abuse
+        $perPage = max(1, min($perPage, 200)); // Cap at 200 elements to prevent memory abuse ;)
         $totalPages = $total > 0 ? (int) ceil($total / $perPage) : 1;
         $page = min($page, $totalPages);
         $offset = ($page - 1) * $perPage;

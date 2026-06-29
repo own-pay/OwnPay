@@ -183,7 +183,7 @@ final class TwigExtensions extends AbstractExtension
      * Strips structurally dangerous markup from plugin hook output.
      *
      * Trust contract: plugins are installed, sandbox-audited server-side code
-     * and their hooks emit HTML by design — plugins MUST escape any user data
+     * and their hooks emit HTML by design - plugins MUST escape any user data
      * they interpolate. This filter is defense-in-depth against a compromised
      * plugin, not an escaping layer. It removes script-capable elements,
      * inline event handlers (quoted or unquoted), and javascript: URIs, and
@@ -214,7 +214,7 @@ final class TwigExtensions extends AbstractExtension
             }
         }
 
-        // The markup kept mutating across passes — adversarial input. Refuse it.
+        // The markup kept mutating across passes - adversarial input. Refuse it.
         return '';
     }
 

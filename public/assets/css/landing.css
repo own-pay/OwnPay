@@ -1,10 +1,10 @@
 /* ═══════════════════════════════════════════════════════
-   landing.css — OwnPay Landing Surface
+   landing.css - OwnPay Landing Surface
    Uses tokens from tokens.css. Keep op-* class names for
    backward compatibility.
    ═══════════════════════════════════════════════════════ */
 
-/* ── Landing-specific token overrides ── */
+/* -- Landing-specific token overrides -- */
 :root {
   --bg-base: #FFF;
   --bg-surface: #F5F6FA;
@@ -236,9 +236,17 @@ body.op-landing {
   border-radius: 50%;
 }
 
-.op-dot-r { background: #ff5f56; }
-.op-dot-y { background: #ffbd2e; }
-.op-dot-g { background: #27c93f; }
+.op-dot-r {
+  background: #ff5f56;
+}
+
+.op-dot-y {
+  background: #ffbd2e;
+}
+
+.op-dot-g {
+  background: #27c93f;
+}
 
 .op-code-title {
   color: var(--faint);
@@ -255,12 +263,30 @@ body.op-landing {
   overflow-x: auto;
 }
 
-.op-token-keyword { color: #569cd6; }
-.op-token-string { color: #ce9178; }
-.op-token-function { color: #dcdcaa; }
-.op-token-variable { color: #9cdcfe; }
-.op-token-number { color: #b5cea8; }
-.op-token-comment { color: #6a9955; font-style: italic; }
+.op-token-keyword {
+  color: #569cd6;
+}
+
+.op-token-string {
+  color: #ce9178;
+}
+
+.op-token-function {
+  color: #dcdcaa;
+}
+
+.op-token-variable {
+  color: #9cdcfe;
+}
+
+.op-token-number {
+  color: #b5cea8;
+}
+
+.op-token-comment {
+  color: #6a9955;
+  font-style: italic;
+}
 
 /* ═══════════════════════════════════════════════════════
    CHECKOUT UI (hero illustration)
@@ -358,7 +384,7 @@ body.op-landing {
   gap: 16px;
 }
 
-.op-form-row > * {
+.op-form-row>* {
   flex: 1;
 }
 
@@ -577,14 +603,38 @@ body.op-landing {
    RESPONSIVE
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 900px) {
-  .op-hero-split { flex-direction: column; }
-  .op-code-window, .op-checkout-card { width: 100%; max-width: 100%; }
+  .op-hero-split {
+    flex-direction: column;
+  }
+
+  .op-code-window,
+  .op-checkout-card {
+    width: 100%;
+    max-width: 100%;
+  }
 }
 
 @media (max-width: 768px) {
-  .op-landing-nav { padding: 16px 20px; }
-  .op-hero { padding: 140px 20px 80px; }
-  .op-hero-actions { flex-direction: column; width: 100%; max-width: 300px; margin: 0 auto; }
-  .op-btn-lg { width: 100%; }
-  .op-gateway-logos { gap: 24px; }
+  .op-landing-nav {
+    padding: 16px 20px;
+  }
+
+  .op-hero {
+    padding: 140px 20px 80px;
+  }
+
+  .op-hero-actions {
+    flex-direction: column;
+    width: 100%;
+    max-width: 300px;
+    margin: 0 auto;
+  }
+
+  .op-btn-lg {
+    width: 100%;
+  }
+
+  .op-gateway-logos {
+    gap: 24px;
+  }
 }

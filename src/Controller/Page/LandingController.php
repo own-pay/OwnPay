@@ -77,7 +77,7 @@ final class LandingController
 
         // Features: DB override or defaults
         $defaultFeatures = [
-            ['title' => 'Multi-Gateway',      'description' => 'Accept payments through multiple gateways — API and manual.'],
+            ['title' => 'Multi-Gateway',      'description' => 'Accept payments through multiple gateways - API and manual.'],
             ['title' => 'SMS Verification',   'description' => 'Auto-verify mobile payments using companion app SMS parsing.'],
             ['title' => 'Self-Hosted',        'description' => 'Complete control. Your server, your data, your rules.'],
             ['title' => 'Plugin System',      'description' => 'Extend with custom gateways, themes, and integrations.'],

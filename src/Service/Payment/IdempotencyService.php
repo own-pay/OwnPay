@@ -46,7 +46,6 @@ final class IdempotencyService
         $existing = $repo->findByKey($key);
 
         if ($existing !== null) {
-            // Check request hash to prevent collision/tampering
             if ($existing['request_hash'] !== $requestHash) {
                 return [
                     'is_duplicate' => true,
@@ -54,8 +53,7 @@ final class IdempotencyService
                     'error' => 'Idempotency key collision detected (different request payload).'
                 ];
             }
-            
-            // Interpret NULL response_code as 'processing' status
+
             if ($existing['response_code'] === null) {
                 return [
                     'is_duplicate' => true,
@@ -80,8 +78,6 @@ final class IdempotencyService
                 'http_status' => is_scalar($existing['response_code']) ? (int) $existing['response_code'] : 200,
             ];
         }
-
-        // Lock the key (insert with null response_code and response_body)
         $expiresAt = date('Y-m-d H:i:s.u', time() + $ttl);
         try {
             $repo->createScoped([
@@ -90,7 +86,6 @@ final class IdempotencyService
                 'expires_at'      => $expiresAt,
             ]);
         } catch (\PDOException $e) {
-            // SQLSTATE 23000 indicates unique constraint violation (duplicate key)
             if ($e->getCode() === '23000' || str_contains($e->getMessage(), '1062')) {
                 return [
                     'is_duplicate' => true,

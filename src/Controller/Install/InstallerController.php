@@ -10,7 +10,7 @@ use OwnPay\Support\DateHelper;
 /**
  * Class InstallerController
  *
- * Installer Controller — multi-step wizard.
+ * Installer Controller - multi-step wizard.
  * Requirements → DB → Admin → Settings → Done
  * Input validation, Argon2ID, .installed lockout.
  *
@@ -57,7 +57,7 @@ final class InstallerController
         $stepVal = (is_int($stepQuery) || is_string($stepQuery) || is_numeric($stepQuery)) ? (int) $stepQuery : 1;
         $step = max(1, min(4, $stepVal));
 
-        // Prevent skipping steps — must complete prerequisites
+        // Prevent skipping steps - must complete prerequisites
         $tempEnv = $this->rootDir . '/storage/.env.temp';
         if ($step >= 3 && !file_exists($tempEnv)) {
             return Response::redirect('/install?step=2');
@@ -111,7 +111,7 @@ final class InstallerController
             return Response::json(['success' => false, 'error' => 'DB name and user required'], 422);
         }
         if (!preg_match('/^[a-zA-Z0-9_]{1,64}$/', $name)) {
-            return Response::json(['success' => false, 'error' => 'Invalid database name — alphanumeric and underscores only'], 422);
+            return Response::json(['success' => false, 'error' => 'Invalid database name - alphanumeric and underscores only'], 422);
         }
         if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
             return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
@@ -200,7 +200,7 @@ final class InstallerController
             return Response::json(['success' => false, 'error' => 'DB name and user required'], 422);
         }
         if (!preg_match('/^[a-zA-Z0-9_]{1,64}$/', $name)) {
-            return Response::json(['success' => false, 'error' => 'Invalid database name — alphanumeric and underscores only'], 422);
+            return Response::json(['success' => false, 'error' => 'Invalid database name - alphanumeric and underscores only'], 422);
         }
         if (!preg_match('/^[a-z0-9_]{1,30}$/i', $prefix)) {
             return Response::json(['success' => false, 'error' => 'Invalid prefix'], 422);
@@ -255,11 +255,6 @@ final class InstallerController
                 $pdo->exec($stmt);
             }
             $pdo->exec("SET FOREIGN_KEY_CHECKS = 1");
-
-            // Write temp env to storage/ (not webroot) to prevent credential exposure.
-            // Every value is rendered as a safe, single-line, quoted token: a DB
-            // password (or any field) containing a newline would otherwise inject
-            // extra lines into .env.temp and, downstream, into the final .env.
             $env = 'DB_HOST=' . $this->envToken($host) . "\n"
                  . 'DB_PORT=' . $this->envToken((string) $port) . "\n"
                  . 'DB_NAME=' . $this->envToken($name) . "\n"
@@ -301,8 +296,6 @@ final class InstallerController
                 $key = trim($parts[0]);
                 $val = trim($parts[1]);
                 if (strlen($val) >= 2 && str_starts_with($val, '"') && str_ends_with($val, '"')) {
-                    // Reverse envToken()'s escaping: any "\X" collapses to "X"
-                    // (handles \\ , \" , \$ in a single left-to-right pass).
                     $val = (string) preg_replace('/\\\\(.)/s', '$1', substr($val, 1, -1));
                 } elseif (strlen($val) >= 2 && str_starts_with($val, "'") && str_ends_with($val, "'")) {
                     $val = substr($val, 1, -1);
@@ -519,10 +512,6 @@ final class InstallerController
                 return Response::json(['success' => false, 'error' => 'Database config corrupted. Please go back to Step 2.'], 500);
             }
 
-            // Resolve APP_URL and APP_DOMAIN dynamically from request host.
-            // HTTP_HOST is attacker-controlled; validate it as a bare host[:port]
-            // so it cannot inject newlines/extra directives into the written .env
-            // or poison the absolute URLs later used in links and emails.
             $httpHostRaw = $req->server('HTTP_HOST') ?: 'localhost';
             $httpHost = preg_match('/^[A-Za-z0-9.\-]+(:[0-9]{1,5})?$/', $httpHostRaw) === 1 ? $httpHostRaw : 'localhost';
             $scheme = ($req->server('HTTPS') === 'on' || $req->server('HTTP_X_FORWARDED_PROTO') === 'https') ? 'https' : 'http';
@@ -538,10 +527,6 @@ final class InstallerController
                 return Response::json(['success' => false, 'error' => 'Failed to read .env.example'], 500);
             }
 
-            // Every written value is rendered through envToken(): control
-            // characters (newlines) are stripped and the value is quoted/escaped
-            // so a crafted DB password, app name, or Host header cannot inject
-            // additional .env directives (e.g. APP_DEBUG=true).
             $replacements = [
                 'APP_NAME' => $this->envToken($appName),
                 'APP_ENV' => 'production',
@@ -616,7 +601,7 @@ final class InstallerController
                 ['branding', 'site_name',       $appName,                  'string'],
                 ['branding', 'site_logo',       '',                        'string'],
                 ['branding', 'site_favicon',    '',                        'string'],
-                ['branding', 'primary_color',   '#6366f1',                 'string'],
+                ['branding', 'primary_color',   '#6366f1',               'string'],
                 ['branding', 'footer_text',     "\u00a9 2025 {$appName}",  'string'],
                 ['mail',     'driver',          'smtp',                    'string'],
                 ['mail',     'from_address',    '',                        'string'],
@@ -678,7 +663,7 @@ final class InstallerController
     }
 
     /**
-     * Sanitize error message — strip file paths and credentials.
+     * Sanitize error message - strip file paths and credentials.
      *
      * @param string $message The raw error message.
      * @return string The sanitized error message.
@@ -729,7 +714,7 @@ final class InstallerController
      * The marker file is the fast path, but it is NOT the only authority:
      * if the marker is deleted (accidentally or maliciously) while the
      * configured database still holds a superadmin, the wizard must stay
-     * locked — otherwise an unauthenticated visitor could drop every table
+     * locked - otherwise an unauthenticated visitor could drop every table
      * via importSchema() or mint a fresh superadmin via createAdmin().
      * A deliberate reinstall over a populated database requires the
      * INSTALL_FORCE_KEY escape hatch (or deleting .env as well).
@@ -751,15 +736,13 @@ final class InstallerController
             return false;
         }
 
-        // Self-heal: restore the marker so the rest of the application
-        // (Kernel install-lock redirect) immediately recovers as well.
         @file_put_contents(
             $this->markerFile,
             "Installed: " . DateHelper::iso() . "\nRestored: database probe (marker file was missing)\n",
             LOCK_EX
         );
         @chmod($this->markerFile, 0640);
-        error_log('[OwnPay] SECURITY: storage/.installed was missing but the configured database already contains a superadmin — marker self-healed, installer locked.');
+        error_log('[OwnPay] SECURITY: storage/.installed was missing but the configured database already contains a superadmin - marker self-healed, installer locked.');
 
         return true;
     }
@@ -807,7 +790,7 @@ final class InstallerController
      * Validates the reinstall force key supplied with the request.
      *
      * The key must be explicitly configured via the INSTALL_FORCE_KEY
-     * environment variable and at least 16 characters long — an unset or
+     * environment variable and at least 16 characters long - an unset or
      * trivially short value never unlocks a populated installation.
      *
      * @param Request $req The incoming HTTP request.

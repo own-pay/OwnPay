@@ -310,7 +310,7 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
     /**
      * Cache token per base URL with TTL.
      *
-     * bKash tokens are valid for ~60min — use 55min TTL with safety margin.
+     * bKash tokens are valid for ~60min - use 55min TTL with safety margin.
      * Static property persists in PHP-FPM workers, so TTL is essential.
      *
      * @var array<string, array{token: string, expires_at: int}>

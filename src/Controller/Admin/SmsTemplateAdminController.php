@@ -68,6 +68,25 @@ final class SmsTemplateAdminController
     }
 
     /**
+     * Owner id for SMS parsing templates. Templates are GLOBAL - managed only in the "All Brands" view
+     * and applied to every brand/device (issue #6) - so they are always owned by the reserved platform
+     * merchant, never a specific brand. Mirrors the companion device's filter-rules query, which now
+     * includes the platform templates for every device regardless of the brand it paired under.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return int The platform-owner merchant id.
+     */
+    private function templateOwnerId(Request $req): int
+    {
+        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
+        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
+            $brand->resolveFromRequest($req);
+            return $brand->getPlatformId();
+        }
+        return 0;
+    }
+
+    /**
      * Main SMS Center page displaying templates, parsed logs, and outbound queues.
      *
      * @param Request $req The incoming HTTP request.
@@ -78,15 +97,21 @@ final class SmsTemplateAdminController
     {
         $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
         $mid = 0;
+        $platformId = 0;
+        $canManageTemplates = true;
         if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
             $brand->resolveFromRequest($req);
             $activeId = $brand->getActiveBrandId();
             if ($activeId !== null) {
                 $mid = $activeId;
             }
+            // Templates are global (platform-owned); the rest of the SMS Center (parsed log, queues)
+            // stays brand-scoped. Template management is only allowed in the All-Brands view (issue #6).
+            $platformId = $brand->getPlatformId();
+            $canManageTemplates = $brand->isGlobalView();
         }
 
-        $templates  = $this->tplRepo->listForAdmin($mid);
+        $templates  = $this->tplRepo->listForAdmin($platformId);
         $parsed     = $this->parsedRepo->forTenant($mid)->findUnmatched(100);
         $queue      = $this->commRepo->listSmsQueue($mid);
         $queueStats = $this->commRepo->getSmsQueueStats($mid);
@@ -118,6 +143,7 @@ final class SmsTemplateAdminController
             'queue_stats'     => $queueStats,
             'template_count'  => count($templates),
             'gateways'        => array_merge($gateways, $manualGateways),
+            'can_manage_templates' => $canManageTemplates,
             'active_page'     => 'sms-center',
         ]);
     }
@@ -131,15 +157,11 @@ final class SmsTemplateAdminController
      */
     public function create(Request $req): Response
     {
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $mid = 0;
-        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
-            $brand->resolveFromRequest($req);
-            $activeId = $brand->getActiveBrandId();
-            if ($activeId !== null) {
-                $mid = $activeId;
-            }
+        // Templates are global; only the All-Brands view may create them (issue #6).
+        if ($guard = $this->requireGlobalView('/admin/sms-center', 'add an SMS parsing template')) {
+            return $guard;
         }
+        $mid = $this->templateOwnerId($req);
 
         $postData = $req->post();
         $data = is_array($postData) ? $postData : [];
@@ -188,16 +210,11 @@ final class SmsTemplateAdminController
      */
     public function edit(Request $req): Response
     {
-        $id = (int) $req->param('id');
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $mid = 0;
-        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
-            $brand->resolveFromRequest($req);
-            $activeId = $brand->getActiveBrandId();
-            if ($activeId !== null) {
-                $mid = $activeId;
-            }
+        if ($guard = $this->requireGlobalView('/admin/sms-center', 'edit an SMS parsing template')) {
+            return $guard;
         }
+        $id = (int) $req->param('id');
+        $mid = $this->templateOwnerId($req);
 
         $tpl = $this->tplRepo->findForAdmin($id, $mid);
         if (!$tpl) {
@@ -274,16 +291,12 @@ final class SmsTemplateAdminController
      */
     public function delete(Request $req): Response
     {
-        $id = (int) $req->param('id');
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $mid = 0;
-        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
-            $brand->resolveFromRequest($req);
-            $activeId = $brand->getActiveBrandId();
-            if ($activeId !== null) {
-                $mid = $activeId;
-            }
+        // Templates are global; only the All-Brands view may delete them (issue #6).
+        if ($guard = $this->requireGlobalView('/admin/sms-center', 'delete an SMS parsing template')) {
+            return $guard;
         }
+        $id = (int) $req->param('id');
+        $mid = $this->templateOwnerId($req);
 
         $this->tplRepo->deleteTemplate($id, $mid);
         $this->session->flashSuccess('Template deleted.');
@@ -327,7 +340,7 @@ final class SmsTemplateAdminController
     }
 
     /**
-     * POST /admin/sms-center/analyze — Method B: Smart heuristic extraction.
+     * POST /admin/sms-center/analyze - Method B: Smart heuristic extraction.
      * Requires both raw SMS body AND the actual SMS sender (From field).
      *
      * @param Request $req The incoming HTTP request.
@@ -350,17 +363,8 @@ final class SmsTemplateAdminController
             return Response::json(['success' => false, 'error' => 'Please enter the SMS sender (From field).']);
         }
 
-        // Load sender whitelist from DB for current brand (case-sensitive exact match)
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $mid = 0;
-        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
-            $brand->resolveFromRequest($req);
-            $activeId = $brand->getActiveBrandId();
-            if ($activeId !== null) {
-                $mid = $activeId;
-            }
-        }
-        $whitelist = $this->tplRepo->getSenderWhitelist($mid);
+        // Load the sender whitelist from the global (platform) templates for the case-sensitive preview.
+        $whitelist = $this->tplRepo->getSenderWhitelist($this->templateOwnerId($req));
 
         $analyzer = new SmartSmsAnalyzer($whitelist);
         $result   = $analyzer->analyze($rawSms, $sender);
@@ -372,7 +376,7 @@ final class SmsTemplateAdminController
     }
 
     /**
-     * POST /admin/sms-center/ai-prompt — Method C: Generate AI-ready prompt.
+     * POST /admin/sms-center/ai-prompt - Method C: Generate AI-ready prompt.
      * Requires both SMS body AND the exact SMS sender (From field).
      *
      * @param Request $req The incoming HTTP request.
@@ -403,7 +407,7 @@ final class SmsTemplateAdminController
     }
 
     /**
-     * POST /admin/sms-center/save-analysis — Save analysis result as new template.
+     * POST /admin/sms-center/save-analysis - Save analysis result as new template.
      *
      * @param Request $req The incoming HTTP request.
      * @return Response The HTTP redirect response.
@@ -411,16 +415,10 @@ final class SmsTemplateAdminController
      */
     public function saveAnalysis(Request $req): Response
     {
-        $brand = $this->c->get(\OwnPay\Service\Brand\BrandContext::class);
-        $mid = 0;
-        if ($brand instanceof \OwnPay\Service\Brand\BrandContext) {
-            $brand->resolveFromRequest($req);
-            $activeId = $brand->getActiveBrandId();
-            if ($activeId !== null) {
-                $mid = $activeId;
-            }
+        if ($guard = $this->requireGlobalView('/admin/sms-center', 'save an SMS parsing template')) {
+            return $guard;
         }
-
+        $mid = $this->templateOwnerId($req);
         $postData = $req->post();
         $data = is_array($postData) ? $postData : [];
         $gatewaySlugVal   = $data['gateway_slug'] ?? '';
@@ -433,9 +431,8 @@ final class SmsTemplateAdminController
         $trxIdRegex    = trim(is_string($trxIdRegexVal) ? $trxIdRegexVal : '');
         $senderRegexVal   = $data['sender_regex'] ?? '';
         $senderRegex   = trim(is_string($senderRegexVal) ? $senderRegexVal : '');
-
-        if ($gatewaySlug === '') {
-            $this->session->flashError('Gateway slug is required');
+        if ($senderPattern === '') {
+            $this->session->flashError('Sender pattern is required.');
             return Response::redirect('/admin/sms-center');
         }
 
@@ -444,7 +441,7 @@ final class SmsTemplateAdminController
 
         $this->tplRepo->createTemplate($mid, [
             'gateway_slug'   => $gatewaySlug,
-            'sender_pattern' => $senderPattern !== '' ? $senderPattern : $gatewaySlug,
+            'sender_pattern' => $senderPattern,
             'amount_regex'   => $amountRegex,
             'trx_id_regex'   => $trxIdRegex,
             'sender_regex'   => $senderRegex,

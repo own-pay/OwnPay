@@ -1,6 +1,7 @@
-# Progress log — Plugin system audit
+# Progress log - Plugin system audit
 
 ## 2026-06-22
+
 - Mapped src/Plugin/** + tests. Read: PluginInterface, Capability, PluginInstaller, PluginManifest,
   config/hooks.php, EventManager, PluginLoader.
 - Established central tension: sandboxed plugin model (static scanner) vs WP full-trust ambition.

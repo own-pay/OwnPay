@@ -59,7 +59,7 @@ final class HealthController
             }
         }
 
-        // Mobile device status — check op_paired_devices for this merchant
+        // Mobile device status - check op_paired_devices for this merchant
         $mobileConnected = false;
         $mobileDevices = 0;
         try {

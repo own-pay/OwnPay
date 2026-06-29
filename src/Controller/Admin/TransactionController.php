@@ -138,7 +138,7 @@ final class TransactionController
                         $txn['customer_name'] = '[encrypted]';
                     }
                 } else {
-                    $txn['customer_name'] = '—';
+                    $txn['customer_name'] = '-';
                 }
                 return $txn;
             }, $transactions);
@@ -187,13 +187,13 @@ final class TransactionController
                     $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
                     if ($enc instanceof \OwnPay\Security\FieldEncryptor) {
                         try {
-                            $txn['customer_name']  = (!empty($customer['name_enc']) && is_string($customer['name_enc'])) ? $enc->decrypt($customer['name_enc']) : (is_string($customer['name'] ?? null) ? $customer['name'] : '—');
-                            $txn['customer_email'] = (!empty($customer['email_enc']) && is_string($customer['email_enc'])) ? $enc->decrypt($customer['email_enc']) : (is_string($customer['email'] ?? null) ? $customer['email'] : '—');
-                            $txn['customer_phone'] = (!empty($customer['phone_enc']) && is_string($customer['phone_enc'])) ? $enc->decrypt($customer['phone_enc']) : (is_string($customer['phone'] ?? null) ? $customer['phone'] : '—');
+                            $txn['customer_name']  = (!empty($customer['name_enc']) && is_string($customer['name_enc'])) ? $enc->decrypt($customer['name_enc']) : (is_string($customer['name'] ?? null) ? $customer['name'] : '-');
+                            $txn['customer_email'] = (!empty($customer['email_enc']) && is_string($customer['email_enc'])) ? $enc->decrypt($customer['email_enc']) : (is_string($customer['email'] ?? null) ? $customer['email'] : '-');
+                            $txn['customer_phone'] = (!empty($customer['phone_enc']) && is_string($customer['phone_enc'])) ? $enc->decrypt($customer['phone_enc']) : (is_string($customer['phone'] ?? null) ? $customer['phone'] : '-');
                         } catch (\Throwable $e) {
                             $txn['customer_name']  = '[encrypted]';
                             $txn['customer_email'] = '[encrypted]';
-                            $txn['customer_phone'] = '—';
+                            $txn['customer_phone'] = '-';
                         }
                     }
                 }
@@ -267,7 +267,7 @@ final class TransactionController
 
         // State machine enforcement: terminal transactions must not be
         // re-completed or cancelled, and only completed transactions may be
-        // marked refunded — otherwise ledger entries get posted for money
+        // marked refunded - otherwise ledger entries get posted for money
         // that never moved (e.g. "refunding" a failed payment).
         $currentStatus = isset($txn['status']) && is_scalar($txn['status']) ? (string) $txn['status'] : '';
         $terminalStatuses = array_map(static fn(TransactionStatus $s) => $s->value, TransactionStatus::terminal());

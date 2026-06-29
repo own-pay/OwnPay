@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Sms;
 
 /**
- * Tier 2: Lexical/keyword-based SMS parser.
+ * Lexical/keyword-based SMS parser.
  *
  * Employs a pure PHP proximity analysis engine to extract transaction metadata:
  * 1. Resolves amounts based on currency and numeric symbols.
@@ -22,7 +22,7 @@ final class SmsHeuristicParser
     private const CREDIT_KEYWORDS = [
         'received', 'credited', 'deposited', 'cash in',
         'added', 'refunded', 'payment received',
-    ];
+    ]; // TODO: Add more positive words.
 
     /**
      * Keywords indicating an outgoing financial transaction.
@@ -30,31 +30,31 @@ final class SmsHeuristicParser
     private const DEBIT_KEYWORDS = [
         'debited', 'sent', 'withdrawn', 'cash out',
         'paid', 'deducted', 'transferred', 'payment of',
-    ];
+    ]; // TODO: Add more negative words.
 
     /**
      * Regex patterns used to locate transaction identifiers.
      */
     private const TRX_ID_PATTERNS = [
         '/(?:TrxID|TxnID|TxnId|TrxId|Txn\s*ID|Transaction\s*ID|Ref(?:erence)?)\s*[:\.\-]?\s*([A-Z0-9]{5,20})/i',
-    ];
+    ]; // TODO: Add more trx id patterns.
 
     /**
      * Standard regex pattern for matching Bangladeshi mobile numbers.
      */
-    private const PHONE_PATTERN = '/\b(01[3-9]\d{8})\b/';
+    private const PHONE_PATTERN = '/\b(01[3-9]\d{8})\b/'; // TODO: Add more phone number patterns.
 
     /**
      * Regex patterns for transaction amount matching.
      */
     private const AMOUNT_PATTERNS = [
         '/(?:Tk\.?\s*|BDT\s*|Taka\s*)([\d,]+(?:\.\d{1,2})?)/i',
-    ];
+    ];   //TODO: Add more amount patterns.
 
     /**
      * Keywords indicating an account balance block.
      */
-    private const BALANCE_KEYWORDS = ['balance', 'remaining', 'bal'];
+    private const BALANCE_KEYWORDS = ['balance', 'remaining', 'bal']; // TODO: Add more balance keywords.
 
     /**
      * Attempts to parse an SMS message using heuristics.

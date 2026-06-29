@@ -123,9 +123,6 @@ final class SettingsController
                 'faqs' => $brandSettings['faqs'] ?? [],
             ];
 
-            // Per-brand notification overrides. getScopedOverride returns the brand's OWN value
-            // (null = inherit the All-Brands default), so the form can show an empty field that
-            // falls back to the platform value rendered as the placeholder/hint below.
             foreach (['mail_from_name', 'mail_from_email', 'admin_notification_email', 'email_on_payment', 'email_on_refund'] as $notifyKey) {
                 $settings[$notifyKey] = $this->settingsRepo->getScopedOverride('general', $notifyKey, $mid) ?? '';
             }
@@ -162,7 +159,7 @@ final class SettingsController
             if ($domainRepo instanceof \OwnPay\Repository\DomainRepository) {
                 $domains = $domainRepo->forTenant($mid)->listAllScoped();
                 foreach ($domains as &$d) {
-                    $d['merchant_name'] = $brandRecord['name'] ?? '—';
+                    $d['merchant_name'] = $brandRecord['name'] ?? '-';
                 }
             }
 
@@ -336,7 +333,7 @@ final class SettingsController
                 ];
             }
         } catch (\Throwable) {
-            // Best-effort DB statistics — keep the defaults on any query error.
+            // Best-effort DB statistics - keep the defaults on any query error.
         }
 
         $logStats = [
@@ -362,7 +359,7 @@ final class SettingsController
                 $logStats['session_count'] = is_numeric($sessionVal) ? (int) $sessionVal : 0;
             }
         } catch (\Throwable) {
-            // Best-effort log statistics — keep the zero defaults on any query error.
+            // Best-effort log statistics - keep the zero defaults on any query error.
         }
 
         $tempDir = dirname(__DIR__, 3) . '/storage/temp';
@@ -585,10 +582,6 @@ final class SettingsController
                     break;
 
                 case 'notifications':
-                    // Per-brand email sender + notification prefs live in op_system_settings
-                    // (group 'general', merchant-scoped) so they cascade brand → All-Brands →
-                    // default through getScoped — exactly how EmailNotificationService and
-                    // CommunicationService resolve them at send time. (Not in the brand JSON blob.)
                     $this->saveBrandNotifications($data, $mid);
                     break;
             }
@@ -836,7 +829,6 @@ final class SettingsController
                 }
             }
         } catch (\Throwable) {
-            // Best-effort cleanup — ignore unreadable or locked filesystem entries.
         }
     }
 
@@ -1005,7 +997,7 @@ final class SettingsController
                     }
                 }
             } catch (\Throwable) {
-                // Best-effort temp purge — a locked/in-use file is skipped, not fatal.
+                // Best-effort temp purge - a locked/in-use file is skipped, not fatal.
             }
         }
 
@@ -1065,7 +1057,7 @@ final class SettingsController
                     $db->execute("OPTIMIZE TABLE `{$tableName}`");
                 }
             } catch (\Throwable) {
-                // Best-effort table maintenance — ANALYZE/OPTIMIZE failures are non-fatal.
+                // Best-effort table maintenance - ANALYZE/OPTIMIZE failures are non-fatal.
             }
             $this->settingsRepo->set('runtime', 'optimization.last_db_optimize_time', date('Y-m-d H:i:s'));
         }
@@ -1086,7 +1078,7 @@ final class SettingsController
                 $db->execute("DELETE FROM op_webhook_delivery_logs WHERE created_at < :cutoff", ['cutoff' => $cutoffDate]);
                 $db->execute("DELETE FROM op_sessions WHERE last_activity < :cutoff", ['cutoff' => time() - 86400]);
             } catch (\Throwable) {
-                // Best-effort retention purge — a failed delete is retried next run.
+                // Best-effort retention purge - a failed delete is retried next run.
             }
             $this->settingsRepo->set('runtime', 'optimization.last_logs_purge_time', date('Y-m-d H:i:s'));
         }
@@ -1111,7 +1103,7 @@ final class SettingsController
                     }
                 }
             } catch (\Throwable) {
-                // Best-effort temp purge — a locked/in-use file is skipped, not fatal.
+                // Best-effort temp purge - a locked/in-use file is skipped, not fatal.
             }
         }
         $this->settingsRepo->set('runtime', 'optimization.last_uploads_purge_time', date('Y-m-d H:i:s'));
@@ -1122,7 +1114,7 @@ final class SettingsController
         return Response::redirect('/admin/settings/optimization');
     }
 
-    // ─── Private save helpers ─────────────────────────────────
+    // --- Private save helpers
 
     /**
      * Persists general settings parameters and manages the system-wide maintenance lock file.
@@ -1414,7 +1406,6 @@ final class SettingsController
      */
     private function saveCheckout(array $data): void
     {
-        // Normalize checkboxes
         foreach (['timer_enabled', 'show_faq'] as $cb) {
             if (!isset($data[$cb])) {
                 $data[$cb] = '0';

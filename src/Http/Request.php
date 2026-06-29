@@ -423,7 +423,7 @@ final class Request
         $remoteAddr = $this->server('REMOTE_ADDR', '0.0.0.0');
 
         if ($this->isTrustedProxy($remoteAddr)) {
-            // X-Forwarded-For: client, proxy1, proxy2 — leftmost is original client.
+            // X-Forwarded-For: client, proxy1, proxy2 - leftmost is original client.
             $xff = $this->server('HTTP_X_FORWARDED_FOR');
             if ($xff !== '') {
                 $ips = array_map('trim', explode(',', $xff));
@@ -654,10 +654,6 @@ final class Request
             $headers['content-length'] = (string) $server['CONTENT_LENGTH'];
         }
 
-        // Apache mod_fcgid strips or doubles the Authorization header.
-        // REDIRECT_HTTP_AUTHORIZATION (from .htaccess E= flag) is always clean.
-        // apache_request_headers() returns the original untouched header.
-        // ALWAYS prefer these over HTTP_AUTHORIZATION which may be doubled.
         $redirAuth = $server['REDIRECT_HTTP_AUTHORIZATION'] ?? null;
         if ($redirAuth !== null && is_scalar($redirAuth)) {
             $headers['authorization'] = (string) $redirAuth;

@@ -25,7 +25,7 @@ final class FilesystemService
      *
      * @var string[]
      */
-    private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'pdf', 'zip'];
+    private const ALLOWED_EXTENSIONS = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'ico', 'pdf', 'zip']; // Keep it minimum as possible for security.
 
     /**
      * Initialises the filesystem service.
@@ -156,7 +156,6 @@ final class FilesystemService
     {
         $fullPath = realpath($this->baseDir . '/' . $relativePath);
         if ($fullPath === false) {
-            // File does not exist yet — clean and validate relative descriptors
             $fullPath = $this->baseDir . '/' . $relativePath;
             $normalized = str_replace(['../', '..\\'], '', $fullPath);
             if ($normalized !== $fullPath) {
@@ -228,5 +227,5 @@ final class FilesystemService
         }
 
         return false;
-    }
+    } // Add more if there any.
 }

@@ -151,6 +151,8 @@ final class SmsParserService
             return $this->rejectAll($messages, 'KEY_DECRYPTION_FAILED');
         }
 
+        $this->dataRepo = $this->dataRepo->forTenant($brandId);
+
         $results = [];
         foreach ($messages as $msg) {
             $results[] = $this->processOne($deviceUuid, $brandId, $deviceAesKey, $msg);
@@ -364,11 +366,6 @@ final class SmsParserService
             'parser_type'      => $parsed['parse_method'] ?? 'unparsed',
             'template_id'      => $parsed['template_id'] ?? null,
             'parse_confidence' => $parsed['parse_confidence'] ?? 'low',
-            // Parsed rows enter the auto-match queue as 'pending' — the value the
-            // SmsVerificationJob cron consumes (it then promotes a matched row to
-            // 'matched' via linkToTransaction). Writing 'accepted' here orphaned
-            // the record so SMS-based MFS verification never ran automatically.
-            // Rows that could not be parsed go to manual review.
             'match_status'     => ($parsed === null) ? 'admin_review' : 'pending',
         ];
     }

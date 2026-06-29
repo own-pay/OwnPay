@@ -297,7 +297,7 @@ class UpdateServiceTest extends TestCase
     public function testSplitSqlKeepsStatementPrecededByComment(): void
     {
         // Regression: a statement whose chunk starts with a '-- comment' line
-        // used to be discarded entirely — the migration was then marked as
+        // used to be discarded entirely - the migration was then marked as
         // executed without its DDL ever running (silent schema drift). This is
         // the exact shape of migration 008_add_provider_trx_id.sql.
         $sql = "-- Add provider_trx_id column and index to op_transactions\n"

@@ -57,12 +57,6 @@ final class PermissionMiddleware
             $activeBrandId = $brandCtx->getActiveBrandId();
             if ($activeBrandId !== null && $activeBrandId > 0) {
                 $path = $request->path();
-                // Platform-only pages: a brand has nothing to manage here, so block entirely in
-                // brand view. NOTE: plugins/addons are intentionally NOT here — brands activate &
-                // configure those per-brand (op_brand_plugins). Brand-disallowed plugin actions
-                // (upload/install/uninstall/trash/restore) are guarded per-action in the controller
-                // (AdminPageTrait::requireGlobalView). Themes stay platform-only for now (theme
-                // activation is global; per-brand theme selection is a later phase).
                 $globalOnlyPrefixes = [
                     '/admin/brands',
                     '/admin/themes',
@@ -113,7 +107,7 @@ final class PermissionMiddleware
             }
         }
 
-        // Superadmin bypass — MySQL returns "1" (string), not true (bool)
+        // Superadmin bypass - MySQL returns "1" (string), not true (bool)
         if (!empty($user['is_superadmin'])) {
             return $next($request);
         }
@@ -126,8 +120,6 @@ final class PermissionMiddleware
             return $next($request);
         }
 
-        // Load user permissions from DB via role → role_permissions → permissions.
-        // Previously $userPermissions was always [] because no upstream middleware populated it.
         $userPermissionsVal = $request->getAttribute('user_permissions');
         if (!is_array($userPermissionsVal)) {
             $roleId = 0;
@@ -253,7 +245,7 @@ final class PermissionMiddleware
             return $perm;
         }
 
-        // Check prefix match — POST uses .manage
+        // Check prefix match - POST uses .manage
         foreach ($map as $prefix => $perm) {
             // Do not match the base '/admin' as a dynamic prefix.
             // This prevents unmapped paths under /admin/ from falling back to dashboard.view/manage

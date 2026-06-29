@@ -65,7 +65,7 @@ final class PasswordResetService
         try {
             $user = $this->users->findActiveByEmail($email);
             if ($user === null) {
-                return; // no account enumeration — caller shows the same message regardless
+                return; // no account enumeration - caller shows the same message regardless
             }
 
             $userId = is_scalar($user['id'] ?? null) ? (int) $user['id'] : 0;
@@ -89,7 +89,7 @@ final class PasswordResetService
                 'html'    => $html,
             ]);
         } catch (\Throwable $e) {
-            // Never surface failure to the caller — that would leak account existence / internals.
+            // Never surface failure to the caller - that would leak account existence / internals.
             $this->logger->error('Password reset request failed: ' . $e->getMessage());
         }
     }

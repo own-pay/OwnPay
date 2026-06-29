@@ -8,7 +8,7 @@ use OwnPay\Repository\LedgerRepository;
 use OwnPay\Repository\TransactionRepository;
 
 /**
- * Ledger service — double-entry bookkeeping for every money movement.
+ * Ledger service - double-entry bookkeeping for every money movement.
  * Uses strict triple-table schema (accounts, transactions, entries).
  *
  * Fires: ledger.entry.created

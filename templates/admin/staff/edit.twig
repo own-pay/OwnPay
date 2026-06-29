@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}{{ user is not null and user.id is defined and user.id ? 'Edit Staff' : 'Add Staff' }} — {{ app_name }}{% endblock %}
+{% block title %}{{ user is not null and user.id is defined and user.id ? 'Edit Staff' : 'Add Staff' }} - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -30,7 +30,7 @@
                 <div class="op-form-group op-col-6">
                     <label>Role *</label>
                     <select name="role_id" class="op-input" required>
-                        <option value="">— Select Role —</option>
+                        <option value="">- Select Role -</option>
                         {% for role in roles %}
                         <option value="{{ role.id }}" {{ (user.role_id is defined and user.role_id == role.id) ? 'selected' : '' }}>{{ role.name }}</option>
                         {% endfor %}

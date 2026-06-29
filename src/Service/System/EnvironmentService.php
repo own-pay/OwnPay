@@ -127,7 +127,7 @@ final class EnvironmentService
         ];
     }
 
-    // ——— Persistent Key-Value Store (DB-backed) ————————————————
+    // Persistent Key-Value Store (DB-backed)
 
     /**
      * In-memory cache holding resolved configuration variables.
@@ -279,7 +279,7 @@ final class EnvironmentService
      * Clears all configurations stored in the memory cache.
      *
      * Also flushes the repository-level memoization so the next get() is a true
-     * database read — callers rely on this after out-of-band settings changes.
+     * database read - callers rely on this after out-of-band settings changes.
      *
      * @return void
      */

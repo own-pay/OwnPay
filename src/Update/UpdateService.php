@@ -211,7 +211,7 @@ EOT;
         // Acquire an exclusive on-disk lock BEFORE the isUpdateInProgress() DB
         // check. Without it, two concurrent /admin/system-update/apply requests
         // both read "no active update", both call startUpdate(), and run the
-        // download/extract/migrate pipeline simultaneously — corrupting files
+        // download/extract/migrate pipeline simultaneously - corrupting files
         // and double-running migrations. flock makes the check-and-claim atomic.
         $lockHandle = $this->acquireUpdateLock();
         if ($lockHandle === false) {
@@ -227,7 +227,7 @@ EOT;
             $backupPath = null;
 
             try {
-            $this->log("Update to v{$version} — Step 1: Resolving update metadata");
+            $this->log("Update to v{$version} - Step 1: Resolving update metadata");
             $manifest = $this->fetchManifest();
             
             $releaseEntry = null;
@@ -499,7 +499,7 @@ EOT;
 
         if ($result === false || $httpCode !== 200) {
             @unlink($tmpFile);
-            throw new \RuntimeException("Download failed: HTTP {$httpCode}" . ($curlError ? " — {$curlError}" : ''));
+            throw new \RuntimeException("Download failed: HTTP {$httpCode}" . ($curlError ? " - {$curlError}" : ''));
         }
 
         $fileSize = filesize($tmpFile);
@@ -533,9 +533,6 @@ EOT;
 
         for ($i = 0; $i < $zip->numFiles; $i++) {
             $name = $zip->getNameIndex($i);
-            // Backslash is rejected as well: on Windows ZipArchive::extractTo()
-            // honors '\' as a path separator, so a forward-slash-only check would
-            // let an entry like 'a\..\..\evil.php' escape the application root.
             if ($name === false || str_contains($name, '..') || str_starts_with($name, '/') || str_contains($name, '\\')) {
                 $zip->close();
                 @unlink($zipPath);
@@ -616,8 +613,8 @@ EOT;
                 $this->log("Migration executed: {$filename}");
 
             } catch (\Throwable $e) {
-                $this->log("Migration failed: {$filename} — " . $e->getMessage(), 'error');
-                throw new \RuntimeException("Migration failed: {$filename} — " . $e->getMessage());
+                $this->log("Migration failed: {$filename} - " . $e->getMessage(), 'error');
+                throw new \RuntimeException("Migration failed: {$filename} - " . $e->getMessage());
             }
         }
 
@@ -705,7 +702,7 @@ EOT;
      * Statements are split on ';', so any '--' comment lines preceding a
      * statement become part of its text. Discarding a statement because it
      * merely *starts with* a comment silently skips real DDL while still
-     * marking the migration as executed — schema drift with no error.
+     * marking the migration as executed - schema drift with no error.
      *
      * @param string $stmt Raw statement text.
      * @return string The statement without leading comment lines ('' when it was comments only).

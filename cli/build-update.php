@@ -416,7 +416,7 @@ if (file_exists($buildIgnorePath)) {
     }
     echo CLI_GREEN . "Loaded " . count($ignorePatterns) . " ignore rule(s) from cli/.buildignore." . CLI_RESET . "\n";
 } else {
-    echo CLI_RED . "WARNING: cli/.buildignore not found — only the built-in secret hard-deny rules will apply." . CLI_RESET . "\n";
+    echo CLI_RED . "WARNING: cli/.buildignore not found - only the built-in secret hard-deny rules will apply." . CLI_RESET . "\n";
 }
 
 // ─── Hard-deny safety net: these NEVER ship, regardless of .buildignore (prevents secret leakage on misconfig) ───
@@ -503,7 +503,7 @@ function scanAndZip(string $dir, ZipArchive $zip, string $projectRoot, array $ig
         $relativePath = substr($absolutePath, strlen($projectRoot) + 1);
         $relativePath = str_replace('\\', '/', $relativePath);
 
-        // Secrets/VCS can never ship — checked first, before .buildignore.
+        // Secrets/VCS can never ship - checked first, before .buildignore.
         if (buildIsHardDenied($relativePath, $hardExact, $hardGlob, $hardDirs)) {
             continue;
         }
@@ -766,4 +766,4 @@ echo "     " . CLI_CYAN . "update/manifest.json" . CLI_RESET . " to your update 
 echo "     default https://update.ownpay.org/manifest.json). The client verifies the\n";
 echo "     download using the INLINE checksum_sha256 + signature embedded in the manifest.\n";
 echo "  3. The SAME zip doubles as a first-time install: unzip into a web root and\n";
-echo "     browse to /install. Done — ready for production!\n\n";
+echo "     browse to /install. Done - ready for production!\n\n";

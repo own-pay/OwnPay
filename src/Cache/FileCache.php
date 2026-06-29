@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Cache;
 
 /**
- * File-based cache driver — shared hosting compatible.
+ * File-based cache driver - shared hosting compatible.
  *
  * Each key is stored as a serialized PHP file in storage/cache/.
  * Files contain: ['expires' => timestamp, 'data' => mixed]
@@ -117,11 +117,11 @@ final class FileCache implements CacheInterface
         return $value;
     }
 
-    // ——— Private ———————————————————————————————————————————————
+    // Private
 
     /**
      * Generate safe filesystem path from cache key.
-     * Keys like "settings.general" ─ "settings/general.cache"
+     * Keys like "settings.general" - "settings/general.cache"
      */
     private function path(string $key): string
     {

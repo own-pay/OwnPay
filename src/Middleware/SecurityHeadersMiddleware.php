@@ -43,9 +43,6 @@ final class SecurityHeadersMiddleware
         $nonce = base64_encode(random_bytes(16));
         $request->setAttribute('csp_nonce', $nonce);
 
-        // Store nonce in Container so Twig global can read it.
-        // Without this, templates have no way to add nonce="" to inline <style> tags,
-        // causing CSP to block all inline styles in production mode.
         $this->container->instance('csp_nonce', $nonce);
 
         $response = $next($request);
@@ -54,7 +51,7 @@ final class SecurityHeadersMiddleware
         $response->withHeader('X-Frame-Options', 'DENY');
         $response->withHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
 
-        // Keep payment=() — OwnPay uses gateway redirects, not Payment Request API.
+        // Keep payment=() - OwnPay uses gateway redirects, not Payment Request API.
         $response->withHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=(), payment=()');
 
         // Enforce modern Report-To header (SSRF/CSP reporting compliance)
@@ -75,12 +72,12 @@ final class SecurityHeadersMiddleware
             }
         }
 
-        // HSTS — only on HTTPS
+        // HSTS - only on HTTPS
         if ($request->isSecure()) {
             $response->withHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
         }
 
-        // CSP — strict policy, report-only in debug mode
+        // CSP - strict policy, report-only in debug mode
         $configApp = $this->container->get('config.app');
         $debug = false;
         if (is_array($configApp)) {
@@ -92,9 +89,6 @@ final class SecurityHeadersMiddleware
         $isCheckout = str_starts_with($path, '/checkout') || str_starts_with($path, '/invoice') || str_starts_with($path, '/pay');
 
         if ($isCheckout) {
-            // Build checkout CSP dynamically from gateway plugin manifests
-            // instead of hardcoding domains. Third-party gateway plugins declare their CSP
-            // needs via the "csp" field in manifest.json.
             $gatewayCsp = $this->collectGatewayCspSources();
 
             $scriptSrc  = array_unique(array_merge(["'self'", "'nonce-{$nonce}'"], $gatewayCsp['script_src']));
@@ -117,10 +111,6 @@ final class SecurityHeadersMiddleware
                 "report-to csp-endpoint",
             ]);
 
-            // Failsafe: mod_fcgid kills the worker when a single response header
-            // line exceeds 8KB ("Premature end of script headers" -> Apache 500).
-            // If gateway-declared sources ever push the CSP past a safe margin,
-            // drop them and serve the strict baseline policy instead of crashing.
             if (strlen($csp) > 7500) {
                 $this->logHeaderOverflow(strlen($csp));
                 $csp = implode('; ', [
@@ -155,10 +145,6 @@ final class SecurityHeadersMiddleware
         }
         $response->withHeader($cspHeader, $csp);
 
-        // When the response was routed by a custom (white-label) domain, its body
-        // is brand-specific. Mark it Vary: Host so a shared CDN/proxy cannot serve
-        // one brand's cached checkout page to another brand's domain. Merge with
-        // any existing Vary (e.g. CORS's Vary: Origin) rather than clobbering it.
         if ($request->getAttribute('custom_domain') !== null) {
             $existingHeaders = $response->getHeaders();
             $varyVal = $existingHeaders['Vary'] ?? '';
@@ -233,7 +219,7 @@ final class SecurityHeadersMiddleware
                 }
             }
         } catch (\Throwable) {
-            // Graceful degradation — CSP will just be more restrictive
+            // Graceful degradation - CSP will just be more restrictive
         }
 
         // 2. Apply filter hook so plugins can add CSP domains dynamically at runtime.
@@ -257,7 +243,7 @@ final class SecurityHeadersMiddleware
                     }
                 }
             } catch (\Throwable) {
-                // Filter application failed — continue with manifest-only sources
+                // Filter application failed - continue with manifest-only sources
             }
         }
 
@@ -270,7 +256,7 @@ final class SecurityHeadersMiddleware
      * Runs in the response phase, after the controller has resolved the brand via
      * BrandContext::setActiveBrandId(); the slug list is therefore brand-accurate
      * on checkout pages. When no brand context exists (e.g. early redirects), it
-     * falls back to every active config across brands — a small superset that is
+     * falls back to every active config across brands - a small superset that is
      * still bounded by what the owner actually enabled, never the full catalog.
      *
      * @return string[] Sanitized gateway slugs safe for filesystem path use.
@@ -304,7 +290,7 @@ final class SecurityHeadersMiddleware
                 }
             }
         } catch (\Throwable) {
-            // DB unavailable — serve the strict baseline CSP without gateway sources
+            // DB unavailable - serve the strict baseline CSP without gateway sources
         }
         return array_values(array_unique($slugs));
     }
@@ -321,7 +307,7 @@ final class SecurityHeadersMiddleware
                 $logger = $this->container->get(\OwnPay\Service\System\Logger::class);
                 if ($logger instanceof \OwnPay\Service\System\Logger) {
                     $logger->warning(
-                        "CSP header reached {$length} bytes (mod_fcgid limit is 8192) — gateway CSP sources dropped for this response. Reduce active gateway count or manifest csp entries."
+                        "CSP header reached {$length} bytes (mod_fcgid limit is 8192) - gateway CSP sources dropped for this response. Reduce active gateway count or manifest csp entries."
                     );
                     return;
                 }
@@ -329,7 +315,7 @@ final class SecurityHeadersMiddleware
         } catch (\Throwable) {
             // Fall through to error_log
         }
-        error_log("[OwnPay] CSP header overflow: {$length} bytes — gateway sources dropped.");
+        error_log("[OwnPay] CSP header overflow: {$length} bytes - gateway sources dropped.");
     }
 
     /**

@@ -444,8 +444,6 @@ final class TranslationService
         $rootDir = dirname(__DIR__, 3);
         $storageDir = $rootDir . '/storage/languages';
 
-        // Defense in depth: never build a storage path from an unsafe code (path traversal).
-        // setLocale() already rejects invalid codes; this guards direct/internal callers too.
         if (!$this->isValidCode($code)) {
             return $this->decodeTranslationFile($rootDir . '/config/languages/en.json');
         }
@@ -457,15 +455,10 @@ final class TranslationService
 
         $filePath = $storageDir . '/' . $code . '.json';
 
-        // For English, the shipped master (config/languages/en.json) defines the default
-        // strings. Use it as the BASE layer so newly-added default keys always resolve,
-        // then overlay the storage copy (admin/UI edits) on top. This prevents a stale
-        // storage copy from masking strings added to the shipped master.
         $base = [];
         if ($code === 'en') {
             $base = $this->decodeTranslationFile($rootDir . '/config/languages/en.json');
 
-            // Seed the storage copy from the master when it is missing.
             if (!file_exists($filePath) && $base !== []) {
                 $json = json_encode($base, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
                 if ($json !== false) {
@@ -475,7 +468,6 @@ final class TranslationService
             }
         }
 
-        // If it's a custom language and the file is missing, recover from the DB and write it back.
         if (!file_exists($filePath)) {
             $dbTranslations = $this->loadTranslationsFromDb($code);
             if (!empty($dbTranslations)) {
@@ -489,13 +481,11 @@ final class TranslationService
             return $base;
         }
 
-        // Overlay the storage copy on top of the base defaults.
         $stored = $this->decodeTranslationFile($filePath);
         if ($stored !== []) {
             return array_merge($base, $stored);
         }
 
-        // If the storage file read/decode failed, fall back to DB (over base defaults).
         return array_merge($base, $this->loadTranslationsFromDb($code));
     }
 
@@ -547,7 +537,7 @@ final class TranslationService
                 }
             }
         } catch (\Throwable) {
-            // Ignore DB errors (e.g. before schema seeded)
+            
         }
         return [];
     }

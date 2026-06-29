@@ -11,7 +11,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * CashMaal payment gateway — PluginInterface + GatewayAdapterInterface.
+ * CashMaal payment gateway - PluginInterface + GatewayAdapterInterface.
  */
 final class CashmaalGateway implements PluginInterface, GatewayAdapterInterface
 {

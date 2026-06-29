@@ -119,7 +119,7 @@ final class PluginSandbox
     {
         // Full-trust footgun list: direct OS-command / process-control primitives that a legitimate
         // plugin essentially never needs. This is a safety net against accidents and obvious abuse,
-        // NOT an isolation boundary (see PluginLoader's scanner note) — installed plugins are
+        // NOT an isolation boundary (see PluginLoader's scanner note) - installed plugins are
         // owner-uploaded and run with full application trust, like WordPress. Ordinary PHP
         // (callbacks, reflection, file I/O, dynamic calls, include/require) is intentionally allowed.
         $dangerous = [

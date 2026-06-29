@@ -14,7 +14,7 @@ use OwnPay\Controller\Admin\DashboardController;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * SetupWizardIntegrationTest — Verifies that setup wizard configurations and Outgoing Mail Setup step
+ * SetupWizardIntegrationTest - Verifies that setup wizard configurations and Outgoing Mail Setup step
  * successfully persist values and activate the mail-gateway plugin in the database.
  *
  * @group Integration

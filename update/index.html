@@ -9,11 +9,11 @@
          CDN dependency, place marked.min.js + purify.min.js under /vendor and point the two script
          tags below at them ('self' is already allowed by the CSP). -->
     <script>(function(){try{var t=localStorage.getItem('op-update-theme');if(t==='light'||t==='dark'){document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();</script>
-    <title>OwnPay — Update Registry</title>
+    <title>OwnPay - Update Registry</title>
     <link rel="icon" type="image/png" href="https://ownpay.org/ownpay_icon.png">
     <link rel="apple-touch-icon" href="https://ownpay.org/ownpay_icon.png">
-    <meta name="description" content="OwnPay Update Registry — signed self-update packages and release distributions.">
-    <meta property="og:title" content="OwnPay — Update Registry">
+    <meta name="description" content="OwnPay Update Registry - signed self-update packages and release distributions.">
+    <meta property="og:title" content="OwnPay - Update Registry">
     <meta property="og:image" content="https://ownpay.org/ownpay_logo.png">
     <!-- Google Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -838,7 +838,7 @@
                 <span id="logo-fallback" class="logo-icon" style="display:none;">OP</span>
             </a>
         </div>
-        <h1>OwnPay — Update Registry</h1>
+        <h1>OwnPay - Update Registry</h1>
         <div class="subtitle">Platform self-update packages & release distributions</div>
         <div class="hero-cmd">
             <code id="verify-cmd">sha256sum -c checksum.sha256   # verify a downloaded release before installing</code>
@@ -1097,7 +1097,7 @@
             }
 
             // Feature the newest valid release. IMPORTANT: a problem with the latest release's
-            // download or config must NOT hide the rest of the list — older versions still render.
+            // download or config must NOT hide the rest of the list - older versions still render.
             const latest = valid[0];
             const history = valid.slice(1);
             document.getElementById(statsId).textContent = latest.version;

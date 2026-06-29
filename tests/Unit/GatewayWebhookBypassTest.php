@@ -12,7 +12,7 @@ use OwnPay\Modules\Gateways\AmazonPay\AmazonPayGateway;
 use OwnPay\Modules\Gateways\Easypaisa\EasypaisaGateway;
 
 /**
- * Regression tests for the webhook signature-bypass fix (FIND-002).
+ * Regression tests for the webhook signature-bypass fix.
  *
  * The previous implementations accepted any non-empty signature (Amazon Pay
  * fell through to `return true`; Easypaisa returned true unconditionally),

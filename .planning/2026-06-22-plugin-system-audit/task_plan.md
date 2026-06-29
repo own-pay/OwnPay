@@ -1,31 +1,36 @@
 # Task Plan: Plugin upload + plugin system audit; WordPress-parity assessment
 
 ## Goal
+
 User asks: (1) any issues/bugs with plugin upload + the plugin system? (2) wants a "universal plugin
-system like WordPress" — plugins can do ANYTHING. Check deeply. NO COMMIT (standing constraint).
+system like WordPress" - plugins can do ANYTHING. Check deeply. NO COMMIT (standing constraint).
 
 ## Scope
-src/Plugin/** (Installer, Loader, Manager, Manifest, Sandbox, Registry, Migrator, Capability,
+
+src/Plugin/**(Installer, Loader, Manager, Manifest, Sandbox, Registry, Migrator, Capability,
 PluginInterface), src/Event/EventManager.php, config/hooks.php, src/Controller/Admin/PluginController.php,
 src/View/PluginViewRenderer.php, src/Repository/PluginRepository.php, modules/addons/* (real plugins),
 Router + Kernel wiring (which hooks ACTUALLY fire), tests/Plugin/**, tests/Unit/PluginSystemTest.php.
 
 ## Phases
+
 1. [complete] Map plugin subsystem + read core contracts/installer/loader/event manager.
 2. [complete] PluginSandbox (dangerous-fn list), PluginManager (lifecycle), PluginController (upload: gate ok).
 3. [complete] Verified fired hooks vs catalog (drift confirmed); manifest routes consumed (api-public only);
    cron + admin_menu dead; NO plugin autoloader (multi-file unsupported).
 4. [complete] Inspected telegram-bot addon end-to-end (single 1308-line file; raw DB + RefundService via
-   container — confirms half-sandbox/false-security).
+   container - confirms half-sandbox/false-security).
 5. [complete] Synthesized. Reporting + asking the FORK question (trusted-full-power vs untrusted-isolation).
 
 ## VERDICT (see findings.md)
+
 Audit = read-only, NO code changed. Real boundary is owner-only upload (= WP full-trust). Sandbox is a
 half-sandbox: cripples legit plugins, no real isolation. Concrete bugs: hooks.php catalog drift; manifest
 cron + admin_menu dead; plugin routes forced api-public; multi-file unsupported (no autoloader + include ban);
 no zip-bomb cap.
 
-## Implementation — user chose FULL-TRUST (WordPress-style). DONE, NO COMMIT.
+## Implementation - user chose FULL-TRUST (WordPress-style). DONE, NO COMMIT
+
 1. Relaxed the load-time scanner (PluginLoader::loadPlugin) to a minimal footgun guard: blocks only
    the dynamic-eval construct + direct OS-command calls (PluginSandbox::isDangerousFunction trimmed to
    the OS/process family). Removed the bans on include/require, reflection, PDO/mysqli, variable fns,
@@ -51,8 +56,9 @@ Note: the pre-tool security hook false-positives on certain literal call tokens 
 string concatenation in test fixtures and reworded comments.
 
 ## Example plugin + a 2nd bug found & fixed (user requested an end-to-end example)
+
 - NEW reference addon modules/addons/example-kit/ (multi-file): Plugin.php (entrypoint) + Service/PingTracker.php
-  + Cron/HeartbeatJob.php; manifest declares a public route, an authenticated route (admin middleware),
+  - Cron/HeartbeatJob.php; manifest declares a public route, an authenticated route (admin middleware),
   a cron job, an admin_menu entry; Plugin listens on payment.transaction.completed and reads its setting
   via the container. PHPStan-clean (modules/ is analysed).
 - BUG-2 (found while wiring the example): PluginManifest::getFullyQualifiedClassName() prepended
@@ -66,10 +72,12 @@ string concatenation in test fixtures and reworded comments.
 - VERIFY (final): PHPStan L9 clean; full PHPUnit 586 pass.
 
 ## Key tension (central finding so far)
+
 OwnPay plugins are SANDBOXED (static scanner blocks eval/include/require/reflection/PDO/mysqli/dangerous
 fns/variable fns/dynamic new). WordPress = FULL TRUST (plugins do anything). These are opposite
 philosophies. "Universal like WordPress" conflicts with the current security-sandbox design.
 
 ## Verification gates
+
 PHPStan L9 + full PHPUnit must stay green for ANY code change. Attest via $env:PLAN_ID (do NOT touch the
 concurrent session's .active_plan).

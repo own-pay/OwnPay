@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Brands — {{ app_name }}{% endblock %}
+{% block title %}Brands - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -17,7 +17,7 @@
                 <tr>
                     <td data-label="ID">{{ m.id }}</td>
                     <td data-label="Business"><strong>{{ m.name }}</strong></td>
-                    <td data-label="Domain"><code>{{ m.domain is defined and m.domain ? m.domain : '—' }}</code></td>
+                    <td data-label="Domain"><code>{{ m.domain is defined and m.domain ? m.domain : '-' }}</code></td>
                     <td data-label="Currency">{{ m.default_currency ?? 'BDT' }}</td>
                     <td data-label="Status"><span class="op-badge op-badge-{{ m.status == 'active' ? 'success' : 'muted' }}">{{ m.status }}</span></td>
                     <td data-label="Created">{{ m.created_at|date("M d, Y") }}</td>

@@ -18,7 +18,7 @@ use OwnPay\Controller\Admin\PluginController;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * BrandGatewayConfigSyncTest — Integration tests verifying that brand-specific gateway plugin
+ * BrandGatewayConfigSyncTest - Integration tests verifying that brand-specific gateway plugin
  * activations, deactivations, and settings saves correctly synchronize the `op_gateway_configs` table.
  *
  * @group Integration

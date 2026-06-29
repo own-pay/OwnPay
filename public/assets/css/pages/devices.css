@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   devices.css — Devices Hub Page
+   devices.css - Devices Hub Page
    Page-specific overrides only. Global styles from admin.css.
    ═══════════════════════════════════════════════════════ */
 
@@ -21,7 +21,7 @@
     overflow-y: auto;
 }
 
-/* ── Pair New Device button — distinctive violet accent ── */
+/* -- Pair New Device button - distinctive violet accent -- */
 .op-pairing-trigger {
     background: linear-gradient(135deg, #7c3aed, #6d28d9) !important;
     color: #fff !important;
@@ -39,7 +39,7 @@
     padding: 28px 24px !important;
 }
 
-/* ── Phase (shared) ── */
+/* -- Phase (shared) -- */
 .op-pairing-phase {
     display: flex;
     flex-direction: column;
@@ -47,7 +47,7 @@
     text-align: center;
 }
 
-/* ── Phase 1: Generate ── */
+/* -- Phase 1: Generate -- */
 .op-pairing-hero {
     margin-bottom: 24px;
 }
@@ -90,7 +90,7 @@
     margin-bottom: 24px;
 }
 
-/* ── Steps row ── */
+/* -- Steps row -- */
 .op-pairing-steps-row {
     display: flex;
     align-items: center;
@@ -131,7 +131,7 @@
     display: flex;
 }
 
-/* ── Phase 2: Code + QR ── */
+/* -- Phase 2: Code + QR -- */
 .op-pairing-code-section {
     display: flex;
     align-items: center;
@@ -221,7 +221,7 @@
     font-weight: 500;
 }
 
-/* ── Done row ── */
+/* -- Done row -- */
 .op-pairing-done-row {
     display: flex;
     align-items: center;
@@ -270,9 +270,17 @@ tr:hover .op-device-icon {
     vertical-align: middle;
 }
 
-.op-badge-success .op-status-dot { background-color: var(--op-success); }
-.op-badge-danger .op-status-dot { background-color: var(--op-danger); }
-.op-badge-muted .op-status-dot { background-color: var(--op-text-muted); }
+.op-badge-success .op-status-dot {
+    background-color: var(--op-success);
+}
+
+.op-badge-danger .op-status-dot {
+    background-color: var(--op-danger);
+}
+
+.op-badge-muted .op-status-dot {
+    background-color: var(--op-text-muted);
+}
 
 .op-font-mono {
     font-family: var(--mono) !important;
@@ -298,10 +306,19 @@ tr:hover .op-device-icon {
     color: var(--op-text-muted);
 }
 
-#devices-refresh-btn svg { transition: transform 0.2s; }
-.op-spin svg { animation: op-spin 0.8s linear infinite; }
+#devices-refresh-btn svg {
+    transition: transform 0.2s;
+}
 
-@keyframes op-spin { to { transform: rotate(360deg); } }
+.op-spin svg {
+    animation: op-spin 0.8s linear infinite;
+}
+
+@keyframes op-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
 
 /* Online dot pulses; idle/revoked dots stay static (frozen). */
 .op-status-dot--pulse {
@@ -309,12 +326,21 @@ tr:hover .op-device-icon {
 }
 
 @keyframes op-dot-pulse {
-    0%, 100% { opacity: 1; box-shadow: 0 0 0 0 rgb(34 197 94 / 45%); }
-    50% { opacity: 0.6; box-shadow: 0 0 0 4px rgb(34 197 94 / 0%); }
+
+    0%,
+    100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgb(34 197 94 / 45%);
+    }
+
+    50% {
+        opacity: 0.6;
+        box-shadow: 0 0 0 4px rgb(34 197 94 / 0%);
+    }
 }
 
 /* ═══════════════════════════════════════════════════════
-   PAIRING — WAITING + CONNECTED (PHASE 3)
+   PAIRING - WAITING + CONNECTED (PHASE 3)
    ═══════════════════════════════════════════════════════ */
 .op-pairing-waiting {
     display: flex;
@@ -350,8 +376,15 @@ tr:hover .op-device-icon {
 }
 
 @keyframes op-success-pop {
-    0% { transform: scale(0.4); opacity: 0; }
-    100% { transform: scale(1); opacity: 1; }
+    0% {
+        transform: scale(0.4);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
 }
 
 .op-pairing-phase-3 h4 {

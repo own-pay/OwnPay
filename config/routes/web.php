@@ -51,7 +51,7 @@ return static function (\OwnPay\Http\Router $router): void {
                 rename($tmpFile, $cacheFile);
             }
         } catch (\Throwable) {
-            // DB not ready (install phase) — use default
+            // DB not ready (install phase) - use default
         }
     }
     $router->get('/' . $loginSlug,  'Admin\\AuthController@loginForm', 'web-auth');
@@ -89,11 +89,11 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/pay/{slug}', 'Checkout\\PaymentLinkCheckoutController@show', 'checkout');
     $router->post('/pay/{slug}/submit', 'Checkout\\PaymentLinkCheckoutController@submit', 'checkout');
 
-    // ─── Admin Panel (SPA-style AJAX fragments) ────────────────
+    // ─── Admin Panel (SPA-style AJAX fragments :D) ────────────────
     $router->get('/admin', 'Admin\\DashboardController@index', 'admin');
     $router->get('/admin/contributors', 'Admin\\ContributorController@index', 'admin');
 
-    // Onboarding Setup Wizard
+    // Onboarding Setup Wizard <!-- note: Need to improve it. Contributor are welcome -->
     $router->post('/admin/setup-wizard/save-settings', 'Admin\\DashboardController@saveOnboardingSettings', 'admin');
     $router->post('/admin/setup-wizard/create-brand', 'Admin\\DashboardController@createOnboardingBrand', 'admin');
     $router->post('/admin/setup-wizard/setup-mail', 'Admin\\DashboardController@setupOnboardingMail', 'admin');
@@ -141,7 +141,7 @@ return static function (\OwnPay\Http\Router $router): void {
     $router->get('/admin/customers/{id}', 'Admin\\CustomerController@show', 'admin');
     $router->post('/admin/customers/{id}/delete', 'Admin\\CustomerController@delete', 'admin');
 
-    // Brands (formerly Merchants)
+    // Brands/store
     $router->get('/admin/brands', 'Admin\\BrandController@index', 'admin');
     $router->get('/admin/brands/create', 'Admin\\BrandController@create', 'admin');
     $router->post('/admin/brands/store', 'Admin\\BrandController@store', 'admin');
@@ -328,7 +328,7 @@ return static function (\OwnPay\Http\Router $router): void {
     // ─── Unified Webhook Endpoint (dynamic, zero-core-mod) ──────
     $router->post('/webhook/{gateway}', 'Webhook\\UnifiedWebhookController@handle', 'webhook');
 
-    // /admin/login — redirect to actual login (common typo)
+    // /admin/login - redirect to actual login (common typo)
     $router->get('/admin/login', 'Admin\\AuthController@loginForm', 'web');
 
     // ─── CSP Report ────────────────────────────────────────────

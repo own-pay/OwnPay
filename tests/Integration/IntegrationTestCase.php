@@ -41,7 +41,7 @@ abstract class IntegrationTestCase extends TestCase
         parent::setUp();
 
         if (!static::$dbAvailable) {
-            $this->markTestSkipped('Live database not available — skipping integration test.');
+            $this->markTestSkipped('Live database not available - skipping integration test.');
             return; // unreachable but signals intent
         }
     }

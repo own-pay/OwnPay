@@ -74,7 +74,7 @@ final class ResetMailCapture implements PluginInterface, MailProviderInterface
 }
 
 /**
- * Security-critical: verifies the self-service password-reset flow — token issuance (single valid
+ * Security-critical: verifies the self-service password-reset flow - token issuance (single valid
  * token, hashed, no account enumeration), and reset (valid token changes the password and is
  * consumed; expired/reused/invalid/short/mismatched are rejected without changing the password).
  */

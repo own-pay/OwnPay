@@ -17,8 +17,8 @@ use OwnPay\Service\Payment\GatewayApiService;
  * Route: POST /webhook/{gateway}
  *
  * Flow:
- *   1. Plugin hook (webhook.incoming.{gateway}) — if any listener exists
- *   2. Core fallback — GatewayApiService::handleCallback() verifies + completes
+ *   1. Plugin hook (webhook.incoming.{gateway}) - if any listener exists
+ *   2. Core fallback - GatewayApiService::handleCallback() verifies + completes
  *
  * OWASP: No user input trust. Raw body preserved for HMAC verification.
  * PCI: Never logs card data. Logs event type + payload hash only.
@@ -82,7 +82,6 @@ final class UnifiedWebhookController
             return Response::json(['error' => 'Could not resolve merchant'], 400);
         }
 
-        // AUD-G6: Delegate webhook signature verification to gateway adapter before plugin or core dispatch
         if ($this->c->has(\OwnPay\Gateway\GatewayBridge::class)) {
             $bridge = $this->c->get(\OwnPay\Gateway\GatewayBridge::class);
             if ($bridge instanceof \OwnPay\Gateway\GatewayBridge) {
@@ -100,7 +99,7 @@ final class UnifiedWebhookController
 
         $hookName = "webhook.incoming.{$gateway}";
 
-        // 1. Plugin hook — if a plugin registered a listener, let it handle
+        // 1. Plugin hook - if a plugin registered a listener, let it handle
         if ($this->events->hasHook($hookName)) {
             $payload = new WebhookPayload(
                 gateway: $gateway,
@@ -116,17 +115,14 @@ final class UnifiedWebhookController
             return Response::json(['received' => true]);
         }
 
-        // 2. Core fallback — use GatewayApiService to verify + complete transaction.
-        // This handles the common case where gateway plugins implement
-        // GatewayAdapterInterface but don't register custom webhook hooks.
+        // 2. Core fallback - use GatewayApiService to verify + complete transaction. This handles the common case where gateway plugins implement GatewayAdapterInterface but don't register custom webhook hooks.
         if ($this->c->has(GatewayApiService::class)) {
             $rawWebhookBody = $rawBody;
             $callbackData = json_decode($rawWebhookBody, true);
             if (!is_array($callbackData)) {
                 parse_str($rawWebhookBody, $callbackData);
             }
-            // Merge query params — some gateways (SSLCommerz) include data in GET params.
-            // POST body takes precedence over GET to prevent parameter spoofing (AUD-A5).
+
             $queryParams = $req->query();
             if (is_array($queryParams)) {
                 $callbackData = array_merge($queryParams, $callbackData);
@@ -135,8 +131,6 @@ final class UnifiedWebhookController
             try {
                 $svc = $this->c->get(GatewayApiService::class);
                 if ($svc instanceof GatewayApiService) {
-                    // The adapter's verifyWebhook() check passed above, so the payload
-                    // signature (when the adapter implements one) is proven for this call.
                     $result = $svc->handleCallback($merchantId, $gateway, $callbackData, true);
 
                     $payloadHash = hash('sha256', $rawBody);
@@ -185,6 +179,7 @@ final class UnifiedWebhookController
         }
 
         // Common field names for transaction references across gateways
+        // TODO: Add more common fields.
         $refFields = ['order_id', 'tran_id', 'invoice_id', 'reference', 'merchant_order_id', 'client_reference_id'];
 
         foreach ($refFields as $field) {

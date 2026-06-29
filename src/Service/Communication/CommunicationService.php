@@ -107,9 +107,6 @@ final class CommunicationService
      */
     public function sendEmail(int $merchantId, array $message): array
     {
-        // Resolve the sender identity when the caller did not supply one. The address/name
-        // cascade brand override → All-Brands fallback → empty, so a brand's outbound mail
-        // carries its own "From" while inheriting the platform default until customised.
         if (empty($message['from'])) {
             $fromAddress = trim((string) $this->settings->getScoped('general', 'mail_from_email', $merchantId, ''));
             if ($fromAddress !== '') {

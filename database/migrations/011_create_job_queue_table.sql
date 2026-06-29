@@ -1,5 +1,5 @@
 -- ============================================================
--- OwnPay Migration — Create op_job_queue Table
+-- OwnPay Migration - Create op_job_queue Table
 -- Date: 2026-06-17
 -- ============================================================
 

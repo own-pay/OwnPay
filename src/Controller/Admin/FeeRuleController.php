@@ -117,7 +117,7 @@ final class FeeRuleController
             $merchantIdVal = $item['merchant_id'] ?? null;
             if (is_int($merchantIdVal) || (is_string($merchantIdVal) && $merchantIdVal !== '')) {
                 $merchant = $merchantRepo->find((int)$merchantIdVal);
-                $item['brand_name'] = is_array($merchant) ? ($merchant['name'] ?? '—') : '—';
+                $item['brand_name'] = is_array($merchant) ? ($merchant['name'] ?? '-') : '-';
             } else {
                 $item['brand_name'] = 'Global';
             }

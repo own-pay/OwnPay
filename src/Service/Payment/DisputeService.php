@@ -60,7 +60,6 @@ final class DisputeService
         ]);
 
         $dispute = $repo->findScoped((int) $id);
-        // BUG-36 FIX: findScoped returns ?array — guard against null to prevent TypeError.
         if ($dispute === null) {
             throw new \RuntimeException("Dispute #{$id} not found after creation");
         }

@@ -54,7 +54,7 @@ final class ContributorController
             [
                 'initials'   => 'FN',
                 'name'       => 'Fattain Naime',
-                'role'       => 'Founder of OwnPay',
+                'role'       => 'Creator of OwnPay',
                 'commits'    => 542,
                 'avatar_url' => 'https://github.com/fattain-naime.png',
                 'github_url' => 'https://github.com/fattain-naime'

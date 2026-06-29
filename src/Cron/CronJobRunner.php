@@ -104,8 +104,6 @@ final class CronJobRunner
 
         $config = $this->jobs[$name];
 
-        // Hold the same per-job lock as scheduled runs so a manual trigger can
-        // never execute concurrently with an in-progress scheduled execution.
         $result = $this->withLock($name, function () use ($name, $config) {
             $start = microtime(true);
             try {
@@ -158,11 +156,6 @@ final class CronJobRunner
                 continue;
             }
 
-            // Acquire an exclusive per-job lock so two concurrent /cron/{secret}
-            // hits cannot both pass the isDue() check and run the same job
-            // twice (double refund-reconciliation, duplicate webhook retries...).
-            // The due-ness is re-checked INSIDE the lock to close the gap between
-            // the outer check and lock acquisition.
             $jobResult = $this->withLock($name, function () use ($name, $config) {
                 if (!$this->isDue($name, $config['schedule'])) {
                     return ['status' => 'skipped'];
@@ -230,8 +223,6 @@ final class CronJobRunner
 
         $fp = @fopen($lockPath, 'c');
         if ($fp === false) {
-            // Lock file unavailable — fail safe by running so scheduled work is
-            // not silently dropped, but record the degraded condition.
             $this->logger->warning("Cron run-lock unavailable for {$name}; executing without concurrency guard");
             return $fn();
         }

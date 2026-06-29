@@ -233,7 +233,7 @@ SECRET_PATTERNS = [
         recommendation="Use environment variables for database credentials"
     ),
 
-    # OwnPay Platform — Application-Specific Keys
+    # OwnPay Platform - Application-Specific Keys
     SecretPattern(
         pattern_id="OP001",
         name="OwnPay APP_KEY",
@@ -241,7 +241,7 @@ SECRET_PATTERNS = [
         regex=r'APP_KEY\s*=\s*[A-Za-z0-9+/]{43}=',
         severity=Severity.CRITICAL,
         file_extensions=[".php", ".env", ".env.example", ".env.local", ".txt", ".conf", ".yml", ".yaml"],
-        recommendation="Store APP_KEY exclusively in .env — never in source code or version control"
+        recommendation="Store APP_KEY exclusively in .env - never in source code or version control"
     ),
     SecretPattern(
         pattern_id="OP002",
@@ -273,7 +273,7 @@ SECRET_PATTERNS = [
     SecretPattern(
         pattern_id="OP005",
         name="OwnPay Hardcoded Key in PHP",
-        description="Hardcoded HMAC_KEY/APP_KEY string in PHP source — forbidden per OwnPay security rules",
+        description="Hardcoded HMAC_KEY/APP_KEY string in PHP source - forbidden per OwnPay security rules",
         regex=r'(?i)(?:hmac_key|app_key|jwt_secret|encryption_key)\s*[=:>]+\s*["\'][A-Za-z0-9+/=_\-]{16,}["\']',
         severity=Severity.CRITICAL,
         file_extensions=[".php"],
@@ -282,7 +282,7 @@ SECRET_PATTERNS = [
     SecretPattern(
         pattern_id="OP006",
         name="TOTP Secret in PHP Source",
-        description="Raw TOTP secret (Base32) hardcoded in PHP — must be stored encrypted as totp_secret_enc",
+        description="Raw TOTP secret (Base32) hardcoded in PHP - must be stored encrypted as totp_secret_enc",
         regex=r'(?:totp_secret|otp_secret|2fa_secret)\s*[=:>]+\s*["\'][A-Z2-7]{16,}["\']',
         severity=Severity.CRITICAL,
         file_extensions=[".php"],
@@ -331,7 +331,7 @@ SECRET_PATTERNS = [
     SecretPattern(
         pattern_id="PHP001",
         name="PHP eval() Usage",
-        description="PHP eval() — code execution sink, forbidden in all OwnPay source and plugin files",
+        description="PHP eval() - code execution sink, forbidden in all OwnPay source and plugin files",
         regex=r'\beval\s*\(',
         severity=Severity.CRITICAL,
         file_extensions=[".php"],
@@ -340,7 +340,7 @@ SECRET_PATTERNS = [
     SecretPattern(
         pattern_id="PHP002",
         name="PHP unserialize() on External Data",
-        description="PHP unserialize() on user-controlled input — PHP object injection / RCE risk",
+        description="PHP unserialize() on user-controlled input - PHP object injection / RCE risk",
         regex=r'\bunserialize\s*\(\s*(?:\$_(?:POST|GET|REQUEST|COOKIE|SERVER)|base64_decode)',
         severity=Severity.CRITICAL,
         file_extensions=[".php"],
@@ -367,7 +367,7 @@ SECRET_PATTERNS = [
     SecretPattern(
         pattern_id="PHP005",
         name="PHP Loose Comparison on Tokens (Type Juggling)",
-        description="Loose == comparison on security tokens — vulnerable to PHP type juggling bypass",
+        description="Loose == comparison on security tokens - vulnerable to PHP type juggling bypass",
         regex=r'(?:token|hash|secret|key|code|sig|hmac)\b[^=!<>]*==(?!=)',
         severity=Severity.HIGH,
         file_extensions=[".php"],

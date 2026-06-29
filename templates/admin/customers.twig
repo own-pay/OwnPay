@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Customers — {{ app_name }}{% endblock %}
+{% block title %}Customers - {{ app_name }}{% endblock %}
 {% block content %}
 
 <div class="op-page-header">
@@ -13,7 +13,7 @@
     </a>
 </div>
 
-{# ── Stats ─────────────────────────────────────────────────────── #}
+{# -- Stats ------------------------------------------------------- #}
 <div class="op-stat-grid op-mb-4">
     <div class="op-stat-card">
         <div class="op-stat-value">{{ pagination.total_items ?? customers|length }}</div>
@@ -21,7 +21,7 @@
     </div>
 </div>
 
-{# ── Search & Filter ───────────────────────────────────────────── #}
+{# -- Search & Filter --------------------------------------------- #}
 <div class="op-card op-mb-4">
     <div class="op-card-body">
         <form method="GET" class="op-filter-row" id="customer-search-form">
@@ -40,7 +40,7 @@
     </div>
 </div>
 
-{# ── Customer Table ────────────────────────────────────────────── #}
+{# -- Customer Table ---------------------------------------------- #}
 <div class="op-card">
     <div class="op-card-body op-p-0">
         <div class="op-table-responsive">
@@ -68,8 +68,8 @@
                                 </div>
                             </a>
                         </td>
-                        <td data-label="Email">{{ c.email|default('—') }}</td>
-                        <td data-label="Phone">{{ c.phone|default('—') }}</td>
+                        <td data-label="Email">{{ c.email|default('-') }}</td>
+                        <td data-label="Phone">{{ c.phone|default('-') }}</td>
                         <td data-label="Txns">
                             <span class="op-badge op-badge-outline">{{ c.txn_count|default(0) }}</span>
                         </td>
@@ -103,7 +103,7 @@
     </div>
 </div>
 
-{# ── Pagination ────────────────────────────────────────────────── #}
+{# -- Pagination -------------------------------------------------- #}
 {% if pagination is defined and pagination.total_pages > 1 %}
 <nav class="op-pagination op-mt-4">
     {% if pagination.has_prev %}

@@ -61,7 +61,6 @@ final class PaymentCompletionListener
             return;
         }
 
-        // CHK-003: Mark invoice as paid
         $invoiceIdVal = $meta['invoice_id'] ?? null;
         $invoiceId = is_scalar($invoiceIdVal) ? (int) $invoiceIdVal : null;
         if ($invoiceId !== null) {
@@ -71,17 +70,11 @@ final class PaymentCompletionListener
             ]);
         }
 
-        // CHK-006: Increment payment link use_count + auto-deactivate if max reached
         $linkIdVal = $meta['payment_link_id'] ?? null;
         $linkId = is_scalar($linkIdVal) ? (int) $linkIdVal : null;
         if ($linkId !== null) {
-            // TenantScope::forTenant() returns a scoped CLONE — capture it.
-            // Discarding the return value leaves the singleton repo unscoped,
-            // causing findScoped() to throw and max_uses auto-deactivation to silently never run.
             $scopedLinks = $this->linkRepo->forTenant($merchantId);
             $scopedLinks->incrementUseCount($linkId);
-
-            // Check max_uses
             $link = $scopedLinks->findScoped($linkId);
             if ($link) {
                 $maxUsesVal = $link['max_uses'] ?? 0;

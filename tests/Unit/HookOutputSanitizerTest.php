@@ -37,7 +37,7 @@ final class HookOutputSanitizerTest extends TestCase
 
     public function testStripsSplitTagReassembly(): void
     {
-        // One strip pass turns <scr<script>ipt> into <script> — the loop must
+        // One strip pass turns <scr<script>ipt> into <script> - the loop must
         // keep going until nothing dangerous remains.
         $result = strtolower($this->sanitize('<scr<script>ipt>alert(1)</scr</script>ipt>'));
         $this->assertStringNotContainsString('<script', $result);

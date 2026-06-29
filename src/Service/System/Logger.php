@@ -6,7 +6,7 @@ namespace OwnPay\Service\System;
 use OwnPay\Security\LogSanitizer;
 
 /**
- * Logger — A lightweight PSR-3 compatible file logger.
+ * Logger - A lightweight PSR-3 compatible file logger.
  *
  * Implements log security requirements under PCI-DSS standards,
  * sanitizing all messages and contextual objects to eliminate PII leakage.

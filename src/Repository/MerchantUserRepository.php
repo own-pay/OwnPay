@@ -342,8 +342,7 @@ final class MerchantUserRepository extends BaseRepository
         }
     }
 
-    // ─── 2FA Methods ─────────────────────────────────────────────
-
+    // --- 2FA Methods
     /**
      * Retrieves the decrypted TOTP secret for a user.
      *

@@ -100,7 +100,7 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
 
         $gw = $this->findSlug($result, 'zztest-both');
         $this->assertNotNull($gw, 'Gateway must be offered at checkout');
-        $this->assertSame($this->brandId, (int) $gw['merchant_id'], 'Brand account must win — funds route to the brand');
+        $this->assertSame($this->brandId, (int) $gw['merchant_id'], 'Brand account must win - funds route to the brand');
         $this->assertStringContainsString('BRAND-ACCT-both', (string) $gw['instructions']);
 
         // Exactly one entry for the slug (no duplicate template + account).

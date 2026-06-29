@@ -85,16 +85,13 @@ final class SmsVerificationJob
      * For each brand with pending SMS: a brand-scoped device's SMS is matched strictly within
      * its own brand (no cross-brand leakage). An all-brands device's SMS (stored under the
      * platform-owner id) is matched globally across every brand and then re-attributed to the
-     * brand that owns the matched transaction. Cross-brand amount matching is money-safe — it
+     * brand that owns the matched transaction. Cross-brand amount matching is money-safe - it
      * relies on findPendingMatchGlobal, which refuses ambiguous matches.
      *
      * @return array{matched: int, failed: int, total: int} Matching execution results matrix.
      */
     public function run(): array
     {
-        // The platform-owner id identifies "all-brands" devices: an SMS captured by a device
-        // paired from the All-Brands view is stored under this id and is matched globally; a
-        // device paired to a specific brand stays strictly scoped to that brand.
         $platformId = $this->brands->getPlatformId();
 
         // Query distinct brand identifiers having unresolved pending SMS entries.
@@ -114,8 +111,6 @@ final class SmsVerificationJob
             $unmatched = $this->smsParsed->forTenant($mid)->getUnmatched(100);
             $total += count($unmatched);
 
-            // Only SMS from an all-brands device (stored under the platform id) may match across
-            // brands. Everything else stays hard-scoped to its own brand.
             $isAllBrands = ($platformId > 0 && $mid === $platformId);
 
             foreach ($unmatched as $sms) {
@@ -132,8 +127,6 @@ final class SmsVerificationJob
                     continue;
                 }
 
-                // Tier 1: resolve by the MFS provider transaction id. It is unique, so an
-                // all-brands device may safely search across every brand.
                 $transaction = null;
                 if ($trxId !== null) {
                     $transaction = $isAllBrands
@@ -141,16 +134,11 @@ final class SmsVerificationJob
                         : $this->transactions->forTenant($smsMerchantId)->findByProviderTrxId($trxId);
                 }
 
-                // Tier 2: fall back to exact transacted amount + gateway provider.
                 if ($transaction === null && $amount !== null) {
                     $gatewaySlug = isset($sms['gateway_slug']) && is_scalar($sms['gateway_slug']) ? (string) $sms['gateway_slug'] : null;
                     $receivedAt = isset($sms['received_at']) && is_scalar($sms['received_at']) ? (string) $sms['received_at'] : null;
 
                     if ($isAllBrands) {
-                        // A global amount match is only sound with a time window: findPendingMatchGlobal
-                        // then refuses ambiguous matches (the same amount pending in more than one brand).
-                        // Without received_at it cannot enforce that single-brand guard, so we refuse the
-                        // match rather than risk crediting the wrong brand.
                         if ($receivedAt !== null) {
                             $transaction = $this->transactions->findPendingMatchGlobal($amount, $gatewaySlug ?? '', $receivedAt);
                         }
@@ -170,8 +158,6 @@ final class SmsVerificationJob
                     }
                     $smsId = (int) $sms['id'];
                     $transactionId = (int) $transaction['id'];
-                    // The brand that actually owns the matched transaction. For a brand-scoped SMS this
-                    // equals $smsMerchantId; for an all-brands SMS it is the resolved owning brand.
                     $resolvedBrand = (int) $transaction['merchant_id'];
                     $txAmount = (string) $transaction['amount'];
                     $txFee = isset($transaction['fee']) && is_scalar($transaction['fee']) ? (string) $transaction['fee'] : '0.00';
@@ -181,14 +167,12 @@ final class SmsVerificationJob
                     try {
                         $this->db->transaction(function () use ($smsId, $transactionId, $resolvedBrand, $needsRebind, $txAmount, $txFee, $txCurrency) {
                             if ($needsRebind) {
-                                // All-brands device: re-attribute the SMS to the brand it matched.
                                 $this->smsParsed->rebindToBrand($smsId, $transactionId, $resolvedBrand);
                             } else {
                                 $this->smsParsed->forTenant($resolvedBrand)
                                     ->linkToTransaction($smsId, $transactionId);
                             }
 
-                            // AUD-008: Complete transaction state + post ledger entries under the owning brand.
                             $this->transactionService->complete($transactionId, $resolvedBrand);
                             $this->ledgerService->recordPaymentReceived(
                                 $resolvedBrand,

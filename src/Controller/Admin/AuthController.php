@@ -215,10 +215,6 @@ final class AuthController
         if ($decryptedSecret === null) {
             return $this->renderAdminPage('page/2fa.twig', ['error' => '2FA secret could not be decrypted.']);
         }
-
-        // FIND-006: TOTP replay protection must be durable and per-user, not per-session.
-        // Load the last consumed time slice for this user from the cache so a code that
-        // was already used cannot be replayed from a different session within its window.
         $replayKey = 'totp_replay_' . $userIdFromDb;
         $cache = $this->c->has(\OwnPay\Cache\CacheInterface::class)
             ? $this->c->get(\OwnPay\Cache\CacheInterface::class)
@@ -399,7 +395,7 @@ final class AuthController
                 $loginSlug = $slug;
             }
         } catch (\Throwable) {
-            // Settings unavailable — keep the safe default 'login' slug.
+            // Settings unavailable - keep the safe default 'login' slug.
         }
         return Response::redirect('/' . $loginSlug);
     }

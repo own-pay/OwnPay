@@ -1,6 +1,7 @@
-# Findings & Decisions — Batch 2 India MFS, UPI & Aggregators
+# Findings & Decisions - Batch 2 India MFS, UPI & Aggregators
 
 ## Requirements
+
 - Fully functional, production-ready, highly secure payment gateway adapters for:
   1. **Cashfree**: Uses PG API v2023-08-01. Returns `payment_session_id` and redirects to hosted checkout. Uses HMAC-SHA256 of `$timestamp . $rawBody` to verify webhooks.
   2. **Paytm**: Redirection flow via Initiate Transaction API returning `txnToken`. Redirects via HTML POST form to `showPaymentPage`. Secure AES-128-CBC checksum generation and validation natively implemented using OpenSSL.
@@ -18,6 +19,7 @@
 ## Research Findings
 
 ### 1. Cashfree
+
 - **Base URLs**:
   - Sandbox: `https://sandbox.cashfree.com/pg`
   - Live: `https://api.cashfree.com/pg`
@@ -31,6 +33,7 @@
   - Base64 encoded hash: `base64_encode(hash_hmac('sha256', $timestamp . $rawBody, $clientSecret, true))`.
 
 ### 2. Paytm
+
 - **Base URLs**:
   - Sandbox: `https://securegw-stage.paytm.in`
   - Live: `https://securegw.paytm.in`
@@ -44,6 +47,7 @@
   - Verification: Decrypt signature, split into SHA-256 hash (first 64 chars) and salt (remainder), and verify.
 
 ### 3. PayU India
+
 - **Base URLs**:
   - Sandbox: `https://test.payu.in/_payment`
   - Live: `https://secure.payu.in/_payment`
@@ -54,6 +58,7 @@
   - Standard: `salt|status||||||udf5|udf4|udf3|udf2|udf1|email|firstname|productinfo|amount|txnid|key`
 
 ### 4. Instamojo
+
 - **Base URLs**:
   - Sandbox: `https://test.instamojo.com`
   - Live: `https://api.instamojo.com`
@@ -63,6 +68,7 @@
   - Sign with HMAC-SHA1 using secret salt: `hash_hmac('sha1', $message, $salt)`.
 
 ### 5. MobiKwik (Zaakpay)
+
 - **Base URLs**:
   - Sandbox: `https://zaakstaging.zaakpay.com/api/paymentTransact/v8`
   - Live: `https://api.zaakpay.com/api/paymentTransact/v8`
@@ -72,6 +78,7 @@
   - Hash generated: `hash('sha256', $all)`.
 
 ## Technical Decisions
+
 | Decision | Rationale |
 |----------|-----------|
 | Dependency-free Paytm | Avoid requiring new Composer packages by writing standard PHP OpenSSL AES-128-CBC routines inside PaytmGateway. |
@@ -79,10 +86,12 @@
 | Sandbox Isolation | Block simulation flags/credentials (e.g. `SIM_`, `TEST_` keys) in `live` production mode. |
 
 ## Issues Encountered
+
 | Issue | Resolution |
 |-------|------------|
 
 ## Resources
+
 - Cashfree API: `https://www.cashfree.com/docs/api-reference/`
 - PayU India: `https://docs.payu.in/`
 - Instamojo: `https://docs.instamojo.com/`

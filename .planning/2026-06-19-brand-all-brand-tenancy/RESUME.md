@@ -1,11 +1,12 @@
-# RESUME — starting 2e and 2c as fresh focused sessions
+# RESUME - starting 2e and 2c as fresh focused sessions
 
 Phase 1 + Phase 2a/2b/2d are DONE and verified. Two pieces remain, each fully designed in
 `task_plan.md`: **2e** (email pipeline + per-brand sender/prefs) and **2c** (manual gateways:
 template + per-brand account, money-critical). Run them as SEPARATE fresh sessions.
 
 ## How to start a fresh session
-1. In your current Claude Code terminal run **`/clear`** (resets the context window) — OR open a new
+
+1. In your current Claude Code terminal run **`/clear`** (resets the context window) - OR open a new
    terminal and run **`claude`**. Either gives a clean context.
 2. On start, the `planning-with-files` skill auto-restores the active plan. The active plan pointer
    (`.planning/.active_plan`) is already set to **`2026-06-19-brand-all-brand-tenancy`**, so the new
@@ -18,7 +19,8 @@ template + per-brand account, money-critical). Run them as SEPARATE fresh sessio
 > dedicated plan first: `sh .agents/skills/planning-with-files/scripts/init-session.sh "email pipeline"`
 > then copy the 2e design from this task_plan into the new plan.
 
-## Kickoff prompt — 2e (email pipeline)
+## Kickoff prompt - 2e (email pipeline)
+
 ```
 Resume plan 2026-06-19-brand-all-brand-tenancy. Implement Phase 2e (email pipeline + per-brand
 sender/prefs) exactly per the "2e" build plan in task_plan.md. Test-driven. Hard rule: wrap all email
@@ -29,7 +31,8 @@ Keep PHPStan level 9 clean and the full PHPUnit suite green (552+). Clear storag
 template edit. Verify before claiming done.
 ```
 
-## Kickoff prompt — 2c (manual gateways, money-critical)
+## Kickoff prompt - 2c (manual gateways, money-critical)
+
 ```
 Resume plan 2026-06-19-brand-all-brand-tenancy. Implement Phase 2c (manual gateways: template +
 per-brand account) per the decision in task_plan.md: All Brands defines the gateway TYPE/default; each
@@ -38,11 +41,12 @@ create gateway types. FIRST trace the checkout/payment path end-to-end (Checkout
 GatewayRendererService → where the manual account/instructions are read) and write down exactly where
 funds are routed. Change behind verification; confirm a brand's payment uses the brand's account both
 before and after. Enforce createManual = All-Brands-only (requireGlobalView) + close the brand
-direct-URL. Keep PHPStan L9 + full PHPUnit green. This is money-critical — do not guess.
+direct-URL. Keep PHPStan L9 + full PHPUnit green. This is money-critical - do not guess.
 ```
 
 ## Shared environment / verify notes
-- App: https://ownpay.test (Laragon). Root: C:\laragon\www\ownpay. Branch: `fixing`. PHP 8.3.28.
+
+- App: <https://ownpay.test> (Laragon). Root: C:\laragon\www\ownpay. Branch: `fixing`. PHP 8.3.28.
 - DB (dev): mysql root/root, db `ownpay`; tests use `ownpay_test`. Migrations: SQL files in
   database/migrations/ (next = 015), tracked in op_migrations; apply manually in dev to BOTH dbs.
 - Verify: `php vendor/bin/phpstan analyse --no-progress` (level 9, clean) ·
@@ -51,11 +55,12 @@ direct-URL. Keep PHPStan L9 + full PHPUnit green. This is money-critical — do 
   Remove-Item is sandbox-blocked on storage; use the Bash tool).
 - After editing task_plan.md, re-run
   `powershell -ExecutionPolicy Bypass -File .agents\skills\planning-with-files\scripts\attest-plan.ps1`.
-- Platform-owner row: resolve via `BrandContext::getPlatformId()` (is_platform=1) — id differs per DB
+- Platform-owner row: resolve via `BrandContext::getPlatformId()` (is_platform=1) - id differs per DB
   (ownpay=2, ownpay_test varies); never hard-code it.
 - Nothing is committed yet (branch `fixing`); the working tree also carries large pre-existing WIP from
-  prior sessions — your edits are a small subset, so never `git add .` blindly.
+  prior sessions - your edits are a small subset, so never `git add .` blindly.
 
 ## Design references (already written)
+
 - task_plan.md → "PHASE 2" → the 2e build plan + the 2c decision/sketch.
 - findings.md → "2e DISCOVERY" (email dormant; events/wiring points) + tenancy architecture map.

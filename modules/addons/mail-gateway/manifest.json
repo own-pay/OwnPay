@@ -2,7 +2,7 @@
   "name": "Mail Gateway",
   "slug": "mail-gateway",
   "version": "1.0.0",
-  "description": "Mail Gateway addon — send emails via SMTP, Mailgun, or SendGrid.",
+  "description": "Mail Gateway addon - send emails via SMTP, Mailgun, or SendGrid.",
   "author": "OwnPay",
   "type": "addon",
   "entry": "Plugin.php",

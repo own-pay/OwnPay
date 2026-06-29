@@ -11,7 +11,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * NOWPayments Crypto Gateway — PluginInterface + GatewayAdapterInterface.
+ * NOWPayments Crypto Gateway - PluginInterface + GatewayAdapterInterface.
  */
 final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterface
 {
@@ -148,10 +148,6 @@ final class NowPaymentsGateway implements PluginInterface, GatewayAdapterInterfa
 
     public function verify(array $callbackData, array $credentials): array
     {
-        // FIND-001: redirect/callback parameters are not cryptographically
-        // authenticated. Only complete when the core proved the webhook
-        // signature for this payload (sets _op_webhook_verified in
-        // GatewayApiService::handleCallback after verifyWebhook passes).
         if (($callbackData['_op_webhook_verified'] ?? false) !== true) {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'unverified'];
         }

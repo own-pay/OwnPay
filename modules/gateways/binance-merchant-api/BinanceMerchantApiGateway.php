@@ -11,7 +11,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * Binance Pay Merchant API gateway — PluginInterface + GatewayAdapterInterface.
+ * Binance Pay Merchant API gateway - PluginInterface + GatewayAdapterInterface.
  */
 final class BinanceMerchantApiGateway implements PluginInterface, GatewayAdapterInterface
 {

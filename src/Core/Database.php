@@ -14,7 +14,7 @@ use PDOStatement;
  * Thin database wrapper around PDO.
  * Provides convenience methods for common queries while maintaining
  * full prepared-statement safety. No raw string interpolation ever.
- * Injected via DI container — never instantiate directly.
+ * Injected via DI container - never instantiate directly.
  *
  * @package OwnPay\Core
  */
@@ -211,7 +211,7 @@ class Database
      */
     public function execute(string $sql, array $params = []): PDOStatement
     {
-        // Fire db.query.before filter — plugins can modify SQL/params
+        // Fire db.query.before filter - plugins can modify SQL/params
         // Guard prevents infinite recursion when hook listeners query DB
         if ($this->events !== null && !$this->firingHooks) {
             $this->firingHooks = true;
@@ -268,7 +268,7 @@ class Database
         $stmt->execute();
         $durationMs = (hrtime(true) - $start) / 1_000_000;
 
-        // Fire db.query.after action — profiling, audit logging
+        // Fire db.query.after action - profiling, audit logging
         if ($this->events !== null && !$this->firingHooks) {
             $this->firingHooks = true;
             try {

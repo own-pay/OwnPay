@@ -9,7 +9,7 @@ class MiddlewareTest extends TestCase
 {
     public function testCsrfMiddlewareBlocksWithoutToken(): void
     {
-        // Simulate missing CSRF token — middleware should reject
+        // Simulate missing CSRF token - middleware should reject
         $headers = ['X-CSRF-Token' => ''];
         $sessionToken = bin2hex(random_bytes(32));
         $this->assertNotSame($headers['X-CSRF-Token'], $sessionToken);

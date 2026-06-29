@@ -263,9 +263,6 @@ final class WebhookDispatcher
      */
     private function doSend(string $url, string $payload, string $signature, int $timestamp): array
     {
-        // Enforce SSRF protection: reject local/private ranges AND pin the validated
-        // public IP so cURL cannot re-resolve the host to an internal address between
-        // the check and the request (DNS rebinding / TOCTOU).
         $pinnedIp = \OwnPay\Security\UrlValidator::resolveSafeWebhookIp($url);
         if ($pinnedIp === null) {
             return [

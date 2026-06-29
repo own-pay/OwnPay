@@ -7,7 +7,7 @@ use OwnPay\Service\System\Logger;
 use OwnPay\Support\DateHelper;
 
 /**
- * Enterprise system backup and rollback recovery service.
+ * OwnPay backup and rollback recovery service (Enterprise Grade).
  *
  * Facilitates the generation of database dumps and zip archives of core
  * application directories before update execution, allowing reliable

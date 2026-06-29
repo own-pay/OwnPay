@@ -11,7 +11,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 
 /**
- * shurjoPay Gateway — PluginInterface + GatewayAdapterInterface.
+ * shurjoPay Gateway - PluginInterface + GatewayAdapterInterface.
  */
 final class ShurjopayGateway implements PluginInterface, GatewayAdapterInterface
 {

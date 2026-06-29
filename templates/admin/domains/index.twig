@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Custom Domains — {{ app_name }}{% endblock %}
+{% block title %}Custom Domains - {{ app_name }}{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/assets/css/pages/domains.css?v=014">
 {% endblock %}
@@ -15,7 +15,7 @@
     </button>
 </div>
 
-{# ── Domain List ─────────────────────────────────────────────── #}
+{# -- Domain List ----------------------------------------------- #}
 <div class="op-card op-mb-6">
     <div class="op-card-header"><h3>Your Domains</h3></div>
     <div class="op-card-body op-p-0">
@@ -45,7 +45,7 @@
                             <br><small class="op-text-muted">Redirects to: <code>{{ d.redirect_url }}</code></small>
                         {% endif %}
                     </td>
-                    <td data-label="Brand">{{ d.merchant_name ?? '—' }}</td>
+                    <td data-label="Brand">{{ d.merchant_name ?? '-' }}</td>
                     <td data-label="Type"><span class="op-badge">{{ d.type|capitalize }}</span></td>
                     <td data-label="Primary">
                         {% if d.is_primary %}
@@ -75,7 +75,7 @@
                             <button class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="tok-{{ d.id }}">Copy</button>
                         </div>
                         {% else %}
-                            <span class="op-text-muted op-text-xs">—</span>
+                            <span class="op-text-muted op-text-xs">-</span>
                         {% endif %}
                     </td>
                     <td data-label="Status">
@@ -130,7 +130,7 @@
     </div>
 </div>
 
-{# ── DNS Setup Guide ─────────────────────────────────────────── #}
+{# -- DNS Setup Guide ------------------------------------------- #}
 <div class="op-card op-mt-6">
     <div class="op-card-header">
         <h3>📋 Custom Domain DNS Configuration Guide</h3>
@@ -179,7 +179,7 @@
             </div>
         </div>
 
-        {# Per-domain FQDN helper — shows when domains exist #}
+        {# Per-domain FQDN helper - shows when domains exist #}
         {% if domains|length > 0 %}
         <div class="op-alert op-alert-success op-mt-6">
             <h4 class="font-bold mb-2">Your Domains Configuration Values</h4>
@@ -206,7 +206,7 @@
     </div>
 </div>
 
-{# ── Add Domain Modal ────────────────────────────────────────── #}
+{# -- Add Domain Modal ------------------------------------------ #}
 <div class="op-modal" id="add-domain-modal" hidden>
     <div class="op-modal-backdrop" data-close-modal="add-domain-modal"></div>
     <div class="op-modal-dialog">
@@ -222,7 +222,7 @@
                     <input type="text" name="domain" class="op-input op-input-lg" placeholder="pay.yourbusiness.com"
                            pattern="^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
                            title="Enter a valid domain name (e.g. pay.example.com)" required autofocus>
-                    <small class="op-text-muted">Do not include <code>https://</code> — just the domain name</small>
+                    <small class="op-text-muted">Do not include <code>https://</code> - just the domain name</small>
                 </div>
                 <div class="op-form-group">
                     <label>Domain Type</label>
@@ -249,7 +249,7 @@
     </div>
 </div>
 
-{# ── Edit Domain Modal ───────────────────────────────────────── #}
+{# -- Edit Domain Modal ----------------------------------------- #}
 <div class="op-modal" id="edit-domain-modal" hidden>
     <div class="op-modal-backdrop" data-close-modal="edit-domain-modal"></div>
     <div class="op-modal-dialog">

@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}SMS Center — {{ app_name }}{% endblock %}
+{% block title %}SMS Center - {{ app_name }}{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/assets/css/pages/sms-center.css?v=018">
 {% endblock %}
@@ -41,17 +41,21 @@
 
 {# ═══ Tab 1: Parsing Templates & Sandbox ═══ #}
 <div class="op-tab-panel active" id="tab-templates">
-    <div class="op-sms-workspace">
+    <div class="op-sms-workspace{{ can_manage_templates ? '' : ' op-sms-workspace--solo' }}">
         
         {# Left Column: Parsing Templates Table #}
         <div class="op-sms-left-panel">
             <div class="op-card">
                 <div class="op-card-header">
                     <h3>SMS Parsing Templates</h3>
+                    {% if can_manage_templates %}
                     <button class="op-btn op-btn-primary op-btn-sm" id="btn-open-create-modal">
                         <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" class="op-mr-1 op-tab-svg"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
                         <span>New Template</span>
                     </button>
+                    {% else %}
+                    <span class="op-badge op-badge-info" title="SMS templates are global - manage them from the All Brands view.">Managed in All Brands</span>
+                    {% endif %}
                 </div>
                 <div class="op-card-body op-p-0">
                     <div class="op-table-responsive"><table class="op-table">
@@ -74,6 +78,7 @@
                                 <td data-label="Priority">{{ tpl.priority }}</td>
                                 <td data-label="Status"><span class="op-badge op-badge-{{ tpl.status == 'active' ? 'success' : 'muted' }}">{{ tpl.status|capitalize }}</span></td>
                                 <td data-label="Actions">
+                                    {% if can_manage_templates %}
                                     <div class="op-flex-gap-4">
                                         <a href="/admin/sms-center/{{ tpl.id }}/edit" class="op-btn op-btn-xs op-btn-outline">Edit</a>
                                         <form method="POST" action="/admin/sms-center/{{ tpl.id }}/delete" class="op-inline-form delete-template-form" data-confirm="Delete this template?">
@@ -81,6 +86,9 @@
                                             <button type="submit" class="op-btn op-btn-xs op-btn-danger">Delete</button>
                                         </form>
                                     </div>
+                                    {% else %}
+                                    <span class="op-text-muted">-</span>
+                                    {% endif %}
                                 </td>
                             </tr>
                             {% else %}
@@ -92,7 +100,8 @@
             </div>
         </div>
 
-        {# Right Column: Developer Sandbox & Tools #}
+        {% if can_manage_templates %}
+        {# Right Column: Developer Sandbox & Tools (template-building - All Brands only, issue #6) #}
         <aside class="op-sms-right-panel">
             <div class="op-sandbox-card">
                 <div class="op-sandbox-header">
@@ -149,8 +158,8 @@
                                 <input type="hidden" name="trx_id_regex" id="save-trxid-regex">
                                 <input type="hidden" name="sender_regex" id="save-sender-regex">
                                 <div class="op-form-group op-mb-2">
-                                    <label class="op-text-xs">Gateway Slug *</label>
-                                    <input type="text" name="gateway_slug" id="save-gateway-slug" class="op-input op-input-sm" placeholder="e.g. bkash, nagad">
+                                    <label class="op-text-xs">Gateway Slug <span class="op-text-muted">(optional)</span></label>
+                                    <input type="text" name="gateway_slug" id="save-gateway-slug" class="op-input op-input-sm" placeholder="optional - e.g. bkash, nagad">
                                 </div>
                                 <div class="op-form-group op-mb-3">
                                     <label class="op-text-xs">Sender Pattern *</label>
@@ -242,6 +251,7 @@
                 </div>
             </div>
         </aside>
+        {% endif %}
 
     </div>
 </div>
@@ -269,9 +279,9 @@
                     {% for sms in parsed_sms %}
                     <tr>
                         <td data-label="Sender"><code>{{ sms.sender }}</code></td>
-                        <td data-label="Amount">{{ sms.amount ?? '—' }}</td>
-                        <td data-label="TrxID"><code>{{ sms.trx_id ?? '—' }}</code></td>
-                        <td data-label="Gateway">{{ sms.gateway_slug ?? '—' }}</td>
+                        <td data-label="Amount">{{ sms.amount ?? '-' }}</td>
+                        <td data-label="TrxID"><code>{{ sms.trx_id ?? '-' }}</code></td>
+                        <td data-label="Gateway">{{ sms.gateway_slug ?? '-' }}</td>
                         <td data-label="Status">
                             <span class="op-badge op-badge-{{ sms.match_status == 'matched' ? 'success' : (sms.match_status == 'error' ? 'danger' : 'warning') }}">
                                 {{ sms.match_status|capitalize }}
@@ -288,7 +298,7 @@
                                 <button type="submit" class="op-btn op-btn-xs op-btn-primary op-sms-match-btn">Match</button>
                             </form>
                             {% else %}
-                            —
+                            -
                             {% endif %}
                         </td>
                     </tr>
@@ -320,9 +330,9 @@
                     <tr>
                         <td data-label="To">{{ sms.recipient }}</td>
                         <td data-label="Message" class="op-text-sm">{{ sms.body|slice(0, 60) }}…</td>
-                        <td data-label="Provider">{{ sms.provider ?? '—' }}</td>
+                        <td data-label="Provider">{{ sms.provider ?? '-' }}</td>
                         <td data-label="Status"><span class="op-badge op-badge-{{ sms.status == 'sent' ? 'success' : (sms.status == 'failed' ? 'danger' : 'warning') }}">{{ sms.status }}</span></td>
-                        <td data-label="Sent At">{{ sms.sent_at ?? '—' }}</td>
+                        <td data-label="Sent At">{{ sms.sent_at ?? '-' }}</td>
                         <td data-label="Actions">
                             {% if sms.status == 'failed' %}
                             <form method="POST" action="/admin/sms-center/queue/{{ sms.id }}/retry" class="op-inline-form">
@@ -330,7 +340,7 @@
                                 <button type="submit" class="op-btn op-btn-xs op-btn-warning">Retry</button>
                             </form>
                             {% else %}
-                            —
+                            -
                             {% endif %}
                         </td>
                     </tr>
@@ -357,7 +367,7 @@
                     {% for email in email_queue %}
                     <tr>
                         <td data-label="Recipient"><strong>{{ email.recipient }}</strong></td>
-                        <td data-label="Subject">{{ email.subject|default('—') }}</td>
+                        <td data-label="Subject">{{ email.subject|default('-') }}</td>
                         <td data-label="Status">
                             <span class="op-badge op-badge-{{ email.status == 'sent' ? 'success' : (email.status == 'failed' ? 'danger' : 'warning') }}">
                                 {{ email.status|capitalize }}
@@ -367,10 +377,10 @@
                             {% if email.error %}
                             <code class="op-text-xs op-text-danger">{{ email.error }}</code>
                             {% else %}
-                            —
+                            -
                             {% endif %}
                         </td>
-                        <td data-label="Sent At" class="op-text-muted op-text-sm">{{ email.sent_at ?? '—' }}</td>
+                        <td data-label="Sent At" class="op-text-muted op-text-sm">{{ email.sent_at ?? '-' }}</td>
                     </tr>
                     {% else %}
                     <tr><td colspan="5" class="op-empty">No outbound emails logged.</td></tr>
@@ -405,10 +415,10 @@
                             {% if tel.error %}
                             <code class="op-text-xs op-text-danger">{{ tel.error }}</code>
                             {% else %}
-                            —
+                            -
                             {% endif %}
                         </td>
-                        <td data-label="Sent At" class="op-text-muted op-text-sm">{{ tel.sent_at ?? '—' }}</td>
+                        <td data-label="Sent At" class="op-text-muted op-text-sm">{{ tel.sent_at ?? '-' }}</td>
                     </tr>
                     {% else %}
                     <tr><td colspan="5" class="op-empty">No Telegram alerts logged.</td></tr>
@@ -433,7 +443,7 @@
                     {% for web in webhook_queue %}
                     <tr>
                         <td data-label="Endpoint"><code class="op-text-xs">{{ web.recipient }}</code></td>
-                        <td data-label="Event">{{ web.subject|default('—') }}</td>
+                        <td data-label="Event">{{ web.subject|default('-') }}</td>
                         <td data-label="Payload" class="op-text-sm"><code class="op-text-xs">{{ web.body|slice(0, 100) }}{{ web.body|length > 100 ? '…' : '' }}</code></td>
                         <td data-label="Status">
                             <span class="op-badge op-badge-{{ web.status == 'sent' ? 'success' : (web.status == 'failed' ? 'danger' : 'warning') }}">
@@ -444,10 +454,10 @@
                             {% if web.error %}
                             <code class="op-text-xs op-text-danger">{{ web.error }}</code>
                             {% else %}
-                            —
+                            -
                             {% endif %}
                         </td>
-                        <td data-label="Sent At" class="op-text-muted op-text-sm">{{ web.sent_at ?? '—' }}</td>
+                        <td data-label="Sent At" class="op-text-muted op-text-sm">{{ web.sent_at ?? '-' }}</td>
                     </tr>
                     {% else %}
                     <tr><td colspan="6" class="op-empty">No webhook dispatches logged.</td></tr>
@@ -458,7 +468,8 @@
     </div>
 </div>
 
-{# ── Create Parsing Template Modal ── #}
+{% if can_manage_templates %}
+{# -- Create Parsing Template Modal (All Brands only, issue #6) -- #}
 <div class="op-modal" id="create-template-modal" hidden>
     <div class="op-modal-backdrop" data-close-modal="create-template-modal"></div>
     <div class="op-modal-dialog">
@@ -471,9 +482,9 @@
             <div class="op-modal-body">
                 <div class="op-form-row">
                     <div class="op-form-group op-col-6">
-                        <label>Gateway <span class="op-text-danger">*</span></label>
-                        <select name="gateway_slug" class="op-input" required>
-                            <option value="">— Select Gateway —</option>
+                        <label>Gateway <span class="op-text-muted op-text-xs">(optional)</span></label>
+                        <select name="gateway_slug" class="op-input">
+                            <option value="">- None -</option>
                             {% for gw in gateways %}
                             <option value="{{ gw.slug }}">{{ gw.name }}</option>
                             {% endfor %}
@@ -531,6 +542,7 @@
         </form>
     </div>
 </div>
+{% endif %}
 
 {% endblock %}
 {% block scripts %}

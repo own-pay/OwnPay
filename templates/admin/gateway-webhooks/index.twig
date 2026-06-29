@@ -1,6 +1,6 @@
 {% extends 'admin/layout/base.twig' %}
 
-{% block title %}Gateway Webhooks (IPN) — {{ app_name }}{% endblock %}
+{% block title %}Gateway Webhooks (IPN) - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
@@ -18,12 +18,12 @@
             When a customer pays through a gateway (bKash, Nagad, Stripe, PayPal, and so on), the gateway needs a way
             to tell {{ app_name }} <em>"this payment succeeded / failed."</em> It does that by quietly sending a message
             to a special web address on your site the moment the payment finishes. That address is called a
-            <strong>webhook URL</strong> — some gateways call it <strong>IPN</strong> (Instant Payment Notification),
+            <strong>webhook URL</strong> - some gateways call it <strong>IPN</strong> (Instant Payment Notification),
             <strong>callback URL</strong>, or <strong>notify URL</strong>. They all mean the same thing.
         </p>
         <p class="op-text-muted op-gw-prose">
             You copy the URL below, paste it into your gateway's dashboard once, and from then on payments update
-            automatically — orders get marked paid, receipts go out, and your reports stay accurate without anyone
+            automatically - orders get marked paid, receipts go out, and your reports stay accurate without anyone
             clicking anything.
         </p>
     </div>
@@ -98,9 +98,9 @@
     <div class="op-card-header"><h3>Good to know</h3></div>
     <div class="op-card-body">
         <ul class="op-gw-notes">
-            <li>Paste the address <strong>exactly</strong> — a missing or extra character means payments won't update.</li>
+            <li>Paste the address <strong>exactly</strong> - a missing or extra character means payments won't update.</li>
             <li>The address must be reachable over the public internet on <strong>https</strong>. It won't work on a laptop-only address.</li>
-            <li>You don't need to build or host anything — {{ app_name }} already listens at this address for you.</li>
+            <li>You don't need to build or host anything - {{ app_name }} already listens at this address for you.</li>
             <li>Each brand can have its own address by giving the brand a custom domain in <a href="/admin/domains">Domains</a>; otherwise the main {{ app_name }} address (set from All Brands) is used.</li>
         </ul>
     </div>

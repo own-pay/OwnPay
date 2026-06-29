@@ -110,9 +110,13 @@ final class DeviceController
             throw new \RuntimeException('No active brand found.');
         }
 
-        // listDeviceStatuses returns every device (any status) plus a derived `online` flag, so the
-        // table shows revoked devices frozen and renders the correct live dot on first paint.
-        $list = $svc->listDeviceStatuses($mid);
+        // Every device (any status) + a derived `online` flag (so revoked devices show frozen and the
+        // live dot is correct on first paint). A specific brand ALSO sees the global All-Brands
+        // (platform) devices, which serve every brand - so a device paired under All Brands appears
+        // under each brand too (issue #3). The All-Brands view (mid 0) aggregates every brand.
+        $list = ($mid > 0)
+            ? $svc->listDeviceStatusesForBrand($mid, $brand->getPlatformId())
+            : $svc->listDeviceStatuses(null);
 
         $stats = [
             'total'   => count($list),
@@ -154,7 +158,7 @@ final class DeviceController
         try {
             // Bind the OTP to the admin who created it. Without this the pairing
             // token's created_by is null and the stateless pairing API would fall
-            // back to the brand's first superadmin — a privilege escalation where
+            // back to the brand's first superadmin - a privilege escalation where
             // a low-privileged staffer's device gets a superadmin-scoped token.
             $adminId = $this->session->userId();
             if ($adminId === null) {
@@ -387,11 +391,13 @@ final class DeviceController
             throw new \RuntimeException('BrandContext service unavailable');
         }
         $brand->resolveFromRequest($req);
-        // Same scoping as the device list: a specific brand sees its own devices; the All-Brands
-        // view (active brand id 0/null) aggregates every brand.
+        // Same scoping as the device list: a specific brand sees its own devices PLUS the global
+        // All-Brands (platform) devices (issue #3); the All-Brands view aggregates every brand.
         $mid = $brand->getActiveBrandId();
 
-        $devices = $svc->listDeviceStatuses($mid);
+        $devices = ($mid !== null && $mid > 0)
+            ? $svc->listDeviceStatusesForBrand($mid, $brand->getPlatformId())
+            : $svc->listDeviceStatuses(null);
         $out = [];
         foreach ($devices as $d) {
             $deviceId = $d['device_id'] ?? '';

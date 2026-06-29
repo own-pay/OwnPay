@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════
-   dashboard.css — OwnPay Dashboard
+   dashboard.css - OwnPay Dashboard
    Matches Neoxa dashboard design 1:1
    ═══════════════════════════════════════════════════════ */
 
-/* ── KPI Grid ── */
+/* -- KPI Grid -- */
 .dash-kpi-grid {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
@@ -11,7 +11,7 @@
   margin-bottom: 6px;
 }
 
-/* ── Main Grid ── */
+/* -- Main Grid -- */
 .dash-main-grid {
   display: grid;
   grid-template-columns: 2fr 1fr;
@@ -24,7 +24,7 @@
   gap: 6px;
 }
 
-/* ── Card Base ── */
+/* -- Card Base -- */
 .dash-card {
   background: var(--op-bg-card);
   border: none;
@@ -50,21 +50,51 @@
 }
 
 @keyframes dashFadeSlideUp {
-  from { opacity: 0; transform: translateY(15px); }
-  to { opacity: 1; transform: translateY(0); }
+  from {
+    opacity: 0;
+    transform: translateY(15px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 /* Staggered animation delays */
-.dash-kpi-grid .dash-card:nth-child(1) { animation-delay: 0.1s; }
-.dash-kpi-grid .dash-card:nth-child(2) { animation-delay: 0.15s; }
-.dash-kpi-grid .dash-card:nth-child(3) { animation-delay: 0.2s; }
-.dash-kpi-grid .dash-card:nth-child(4) { animation-delay: 0.25s; }
-.dash-main-grid .dash-stack-grid:nth-child(1) .dash-card:nth-child(1) { animation-delay: 0.3s; }
-.dash-main-grid .dash-stack-grid:nth-child(1) .dash-card:nth-child(2) { animation-delay: 0.4s; }
-.dash-main-grid .dash-stack-grid:nth-child(2) .dash-card:nth-child(1) { animation-delay: 0.35s; }
-.dash-main-grid .dash-stack-grid:nth-child(2) .dash-card:nth-child(2) { animation-delay: 0.45s; }
+.dash-kpi-grid .dash-card:nth-child(1) {
+  animation-delay: 0.1s;
+}
 
-/* ── KPI Card ── */
+.dash-kpi-grid .dash-card:nth-child(2) {
+  animation-delay: 0.15s;
+}
+
+.dash-kpi-grid .dash-card:nth-child(3) {
+  animation-delay: 0.2s;
+}
+
+.dash-kpi-grid .dash-card:nth-child(4) {
+  animation-delay: 0.25s;
+}
+
+.dash-main-grid .dash-stack-grid:nth-child(1) .dash-card:nth-child(1) {
+  animation-delay: 0.3s;
+}
+
+.dash-main-grid .dash-stack-grid:nth-child(1) .dash-card:nth-child(2) {
+  animation-delay: 0.4s;
+}
+
+.dash-main-grid .dash-stack-grid:nth-child(2) .dash-card:nth-child(1) {
+  animation-delay: 0.35s;
+}
+
+.dash-main-grid .dash-stack-grid:nth-child(2) .dash-card:nth-child(2) {
+  animation-delay: 0.45s;
+}
+
+/* -- KPI Card -- */
 .dash-kpi-title {
   font-size: 13px;
   color: var(--op-text-body, #475569);
@@ -112,7 +142,7 @@
   margin-left: 6px;
 }
 
-/* ── Card Header ── */
+/* -- Card Header -- */
 .dash-card-header {
   display: flex;
   justify-content: space-between;
@@ -126,7 +156,7 @@
   color: var(--op-text);
 }
 
-/* ── Chart Filters ── */
+/* -- Chart Filters -- */
 .dash-chart-filters {
   display: flex;
   gap: 4px;
@@ -155,7 +185,7 @@
   font-weight: 500;
 }
 
-/* ── Filter Outline Button ── */
+/* -- Filter Outline Button -- */
 .dash-btn-outline {
   display: flex;
   align-items: center;
@@ -185,7 +215,7 @@
   color: var(--op-text-muted);
 }
 
-/* ── Chart Container ── */
+/* -- Chart Container -- */
 .dash-chart-container {
   position: relative;
   width: 100%;
@@ -198,7 +228,7 @@
   max-width: 100%;
 }
 
-/* ── Transaction Table ── */
+/* -- Transaction Table -- */
 .dash-table-container {
   overflow-x: auto;
 }
@@ -261,7 +291,7 @@
   color: var(--op-text-muted);
 }
 
-/* ── Gauge Chart ── */
+/* -- Gauge Chart -- */
 .dash-gauge-container {
   position: relative;
   width: 100%;
@@ -311,7 +341,7 @@
   padding: 0 8px;
 }
 
-/* ── Recent Updates ── */
+/* -- Recent Updates -- */
 .dash-update-list {
   display: flex;
   flex-direction: column;
@@ -380,7 +410,7 @@
   white-space: nowrap;
 }
 
-/* ── Intent Status Badge ── */
+/* -- Intent Status Badge -- */
 .dash-intent-status {
   font-size: 12px;
   font-weight: 500;
@@ -412,7 +442,7 @@
   background: rgb(239 68 68 / 10%);
 }
 
-/* ── Date Switcher ── */
+/* -- Date Switcher -- */
 .dash-date-switcher {
   position: relative;
 }
@@ -495,7 +525,7 @@
   background: rgb(15 151 237 / 10%);
 }
 
-/* ── Page Header ── */
+/* -- Page Header -- */
 .dash-header {
   display: flex;
   align-items: center;
@@ -513,7 +543,7 @@
   font-weight: 500;
 }
 
-/* ── Responsive ── */
+/* -- Responsive -- */
 @media (max-width: 1024px) {
   .dash-main-grid {
     grid-template-columns: 1fr;

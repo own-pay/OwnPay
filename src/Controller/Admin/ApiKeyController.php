@@ -102,7 +102,7 @@ final class ApiKeyController
         $_SESSION['_generated_api_key'] = $key['key'];
         $_SESSION['_generated_api_key_label'] = $label;
 
-        $this->session->flashSuccess("API key \"{$label}\" generated successfully. Copy it below — it won't be shown again.");
+        $this->session->flashSuccess("API key \"{$label}\" generated successfully. Copy it below - it won't be shown again.");
         return Response::redirect('/admin/developer');
     }
 

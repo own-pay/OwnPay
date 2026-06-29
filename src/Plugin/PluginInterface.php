@@ -14,10 +14,10 @@ use OwnPay\Event\EventManager;
  * event manager, ensuring safe execution under the single-owner multi-brand model.
  *
  * Lifecycle sequence:
- * 1. register() — Declares event hook and filter bindings.
- * 2. boot() — Starts services after all dependencies are loaded.
- * 3. deactivate() — Gracefully suspends execution.
- * 4. uninstall() — Permanently purges assets, tables, and settings.
+ * 1. register() - Declares event hook and filter bindings.
+ * 2. boot() - Starts services after all dependencies are loaded.
+ * 3. deactivate() - Gracefully suspends execution.
+ * 4. uninstall() - Permanently purges assets, tables, and settings.
  *
  * @category Plugin
  * @package  OwnPay\Plugin

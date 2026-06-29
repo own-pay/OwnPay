@@ -4,7 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Payment;
 
 /**
- * Reconciliation service — verify ledger vs transactions integrity.
+ * Reconciliation service - verify ledger vs transactions integrity.
  */
 final class ReconciliationService
 {
@@ -26,7 +26,7 @@ final class ReconciliationService
     public function reconcile(int $merchantId, string $currency): array
     {
         // Sum completed transaction net amounts
-        $txnRow = $this->db->fetchOne(
+        $txnRow = $this->db->fetchOne( 
             "SELECT COALESCE(SUM(net_amount), 0) as total
              FROM op_transactions
              WHERE merchant_id = :mid AND currency = :cur AND status = 'completed'",

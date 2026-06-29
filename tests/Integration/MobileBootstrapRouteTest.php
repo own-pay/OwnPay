@@ -12,20 +12,11 @@ use OwnPay\Middleware\RateLimiterMiddleware;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Regression guard for FIND-019 — "Device pairing bootstrap blocked by JWT middleware".
- *
- * The audit (ownpay_master_audit_report.md, FIND-019 HIGH) found that the pairing and
- * token-refresh routes once lived in the `mobile` middleware group, which is guarded by
- * {@see JwtAuthMiddleware}. A fresh, token-less device is 401'd by that middleware
- * BEFORE its pairing request ever reaches the controller — so onboarding could never
- * happen. The fix moved `POST /devices` and `POST /devices/token-refreshes` to a
- * JWT-free `mobile-bootstrap` group (CORS + rate-limit only); they authenticate
- * themselves via the single-use OTP / the refresh-JWT in the request body.
  *
  * This test deliberately loads the REAL config files (`config/routes/api.php` and
  * `config/middleware.php`) and replicates {@see \OwnPay\Kernel::runMiddleware()}'s
  * stack resolution (`global` + group, de-duplicated). It asserts the property the audit
- * cares about — what middleware actually executes for each route — rather than matching
+ * cares about - what middleware actually executes for each route - rather than matching
  * a literal group name. If anyone ever re-points pairing back under `mobile`, deletes
  * the `mobile-bootstrap` group, or injects JWT auth into it, this fails loudly.
  *
@@ -42,7 +33,7 @@ final class MobileBootstrapRouteTest extends TestCase
 
     /**
      * A representative sample of the authenticated mobile surface. Every one of these
-     * MUST keep the JWT gate — this guards against an over-correction that accidentally
+     * MUST keep the JWT gate - this guards against an over-correction that accidentally
      * exposes protected endpoints while "fixing" the bootstrap deadlock.
      */
     private const AUTHENTICATED_ROUTES = [
@@ -61,7 +52,7 @@ final class MobileBootstrapRouteTest extends TestCase
         self::assertNotContains(
             JwtAuthMiddleware::class,
             $stack,
-            'FIND-019 regression: POST /api/mobile/v1/devices (pairing) must NOT run JwtAuthMiddleware, '
+            'POST /api/mobile/v1/devices (pairing) must NOT run JwtAuthMiddleware, '
             . 'or a token-less new device is 401d before it can pair.'
         );
     }
@@ -73,7 +64,7 @@ final class MobileBootstrapRouteTest extends TestCase
         self::assertNotContains(
             JwtAuthMiddleware::class,
             $stack,
-            'FIND-019 regression: token-refresh must NOT run JwtAuthMiddleware — it authenticates via '
+            'token-refresh must NOT run JwtAuthMiddleware - it authenticates via '
             . 'the refresh-JWT in the body, and a device with an EXPIRED access token must still refresh.'
         );
     }
@@ -107,7 +98,7 @@ final class MobileBootstrapRouteTest extends TestCase
             self::assertContains(
                 JwtAuthMiddleware::class,
                 $stack,
-                "Authenticated route {$method} {$path} must keep JwtAuthMiddleware — the FIND-019 fix "
+                "Authenticated route {$method} {$path} must keep JwtAuthMiddleware"
                 . 'must not have opened the protected mobile surface.'
             );
         }
@@ -131,8 +122,7 @@ final class MobileBootstrapRouteTest extends TestCase
         self::assertContains(JwtAuthMiddleware::class, $config['mobile'] ?? []);
     }
 
-    // ── helpers ─────────────────────────────────────────────────────────────
-
+    // -- helpers
     /**
      * Resolve the ordered middleware class list that the kernel would execute for a
      * given request, by loading the real route + middleware config and mirroring

@@ -30,7 +30,7 @@ final class LedgerRepository extends BaseRepository
      */
     protected string $table = 'op_ledger_accounts';
 
-    // ——— Accounts ————————————————————————————————————————
+    // --- Accounts ----------------------------------------
 
     /**
      * Finds an existing ledger account or creates one if it does not exist.
@@ -144,7 +144,7 @@ final class LedgerRepository extends BaseRepository
         );
     }
 
-    // ——— Journal Transactions ————————————————————————————
+    // --- Journal Transactions
 
     /**
      * Creates a new ledger transaction (journal header).
@@ -183,7 +183,7 @@ final class LedgerRepository extends BaseRepository
         return (int) $this->db->lastInsertId();
     }
 
-    // ——— Ledger Entries ——————————————————————————————————
+    // --- Ledger Entries
 
     /**
      * Creates a new individual ledger entry line (debit or credit).

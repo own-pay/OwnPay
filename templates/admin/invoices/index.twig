@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Invoices — {{ app_name }}{% endblock %}
+{% block title %}Invoices - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -16,7 +16,7 @@
                 {% for inv in invoices %}
                 <tr>
                     <td data-label="#"><code>{{ inv.invoice_number }}</code></td>
-                    <td data-label="Customer">{{ inv.customer_name ?? '—' }}</td>
+                    <td data-label="Customer">{{ inv.customer_name ?? '-' }}</td>
                     <td data-label="Amount"><strong>{{ inv.currency }} {{ inv.total }}</strong></td>
                     <td data-label="Status"><span class="op-badge op-badge-{{ inv.status == 'paid' ? 'success' : (inv.status == 'overdue' ? 'danger' : 'warning') }}">{{ inv.status }}</span></td>
                     <td data-label="Due Date">{{ inv.due_date }}</td>

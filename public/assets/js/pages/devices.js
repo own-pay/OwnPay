@@ -1,10 +1,10 @@
 /**
- * OwnPay Admin — Devices Page JS
+ * OwnPay Admin - Devices Page JS
  * Handles: tab switching, pairing dialog phases (generate -> QR -> auto "connected"),
  * real-time device status refresh + manual refresh, bulk select.
  *
- * DOM is built with createElement/textContent (never innerHTML) so no value — even a
- * server-provided device name or QR payload — can inject markup.
+ * DOM is built with createElement/textContent (never innerHTML) so no value - even a
+ * server-provided device name or QR payload - can inject markup.
  */
 (function () {
     "use strict";
@@ -14,7 +14,7 @@
     var pollInterval = null;
     var pairingBaseline = null;
 
-    // ─── small DOM helpers (XSS-safe) ─────────────────────────────────────────
+    // --- small DOM helpers (XSS-safe) -----------------------------------------
     function clear(el) { if (el) { el.replaceChildren(); } }
 
     function capitalize(s) {
@@ -77,13 +77,13 @@
         return span;
     }
 
-    // ─── Move modal outside <main> stacking context ───────────────────────────
+    // --- Move modal outside <main> stacking context ---------------------------
     var pairingModal = document.getElementById("pairing-modal");
     if (pairingModal && pairingModal.parentElement !== document.body) {
         document.body.appendChild(pairingModal);
     }
 
-    // ─── Tab Switching ────────────────────────────────────────────────────────
+    // --- Tab Switching --------------------------------------------------------
     document.querySelectorAll(".op-tab").forEach(function (t) {
         t.addEventListener("click", function () {
             document.querySelectorAll(".op-tab, .op-tab-panel").forEach(function (e) {
@@ -103,7 +103,7 @@
         if (hashTab) { hashTab.click(); }
     }
 
-    // ─── Pairing Dialog Phase Management ──────────────────────────────────────
+    // --- Pairing Dialog Phase Management --------------------------------------
     var phase1 = document.getElementById("pairing-phase-1");
     var phase2 = document.getElementById("pairing-phase-2");
     var phase3 = document.getElementById("pairing-phase-3");
@@ -145,7 +145,7 @@
         observer.observe(pairingModal, { attributes: true });
     }
 
-    // ─── Pairing detection poll (auto "device connected") ─────────────────────
+    // --- Pairing detection poll (auto "device connected") ---------------------
     function showConnected(deviceName) {
         if (timerInterval) { clearInterval(timerInterval); timerInterval = null; }
         stopPairingPoll();
@@ -161,13 +161,13 @@
         fetch("/admin/devices/pairing-status?since=" + encodeURIComponent(pairingBaseline), {
             headers: { "Accept": "application/json" }
         })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            if (data && data.connected) {
-                showConnected(data.device_name);
-            }
-        })
-        .catch(function () { /* transient network error — keep polling */ });
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data && data.connected) {
+                    showConnected(data.device_name);
+                }
+            })
+            .catch(function () { /* transient network error - keep polling */ });
     }
 
     function startPairingPoll() {
@@ -176,7 +176,7 @@
         pollInterval = setInterval(checkPairing, 3000);
     }
 
-    // ─── Generate / Regenerate OTP & QR Code ─────────────────────────────────
+    // --- Generate / Regenerate OTP & QR Code ---------------------------------
     function fetchNewCode(btn) {
         var btnText = btn.querySelector("span") || btn;
         var originalText = btnText.textContent;
@@ -188,54 +188,54 @@
             headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
             body: "{}"
         })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            if (data.success) {
-                if (data.csrf_token) { csrf = data.csrf_token; }
-                pairingBaseline = data.generated_at || null;
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data.success) {
+                    if (data.csrf_token) { csrf = data.csrf_token; }
+                    pairingBaseline = data.generated_at || null;
 
-                var otpEl = document.getElementById("otp-value");
-                var timerEl = document.getElementById("otp-timer");
-                var qrContainer = document.getElementById("qr-container");
-                var waiting = document.getElementById("pairing-waiting");
+                    var otpEl = document.getElementById("otp-value");
+                    var timerEl = document.getElementById("otp-timer");
+                    var qrContainer = document.getElementById("qr-container");
+                    var waiting = document.getElementById("pairing-waiting");
 
-                otpEl.textContent = data.otp;
-                otpEl.style.color = "";
+                    otpEl.textContent = data.otp;
+                    otpEl.style.color = "";
 
-                renderQr(qrContainer, data.qr_svg);
+                    renderQr(qrContainer, data.qr_svg);
 
-                if (phase1) { phase1.classList.add("op-d-none"); }
-                if (phase3) { phase3.classList.add("op-d-none"); }
-                if (phase2) { phase2.classList.remove("op-d-none"); }
-                if (waiting) { waiting.classList.remove("op-d-none"); }
+                    if (phase1) { phase1.classList.add("op-d-none"); }
+                    if (phase3) { phase3.classList.add("op-d-none"); }
+                    if (phase2) { phase2.classList.remove("op-d-none"); }
+                    if (waiting) { waiting.classList.remove("op-d-none"); }
 
-                if (timerInterval) { clearInterval(timerInterval); }
-                var secs = data.expires_in || 300;
-                var tick = function () {
-                    var m = Math.floor(secs / 60);
-                    var s = secs % 60;
-                    timerEl.textContent = m + ":" + String(s).padStart(2, "0");
-                    if (--secs < 0) {
-                        clearInterval(timerInterval);
-                        stopPairingPoll();
-                        otpEl.textContent = "EXPIRED";
-                        otpEl.style.color = "var(--op-danger)";
-                        timerEl.textContent = "";
-                        setPlaceholder(qrContainer, "Expired", true);
-                        if (waiting) { waiting.classList.add("op-d-none"); }
-                    }
-                };
-                tick();
-                timerInterval = setInterval(tick, 1000);
+                    if (timerInterval) { clearInterval(timerInterval); }
+                    var secs = data.expires_in || 300;
+                    var tick = function () {
+                        var m = Math.floor(secs / 60);
+                        var s = secs % 60;
+                        timerEl.textContent = m + ":" + String(s).padStart(2, "0");
+                        if (--secs < 0) {
+                            clearInterval(timerInterval);
+                            stopPairingPoll();
+                            otpEl.textContent = "EXPIRED";
+                            otpEl.style.color = "var(--op-danger)";
+                            timerEl.textContent = "";
+                            setPlaceholder(qrContainer, "Expired", true);
+                            if (waiting) { waiting.classList.add("op-d-none"); }
+                        }
+                    };
+                    tick();
+                    timerInterval = setInterval(tick, 1000);
 
-                // Start watching for the device to finish pairing.
-                startPairingPoll();
-            } else {
-                alert("Error: " + (data.error || "Unknown error"));
-            }
-        })
-        .catch(function () { alert("Network error"); })
-        .finally(function () { btn.disabled = false; btnText.textContent = originalText; });
+                    // Start watching for the device to finish pairing.
+                    startPairingPoll();
+                } else {
+                    alert("Error: " + (data.error || "Unknown error"));
+                }
+            })
+            .catch(function () { alert("Network error"); })
+            .finally(function () { btn.disabled = false; btnText.textContent = originalText; });
     }
 
     var genOtpBtn = document.getElementById("gen-otp-btn");
@@ -248,13 +248,13 @@
         regenBtn.addEventListener("click", function () { fetchNewCode(this); });
     }
 
-    // Phase 3 "Done" — reload so the new device appears in the table (authoritative render).
+    // Phase 3 "Done" - reload so the new device appears in the table (authoritative render).
     var finishBtn = document.getElementById("pairing-finish-btn");
     if (finishBtn) {
         finishBtn.addEventListener("click", function () { window.location.reload(); });
     }
 
-    // ─── Bulk Device Select ───────────────────────────────────────────────────
+    // --- Bulk Device Select ---------------------------------------------------
     var selectAll = document.getElementById("select-all");
     if (selectAll) {
         var updateBulkBtn = function () {
@@ -278,7 +278,7 @@
         });
     }
 
-    // ─── Live device status refresh ───────────────────────────────────────────
+    // --- Live device status refresh -------------------------------------------
     function relativeTime(raw) {
         if (!raw) { return "Never"; }
         var t = Date.parse(String(raw).replace(" ", "T"));
@@ -327,15 +327,15 @@
     function refreshStatuses(manual) {
         if (refreshBtn && manual) { refreshBtn.classList.add("op-spin"); }
         fetch("/admin/devices/statuses", { headers: { "Accept": "application/json" } })
-        .then(function (r) { return r.json(); })
-        .then(function (data) {
-            if (data && data.success && Array.isArray(data.devices)) {
-                applyStatuses(data.devices);
-                if (refreshHint) { refreshHint.textContent = "Updated just now"; }
-            }
-        })
-        .catch(function () { /* keep last-known state on transient error */ })
-        .finally(function () { if (refreshBtn) { refreshBtn.classList.remove("op-spin"); } });
+            .then(function (r) { return r.json(); })
+            .then(function (data) {
+                if (data && data.success && Array.isArray(data.devices)) {
+                    applyStatuses(data.devices);
+                    if (refreshHint) { refreshHint.textContent = "Updated just now"; }
+                }
+            })
+            .catch(function () { /* keep last-known state on transient error */ })
+            .finally(function () { if (refreshBtn) { refreshBtn.classList.remove("op-spin"); } });
     }
 
     if (refreshBtn) {

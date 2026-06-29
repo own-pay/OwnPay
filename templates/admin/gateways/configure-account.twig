@@ -1,12 +1,12 @@
 {% extends 'admin/layout/base.twig' %}
 
-{% block title %}Configure {{ template.name }} — {{ app_name }}{% endblock %}
+{% block title %}Configure {{ template.name }} - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
     <div>
         <h1>Configure account: {{ template.name }}</h1>
-        <p class="op-page-subtitle">Set the account your customers pay to for this gateway. The gateway type is defined by All Brands — you control only your own payment details.</p>
+        <p class="op-page-subtitle">Set the account your customers pay to for this gateway. The gateway type is defined by All Brands - you control only your own payment details.</p>
     </div>
     <a href="/admin/gateways" class="op-btn op-btn-outline">← Back</a>
 </div>
@@ -26,7 +26,7 @@
             <div class="op-form-group">
                 <label for="instructions">Payment Instructions / Account *</label>
                 <textarea id="instructions" name="instructions" rows="4" class="op-input" required placeholder="e.g. Send money to 01XXXXXXXXX (Personal)">{{ instructions_text }}</textarea>
-                <small>Shown to your customers at checkout — include the number/account they must send money to. One step per line.</small>
+                <small>Shown to your customers at checkout - include the number/account they must send money to. One step per line.</small>
                 {% if template_instructions_text %}
                 <small class="op-text-muted">Platform default: {{ template_instructions_text }}</small>
                 {% endif %}

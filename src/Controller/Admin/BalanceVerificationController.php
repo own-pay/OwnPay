@@ -116,7 +116,7 @@ final class BalanceVerificationController
         try {
             $result = $this->recon->reconcile($mid, $currency);
             $this->session->flashSuccess(sprintf(
-                'Verification complete — %s: Expected %.2f, Actual %.2f',
+                'Verification complete - %s: Expected %.2f, Actual %.2f',
                 $currency,
                 (float) $result['expected_balance'],
                 (float) $result['ledger_balance']

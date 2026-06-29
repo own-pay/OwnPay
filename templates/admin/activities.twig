@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Activity Log — {{ app_name }}{% endblock %}
+{% block title %}Activity Log - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -22,11 +22,11 @@
             <tbody>
                 {% for log in logs %}
                 <tr>
-                    <td data-label="Time" class="op-text-sm op-text-muted" style="white-space:nowrap">{{ log.created_at is defined and log.created_at ? log.created_at|date('M d, H:i') : '—' }}</td>
+                    <td data-label="Time" class="op-text-sm op-text-muted" style="white-space:nowrap">{{ log.created_at is defined and log.created_at ? log.created_at|date('M d, H:i') : '-' }}</td>
                     <td data-label="User">{{ log.user_name ?? 'System' }}</td>
                     <td data-label="Action"><span class="op-badge op-badge-{{ log.action starts with 'delete' ? 'danger' : (log.action starts with 'create' ? 'success' : (log.action starts with 'update' ? 'warning' : 'muted')) }}">{{ log.action }}</span></td>
                     <td data-label="Entity" class="op-text-sm">{{ log.entity_type ?? '' }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}</td>
-                    <td data-label="IP" class="op-text-sm op-text-muted">{{ log.ip_address ?? '—' }}</td>
+                    <td data-label="IP" class="op-text-sm op-text-muted">{{ log.ip_address ?? '-' }}</td>
                     <td data-label="Details" class="op-text-right">
                         <button type="button" class="op-btn op-btn-xs op-btn-outline" data-open-detail-modal="/admin/activities/{{ log.id }}/details" data-modal-title="Activity Details">View</button>
                     </td>

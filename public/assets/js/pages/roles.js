@@ -1,5 +1,5 @@
 /**
- * OwnPay Admin — Roles & Permissions Page JS
+ * OwnPay Admin - Roles & Permissions Page JS
  * Handles: edit role modal, permission group toggle.
  */
 (function () {
@@ -33,7 +33,7 @@
     if (!document.opRolesClickRegistered) {
         document.opRolesClickRegistered = true;
         document.addEventListener("click", function (e) {
-            if (!e.target) {return;}
+            if (!e.target) { return; }
             var btn = e.target.closest(".btn-edit-role");
             if (btn) {
                 try {

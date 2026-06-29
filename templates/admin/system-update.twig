@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}System Update — {{ app_name }}{% endblock %}
+{% block title %}System Update - {{ app_name }}{% endblock %}
 
 {% block head %}
     <link rel="stylesheet" href="/assets/css/pages/system-update.css?v=018">
@@ -71,11 +71,11 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     ROW 1 — HERO: Primary Action + Version History
+     ROW 1 - HERO: Primary Action + Version History
      Magazine-style editorial layout with 60/40 split
      ═══════════════════════════════════════════════════════════ -->
 <div class="op-update-hero-row op-mt-4">
-    <!-- LEFT: Pre-Flight + Upgrade (Hero Card — elevated prominence) -->
+    <!-- LEFT: Pre-Flight + Upgrade (Hero Card - elevated prominence) -->
     <div class="op-hero-primary">
         <div class="op-card op-premium-card op-card-featured">
             <div class="op-card-header op-flex op-justify-between op-items-center">
@@ -328,7 +328,7 @@
                                                 {{ (entry.duration / 60)|round(0, 'floor') }}m {{ entry.duration % 60 }}s
                                             {% endif %}
                                         {% else %}
-                                            —
+                                            -
                                         {% endif %}
                                     </span>
                                 </div>
@@ -355,7 +355,7 @@
 </div>
 
 <!-- ═══════════════════════════════════════════════════════════
-     ROW 2 — INFO: System Diagnostics + Updater Policies
+     ROW 2 - INFO: System Diagnostics + Updater Policies
      Compact horizontal telemetry strip with side-by-side policies
      ═══════════════════════════════════════════════════════════ -->
 <div class="op-update-info-row op-mt-4">

@@ -11,7 +11,7 @@ use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 
 /**
- * Telegram Bot Addon — transaction alerts + commands.
+ * Telegram Bot Addon - transaction alerts + commands.
  * senior-security: Bot token stored in DB, never logged.
  */
 final class Plugin implements PluginInterface
@@ -140,7 +140,7 @@ final class Plugin implements PluginInterface
     }
 
     /**
-     * Webhook handler — /plugins/telegram-bot/webhook
+     * Webhook handler - /plugins/telegram-bot/webhook
      */
     public function handleWebhook(Request $req): Response
     {
@@ -285,17 +285,17 @@ final class Plugin implements PluginInterface
             case $data === 'cmd_help':
             default:
                 $result = [
-                    'text' => "🤖 *OwnPay Bot — Help Menu*\n\n"
+                    'text' => "🤖 *OwnPay Bot - Help Menu*\n\n"
                         . "Here are the advanced commands you can execute:\n\n"
-                        . "📊 `/today` — Today's financial metrics\n"
-                        . "📋 `/recent` — Last 5 transactions status\n"
-                        . "🔍 `/status <OP-ID>` — Search transaction status\n"
-                        . "🔗 `/createlink <amount> <currency> <title>` — Generate pay link\n"
-                        . "📄 `/createinvoice <email> <amount> <currency> <desc>` — Dynamic invoice\n"
-                        . "👤 `/customers` — Customer stats & list\n"
-                        . "🚨 `/disputes` — Open disputes summary\n"
-                        . "💸 `/refunds` — Recent processed refunds\n"
-                        . "🏦 `/gateways` — Real-time gateway status",
+                        . "📊 `/today` - Today's financial metrics\n"
+                        . "📋 `/recent` - Last 5 transactions status\n"
+                        . "🔍 `/status <OP-ID>` - Search transaction status\n"
+                        . "🔗 `/createlink <amount> <currency> <title>` - Generate pay link\n"
+                        . "📄 `/createinvoice <email> <amount> <currency> <desc>` - Dynamic invoice\n"
+                        . "👤 `/customers` - Customer stats & list\n"
+                        . "🚨 `/disputes` - Open disputes summary\n"
+                        . "💸 `/refunds` - Recent processed refunds\n"
+                        . "🏦 `/gateways` - Real-time gateway status",
                     'keyboard' => $this->startKeyboard()
                 ];
                 break;
@@ -900,7 +900,7 @@ final class Plugin implements PluginInterface
             $currency = is_scalar($t['currency'] ?? null) ? (string) $t['currency'] : '';
             $amount = is_scalar($t['amount'] ?? null) ? (string) $t['amount'] : '';
 
-            $lines[] = "{$icon} `{$trxId}` — {$currency} {$amount}";
+            $lines[] = "{$icon} `{$trxId}` - {$currency} {$amount}";
 
             $buttons[] = [
                 ['text' => "🔍 Details: {$trxId}", 'callback_data' => "txn_details:{$trxId}"]
@@ -1043,7 +1043,7 @@ final class Plugin implements PluginInterface
                 $reason = is_scalar($d['reason'] ?? null) ? (string)$d['reason'] : 'None';
 
                 $icon = $status === 'open' ? '🔴' : ($status === 'under_review' ? '🟡' : '⚪');
-                $lines[] = "{$icon} `{$trxId}` — *{$currency} {$amount}* ({$status})\n   _Reason_: {$reason}";
+                $lines[] = "{$icon} `{$trxId}` - *{$currency} {$amount}* ({$status})\n   _Reason_: {$reason}";
             }
         }
 
@@ -1103,7 +1103,7 @@ final class Plugin implements PluginInterface
                 $reason = is_scalar($r['reason'] ?? null) ? (string)$r['reason'] : 'None';
 
                 $icon = $status === 'completed' ? '✅' : ($status === 'pending' ? '⏳' : '❌');
-                $lines[] = "{$icon} `{$trxId}` — *{$currency} {$amount}* ({$status})\n   _Reason_: {$reason}";
+                $lines[] = "{$icon} `{$trxId}` - *{$currency} {$amount}* ({$status})\n   _Reason_: {$reason}";
             }
         }
 

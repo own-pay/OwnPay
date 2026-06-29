@@ -2,17 +2,17 @@
 declare(strict_types=1);
 
 /**
- * System event hooks map — the authoritative catalogue of action/filter hooks a plugin can bind.
+ * System event hooks map - the authoritative catalogue of action/filter hooks a plugin can bind.
  *
  * Every entry below corresponds to a REAL fire site in the codebase (verified against
  * EventManager::doAction / applyFilter calls and the Twig `hook()` / `hookFilter()` helpers).
- * Keep this file in sync when adding or renaming a hook — it is the developer-facing contract.
+ * Keep this file in sync when adding or renaming a hook - it is the developer-facing contract.
  *
  * Semantics:
  *  - 'action' hooks are fire-and-forget: bind with $events->addAction($hook, $cb, $priority).
  *  - 'filter' hooks transform and return a value: bind with $events->addFilter($hook, $cb, $priority).
  *  - Hooks whose location is a *.twig template are dispatched via the `hook()` Twig helper, which
- *    buffers and sanitises whatever the listener echoes — use them to inject markup (menus, head/
+ *    buffers and sanitises whatever the listener echoes - use them to inject markup (menus, head/
  *    footer assets, settings-tab panels).
  *  - The unified webhook controller additionally dispatches a per-gateway dynamic action named
  *    "gateway.webhook.{slug}" (e.g. "gateway.webhook.stripe") when an inbound webhook is verified.
@@ -44,7 +44,7 @@ return [
     'auth.logout'                       => ['type' => 'action', 'location' => 'AuthController, AuthSessionService'],
     'auth.forgot_password'              => ['type' => 'action', 'location' => 'AuthController'],
 
-    // Admin panel (templates dispatch via the Twig hook() helper — echo markup to inject)
+    // Admin panel (templates dispatch via the Twig hook() helper - echo markup to inject)
     'admin.head'                        => ['type' => 'action', 'location' => 'admin/layout/base.twig <head>'],
     'admin.footer'                      => ['type' => 'action', 'location' => 'admin/layout/base.twig </body>'],
     'admin.menu.register'               => ['type' => 'action', 'location' => 'admin/layout/sidebar.twig'],

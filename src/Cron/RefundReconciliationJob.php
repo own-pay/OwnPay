@@ -14,7 +14,7 @@ use OwnPay\Service\System\Logger;
  * Reconciles refunds stuck in 'pending'. RefundService executes refunds in
  * three phases (prepare → gateway call → reconcile); if the process dies
  * between the gateway call and the reconcile phase, the refund record stays
- * 'pending' forever — and pending refunds withhold the merchant's available
+ * 'pending' forever - and pending refunds withhold the merchant's available
  * ledger balance. Gateway adapters expose no refund-status query, so after a
  * conservative 24h window the refund is marked 'failed': funds-conservative,
  * because failing releases the withheld balance and the merchant can retry,
@@ -100,8 +100,6 @@ final class RefundReconciliationJob
             $merchantId = (int) $refund['merchant_id'];
 
             try {
-                // Re-check under a row lock: a delayed RefundService phase 3
-                // may be completing this exact refund concurrently.
                 $transitioned = $this->db->transaction(function () use ($refundId): bool {
                     $locked = $this->db->fetchOne(
                         "SELECT status FROM op_refunds WHERE id = :id LIMIT 1 FOR UPDATE",

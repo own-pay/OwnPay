@@ -93,8 +93,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $adapter->method('slug')->willReturn('stripe');
         $adapter->method('initiate')->willReturn(['success' => true, 'redirect_url' => 'https://stripe.com/checkout']);
         $adapter->method('supportedCurrencies')->willReturn(['BDT', 'USD']);
-        // A legitimate gateway callback reports the provider-verified paid amount;
-        // the core now requires it to match the stored transaction (FIND-004).
         $adapter->method('verify')->willReturn(['success' => true, 'gateway_trx_id' => 'GW_TRX_123', 'amount' => '100.00']);
         $adapter->method('refund')->willReturn(['success' => true]);
         
@@ -178,11 +176,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $this->assertSame('5.00', bcadd($feeAcc['balance'], '0', 2));
     }
 
-    /**
-     * FIND-004 regression: a callback whose provider-verified amount does NOT match
-     * the stored transaction must never complete the payment or post to the ledger.
-     * This is the core backstop against forged/replayed gateway confirmations.
-     */
     public function testCallbackWithMismatchedAmountIsRejected(): void
     {
         // Adapter that reports success but an amount that differs from the order.

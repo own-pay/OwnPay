@@ -51,7 +51,7 @@ abstract class BaseRepository
         $this->db = $db;
     }
 
-    // ——— Read ——————————————————————————————————————————————————
+    // --- Read --------------------------------------------------
 
     /**
      * Retrieves a single record by primary key value.
@@ -213,7 +213,7 @@ abstract class BaseRepository
         ];
     }
 
-    // ——— Write —————————————————————————————————————————————————
+    // --- Write
 
     /**
      * Inserts a new record into the database table, filtering out non-fillable columns.
@@ -275,7 +275,7 @@ abstract class BaseRepository
         );
     }
 
-    // ——— Helpers ———————————————————————————————————————————————
+    // --- Helpers
 
     /**
      * Returns the underlying database connection adapter.

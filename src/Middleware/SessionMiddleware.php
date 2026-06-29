@@ -82,11 +82,11 @@ final class SessionMiddleware
         session_name('op_session');
         session_start();
 
-        // Explicit idle timeout — prevents indefinite sessions when PHP gc_maxlifetime differs.
+        // Explicit idle timeout - prevents indefinite sessions when PHP gc_maxlifetime differs.
         if (isset($_SESSION['_last_activity']) && (is_int($_SESSION['_last_activity']) || is_numeric($_SESSION['_last_activity']))) {
             $lastActivity = (int) $_SESSION['_last_activity'];
             if (time() - $lastActivity > $sessionLifetime) {
-                // Session expired — destroy and redirect to login
+                // Session expired - destroy and redirect to login
                 $_SESSION = [];
                 session_destroy();
                 session_start();

@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Customer {{ customer.name }} — {{ app_name }}{% endblock %}
+{% block title %}Customer {{ customer.name }} - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -17,8 +17,8 @@
         <div class="op-card-body">
             <dl class="op-dl">
                 <dt>ID</dt><dd><code>{{ customer.id }}</code></dd>
-                <dt>Email</dt><dd>{{ customer.email ?? '—' }}</dd>
-                <dt>Phone</dt><dd>{{ customer.phone ?? '—' }}</dd>
+                <dt>Email</dt><dd>{{ customer.email ?? '-' }}</dd>
+                <dt>Phone</dt><dd>{{ customer.phone ?? '-' }}</dd>
                 <dt>Joined</dt><dd>{{ customer.created_at|date("M d, Y H:i") }}</dd>
             </dl>
         </div>

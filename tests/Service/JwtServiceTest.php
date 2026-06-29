@@ -18,7 +18,7 @@ class JwtServiceTest extends TestCase
         $this->jwt = new JwtService($this->secret);
     }
 
-    // ─── Encoding ────────────────────────────────────────────────
+    // --- Encoding ------------------------------------------------
 
     public function testEncodeReturnsTokenAndExpiry(): void
     {
@@ -39,7 +39,7 @@ class JwtServiceTest extends TestCase
         $this->assertGreaterThan(time(), $result['expires_at']);
     }
 
-    // ─── Decoding ────────────────────────────────────────────────
+    // --- Decoding ------------------------------------------------
 
     public function testDecodeValidToken(): void
     {
@@ -89,7 +89,7 @@ class JwtServiceTest extends TestCase
         $this->assertFalse($result['valid']);
     }
 
-    // ─── Device UUID Extraction ──────────────────────────────────
+    // --- Device UUID Extraction ----------------------------------
 
     public function testExtractDeviceUuidFromValidSub(): void
     {
@@ -104,7 +104,7 @@ class JwtServiceTest extends TestCase
         $this->assertNull($this->jwt->extractDeviceUuid(''));
     }
 
-    // ─── Secret Generation ───────────────────────────────────────
+    // --- Secret Generation ---------------------------------------
 
     public function testGenerateSecretReturns64HexChars(): void
     {

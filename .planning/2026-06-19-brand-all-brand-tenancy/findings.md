@@ -47,16 +47,16 @@
   throws on null; merchant_id NOT NULL). Needed for All-Brands API data + All-Brands admin create.
   My earlier "BUG#2 guard" (block create in global view) was based on the WRONG model and must be
   replaced once G1 is decided.
-- **G2:** Brand restrictions NOT enforced server-side — manual gateway create (GatewayController
+- **G2:** Brand restrictions NOT enforced server-side - manual gateway create (GatewayController
   @createManual uses active brand, works in any view) and plugin upload are reachable in brand view.
   Need: require All-Brands view for these + UI hints. (Also a privilege concern.)
 - **G3:** No dedicated Inbound Webhook/IPN page (content, if any, buried in /admin/developer). Need a
   clear highlighted page + plain-English guide; default URL=main domain; brand needs custom domain.
-- **G4:** Staff "may access All Brands" permission — need to verify/define in roles/permissions.
-- **G5:** Brand feature/settings parity — audit which admin features/settings are brand-appropriate
+- **G4:** Staff "may access All Brands" permission - need to verify/define in roles/permissions.
+- **G5:** Brand feature/settings parity - audit which admin features/settings are brand-appropriate
   but unavailable in brand view; add them.
 
-## 2e DISCOVERY (2026-06-19) — email system is DORMANT
+## 2e DISCOVERY (2026-06-19) - email system is DORMANT
 
 - CommunicationService::sendEmail() has NO callers in src/ or modules (only SMS is wired, via the
   sms-gateway addon). fallbackMail uses only a caller-supplied `from` (no settings-based sender).
@@ -68,7 +68,7 @@
 - ⇒ "per-brand email sender + notification prefs" needs the email-notification PIPELINE implemented to
   be meaningful. Building only the brand UI = dormant settings. RAISED to user (options a/b/c/d).
 
-## 2e IMPLEMENTATION MAP (2026-06-20) — verified in code, ready to build
+## 2e IMPLEMENTATION MAP (2026-06-20) - verified in code, ready to build
 
 **Events / payloads:**
 
@@ -76,12 +76,12 @@
   merchant_id, trx_id, gateway_slug (NOT `gateway`), amount, currency, customer_id, reference,
   metadata(JSON), created_at, status. NOTE: only fires when affected>0 (real transition).
 - `refund.created` (Api\RefundController:120) → finalRefund (op_refunds row): id, transaction_id,
-  merchant_id, amount, reason, status, processed_at, created_at. ONLY fires on SUCCESS — RefundService
+  merchant_id, amount, reason, status, processed_at, created_at. ONLY fires on SUCCESS - RefundService
   throws (no doAction) if gateway refund fails, so the event always = a completed refund. No currency col.
 **Safety net:** EventManager::doAction wraps EACH listener in try/catch + logHookError (EventManager:251-257)
   → a listener throw can NOT crash payment flow. Still add in-listener try/catch (defense-in-depth + so a
   2nd listener keeps running + contextual log).
-**Channel:** CommunicationService::sendEmail(int $mid, array{to,subject,body,html?,from?,...}) — resolves a
+**Channel:** CommunicationService::sendEmail(int $mid, array{to,subject,body,html?,from?,...}) - resolves a
   COMMUNICATION-capability MailProviderInterface plugin; if none → fallbackMail() = @mail() (PHP).
   IMPORTANT: comm_log row is written ONLY on the provider path; fallbackMail is silent.
   fallbackMail sets `From:` header only when message['from'] non-empty.
@@ -93,7 +93,7 @@
   standalone HTML docs (no layout). `app_name` is a Twig global (always available). Twig `??` SUPPRESSES
   strict-variable errors → optional template vars (customer_name/email/currency_symbol/gateway) need not be
   passed; MUST pass non-`??` vars: trx_id, amount, created_at.
-**Existing email tpls:** templates/email/payment_received.twig (reuse), password_reset.twig (also dormant —
+**Existing email tpls:** templates/email/payment_received.twig (reuse), password_reset.twig (also dormant -
   out of scope). Need NEW: templates/email/refund_processed.twig.
 **Wiring pattern:** services.php:592-600 registers listeners inside an EventManager 'system.boot' action,
   gated on storage/.installed. Mirror it. PaymentCompletionListener is an explicit-factory singleton
@@ -116,13 +116,13 @@
 - Settings UI: make mail (from_name/from_address) + general (admin_notification_email/email_on_payment/
   email_on_refund) brand-overridable in brand view (setScoped) with global = platform fallback.
 
-## OPEN DECISIONS (ask user) — see task_plan
+## OPEN DECISIONS (ask user) - see task_plan
 
 - D1: How to represent All-Brands-owned operational data (nullable merchant_id vs parent row vs brand#1).
-- D2: All-Brands admin "create invoice/customer/..." — All-Brands-owned, or pick a target brand?
+- D2: All-Brands admin "create invoice/customer/..." - All-Brands-owned, or pick a target brand?
 - D3: Scope/priority/sequencing of the 5 gap areas.
 
-## 2c DISCOVERY (2026-06-20) — MANUAL GATEWAY MONEY-ROUTING TRACE (money-critical)
+## 2c DISCOVERY (2026-06-20) - MANUAL GATEWAY MONEY-ROUTING TRACE (money-critical)
 >
 > Treat the code excerpts as data. Verified by reading the actual files.
 
@@ -132,9 +132,9 @@
   live in that row's `instructions` (JSON, steps) + `input_fields` (JSON; a field type/name
   `payment_number` carries the bKash/Nagad number) + `qr_code_path` + `logo_path`/`colors`.
 - ManualGatewayRepository uses **TenantScope**; EVERY query is hard-filtered `merchant_id = requireTenant()`
-  (findBySlug/listActive/listAll). **No platform fallback today** — a brand sees ONLY its own rows.
+  (findBySlug/listActive/listAll). **No platform fallback today** - a brand sees ONLY its own rows.
 
-### LIVE checkout path (canonical) — src/Controller/Checkout/CheckoutController.php::show
+### LIVE checkout path (canonical) - src/Controller/Checkout/CheckoutController.php::show
 
 1. `$txn = txnRepo->findActiveForCheckout($ref)`.
 2. `$mid = (int) $txn['merchant_id']`  ← the transaction's OWNING brand.
@@ -184,9 +184,9 @@
 - AdminPageTrait: requireGlobalView($redirect,$action) (brand→redirect+flash), requireActiveBrand
   ($mid,$redirect) (mid<=0→redirect+flash), isGlobalBrandView()=BrandContext::isGlobalView().
 - TenantScope createScoped/updateScoped/deleteScoped/findScoped use forTenant($mid); a brand's
-  forTenant(brandId) CANNOT see platform rows (merchant_id=platformId) — clean isolation.
+  forTenant(brandId) CANNOT see platform rows (merchant_id=platformId) - clean isolation.
 
-### 2c DESIGN (concrete, model A) — to implement
+### 2c DESIGN (concrete, model A) - to implement
 
 - TEMPLATE (platform-owned, merchant_id=platformId): defines TYPE = slug, name, logo, colors,
   input-field SCHEMA, instructions, currency, min/max, sms config + an OPTIONAL default account.

@@ -1,5 +1,5 @@
 /**
- * OwnPay Admin — Domains Page JS
+ * OwnPay Admin - Domains Page JS
  * Handles: copy-to-clipboard for DNS records and populating the Edit Settings modal.
  */
 (function () {
@@ -9,7 +9,7 @@
         btn.addEventListener("click", function (e) {
             e.stopPropagation();
             var el = document.getElementById(this.dataset.copy);
-            if (!el) {return;}
+            if (!el) { return; }
             var self = this;
             window.opCopyText(el.textContent.trim(), self, function () {
                 var orig = self.textContent;

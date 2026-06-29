@@ -7,7 +7,7 @@ namespace OwnPay\View;
  * Self-contained renderer for last-resort error pages.
  *
  * These pages are served when the normal rendering stack (Twig, database,
- * sometimes the DI container itself) may be unavailable — fatal boot errors,
+ * sometimes the DI container itself) may be unavailable - fatal boot errors,
  * database outages, template failures. They are therefore intentionally
  * dependency-free inline HTML: this class must never touch Twig, the database,
  * or any service that could re-trigger the failure being reported.
@@ -18,7 +18,7 @@ namespace OwnPay\View;
 final class ErrorPageRenderer
 {
     /**
-     * Production 500 page — used when Twig is unavailable.
+     * Production 500 page - used when Twig is unavailable.
      *
      * @return string Complete HTML document.
      */
@@ -30,10 +30,14 @@ final class ErrorPageRenderer
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Server Error — OwnPay</title>
+    <title>Server Error - OwnPay</title>
     <style>
-        *{margin:0;padding:0;box-sizing:border-box}
-        body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}
+        *{
+            margin:0;
+            padding:0;
+            box-sizing:border-box}
+        body{
+            font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}
         .c{text-align:center;max-width:480px;padding:2rem}
         .icon{width:80px;height:80px;margin:0 auto 1.5rem;border-radius:50%;background:rgba(239,68,68,.15);display:flex;align-items:center;justify-content:center}
         .icon svg{width:40px;height:40px;color:#ef4444}
@@ -43,7 +47,7 @@ final class ErrorPageRenderer
         .btn{display:inline-block;padding:.7rem 1.5rem;background:linear-gradient(135deg,#3b82f6,#6366f1);color:#fff;text-decoration:none;border-radius:.5rem;font-weight:500;font-size:.9rem;transition:all .2s;border:none;cursor:pointer}
         .btn:hover{transform:translateY(-1px);box-shadow:0 4px 12px rgba(99,102,241,.4)}
         .footer{margin-top:2rem;font-size:.75rem;color:#475569}
-    </style>
+        </style>
 </head>
 <body>
     <div class="c">
@@ -73,16 +77,71 @@ HTML;
         return <<<'HTML'
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Service Unavailable — OwnPay</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}.c{text-align:center;max-width:480px;padding:2rem}.code{font-size:4rem;font-weight:800;background:linear-gradient(135deg,#f59e0b,#f97316);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.75rem}h1{font-size:1.25rem;font-weight:600;margin-bottom:.5rem;color:#f1f5f9}p{color:#94a3b8;line-height:1.6;font-size:.9rem}</style>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Service Unavailable - OwnPay</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Inter', sans-serif;
+            background: #0f172a;
+            color: #e2e8f0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh
+        }
+
+        .c {
+            text-align: center;
+            max-width: 480px;
+            padding: 2rem
+        }
+
+        .code {
+            font-size: 4rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #f59e0b, #f97316);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            line-height: 1;
+            margin-bottom: .75rem
+        }
+
+        h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            margin-bottom: .5rem;
+            color: #f1f5f9
+        }
+
+        p {
+            color: #94a3b8;
+            line-height: 1.6;
+            font-size: .9rem
+        }
+    </style>
 </head>
-<body><div class="c"><div class="code">503</div><h1>Service Temporarily Unavailable</h1><p>We are experiencing heavy load right now. Please try again in a moment.</p></div></body>
+<body>
+    <div class="c">
+        <div class="code">503</div>
+        <h1>Service Temporarily Unavailable</h1>
+        <p>We are experiencing heavy load right now. Please try again in a moment.</p>
+    </div>
+</body>
 </html>
 HTML;
     }
 
     /**
-     * 503 maintenance page — used when the Twig maintenance template fails.
+     * 503 maintenance page - used when the Twig maintenance template fails.
      *
      * @param string $reason Operator-supplied maintenance reason (escaped here).
      * @return string Complete HTML document.
@@ -93,16 +152,28 @@ HTML;
         return <<<HTML
 <!DOCTYPE html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Maintenance — OwnPay</title>
-<style>*{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}.c{text-align:center;max-width:480px;padding:2rem}.code{font-size:4rem;font-weight:800;background:linear-gradient(135deg,#0ea5e9,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.75rem}h1{font-size:1.25rem;font-weight:600;margin-bottom:.5rem;color:#f1f5f9}p{color:#94a3b8;line-height:1.6;font-size:.9rem}</style>
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance - OwnPay</title>
+    <style>
+    *{margin:0;padding:0;box-sizing:border-box}body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}.c{text-align:center;max-width:480px;padding:2rem}.code{font-size:4rem;font-weight:800;background:linear-gradient(135deg,#0ea5e9,#6366f1);-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;line-height:1;margin-bottom:.75rem}h1{font-size:1.25rem;font-weight:600;margin-bottom:.5rem;color:#f1f5f9}p{color:#94a3b8;line-height:1.6;font-size:.9rem
+    }
+    </style>
 </head>
-<body><div class="c"><div class="code">503</div><h1>Maintenance In Progress</h1><p>{$safeReason}</p></div></body>
+<body>
+    <div class="c">
+        <div class="code">503</div>
+        <h1>Maintenance In Progress</h1>
+        <p>{$safeReason}</p>
+    </div>
+</body>
 </html>
 HTML;
     }
 
     /**
-     * Styled debug error page — shows sanitized details for developers.
+     * Styled debug error page - shows sanitized details for developers.
      *
      * Only rendered when APP_DEBUG=true. Paths are made relative and the
      * message is scrubbed of absolute paths and credential fragments.
@@ -118,7 +189,7 @@ HTML;
         $file = htmlspecialchars(str_replace($rootDir, '.', $e->getFile()), ENT_QUOTES, 'UTF-8');
         $line = $e->getLine();
 
-        // Sanitize trace — make paths relative, strip args
+        // Sanitize trace - make paths relative, strip args
         $traceLines = '';
         foreach ($e->getTrace() as $i => $frame) {
             $fPath = isset($frame['file']) ? str_replace($rootDir, '.', $frame['file']) : '[internal]';
@@ -142,7 +213,7 @@ HTML;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Debug — {$class}</title>
+    <title>Debug - {$class}</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:'JetBrains Mono',monospace,-apple-system,sans-serif;background:#0c0e14;color:#c9d1d9;min-height:100vh}
@@ -208,7 +279,7 @@ HTML;
     }
 
     /**
-     * Sanitize error message — strip file paths and credentials.
+     * Sanitize error message - strip file paths and credentials.
      *
      * @param string $message Raw exception message.
      * @return string Scrubbed message safe for debug display or JSON payloads.
@@ -250,7 +321,7 @@ HTML;
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Too Many Requests — OwnPay</title>
+    <title>Too Many Requests - OwnPay</title>
     <style>
         *{margin:0;padding:0;box-sizing:border-box}
         body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI','Inter',sans-serif;background:#0f172a;color:#e2e8f0;display:flex;align-items:center;justify-content:center;min-height:100vh}

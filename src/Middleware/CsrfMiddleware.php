@@ -41,7 +41,7 @@ final class CsrfMiddleware
      */
     public function handle(Request $request, callable $next): Response
     {
-        // Safe methods — no CSRF check needed
+        // Safe methods - no CSRF check needed
         if (in_array($request->method(), ['GET', 'HEAD', 'OPTIONS'], true)) {
             return $next($request);
         }
@@ -92,7 +92,7 @@ final class CsrfMiddleware
             return $this->forbidden($request, 'CSRF token mismatch');
         }
 
-        // Rotate token — keep pool of last 5 tokens for multi-tab
+        // Rotate token - keep pool of last 5 tokens for multi-tab
         $tokenPool[] = $sessionToken;
         $_SESSION['_csrf_token_pool'] = array_slice($tokenPool, -10);
         $_SESSION['_csrf_token'] = bin2hex(random_bytes(32));
@@ -178,7 +178,7 @@ final class CsrfMiddleware
         $secretVal = $_ENV['APP_HMAC_SECRET'] ?? '';
         $secret = is_string($secretVal) ? $secretVal : '';
         if ($secret !== '') {
-            // HMAC mode — read from Request if available, else $_POST
+            // HMAC mode - read from Request if available, else $_POST
             $appId = $request !== null ? ($request->post('op-app-id') ?? '') : ($_POST['op-app-id'] ?? '');
             $timestampRaw = $request !== null ? ($request->post('op-app-timestamp') ?? '') : ($_POST['op-app-timestamp'] ?? '');
             $action = $request !== null ? ($request->post('action') ?? '') : ($_POST['action'] ?? '');

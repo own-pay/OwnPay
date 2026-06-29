@@ -41,7 +41,7 @@ final class SmsRegexParserReDoSTest extends TestCase
         $this->assertNull($result);
         // Must complete well under a second; without the backtrack cap this
         // pattern would run for many seconds / effectively hang.
-        $this->assertLessThan(1.0, $elapsed, 'ReDoS pattern was not bounded — execution took too long');
+        $this->assertLessThan(1.0, $elapsed, 'ReDoS pattern was not bounded - execution took too long');
     }
 
     public function testBenignPatternStillMatchesAfterGuard(): void

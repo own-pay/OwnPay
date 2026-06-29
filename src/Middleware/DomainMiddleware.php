@@ -9,6 +9,12 @@ use OwnPay\Http\Response;
 use OwnPay\Repository\DomainRepository;
 
 /**
+ * Working on custom domain routing for white-label please write well comment and details.
+ * 
+ * Please explain the code and the logic behind it in detail with proper comments.
+ */
+
+/**
  * Resolves the incoming custom domain to the corresponding merchant brand context.
  *
  * This middleware intercepts requests to perform custom domain mapping for the white-label pipeline.

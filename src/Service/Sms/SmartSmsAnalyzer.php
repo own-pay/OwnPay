@@ -44,7 +44,7 @@ final class SmartSmsAnalyzer
         'received', 'credited', 'deposited', 'added', 'cash in',
         'পেয়েছেন', 'জমা', 'ক্রেডিট', 'receive', 'incoming',
         'you have received', 'has been credited', 'received tk',
-    ];
+    ]; // TODO: Add more positive words
 
     /**
      * Keywords indicating debit, cash out, or administrative OTP actions that abort analysis.
@@ -54,7 +54,7 @@ final class SmartSmsAnalyzer
         'your otp', 'otp is', 'otp:', 'verification code',
         'পাঠিয়েছেন', 'উত্তোলন', 'ক্যাশ',
         'password reset', 'login code', 'security code',
-    ];
+    ]; // TODO: Add more negative words.
 
     /**
      * Regexp matching structures for transaction amount resolution.
@@ -65,8 +65,8 @@ final class SmartSmsAnalyzer
         '/৳\s*([\d,]+(?:\.\d{1,2})?)/u'                                       => 'high',
         '/([\d,]+(?:\.\d{1,2})?)\s*Tk\.?/ui'                                  => 'medium',
         '/(?:amount|total)[:\s]+(?:Tk\.?|BDT|৳)?\s*([\d,]+(?:\.\d{1,2})?)/ui' => 'medium',
-        '/received\s+(?:Tk\.?|BDT|৳)?\s*([\d,]+(?:\.\d{1,2})?)/ui'           => 'low',
-    ];
+        '/received\s+(?:Tk\.?|BDT|৳)?\s*([\d,]+(?:\.\d{1,2})?)/ui'            => 'low',
+    ]; //TODO: Add more amount patterns.
 
     /**
      * Regexp matching structures for transaction identifier resolution.
@@ -75,16 +75,28 @@ final class SmartSmsAnalyzer
         '/(?:TrxID|Trx\s*ID|TxnID|TransactionID)[:\s]+([A-Z0-9]{4,20})/i'   => 'high',
         '/(?:Ref(?:erence)?(?:\s*No\.?|#)?)[:\s]*([A-Z0-9]{4,20})/i'        => 'high',
         '/(?:Transaction\s*(?:ID|No\.?|Ref))[:\s]+([A-Z0-9]{4,20})/i'       => 'high',
-        '/\b([A-Z]{2,4}[0-9]{6,14})\b/'                                      => 'low',
-    ];
+        '/\b([A-Z]{2,4}[0-9]{6,14})\b/'                                     => 'low',
+    ]; //TODO: Add more trx id patterns.
 
     /**
      * Regexp matching structures for account balance resolution.
      */
     private const BALANCE_PATTERNS = [
         '/(?:balance|bal\.?|নতুন ব্যালেন্স)[:\s]+(?:Tk\.?|BDT|৳)?\s*([\d,]+(?:\.\d{1,2})?)/ui' => 'high',
-        '/([\d,]+(?:\.\d{1,2})?)\s*(?:Tk\.?|BDT)?\s*(?:balance|bal\.?)/ui'                        => 'medium',
-    ];
+        '/([\d,]+(?:\.\d{1,2})?)\s*(?:Tk\.?|BDT)?\s*(?:balance|bal\.?)/ui'                  => 'medium',
+    ]; //TODO: Add more balance patterns.
+
+    /**
+     * Regexp matching structures for the PAYER's account ("Sender Account") resolution - the account the
+     * money came FROM, captured from the SMS body. Bangladeshi MFS senders (bKash, Nagad, Rocket) quote
+     * the payer's 11-digit mobile number ("from 01XXXXXXXXX"); some quote a masked account string. This
+     * feeds the template's `sender_regex` suggestion, which was previously never produced (issue #5).
+     */
+    private const SENDER_ACCOUNT_PATTERNS = [
+        '/(?:from|sender|a\/c|account|customer)[:\s]+(01[3-9]\d{8})/ui' => 'high',
+        '/\b(01[3-9]\d{8})\b/u'                                         => 'medium',
+        '/(?:from|sender|a\/c|account)[:\s]+([0-9X*]{6,20})/ui'         => 'low',
+    ]; //TODO: Add more sender account patterns.
 
     /**
      * Analyzes raw SMS text using heuristic matching strategies.
@@ -101,6 +113,7 @@ final class SmartSmsAnalyzer
      *   amount: string|null,
      *   trx_id: string|null,
      *   balance: string|null,
+     *   sender_account: string|null,
      *   confidence: array<string, string>,
      *   suggested_regexes: array<string, string>,
      *   raw_sms: string
@@ -119,6 +132,7 @@ final class SmartSmsAnalyzer
             'amount'             => null,
             'trx_id'             => null,
             'balance'            => null,
+            'sender_account'     => null,
             'confidence'         => [],
             'suggested_regexes'  => [],
             'raw_sms'            => $text,
@@ -173,6 +187,15 @@ final class SmartSmsAnalyzer
             }
         }
 
+        foreach (self::SENDER_ACCOUNT_PATTERNS as $pattern => $confidence) {
+            if (preg_match($pattern, $text, $m)) {
+                $result['sender_account']                    = $m[1];
+                $result['confidence']['sender_account']      = $confidence;
+                $result['suggested_regexes']['sender_regex'] = $this->patternToSuggestion($pattern);
+                break;
+            }
+        }
+
         return $result;
     }
 
@@ -197,11 +220,11 @@ You are a regex extraction expert for an SMS payment parsing system.
 Analyze the following SMS message and create regex patterns to extract credit payment fields.
 
 STRICT RULES:
-- This is a CREDIT / RECEIVED payment SMS — extract only received/credited amounts
-- Output ONLY the JSON code block below — absolutely no explanation, no prose, no other text
-- All regex values must work with PHP's preg_match() — use capture group 1 for the extracted value
+- This is a CREDIT / RECEIVED payment SMS - extract only received/credited amounts
+- Output ONLY the JSON code block below - absolutely no explanation, no prose, no other text
+- All regex values must work with PHP's preg_match() - use capture group 1 for the extracted value
 - gateway_slug: lowercase slug from the sender name (e.g. bkash, nagad, rocket, dbbl, ibbl)
-- sender_pattern: copy EXACTLY from "SMS SENDER" above — case-sensitive, no modification
+- sender_pattern: copy EXACTLY from "SMS SENDER" above - case-sensitive, no modification
 - amount_regex: captures credited amount digits (no currency symbol in capture group)
 - trx_id_regex: captures transaction/reference ID (null if not present)
 - sender_regex: captures payer phone number from SMS BODY only (null if not present)
@@ -213,7 +236,7 @@ SMS BODY:
 {$escapedSms}
 ```
 
-Reply with ONLY this JSON in a code block — nothing else:
+Reply with ONLY this JSON in a code block - nothing else:
 
 ```json
 {

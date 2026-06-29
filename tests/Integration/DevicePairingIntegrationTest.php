@@ -82,7 +82,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
 
     public function testFullPairingLifecycle(): void
     {
-        // ── Step 1: Admin generates OTP ──────────────────────────
+        // -- Step 1: Admin generates OTP --------------------------
         $otpResult = $this->pairingService->generatePairingOtp(12, 12);
 
         $this->assertArrayHasKey('otp', $otpResult, 'OTP generation should return an OTP');
@@ -91,7 +91,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
 
         $otp = $otpResult['otp'];
 
-        // ── Step 2: Mobile app pairs with OTP ────────────────────
+        // -- Step 2: Mobile app pairs with OTP --------------------
         $fingerprint = 'integration_test_android_id:integration_test_cert';
         $pairResult = $this->pairingService->pairDevice(
             $otp,
@@ -119,12 +119,12 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $this->assertSame('active', $device['status']);
         $this->assertTrue($this->deviceRepo->isActive($deviceUuid));
 
-        // ── Step 3: Verify the OTP is consumed (cannot reuse) ───
+        // -- Step 3: Verify the OTP is consumed (cannot reuse) ---
         $rePairResult = $this->pairingService->pairDevice($otp, 'Attacker', 'bad_fp');
         $this->assertFalse($rePairResult['success'], 'Used OTP should be rejected');
         $this->assertSame('INVALID_OTP', $rePairResult['error']);
 
-        // ── Step 4: Validate JWT on a subsequent API call ────────
+        // -- Step 4: Validate JWT on a subsequent API call --------
         $validateResult = $this->pairingService->validateRequest(
             $pairResult['access_token'],
             $fingerprint
@@ -134,7 +134,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $this->assertSame(12, $validateResult['device']['brand_id']);
         $this->assertNull($validateResult['error']);
 
-        // ── Step 5: Validate fails with wrong fingerprint ────────
+        // -- Step 5: Validate fails with wrong fingerprint --------
         $wrongFpResult = $this->pairingService->validateRequest(
             $pairResult['access_token'],
             'wrong_fingerprint'
@@ -142,7 +142,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $this->assertFalse($wrongFpResult['valid']);
         $this->assertSame('FINGERPRINT_MISMATCH', $wrongFpResult['error']);
 
-        // ── Step 6: Refresh the access token ─────────────────────
+        // -- Step 6: Refresh the access token ---------------------
         $refreshResult = $this->pairingService->refreshAccessToken(
             $pairResult['refresh_token'],
             $fingerprint
@@ -157,7 +157,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         // (same iat/exp + same secret = deterministic HMAC). The critical assertion
         // is that the refresh token was rotated (tested above).
 
-        // ── Step 7: Old refresh token is now invalid ─────────────
+        // -- Step 7: Old refresh token is now invalid -------------
         $oldRefreshResult = $this->pairingService->refreshAccessToken(
             $pairResult['refresh_token'],
             $fingerprint
@@ -165,21 +165,21 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $this->assertFalse($oldRefreshResult['success'],
             'Old refresh token should be invalid after rotation');
 
-        // ── Step 8: New access token works ───────────────────────
+        // -- Step 8: New access token works -----------------------
         $newValidate = $this->pairingService->validateRequest(
             $refreshResult['access_token'],
             $fingerprint
         );
         $this->assertTrue($newValidate['valid'], 'New JWT from refresh should validate');
 
-        // ── Step 9: Admin revokes the device ─────────────────────
+        // -- Step 9: Admin revokes the device ---------------------
         $this->pairingService->revoke($deviceUuid, 12);
 
         $revokedDevice = $this->deviceRepo->findByUuid($deviceUuid);
         $this->assertSame('revoked', $revokedDevice['status'], 'Device should be marked revoked');
         $this->assertFalse($this->deviceRepo->isActive($deviceUuid));
 
-        // ── Step 10: JWT now fails validation (revoked) ──────────
+        // -- Step 10: JWT now fails validation (revoked) ----------
         $postRevokeValidate = $this->pairingService->validateRequest(
             $refreshResult['access_token'],
             $fingerprint
@@ -187,7 +187,7 @@ class DevicePairingIntegrationTest extends IntegrationTestCase
         $this->assertFalse($postRevokeValidate['valid']);
         $this->assertSame('DEVICE_REVOKED', $postRevokeValidate['error']);
 
-        // ── Step 11: Refresh also fails after revocation ─────────
+        // -- Step 11: Refresh also fails after revocation ---------
         $postRevokeRefresh = $this->pairingService->refreshAccessToken(
             $refreshResult['refresh_token'],
             $fingerprint

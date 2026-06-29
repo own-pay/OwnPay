@@ -114,9 +114,6 @@ final class WebhookInboundProcessor
         $eventType = $whHeaders['eventType'];
         $payloadHash = hash('sha256', $rawBody);
 
-        // Dedup fast path. The authoritative guard is the uk_inbound_dedup
-        // unique index enforced by recordEvent() below — this lookup only
-        // spares the common repeat-delivery case a constraint violation.
         $existing = $this->db->fetchOne(
             "SELECT id FROM op_webhook_deliveries WHERE merchant_id = :mid AND direction = 'inbound' AND payload_hash = :hash LIMIT 1",
             ['mid' => $merchantId, 'hash' => $payloadHash]
@@ -135,10 +132,6 @@ final class WebhookInboundProcessor
             $payloadChecked[(string) $k] = $v;
         }
 
-        // Record BEFORE executing: when two identical deliveries race past the
-        // fast path above, the unique index lets exactly one INSERT through —
-        // the loser surfaces as a duplicate-key violation and is acknowledged
-        // as idempotent without re-running any side effects.
         try {
             $this->recordEvent($merchantId, $eventId, $eventType, $payloadHash);
         } catch (\PDOException $e) {
@@ -154,7 +147,7 @@ final class WebhookInboundProcessor
     /**
      * Determines whether a PDO exception represents a MySQL duplicate-key violation (errno 1062).
      *
-     * SQLSTATE 23000 alone is insufficient — it also covers foreign-key
+     * SQLSTATE 23000 alone is insufficient - it also covers foreign-key
      * violations, which must propagate as real errors.
      *
      * @param \PDOException $e The caught PDO exception.
@@ -338,10 +331,6 @@ final class WebhookInboundProcessor
         }
         $txnId = (int) $txn['id'];
 
-        // Concurrent deliveries targeting the same transaction (distinct event
-        // payloads bypass the payload-hash dedup) must serialize on the row so
-        // the amount/status checks and the completion cannot interleave. Same
-        // idiom as GatewayApiService::handleCallback().
         $this->db->transaction(function () use ($payload, $merchantId, $txnId): void {
             $txn = $this->db->fetchOne(
                 "SELECT * FROM op_transactions WHERE id = :id AND merchant_id = :mid LIMIT 1 FOR UPDATE",
@@ -351,9 +340,6 @@ final class WebhookInboundProcessor
                 return;
             }
 
-            // FIND-004: the signed event must state the paid amount, and it must match
-            // the stored transaction amount (or its converted gateway amount). A signed
-            // payload replayed against a different transaction must not complete it.
             $data = $payload['data'] ?? null;
             $eventAmountVal = is_array($data) ? ($data['amount'] ?? null) : null;
             $eventAmountStr = is_scalar($eventAmountVal) ? (string) $eventAmountVal : '';
@@ -377,10 +363,6 @@ final class WebhookInboundProcessor
                 return;
             }
 
-            // State machine: only non-terminal checkout states may transition to
-            // completed. complete() also refuses terminal states at the data
-            // layer, so a signed event cannot resurrect failed/cancelled/refunded
-            // transactions even if this check were bypassed.
             $currentStatus = isset($txn['status']) && is_scalar($txn['status']) ? (string) $txn['status'] : '';
             if (in_array($currentStatus, ['pending', 'processing', 'callback_processing'], true)) {
                 $this->transactionService->complete($txnId, $merchantId);
@@ -442,9 +424,6 @@ final class WebhookInboundProcessor
         }
         $txnId = (int) $txn['id'];
 
-        // Serialize on the transaction row: two concurrent refund.completed
-        // deliveries must not both pass the status check and double-post the
-        // refund to the ledger.
         $this->db->transaction(function () use ($data, $merchantId, $txnId): void {
             $txn = $this->db->fetchOne(
                 "SELECT * FROM op_transactions WHERE id = :id AND merchant_id = :mid LIMIT 1 FOR UPDATE",
@@ -458,10 +437,6 @@ final class WebhookInboundProcessor
             }
             $txnCurrency = (string) $txn['currency'];
 
-            // The refund amount arrives in a signed payload, but it still must
-            // not exceed what was actually charged — a compromised or buggy
-            // sender must not be able to drain the ledger past the original
-            // transaction amount, go negative, or post a zero-amount refund.
             $txnAmountStr = isset($txn['amount']) && is_scalar($txn['amount']) ? (string) $txn['amount'] : '';
             $refundAmountVal = $data['refund_amount'] ?? $data['amount'] ?? $txn['amount'] ?? null;
             $amount = is_scalar($refundAmountVal) ? (string) $refundAmountVal : '';

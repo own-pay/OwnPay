@@ -188,10 +188,6 @@ final class CheckoutController
 
         $this->events->doAction('checkout.before', $txn);
 
-        // Query active manual and API-based gateways configured for this merchant.
-        // Phase 2c (money-critical): manual gateways resolve as the brand's OWN account over the
-        // platform template, so a brand's customer pays the brand's account — falling back to the
-        // platform default account only when the brand has not configured one.
         $platformId = ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) ? $brandCtx->getPlatformId() : 0;
         $manualGateways = $this->manualGw->listActiveForCheckout($mid, $platformId);
         $apiGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
@@ -321,7 +317,6 @@ final class CheckoutController
             'show_faq'        => $this->settings->get('checkout', 'show_faq', '1') === '1',
             'config'          => $this->buildJsConfig($txn, $brand, $manifests),
             'checkout_hash'   => $checkoutHash,
-            // Render manual gateway configuration with XSS entity escaping.
             'manual_gateways' => json_encode($manualDetails, JSON_HEX_TAG | JSON_HEX_AMP),
         ];
 
@@ -412,13 +407,10 @@ final class CheckoutController
      */
     private function buildJsConfig(array $txn, array $brand, array $manifests = []): array
     {
-        // CK-03 FIX: Read timer from checkout settings instead of hardcoding
         $timerEnabledVal = $this->settings->get('checkout', 'timer_enabled', '1');
         $timerEnabled = is_string($timerEnabledVal) ? $timerEnabledVal : '1';
         $timerSecondsVal = $this->settings->get('checkout', 'timer_seconds', '600');
         $timerSeconds = (is_string($timerSecondsVal) && is_numeric($timerSecondsVal)) ? (int) $timerSecondsVal : 600;
-
-        // CK-10 FIX: Build gatewayMeta dynamically from manifest data
         $gatewayMeta = [];
         foreach ($manifests as $m) {
             if ($m->type === 'gateway') {
@@ -429,8 +421,7 @@ final class CheckoutController
                 ];
             }
         }
-
-        // Calculate remaining time so timer survives page refresh
+        
         $remaining = $timerSeconds;
         $createdAtVal = $txn['created_at'] ?? '';
         $createdAtStr = is_string($createdAtVal) ? $createdAtVal : '';
@@ -774,7 +765,7 @@ final class CheckoutController
                 ['id' => $txnId, 'mid' => $mid]
             );
             if ($claimed === 0) {
-                // Already being processed or completed — skip duplicate callback
+                // Already being processed or completed - skip duplicate callback
                 return $this->renderStatus($token, $status);
             }
 

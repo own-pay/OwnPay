@@ -1,11 +1,11 @@
 /* stylelint-disable property-no-vendor-prefix */
 
 /* ═══════════════════════════════════════════════════════
-   admin.css — OwnPay Admin Surface
+   admin.css - OwnPay Admin Surface
    Glassmorphic / Neo-Modern Design System
    ═══════════════════════════════════════════════════════ */
 
-/* ── Admin-specific token overrides (LIGHT DEFAULT) ── */
+/* -- Admin-specific token overrides (LIGHT DEFAULT) -- */
 :root {
   --op-font: var(--font);
   --op-bg: #F8F9FC;
@@ -81,7 +81,7 @@
   --op-sidebar-shadow: 0 2px 10px rgb(0 0 0 / 40%);
 }
 
-/* ── Reset (admin-specific) ── */
+/* -- Reset (admin-specific) -- */
 html {
   overflow-x: hidden;
 }
@@ -140,7 +140,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   PAGE TRANSITION — PANEL REVEAL
+   PAGE TRANSITION - PANEL REVEAL
    ═══════════════════════════════════════════════════════ */
 .t-panel-slide {
   transform: translateY(var(--panel-translate-y));
@@ -211,7 +211,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   SIDEBAR — NAVY GRADIENT DESIGN
+   SIDEBAR - NAVY GRADIENT DESIGN
    ═══════════════════════════════════════════════════════ */
 .op-sidebar {
   position: fixed;
@@ -519,7 +519,7 @@ code {
   box-shadow: none;
 }
 
-/* Sidebar footer — user */
+/* Sidebar footer - user */
 .op-sidebar-footer {
   border-top: 1px solid var(--op-sidebar-border);
   padding: 12px 16px;
@@ -814,7 +814,7 @@ code {
   background: rgb(239 68 68 / 10%);
 }
 
-/* Sidebar — collapsed state */
+/* Sidebar - collapsed state */
 .op-sidebar-collapsed {
   width: var(--op-sidebar-collapsed-width, 72px);
 }
@@ -843,7 +843,7 @@ code {
   margin-left: var(--op-sidebar-collapsed-width, 72px);
 }
 
-/* Sidebar — mobile open */
+/* Sidebar - mobile open */
 .op-sidebar-open {
   transform: translateX(0) !important;
 }
@@ -865,7 +865,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   NAVBAR — GLASSMORPHIC PILLS
+   NAVBAR - GLASSMORPHIC PILLS
    ═══════════════════════════════════════════════════════ */
 .op-navbar {
   display: flex;
@@ -1022,7 +1022,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   BRAND SWITCHER — SIDEBAR INTEGRATION
+   BRAND SWITCHER - SIDEBAR INTEGRATION
    ═══════════════════════════════════════════════════════ */
 .op-sidebar-brand {
   position: relative;
@@ -1141,7 +1141,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   BRAND SWITCHER — GLASSMORPHIC PILL DROPDOWN
+   BRAND SWITCHER - GLASSMORPHIC PILL DROPDOWN
    ═══════════════════════════════════════════════════════ */
 .op-brand-switcher {
   position: relative;
@@ -1720,7 +1720,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   CARDS — GLASSMORPHIC
+   CARDS - GLASSMORPHIC
    ═══════════════════════════════════════════════════════ */
 .op-card {
   background: var(--op-bg-card);
@@ -1785,7 +1785,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   STATS — GLASSMORPHIC
+   STATS - GLASSMORPHIC
    ═══════════════════════════════════════════════════════ */
 .op-stats-grid {
   display: grid;
@@ -1887,7 +1887,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   REPORT COMPONENTS — Status Bars, Progress, Gateway
+   REPORT COMPONENTS - Status Bars, Progress, Gateway
    ═══════════════════════════════════════════════════════ */
 .op-status-bars {
   display: flex;
@@ -1952,7 +1952,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   TABLE — GLASSMORPHIC
+   TABLE - GLASSMORPHIC
    ═══════════════════════════════════════════════════════ */
 .op-table {
   width: 100%;
@@ -2076,7 +2076,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   BUTTONS — GLASSMORPHIC
+   BUTTONS - GLASSMORPHIC
    ═══════════════════════════════════════════════════════ */
 .op-btn {
   display: inline-flex;
@@ -2281,7 +2281,7 @@ code {
 }
 
 /* ═══════════════════════════════════════════════════════
-   FORMS — GLASSMORPHIC
+   FORMS - GLASSMORPHIC
    ═══════════════════════════════════════════════════════ */
 .op-form-group {
   margin-bottom: 16px;
@@ -2333,7 +2333,7 @@ select option {
   font-size: 13px;
 }
 
-/* Custom Checkbox — global */
+/* Custom Checkbox - global */
 input[type="checkbox"] {
   appearance: none;
   width: 20px;
@@ -3692,7 +3692,7 @@ small {
   text-decoration: underline;
 }
 
-/* Input group — input + button inline */
+/* Input group - input + button inline */
 .op-input-group {
   display: flex;
   gap: 0;
@@ -3710,7 +3710,7 @@ small {
   white-space: nowrap;
 }
 
-/* Input prefix — text prefix before input */
+/* Input prefix - text prefix before input */
 .op-input-prefix {
   display: flex;
   align-items: center;
@@ -5240,9 +5240,9 @@ label.op-toggle-label {
     box-sizing: border-box;
   }
 
-  /* Tabs — handled by base styles */
+  /* Tabs - handled by base styles */
 
-  /* Navbar — sticky */
+  /* Navbar - sticky */
   .op-navbar {
     padding: 10px 12px;
     max-width: 100%;
@@ -5328,7 +5328,7 @@ label.op-toggle-label {
     border-radius: 10px;
   }
 
-  /* Footer — not sticky */
+  /* Footer - not sticky */
   .op-footer {
     position: static;
     z-index: auto;
@@ -5745,7 +5745,7 @@ label.op-toggle-label {
     justify-content: center;
   }
 
-  /* Tables — mobile card layout */
+  /* Tables - mobile card layout */
   .op-table-responsive {
     max-width: 100%;
     overflow: visible;
@@ -6351,7 +6351,7 @@ label.op-toggle-label {
 }
 
 /* ═══════════════════════════════════════════════════════
-   DNS SETUP GUIDE — STEPS & RECORD CARDS
+   DNS SETUP GUIDE - STEPS & RECORD CARDS
    ═══════════════════════════════════════════════════════ */
 .op-steps {
   display: flex;
@@ -6461,7 +6461,7 @@ label.op-toggle-label {
   display: inline-block !important;
 }
 
-/* ─── Premium Toasts ─────────────────────────────────────────── */
+/* --- Premium Toasts ------------------------------------------- */
 .op-toast-container {
   position: fixed;
   bottom: 24px;
@@ -6561,7 +6561,7 @@ label.op-toggle-label {
   opacity: 1;
 }
 
-/* ─── Premium Tooltips ─── */
+/* --- Premium Tooltips --- */
 .op-help-tooltip {
   position: relative;
   display: inline-block;
@@ -6596,7 +6596,7 @@ label.op-toggle-label {
   transform: translateX(-50%) translateY(0);
 }
 
-/* ─── Page Help Doc Link ─── */
+/* --- Page Help Doc Link --- */
 .op-help-doc-link {
   display: inline-flex;
   align-items: center;
@@ -6618,14 +6618,14 @@ label.op-toggle-label {
   width: 100%;
 }
 
-/* ── Text Selection (Theme Match) ── */
+/* -- Text Selection (Theme Match) -- */
 ::selection {
   background: #0F97ED !important;
   background: var(--op-primary) !important;
   color: #FFF !important;
 }
 
-/* ── Spinner Animation ── */
+/* -- Spinner Animation -- */
 .op-spinner {
   display: inline-block;
   width: 14px;

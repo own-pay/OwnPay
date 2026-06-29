@@ -101,10 +101,6 @@ final class MercadoLibreWalletGateway implements PluginInterface, GatewayAdapter
 
     public function verify(array $callbackData, array $credentials): array
     {
-        // FIND-001: redirect/callback parameters are not cryptographically
-        // authenticated. Only complete when the core proved the webhook
-        // signature for this payload (sets _op_webhook_verified in
-        // GatewayApiService::handleCallback after verifyWebhook passes).
         if (($callbackData['_op_webhook_verified'] ?? false) !== true) {
             return ['success' => false, 'gateway_trx_id' => '', 'status' => 'unverified'];
         }
@@ -121,10 +117,6 @@ final class MercadoLibreWalletGateway implements PluginInterface, GatewayAdapter
 
     public function verifyWebhook(string $rawBody, array $headers, array $credentials): bool
     {
-        // FIND-001: no provider signature scheme is implemented for this
-        // gateway. Fail closed (was an unconditional `return true`, which
-        // accepted forged callbacks). Implement the provider's signature
-        // verification before enabling this gateway in production.
         return false;
     }
 }

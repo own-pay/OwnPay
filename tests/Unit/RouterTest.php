@@ -6,7 +6,7 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Router unit tests — test route pattern compilation + matching logic
+ * Router unit tests - test route pattern compilation + matching logic
  * without requiring the full Container (tests regex/param extraction).
  */
 class RouterTest extends TestCase

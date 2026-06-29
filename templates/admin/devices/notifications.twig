@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Push Notifications Log — {{ app_name }}{% endblock %}
+{% block title %}Push Notifications Log - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-back-navigation op-mb-3">
     <a href="/admin/devices" class="op-back-link">← Back to Paired Devices</a>
@@ -63,7 +63,7 @@
                         <td data-label="Device UUID"><code class="op-text-xs" style="font-size: 11px;">{{ notification.device_uuid }}</code></td>
                         <td data-label="Type"><span class="op-badge op-badge-outline">{{ notification.type }}</span></td>
                         <td data-label="Title"><strong>{{ notification.title }}</strong></td>
-                        <td data-label="Body" class="op-text-sm">{{ notification.body|default('—') }}</td>
+                        <td data-label="Body" class="op-text-sm">{{ notification.body|default('-') }}</td>
                         <td data-label="Read Status">
                             {% if notification.is_read %}
                                 <span class="op-badge op-badge-success" title="Read at: {{ notification.read_at }}">Read</span>
@@ -86,7 +86,7 @@
     </div>
 </div>
 
-{# ── Pagination ────────────────────────────────────────────────── #}
+{# -- Pagination -------------------------------------------------- #}
 {% if pagination is defined and pagination.total_pages > 1 %}
 {% set qs = '' %}
 {% if filters.q is not empty %}{% set qs = qs ~ '&q=' ~ filters.q|url_encode %}{% endif %}

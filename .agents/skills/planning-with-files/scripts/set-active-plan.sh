@@ -2,8 +2,8 @@
 # planning-with-files: set or display the active plan pointer.
 #
 # Usage:
-#   set-active-plan.sh <plan_id>   — pin .planning/.active_plan to plan_id
-#   set-active-plan.sh             — print the current active plan (if any)
+#   set-active-plan.sh <plan_id>   - pin .planning/.active_plan to plan_id
+#   set-active-plan.sh             - print the current active plan (if any)
 #
 # The active plan is stored in .planning/.active_plan and is read by
 # resolve-plan-dir.sh when no $PLAN_ID env var is set.
@@ -21,7 +21,7 @@ if [ "${1:-}" = "" ]; then
             echo "Active plan: ${plan_id}"
             echo "Path: ${PLAN_ROOT}/${plan_id}"
         elif [ -n "${plan_id}" ]; then
-            echo "Active plan pointer: ${plan_id} (directory not found — stale pointer)"
+            echo "Active plan pointer: ${plan_id} (directory not found - stale pointer)"
         else
             echo "No active plan set."
         fi

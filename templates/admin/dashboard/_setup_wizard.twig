@@ -60,7 +60,7 @@
                     <label class="op-wizard-label" for="base_currency">{{ __('wizard.base_currency') }}</label>
                     <select id="base_currency" name="currency" class="op-wizard-select" required>
                         {% for cur in currencies %}
-                            <option value="{{ cur.code }}" {{ cur.code == 'USD' ? 'selected' : '' }}>{{ cur.code }} — {{ cur.name }}</option>
+                            <option value="{{ cur.code }}" {{ cur.code == 'USD' ? 'selected' : '' }}>{{ cur.code }} - {{ cur.name }}</option>
                         {% endfor %}
                     </select>
                     <div class="op-wizard-hint">{{ __('wizard.base_currency_hint') }}</div>
@@ -133,7 +133,7 @@
                     <label class="op-wizard-label" for="brand_currency">{{ __('wizard.brand_currency') }}</label>
                     <select id="brand_currency" name="brand_currency" class="op-wizard-select" required>
                         {% for cur in currencies %}
-                            <option value="{{ cur.code }}" {{ cur.code == 'USD' ? 'selected' : '' }}>{{ cur.code }} — {{ cur.name }}</option>
+                            <option value="{{ cur.code }}" {{ cur.code == 'USD' ? 'selected' : '' }}>{{ cur.code }} - {{ cur.name }}</option>
                         {% endfor %}
                     </select>
                     <div class="op-wizard-hint">{{ __('wizard.brand_currency_hint') }}</div>

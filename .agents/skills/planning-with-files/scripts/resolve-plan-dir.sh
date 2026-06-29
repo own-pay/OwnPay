@@ -44,7 +44,7 @@ resolve_from_active_file() {
 resolve_latest_dir() {
     [ -d "${PLAN_ROOT}" ] || return 1
     # Portable newest-mtime selector. Avoid `ls -t` BSD/GNU drift.
-    # Only consider dirs that contain task_plan.md — skips system dirs like sessions/.
+    # Only consider dirs that contain task_plan.md - skips system dirs like sessions/.
     latest=""
     latest_mtime=0
     for entry in "${PLAN_ROOT}"/*/; do

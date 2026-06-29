@@ -1,6 +1,6 @@
 {% extends 'admin/layout/base.twig' %}
 
-{% block title %}Edit {{ gateway.name }} — {{ app_name }}{% endblock %}
+{% block title %}Edit {{ gateway.name }} - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
@@ -91,10 +91,9 @@
                     <input type="number" name="max_amount" value="{{ gateway.max_amount ?? '0' }}" step="0.01" class="op-input">
                 </div>
                 <div class="op-form-group op-col-4">
-                    <label class="op-checkbox-label">
-                        <input type="checkbox" name="sms_verification" value="1" {{ gateway.sms_verification ? 'checked' : '' }}>
-                        Enable SMS Verification
-                    </label>
+                    <label>SMS Verification</label>
+                    <p class="op-mb-0"><span class="op-badge op-badge-success">Always on</span></p>
+                    <small class="op-text-muted">Mandatory for manual gateways.</small>
                 </div>
             </div>
             <div class="op-form-row op-mt-3" id="sms-patterns-row">

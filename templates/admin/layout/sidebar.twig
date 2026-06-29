@@ -1,5 +1,5 @@
 <aside class="op-sidebar" id="sidebar" role="navigation" aria-label="Main navigation">
-    {# ── Logo ─────────────────────────────────────────── #}
+    {# -- Logo ------------------------------------------- #}
     <div class="op-sidebar-header">
         <a href="/admin" class="op-logo">
             <img src="/assets/img/logo-light.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-logo-img op-logo-light" style="height: 32px; width: auto;">
@@ -7,7 +7,7 @@
         </a>
     </div>
 
-    {# ── Brand Switcher ──────────────────────────────── #}
+    {# -- Brand Switcher -------------------------------- #}
     {% if is_superadmin %}
     <div class="op-sidebar-brand" id="brand-switcher">
         {% set active_brand = null %}
@@ -63,7 +63,7 @@
     </div>
     {% endif %}
 
-    {# ── Navigation ───────────────────────────────────── #}
+    {# -- Navigation ------------------------------------- #}
     <nav class="op-sidebar-nav" id="sidebarNav">
 
         {# 1. Dashboard #}
@@ -263,7 +263,7 @@
         {{ hook('admin.menu.register')|raw }}
     </nav>
 
-    {# ── Sidebar Footer — User ─────────────────────────── #}
+    {# -- Sidebar Footer - User --------------------------- #}
     <div class="op-sidebar-footer">
         <div class="op-sidebar-actions">
             <a href="/admin/contributors" class="op-sidebar-donate-btn op-sidebar-contributors-btn">

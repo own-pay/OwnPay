@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════
-   auth.css — OwnPay Monster Login
+   auth.css - OwnPay Monster Login
    Uses tokens from tokens.css for color variables.
    ═══════════════════════════════════════════════════════ */
 
-/* ── Auth token overrides ── */
+/* -- Auth token overrides -- */
 :root {
   --auth-bg: #f8fafc;
   --auth-card-bg: #ffffff;
@@ -46,7 +46,7 @@ body.op-auth-page {
   min-height: 100vh;
   color: var(--auth-text);
   display: block;
-   overflow-x: hidden;
+  overflow-x: hidden;
 }
 
 .op-auth-container {
@@ -54,10 +54,10 @@ body.op-auth-page {
   flex-direction: column;
   min-height: 100vh;
   position: relative;
-   overflow-x: hidden;
+  overflow-x: hidden;
 }
 
-/* ── Visual Panel (left side, desktop only) ── */
+/* -- Visual Panel (left side, desktop only) -- */
 .op-visual-panel {
   display: none;
   position: relative;
@@ -71,13 +71,26 @@ body.op-auth-page {
 }
 
 @media (min-width: 1024px) {
-  body.op-auth-page { background-color: #ffffff; }
-  .op-auth-container { flex-direction: row; }
-  .op-visual-panel { display: flex; flex: 1; height: auto; }
-  .op-form-panel { width: 50%; }
+  body.op-auth-page {
+    background-color: #ffffff;
+  }
+
+  .op-auth-container {
+    flex-direction: row;
+  }
+
+  .op-visual-panel {
+    display: flex;
+    flex: 1;
+    height: auto;
+  }
+
+  .op-form-panel {
+    width: 50%;
+  }
 }
 
-/* ── Background Decorations (Desktop) ── */
+/* -- Background Decorations (Desktop) -- */
 .op-bg-grid {
   position: absolute;
   inset: 0;
@@ -108,7 +121,7 @@ body.op-auth-page {
   filter: blur(60px);
 }
 
-/* ── Brand & Footer in Visual Panel ── */
+/* -- Brand & Footer in Visual Panel -- */
 .op-brand {
   display: flex;
   align-items: center;
@@ -141,10 +154,12 @@ body.op-auth-page {
   transition: color 0.2s;
 }
 
-.op-footer-links a:hover { color: rgba(255, 255, 255, 0.8); }
+.op-footer-links a:hover {
+  color: rgba(255, 255, 255, 0.8);
+}
 
 /* ═══════════════════════════════════════════════════════
-   CHARACTERS STAGE — matches original HTML template exactly
+   CHARACTERS STAGE - matches original HTML template exactly
    ═══════════════════════════════════════════════════════ */
 
 .op-email-group {
@@ -178,7 +193,7 @@ body.op-auth-page {
   transform-origin: bottom center;
 }
 
-/* ── Speech Bubble ── */
+/* -- Speech Bubble -- */
 .op-speech-bubble {
   position: absolute;
   bottom: 100px;
@@ -222,10 +237,12 @@ body.op-auth-page {
   .op-stage-wrapper {
     height: 120px;
   }
+
   .op-stage {
     left: 60px;
     transform: translateX(0) scale(0.25);
   }
+
   .op-speech-bubble {
     bottom: 160px;
     width: 240px;
@@ -237,7 +254,7 @@ body.op-auth-page {
   }
 }
 
-/* ── Character Parts ── */
+/* -- Character Parts -- */
 .op-character {
   position: absolute;
   bottom: 0;
@@ -268,27 +285,109 @@ body.op-auth-page {
 }
 
 /* 1. Purple Character */
-.op-char-purple { left: 70px; width: 180px; height: 400px; background-color: #6C3FF5; border-radius: 10px 10px 0 0; z-index: 1; }
-.op-char-purple .op-eyes-container { left: 45px; top: 40px; gap: 2rem; }
-.op-char-purple .op-eye-base { width: 36px; height: 36px; }
-.op-char-purple .op-pupil { width: 14px; height: 14px; }
+.op-char-purple {
+  left: 70px;
+  width: 180px;
+  height: 400px;
+  background-color: #6C3FF5;
+  border-radius: 10px 10px 0 0;
+  z-index: 1;
+}
+
+.op-char-purple .op-eyes-container {
+  left: 45px;
+  top: 40px;
+  gap: 2rem;
+}
+
+.op-char-purple .op-eye-base {
+  width: 36px;
+  height: 36px;
+}
+
+.op-char-purple .op-pupil {
+  width: 14px;
+  height: 14px;
+}
 
 /* 2. Black Character */
-.op-char-black { left: 240px; width: 120px; height: 310px; background-color: #2D2D2D; border-radius: 8px 8px 0 0; z-index: 2; }
-.op-char-black .op-eyes-container { left: 26px; top: 32px; gap: 1.5rem; }
-.op-char-black .op-eye-base { width: 32px; height: 32px; }
-.op-char-black .op-pupil { width: 12px; height: 12px; }
+.op-char-black {
+  left: 240px;
+  width: 120px;
+  height: 310px;
+  background-color: #2D2D2D;
+  border-radius: 8px 8px 0 0;
+  z-index: 2;
+}
+
+.op-char-black .op-eyes-container {
+  left: 26px;
+  top: 32px;
+  gap: 1.5rem;
+}
+
+.op-char-black .op-eye-base {
+  width: 32px;
+  height: 32px;
+}
+
+.op-char-black .op-pupil {
+  width: 12px;
+  height: 12px;
+}
 
 /* 3. Orange Character */
-.op-char-orange { left: 0px; width: 240px; height: 200px; background-color: #FF9B6B; border-radius: 120px 120px 0 0; z-index: 3; }
-.op-char-orange .op-eyes-container { left: 82px; top: 90px; gap: 2rem; }
-.op-char-orange .op-pupil { width: 24px; height: 24px; }
+.op-char-orange {
+  left: 0px;
+  width: 240px;
+  height: 200px;
+  background-color: #FF9B6B;
+  border-radius: 120px 120px 0 0;
+  z-index: 3;
+}
+
+.op-char-orange .op-eyes-container {
+  left: 82px;
+  top: 90px;
+  gap: 2rem;
+}
+
+.op-char-orange .op-pupil {
+  width: 24px;
+  height: 24px;
+}
 
 /* 4. Yellow Character */
-.op-char-yellow { left: 310px; width: 140px; height: 230px; background-color: #E8D754; border-radius: 70px 70px 0 0; z-index: 4; }
-.op-char-yellow .op-eyes-container { left: 52px; top: 40px; gap: 1.5rem; }
-.op-char-yellow .op-pupil { width: 24px; height: 24px; }
-.op-char-yellow .op-mouth { position: absolute; left: 40px; top: 88px; width: 60px; height: 4px; background-color: #2D2D2D; border-radius: 4px; transition: all 0.4s ease; }
+.op-char-yellow {
+  left: 310px;
+  width: 140px;
+  height: 230px;
+  background-color: #E8D754;
+  border-radius: 70px 70px 0 0;
+  z-index: 4;
+}
+
+.op-char-yellow .op-eyes-container {
+  left: 52px;
+  top: 40px;
+  gap: 1.5rem;
+}
+
+.op-char-yellow .op-pupil {
+  width: 24px;
+  height: 24px;
+}
+
+.op-char-yellow .op-mouth {
+  position: absolute;
+  left: 40px;
+  top: 88px;
+  width: 60px;
+  height: 4px;
+  background-color: #2D2D2D;
+  border-radius: 4px;
+  transition: all 0.4s ease;
+}
 
 /* ═══════════════════════════════════════════════════════
    FORM PANEL
@@ -303,7 +402,11 @@ body.op-auth-page {
 }
 
 @media (min-width: 1024px) {
-  .op-form-panel { align-items: center; background-color: #ffffff; padding: 2.5rem 1.5rem; }
+  .op-form-panel {
+    align-items: center;
+    background-color: #ffffff;
+    padding: 2.5rem 1.5rem;
+  }
 }
 
 .op-form-wrapper {
@@ -313,7 +416,7 @@ body.op-auth-page {
   overflow: visible;
 }
 
-/* ── Header Text ── */
+/* -- Header Text -- */
 .op-header-text {
   text-align: center;
   margin-bottom: 0.75rem;
@@ -333,9 +436,17 @@ body.op-auth-page {
 }
 
 @media (min-width: 1024px) {
-  .op-header-text { margin-bottom: 1rem; }
-  .op-auth-logo { margin-bottom: 1.25rem; }
-  .op-auth-logo-img { max-height: 40px; }
+  .op-header-text {
+    margin-bottom: 1rem;
+  }
+
+  .op-auth-logo {
+    margin-bottom: 1.25rem;
+  }
+
+  .op-auth-logo-img {
+    max-height: 40px;
+  }
 }
 
 .op-logo {
@@ -366,8 +477,14 @@ body.op-auth-page {
 }
 
 @media (min-width: 1024px) {
-  .op-header-text h1 { font-size: 1.875rem; margin-bottom: 0.5rem; }
-  .op-header-text p { font-size: 0.875rem; }
+  .op-header-text h1 {
+    font-size: 1.875rem;
+    margin-bottom: 0.5rem;
+  }
+
+  .op-header-text p {
+    font-size: 0.875rem;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -380,7 +497,9 @@ body.op-auth-page {
 }
 
 @media (min-width: 1024px) {
-  .op-form-group { margin-bottom: 1.25rem; }
+  .op-form-group {
+    margin-bottom: 1.25rem;
+  }
 }
 
 .op-form-group label {
@@ -421,7 +540,7 @@ body.op-auth-page {
   color: #94a3b8;
 }
 
-/* ── Toggle Password ── */
+/* -- Toggle Password -- */
 .op-toggle-password {
   position: absolute;
   right: 1rem;
@@ -441,7 +560,7 @@ body.op-auth-page {
   color: #0f172a;
 }
 
-/* ── Form Options Row ── */
+/* -- Form Options Row -- */
 .op-form-options {
   display: flex;
   justify-content: space-between;
@@ -451,7 +570,10 @@ body.op-auth-page {
 }
 
 @media (min-width: 1024px) {
-  .op-form-options { margin-bottom: 1.5rem; font-size: 0.875rem; }
+  .op-form-options {
+    margin-bottom: 1.5rem;
+    font-size: 0.875rem;
+  }
 }
 
 .op-checkbox-group {
@@ -653,7 +775,9 @@ body.op-auth-page {
 }
 
 @media (min-width: 1024px) {
-  .op-mobile-brand-footer { display: none; }
+  .op-mobile-brand-footer {
+    display: none;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -678,18 +802,22 @@ body.op-auth-page {
   transform: translateY(var(--stagger-distance));
   filter: blur(var(--stagger-blur));
   transition:
-    opacity   var(--stagger-dur) var(--stagger-ease),
+    opacity var(--stagger-dur) var(--stagger-ease),
     transform var(--stagger-dur) var(--stagger-ease),
-    filter    var(--stagger-dur) var(--stagger-ease);
+    filter var(--stagger-dur) var(--stagger-ease);
   will-change: transform, opacity, filter;
 }
-.t-stagger-line--2 { transition-delay: var(--stagger-stagger); }
+
+.t-stagger-line--2 {
+  transition-delay: var(--stagger-stagger);
+}
 
 .t-stagger.is-shown .t-stagger-line {
   opacity: 1;
   transform: translateY(0);
   filter: blur(0);
 }
+
 .t-stagger.is-hiding .t-stagger-line {
   opacity: 0;
   transform: translateY(0);
@@ -708,6 +836,7 @@ body.op-auth-page {
   transition: border-color 150ms ease-out;
   will-change: transform;
 }
+
 .t-input.is-error {
   transition: border-color var(--revert-dur, 280ms) ease-out;
 }
@@ -716,34 +845,61 @@ body.op-auth-page {
   opacity: 0;
   visibility: hidden;
   transition:
-    opacity    var(--revert-dur, 280ms) ease-out,
+    opacity var(--revert-dur, 280ms) ease-out,
     visibility 0s linear var(--revert-dur, 280ms);
 }
+
 .t-input-wrap.is-error .t-error-msg {
   opacity: 1;
   visibility: visible;
   transition:
-    opacity    var(--revert-dur, 280ms) ease-out,
+    opacity var(--revert-dur, 280ms) ease-out,
     visibility 0s linear 0s;
 }
 
 .t-input.is-shaking {
-  animation: t-input-shake calc(
-      var(--shake-dur-a) * 2 + var(--shake-dur-b) * 2
-    ) linear;
+  animation: t-input-shake calc(var(--shake-dur-a) * 2 + var(--shake-dur-b) * 2) linear;
 }
+
 @keyframes t-input-shake {
-  0%      { transform: translateX(0);                                 animation-timing-function: var(--shake-ease); }
-  28.57%  { transform: translateX(var(--shake-distance));             animation-timing-function: var(--shake-ease); }
-  57.14%  { transform: translateX(calc(var(--shake-distance) * -1)); animation-timing-function: var(--shake-ease); }
-  78.57%  { transform: translateX(var(--shake-overshoot));            animation-timing-function: var(--shake-ease); }
-  100%    { transform: translateX(0); }
+  0% {
+    transform: translateX(0);
+    animation-timing-function: var(--shake-ease);
+  }
+
+  28.57% {
+    transform: translateX(var(--shake-distance));
+    animation-timing-function: var(--shake-ease);
+  }
+
+  57.14% {
+    transform: translateX(calc(var(--shake-distance) * -1));
+    animation-timing-function: var(--shake-ease);
+  }
+
+  78.57% {
+    transform: translateX(var(--shake-overshoot));
+    animation-timing-function: var(--shake-ease);
+  }
+
+  100% {
+    transform: translateX(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .t-stagger-line { transition: none !important; }
-  .t-input { animation: none !important; transform: none !important; }
-  .op-char { animation: none !important; }
+  .t-stagger-line {
+    transition: none !important;
+  }
+
+  .t-input {
+    animation: none !important;
+    transform: none !important;
+  }
+
+  .op-char {
+    animation: none !important;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -770,7 +926,9 @@ body.op-auth-page {
 }
 
 @media (min-width: 1280px) {
-  .op-hero-headline { font-size: 2.5rem; }
+  .op-hero-headline {
+    font-size: 2.5rem;
+  }
 }
 
 .op-hero-static {
@@ -794,7 +952,9 @@ body.op-auth-page {
 }
 
 @media (min-width: 1280px) {
-  .op-rotating-wrapper { padding: 0.25rem 0.75rem; }
+  .op-rotating-wrapper {
+    padding: 0.25rem 0.75rem;
+  }
 }
 
 .op-word-track {
@@ -810,13 +970,23 @@ body.op-auth-page {
 }
 
 @keyframes op-springIn {
-  0% { transform: translateY(100%); }
-  100% { transform: translateY(0); }
+  0% {
+    transform: translateY(100%);
+  }
+
+  100% {
+    transform: translateY(0);
+  }
 }
 
 @keyframes op-springOut {
-  0% { transform: translateY(0); }
-  100% { transform: translateY(-120%); }
+  0% {
+    transform: translateY(0);
+  }
+
+  100% {
+    transform: translateY(-120%);
+  }
 }
 
 .op-animating-in .op-char {
@@ -841,19 +1011,32 @@ body.op-auth-page {
 }
 
 @media (min-width: 1280px) {
-  .op-hero-sub { font-size: 1.125rem; }
+  .op-hero-sub {
+    font-size: 1.125rem;
+  }
 }
 
 /* ═══════════════════════════════════════════════════════
    LOGO LIGHT/DARK TOGGLE
    ═══════════════════════════════════════════════════════ */
-.op-logo-light { display: none; }
-.op-logo-dark { display: inline-block; }
-[data-theme="dark"] .op-logo-light { display: inline-block !important; }
-[data-theme="dark"] .op-logo-dark { display: none !important; }
+.op-logo-light {
+  display: none;
+}
+
+.op-logo-dark {
+  display: inline-block;
+}
+
+[data-theme="dark"] .op-logo-light {
+  display: inline-block !important;
+}
+
+[data-theme="dark"] .op-logo-dark {
+  display: none !important;
+}
 
 /* ═══════════════════════════════════════════════════════
-   FORGOT PASSWORD — Characters positioned on email box
+   FORGOT PASSWORD - Characters positioned on email box
    ═══════════════════════════════════════════════════════ */
 .op-forgot-stage-wrap {
   position: relative;
@@ -883,6 +1066,7 @@ body.op-auth-page {
     left: 85px;
     transform: scale(0.15);
   }
+
   .op-forgot-stage-wrap .op-speech-bubble {
     bottom: 160px;
     width: 240px;

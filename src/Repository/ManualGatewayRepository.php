@@ -76,7 +76,7 @@ final class ManualGatewayRepository extends BaseRepository
      * Resolves the manual gateways a brand's customer can pay through at checkout, merging the
      * platform-owned templates (All-Brands defaults) with the brand's own account overrides.
      *
-     * Money-routing rule (Phase 2c, model A): for each gateway slug the BRAND's own active row wins —
+     * Money-routing rule (Phase 2c, model A): for each gateway slug the BRAND's own active row wins -
      * its instructions/QR/account are the account the customer's funds go to. When the brand has not
      * configured that slug, the platform template is the fallback (its own default account). Slugs
      * that exist only as brand rows (legacy/brand-only gateways) are preserved. Only 'active' rows on

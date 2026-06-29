@@ -1,5 +1,5 @@
 /**
- * OwnPay Admin — Fee Rules JS
+ * OwnPay Admin - Fee Rules JS
  * Handles: type toggle (simple vs tiered), dynamic tiered rows add/remove.
  */
 (function () {
@@ -16,7 +16,7 @@
         // Keep track of index for tier row names
         var tierIdx = tiersContainer ? tiersContainer.querySelectorAll(".op-tier-row").length : 0;
 
-        // ─── Type Toggle Function ──────────────────────────────────────────────
+        // --- Type Toggle Function ----------------------------------------------
         function toggleType(type) {
             if (type === "tiered") {
                 if (simpleValueGroup) {
@@ -25,7 +25,7 @@
                 if (tieredSetupCard) {
                     tieredSetupCard.style.display = "";
                 }
-                
+
                 // Add a default first row if empty
                 if (tiersContainer && tiersContainer.children.length === 0) {
                     addTierRow();
@@ -40,7 +40,7 @@
             }
         }
 
-        // ─── Add Tier Row Function ─────────────────────────────────────────────
+        // --- Add Tier Row Function ---------------------------------------------
         function addTierRow() {
             if (!tiersContainer || !tierTemplate) {
                 return;
@@ -54,7 +54,7 @@
         // Initialize display state on page load
         if (typeSelect) {
             toggleType(typeSelect.value);
-            
+
             typeSelect.addEventListener("change", function () {
                 toggleType(this.value);
             });

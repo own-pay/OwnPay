@@ -13,7 +13,7 @@ use OwnPay\Container;
 use OwnPay\Service\Admin\AdminSession;
 
 /**
- * LanguageSystemTest — Verifies dynamic i18n features, database-backed translation logic,
+ * LanguageSystemTest - Verifies dynamic i18n features, database-backed translation logic,
  * middleware resolution, custom locale preferences, and JSON flattener functionality.
  *
  * @group Integration
@@ -191,7 +191,7 @@ final class LanguageSystemTest extends IntegrationTestCase
             if (!file_exists($path)) {
                 break;
             }
-            usleep(20000); // 20ms — allow a lingering handle to release on Windows
+            usleep(20000); // 20ms - allow a lingering handle to release on Windows
         }
     }
 

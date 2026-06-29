@@ -9,7 +9,7 @@ use OwnPay\Plugin\Capability;
 use OwnPay\Event\EventManager;
 
 /**
- * Mail Gateway Addon — SMTP, Mailgun, SendGrid.
+ * Mail Gateway Addon - SMTP, Mailgun, SendGrid.
  * Hooks into mail.send to dispatch emails.
  * senior-security: Secrets from settings, TLS enforced, no PII in logs.
  */

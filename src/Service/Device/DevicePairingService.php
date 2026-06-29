@@ -219,12 +219,6 @@ final class DevicePairingService
             return ['success' => false, 'error' => 'INVALID_OTP'];
         }
         $merchantId = $valid['merchant_id'];
-
-        // The device is paired AS the admin who generated the OTP. That identity
-        // is recorded on the token (created_by). Pairing happens over the
-        // stateless mobile API, so there is no session to fall back to — and
-        // falling back to the brand's first superadmin would silently escalate a
-        // low-privileged staffer's device to superadmin. Fail closed instead.
         $createdBy = $valid['created_by'] ?? null;
         $userId = is_scalar($createdBy) ? (int) $createdBy : 0;
         if ($userId <= 0) {
@@ -311,8 +305,7 @@ final class DevicePairingService
                 $isStateless = true;
             }
         } catch (\Throwable) {
-            // Malformed/expired/forged refresh token — leave $device null; the
-            // caller handles this as a failed refresh (no token is issued).
+
         }
 
         if ($jti !== null) {
@@ -345,10 +338,6 @@ final class DevicePairingService
         }
 
         $brandId = (int) ($device['merchant_id'] ?? 1);
-        // Fail closed: a refresh token whose subject does not resolve to a real user MUST NOT be
-        // silently upgraded to user 1 (the superadmin) — that would be a privilege-escalation
-        // fail-open. Legitimate device tokens always carry a positive `sub` set at pairing, so this
-        // only rejects malformed/legacy tokens (e.g. a non-numeric `sub`).
         if ($userId <= 0) {
             return ['success' => false, 'error' => 'INVALID_REFRESH_TOKEN'];
         }
@@ -505,7 +494,7 @@ final class DevicePairingService
 
     /**
      * Returns the most recently paired ACTIVE device for the brand (or all brands) since a baseline
-     * timestamp — used by the admin pairing screen to detect a device that just connected.
+     * timestamp - used by the admin pairing screen to detect a device that just connected.
      *
      * @param int|null $merchantId Brand id, or null/0 for the All-Brands scope.
      * @param string $since Baseline timestamp (the OTP-generation time).
@@ -531,5 +520,19 @@ final class DevicePairingService
             ? $this->devices->forAllTenants()
             : $this->devices->forTenant($merchantId);
         return $repo->listWithLiveStatus();
+    }
+
+    /**
+     * Device statuses a specific BRAND should see: its own devices PLUS the global All-Brands (platform)
+     * devices, which serve every brand. Mirrors how filter rules and manual gateways expose platform-owned
+     * records to each brand, so a device paired under All Brands also shows under each brand (issue #3).
+     *
+     * @param int $brandId    The brand's own merchant id (must be > 0).
+     * @param int $platformId The reserved All-Brands (platform) merchant id.
+     * @return array<int, array<string, mixed>> Devices, each with a derived `online` column.
+     */
+    public function listDeviceStatusesForBrand(int $brandId, int $platformId): array
+    {
+        return $this->devices->listWithLiveStatusForBrand($brandId, $platformId);
     }
 }

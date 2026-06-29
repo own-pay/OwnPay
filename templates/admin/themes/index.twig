@@ -1,6 +1,6 @@
 {% extends 'admin/layout/base.twig' %}
 
-{% block title %}Themes — {{ app_name }}{% endblock %}
+{% block title %}Themes - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
@@ -37,7 +37,7 @@
         </div>
         <div class="op-theme-info">
             <h3>{{ theme.name }}</h3>
-            <p class="op-text-muted">v{{ theme.version }} — {{ theme.author|default('Unknown') }}</p>
+            <p class="op-text-muted">v{{ theme.version }} - {{ theme.author|default('Unknown') }}</p>
             {% if theme.description is defined and theme.description %}
                 <p class="op-theme-desc">{{ theme.description|length > 100 ? theme.description|slice(0, 100) ~ '...' : theme.description }}</p>
             {% endif %}

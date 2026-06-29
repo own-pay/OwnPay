@@ -186,10 +186,10 @@ $gatewayCategory = 'global';
 if ($moduleType === 'gateway') {
     echo "\n" . C_BLUE . "=== Gateway Category Selection ===" . C_RESET . "\n";
     $categoryNum = selectMenu("Select the Payment Gateway Category:", [
-        1 => "mfs (Mobile Financial Services — e.g., bKash, Nagad, aamarpay)",
-        2 => "bank (Card and standard internet banking gateways — e.g., sslcommerz)",
-        3 => "global (Global API networks — e.g., Stripe, Binance Pay)",
-        4 => "express (Express wallet buttons — e.g., Apple Pay, Google Pay)",
+        1 => "mfs (Mobile Financial Services - e.g., bKash, Nagad, aamarpay)",
+        2 => "bank (Card and standard internet banking gateways - e.g., sslcommerz)",
+        3 => "global (Global API networks - e.g., Stripe, Binance Pay)",
+        4 => "express (Express wallet buttons - e.g., Apple Pay, Google Pay)",
         5 => "other (Custom category)"
     ], 3);
     
@@ -210,7 +210,7 @@ if ($moduleType === 'gateway') {
 $themeEngine = 'php';
 if ($moduleType === 'theme') {
     $engineChoice = selectMenu("Which template engine would you like to use for your checkout theme?", [
-        1 => "PHP Template (Default — pure PHP view layouts)",
+        1 => "PHP Template (Default - pure PHP view layouts)",
         2 => "Twig Template (Standard Auto-Escaped templates)"
     ], 1);
     $themeEngine = $engineChoice === 2 ? 'twig' : 'php';
@@ -607,7 +607,7 @@ final class {{STUDLY_SLUG}}Gateway implements PluginInterface, GatewayAdapterInt
 
         // SECURITY: NEVER return success without confirming against the gateway API.
         // Query the provider with $sessionId, verify BOTH status and amount, then return the real result.
-        throw new \RuntimeException('{{NAME}} gateway verify() is not implemented yet — refusing to auto-confirm payment.');
+        throw new \RuntimeException('{{NAME}} gateway verify() is not implemented yet - refusing to auto-confirm payment.');
     }
 
     /**
@@ -622,7 +622,7 @@ final class {{STUDLY_SLUG}}Gateway implements PluginInterface, GatewayAdapterInt
     {
         $webhookSecret = $credentials['webhook_secret'] ?? '';
         if ($webhookSecret === '') {
-            // SECURITY: fail closed — without a configured secret we cannot verify authenticity.
+            // SECURITY: fail closed - without a configured secret we cannot verify authenticity.
             return false;
         }
 

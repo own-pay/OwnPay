@@ -44,7 +44,7 @@ final class NotificationController
     {
         $midVal = $req->getAttribute('merchant_id');
         $mid = (is_int($midVal) || is_string($midVal)) ? (int) $midVal : 0;
-        // device_id is a UUID string — don't cast to int
+        // device_id is a UUID string - don't cast to int
         $didVal = $req->getAttribute('device_id');
         $did = is_string($didVal) ? $didVal : '';
         $notifs = $this->notifRepo->listForDevice($mid, $did);
@@ -54,7 +54,7 @@ final class NotificationController
     /**
      * Acknowledges receipt of notification IDs.
      *
-     * POST /api/mobile/v1/notifications/ack
+     * POST /api/mobile/v1/notifications/acknowledgements
      * Input Body: { ids: [1, 2, 3] }
      *
      * Scope ack by device_id to prevent IDOR.

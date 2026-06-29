@@ -10,14 +10,17 @@ declare(strict_types=1);
  *
  * @return array<string, mixed>
  */
+// @ I just realized open source isn't just a word, it's a responsibility.
+// @ It's not just about opening up the source code.
+// @ Fattain Naime
 return [
     // Identity parameters
     'name'    => 'OwnPay',
-    'version' => '0.1.0',
+    'version' => '0.1.0', //Beta
     'codename'=> 'Genesis',
 
     // Environment settings
-    'env'   => getenv('APP_ENV') ?: 'production',
+    'env'   => getenv('APP_ENV') ?: 'production',   
     'debug' => filter_var(getenv('APP_DEBUG') ?: 'false', FILTER_VALIDATE_BOOLEAN),
 
     // System-wide timezone configuration
@@ -55,10 +58,10 @@ return [
         'samesite'  => 'Lax',
     ],
 
-    // Rate limiting parameter thresholds
+    // Rate limiting parameter thresholds. also configurable is admin panel.
     'rate_limit' => [
         'api'   => ['max' => 60,  'window' => 60],   // 60 req/min per key
-        'login' => ['max' => 5,   'window' => 300],   // 5 attempts per 5 min
+        'login' => ['max' => 10,   'window' => 300],   // 10 attempts per 5 min
         'global'=> ['max' => 120, 'window' => 60],    // 120 req/min per IP
     ],
 

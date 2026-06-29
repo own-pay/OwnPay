@@ -8,7 +8,7 @@ use OwnPay\Service\Domain\DnsVerifier;
 use OwnPay\Support\DateHelper;
 
 /**
- * DNS verification job — re-checks pending domains every 6 hours.
+ * DNS verification job - re-checks pending domains every 6 hours.
  */
 final class DnsVerificationJob
 {
@@ -67,12 +67,6 @@ final class DnsVerificationJob
             }
         }
 
-        // Continuous re-verification (DNS TOCTOU fix): a domain verified once is
-        // otherwise trusted forever. Re-check active domains whose proof is older
-        // than the grace window; if the TXT record no longer proves ownership,
-        // revert the domain to 'pending' so it stops routing brand traffic until
-        // re-proven. Merchants must keep their _ownpay-verification TXT record in
-        // place — standard for continuously validated custom domains.
         $revoked = 0;
         $stale = $this->domains->findStaleVerified(24);
         foreach ($stale as $domain) {

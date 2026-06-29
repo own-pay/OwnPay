@@ -79,9 +79,7 @@ final class RefundService
 
         $db = \OwnPay\Core\Database::getInstance();
 
-        // Phase 1: Lock & Log (Prepare the refund in pending state inside a transaction)
         $preparation = $db->transaction(function () use ($db, $merchantId, $transactionId, $amount, $data) {
-            // Lock parent transaction row to prevent concurrent refund computations on same transaction
             $txn = $db->fetchOne(
                 "SELECT * FROM op_transactions WHERE id = :id AND merchant_id = :mid FOR UPDATE",
                 ['id' => $transactionId, 'mid' => $merchantId]
@@ -98,7 +96,6 @@ final class RefundService
             $txnIdVal = $txn['id'] ?? 0;
             $txnId = is_scalar($txnIdVal) ? (int)$txnIdVal : 0;
 
-            // Lock existing refunds for update to calculate absolute total accurately under concurrent requests
             $alreadyRefundedVal = $db->fetchColumn(
                 "SELECT COALESCE(SUM(amount), 0) FROM op_refunds 
                  WHERE transaction_id = :txid AND merchant_id = :mid AND status IN ('pending', 'completed') FOR UPDATE",
@@ -111,10 +108,6 @@ final class RefundService
             $origAmount = is_scalar($origAmountVal) ? (string) $origAmountVal : '0.00';
             /** @var numeric-string $origAmount */
 
-            // A null/absent amount means "refund the full remaining balance".
-            // An explicitly supplied amount that is non-numeric or non-positive is a
-            // client error and must be rejected — never silently coerced into a full
-            // refund (which would refund far more than the caller intended).
             if ($amount === null) {
                 $amount = bcsub($origAmount, $alreadyRefunded, 2);
             } elseif (!is_numeric($amount) || bccomp((string)$amount, '0', 2) <= 0) {
@@ -132,11 +125,9 @@ final class RefundService
                 throw new InvalidArgumentException('Refund amount cannot exceed transaction amount');
             }
 
-            // Validate merchant payable ledger balance prior to issuing refund
             $currencyVal = $txn['currency'] ?? 'BDT';
             $currency = is_scalar($currencyVal) ? (string)$currencyVal : 'BDT';
 
-            // Lock the merchant payable account to prevent concurrent overdraft/race conditions
             $account = $db->fetchOne(
                 "SELECT balance FROM op_ledger_accounts 
                  WHERE merchant_id = :mid AND currency = :cur AND name = 'MERCHANT_PAYABLE' 
@@ -147,7 +138,6 @@ final class RefundService
             $merchantBalance = is_scalar($balanceVal) ? (string)$balanceVal : '0.00';
             /** @var numeric-string $merchantBalance */
 
-            // Calculate total pending refunds that are not yet posted to the ledger for the same currency
             $pendingRefundsVal = $db->fetchColumn(
                 "SELECT COALESCE(SUM(r.amount), 0) FROM op_refunds r
                  JOIN op_transactions t ON t.id = r.transaction_id
@@ -157,7 +147,6 @@ final class RefundService
             $pendingRefunds = is_scalar($pendingRefundsVal) ? (string)$pendingRefundsVal : '0.00';
             /** @var numeric-string $pendingRefunds */
 
-            // Available balance is Ledger balance minus pending refunds
             $availableBalance = bcsub($merchantBalance, $pendingRefunds, 4);
 
             $feeVal = $txn['fee'] ?? '0.00';
@@ -176,7 +165,6 @@ final class RefundService
                 throw new InvalidArgumentException("Insufficient merchant payable ledger balance ({$availableBalance} {$currency}) to issue refund net of {$refundNet} {$currency}");
             }
 
-            // Create refund record
             $id = $this->refunds->forTenant($merchantId)->createRefund([
                 'transaction_id' => $txnId,
                 'amount' => (string)$amount,
@@ -214,7 +202,6 @@ final class RefundService
         $gwTrxId = $preparation['gateway_trx_id'];
         $origAmount = $preparation['orig_amount'];
 
-        // Phase 2: Outbound network request (executed outside the transaction scope)
         $gatewaySuccess = false;
         $gatewayError = null;
 
@@ -230,9 +217,7 @@ final class RefundService
             $gatewayError = $e;
         }
 
-        // Phase 3: Reconciliation & Finalization (executed in a second short transaction)
         $refund = $db->transaction(function () use ($db, $merchantId, $refundId, $txnId, $amountStr, $currency, $origAmount, $gatewaySuccess, $gatewayError) {
-            // Lock refund record to update status safely
             $refRecord = $db->fetchOne(
                 "SELECT * FROM op_refunds WHERE id = :id AND merchant_id = :mid FOR UPDATE",
                 ['id' => $refundId, 'mid' => $merchantId]
@@ -242,16 +227,13 @@ final class RefundService
             }
 
             if ($gatewaySuccess) {
-                // Update refund record status to completed
                 $this->refunds->forTenant($merchantId)->updateScoped($refundId, [
                     'status' => 'completed',
                     'processed_at' => DateHelper::nowMicro()
                 ]);
 
-                // Record in ledger
                 $this->ledger->recordRefund($merchantId, $refundId, $txnId, $amountStr, $currency);
 
-                // Lock parent transaction to calculate total refunds and update its status
                 $txn = $db->fetchOne(
                     "SELECT * FROM op_transactions WHERE id = :id AND merchant_id = :mid FOR UPDATE",
                     ['id' => $txnId, 'mid' => $merchantId]
@@ -273,7 +255,6 @@ final class RefundService
                     }
                 }
             } else {
-                // Update refund record status to failed
                 $this->refunds->forTenant($merchantId)->updateScoped($refundId, [
                     'status' => 'failed'
                 ]);

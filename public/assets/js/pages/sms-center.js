@@ -1,5 +1,5 @@
 /**
- * OwnPay Admin — SMS Center Page JS
+ * OwnPay Admin - SMS Center Page JS
  * Handles: tab switching, sandbox sub-tab switching, live regex tester,
  *          Smart SMS Analyzer (Method B), AI Prompt Generator (Method C),
  *          and the new AI JSON template auto-importer.
@@ -19,7 +19,7 @@
             .replace(/'/g, "&#039;");
     }
 
-    // ─── Tab Switching ────────────────────────────────────────────────────────
+    // --- Tab Switching --------------------------------------------------------
     document.querySelectorAll(".op-tab").forEach(function (t) {
         t.addEventListener("click", function () {
             document.querySelectorAll(".op-tab, .op-tab-panel").forEach(function (e) {
@@ -31,7 +31,7 @@
         });
     });
 
-    // ─── Sandbox Sub-Tab Switching ───────────────────────────────────────────
+    // --- Sandbox Sub-Tab Switching -------------------------------------------
     document.querySelectorAll("#sandbox-tabs .op-sandbox-tab").forEach(function (tab) {
         tab.addEventListener("click", function () {
             document.querySelectorAll("#sandbox-tabs .op-sandbox-tab, .op-sandbox-panel").forEach(function (e) {
@@ -43,7 +43,7 @@
         });
     });
 
-    // ─── Create Template Modal Toggling ──────────────────────────────────────
+    // --- Create Template Modal Toggling --------------------------------------
     var btnOpenModal = document.getElementById("btn-open-create-modal");
     var createModal = document.getElementById("create-template-modal");
     var createForm = document.getElementById("create-template-form");
@@ -57,15 +57,15 @@
         });
     }
 
-    // ─── Live Regex Tester ────────────────────────────────────────────────────
+    // --- Live Regex Tester ----------------------------------------------------
     var testBtn = document.getElementById("test-regex-btn");
     if (testBtn) {
         testBtn.addEventListener("click", function () {
-            var body  = document.getElementById("test-sms-body").value;
+            var body = document.getElementById("test-sms-body").value;
             var regex = document.getElementById("test-regex").value;
             var field = document.getElementById("test-field").value;
-            var box   = document.getElementById("test-result-box");
-            var wrap  = document.getElementById("test-result");
+            var box = document.getElementById("test-result-box");
+            var wrap = document.getElementById("test-result");
 
             if (!body || !regex) {
                 box.className = "op-alert op-alert-warning";
@@ -79,37 +79,37 @@
                 headers: { "Content-Type": "application/json", "X-CSRF-Token": csrf },
                 body: JSON.stringify({ sms_body: body, regex: regex, field: field })
             })
-            .then(function (r) { return r.json(); })
-            .then(function (data) {
-                if (wrap) { wrap.classList.remove("op-d-none"); }
-                if (!data.success) {
+                .then(function (r) { return r.json(); })
+                .then(function (data) {
+                    if (wrap) { wrap.classList.remove("op-d-none"); }
+                    if (!data.success) {
+                        box.className = "op-alert op-alert-danger";
+                        box.textContent = "Error: " + data.error;
+                    } else if (data.matched) {
+                        box.className = "op-alert op-alert-success";
+                        box.innerHTML = "<strong>✓ Match found!</strong><br>Field: <code>" + escapeHtml(data.field) + "</code><br>Extracted: <code>" + escapeHtml(data.match || "(empty)") + "</code>";
+                    } else {
+                        box.className = "op-alert op-alert-warning";
+                        box.textContent = "✗ No match. Adjust your regex pattern.";
+                    }
+                })
+                .catch(function () {
                     box.className = "op-alert op-alert-danger";
-                    box.textContent = "Error: " + data.error;
-                } else if (data.matched) {
-                    box.className = "op-alert op-alert-success";
-                    box.innerHTML = "<strong>✓ Match found!</strong><br>Field: <code>" + escapeHtml(data.field) + "</code><br>Extracted: <code>" + escapeHtml(data.match || "(empty)") + "</code>";
-                } else {
-                    box.className = "op-alert op-alert-warning";
-                    box.textContent = "✗ No match. Adjust your regex pattern.";
-                }
-            })
-            .catch(function () {
-                box.className = "op-alert op-alert-danger";
-                box.textContent = "Network error.";
-                if (wrap) { wrap.classList.remove("op-d-none"); }
-            });
+                    box.textContent = "Network error.";
+                    if (wrap) { wrap.classList.remove("op-d-none"); }
+                });
         });
     }
 
-    // ─── Method B: Smart SMS Analyzer ────────────────────────────────────────
+    // --- Method B: Smart SMS Analyzer ----------------------------------------
     var analyzeBtn = document.getElementById("analyze-sms-btn");
     if (analyzeBtn) {
         analyzeBtn.addEventListener("click", function () {
             var sender = document.getElementById("sms-sender-input").value.trim();
-            var raw    = document.getElementById("raw-sms-input").value.trim();
+            var raw = document.getElementById("raw-sms-input").value.trim();
 
-            if (!sender) { alert("Enter the SMS sender (From field) — e.g. bKash, AD-NAGAD."); return; }
-            if (!raw)    { alert("Paste the SMS body first."); return; }
+            if (!sender) { alert("Enter the SMS sender (From field) - e.g. bKash, AD-NAGAD."); return; }
+            if (!raw) { alert("Paste the SMS body first."); return; }
 
             var btn = this;
             var btnText = document.getElementById("analyze-btn-text");
@@ -121,45 +121,45 @@
                 headers: { "Content-Type": "application/x-www-form-urlencoded", "X-CSRF-Token": csrf },
                 body: "sender=" + encodeURIComponent(sender) + "&raw_sms=" + encodeURIComponent(raw)
             })
-            .then(function (r) { return r.json(); })
-            .then(function (res) {
-                if (!res.success) { alert("Error: " + (res.error || "Unknown")); return; }
-                var d = res.data;
-                var analyzeResultsPanel = document.getElementById("analyze-results");
-                if (analyzeResultsPanel) { analyzeResultsPanel.classList.remove("op-d-none"); }
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (!res.success) { alert("Error: " + (res.error || "Unknown")); return; }
+                    var d = res.data;
+                    var analyzeResultsPanel = document.getElementById("analyze-results");
+                    if (analyzeResultsPanel) { analyzeResultsPanel.classList.remove("op-d-none"); }
 
-                var badge = document.getElementById("confidence-badge");
-                if (d.sender_whitelisted) {
-                    badge.className = "op-badge op-badge-success";
-                    badge.textContent = "✓ Whitelisted";
-                } else {
-                    badge.className = "op-badge op-badge-warning";
-                    badge.textContent = "⚠ Unwhitelisted";
-                }
+                    var badge = document.getElementById("confidence-badge");
+                    if (d.sender_whitelisted) {
+                        badge.className = "op-badge op-badge-success";
+                        badge.textContent = "✓ Whitelisted";
+                    } else {
+                        badge.className = "op-badge op-badge-warning";
+                        badge.textContent = "⚠ Unwhitelisted";
+                    }
 
-                var rows = [
-                    ["Sender (From)", d.sender || sender, "info"],
-                    ["Credit SMS",    d.is_credit ? "Yes" : "No", d.is_credit ? "high" : "low"],
-                    ["Amount",        d.amount    || "—", (d.confidence && d.confidence.amount)  || "—"],
-                    ["TrxID",         d.trx_id    || "—", (d.confidence && d.confidence.trx_id)  || "—"],
-                ];
+                    var rows = [
+                        ["Sender (From)", d.sender || sender, "info"],
+                        ["Credit SMS", d.is_credit ? "Yes" : "No", d.is_credit ? "high" : "low"],
+                        ["Amount", d.amount || "-", (d.confidence && d.confidence.amount) || "-"],
+                        ["TrxID", d.trx_id || "-", (d.confidence && d.confidence.trx_id) || "-"],
+                    ];
 
-                document.getElementById("analyze-fields").innerHTML =
-                    '<table class="op-table op-analyze-table" style="font-size:0.75rem; width:100%;">' +
-                    "<thead><tr><th>Field</th><th>Match</th><th>Conf.</th></tr></thead><tbody>" +
-                    rows.map(function (r) {
-                        var cls = r[2] === "high" ? "success" : r[2] === "medium" ? "warning" : r[2] === "info" ? "info" : "muted";
-                        return "<tr><td style='padding:6px;'>" + escapeHtml(r[0]) + "</td><td style='padding:6px;'><code>" + escapeHtml(r[1]) + "</code></td><td style='padding:6px;'><span class='op-badge op-badge-" + cls + "' style='font-size:10px; padding:2px 4px;'>" + escapeHtml(r[2]) + "</span></td></tr>";
-                    }).join("") +
-                    "</tbody></table>";
+                    document.getElementById("analyze-fields").innerHTML =
+                        '<table class="op-table op-analyze-table" style="font-size:0.75rem; width:100%;">' +
+                        "<thead><tr><th>Field</th><th>Match</th><th>Conf.</th></tr></thead><tbody>" +
+                        rows.map(function (r) {
+                            var cls = r[2] === "high" ? "success" : r[2] === "medium" ? "warning" : r[2] === "info" ? "info" : "muted";
+                            return "<tr><td style='padding:6px;'>" + escapeHtml(r[0]) + "</td><td style='padding:6px;'><code>" + escapeHtml(r[1]) + "</code></td><td style='padding:6px;'><span class='op-badge op-badge-" + cls + "' style='font-size:10px; padding:2px 4px;'>" + escapeHtml(r[2]) + "</span></td></tr>";
+                        }).join("") +
+                        "</tbody></table>";
 
-                document.getElementById("save-sender-pattern").value = sender;
-                if (d.suggested_regexes && d.suggested_regexes.amount_regex) { document.getElementById("save-amount-regex").value = d.suggested_regexes.amount_regex; }
-                if (d.suggested_regexes && d.suggested_regexes.trx_id_regex) { document.getElementById("save-trxid-regex").value = d.suggested_regexes.trx_id_regex; }
-                if (d.suggested_regexes && d.suggested_regexes.sender_regex) { document.getElementById("save-sender-regex").value = d.suggested_regexes.sender_regex; }
-            })
-            .catch(function () { alert("Network error — could not analyze SMS"); })
-            .finally(function () { btnText.textContent = "⚡ Analyze SMS"; btn.disabled = false; });
+                    document.getElementById("save-sender-pattern").value = sender;
+                    if (d.suggested_regexes && d.suggested_regexes.amount_regex) { document.getElementById("save-amount-regex").value = d.suggested_regexes.amount_regex; }
+                    if (d.suggested_regexes && d.suggested_regexes.trx_id_regex) { document.getElementById("save-trxid-regex").value = d.suggested_regexes.trx_id_regex; }
+                    if (d.suggested_regexes && d.suggested_regexes.sender_regex) { document.getElementById("save-sender-regex").value = d.suggested_regexes.sender_regex; }
+                })
+                .catch(function () { alert("Network error - could not analyze SMS"); })
+                .finally(function () { btnText.textContent = "⚡ Analyze SMS"; btn.disabled = false; });
         });
     }
 
@@ -173,15 +173,15 @@
         });
     }
 
-    // ─── Method C: AI Prompt Generator ───────────────────────────────────────
+    // --- Method C: AI Prompt Generator ---------------------------------------
     var genBtn = document.getElementById("gen-ai-prompt-btn");
     if (genBtn) {
         genBtn.addEventListener("click", function () {
             var sender = document.getElementById("ai-sender-input").value.trim();
-            var raw    = document.getElementById("ai-sms-input").value.trim();
+            var raw = document.getElementById("ai-sms-input").value.trim();
 
-            if (!sender) { alert("Enter the SMS sender (From field) — e.g. bKash, AD-NAGAD."); return; }
-            if (!raw)    { alert("Paste the SMS body first."); return; }
+            if (!sender) { alert("Enter the SMS sender (From field) - e.g. bKash, AD-NAGAD."); return; }
+            if (!raw) { alert("Paste the SMS body first."); return; }
 
             var btn = this;
             var btnText = document.getElementById("gen-btn-text");
@@ -193,19 +193,19 @@
                 headers: { "Content-Type": "application/x-www-form-urlencoded", "X-CSRF-Token": csrf },
                 body: "sender=" + encodeURIComponent(sender) + "&raw_sms=" + encodeURIComponent(raw)
             })
-            .then(function (r) { return r.json(); })
-            .then(function (res) {
-                if (!res.success) { alert("Error: " + (res.error || "Unknown")); return; }
-                document.getElementById("ai-prompt-text").textContent = res.prompt;
-                var promptResultPanel = document.getElementById("ai-prompt-result");
-                if (promptResultPanel) { promptResultPanel.classList.remove("op-d-none"); }
-            })
-            .catch(function () { alert("Network error — could not generate prompt"); })
-            .finally(function () { btnText.textContent = "🤖 Generate Prompt"; btn.disabled = false; });
+                .then(function (r) { return r.json(); })
+                .then(function (res) {
+                    if (!res.success) { alert("Error: " + (res.error || "Unknown")); return; }
+                    document.getElementById("ai-prompt-text").textContent = res.prompt;
+                    var promptResultPanel = document.getElementById("ai-prompt-result");
+                    if (promptResultPanel) { promptResultPanel.classList.remove("op-d-none"); }
+                })
+                .catch(function () { alert("Network error - could not generate prompt"); })
+                .finally(function () { btnText.textContent = "🤖 Generate Prompt"; btn.disabled = false; });
         });
     }
 
-    // ─── Safe Clipboard Copying (Rule 3.6 Compliance) ────────────────────────
+    // --- Safe Clipboard Copying (Rule 3.6 Compliance) ------------------------
     var copyAiBtn = document.getElementById("copy-ai-prompt-btn");
     if (copyAiBtn) {
         copyAiBtn.addEventListener("click", function () {
@@ -242,7 +242,7 @@
         });
     }
 
-    // ─── AI JSON Importer Auto-fill Logic ────────────────────────────────────
+    // --- AI JSON Importer Auto-fill Logic ------------------------------------
     var btnImportAiJson = document.getElementById("btn-import-ai-json");
     if (btnImportAiJson) {
         btnImportAiJson.addEventListener("click", function () {

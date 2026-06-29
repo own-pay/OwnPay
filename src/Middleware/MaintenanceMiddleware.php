@@ -62,7 +62,7 @@ final class MaintenanceMiddleware
         }
 
         // Honor the shared maintenance whitelist (same gate the Kernel applies)
-        // so login, admin, webhooks, cron, and in-flight checkouts keep working.
+        // so login, admin, webhooks, cron, and in-flight checkouts keep working. :D
         if (self::isPassthroughPath($request->path())) {
             return $next($request);
         }

@@ -28,7 +28,6 @@ final class LoginAttemptController
     {
         $this->c = $c;
         if (!$this->c->has(LoginAttemptRepository::class)) {
-            // Dummy check to satisfy PHPStan unused property rule
         }
         $this->session = $session;
         $this->attemptsRepo = $attemptsRepo;

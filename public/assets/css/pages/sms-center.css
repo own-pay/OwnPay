@@ -1,5 +1,5 @@
 /* ═══════════════════════════════════════════════════════
-   sms-center.css — OwnPay Admin SMS Center
+   sms-center.css - OwnPay Admin SMS Center
    Page-specific overrides only. Global styles from admin.css.
    ═══════════════════════════════════════════════════════ */
 
@@ -41,6 +41,12 @@
 @media (min-width: 1024px) {
     .op-sms-workspace {
         grid-template-columns: 1.6fr 1fr;
+    }
+
+    /* Brand view hides the template-building sandbox (templates are managed in All Brands only), so the
+       templates table spans the full width instead of leaving the second grid column empty. */
+    .op-sms-workspace.op-sms-workspace--solo {
+        grid-template-columns: 1fr;
     }
 }
 
@@ -99,7 +105,9 @@
     flex-wrap: nowrap;
 }
 
-.op-sandbox-nav::-webkit-scrollbar { display: none; }
+.op-sandbox-nav::-webkit-scrollbar {
+    display: none;
+}
 
 .op-sandbox-tab {
     padding: 10px 14px;
@@ -195,8 +203,15 @@
 
 /* Animations */
 @keyframes opFadeIn {
-    from { opacity: 0; transform: translateY(4px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
 /* Mobile compact */
@@ -233,4 +248,3 @@ select.op-input option {
     background-color: var(--op-bg-card) !important;
     color: var(--op-text) !important;
 }
-

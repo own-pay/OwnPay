@@ -79,7 +79,7 @@ final class BearerAuthMiddleware
             return Response::json(['success' => false, 'message' => 'Invalid API key'], 401);
         }
 
-        // Check API key status — revoked/inactive keys must be rejected.
+        // Check API key status - revoked/inactive keys must be rejected.
         if (($apiKey['status'] ?? 'active') !== 'active') {
             return Response::json(['success' => false, 'message' => 'API key has been revoked'], 401);
         }

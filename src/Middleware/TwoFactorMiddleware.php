@@ -57,7 +57,7 @@ final class TwoFactorMiddleware
                 $userVal = $db->fetchOne("SELECT * FROM op_merchant_users WHERE id = :id AND status = 'active'", ['id' => $userId]);
             }
             if (!is_array($userVal)) {
-                // User deleted/deactivated but session persists — destroy entire session.
+                // User deleted/deactivated but session persists - destroy entire session.
                 $_SESSION = [];
                 if (session_status() === PHP_SESSION_ACTIVE) {
                     session_regenerate_id(true);
@@ -125,10 +125,6 @@ final class TwoFactorMiddleware
         }
 
         $timeSlice = intdiv(time(), 30);
-
-        // Replay floor. Prefer a caller-supplied, durable per-user window (passed by
-        // reference) so a code consumed in one session is rejected in every other
-        // session. Fall back to the pre-auth session only when none is provided.
         $useSession = ($lastUsedWindow === null);
         if ($useSession) {
             $lastUsedVal = $_SESSION['totp_last_used_window'] ?? 0;

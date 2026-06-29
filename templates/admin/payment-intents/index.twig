@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Payment Intents — {{ app_name }}{% endblock %}
+{% block title %}Payment Intents - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -60,14 +60,14 @@
                     {% for intent in payment_intents %}
                     <tr>
                         <td data-label="UUID"><code class="op-trx-id" style="font-size: 11px;">{{ intent.uuid }}</code></td>
-                        <td data-label="Description">{{ intent.description|default('—') }}</td>
+                        <td data-label="Description">{{ intent.description|default('-') }}</td>
                         <td data-label="Amount"><strong>{{ intent.currency }} {{ intent.amount }}</strong></td>
                         <td data-label="Status">
                             <span class="op-badge op-badge-{{ intent.status == 'completed' ? 'success' : (intent.status == 'pending' ? 'warning' : (intent.status == 'processing' ? 'info' : 'danger')) }}">
                                 {{ intent.status|capitalize }}
                             </span>
                         </td>
-                        <td data-label="Expires" class="op-text-sm">{{ intent.expires_at ? intent.expires_at|date("M d, Y H:i") : '—' }}</td>
+                        <td data-label="Expires" class="op-text-sm">{{ intent.expires_at ? intent.expires_at|date("M d, Y H:i") : '-' }}</td>
                         <td data-label="Created" class="op-text-muted op-text-sm">{{ intent.created_at|date("M d, Y H:i") }}</td>
                         <td data-label="Actions">
                             <a href="/admin/payment-intents/{{ intent.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
@@ -86,7 +86,7 @@
     </div>
 </div>
 
-{# ── Pagination ────────────────────────────────────────────────── #}
+{# -- Pagination -------------------------------------------------- #}
 {% if pagination is defined and pagination.total_pages > 1 %}
 {% set qs = '' %}
 {% if filters.q is not empty %}{% set qs = qs ~ '&q=' ~ filters.q|url_encode %}{% endif %}

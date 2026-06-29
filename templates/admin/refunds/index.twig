@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Refunds — {{ app_name }}{% endblock %}
+{% block title %}Refunds - {{ app_name }}{% endblock %}
 {% block content %}
 
 <div class="op-page-header">
@@ -12,7 +12,7 @@
     </div>
 </div>
 
-{# ── Status Chips ──────────────────────────────────────────────── #}
+{# -- Status Chips ------------------------------------------------ #}
 <div class="op-filter-chips-row op-mb-3">
     {% set statuses = [
         {key: '', label: 'All'},
@@ -29,7 +29,7 @@
     {% endfor %}
 </div>
 
-{# ── Advanced Filters ──────────────────────────────────────────── #}
+{# -- Advanced Filters -------------------------------------------- #}
 <div class="op-card op-mb-4">
     <div class="op-card-body">
         <form method="GET" class="op-advanced-filters" id="refund-filter-form">
@@ -51,7 +51,7 @@
     </div>
 </div>
 
-{# ── Refunds Table ─────────────────────────────────────────────── #}
+{# -- Refunds Table ----------------------------------------------- #}
 <div class="op-card">
     <div class="op-card-body op-p-0">
         <div class="op-table-responsive">
@@ -84,7 +84,7 @@
                             <strong class="op-text-danger">- {{ ref.amount }}</strong>
                         </td>
                         <td data-label="Reason">
-                            <span class="op-text-sm op-text-muted">{{ ref.reason|default('—') }}</span>
+                            <span class="op-text-sm op-text-muted">{{ ref.reason|default('-') }}</span>
                         </td>
                         <td data-label="Status">
                             <span class="op-badge op-badge-{{ ref.status == 'completed' ? 'success' : (ref.status == 'pending' ? 'warning' : 'danger') }}">
@@ -92,7 +92,7 @@
                             </span>
                         </td>
                         <td data-label="Processed" class="op-text-muted op-text-sm">
-                            {{ ref.processed_at ? ref.processed_at|date("M d, Y H:i") : '—' }}
+                            {{ ref.processed_at ? ref.processed_at|date("M d, Y H:i") : '-' }}
                         </td>
                         <td data-label="Date" class="op-text-muted op-text-sm">
                             {{ ref.created_at|date("M d, Y H:i") }}
@@ -111,7 +111,7 @@
     </div>
 </div>
 
-{# ── Pagination ────────────────────────────────────────────────── #}
+{# -- Pagination -------------------------------------------------- #}
 {% if pagination is defined and pagination.total_pages > 1 %}
 {% set qs = '' %}
 {% if filters.q is not empty %}{% set qs = qs ~ '&q=' ~ filters.q|url_encode %}{% endif %}

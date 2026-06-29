@@ -94,7 +94,7 @@ final class InvoiceController
             foreach ($invoices as &$inv) {
                 $inv['customer_name'] = !empty($inv['customer_name_enc']) && is_string($inv['customer_name_enc'])
                     ? $enc->decrypt($inv['customer_name_enc'])
-                    : '—';
+                    : '-';
             }
             unset($inv);
         }
@@ -241,7 +241,7 @@ final class InvoiceController
      * InvoiceService::generatePdf() returns a self-contained, print-ready HTML
      * document (PdfService wraps it with @page/A4 print styles). It is served
      * inline so the administrator can review it and use the browser's
-     * Print → "Save as PDF" to export — there is no binary-PDF engine bundled.
+     * Print → "Save as PDF" to export - there is no binary-PDF engine bundled.
      *
      * @param Request $req The incoming HTTP request.
      *

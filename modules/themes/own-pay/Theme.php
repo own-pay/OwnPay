@@ -9,7 +9,7 @@ use OwnPay\Plugin\Capability;
 use OwnPay\Event\EventManager;
 
 /**
- * OwnPay Default Theme — implements PluginInterface.
+ * OwnPay Default Theme - implements PluginInterface.
  * Registers checkout templates and assets.
  */
 final class Theme implements PluginInterface
@@ -102,7 +102,7 @@ final class Theme implements PluginInterface
     }
 
     /**
-     * Safe brand color — regex validated, falls back to teal.
+     * Safe brand color - regex validated, falls back to teal.
      */
     public static function safeBrandColor(string $color = ''): string
     {

@@ -1,14 +1,12 @@
 -- ============================================================
--- OwnPay v0.1.0 — Unified Database Schema
--- ============================================================
--- 48 tables. Zero legacy. All InnoDB, utf8mb4_unicode_ci.
+-- OwnPay v0.1.0 - Unified Database Schema
 -- ============================================================
 
 SET NAMES utf8mb4;
 SET FOREIGN_KEY_CHECKS = 0;
 SET SQL_MODE = 'STRICT_TRANS_TABLES,ERROR_FOR_DIVISION_BY_ZERO,NO_ENGINE_SUBSTITUTION';
 
--- ─── 1. Merchants & RBAC ───────────────────────────────────
+-- 1. Merchants & RBAC
 
 CREATE TABLE `op_merchants` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -129,7 +127,7 @@ CREATE TABLE `op_domains` (
   CONSTRAINT `fk_dom_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 2. Gateways ───────────────────────────────────────────
+-- 2. Gateways
 
 CREATE TABLE `op_gateways` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -223,7 +221,7 @@ CREATE TABLE `op_system_settings` (
   CONSTRAINT `fk_settings_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants`(`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 3. Customers ──────────────────────────────────────────
+-- 3. Customers
 
 CREATE TABLE `op_customers` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -245,7 +243,7 @@ CREATE TABLE `op_customers` (
   CONSTRAINT `fk_cust_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 4. Payments ───────────────────────────────────────────
+-- 4. Payments
 
 CREATE TABLE `op_payment_intents` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -423,7 +421,7 @@ CREATE TABLE `op_invoice_items` (
   CONSTRAINT `fk_ii_invoice` FOREIGN KEY (`invoice_id`) REFERENCES `op_invoices` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 5. Webhooks ───────────────────────────────────────────
+-- 5. Webhooks
 
 CREATE TABLE `op_webhooks` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -468,9 +466,6 @@ CREATE TABLE `op_webhook_delivery_logs` (
   CONSTRAINT `fk_wdl_event` FOREIGN KEY (`webhook_event_id`) REFERENCES `op_webhook_events` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Webhook delivery tracking — logs BOTH inbound (gateway → OwnPay) and outbound (OwnPay → merchant)
--- Independent of op_webhook_events which tracks per-endpoint subscriptions.
--- Used by: UnifiedWebhookController (inbound), WebhookDispatcher (outbound)
 CREATE TABLE `op_webhook_deliveries` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id` BIGINT UNSIGNED DEFAULT NULL,
@@ -483,12 +478,6 @@ CREATE TABLE `op_webhook_deliveries` (
   `attempt` TINYINT UNSIGNED NOT NULL DEFAULT 1,
   `status` ENUM('received','delivered','failed','rejected') NOT NULL DEFAULT 'received',
   `payload_hash` VARCHAR(128) DEFAULT NULL,
-  -- dedup_key backs the inbound idempotency unique index: outbound retries
-  -- legitimately reuse a payload_hash (attempt 1..n), and NULL merchant_id rows
-  -- must still deduplicate, so the key is generated only for inbound rows with
-  -- NULL merchant_id collapsed to 0. VIRTUAL (not STORED): adding a STORED
-  -- generated column forces an ALGORITHM=COPY rebuild that fails on tables
-  -- with foreign keys (MySQL errno 1215).
   `dedup_key` VARCHAR(150)
     GENERATED ALWAYS AS (
       IF(`direction` = 'inbound' AND `payload_hash` IS NOT NULL,
@@ -505,7 +494,7 @@ CREATE TABLE `op_webhook_deliveries` (
   CONSTRAINT `fk_wd_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE SET NULL
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 6. Ledger ─────────────────────────────────────────────
+-- 6. Ledger
 
 CREATE TABLE `op_ledger_accounts` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -516,8 +505,6 @@ CREATE TABLE `op_ledger_accounts` (
   `balance` DECIMAL(18,2) NOT NULL DEFAULT 0.00,
   `created_at` DATETIME(6) NOT NULL DEFAULT CURRENT_TIMESTAMP(6),
   PRIMARY KEY (`id`),
-  -- Account identity is (merchant_id, name, currency) so the same account name
-  -- can exist per currency for multi-currency ledgers.
   UNIQUE KEY `uk_merchant_name_currency` (`merchant_id`, `name`, `currency`),
   CONSTRAINT `fk_la_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
@@ -568,7 +555,7 @@ CREATE TABLE `op_disputes` (
   CONSTRAINT `fk_dsp_txn` FOREIGN KEY (`transaction_id`) REFERENCES `op_transactions` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 8. Fees ───────────────────────────────────────────────
+-- 8. Fees
 
 CREATE TABLE `op_fee_rules` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -587,7 +574,7 @@ CREATE TABLE `op_fee_rules` (
   CONSTRAINT `fk_fr_merchant` FOREIGN KEY (`merchant_id`) REFERENCES `op_merchants` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 9. Audit ──────────────────────────────────────────────
+-- 9. Audit
 
 CREATE TABLE `op_audit_logs` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -634,7 +621,7 @@ CREATE TABLE `op_password_resets` (
   CONSTRAINT `fk_pwreset_user` FOREIGN KEY (`user_id`) REFERENCES `op_merchant_users` (`id`) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 10. Devices & SMS ─────────────────────────────────────
+-- 10. Devices & SMS
 
 CREATE TABLE `op_device_pairing_tokens` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -733,7 +720,7 @@ CREATE TABLE `op_sms_parsed` (
   KEY `idx_device` (`device_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 11. Plugins ───────────────────────────────────────────
+-- 11. Plugins
 
 CREATE TABLE `op_plugins` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -784,7 +771,7 @@ CREATE TABLE `op_plugin_settings` (
   UNIQUE KEY `uk_plugin_key` (`plugin_slug`, `key_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 12. System ────────────────────────────────────────────
+-- 12. System
 
 CREATE TABLE `op_rate_limits` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -862,7 +849,7 @@ CREATE TABLE `op_languages` (
   CONSTRAINT `chk_translations_json` CHECK (json_valid(`translations`))
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 13. Communication ─────────────────────────────────────
+-- 13. Communication
 
 CREATE TABLE `op_comm_log` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,
@@ -882,7 +869,7 @@ CREATE TABLE `op_comm_log` (
   KEY `idx_created` (`created_at`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- ─── 14. Auto-Updater ──────────────────────────────────────
+-- 14. Auto-Updater
 
 CREATE TABLE `op_update_history` (
   `id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,

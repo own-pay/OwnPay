@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}2FA Setup — {{ app_name }}{% endblock %}
+{% block title %}2FA Setup - {{ app_name }}{% endblock %}
 {% block head %}
     <link rel="stylesheet" href="/assets/css/pages/my-account-2fa.css?v=013">
 {% endblock %}
@@ -38,7 +38,7 @@
     <div class="op-card-body">
         <div class="op-form-row">
             <div class="op-form-group op-col-6">
-                <h4>Step 1 — Scan QR Code</h4>
+                <h4>Step 1 - Scan QR Code</h4>
                 <p class="op-text-muted">Open your authenticator app (Google Authenticator, Authy, etc.) and scan this QR code.</p>
                 <div class="op-2fa-qr op-2fa-qr-container">
                     <img src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data={{ qr_uri|url_encode }}"
@@ -50,7 +50,7 @@
                 </details>
             </div>
             <div class="op-form-group op-col-6">
-                <h4>Step 2 — Verify Code</h4>
+                <h4>Step 2 - Verify Code</h4>
                 <p class="op-text-muted">Enter the 6-digit code from your authenticator app to confirm the setup.</p>
                 <form method="POST" action="/admin/my-account/2fa/enable" class="op-form op-mt-3">
                     <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">

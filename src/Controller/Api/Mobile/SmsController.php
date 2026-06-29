@@ -102,11 +102,6 @@ final class SmsController
             return Response::apiError('MESSAGES_REQUIRED', 'No messages provided', 'messages', 422);
         }
 
-        // Bound the batch size and per-field lengths BEFORE any processing. Without
-        // these caps a paired device could post a 100k-message batch or a multi-MB
-        // body: a memory/CPU DoS, and oversized values are silently truncated by the
-        // TEXT/VARCHAR columns (op_sms_parsed.body/encrypted_raw TEXT = 65535 bytes,
-        // sender VARCHAR(100)), corrupting stored evidence.
         if (count($messages) > self::MAX_BATCH_MESSAGES) {
             return Response::apiError(
                 'BATCH_TOO_LARGE',
@@ -166,7 +161,7 @@ final class SmsController
         $this->events->doAction('sms.received.after', $results);
 
         if ($isBatch) {
-            return Response::apiSuccess($results);
+            return Response::apiSuccess(['results' => $results]);
         }
 
         // For single message compatibility, return top-level keys

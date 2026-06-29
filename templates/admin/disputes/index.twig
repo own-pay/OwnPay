@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Disputes — {{ app_name }}{% endblock %}
+{% block title %}Disputes - {{ app_name }}{% endblock %}
 {% block content %}
 
 <div class="op-page-header">
@@ -12,7 +12,7 @@
     </div>
 </div>
 
-{# ── Disputes Table ────────────────────────────────────────── #}
+{# -- Disputes Table ------------------------------------------ #}
 <div class="op-card">
     <div class="op-card-body op-p-0">
         <div class="op-table-responsive">
@@ -81,7 +81,7 @@
     </div>
 </div>
 
-{# ── Pagination ────────────────────────────────────────────────── #}
+{# -- Pagination -------------------------------------------------- #}
 {% if pages is defined and pages > 1 %}
 <nav class="op-pagination op-mt-4">
     {% if page > 1 %}

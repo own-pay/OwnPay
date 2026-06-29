@@ -6,7 +6,7 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 /**
- * UnifiedWebhookController logic tests — gateway slug validation,
+ * UnifiedWebhookController logic tests - gateway slug validation,
  * hook name generation, merchant resolution fields.
  */
 class UnifiedWebhookControllerTest extends TestCase

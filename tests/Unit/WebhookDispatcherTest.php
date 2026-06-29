@@ -6,7 +6,7 @@ namespace Tests\Unit;
 use PHPUnit\Framework\TestCase;
 
 /**
- * WebhookDispatcher logic tests — HMAC signing, payload building, retry constants.
+ * WebhookDispatcher logic tests - HMAC signing, payload building, retry constants.
  * Tests core logic without requiring DB/curl.
  */
 class WebhookDispatcherTest extends TestCase

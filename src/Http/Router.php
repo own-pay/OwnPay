@@ -225,9 +225,7 @@ final class Router
                             $method = $routeDef[0] ?? null;
                             $pattern = $routeDef[1] ?? null;
                             $action = $routeDef[2] ?? null;
-                            // Optional 4th element selects the middleware group, letting a plugin
-                            // declare an authenticated route (e.g. 'web' for an admin page) instead
-                            // of being forced public. Defaults to the public API group.
+                            // Optional 4th element selects the middleware group, letting a plugin declare an authenticated route (e.g. 'web' for an admin page) instead of being forced public. Defaults to the public API group.
                             $middleware = (isset($routeDef[3]) && is_string($routeDef[3]) && $routeDef[3] !== '')
                                 ? $routeDef[3]
                                 : 'api-public';

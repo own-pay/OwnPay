@@ -1,13 +1,13 @@
 /* ═══════════════════════════════════════════════════════
-   animations.css — OwnPay Shared Keyframes & Animations
+   animations.css - OwnPay Shared Keyframes & Animations
    Extracted from checkout.css, checkout-status.css
    ═══════════════════════════════════════════════════════ */
 
-/* ───────────────────────────────────────────────
+/* -----------------------------------------------
    KEYFRAMES
-   ─────────────────────────────────────────────── */
+   ----------------------------------------------- */
 
-/* Fade in up — primary entrance (checkout: ck-fu) */
+/* Fade in up - primary entrance (checkout: ck-fu) */
 @keyframes fadeInUp {
   from {
     opacity: 0;
@@ -20,14 +20,14 @@
   }
 }
 
-/* Spin — loading indicators (checkout: ck-spin) */
+/* Spin - loading indicators (checkout: ck-spin) */
 @keyframes spin {
   to {
     transform: rotate(360deg);
   }
 }
 
-/* Slide down — toast/error entrance (checkout: ck-slideDown) */
+/* Slide down - toast/error entrance (checkout: ck-slideDown) */
 @keyframes slideDown {
   from {
     opacity: 0;
@@ -40,9 +40,11 @@
   }
 }
 
-/* Pulse — loading/breathing (checkout: st-pulse) */
+/* Pulse - loading/breathing (checkout: st-pulse) */
 @keyframes pulse {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
 
@@ -51,7 +53,7 @@
   }
 }
 
-/* Status reveal — status page entrance (checkout: st-up) */
+/* Status reveal - status page entrance (checkout: st-up) */
 @keyframes statusReveal {
   from {
     opacity: 0;
@@ -75,7 +77,7 @@
   }
 }
 
-/* Scale in — modal/popup entrance */
+/* Scale in - modal/popup entrance */
 @keyframes scaleIn {
   from {
     opacity: 0;
@@ -88,7 +90,7 @@
   }
 }
 
-/* Scale out — modal/popup exit */
+/* Scale out - modal/popup exit */
 @keyframes scaleOut {
   from {
     opacity: 1;
@@ -101,14 +103,31 @@
   }
 }
 
-/* Shake — form validation error */
+/* Shake - form validation error */
 @keyframes shake {
-  0%, 100% { transform: translateX(0); }
-  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
-  20%, 40%, 60%, 80% { transform: translateX(4px); }
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
 }
 
-/* Slide in right — panel/toast entrance */
+/* Slide in right - panel/toast entrance */
 @keyframes slideInRight {
   from {
     opacity: 0;
@@ -121,7 +140,7 @@
   }
 }
 
-/* Slide in left — sidebar entrance */
+/* Slide in left - sidebar entrance */
 @keyframes slideInLeft {
   from {
     opacity: 0;
@@ -134,7 +153,7 @@
   }
 }
 
-/* Pop in — badge/notification entrance */
+/* Pop in - badge/notification entrance */
 @keyframes popIn {
   0% {
     opacity: 0;
@@ -151,7 +170,7 @@
   }
 }
 
-/* Number flip — timer/digit change */
+/* Number flip - timer/digit change */
 @keyframes numberFlip {
   from {
     opacity: 0;
@@ -166,7 +185,7 @@
   }
 }
 
-/* Skeleton shimmer — loading placeholder */
+/* Skeleton shimmer - loading placeholder */
 @keyframes shimmer {
   0% {
     background-position: -200% 0;
@@ -177,9 +196,9 @@
   }
 }
 
-/* ───────────────────────────────────────────────
+/* -----------------------------------------------
    ANIMATION CLASSES
-   ─────────────────────────────────────────────── */
+   ----------------------------------------------- */
 
 /* Entrance animations */
 .fade-in {
@@ -232,31 +251,55 @@
 
 /* Skeleton loading */
 .skeleton {
-  background: linear-gradient(
-    90deg,
-    var(--cloud) 25%,
-    var(--snow) 50%,
-    var(--cloud) 75%
-  );
+  background: linear-gradient(90deg,
+      var(--cloud) 25%,
+      var(--snow) 50%,
+      var(--cloud) 75%);
   background-size: 200% 100%;
   animation: shimmer 1.5s ease-in-out infinite;
   border-radius: var(--r-md);
 }
 
-/* ───────────────────────────────────────────────
+/* -----------------------------------------------
    STAGGER DELAYS (for lists/grids)
-   ─────────────────────────────────────────────── */
-.stagger > * {
+   ----------------------------------------------- */
+.stagger>* {
   opacity: 0;
   animation: fadeInUp var(--duration-slow) var(--ease-out) forwards;
 }
 
-.stagger > *:nth-child(1) { animation-delay: 0ms; }
-.stagger > *:nth-child(2) { animation-delay: 50ms; }
-.stagger > *:nth-child(3) { animation-delay: 100ms; }
-.stagger > *:nth-child(4) { animation-delay: 150ms; }
-.stagger > *:nth-child(5) { animation-delay: 200ms; }
-.stagger > *:nth-child(6) { animation-delay: 250ms; }
-.stagger > *:nth-child(7) { animation-delay: 300ms; }
-.stagger > *:nth-child(8) { animation-delay: 350ms; }
-.stagger > *:nth-child(9) { animation-delay: 400ms; }
+.stagger>*:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.stagger>*:nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.stagger>*:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.stagger>*:nth-child(4) {
+  animation-delay: 150ms;
+}
+
+.stagger>*:nth-child(5) {
+  animation-delay: 200ms;
+}
+
+.stagger>*:nth-child(6) {
+  animation-delay: 250ms;
+}
+
+.stagger>*:nth-child(7) {
+  animation-delay: 300ms;
+}
+
+.stagger>*:nth-child(8) {
+  animation-delay: 350ms;
+}
+
+.stagger>*:nth-child(9) {
+  animation-delay: 400ms;
+}

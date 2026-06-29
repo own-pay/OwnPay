@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\Sms;
 
 /**
- * Tier 1: Template-based regex matching engine.
+ * Template-based regex matching engine.
  *
  * Scans SMS messages against registered templates stored in `op_sms_templates`.
  * Utilizes PHP PCRE matching structures with named capture groups including:
@@ -43,14 +43,14 @@ final class SmsRegexParser
             if ($pattern !== '') {
                 // Validate regex before executing
                 if (@preg_match($pattern, '') === false) {
-                    continue; // Invalid regex — skip
+                    continue; // Invalid regex - skip
                 }
 
                 $matches = [];
                 if ($this->safeMatch($pattern, $body, $matches)) {
                     $amount = $this->extractAmount($matches['amount'] ?? null);
                     if ($amount === null) {
-                        continue; // Matched but no amount — not useful
+                        continue; // Matched but no amount - not useful
                     }
 
                     return [
@@ -74,7 +74,7 @@ final class SmsRegexParser
 
                 $amountPattern = $this->ensureDelimiters($amountRegex);
                 if (@preg_match($amountPattern, '') === false) {
-                    continue; // Invalid regex — skip
+                    continue; // Invalid regex - skip
                 }
 
                 $amountMatches = [];
@@ -136,7 +136,7 @@ final class SmsRegexParser
      * `(a+)+b`) could pin a CPU and stall the SMS cron / mobile endpoint.
      * Temporarily lowering pcre.backtrack_limit/recursion_limit makes such a
      * pattern fail fast (preg_match returns false), which is treated as "no
-     * match" — fail-safe, since a real payment match simply won't occur.
+     * match" - fail-safe, since a real payment match simply won't occur.
      *
      * @param string $pattern The regex pattern (with delimiters).
      * @param string $subject The SMS body to match against.

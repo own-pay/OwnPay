@@ -58,7 +58,7 @@ final class DomainController
             return Response::apiError('DOMAIN_ID_REQUIRED', 'domain_id required', 'domain_id', 422);
         }
 
-        // verifyDomain(int $domainId, int $merchantId) — params were swapped
+        // verifyDomain(int $domainId, int $merchantId) - params were swapped
         $result = $this->domains->verifyDomain($domainId, $mid);
         return Response::apiSuccess(['verified' => $result]);
     }

@@ -42,8 +42,6 @@ final class RouteHelper
         }
         $protocol = $isHttps ? 'https://' : 'http://';
 
-        // Strip port from host before domain parsing.
-        // 'ownpay.test:8443' → explode('.') produces 'test:8443' as last part.
         $hostWithoutPort = preg_replace('/:\d+$/', '', $host);
         $hostWithoutPortStr = is_string($hostWithoutPort) ? $hostWithoutPort : $host;
         $hostParts = explode('.', $hostWithoutPortStr);

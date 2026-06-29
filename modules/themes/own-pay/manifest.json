@@ -2,7 +2,7 @@
   "name": "OwnPay Theme",
   "slug": "own-pay",
   "version": "2.0.0",
-  "description": "Default OwnPay checkout theme — premium, responsive, multi-gateway.",
+  "description": "Default OwnPay checkout theme - premium, responsive, multi-gateway.",
   "author": "OwnPay",
   "type": "theme",
   "entry": "Theme.php",

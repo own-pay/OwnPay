@@ -96,10 +96,6 @@ final class RequestSignatureMiddleware
             ], 401);
         }
 
-        // Replay protection via X-Timestamp header.
-        // Made OPTIONAL — standard gateway webhooks (Stripe, PayPal,
-        // SSLCommerz) don't send X-Timestamp. Blocking them breaks all payments.
-        // Enforce replay check only when the header IS present.
         $timestamp = $request->header('X-Timestamp');
         if ($timestamp !== '') {
             $requestTime = (int) $timestamp;

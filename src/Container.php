@@ -131,18 +131,14 @@ final class Container
      */
     public function get(string $abstract): mixed
     {
-        // Traverses alias chains to find the canonical abstract service name.
+
         $abstract = $this->resolveAlias($abstract);
 
-        // Returns the cached singleton instance immediately if previously resolved.
         if (isset($this->instances[$abstract])) {
             return $this->instances[$abstract];
         }
 
         if (!isset($this->bindings[$abstract])) {
-            // AUD-P4: Bypass hardcoded single-argument repository bindings.
-            // Delegate resolution of all unregistered classes (including repositories)
-            // to the autowire reflection layer to dynamically build dependency graphs.
             if (class_exists($abstract)) {
                 return $this->autowire($abstract);
             }
@@ -152,7 +148,6 @@ final class Container
             );
         }
 
-        // Guards against infinite loops resulting from circular class injection.
         if (isset($this->resolving[$abstract])) {
             throw new RuntimeException(
                 "Circular dependency detected while resolving [{$abstract}]."
@@ -167,7 +162,6 @@ final class Container
             unset($this->resolving[$abstract]);
         }
 
-        // Cache the instantiated service if marked as a singleton.
         if (isset($this->singletons[$abstract])) {
             $this->instances[$abstract] = $instance;
         }
@@ -268,7 +262,6 @@ final class Container
 
         foreach ($parameters as $parameter) {
             $type = $parameter->getType();
-            // Resolves class-based dependencies via the DI container.
             if ($type instanceof \ReflectionNamedType && !$type->isBuiltin()) {
                 $dependencyClass = $type->getName();
                 if ($dependencyClass === self::class) {
@@ -277,7 +270,6 @@ final class Container
                     $dependencies[] = $this->get($dependencyClass);
                 }
             } else {
-                // If a parameter is a primitive, fall back to its default value if available.
                 if ($parameter->isDefaultValueAvailable()) {
                     $dependencies[] = $parameter->getDefaultValue();
                 } else {

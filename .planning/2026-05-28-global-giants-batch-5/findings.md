@@ -1,6 +1,7 @@
-# Findings & Decisions — Batch 5
+# Findings & Decisions - Batch 5
 
 ## Requirements
+
 - Develop, integrate, and validate 6 production-ready payment gateway adapters for the Global Giants (BNPL, Direct Debit, & Wallets) ecosystem:
   1. **Amazon Pay** (slug: `amazon-pay`)
   2. **GoCardless** (slug: `gocardless`)
@@ -17,6 +18,7 @@
   6. 100% PHPStan Level 9 and PHPUnit compliance.
 
 ## Research Findings
+
 - **Amazon Pay Checkout v2:**
   - Standard endpoint: `POST /v2/checkoutSessions`
   - Mode: `live` vs `test` (endpoints `https://pay-api.amazon.com` / `https://pay-api.amazon.eu` and sandbox equivalents).
@@ -44,6 +46,7 @@
   - Webhook: Verify IPN payload by matching POS tokens or executing a secure backchannel status fetch.
 
 ## Technical Decisions
+
 | Decision | Rationale |
 |----------|-----------|
 | No external SDKs | We implement pure curl/openssl endpoints to keep the plugins lightweight, self-contained, and highly secure. |
@@ -51,11 +54,12 @@
 | Simulation Isolation | Active rejection of sandbox keys or `SIM_` transactions when `mode === 'live'` to comply with auditing specs. |
 
 ## Issues Encountered
+
 | Issue | Resolution |
 |-------|------------|
 | None | N/A |
 
 ## Resources
+
 - PHP BCMath Documentation
 - OpenSSL PHP Documentation
-

@@ -15,27 +15,27 @@ declare(strict_types=1);
  */
 
 return [
-    // ─── Global: applied to ALL requests ───────────────────────
+    // --- Global: applied to ALL requests
     'global' => [
         \OwnPay\Middleware\SecurityHeadersMiddleware::class,
         \OwnPay\Middleware\MaintenanceMiddleware::class,
         \OwnPay\Middleware\DomainMiddleware::class,
     ],
 
-    // ─── Web: admin panel + checkout + pages ───────────────────
+    // --- Web: admin panel + checkout + pages
     'web' => [
         \OwnPay\Middleware\SessionMiddleware::class,
         \OwnPay\Middleware\CsrfMiddleware::class,
     ],
 
-    // ─── Web Auth: rate-limited web auth routes (login, 2fa, forgot password) ─────
+    // --- Web Auth: rate-limited web auth routes (login, 2fa, forgot password)
     'web-auth' => [
         \OwnPay\Middleware\SessionMiddleware::class,
         \OwnPay\Middleware\CsrfMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
     ],
 
-    // ─── Admin: web + auth + permissions ───────────────────────
+    // --- Admin: web + auth + permissions
     'admin' => [
         \OwnPay\Middleware\SessionMiddleware::class,
         \OwnPay\Middleware\CsrfMiddleware::class,
@@ -45,7 +45,7 @@ return [
         \OwnPay\Middleware\PermissionMiddleware::class,
     ],
 
-    // ─── API: bearer auth + rate limit + idempotency ─────────────
+    // --- API: bearer auth + rate limit + idempotency
     'api' => [
         \OwnPay\Middleware\CorsMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
@@ -53,7 +53,7 @@ return [
         \OwnPay\Middleware\IdempotencyMiddleware::class,
     ],
 
-    // ─── Admin API: admin bearer auth + rate limit + idempotency ─
+    // --- Admin API: admin bearer auth + rate limit + idempotency
     'admin-api' => [
         \OwnPay\Middleware\CorsMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
@@ -62,45 +62,45 @@ return [
         \OwnPay\Middleware\IdempotencyMiddleware::class,
     ],
 
-    // ─── API Public: no auth (health checks, public endpoints) ──
+    // --- API Public: no auth (health checks, public endpoints)
     'api-public' => [
         \OwnPay\Middleware\CorsMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
     ],
 
-    // ─── Mobile API: JWT + device auth ─────────────────────────
+    // --- Mobile API: JWT + device auth
     'mobile' => [
         \OwnPay\Middleware\CorsMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
         \OwnPay\Middleware\JwtAuthMiddleware::class,
     ],
 
-    // ─── Mobile API Bootstrap: no JWT required ─────────────────
+    // --- Mobile API Bootstrap: no JWT required
     'mobile-bootstrap' => [
         \OwnPay\Middleware\CorsMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
     ],
 
-    // ─── Webhook: signature verification ───────────────────────
+    // --- Webhook: signature verification
     'webhook' => [
         \OwnPay\Middleware\IpAllowlistMiddleware::class,
     ],
 
-    // ─── Cron: rate limiting for cron routes ───────────────────
+    // --- Cron: rate limiting for cron routes
     'cron' => [
         \OwnPay\Middleware\RateLimiterMiddleware::class,
     ],
 
-    // ─── Checkout: minimal (session + csrf) ────────────────────
+    // --- Checkout: minimal (session + csrf)
     'checkout' => [
         \OwnPay\Middleware\SessionMiddleware::class,
         \OwnPay\Middleware\CsrfMiddleware::class,
         \OwnPay\Middleware\RateLimiterMiddleware::class,
     ],
 
-    // ─── Install: minimal — no DB available yet ───────────────
+    // --- Install: minimal - no DB available yet
     // RateLimiterMiddleware fails open when its backend is unreachable
-    // (fresh install: no DB), and protects the wizard once a DB exists —
+    // (fresh install: no DB), and protects the wizard once a DB exists
     // the scenario where re-running it would be dangerous.
     'install' => [
         \OwnPay\Middleware\SecurityHeadersMiddleware::class,

@@ -238,7 +238,7 @@ final class InstallerLockTest extends IntegrationTestCase
             'password' => 'password123',
         ]));
 
-        // Not the install lock (403) — the wizard proceeds and stops at the
+        // Not the install lock (403) - the wizard proceeds and stops at the
         // step-order check because the DB step has not run yet.
         $this->assertSame(400, $response->getStatusCode());
     }

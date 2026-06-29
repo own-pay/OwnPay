@@ -260,7 +260,7 @@ class DevicePairingServiceTest extends TestCase
     public function testPairDeviceFailsClosedWhenOtpHasNoCreator(): void
     {
         // Privilege-escalation guard: an OTP with no recorded creator must NOT
-        // fall back to a superadmin identity — pairing must fail.
+        // fall back to a superadmin identity - pairing must fail.
         $otp = '424242';
         $svc = $this->buildService([
             'validateResult' => ['id' => 1, 'merchant_id' => 9, 'created_by' => null, 'otp_hash' => hash('sha256', $otp)],
@@ -277,7 +277,7 @@ class DevicePairingServiceTest extends TestCase
     public function testRefreshWithUnresolvableSubjectIsRejected(): void
     {
         // Privilege-escalation guard: a refresh token whose subject does not resolve to a real user
-        // (here an opaque, non-JWT token with no `sub` claim) MUST be rejected — it must never be
+        // (here an opaque, non-JWT token with no `sub` claim) MUST be rejected - it must never be
         // silently upgraded to user 1 (the superadmin). The legitimate JWT happy path (sub > 0) is
         // covered by tests/Integration/DeviceRefreshPrivilegeTest.
         $refreshToken = bin2hex(random_bytes(32));

@@ -12,7 +12,7 @@ use OwnPay\Plugin\PluginLoader;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * PluginTrashTest — Automated integration tests for the Plugin Trash system.
+ * PluginTrashTest - Automated integration tests for the Plugin Trash system.
  *
  * Checks:
  *   1. Move inactive plugin to trash (files moved to storage/trash/plugins, status = 'trashed')

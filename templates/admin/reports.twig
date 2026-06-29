@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Reports — {{ app_name }}{% endblock %}
+{% block title %}Reports - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -13,7 +13,7 @@
     </div>
 </div>
 
-{# ── Filter Bar ──────────────────────────────────────────── #}
+{# -- Filter Bar -------------------------------------------- #}
 <div class="op-card op-mb-4">
     <div class="op-card-body">
         <form method="GET" class="op-filter-form">
@@ -86,7 +86,7 @@
     </div>
 </div>
 
-{# ── Stats Grid ──────────────────────────────────────────── #}
+{# -- Stats Grid -------------------------------------------- #}
 <div class="op-stats-grid op-mb-4">
     <div class="op-stat-card op-stat-primary">
         <div class="op-stat-icon op-stat-grad-primary">
@@ -128,7 +128,7 @@
 
 {{ hook('report.data', report)|raw }}
 
-{# ── Status Breakdown ────────────────────────────────────── #}
+{# -- Status Breakdown -------------------------------------- #}
 {% if report.by_status is defined and report.by_status|length > 0 %}
 <div class="op-card op-mb-4">
     <div class="op-card-header"><h3>Transaction Status Breakdown</h3></div>
@@ -150,7 +150,7 @@
 </div>
 {% endif %}
 
-{# ── Gateway Breakdown ───────────────────────────────────── #}
+{# -- Gateway Breakdown ------------------------------------- #}
 {% if report.by_gateway is defined and report.by_gateway|length > 0 %}
 <div class="op-card op-mb-4">
     <div class="op-card-header"><h3>Revenue by Gateway</h3></div>

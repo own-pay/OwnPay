@@ -1,5 +1,5 @@
 {% extends 'admin/layout/base.twig' %}
-{% block title %}Login Attempts — {{ app_name }}{% endblock %}
+{% block title %}Login Attempts - {{ app_name }}{% endblock %}
 {% block content %}
 <div class="op-page-header">
     <div>
@@ -33,7 +33,7 @@
                     {% for attempt in attempts %}
                     <tr>
                         <td data-label="Time" class="op-text-sm op-text-muted" style="white-space:nowrap">
-                            {{ attempt.created_at ? attempt.created_at|date('M d, Y H:i:s') : '—' }}
+                            {{ attempt.created_at ? attempt.created_at|date('M d, Y H:i:s') : '-' }}
                         </td>
                         <td data-label="Email"><strong>{{ attempt.email }}</strong></td>
                         <td data-label="IP Address" class="op-text-sm">{{ attempt.ip_address }}</td>
@@ -45,7 +45,7 @@
                             {% endif %}
                         </td>
                         <td data-label="User Agent" class="op-text-sm op-text-muted" style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="{{ attempt.user_agent }}">
-                            {{ attempt.user_agent ?? '—' }}
+                            {{ attempt.user_agent ?? '-' }}
                         </td>
                         <td data-label="Actions" class="op-text-right">
                             {% if not attempt.success %}
@@ -62,7 +62,7 @@
                                 </form>
                             </div>
                             {% else %}
-                            <span class="op-text-muted op-text-xs">—</span>
+                            <span class="op-text-muted op-text-xs">-</span>
                             {% endif %}
                         </td>
                     </tr>

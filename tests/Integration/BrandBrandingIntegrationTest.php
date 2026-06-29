@@ -11,7 +11,7 @@ use OwnPay\Service\Brand\BrandThemeService;
 use Tests\Integration\IntegrationTestCase;
 
 /**
- * BrandBrandingIntegrationTest — Verifies that brand customized themes, logos, favicons,
+ * BrandBrandingIntegrationTest - Verifies that brand customized themes, logos, favicons,
  * and overrides are successfully persisted to the database and correctly resolved via the BrandThemeService.
  *
  * @group Integration

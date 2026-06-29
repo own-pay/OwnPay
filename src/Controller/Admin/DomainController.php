@@ -83,7 +83,7 @@ final class DomainController
             $merchantIdVal = $d['merchant_id'] ?? 0;
             $merchantId = is_int($merchantIdVal) || is_string($merchantIdVal) ? (int)$merchantIdVal : 0;
             $m = $merchantRepo->find($merchantId);
-            $d['merchant_name'] = is_array($m) && is_string($m['name'] ?? null) ? $m['name'] : '—';
+            $d['merchant_name'] = is_array($m) && is_string($m['name'] ?? null) ? $m['name'] : '-';
         }
 
         // Use the configured APP_DOMAIN for the server-IP hint, not the

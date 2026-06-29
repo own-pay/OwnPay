@@ -45,7 +45,7 @@ final class GatewayDefaultsAmountTest extends TestCase
 
     public function testConvertsLargeAmountsExactly(): void
     {
-        // DECIMAL(15,2) maximum — the float path returns a corrupted value here.
+        // DECIMAL(15,2) maximum - the float path returns a corrupted value here.
         $this->assertSame(999999999999999, $this->gateway->minor('9999999999999.99'));
         $this->assertSame(123456789012345, $this->gateway->minor('1234567890123.45'));
     }
@@ -58,7 +58,7 @@ final class GatewayDefaultsAmountTest extends TestCase
 
     public function testTruncatesBeyondExponentLikeLegacyBehavior(): void
     {
-        // bcmul at scale 0 truncates — identical to the previous behavior for
+        // bcmul at scale 0 truncates - identical to the previous behavior for
         // sub-cent precision, which cannot occur for DECIMAL(15,2) amounts.
         $this->assertSame(1055, $this->gateway->minor('10.555'));
     }

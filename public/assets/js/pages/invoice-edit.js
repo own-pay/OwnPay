@@ -1,13 +1,13 @@
 /**
- * OwnPay Admin — Invoice Edit Page JS
+ * OwnPay Admin - Invoice Edit Page JS
  * Handles: dynamic line item add/remove.
  * Requires: window.OP_INVOICE_IDX (set by template)
  */
 (function () {
     "use strict";
     var container = document.getElementById("items-container");
-    var addBtn    = document.getElementById("add-item");
-    if (!container || !addBtn) {return;}
+    var addBtn = document.getElementById("add-item");
+    if (!container || !addBtn) { return; }
     var idx = container.querySelectorAll(".op-item-row").length;
     addBtn.addEventListener("click", function () {
         container.insertAdjacentHTML("beforeend",
@@ -20,6 +20,6 @@
         idx++;
     });
     container.addEventListener("click", function (e) {
-        if (e.target.classList.contains("op-item-remove")) {e.target.closest(".op-item-row").remove();}
+        if (e.target.classList.contains("op-item-remove")) { e.target.closest(".op-item-row").remove(); }
     });
 }());

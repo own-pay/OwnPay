@@ -85,13 +85,13 @@ final class CustomerController
         }
         $customers = array_map(function (array $c) use ($enc) {
             try {
-                $c['name']  = !empty($c['name_enc']) && is_string($c['name_enc']) ? $enc->decrypt($c['name_enc']) : (is_string($c['name'] ?? null) ? $c['name'] : '—');
-                $c['email'] = !empty($c['email_enc']) && is_string($c['email_enc']) ? $enc->decrypt($c['email_enc']) : (is_string($c['email'] ?? null) ? $c['email'] : '—');
-                $c['phone'] = !empty($c['phone_enc']) && is_string($c['phone_enc']) ? $enc->decrypt($c['phone_enc']) : (is_string($c['phone'] ?? null) ? $c['phone'] : '—');
+                $c['name']  = !empty($c['name_enc']) && is_string($c['name_enc']) ? $enc->decrypt($c['name_enc']) : (is_string($c['name'] ?? null) ? $c['name'] : '-');
+                $c['email'] = !empty($c['email_enc']) && is_string($c['email_enc']) ? $enc->decrypt($c['email_enc']) : (is_string($c['email'] ?? null) ? $c['email'] : '-');
+                $c['phone'] = !empty($c['phone_enc']) && is_string($c['phone_enc']) ? $enc->decrypt($c['phone_enc']) : (is_string($c['phone'] ?? null) ? $c['phone'] : '-');
             } catch (\Throwable $e) {
                 $c['name']  = is_string($c['name'] ?? null) ? $c['name'] : '[encrypted]';
                 $c['email'] = is_string($c['email'] ?? null) ? $c['email'] : '[encrypted]';
-                $c['phone'] = is_string($c['phone'] ?? null) ? $c['phone'] : '—';
+                $c['phone'] = is_string($c['phone'] ?? null) ? $c['phone'] : '-';
             }
             return $c;
         }, $paginated['items']);
@@ -147,13 +147,13 @@ final class CustomerController
             throw new \RuntimeException('FieldEncryptor service unavailable');
         }
         try {
-            $customer['name']  = !empty($customer['name_enc']) && is_string($customer['name_enc']) ? $enc->decrypt($customer['name_enc']) : (is_string($customer['name'] ?? null) ? $customer['name'] : '—');
-            $customer['email'] = !empty($customer['email_enc']) && is_string($customer['email_enc']) ? $enc->decrypt($customer['email_enc']) : (is_string($customer['email'] ?? null) ? $customer['email'] : '—');
-            $customer['phone'] = !empty($customer['phone_enc']) && is_string($customer['phone_enc']) ? $enc->decrypt($customer['phone_enc']) : (is_string($customer['phone'] ?? null) ? $customer['phone'] : '—');
+            $customer['name']  = !empty($customer['name_enc']) && is_string($customer['name_enc']) ? $enc->decrypt($customer['name_enc']) : (is_string($customer['name'] ?? null) ? $customer['name'] : '-');
+            $customer['email'] = !empty($customer['email_enc']) && is_string($customer['email_enc']) ? $enc->decrypt($customer['email_enc']) : (is_string($customer['email'] ?? null) ? $customer['email'] : '-');
+            $customer['phone'] = !empty($customer['phone_enc']) && is_string($customer['phone_enc']) ? $enc->decrypt($customer['phone_enc']) : (is_string($customer['phone'] ?? null) ? $customer['phone'] : '-');
         } catch (\Throwable $e) {
             $customer['name']  = '[encrypted]';
             $customer['email'] = '[encrypted]';
-            $customer['phone'] = '—';
+            $customer['phone'] = '-';
         }
 
         $txns = $this->customerRepo->getRecentTransactions($id, $mid, 50);

@@ -155,8 +155,8 @@ final class DisputeController
                             $enc = $this->c->get(\OwnPay\Security\FieldEncryptor::class);
                             if ($enc instanceof \OwnPay\Security\FieldEncryptor) {
                                 try {
-                                    $transaction['customer_name']  = (!empty($customer['name_enc']) && is_string($customer['name_enc'])) ? $enc->decrypt($customer['name_enc']) : ($customer['name'] ?? '—');
-                                    $transaction['customer_email'] = (!empty($customer['email_enc']) && is_string($customer['email_enc'])) ? $enc->decrypt($customer['email_enc']) : ($customer['email'] ?? '—');
+                                    $transaction['customer_name']  = (!empty($customer['name_enc']) && is_string($customer['name_enc'])) ? $enc->decrypt($customer['name_enc']) : ($customer['name'] ?? '-');
+                                    $transaction['customer_email'] = (!empty($customer['email_enc']) && is_string($customer['email_enc'])) ? $enc->decrypt($customer['email_enc']) : ($customer['email'] ?? '-');
                                 } catch (\Throwable $e) {
                                     $transaction['customer_name']  = '[encrypted]';
                                     $transaction['customer_email'] = '[encrypted]';

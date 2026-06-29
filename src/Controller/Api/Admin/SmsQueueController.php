@@ -61,7 +61,7 @@ final class SmsQueueController
             $requeued = $this->commRepo->retrySms($id, $mid);
             if ($requeued === 0) {
                 // No row matched: unknown id, another merchant's row, or the SMS is
-                // not in a 'failed' state (already queued/sending/sent) — reject so
+                // not in a 'failed' state (already queued/sending/sent) - reject so
                 // the caller cannot mistake a no-op for a real requeue.
                 return Response::apiError(
                     'SMS_NOT_RETRYABLE',

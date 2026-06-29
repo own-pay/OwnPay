@@ -1,12 +1,12 @@
 # OwnPay release packaging ignore rules (.gitignore-style, project-root-relative).
-# Read by cli/build-update.php — listed files/dirs are EXCLUDED from the release zip.
+# Read by cli/build-update.php - listed files/dirs are EXCLUDED from the release zip.
 # Syntax: trailing "/" = directory; pattern with "/" matches the full path; pattern
 # without "/" matches the basename at any depth; "*" globs are allowed (fnmatch).
 #
 # NOTE 1: secrets (.env, *private_key*.pem, .git/) are ALSO hard-denied in build-update.php
 #         regardless of this file, so a typo here can never leak them.
 # NOTE 2: the storage/ runtime skeleton (empty dirs) is re-created by the builder so the
-#         zip also works as a clean fresh-install — do NOT remove the storage/ rule below.
+#         zip also works as a clean fresh-install - do NOT remove the storage/ rule below.
 
 # ── Version control / IDE / agent tooling ──
 .git/
@@ -35,6 +35,8 @@ tests/
 cli/
 update/
 mobile_app/
+landing_page/
+public/api-tester.php
 phpunit.xml
 phpstan.neon
 .twig-cs-fixer.php
@@ -52,6 +54,7 @@ storage/
 .env.temp
 update_private_key.pem
 update_public_key.pem
+.gitleaksignore
 
 # ── Repo meta-docs not part of the shipped product ──
 CLAUDE.md
@@ -62,7 +65,7 @@ CONTRIBUTING.md
 ROADMAP.md
 SECURITY.md
 SUPPORT.md
-ownpay_master_audit_prompt.txt
+CHANGELOG.md
 
 # ── Misc junk / scratch ──
 .DS_Store

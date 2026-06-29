@@ -2,7 +2,7 @@
   "name": "Telegram Bot",
   "slug": "telegram-bot",
   "version": "1.0.0",
-  "description": "Telegram Bot addon — real-time transaction alerts and commands.",
+  "description": "Telegram Bot addon - real-time transaction alerts and commands.",
   "author": "OwnPay",
   "type": "addon",
   "entry": "Plugin.php",

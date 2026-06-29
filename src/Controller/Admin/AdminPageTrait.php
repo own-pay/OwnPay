@@ -126,6 +126,12 @@ trait AdminPageTrait
         }
 
         // Resolve documentation URL based on active page or route
+        //
+        // * TODO: Need to proparly map admin routes to documentation URLs in a single place.
+        // * the https://learn.ownpay.org guide website is also not proparly documented.
+        // * TODO: Need to fix the documentation website.
+        // * Check https://github.com/own-pay/OwnPay-Documentation
+        //
         $activePage = $data['active_page'] ?? '';
         $docMap = [
             'dashboard'         => 'dashboard',
@@ -194,7 +200,7 @@ trait AdminPageTrait
 
     /**
      * Guards platform-level actions (plugin/theme upload, install, uninstall, ...) that are only
-     * permitted from the global "All Brands" view. A brand cannot perform these — it must switch
+     * permitted from the global "All Brands" view. A brand cannot perform these - it must switch
      * to All Brands. Returns a redirect Response (+flash) when in a brand view, else null.
      *
      * @param string $redirectTo Where to send the user (typically the resource index).

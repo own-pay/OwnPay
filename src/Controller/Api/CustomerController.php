@@ -11,7 +11,6 @@ use OwnPay\Service\System\InputSanitizer;
 
 /**
  * Controller for managing customer records via REST API endpoints.
- * Ensures OWASP and GDPR compliance by encrypting PII at rest and resolving queries by hash lookup.
  */
 final class CustomerController
 {

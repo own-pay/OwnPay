@@ -17,6 +17,8 @@ use Firebase\JWT\Key;
  */
 final class JwtService
 {
+    public const ISSUER = 'OwnPay';
+
     /**
      * @var string The symmetric HMAC-SHA256 signature key.
      */
@@ -59,7 +61,9 @@ final class JwtService
         }
 
         $this->secret = $resolvedSecret;
-        $this->issuer = $issuer ?? (getenv('APP_NAME') ?: 'OwnPay');
+        // Default to the stable ISSUER constant — never APP_NAME (see ISSUER doc). An explicit override
+        // is still honored (tests), but production wiring passes none so the issuer is brand-independent.
+        $this->issuer = $issuer ?? self::ISSUER;
         $this->ttl = $ttl;
     }
 

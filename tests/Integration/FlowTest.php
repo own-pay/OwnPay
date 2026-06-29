@@ -6,7 +6,7 @@ namespace Tests\Integration;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Integration tests — validate controller-level flows.
+ * Integration tests - validate controller-level flows.
  * These test request/response contracts, not DB state.
  */
 class FlowTest extends TestCase

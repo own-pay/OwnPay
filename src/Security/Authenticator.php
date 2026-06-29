@@ -76,8 +76,6 @@ final class Authenticator
         }
 
         // Verify active lockout window to prevent brute-force attacks.
-        // Exponential backoff (FIND-007): repeated failures extend the lockout window,
-        // so an attacker cannot resume guessing at full rate after each base window.
         $maxAttempts = (int) (getenv('MAX_LOGIN_ATTEMPTS') ?: 5);
         $window = (int) (getenv('LOCKOUT_DURATION') ?: 300);
         $lockRemaining = $attempts->lockoutSecondsRemaining($email, $ip, $window, $maxAttempts);
@@ -94,7 +92,7 @@ final class Authenticator
         $user = $users->findActiveByLogin($email);
 
         if ($user === null) {
-            // Log failed attempt (constant time — don't reveal whether account exists)
+            // Log failed attempt (constant time - don't reveal whether account exists)
             password_verify($password, '$argon2id$v=19$m=65536,t=4,p=1$c29tZXNhbHRzb21lc2FsdA$aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa');
             $this->logAttempt($email, $ip, $userAgent, false);
             $events->doAction('auth.login.failed', $email, $ip);
@@ -110,8 +108,6 @@ final class Authenticator
 
         // Check if multi-factor authentication (2FA) is enabled for the account.
         if ((bool) $user['two_factor_enabled']) {
-            // Log attempt as failed/pending until the two-factor authentication process completes.
-            // This ensures brute-force logging is not bypassed during the login flow.
             $this->logAttempt($email, $ip, $userAgent, false);
             return [
                 'success'      => true,

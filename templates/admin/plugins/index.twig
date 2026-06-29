@@ -1,6 +1,6 @@
 {% extends 'admin/layout/base.twig' %}
 
-{% block title %}Plugins — {{ app_name }}{% endblock %}
+{% block title %}Plugins - {{ app_name }}{% endblock %}
 
 {% block content %}
 <div class="op-page-header">
@@ -19,7 +19,7 @@
 {% include 'admin/partials/_all_brands_only.twig' with {title: 'Plugins are managed from All Brands', message: 'Plugins are uploaded once at the platform level, then activated and configured per brand. You can still activate, deactivate and configure plugins for this brand below.'} only %}
 {% endif %}
 
-{# ── Tabs ────────────────────────────────────────────────── #}
+{# -- Tabs -------------------------------------------------- #}
 <div class="op-tabs op-mb-4">
     <button class="op-tab active" data-tab="all">All <span class="op-tab-count">{{ plugins|filter(p => p.status != 'trashed')|length }}</span></button>
     <button class="op-tab" data-tab="gateway">Gateways <span class="op-tab-count">{{ plugins|filter(p => p.type == 'gateway' and p.status != 'trashed')|length }}</span></button>
@@ -28,7 +28,7 @@
     <button class="op-tab" data-tab="trash">Trash <span class="op-tab-count">{{ plugins|filter(p => p.status == 'trashed')|length }}</span></button>
 </div>
 
-{# ── Toolbar (Search & Status) ───────────────────────────── #}
+{# -- Toolbar (Search & Status) ----------------------------- #}
 <div class="op-filter-bar op-mb-4" style="display: flex; gap: 8px; align-items: center; justify-content: space-between; flex-wrap: wrap;">
     <div style="display: flex; gap: 8px; align-items: center; flex: 1; min-width: 300px;">
         <div style="position: relative; flex: 1; max-width: 320px;">
@@ -51,12 +51,12 @@
     </div>
 </div>
 
-{# ── Plugin Cards Grid ───────────────────────────────────── #}
+{# -- Plugin Cards Grid ------------------------------------- #}
 {% if plugins|length > 0 %}
 <div class="op-plugin-grid" id="plugins-grid">
     {% for plugin in plugins %}
     <div class="op-plugin-card plugin-row {{ plugin.status == 'active' ? 'op-plugin-active' : '' }}" data-status="{{ plugin.status }}" data-type="{{ plugin.type }}" {% if plugin.status == 'trashed' %}style="display: none;"{% endif %}>
-        {# ── Card Header ── #}
+        {# -- Card Header -- #}
         <div class="op-plugin-card-header">
             <div class="op-plugin-card-icon op-plugin-type-{{ plugin.type }}" style="background: transparent;">
                 {% if plugin.logo_path %}
@@ -78,7 +78,7 @@
             </div>
         </div>
 
-        {# ── Card Body ── #}
+        {# -- Card Body -- #}
         <div class="op-plugin-card-body">
             <h3 class="op-plugin-card-title">{{ plugin.name }}</h3>
             <p class="op-plugin-card-slug">{{ plugin.slug }}</p>
@@ -89,7 +89,7 @@
             {% endif %}
         </div>
 
-        {# ── Card Footer ── #}
+        {# -- Card Footer -- #}
         <div class="op-plugin-card-footer">
             <div class="op-plugin-card-status">
                 {% if plugin.status == 'active' %}

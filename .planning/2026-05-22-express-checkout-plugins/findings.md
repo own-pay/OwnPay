@@ -1,12 +1,14 @@
-# Findings & Decisions — Express Checkout Plugins
+# Findings & Decisions - Express Checkout Plugins
 
 ## Requirements
+
 - **Create Google Pay (`google-pay`) & Apple Pay (`apple-pay`) plugins** under `modules/gateways/`.
 - **Dynamic visual state**: The Express Checkout buttons (Apple Pay & Google Pay) should appear on the checkout page ONLY if their respective gateway plugins are active and configured for the brand/merchant.
 - **Premium Styling**: Match exactly the premium TailwindCSS + SVG vectors styling defined in `docs/v2/theme/Own_pay_checkout_template.html`.
 - **Zero Legacies & Robustness**: Complete typing (PHP 8.2+ `declare(strict_types=1)`), balance double-entry ledger bookkeeping constraints, no placeholders, and fully dynamic checkout handling.
 
 ## Research Findings
+
 1. **Design Reference**:
    - `docs/v2/theme/Own_pay_checkout_template.html` (lines 201-208) implements the express checkout section.
    - Apple Pay: Dark premium theme button, custom Apple icon, calls `doQP('Apple Pay')`.
@@ -22,6 +24,7 @@
    - The `/express` route does not exist in `config/routes/web.php` or `PaymentIntentCheckoutController.php`. Adding it enables seamless execution without needing custom client overrides.
 
 ## Technical Decisions
+
 | Decision | Rationale |
 |----------|-----------|
 | **Use Category `express` in Manifest** | Separates Apple Pay/Google Pay from standard credit card gateways in `gateways.global` so they don't clutter the normal tabs grid, but routes them to `$gateways['express']`. |

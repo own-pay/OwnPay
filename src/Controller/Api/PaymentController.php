@@ -54,7 +54,7 @@ final class PaymentController
     /**
      * Initiate a new payment session and create a payment intent.
      *
-     * POST /api/v1/payments/initiate
+     * POST /api/v1/payments
      *
      * @param Request $req The incoming HTTP request.
      * @return Response The JSON response detailing initiation status or validation failures.
@@ -71,7 +71,7 @@ final class PaymentController
         $bodyAmount = $body['amount'] ?? null;
         $bodyCurrency = $body['currency'] ?? null;
         $bodyCallbackUrl = $body['callback_url'] ?? null;
-        $bodyRedirectUrl = $body['redirect_url'] ?? null;
+        $bodyRedirectUrl = $body['redirect_url'] ?? null; //success url
         $bodyCancelUrl = $body['cancel_url'] ?? null;
         $bodyCustomerEmail = $body['customer_mail'] ?? $body['customer_email'] ?? null;
         $bodyCustomerName = $body['customer_name'] ?? null;

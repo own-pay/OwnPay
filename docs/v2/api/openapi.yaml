@@ -1051,7 +1051,7 @@ components:
         Standard error envelope for validation and business-logic errors (emitted by
         Response::apiError). NOTE: authentication/authorization failures from the auth
         middleware (most 401s, and 403 "Insufficient scope") use the simpler shape
-        `{ "success": false, "message": "..." }` instead — see AuthErrorResponse.
+        `{ "success": false, "message": "..." }` instead - see AuthErrorResponse.
       properties:
         success:
           type: boolean

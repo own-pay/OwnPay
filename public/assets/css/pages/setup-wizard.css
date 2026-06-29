@@ -1,9 +1,9 @@
 /* ═══════════════════════════════════════════════════════
-   setup-wizard.css — Onboarding Wizard
+   setup-wizard.css - Onboarding Wizard
    Synced with admin.css design tokens (light + dark)
    ═══════════════════════════════════════════════════════ */
 
-/* ── Wizard Card ── */
+/* -- Wizard Card -- */
 .op-setup-wizard-card {
     background: var(--op-bg-card);
     border: 1px solid var(--op-border);
@@ -20,11 +20,18 @@
 }
 
 @keyframes wizardSlideIn {
-    from { transform: translateY(-20px); opacity: 0; }
-    to { transform: translateY(0); opacity: 1; }
+    from {
+        transform: translateY(-20px);
+        opacity: 0;
+    }
+
+    to {
+        transform: translateY(0);
+        opacity: 1;
+    }
 }
 
-/* ── Dismiss Button ── */
+/* -- Dismiss Button -- */
 .op-wizard-dismiss {
     position: absolute;
     top: 1.25rem;
@@ -57,7 +64,7 @@
     transform: rotate(90deg) scale(0.92);
 }
 
-/* ── Header ── */
+/* -- Header -- */
 .op-wizard-header {
     margin-bottom: 2rem;
     border-bottom: 1px solid var(--op-border-light);
@@ -78,7 +85,7 @@
     line-height: 1.5;
 }
 
-/* ── Progress Stepper ── */
+/* -- Progress Stepper -- */
 .op-wizard-steps {
     display: flex;
     justify-content: space-between;
@@ -164,7 +171,7 @@
     color: var(--op-success);
 }
 
-/* ── Step Panels ── */
+/* -- Step Panels -- */
 .op-wizard-panel {
     display: none;
     animation: panelFadeIn 0.4s cubic-bezier(0.22, 1, 0.36, 1);
@@ -175,11 +182,18 @@
 }
 
 @keyframes panelFadeIn {
-    from { opacity: 0; transform: translateY(12px); }
-    to { opacity: 1; transform: translateY(0); }
+    from {
+        opacity: 0;
+        transform: translateY(12px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
 }
 
-/* ── Form Controls ── */
+/* -- Form Controls -- */
 .op-wizard-form-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
@@ -247,7 +261,7 @@
     line-height: 1.4;
 }
 
-/* ── Toggle Switch (matches admin.css .op-toggle) ── */
+/* -- Toggle Switch (matches admin.css .op-toggle) -- */
 .op-wizard-toggle-wrapper {
     display: flex;
     align-items: center;
@@ -299,15 +313,15 @@
     box-shadow: 0 1px 3px rgb(0 0 0 / 30%);
 }
 
-input:checked + .op-wizard-slider {
+input:checked+.op-wizard-slider {
     background-color: var(--op-primary);
 }
 
-input:checked + .op-wizard-slider::before {
+input:checked+.op-wizard-slider::before {
     transform: translateX(20px);
 }
 
-/* ── Action Buttons ── */
+/* -- Action Buttons -- */
 .op-wizard-actions {
     display: flex;
     justify-content: space-between;
@@ -381,7 +395,7 @@ input:checked + .op-wizard-slider::before {
     transform: scale(0.98);
 }
 
-/* ── Choice Cards (Gateways & Mail Providers) ── */
+/* -- Choice Cards (Gateways & Mail Providers) -- */
 .op-choice-cards {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
@@ -469,7 +483,7 @@ input:checked + .op-wizard-slider::before {
     stroke-width: 3;
 }
 
-/* ── Device Pairing ── */
+/* -- Device Pairing -- */
 .op-pairing-container {
     display: flex;
     gap: 2rem;
@@ -546,7 +560,7 @@ input:checked + .op-wizard-slider::before {
     flex-shrink: 0;
 }
 
-/* ── Error & Success Messages ── */
+/* -- Error & Success Messages -- */
 .op-wizard-error {
     background: rgb(239 68 68 / 8%);
     border: 1px solid rgb(239 68 68 / 20%);
@@ -562,9 +576,21 @@ input:checked + .op-wizard-slider::before {
 }
 
 @keyframes wizardShake {
-    0%, 100% { transform: translateX(0); }
-    20%, 60% { transform: translateX(-4px); }
-    40%, 80% { transform: translateX(4px); }
+
+    0%,
+    100% {
+        transform: translateX(0);
+    }
+
+    20%,
+    60% {
+        transform: translateX(-4px);
+    }
+
+    40%,
+    80% {
+        transform: translateX(4px);
+    }
 }
 
 .op-wizard-success {
@@ -580,18 +606,57 @@ input:checked + .op-wizard-slider::before {
     gap: 0.625rem;
 }
 
-/* ── Utility Classes ── */
-.op-wizard-hint-mt-0 { margin-top: 0 !important; }
-.op-wizard-form-grid-border { border-top: 1px solid var(--op-border-light); padding-top: 1.25rem; margin-bottom: 1.25rem; }
-.op-mail-smtp-fields-class { display: block; margin-bottom: 1.5rem; }
-.op-mail-other-fields-class { display: none; margin-bottom: 1.5rem; }
-.op-gateway-fields-class { display: none; margin-bottom: 1.5rem; border-top: 1px solid var(--op-border-light); padding-top: 1.25rem; }
-.op-wizard-subheading { font-size: 1rem; font-weight: 600; margin-bottom: 1rem; color: var(--op-text); }
-.op-flex-gap-1rem { display: flex; gap: 1rem; }
-.op-qr-mock-container { position: relative; transition: all 0.3s ease; }
-.op-qr-svg-img { display: none; border-radius: var(--op-radius); }
+/* -- Utility Classes -- */
+.op-wizard-hint-mt-0 {
+    margin-top: 0 !important;
+}
 
-/* ── OTP Display ── */
+.op-wizard-form-grid-border {
+    border-top: 1px solid var(--op-border-light);
+    padding-top: 1.25rem;
+    margin-bottom: 1.25rem;
+}
+
+.op-mail-smtp-fields-class {
+    display: block;
+    margin-bottom: 1.5rem;
+}
+
+.op-mail-other-fields-class {
+    display: none;
+    margin-bottom: 1.5rem;
+}
+
+.op-gateway-fields-class {
+    display: none;
+    margin-bottom: 1.5rem;
+    border-top: 1px solid var(--op-border-light);
+    padding-top: 1.25rem;
+}
+
+.op-wizard-subheading {
+    font-size: 1rem;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    color: var(--op-text);
+}
+
+.op-flex-gap-1rem {
+    display: flex;
+    gap: 1rem;
+}
+
+.op-qr-mock-container {
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.op-qr-svg-img {
+    display: none;
+    border-radius: var(--op-radius);
+}
+
+/* -- OTP Display -- */
 .op-otp-wrapper {
     display: none;
     margin-top: 1.25rem;
@@ -648,7 +713,7 @@ input:checked + .op-wizard-slider::before {
 }
 
 /* ═══════════════════════════════════════════════════════
-   MOBILE — Compact layout for ≤768px
+   MOBILE - Compact layout for ≤768px
    ═══════════════════════════════════════════════════════ */
 @media (max-width: 768px) {
     .op-setup-wizard-card {
@@ -679,7 +744,7 @@ input:checked + .op-wizard-slider::before {
         font-size: 0.825rem;
     }
 
-    /* Stepper — smaller circles, hide labels */
+    /* Stepper - smaller circles, hide labels */
     .op-wizard-steps {
         margin-bottom: 2rem;
         padding: 0 0.5rem;
@@ -721,7 +786,7 @@ input:checked + .op-wizard-slider::before {
         gap: 0.75rem;
     }
 
-    /* Choice cards — horizontal scroll */
+    /* Choice cards - horizontal scroll */
     .op-choice-cards {
         grid-template-columns: repeat(3, 1fr);
         gap: 0.625rem;
@@ -751,7 +816,7 @@ input:checked + .op-wizard-slider::before {
         font-size: 0.7rem;
     }
 
-    /* Action buttons — full width stacked */
+    /* Action buttons - full width stacked */
     .op-wizard-actions {
         flex-direction: column-reverse;
         gap: 0.625rem;
@@ -759,8 +824,8 @@ input:checked + .op-wizard-slider::before {
         margin-top: 1.25rem;
     }
 
-    .op-wizard-actions > button,
-    .op-wizard-actions > .op-flex-gap-1rem {
+    .op-wizard-actions>button,
+    .op-wizard-actions>.op-flex-gap-1rem {
         width: 100%;
     }
 

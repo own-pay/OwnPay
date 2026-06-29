@@ -494,7 +494,7 @@ final class PluginManifest
      * Resolves the fully qualified class name of the plugin entrypoint.
      *
      * MUST stay identical to PluginLoader::resolveClassName(): route handlers are built from this
-     * method, and the loader registers the instance under that same name in the container — any
+     * method, and the loader registers the instance under that same name in the container - any
      * divergence makes plugin routes dispatch to a non-existent class.
      *
      * @return string Fully qualified class name.

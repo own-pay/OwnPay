@@ -185,8 +185,6 @@ final class PaymentIntentCheckoutController
             return $this->renderStatus($token, 'expired');
         }
 
-        // Resolve active payment gateway configurations and manual gateway endpoints.
-        // Phase 2c (money-critical): brand-account-over-platform-template resolution (see CheckoutController).
         $platformId = ($brandCtx instanceof \OwnPay\Service\Brand\BrandContext) ? $brandCtx->getPlatformId() : 0;
         $manualGateways = $this->manualGw->listActiveForCheckout($mid, $platformId);
         $apiGateways = $this->apiGw->forTenant($mid)->listActiveForCheckout();
@@ -834,16 +832,10 @@ final class PaymentIntentCheckoutController
         $intentId = (is_int($intentIdVal) || is_string($intentIdVal)) ? (int) $intentIdVal : 0;
         $intentStatusVal = $intent['status'] ?? '';
         $intentStatus = is_string($intentStatusVal) ? $intentStatusVal : '';
-
-        // No payment event has occurred yet (intent still on the gateway-selection step): send the
-        // customer back to the checkout page rather than a misleading "pending" status screen. The
-        // callback-capture block below only runs for 'processing', so this never blocks a callback.
         if ($intentStatus === 'pending') {
             return Response::redirect("/checkout/intent/{$token}");
         }
 
-        // Handle callback parameters and execute transaction settlement checks.
-        // Map query inputs from regional integration interfaces.
         $callbackPaymentIdVal = $req->query('paymentID') ?? $req->query('payment_id') ?? '';
         $callbackPaymentId = is_string($callbackPaymentIdVal) ? $callbackPaymentIdVal : '';
         $callbackStatusVal = $req->query('status') ?? '';
@@ -866,7 +858,7 @@ final class PaymentIntentCheckoutController
                     ['id' => $txnId, 'mid' => $mid]
                 );
                 if ($claimed === 0) {
-                    // Already being processed or completed — skip duplicate callback
+                    // Already being processed or completed - skip duplicate callback
                     return $this->renderStatus($token, $intentStatus, $intent);
                 }
 
@@ -912,10 +904,6 @@ final class PaymentIntentCheckoutController
                     }
                 }
 
-                // Release the callback_processing lease whenever no terminal state
-                // was reached so retries/webhooks can still complete the payment.
-                // Guarded on the lease status so a completion that landed inside
-                // handleCallback is never clobbered back to 'processing'.
                 if (!$leaseReleased) {
                     $this->db->update(
                         "UPDATE op_transactions SET status = 'processing' WHERE id = :id AND merchant_id = :mid AND status = 'callback_processing'",

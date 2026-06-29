@@ -1,8 +1,9 @@
-# Progress Log — Build OwnPay Landing Page
+# Progress Log - Build OwnPay Landing Page
 
 ## Session: 2026-06-10
 
 ### Phase 1: Requirements & Discovery
+
 - **Status:** complete
 - **Started:** 2026-06-10 11:35:00
 - Actions taken:
@@ -13,6 +14,7 @@
   - Ran migration schema and seeded default configurations.
 
 ### Phase 2: Design System & Core Implementation
+
 - **Status:** complete
 - **Started:** 2026-06-10 11:37:00
 - Actions taken:
@@ -23,6 +25,7 @@
   - Hardened security headers, added CSP script nonces, removed debug console.log statements.
 
 ### Phase 3: Verification & Auditing
+
 - **Status:** complete
 - **Started:** 2026-06-10 11:42:00
 - Actions taken:
@@ -32,6 +35,7 @@
   - Reran PHPStan level 5 on the landing page -> OK (0 errors).
 
 ## Test Results
+
 | Test | Input | Expected | Actual | Status |
 |------|-------|----------|--------|--------|
 | Test DB Connection | PDO probe | Successful connection | OK | ✓ |
@@ -42,6 +46,7 @@
 | Static Analysis (Landing) | phpstan level 5 | Level 5 check on landing page | 0 errors | ✓ |
 
 ## Error Log
+
 | Timestamp | Error | Attempt | Resolution |
 |-----------|-------|---------|------------|
 | 2026-06-10 11:37 | Parse error in php -r | 1 | Created run_migrations.php script and ran it directly |
@@ -49,6 +54,7 @@
 | 2026-06-10 11:44 | 4 static analysis errors | 1 | Refactored type checks, cast precedence, and curl opt parameters |
 
 ## 5-Question Reboot Check
+
 | Question | Answer |
 |----------|--------|
 | Where am I? | Done |

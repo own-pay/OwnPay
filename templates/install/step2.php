@@ -102,7 +102,7 @@
 
             <!-- Warning if existing tables found -->
             <div id="dbOverwriteWarning" class="ins-warn" style="display: none;">
-                <strong>⚠️ Warning — Existing Structures Detected:</strong><br>
+                <strong>⚠️ Warning - Existing Structures Detected:</strong><br>
                 This database contains <span id="dbExistingTableCount">0</span> existing tables. Proceeding will completely drop all schemas and erase any active payment configurations or historical ledgers permanently!
                 <div style="margin-top: 10px; display: flex; align-items: flex-start; gap: 8px;">
                     <input type="checkbox" id="confirmOverwriteCheckbox" style="margin-top: 3px; cursor: pointer;">
@@ -320,7 +320,7 @@ document.getElementById('confirmImportBtn').addEventListener('click', async func
     } catch (err) {
         printLog('[ERROR] Network exception triggered.', 'err');
         msg.className = 'ins-msg ins-msg-err';
-        msg.innerHTML = '<strong>Network Error</strong><br>' + (err.message || 'Lost connection during import. The database may be in an incomplete state — check your server logs.');
+        msg.innerHTML = '<strong>Network Error</strong><br>' + (err.message || 'Lost connection during import. The database may be in an incomplete state - check your server logs.');
         btn.disabled = false;
         backBtn.disabled = false;
     }

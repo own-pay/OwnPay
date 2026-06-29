@@ -197,7 +197,7 @@ final class ThemeController
         $plugin = $this->repo->findBySlug($slug);
 
         if ($plugin === null) {
-            // Theme not in DB — try to register from filesystem
+            // Theme not in DB - try to register from filesystem
             /** @var PluginLoader $loader */
             $loader     = $this->c->get(PluginLoader::class);
             $discovered = $loader->discover();

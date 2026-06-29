@@ -58,16 +58,12 @@ final class PaymentService
      */
     public function createIntent(int $merchantId, array $data): array
     {
-        // Apply amount filter (plugins can modify)
         $amount = $this->events->applyFilter('payment.amount.calculate', $data['amount'], [
             'currency' => $data['currency'],
             'merchant_id' => $merchantId,
         ]);
         $data['amount'] = $amount;
 
-        // Defense-in-depth: the amount must remain strictly positive after the
-        // payment.amount.calculate filter so a misbehaving plugin cannot zero or
-        // negate the stored intent amount that later drives the gateway charge.
         $amountStr = is_scalar($data['amount']) ? (string) $data['amount'] : '';
         if ($amountStr === '' || !is_numeric($amountStr) || bccomp($amountStr, '0', 2) <= 0) {
             throw new \InvalidArgumentException('Payment intent amount must be a positive number.');
@@ -105,7 +101,6 @@ final class PaymentService
             return null;
         }
 
-        // Check expiry
         $expiresAtVal = $intent['expires_at'] ?? '';
         $expiresAt = is_scalar($expiresAtVal) ? (string) $expiresAtVal : '';
         if ($intent['status'] === 'pending' && DateHelper::isPast($expiresAt)) {

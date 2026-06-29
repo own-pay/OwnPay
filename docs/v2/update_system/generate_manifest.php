@@ -1,6 +1,6 @@
 <?php
 /**
- * OwnPay Update Server — Manifest Generator
+ * OwnPay Update Server - Manifest Generator
  *
  * Place this in the update server root alongside your releases/ directory.
  * Run: php generate_manifest.php
@@ -38,7 +38,7 @@ foreach ($dirs as $dir) {
     $metaFile = $dir . '/release.json';
 
     if (!file_exists($zipFile)) {
-        echo "SKIP: {$version} — no ZIP found\n";
+        echo "SKIP: {$version} - no ZIP found\n";
         continue;
     }
 
@@ -92,7 +92,7 @@ foreach ($dirs as $dir) {
         'breaking_notes' => $meta['breaking_notes'] ?? null,
     ];
 
-    echo "OK: {$version} ({$channel}) — " . number_format(filesize($zipFile)) . " bytes\n";
+    echo "OK: {$version} ({$channel}) - " . number_format(filesize($zipFile)) . " bytes\n";
 }
 
 // Find latest per channel

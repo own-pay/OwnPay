@@ -1,5 +1,5 @@
 /**
- * OwnPay Admin — Gateways Page JS
+ * OwnPay Admin - Gateways Page JS
  * Categorized tab filtering, status dropdown filtering, and real-time local search.
  */
 (function () {

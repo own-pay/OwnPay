@@ -6,7 +6,7 @@ namespace Tests\Integration;
 use PHPUnit\Framework\TestCase;
 
 /**
- * L21 — Smoke test: validates essential system contracts.
+ * L21 - Smoke test: validates essential system contracts.
  */
 class SmokeTest extends TestCase
 {

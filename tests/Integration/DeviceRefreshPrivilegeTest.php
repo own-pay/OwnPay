@@ -10,7 +10,7 @@ use OwnPay\Service\Device\DevicePairingService;
 
 /**
  * Security regression: a mobile refresh token whose subject does not resolve to a real user
- * (sub <= 0, e.g. a non-numeric/legacy subject) MUST be rejected — it must NOT be silently
+ * (sub <= 0, e.g. a non-numeric/legacy subject) MUST be rejected - it must NOT be silently
  * upgraded to user 1 (the superadmin). Legitimate device tokens (sub > 0) must still refresh.
  *
  * Uses 'zztest-dev-' device ids so it never touches real data and is self-cleaning.

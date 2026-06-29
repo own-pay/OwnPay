@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex,nofollow">
-    <title>{{ lang.checkout ?? 'Secure Checkout' }} — {{ brand.name }}</title>
+    <title>{{ lang.checkout ?? 'Secure Checkout' }} - {{ brand.name }}</title>
     {% if brand.favicon|default('') %}<link rel="shortcut icon" href="{{ brand.favicon }}">{% endif %}
     <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
     <link rel="stylesheet" href="/assets/css/reset.css?v=016">
@@ -18,10 +18,10 @@
     <div class="ck-toast" id="cToast">{{ lang.copied ?? 'Copied!' }}</div>
 
     <div id="checkoutShell" class="ck-shell">
-        {# LEFT PANEL — Order Summary (desktop) #}
+        {# LEFT PANEL - Order Summary (desktop) #}
         {% include 'checkout/partials/_left-panel.twig' %}
 
-        {# RIGHT PANEL — Payment #}
+        {# RIGHT PANEL - Payment #}
         <div class="ck-right">
             {% include 'checkout/partials/_top-bar.twig' %}
 

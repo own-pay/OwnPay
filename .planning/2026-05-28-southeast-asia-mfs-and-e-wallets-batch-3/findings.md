@@ -1,6 +1,7 @@
-# Findings & Decisions — Batch 3 Southeast Asia MFS & E-Wallets
+# Findings & Decisions - Batch 3 Southeast Asia MFS & E-Wallets
 
 ## Requirements
+
 - Fully functional, production-ready, highly secure payment gateway adapters for:
   1. **ShopeePay**: Integrated via Omise's hosted payment source redirect.
   2. **Touch 'n Go eWallet**: Integrated via Stripe's certified `touch_n_go` PaymentIntent channel.
@@ -9,6 +10,7 @@
   5. **TrueMoney**: Integrated via Omise's hosted payment source redirect using `truemoney` channel.
 
 ## Technical Decisions
+
 | Decision | Rationale |
 |----------|-----------|
 | Stripe for Touch 'n Go | Stripe provides certified, extremely stable Touch 'n Go API integrations which guarantees instant merchant compliance and payment success. |
@@ -18,9 +20,11 @@
 ## Webhook Signature Verification Specifications
 
 ### 1. Billplz
+
 - Webhook signature key: `x_signature` header check.
 - Verification signature formula: `hash_hmac('sha256', $rawBody, $signatureKey)`.
 
 ### 2. MoMo
+
 - Webhook signature parameter: `signature` field check.
 - Verification signature formula: sort payload parameters alphabetically using `ksort()`, concatenate as `key=value&...`, and hash using `hash_hmac('sha256', $rawHash, $secretKey)`.

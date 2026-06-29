@@ -1,24 +1,24 @@
 /**
- * OwnPay Admin JS — sidebar, dropdowns, flash alerts, mobile UX.
+ * OwnPay Admin JS - sidebar, dropdowns, flash alerts, mobile UX.
  * Prefix: op-
  * OWASP: CSRF token in all requests, no inline eval, CSP-friendly.
  */
 (function () {
     "use strict";
 
-    // ─── CSRF Token ───────────────────────────────────────────
+    // --- CSRF Token -------------------------------------------
     var meta = document.querySelector('meta[name="csrf-token"]');
     window.OP_CSRF = meta ? meta.getAttribute("content") : "";
 
     var isMobile = function () { return window.innerWidth < 768; };
 
-    // ─── Sidebar Toggle ───────────────────────────────────────
+    // --- Sidebar Toggle ---------------------------------------
     var sidebar = document.getElementById("sidebar");
     var toggle = document.getElementById("sidebar-toggle");
     var backdrop = null;
 
     function createBackdrop() {
-        if (backdrop) {return;}
+        if (backdrop) { return; }
         backdrop = document.createElement("div");
         backdrop.id = "op-sidebar-backdrop";
         document.body.appendChild(backdrop);
@@ -26,22 +26,22 @@
     }
 
     function openMobileSidebar() {
-        if (!sidebar) {return;}
+        if (!sidebar) { return; }
         sidebar.classList.remove("op-sidebar-collapsed");
         sidebar.classList.add("op-sidebar-open");
-        if (backdrop) {backdrop.style.display = "block";}
+        if (backdrop) { backdrop.style.display = "block"; }
         document.body.style.overflow = "hidden";
     }
 
     function closeMobileSidebar() {
-        if (!sidebar) {return;}
+        if (!sidebar) { return; }
         sidebar.classList.remove("op-sidebar-open");
-        if (backdrop) {backdrop.style.display = "none";}
+        if (backdrop) { backdrop.style.display = "none"; }
         document.body.style.overflow = "";
     }
 
     function toggleDesktopSidebar() {
-        if (!sidebar) {return;}
+        if (!sidebar) { return; }
         sidebar.classList.toggle("op-sidebar-collapsed");
         localStorage.setItem("op-sidebar", sidebar.classList.contains("op-sidebar-collapsed") ? "collapsed" : "expanded");
     }
@@ -70,22 +70,22 @@
     window.addEventListener("resize", function () {
         if (!isMobile()) {
             closeMobileSidebar();
-            if (backdrop) {backdrop.style.display = "none";}
+            if (backdrop) { backdrop.style.display = "none"; }
             document.body.style.overflow = "";
         }
     });
 
-    // ─── Sub-nav Expand / Collapse ────────────────────────────
+    // --- Sub-nav Expand / Collapse ----------------------------
     document.querySelectorAll(".op-nav-group").forEach(function (item) {
         var link = item.querySelector(":scope > .op-nav-item-link");
-        if (!link) {return;}
+        if (!link) { return; }
         link.addEventListener("click", function (e) {
             var sub = item.querySelector(":scope > .op-sub-nav");
             if (sub) {
                 e.preventDefault();
                 var isExpanded = item.classList.contains("op-nav-expanded");
                 document.querySelectorAll(".op-nav-group.op-nav-expanded").forEach(function (other) {
-                    if (other !== item) {other.classList.remove("op-nav-expanded");}
+                    if (other !== item) { other.classList.remove("op-nav-expanded"); }
                 });
                 if (isExpanded) {
                     item.classList.remove("op-nav-expanded");
@@ -96,7 +96,7 @@
         });
     });
 
-    // ─── User Menu Dropdown (Navbar) ──────────────────────────
+    // --- User Menu Dropdown (Navbar) --------------------------
     var userBtn = document.getElementById("user-menu-btn");
     var userMenu = document.getElementById("user-menu");
     if (userBtn && userMenu) {
@@ -109,7 +109,7 @@
         });
     }
 
-    // ─── Sidebar User Menu ──────────────────────────────────
+    // --- Sidebar User Menu ----------------------------------
     var sidebarUserBtn = document.getElementById("sidebar-user-menu-btn");
     var sidebarUserMenu = document.getElementById("sidebar-user-menu");
     if (sidebarUserBtn && sidebarUserMenu) {
@@ -122,19 +122,19 @@
         });
     }
 
-    // ─── Notification Panel ────────────────────────────────
+    // --- Notification Panel --------------------------------
     var notifPanel = document.getElementById("notification-panel");
     var notifBackdrop = document.getElementById("notif-backdrop");
     var alertBell = document.getElementById("alert-bell");
 
     function openNotifPanel() {
-        if (notifPanel) {notifPanel.classList.add("open");}
-        if (notifBackdrop) {notifBackdrop.classList.add("open");}
+        if (notifPanel) { notifPanel.classList.add("open"); }
+        if (notifBackdrop) { notifBackdrop.classList.add("open"); }
     }
 
     function closeNotifPanel() {
-        if (notifPanel) {notifPanel.classList.remove("open");}
-        if (notifBackdrop) {notifBackdrop.classList.remove("open");}
+        if (notifPanel) { notifPanel.classList.remove("open"); }
+        if (notifBackdrop) { notifBackdrop.classList.remove("open"); }
     }
 
     if (alertBell) {
@@ -162,7 +162,7 @@
                 dot.remove();
             });
             var badge = document.querySelector(".op-badge-dot");
-            if (badge) {badge.style.display = "none";}
+            if (badge) { badge.style.display = "none"; }
         });
     }
 
@@ -202,7 +202,7 @@
         }
     }
 
-    // ─── Initialize Page UI (Dropdowns, Datepickers, Table rows) ─────────────────
+    // --- Initialize Page UI (Dropdowns, Datepickers, Table rows) -----------------
     window.opInitPageUI = function () {
         // 1. Generic Custom Dropdowns
         document.querySelectorAll(".op-custom-dropdown").forEach(function (wrap) {
@@ -419,7 +419,7 @@
         });
     });
 
-    // ─── Same-Page AJAX Navigation and Submission ────────────────────────────
+    // --- Same-Page AJAX Navigation and Submission ----------------------------
     var contentArea = document.querySelector(".op-content.t-panel-slide");
 
     // entrance animation trigger
@@ -468,30 +468,30 @@
                 fetch(targetUrl, {
                     headers: { "X-Requested-With": "XMLHttpRequest" }
                 })
-                .then(function (res) {
-                    if (!res.ok) { throw new Error("Navigation failed"); }
-                    return res.text();
-                })
-                .then(function (html) {
-                    history.pushState(null, null, targetUrl);
+                    .then(function (res) {
+                        if (!res.ok) { throw new Error("Navigation failed"); }
+                        return res.text();
+                    })
+                    .then(function (html) {
+                        history.pushState(null, null, targetUrl);
 
-                    var parser = new DOMParser();
-                    var doc = parser.parseFromString(html, "text/html");
+                        var parser = new DOMParser();
+                        var doc = parser.parseFromString(html, "text/html");
 
-                    var newContent = doc.querySelector(".op-content");
-                    var currentContent = document.querySelector(".op-content");
-                    if (newContent && currentContent) {
-                        currentContent.innerHTML = newContent.innerHTML;
-                        executeScripts(currentContent);
-                        requestAnimationFrame(function () {
-                            currentContent.setAttribute("data-open", "true");
-                        });
-                        window.opInitPageUI();
-                    }
-                })
-                .catch(function () {
-                    window.location.href = targetUrl;
-                });
+                        var newContent = doc.querySelector(".op-content");
+                        var currentContent = document.querySelector(".op-content");
+                        if (newContent && currentContent) {
+                            currentContent.innerHTML = newContent.innerHTML;
+                            executeScripts(currentContent);
+                            requestAnimationFrame(function () {
+                                currentContent.setAttribute("data-open", "true");
+                            });
+                            window.opInitPageUI();
+                        }
+                    })
+                    .catch(function () {
+                        window.location.href = targetUrl;
+                    });
             } else if (link.hostname === window.location.hostname && !link.target && !e.ctrlKey && !e.metaKey) {
                 // Different page: animate exit only
                 if (contentArea) {
@@ -546,75 +546,75 @@
             }
 
             fetchPromise
-            .then(function (res) {
-                return res.text().then(function (html) {
-                    return { ok: res.ok, html: html, url: res.url };
-                });
-            })
-            .then(function (result) {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnHTML;
-                }
-
-                if (!result.ok) {
-                    window.opShowToast("Error processing request.", "danger");
-                    return;
-                }
-
-                var responseUrl = new URL(result.url);
-                if (!responseUrl.pathname.startsWith("/admin/")) {
-                    window.location.href = result.url;
-                    return;
-                }
-
-                if (responseUrl.pathname + responseUrl.search !== window.location.pathname + window.location.search) {
-                    history.pushState(null, null, responseUrl.pathname + responseUrl.search + responseUrl.hash);
-                }
-
-                var parser = new DOMParser();
-                var doc = parser.parseFromString(result.html, "text/html");
-
-                var newContent = doc.querySelector(".op-content");
-                var currentContent = document.querySelector(".op-content");
-                if (newContent && currentContent) {
-                    var activeTab = document.querySelector(".op-tab.active");
-                    var activeTabSlug = activeTab ? activeTab.dataset.tab : null;
-
-                    var activeSandboxTab = document.querySelector(".op-sandbox-tab.active");
-                    var activeSandboxTabSlug = activeSandboxTab ? activeSandboxTab.dataset.sandboxTab : null;
-
-                    currentContent.innerHTML = newContent.innerHTML;
-                    executeScripts(currentContent);
-                    requestAnimationFrame(function () {
-                        currentContent.setAttribute("data-open", "true");
+                .then(function (res) {
+                    return res.text().then(function (html) {
+                        return { ok: res.ok, html: html, url: res.url };
                     });
-
-                    // Re-activate active tabs
-                    if (activeTabSlug) {
-                        var tabBtn = document.querySelector(".op-tab[data-tab='" + activeTabSlug + "']");
-                        if (tabBtn) { tabBtn.click(); }
-                    }
-                    if (activeSandboxTabSlug) {
-                        var sandboxTabBtn = document.querySelector(".op-sandbox-tab[data-sandbox-tab='" + activeSandboxTabSlug + "']");
-                        if (sandboxTabBtn) { sandboxTabBtn.click(); }
+                })
+                .then(function (result) {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnHTML;
                     }
 
-                    window.opInitPageUI();
-                    window.opShowToast("Changes saved successfully!", "success");
-                }
-            })
-            .catch(function () {
-                if (submitBtn) {
-                    submitBtn.disabled = false;
-                    submitBtn.innerHTML = originalBtnHTML;
-                }
-                window.opShowToast("A network error occurred.", "danger");
-            });
+                    if (!result.ok) {
+                        window.opShowToast("Error processing request.", "danger");
+                        return;
+                    }
+
+                    var responseUrl = new URL(result.url);
+                    if (!responseUrl.pathname.startsWith("/admin/")) {
+                        window.location.href = result.url;
+                        return;
+                    }
+
+                    if (responseUrl.pathname + responseUrl.search !== window.location.pathname + window.location.search) {
+                        history.pushState(null, null, responseUrl.pathname + responseUrl.search + responseUrl.hash);
+                    }
+
+                    var parser = new DOMParser();
+                    var doc = parser.parseFromString(result.html, "text/html");
+
+                    var newContent = doc.querySelector(".op-content");
+                    var currentContent = document.querySelector(".op-content");
+                    if (newContent && currentContent) {
+                        var activeTab = document.querySelector(".op-tab.active");
+                        var activeTabSlug = activeTab ? activeTab.dataset.tab : null;
+
+                        var activeSandboxTab = document.querySelector(".op-sandbox-tab.active");
+                        var activeSandboxTabSlug = activeSandboxTab ? activeSandboxTab.dataset.sandboxTab : null;
+
+                        currentContent.innerHTML = newContent.innerHTML;
+                        executeScripts(currentContent);
+                        requestAnimationFrame(function () {
+                            currentContent.setAttribute("data-open", "true");
+                        });
+
+                        // Re-activate active tabs
+                        if (activeTabSlug) {
+                            var tabBtn = document.querySelector(".op-tab[data-tab='" + activeTabSlug + "']");
+                            if (tabBtn) { tabBtn.click(); }
+                        }
+                        if (activeSandboxTabSlug) {
+                            var sandboxTabBtn = document.querySelector(".op-sandbox-tab[data-sandbox-tab='" + activeSandboxTabSlug + "']");
+                            if (sandboxTabBtn) { sandboxTabBtn.click(); }
+                        }
+
+                        window.opInitPageUI();
+                        window.opShowToast("Changes saved successfully!", "success");
+                    }
+                })
+                .catch(function () {
+                    if (submitBtn) {
+                        submitBtn.disabled = false;
+                        submitBtn.innerHTML = originalBtnHTML;
+                    }
+                    window.opShowToast("A network error occurred.", "danger");
+                });
         }
     });
 
-    // ─── Brand Switcher Dropdown ──────────────────────────────
+    // --- Brand Switcher Dropdown ------------------------------
     var brandSwitcher = document.getElementById("brand-switcher");
     var brandPillBtn = document.getElementById("brand-pill-btn");
     var brandDropdown = document.getElementById("brand-dropdown");
@@ -654,7 +654,7 @@
         });
     }
 
-    // ─── Date Switcher Dropdown ──────────────────────────────
+    // --- Date Switcher Dropdown ------------------------------
     var dateSwitcher = document.getElementById("date-switcher");
     var datePillBtn = document.getElementById("date-pill-btn");
     var dateDropdown = document.getElementById("date-dropdown");
@@ -688,7 +688,7 @@
         });
     }
 
-    // ─── Flash Alert Dismissal ─────────────────────────────
+    // --- Flash Alert Dismissal -----------------------------
     function dismissAlert(alert) {
         alert.style.opacity = "0";
         alert.style.transform = "translateY(-10px)";
@@ -708,7 +708,7 @@
         }
     });
 
-    // ─── Global Search ────────────────────────────────────────
+    // --- Global Search ----------------------------------------
     var searchInput = document.getElementById("global-search");
     if (searchInput) {
         var debounce = null;
@@ -725,7 +725,7 @@
 
 
 
-    // ─── Confirm dangerous forms (Delegated to support dynamic forms & CSP safety) ──────────────────────────────
+    // --- Confirm dangerous forms (Delegated to support dynamic forms & CSP safety) ------------------------------
     document.addEventListener("submit", function (e) {
         if (e.target && e.target.tagName === "FORM") {
             var msg = e.target.getAttribute("data-confirm") || e.target.dataset.confirm;
@@ -735,7 +735,7 @@
         }
     });
 
-    // ─── Copy to clipboard ────────────────────────────────────
+    // --- Copy to clipboard ------------------------------------
     window.opCopyText = function (text, button, successCallback) {
         var onCopySuccess = function () {
             if (typeof successCallback === "function") {
@@ -818,7 +818,7 @@
         }
     });
 
-    // ─── Theme Toggle (light/dark) ─────────────────────────────
+    // --- Theme Toggle (light/dark) -----------------------------
     var THEME_KEY = "op-theme";
     var htmlEl = document.documentElement;
 
@@ -857,7 +857,7 @@
     }
 
 
-    // ─── Global Modal Functions & CSP Delegated Handlers ──────────────────────────────
+    // --- Global Modal Functions & CSP Delegated Handlers ------------------------------
     window.openDeleteModal = function (action, itemName) {
         var form = document.getElementById("delete-form");
         var nameEl = document.getElementById("delete-item-name");
@@ -946,7 +946,7 @@
         }
     });
 
-    // ─── Toast Notifications ──────────────────────────────────
+    // --- Toast Notifications ----------------------------------
     window.opShowToast = function (message, type) {
         var container = document.getElementById("toast-container");
         if (!container) {
@@ -958,7 +958,7 @@
 
         var toast = document.createElement("div");
         toast.className = "op-toast op-toast-" + (type || "info");
-        
+
         var icon = "";
         if (type === "success") {
             icon = '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"/></svg>';
@@ -969,8 +969,8 @@
         }
 
         toast.innerHTML = '<span class="op-toast-icon">' + icon + "</span>" +
-                          '<span class="op-toast-message">' + message + "</span>" +
-                          '<button class="op-toast-close">&times;</button>';
+            '<span class="op-toast-message">' + message + "</span>" +
+            '<button class="op-toast-close">&times;</button>';
 
         container.appendChild(toast);
 
@@ -1007,7 +1007,7 @@
         alert.remove();
     });
 
-    // ─── Custom Confirmation Modal ─────────────────────────────
+    // --- Custom Confirmation Modal -----------------------------
     var confirmCallback = null;
 
     window.opShowConfirm = function (title, message, confirmText, cancelText, callback) {
@@ -1022,12 +1022,12 @@
 
         document.getElementById("confirm-modal-title").textContent = title || "Confirmation";
         document.getElementById("confirm-modal-message").textContent = message || "Are you sure you want to proceed?";
-        
+
         var submitBtn = document.getElementById("confirm-modal-submit");
         if (submitBtn) {
             submitBtn.textContent = confirmText || "Confirm";
         }
-        
+
         var cancelBtn = document.getElementById("confirm-modal-cancel");
         if (cancelBtn) {
             cancelBtn.textContent = cancelText || "Cancel";
@@ -1100,7 +1100,7 @@
         }
     }, true);
 
-    // ─── Dynamic Documentation Helper ─────────────────────────
+    // --- Dynamic Documentation Helper -------------------------
     if (window.OP_DOC_URL && window.OP_DOC_URL !== "") {
         var header = document.querySelector(".op-page-header h1, .dash-header h1");
         if (header) {
@@ -1111,7 +1111,7 @@
             docLink.title = "View documentation guide for this page";
             docLink.innerHTML = '<span style="font-size: 1.1rem; line-height: 1; vertical-align: middle; margin-left: 8px; cursor: pointer; opacity: 0.8; transition: opacity 0.2s;">📖</span>';
             header.appendChild(docLink);
-            
+
             docLink.addEventListener("mouseenter", function () { this.style.opacity = "1"; });
             docLink.addEventListener("mouseleave", function () { this.style.opacity = "0.8"; });
         }
@@ -1124,7 +1124,7 @@
         }
     }, true);
 
-    // ─── Custom Alert Override ──────────────────────────────────
+    // --- Custom Alert Override ----------------------------------
     window.alert = function (message) {
         var modal = document.getElementById("op-alert-modal");
         if (!modal) {
@@ -1132,7 +1132,7 @@
             modal.className = "op-modal";
             modal.id = "op-alert-modal";
             modal.hidden = true;
-            modal.innerHTML = 
+            modal.innerHTML =
                 '<div class="op-modal-backdrop" id="op-alert-modal-backdrop"></div>' +
                 '<div class="op-modal-dialog">' +
                 '    <div class="op-modal-header">' +
@@ -1148,7 +1148,7 @@
                 "</div>";
             document.body.appendChild(modal);
 
-            var closeModal = function() {
+            var closeModal = function () {
                 modal.hidden = true;
             };
             document.getElementById("op-alert-modal-close").addEventListener("click", closeModal);

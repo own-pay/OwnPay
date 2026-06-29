@@ -14,7 +14,7 @@ use OwnPay\Support\DateHelper;
 /**
  * Class DeviceController
  *
- * Mobile Device API — pair, heartbeat, revoke, refresh JWT, status.
+ * Mobile Device API - pair, heartbeat, revoke, refresh JWT, status.
  * OWASP: JWT auth, device fingerprint validation.
  *
  * @package OwnPay\Controller\Api\Mobile
