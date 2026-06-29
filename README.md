@@ -1,114 +1,359 @@
 <div align="center">
 
-# 🚀 Own Pay
-### **Enterprise-Grade. Self-Hosted. Open Source.**
-**"Your Payment Gateway, Your Server, Your Data."**
+<picture>
+  <source media="(prefers-color-scheme: dark)"  srcset="https://github.com/own-pay/.github/raw/main/profile/assets/ownpay-white-logo.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://github.com/own-pay/.github/raw/main/profile/assets/ownpay-dark-logo.svg">
+  <img src="https://github.com/own-pay/.github/raw/main/profile/assets/ownpay-with-bg.png" height="110" alt="OwnPayLogo" />
+</picture>
 
-[![Status: Active Development](https://img.shields.io/badge/Status-Active_Development-blue.svg?style=for-the-badge)](https://www.facebook.com/share/p/1HsvshfrLr/)
-[![Release: Public Beta Coming Soon](https://img.shields.io/badge/Release-Public_Beta_(v0.1.0)-orange.svg?style=for-the-badge)]()
-[![License: AGPL 3.0](https://img.shields.io/badge/License-AGPL_3.0-success.svg?style=for-the-badge)](https://github.com/own-pay/ownpay/blob/11e0cf5711bd63ee8857778549fe7bb8c0c1ac20/LICENSE)
-[![PHP: 8.2+](https://img.shields.io/badge/PHP-8.2%2B-777bb4.svg?style=for-the-badge&logo=php)]()
+<br /><br />
 
-[Official Website: ownpay.org](https://ownpay.org)
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=700&size=20&duration=2800&pause=1000&color=0066FF&center=true&vCenter=true&width=680&lines=Payment+Infrastructure.+Reimagined.;Your+Gateway.+Your+Server.+Your+Rules.;Self-Hosted+%E2%80%A2+Open+Source+%E2%80%A2+Forever+Free.;Public+Beta+v0.1.0+%E2%80%94+Coming+Soon+%F0%9F%9A%80)](https://ownpay.org)
+
+<br />
+
+[![Stars](https://img.shields.io/github/stars/own-pay/OwnPay?style=for-the-badge&label=Stars&color=FFB800&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/stargazers)&nbsp;
+[![Watchers](https://img.shields.io/github/watchers/own-pay/OwnPay?style=for-the-badge&label=Watching&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/watchers)&nbsp;
+[![Forks](https://img.shields.io/github/forks/own-pay/OwnPay?style=for-the-badge&label=Forks&color=0066FF&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/network/members)&nbsp;
+[![License](https://img.shields.io/badge/AGPL-3.0-3B82F6?style=for-the-badge)](https://opensource.org/licenses/AGPL-3.0)&nbsp;
+[![PHP](https://img.shields.io/badge/PHP-8.3%2B-777BB4?style=for-the-badge&logo=php&logoColor=white)](https://php.net)&nbsp;
+[![Status](https://img.shields.io/badge/Public%20Beta-v0.1.0%20Coming%20Soon-0066FF?style=for-the-badge)](https://github.com/own-pay/OwnPay/releases)
+
+<br />
+
+*The premier self-hosted, open-source payment gateway automation platform.*<br />
+*Professional &nbsp;·&nbsp; Secure &nbsp;·&nbsp; Developer-First.*
+
+</div>
+
+<br />
+
+---
+
+<div align="center">
+
+[![ELITE SPONSOR](https://img.shields.io/badge/%E2%9A%A1%20ELITE%20SPONSOR-FFB800?style=flat-square&labelColor=111111)](https://namepart.com) &nbsp; <a href="https://namepart.com"><img src="https://ownpay.org/assets/img/sponsors/namepart_logo.png" height="22" alt="Namepart" /></a> &nbsp; **[Namepart](https://namepart.com)** — Powering open-source fintech infrastructure. &nbsp; <sub>[Become a Sponsor →](https://ownpay.org/donate)</sub>
 
 </div>
 
 ---
 
-## 📖 About Own Pay
+## 💎 What is OwnPay?
 
-**Own Pay** is a hyper-modern, self-hosted payment gateway automation platform. It is built for developers, entrepreneurs, and businesses who refuse to compromise on data sovereignty. In an era of opaque SaaS platforms, Own Pay gives you the keys to your own financial infrastructure.
+> **OwnPay** is a self-hosted payment gateway automation platform — built for developers, entrepreneurs, and businesses who refuse to hand their financial infrastructure to a third party.
+>
+> **Your payment gateway. Your server. Your data. Your rules — forever.**
 
-> **Note** This project is a heavily refactored, modernized, and rebranded evolution fork of [**PipraPay**](https://github.com/PipraPay/PipraPay) project, now operating under a completely new architectural philosophy.
+<br />
 
----
+<table>
+<tr>
+<td align="center" width="33%">
 
-## 💡 The Vision: Why Own Pay?
+**🛡️ Complete Ownership**
 
-The fintech ecosystem is often locked behind high fees and third-party servers. Own Pay breaks these barriers:
+Your financial infrastructure stays on your server. No middlemen. No third-party access. Ever.
 
-* **Data Sovereignty:** Every transaction log, customer detail, and API key stays on *your* server. No middleman.
-* **Self-Hosted Independence:** Deploy on your own VPS or dedicated hardware. You own the uptime.
-* **Forever Free & Open Source:** Licensed under AGPL-3.0, ensuring the core remains free for the community, forever.
-* **No Hidden Fees:** Eliminate the "Platform Tax" often charged by centralized automation services.
+</td>
+<td align="center" width="33%">
 
----
+**⚡ Built for Builders**
 
-## 🚧 Current Status: Alpha Testing (v0.0.3)
+Engineered for developers and businesses who demand professional-grade payment infrastructure.
 
-**Important Notice:** The source code is currently private while we undergo rigorous internal testing.
-We have reached **100% Core Development**, but our internal **Alpha v0.0.3 audit** identified several critical bugs and architectural security vulnerabilities. 
+</td>
+<td align="center" width="33%">
 
-**We will not push the code until it is safe for the community.** The first public code drop will happen with the **Public Beta (v0.1.0)** release. 
+**🌍 Community-Driven**
 
-> **Action:** Click the **`⭐ Star`** button to get notified exactly when the Public Beta goes live!
+AGPL-3.0 licensed. Open source forever. Shaped by the community, for the community.
 
----
-
-## 🏗️ Technical Architecture & Stack
-
-Own Pay does not use standard monolithic frameworks. It is built on a **Custom Enterprise PHP Framework** designed for high-performance fintech operations.
-
-* **Service-Oriented Architecture (SOA):** Decoupled layers for Repositories, Services, and Controllers.
-* **Universal Plugin System:** Extensibility is at our core. Add payment gateways, SMS providers, or new features via ZIP-based modules without touching the core.
-* **Robust Hook System:** A powerful event-driven engine using the naming convention: `{domain}.{entity}.{event}`.
-* **Security First:** * Strictly Typed PHP 8.2+.
-    * Zero-Trust capability matrices for plugins.
-    * Encrypted data-at-rest for sensitive configurations.
-* **Database:** Highly optimized MySQL/MariaDB schema with tenant-scoping readiness.
+</td>
+</tr>
+</table>
 
 ---
 
-## 🗺️ Development Roadmap
+## ⚡ How OwnPay Works
 
-- [x] **The Foundation** - Core SOA Refactoring, DI Container, and Request Lifecycle.
-- [x] **Plugin Engine** - Implementation of the Universal Plugin & Hook System.
-- [x] **UI/UX Revamp** - Dynamic Checkout Theme Engine and Admin Bento UI.
-- [ ] **Security Hardening (Current)** - Patching Alpha v0.0.3 vulnerabilities and final audits.
-- [ ] **Public Beta Release** - Official Code Drop and `ownpay.org` launch.
-- [ ] **Ecosystem Expansion** - Developer SDKs and official Documentation Portal.
-
----
-
-## 🏆 Proud Sponsors & Supporters
-
-Own Pay is powered by the community and visionary partners:
-
-### **Strategic Partner & Infrastructure Sponsor**
-[<img width="256" height="40" alt="FlexoHostHorizontalDark" src="https://github.com/user-attachments/assets/bb1c2083-f8c2-40d3-a618-a378921af8ae" />](https://flexohost.com)**[FlexoHost](https://flexohost.com)** — Officially sponsoring our Domain (`ownpay.org`) and Premium Hosting infrastructure.
-
----
-
-## 🤝 Community & Contributions
-
-We are a community-first project. You can contribute even before the code is public:
-
-1.  **UI/UX Design:** Are you a professional designer? We are looking for an elite **Logo Design** and Brand Identity.
-2.  **Sponsorship:** We are open to CDN, Cloud, or Security tool sponsorships.
-3.  **Stars:** Every Star motivates our team to squash bugs faster!
-
----
-
-## 🔗 Stay Connected
-Follow the development journey and join the discussion:
-- **Facebook Discussion:** [Join the conversation](https://www.facebook.com/share/p/1HsvshfrLr/)
-- **Github Discussions:** [Discussions](https://github.com/own-pay/ownpay/discussions)
-
----
-
-## 🙏 Acknowledgments & Credits
-
-* **[Abdullah Bin Ziad](https://www.facebook.com/mdabdullahbinziad) (Founder of FlexoHost):** For his outstanding dual contribution - suggesting the name **"Own Pay"** and providing the infrastructure to bring it to life.
-* **The Contributors:** To everyone who participated in the renaming polls and provided architectural feedback.
-
----
-
-## 📄 License
-
-Own Pay is licensed under the **GNU Affero General Public License v3.0 (AGPL-3.0)**. This ensures that any enhancements to the core remain open-source for the benefit of the entire community.
-
----
 <div align="center">
-  <i>"Control your payments. Own your future."</i> <br>
-  <b>Built by the Community, for the Community.</b>
+
+<img src="docs/images/flow.svg" width="100%" alt="OwnPay Payment Flow — Merchant to OwnPay to Gateway to Merchant" />
+
+</div>
+
+---
+
+## ▶️ Live Demo
+
+<div align="center">
+
+> **The OwnPay live demo is coming soon.**<br />
+> Experience the full platform firsthand before the official public release.
+
+<br />
+
+[![Live Demo — Coming Soon](https://img.shields.io/badge/%E2%96%B6%EF%B8%8F%20Live%20Demo-demo.ownpay.org%20%E2%80%94%20Coming%20Soon-6B7280?style=for-the-badge)](https://demo.ownpay.org)
+
+</div>
+
+---
+
+## 🏗️ Tech Stack
+
+<div align="center">
+
+<img src="https://skillicons.dev/icons?i=php,mysql,nginx,tailwind,alpinejs,composer&theme=dark&perline=6" height="46" alt="Tech Stack" />
+
+</div>
+
+<br />
+
+<table>
+<tr>
+<td width="50%" valign="top">
+
+**⚙️ Backend**
+
+| Component | Technology |
+|:---|:---|
+| Language | PHP 8.2+ &nbsp;·&nbsp; Strict Types |
+| Database | MySQL 8.x / MariaDB 10.6+ |
+| Package Mgr | Composer v2 |
+| Migrations | Doctrine Migrations |
+| DI Container | PSR-11 &nbsp;·&nbsp; Custom &nbsp;·&nbsp; Auto-wiring |
+| REST API | JSON &nbsp;·&nbsp; Webhook Callbacks |
+
+</td>
+<td width="50%" valign="top">
+
+**🔐 Security & Quality**
+
+| Feature | Details |
+|:---|:---|
+| Field Encryption | AES-256-GCM |
+| Password Hashing | Argon2id |
+| Templating | Twig 3.14 &nbsp;·&nbsp; Flowbite &nbsp;·&nbsp; Alpine.js |
+| CSS Framework | Tailwind CSS 3.4 |
+| Static Analysis | PHPStan Level 9 |
+| Deployment | Shared &nbsp;·&nbsp; VPS &nbsp;·&nbsp; Dedicated |
+
+</td>
+</tr>
+</table>
+
+---
+
+## ❓ Frequently Asked Questions
+
+<details>
+<summary><b>What is the current project status?</b></summary>
+<br />
+
+OwnPay has completed its core development phase. The platform is currently undergoing **bug fixing and final validation** before the **Public Beta v0.1.0** release.
+
+</details>
+
+<details>
+<summary><b>When will OwnPay officially release?</b></summary>
+<br />
+
+The **Public Beta v0.1.0** release is coming soon. We do not commit to a specific date — the release will happen when the quality bar is met, not when a calendar says so. Star the repository to get notified the instant it drops.
+
+</details>
+
+<details>
+<summary><b>Why is the release taking longer than expected?</b></summary>
+<br />
+
+Because we refuse to release something that isn't secure. OwnPay handles real financial transactions — a rushed release with unresolved vulnerabilities would be a disservice to the community. The additional time is invested in thorough security hardening, bug fixing, and edge case validation. **Quality over speed. Always.**
+
+</details>
+
+<details>
+<summary><b>Why was a custom framework built instead of using Laravel or Symfony?</b></summary>
+<br />
+
+OwnPay was architected around very specific requirements that off-the-shelf frameworks don't solve cleanly — primarily around multi-brand domain isolation, a sandboxed plugin execution model, and a domain-specific hook engine. Using a full framework would mean fighting against its conventions rather than leveraging them. The custom foundation gives us full control over the boot pipeline, zero dead code, and a security surface that we own completely. It's more work upfront, and the right call long-term.
+
+</details>
+
+<details>
+<summary><b>Do you accept sponsors?</b></summary>
+<br />
+
+Yes. OwnPay welcomes sponsors who align with the open-source mission. If you're interested in supporting the project and gaining visibility in the community, visit **[ownpay.org/donate](https://ownpay.org/donate)** or reach out at **[ping@ownpay.org](mailto:ping@ownpay.org)**.
+
+</details>
+
+<details>
+<summary><b>Do you accept donations?</b></summary>
+<br />
+
+Yes. Every contribution, however small, helps keep the project moving. Donations go directly toward infrastructure costs, developer time, and security tooling.
+
+[![Donate to OwnPay](https://img.shields.io/badge/%E2%9D%A4%EF%B8%8F%20Donate-ownpay.org%2Fdonate-FF6B6B?style=for-the-badge)](https://ownpay.org/donate)
+
+</details>
+
+<details>
+<summary><b>Is OwnPay production-ready?</b></summary>
+<br />
+
+The platform is approaching its **Public Beta v0.1.0** release. For production deployments, we recommend waiting for the official beta tag, which will include installation documentation, migration tooling, and a full security disclosure report. Star the repository to get notified.
+
+</details>
+
+---
+
+## 🔗 Quick Links
+
+<div align="center">
+
+**🌐 Platform**
+
+[![Website](https://img.shields.io/badge/Website-ownpay.org-0066FF?style=for-the-badge)](https://ownpay.org)&nbsp;
+[![API Docs](https://img.shields.io/badge/API%20Docs-docs.ownpay.org-0066FF?style=for-the-badge)](https://docs.ownpay.org)&nbsp;
+[![Learn](https://img.shields.io/badge/Learn-learn.ownpay.org-0066FF?style=for-the-badge)](https://learn.ownpay.org)&nbsp;
+[![Blog](https://img.shields.io/badge/Blog-blog.ownpay.org-0066FF?style=for-the-badge)](https://blog.ownpay.org)
+
+<br />
+
+**🤝 Community**
+
+[![Facebook Page](https://img.shields.io/badge/Facebook%20Page-ownpay.org-1877F2?style=for-the-badge&logo=facebook&logoColor=white)](https://www.facebook.com/ownpay.org)&nbsp;
+[![Community Group](https://img.shields.io/badge/Community%20Group-Join%20Now-1877F2?style=for-the-badge&logo=facebook&logoColor=white)](https://www.facebook.com/groups/ownpay.org)&nbsp;
+[![Donate](https://img.shields.io/badge/Donate-ownpay.org%2Fdonate-FF6B6B?style=for-the-badge)](https://ownpay.org/donate)&nbsp;
+[![Email](https://img.shields.io/badge/Email-ping%40ownpay.org-0066FF?style=for-the-badge)](mailto:ping@ownpay.org)
+
+</div>
+
+---
+
+## 📈 Star History
+
+<div align="center">
+
+<a href="https://star-history.com/#own-pay/OwnPay&Date">
+  <picture>
+    <source media="(prefers-color-scheme: dark)"  srcset="https://api.star-history.com/svg?repos=own-pay/OwnPay&type=Date&theme=dark">
+    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=own-pay/OwnPay&type=Date">
+    <img width="100%" src="https://api.star-history.com/svg?repos=own-pay/OwnPay&type=Date" alt="Star History Chart" />
+  </picture>
+</a>
+
+<br /><br />
+
+> **⭐ Star OwnPay now — be the first to know when Public Beta v0.1.0 drops.**
+
+<br />
+
+[![Star OwnPay](https://img.shields.io/badge/%E2%AD%90%20Star%20OwnPay-Get%20Notified%20on%20Launch-0066FF?style=for-the-badge&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay)&nbsp;&nbsp;
+[![Watch Releases](https://img.shields.io/badge/%F0%9F%94%94%20Watch%20Releases-Stay%20Updated-0066FF?style=for-the-badge&logo=github&logoColor=white)](https://github.com/own-pay/OwnPay/releases)
+
+</div>
+
+---
+
+## 💛 Sponsors
+
+*OwnPay is made possible by the generous support of our sponsors.*
+
+**🤝 Community Sponsors**
+
+<br />
+
+<table>
+<tr>
+<td align="center" width="33%">
+  <a href="https://hostever.com">
+<picture>
+  <source media="(prefers-color-scheme: dark)"  srcset="https://ownpay.org/assets/img/sponsors/hostever-logo-black-white.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://ownpay.org/assets/img/sponsors/hostever-logo.svg">
+  <img src="https://ownpay.org/assets/img/sponsors/hostever-logo.svg" height="32" alt="Hostever" />
+</picture>
+   </a>
+      <br />
+    <a href="https://hostever.com">
+        <sub>
+          <b>Hostever</b>
+        </sub>
+  </a>
+</td>
+<td align="center" width="33%"><a href="https://www.flexohost.com">
+  <img src="https://ownpay.org/assets/img/sponsors/FlexoHost_logo.webp" height="32" alt="FlexoHost" /></a><br /><a href="https://www.flexohost.com"><sub><b>FlexoHost</b></sub></a>
+</td>
+<td align="center" width="33%"><a href="https://hostazy.com.bd"><img src="https://ownpay.org/assets/img/sponsors/hostazy.png" height="32" alt="Hostazy" /></a><br /><a href="https://hostazy.com.bd"><sub><b>Hostazy</b></sub></a></td>
+</tr>
+<tr>
+<td align="center" width="33%"><a href="https://banglahoster.net"><img src="https://ownpay.org/assets/img/sponsors/banglahoster.svg" height="32" alt="Bangla Hoster" /></a><br /><a href="https://banglahoster.net"><sub><b>Bangla Hoster</b></sub></a></td>
+<td align="center" width="33%"><a href="https://hostsite24.com"><img src="https://ownpay.org/assets/img/sponsors/hostsite24.png" height="32" alt="HostSire24" /></a><br /><a href="https://hostsite24.com"><sub><b>HostSire24</b></sub></a></td>
+<td align="center" width="33%"><a href="https://rayanhoster.com"><img src="https://ownpay.org/assets/img/sponsors/rayanhoster.png" height="32" alt="Rayanhoster" /></a><br /><a href="https://rayanhoster.com"><sub><b>Rayan Hoster</b></sub></a></td>
+</tr>
+</table>
+
+<sub>Interested in sponsoring? &nbsp;→&nbsp; <a href="https://ownpay.org/donate">ownpay.org/donate</a></sub>
+
+</div>
+
+---
+
+## 👥 Contributors
+
+<div align="center">
+
+<table>
+<tr>
+<td align="center" width="50%"><a href="https://iamnaime.info.bd"><img src="https://img.shields.io/badge/Fattain%20Naime-Lead%20Developer%20%26%20Maintainer-0066FF?style=for-the-badge" alt="Fattain Naime" /></a><br /><sub>🔧 <b>Lead Developer &amp; Main Maintainer</b></sub><br /><sub><a href="https://iamnaime.info.bd">🌐 iamnaime.info.bd</a></sub></td>
+<td align="center" width="50%"><a href="https://www.linkedin.com/in/tahera-akter-180223259"><img src="https://img.shields.io/badge/Tahira%20Akter%20Hira-Logo%20%26%20Brand%20Design-0066FF?style=for-the-badge" alt="Tahira Akter Hira" /></a><br /><sub>🎨 <b>Logo &amp; Brand Design</b></sub><br /><sub><a href="https://www.linkedin.com/in/tahera-akter-180223259">💼 LinkedIn</a></sub></td>
+</tr>
+</table>
+
+<sub>Want to contribute? Check <a href="CONTRIBUTING.md">CONTRIBUTING.md</a> — contributions open with Public Beta.</sub>
+
+</div>
+
+---
+
+## 🛡️ Security
+
+If you discover a security vulnerability, **do not open a public issue.**<br />
+Report privately: **[security@ownpay.org](mailto:security@ownpay.org)** — see [SECURITY.md](SECURITY.md) for the full disclosure policy.
+
+---
+
+## ⚖️ License
+
+Distributed under the **[GNU Affero General Public License v3.0 (AGPL-3.0)](LICENSE)**.
+The core platform is, and will always remain, free and open source.
+
+---
+
+<div align="center">
+
+<sub>
+<a href="https://ownpay.org">ownpay.org</a>
+&nbsp;·&nbsp;
+<a href="https://docs.ownpay.org">docs.ownpay.org</a>
+&nbsp;·&nbsp;
+<a href="https://demo.ownpay.org">demo.ownpay.org</a>
+&nbsp;·&nbsp;
+<a href="mailto:ping@ownpay.org">ping@ownpay.org</a>
+</sub>
+
+<br /><br />
+
+<sub><b>Built by the Community, for the Community. 🌍</b></sub>
+
+<br />
+
+<sub>
+<code>#OwnPay</code> &nbsp;
+<code>#OpenSourcePaymentGateway</code> &nbsp;
+<code>#SelfHosted</code> &nbsp;
+<code>#DataSovereignty</code> &nbsp;
+<code>#Fintech</code> &nbsp;
+<code>#OpenSource</code>
+</sub>
+
 </div>
