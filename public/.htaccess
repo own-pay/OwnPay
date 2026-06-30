@@ -15,7 +15,7 @@
 </IfModule>
 
 # Prevent directory listing
-Options -Indexes
+# Options -Indexes
 
 # Set default charset
 AddDefaultCharset UTF-8
