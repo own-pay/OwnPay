@@ -96,7 +96,7 @@
 .ck-brand { display: flex; align-items: center; gap: 14px; margin-bottom: 40px; position: relative; z-index: 1; }
 .ck-brand-logo {
     width: 48px; height: 48px; border-radius: var(--r-xl);
-    background: rgb(255 255 255 / 10%); backdrop-filter: blur(8px);
+    background: rgb(255 255 255 / 10%); -webkit-backdrop-filter: blur(8px); backdrop-filter: blur(8px);
     display: flex; align-items: center; justify-content: center;
     border: 1px solid rgb(255 255 255 / 8%);
 }
