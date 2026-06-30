@@ -1,0 +1,39 @@
+{
+  "name": "Binance Pay",
+  "slug": "binance-merchant-api",
+  "version": "1.0.0",
+  "description": "Binance Pay merchant API gateway integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "icon.svg",
+  "color": "#F0B90B",
+  "entrypoint": "BinanceMerchantApiGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\BinanceMerchantApi",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": [
+      "https://*.binanceapi.com",
+      "https://*.binance.com"
+    ],
+    "style_src": [
+      "https://*.binance.com"
+    ],
+    "frame_src": [
+      "https://*.binance.com"
+    ],
+    "connect_src": [
+      "https://*.binanceapi.com",
+      "https://bpay.binanceapi.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ]
+}

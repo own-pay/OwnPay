@@ -6,7 +6,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
 ---
 
-## [0.1.0] — 2026-06-29
+## [0.1.0] — 2026-06-30
 
 > **Initial public release.** OwnPay is a self-hosted, enterprise-grade, open-source payment
 > gateway platform built on PHP 8.3+. A single owner operates the full system; multiple
@@ -18,6 +18,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ### Added
 
 #### Core Framework
+
 - Lightweight **PSR-11 dependency injection container** with reflection-based auto-wiring and singleton/transient lifecycle support.
 - 10-step **Kernel boot cycle**: environment loading → container build → timezone config → plugin boot → middleware stack → `system.boot` event → route compilation → request matching → controller dispatch → `system.shutdown` event.
 - **WordPress-style hook/filter system** (`EventManager`) with named action queues and priority-ordered filter chains, available to every plugin.
@@ -26,6 +27,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Maintenance mode** with segment-aware path whitelist (`/admin`, `/login`, `/webhook`, `/cron`, `/checkout`) so gateway callbacks continue processing and the operator can still log in during downtime.
 
 #### Multi-Brand Architecture
+
 - **Single-owner, multi-brand model**: one super-administrator manages N brands (`op_merchants`), each isolated by `merchant_id` across every scoped database table.
 - **`TenantScope` trait** — enforces brand data isolation at the query layer; provides `forTenant()`, `forAllTenants()`, `paginateScoped()`, `findScoped()`, `createScoped()`, `updateScoped()`, `deleteScoped()`.
 - **`BrandContext` service** — resolves active brand from request, handles the All-Brands (platform) scope, exposes `getPlatformId()` and `getWriteMerchantId()` to prevent data cross-contamination.
@@ -34,17 +36,20 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Per-brand RBAC** — `op_roles` + `op_role_permissions`; `brands.access_all` permission gates cross-brand (All-Brands) access. `PermissionMiddleware::resolvePermission()` maps every admin route to its required permission slug.
 
 #### White-Label Custom Domains
+
 - **`DomainMiddleware`** — resolves every inbound `HTTP_HOST` against `op_domains`; injects `merchant_id`, `custom_domain`, and `domain_type` into request attributes; returns HTTP 404 for `/admin/*` paths on custom domains; returns HTTP 503 for domains pending DNS verification.
 - **`DomainUrlService`** — single source of truth for all customer-facing and gateway-facing URL construction with priority: `GATEWAY_CALLBACK_URL` env → brand custom domain → `APP_URL` → request host → `https://localhost`.
 - DNS verification workflow with `dns_verified` flag; unverified domains are fully blocked.
 - `APP_DOMAIN` bare-hostname env var used as the master-domain sentinel.
 
 #### Installer Wizard
+
 - Four-step guided installation: directory permission checks → database probing + schema build → superadmin & default brand creation → key generation + `.env` write + `storage/.installed` lock marker.
 - Installer middleware group is **database-independent** by design — no session, settings, or DB-backed rate-limiter middleware; `RateLimiterMiddleware` wraps DB access in try/catch for graceful bypass.
 - Base64-safe `.env` parsing via `vlucas/phpdotenv` (avoids `parse_ini_file` breakage on base64 `APP_KEY`/`ENCRYPTION_KEY`).
 
 #### Admin Panel
+
 - Responsive admin panel with dark-mode, glassmorphism UI, and mobile-aware sidebar navigation.
 - Sidebar order: Dashboard → Payments → Gateways → People → Mobile & SMS → Reports & Finance → Developers → Appearance → System → Account.
 - Dashboard with real-time KPIs: total revenue, pending transactions, active gateways, and brand health indicators.
@@ -52,6 +57,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Full CRUD admin pages: Brands, Staff, Roles & Permissions, Customers, Gateways, API Keys, Invoices, Payment Links, Transactions, Manual Gateways, Webhooks/IPN, Audit Log, System Settings, Currency Management, Exchange Rates, Reports, Appearance / Branding, Landing Page CMS, and Dispute Management.
 
 #### Payment Gateway Plugin System
+
 - **123 bundled gateway plugins** covering global, regional, and crypto payment networks, including:
   - **Southeast Asia**: bKash API, Nagad Merchant API, SSLCommerz, PortWallet, ShurjoPay, AamarPay, CellFin, NexusPay, Rocket, uPay, OK Wallet, GCash, Maya, GrabPay, ShopeePay, OVO, DANA, Touch 'n Go, PromptPay, TrueMoney, QRIS (Midtrans).
   - **South Asia**: Razorpay, Cashfree, Instamojo, CCAvenue, PayTM, PhonePe, MobiKwik, JazzCash, EasyPaisa.
@@ -68,11 +74,13 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Multi-file plugin support**: PSR-4 autoloader registered per plugin, realpath-contained to the plugin directory.
 
 #### Manual (Offline) Gateway System
+
 - **Platform template + per-brand account** model: All-Brands view defines the gateway type (slug, name, logo, input schema, currency limits, SMS rules); each brand adds its own account row (payment instructions, QR code).
 - `ManualGatewayRepository::listActiveForCheckout()` — collapses template + brand account into one row per slug at checkout; brand account always wins over platform template.
 - `GatewayController::createManual` guarded by `requireGlobalView()`.
 
 #### Double-Entry Ledger Engine
+
 - Full **GAAP-compliant double-entry bookkeeping** (`op_ledger_accounts`, `op_ledger_transactions`, `op_ledger_entries`).
 - Every journal entry posts balanced debit/credit pairs; balance is maintained as a schema-level constraint.
 - GAAP directionality enforced: Asset/Expense balances increase on debit; Liability/Equity/Revenue balances increase on credit.
@@ -81,6 +89,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - Refund processing integrated into the ledger with atomic DB transactions and balance validation (`RefundService`).
 
 #### Checkout & Payment Flows
+
 - **Payment Intent checkout** (`/checkout/{token}`) — branded, white-labeled single-page checkout with per-brand CSS variables, custom CSS/JS injection, and checkout hook triggers.
 - **Invoice system** — line-item invoices with dynamic subtotal/total recalculation; `op_invoice_items` purged and reinserted on every update to prevent orphan records.
 - **Payment links** (`/pay/{slug}`) — shareable, reusable payment pages with configurable amounts.
@@ -91,6 +100,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **CSRF protection** on all mutation endpoints via `CsrfMiddleware` and `SecurityHelpers::csrfToken()`.
 
 #### Multi-Currency & Exchange Rates
+
 - Currency management with `op_currencies` (ISO 4217) seeded for all major currencies; `decimal_places` per currency.
 - `op_exchange_rates` — `base_currency`/`target_currency` UNIQUE pair with manual and automated rate update support.
 - `CurrencyService::convert()` — pivots through system base currency at checkout for automatic gateway currency conversion.
@@ -98,6 +108,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `supportedCurrencies(): array` on every gateway adapter; empty array = any currency via `GatewayDefaults` trait; BDT-only gateways (bKash, Nagad) explicitly declare `['BDT']`.
 
 #### Companion Mobile App & SMS Verification
+
 - **Android companion app** backend: device pairing via OTP exchange, JWT issuance and rotation, JTI blacklisting in `op_cache`.
 - `op_paired_devices` — stores paired device UUID, last heartbeat, and revocation state.
 - **`JwtAuthMiddleware`** — validates JWT tokens against live database state; revoked/deactivated devices are denied immediately.
@@ -107,6 +118,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - SMS template management — platform-owned global templates created in All-Brands view; device sender whitelist includes platform templates so All-Brands templates apply to every paired device.
 
 #### Security Hardening
+
 - **Argon2id** password hashing for all admin and staff accounts.
 - **TOTP two-factor authentication** (`two_factor_enabled`, `totp_secret_enc`) with replay protection.
 - **Self-service password reset** — 256-bit random tokens; only SHA-256 hash stored in `op_password_resets`; single-use, 1-hour TTL, DB-clock freshness; no account enumeration on the forgot-password surface.
@@ -118,6 +130,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - `window.opCopyText()` global clipboard helper in the admin panel — HTTP/HTTPS compatible clipboard fallback to prevent JavaScript clipboard API failures on non-secure local contexts.
 
 #### API Layers
+
 - **Merchant REST API** — authenticated via API key (`op_api_keys`); payment initiation, transaction status, refund, and webhook management endpoints.
 - **Mobile API** (`/api/mobile/v1/`) — JWT-authenticated companion device endpoints: pairing, heartbeat, SMS submission, notification acknowledgment with device-UUID–scoped IDOR prevention.
 - **Admin API** — internal admin-facing endpoints for live dashboard data and device status polling.
@@ -125,17 +138,20 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **Webhook retry system** — failed webhook deliveries are queued and retried.
 
 #### Notification & Email System
+
 - Event-driven email notifications (`EmailNotificationService`) triggered on `payment.transaction.completed` and `refund.created`.
 - Per-brand sender identity (`mail_from_email`, `mail_from_name`) resolved via the brand → global settings cascade.
 - Email failure is fully isolated inside try/catch and never disrupts payment completion.
 - Transactional email templates: `payment_completed.twig`, `refund_created.twig`, `password_reset.twig`.
 
 #### Fee Rules Engine
+
 - `op_fee_rules` — brand-scoped commission configuration with four-tier specificity resolution: Brand+Gateway → Brand+Any Gateway → Global+Gateway → Global+Any Gateway.
 - Currency is an exact `CHAR(3)` match; no currency-agnostic fallback.
 - `FeeRuleRepository::resolveActiveRule()` resolves the most specific active rule at transaction time; ties broken by newest rule ID.
 
 #### Brand Theme Engine
+
 - `BrandThemeService` — resolves per-brand visual identity with field-level priority: brand-scoped `op_system_settings` → `op_merchants.settings` JSON → global settings.
 - Fields: `name`, `logo`, `favicon`, `color`, `accent_color`, `support_email`, `custom_css`, `custom_js`, `footer_text`, `show_powered_by`.
 - Per-brand logo and favicon uploaded to `public/assets/uploads/brands/`.
@@ -143,12 +159,14 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **`own-pay` default theme plugin** bundled under `modules/themes/own-pay`.
 
 #### Addon Plugins
+
 - **`mail-gateway` addon** — pluggable transactional mail transport.
 - **`sms-gateway` addon** — pluggable outbound SMS transport for OTP and notifications.
 - **`telegram-bot` addon** — Telegram bot integration for real-time payment notifications.
 - **`example-kit` addon** — developer reference addon demonstrating the plugin API.
 
 #### Developer Tools & Observability
+
 - **Audit log** (`op_audit_log`) — tamper-evident event trail for all security-relevant operations with integrity hashing.
 - **Cron runner** (`CronJobRunner`) — declarative cron scheduling via plugin manifests; `RefundReconciliationJob` reconciles gateway refund states on schedule.
 - **CLI tools** (`cli/`) — developer command-line utilities.
@@ -162,6 +180,7 @@ Versioning follows [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 - **WooCommerce gateway plugin** (`ownpay-wordpress.zip`) for WordPress/WooCommerce e-commerce integration.
 
 #### Database Schema
+
 - All tables prefixed with `op_`; strict naming conventions enforced (e.g. `two_factor_enabled`, `totp_secret_enc`, `decimal_places`, `base_currency`, `target_currency`, `match_status`, `device_id`).
 - **Stored Generated Columns** on `op_transactions` — `invoice_id` and `payment_link_id` extracted from `metadata` JSON as indexed `BIGINT UNSIGNED STORED` columns for hot-path lookups without JSON extraction overhead.
 - `op_system_settings` — unified key-value store replacing the decommissioned legacy SQLite `op_env` table; nullable `merchant_id` with `uk_group_key_merchant` unique constraint enables brand-scoped overrides alongside global defaults.

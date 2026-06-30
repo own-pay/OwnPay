@@ -1,0 +1,42 @@
+{
+  "name": "Adyen",
+  "slug": "adyen",
+  "version": "1.0.0",
+  "description": "Adyen payment gateway integration for OwnPay",
+  "author": "OwnPay",
+  "type": "gateway",
+  "entrypoint": "AdyenGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Adyen",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.3"
+  },
+  "category": "global",
+  "color": "#00CC66",
+  "csp": {
+    "script_src": [
+      "https://*.adyen.com",
+      "https://*.adyenpayments.com"
+    ],
+    "style_src": [
+      "https://*.adyen.com",
+      "https://*.adyenpayments.com"
+    ],
+    "frame_src": [
+      "https://*.adyen.com",
+      "https://*.adyenpayments.com"
+    ],
+    "connect_src": [
+      "https://*.adyen.com",
+      "https://*.adyenpayments.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.png"
+}

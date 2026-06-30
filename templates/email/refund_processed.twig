@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html><head><meta charset="UTF-8"><style>
+body{margin:0;padding:0;background:#f4f4f7;font-family:'Outfit',-apple-system,sans-serif}
+.wrap{max-width:600px;margin:0 auto;padding:24px}
+.card{background:#fff;border-radius:16px;padding:32px;box-shadow:0 4px 12px rgba(0,0,0,.06)}
+.logo{margin-bottom:24px}.logo img{height:32px;width:auto}
+.amount{font-size:32px;font-weight:800;color:#080D1A;font-family:monospace}
+.badge{display:inline-block;padding:4px 12px;border-radius:20px;font-size:12px;font-weight:700}
+.badge-refund{background:#FEF3F2;color:#B42318}
+.meta{color:#7A84A0;font-size:13px;margin:4px 0}
+.divider{height:1px;background:#ECEEF5;margin:20px 0}
+.footer{text-align:center;font-size:11px;color:#A8B0C8;padding:16px}
+</style></head>
+<body><div class="wrap"><div class="card">
+    <div class="logo"><img src="/assets/img/logo-light.svg" alt="{{ app_name ?? 'OwnPay' }}"></div>
+    <h2 style="margin:0 0 8px;font-size:18px">Refund Processed</h2>
+    <p class="meta">Refund {{ refund_id ?? 'N/A' }} for transaction {{ transaction_id ?? 'N/A' }} has been completed.</p>
+    <div class="divider"></div>
+    <p class="amount">{{ currency_symbol ?? '৳' }}{{ amount }}</p>
+    <p><span class="badge badge-refund">Refunded</span></p>
+    <div class="divider"></div>
+    <p class="meta">Reason: {{ reason ?? '-' }}</p>
+    <p class="meta">Date: {{ created_at }}</p>
+</div><div class="footer">{{ app_name ?? 'OwnPay' }} · Secure Payment Platform</div></div>
+</body></html>

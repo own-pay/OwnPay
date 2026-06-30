@@ -1,0 +1,37 @@
+{
+  "name": "DANA Wallet",
+  "slug": "dana",
+  "version": "1.0.0",
+  "description": "DANA Wallet payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "DanaGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Dana",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#108EE9",
+  "csp": {
+    "script_src": [
+      "https://*.dana.id"
+    ],
+    "style_src": [
+      "https://*.dana.id"
+    ],
+    "frame_src": [
+      "https://*.dana.id"
+    ],
+    "connect_src": [
+      "https://*.dana.id"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,39 @@
+{
+  "name": "NowPayments Crypto",
+  "slug": "now-payments",
+  "version": "1.0.0",
+  "description": "Accept NowPayments Crypto payments directly from customers.",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "icon.svg",
+  "color": "#4CC38A",
+  "entrypoint": "NowPaymentsGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\NowPayments",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": [
+      "https://*.nowpayments.io"
+    ],
+    "style_src": [
+      "https://*.nowpayments.io"
+    ],
+    "frame_src": [
+      "https://*.nowpayments.io"
+    ],
+    "connect_src": [
+      "https://*.nowpayments.io",
+      "https://api.nowpayments.io",
+      "https://api-sandbox.nowpayments.io"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ]
+}

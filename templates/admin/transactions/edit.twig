@@ -1,0 +1,118 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Transaction {{ txn.trx_id }} - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <h1>Transaction: <code>{{ txn.trx_id }}</code></h1>
+    <a href="/admin/transactions" class="op-btn op-btn-outline">← Back</a>
+</div>
+
+<div class="op-grid op-grid-2">
+    <div class="op-card">
+        <div class="op-card-header"><h3>Details</h3></div>
+        <div class="op-card-body">
+            <dl class="op-detail-list">
+                <dt>Status</dt><dd><span class="op-badge op-badge-{{ txn.status == 'completed' ? 'success' : (txn.status == 'pending' ? 'warning' : 'danger') }} op-badge-lg">{{ txn.status|upper }}</span></dd>
+                <dt>Amount</dt><dd><strong>{{ txn.currency }} {{ txn.amount }}</strong></dd>
+                <dt>Fee</dt><dd>{{ txn.currency }} {{ txn.fee ?? '0.00' }}</dd>
+                <dt>Net</dt><dd>{{ txn.currency }} {{ txn.net_amount ?? txn.amount }}</dd>
+                <dt>Gateway</dt><dd>{{ txn.gateway_name }}</dd>
+                <dt>Gateway TRX</dt><dd><code>{{ txn.gateway_trx_id ?? '-' }}</code></dd>
+                <dt>Created</dt><dd>{{ txn.created_at }}</dd>
+                <dt>Updated</dt><dd>{{ txn.updated_at ?? '-' }}</dd>
+            </dl>
+        </div>
+    </div>
+
+    <div class="op-card">
+        <div class="op-card-header"><h3>Customer</h3></div>
+        <div class="op-card-body">
+            <dl class="op-detail-list">
+                <dt>Name</dt><dd>{{ txn.customer_name ?? '-' }}</dd>
+                <dt>Email</dt><dd>{{ txn.customer_email ?? '-' }}</dd>
+                <dt>Phone</dt><dd>{{ txn.customer_phone ?? '-' }}</dd>
+                <dt>IP</dt><dd><code>{{ txn.ip_address ?? '-' }}</code></dd>
+            </dl>
+        </div>
+    </div>
+</div>
+
+{% if txn.status == 'pending' %}
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>Actions</h3></div>
+    <div class="op-card-body">
+        <form method="POST" action="/admin/transactions/{{ txn.id }}/update" class="op-inline op-mr-2">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="status" value="completed">
+            <button type="submit" class="op-btn op-btn-success">Mark Completed</button>
+        </form>
+        <form method="POST" action="/admin/transactions/{{ txn.id }}/update" class="op-inline">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="status" value="canceled">
+            <button type="submit" class="op-btn op-btn-danger">Cancel</button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if txn.status == 'completed' %}
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>Actions</h3></div>
+    <div class="op-card-body">
+        <h4 class="op-mb-2">Process Refund</h4>
+        <form method="POST" action="/admin/refunds" class="op-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="transaction_id" value="{{ txn.id }}">
+            <div class="op-form-group">
+                <label>Refund Amount (Optional)</label>
+                <input type="number" step="0.01" min="0.01" max="{{ txn.amount }}" name="amount" class="op-input" placeholder="Leave empty for full remaining refund (Max: {{ txn.amount }})">
+            </div>
+            <div class="op-form-group">
+                <label>Reason for Refund</label>
+                <input type="text" name="reason" class="op-input" placeholder="e.g. Customer request, duplicate payment" required>
+            </div>
+            <button type="submit" class="op-btn op-btn-danger" onclick="return confirm('Are you sure you want to process this refund? This action will interact with the payment gateway and post ledger entries.');">
+                Process Refund
+            </button>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if sms_data|length > 0 %}
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>SMS Data</h3></div>
+    <div class="op-card-body">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>From</th><th>Amount</th><th>TRX ID</th><th>Received</th></tr></thead>
+            <tbody>
+                {% for sms in sms_data %}
+                <tr>
+                    <td data-label="From">{{ sms.sender }}</td>
+                    <td data-label="Amount">{{ sms.parsed_amount ?? '-' }}</td>
+                    <td data-label="TRX ID"><code>{{ sms.parsed_trx_id ?? '-' }}</code></td>
+                    <td data-label="Received">{{ sms.received_at }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% endif %}
+
+{% if audit_log|length > 0 %}
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>Audit Log</h3></div>
+    <div class="op-card-body">
+        <ul class="op-timeline">
+            {% for log in audit_log %}
+            <li class="op-timeline-item">
+                <span class="op-timeline-time">{{ log.created_at }}</span>
+                <span class="op-timeline-action">{{ log.action }}</span>
+                <span class="op-timeline-actor">{{ log.user_name ?? 'System' }}</span>
+            </li>
+            {% endfor %}
+        </ul>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

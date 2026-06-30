@@ -1,0 +1,40 @@
+{
+  "name": "Afterpay",
+  "slug": "afterpay",
+  "version": "1.0.0",
+  "description": "Afterpay checkout integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "AfterpayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Afterpay",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#B2FCE4",
+  "csp": {
+    "script_src": [
+      "https://*.afterpay.com"
+    ],
+    "style_src": [
+      "https://*.afterpay.com"
+    ],
+    "frame_src": [
+      "https://*.afterpay.com"
+    ],
+    "connect_src": [
+      "https://*.afterpay.com",
+      "https://global-api.afterpay.com",
+      "https://global-api-sandbox.afterpay.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

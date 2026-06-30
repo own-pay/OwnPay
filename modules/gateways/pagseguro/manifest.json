@@ -1,0 +1,40 @@
+{
+  "name": "PagSeguro",
+  "slug": "pagseguro",
+  "version": "1.0.0",
+  "description": "PagSeguro payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "PagSeguroGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\PagSeguro",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#00B1EA",
+  "csp": {
+    "script_src": [
+      "https://*.pagseguro.uol.com.br",
+      "https://assets.pagseguro.com.br"
+    ],
+    "style_src": [
+      "https://*.pagseguro.uol.com.br"
+    ],
+    "frame_src": [
+      "https://*.pagseguro.uol.com.br"
+    ],
+    "connect_src": [
+      "https://*.pagseguro.uol.com.br",
+      "https://api.pagseguro.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

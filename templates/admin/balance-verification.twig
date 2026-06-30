@@ -1,0 +1,63 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Balance Verification - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Balance Verification</h1>
+        <p class="op-page-subtitle">Run automated audits to verify that the double-entry accounting ledger balances perfectly.</p>
+    </div>
+    <div class="op-header-actions">
+        <form method="POST" action="/admin/balance-verification/run" class="op-filter-bar">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <div class="op-custom-dropdown">
+                <input type="hidden" name="currency" value="BDT">
+                <button type="button" class="op-custom-dropdown-btn">
+                    <span class="op-custom-dropdown-label">BDT</span>
+                    <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="op-custom-dropdown-menu">
+                    {% for gw in gateways %}
+                    <button type="button" class="op-custom-dropdown-option" data-value="{{ gw.slug }}">{{ gw.name }}</button>
+                    {% endfor %}
+                    <button type="button" class="op-custom-dropdown-option active" data-value="BDT">BDT</button>
+                </div>
+            </div>
+            <button type="submit" class="op-btn op-btn-sm op-btn-primary">Run Verification</button>
+        </form>
+    </div>
+</div>
+
+{% if balance_results is defined and balance_results|length > 0 %}
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>Reconciliation Results</h3></div>
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>Currency</th><th>Expected (Internal)</th><th>Actual (Gateway)</th><th>Variance</th><th>Status</th></tr></thead>
+            <tbody>
+                {% for r in balance_results %}
+                <tr>
+                    <td data-label="Currency">{{ r.currency }}</td>
+                    <td data-label="Expected">{{ r.expected ?? '0.00' }}</td>
+                    <td data-label="Actual">{{ r.actual ?? '0.00' }}</td>
+                    <td data-label="Variance">{{ r.variance ?? '0.00' }}</td>
+                    <td data-label="Status">
+                        {% if (r.variance ?? 0) == 0 %}
+                            <span class="op-badge op-badge-success">Balanced</span>
+                        {% else %}
+                            <span class="op-badge op-badge-danger">Mismatch</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% else %}
+<div class="op-card op-mt-4">
+    <div class="op-card-body op-text-center op-text-muted">
+        <p>No balance data available. Click "Run Verification" to start a reconciliation check.</p>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

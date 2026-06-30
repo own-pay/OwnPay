@@ -1,0 +1,38 @@
+{
+  "name": "M-Pesa Safaricom",
+  "slug": "mpesa",
+  "version": "1.0.0",
+  "description": "M-Pesa Safaricom payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "MpesaGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Mpesa",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#4EAD4A",
+  "csp": {
+    "script_src": [
+      "https://*.safaricom.co.ke"
+    ],
+    "style_src": [
+      "https://*.safaricom.co.ke"
+    ],
+    "frame_src": [
+      "https://*.safaricom.co.ke"
+    ],
+    "connect_src": [
+      "https://*.safaricom.co.ke",
+      "https://api.safaricom.co.ke"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

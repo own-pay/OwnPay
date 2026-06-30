@@ -1,0 +1,250 @@
+/* ═══════════════════════════════════════════════════════
+   sms-center.css - OwnPay Admin SMS Center
+   Page-specific overrides only. Global styles from admin.css.
+   ═══════════════════════════════════════════════════════ */
+
+/* SMS match form */
+.op-sms-match-input {
+    width: 70px;
+    padding: 2px 4px;
+    height: 26px;
+    min-height: 26px;
+}
+
+.op-sms-match-btn {
+    height: 26px;
+    padding: 2px 8px;
+}
+
+/* Dashed card variant */
+.op-card-dashed {
+    border-style: dashed;
+    background: var(--op-bg-hover);
+}
+
+/* Two-column layout grid for templates & sandbox */
+.op-sms-workspace {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 24px;
+    align-items: start;
+    margin-bottom: 32px;
+}
+
+.op-sms-left-panel,
+.op-sms-right-panel {
+    min-width: 0;
+    max-width: 100%;
+    overflow: hidden;
+}
+
+@media (min-width: 1024px) {
+    .op-sms-workspace {
+        grid-template-columns: 1.6fr 1fr;
+    }
+
+    /* Brand view hides the template-building sandbox (templates are managed in All Brands only), so the
+       templates table spans the full width instead of leaving the second grid column empty. */
+    .op-sms-workspace.op-sms-workspace--solo {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* Sandbox card */
+.op-sandbox-card {
+    background: var(--op-bg-card);
+    border: 1px solid var(--op-border);
+    border-radius: var(--op-radius);
+    box-shadow: var(--op-shadow);
+    overflow: hidden;
+    transition: transform 0.2s ease, box-shadow 0.2s ease;
+    min-width: 0;
+}
+
+@media (min-width: 1024px) {
+    .op-sandbox-card {
+        position: sticky;
+        top: 24px;
+    }
+}
+
+.op-sandbox-card:hover {
+    box-shadow: var(--op-shadow-hover);
+}
+
+/* Sandbox header */
+.op-sandbox-header {
+    background: var(--op-bg-hover);
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--op-border);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.op-sandbox-header h3 {
+    margin: 0;
+    font-size: 1rem;
+    font-weight: 600;
+    color: var(--op-text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Sandbox sub-tabs */
+.op-sandbox-nav {
+    display: flex;
+    background: var(--op-bg-hover);
+    border-bottom: 1px solid var(--op-border);
+    padding: 0 12px;
+    gap: 2px;
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    scrollbar-width: none;
+    flex-wrap: nowrap;
+}
+
+.op-sandbox-nav::-webkit-scrollbar {
+    display: none;
+}
+
+.op-sandbox-tab {
+    padding: 10px 14px;
+    background: none;
+    border: none;
+    color: var(--op-text-muted);
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: all 0.2s ease;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.op-sandbox-tab:hover {
+    color: var(--op-text);
+}
+
+.op-sandbox-tab.active {
+    color: var(--op-primary);
+    border-bottom-color: var(--op-primary);
+    font-weight: 600;
+}
+
+.op-sandbox-body {
+    padding: 16px;
+    overflow-wrap: break-word;
+    word-break: break-word;
+}
+
+.op-sandbox-panel {
+    display: none;
+}
+
+.op-sandbox-panel.active {
+    display: block;
+    animation: opFadeIn 0.3s ease;
+}
+
+/* AI Prompt box */
+.op-ai-prompt-box {
+    background: var(--op-bg-hover);
+    border: 1px solid var(--op-border);
+    border-radius: 6px;
+    margin-top: 16px;
+    overflow: hidden;
+}
+
+.op-ai-prompt-header {
+    background: rgb(0 0 0 / 2%);
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--op-border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+[data-theme="dark"] .op-ai-prompt-header {
+    background: rgb(255 255 255 / 2%);
+}
+
+.op-ai-prompt-pre {
+    margin: 0;
+    padding: 14px;
+    font-family: var(--mono, monospace);
+    font-size: 0.775rem;
+    white-space: pre-wrap;
+    word-break: break-all;
+    max-height: 200px;
+    overflow-y: auto;
+    background: transparent;
+    color: var(--op-text);
+    border: none;
+}
+
+.op-ai-prompt-tip {
+    font-size: 0.75rem;
+    color: var(--op-text-muted);
+    padding: 10px 14px;
+    background: rgb(15 151 237 / 5%);
+    border-top: 1px solid var(--op-border);
+    line-height: 1.4;
+}
+
+/* Modal form style override */
+.op-modal-dialog {
+    max-width: 650px;
+}
+
+/* Animations */
+@keyframes opFadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(4px);
+    }
+
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+/* Mobile compact */
+@media (max-width: 768px) {
+    .op-sandbox-header {
+        padding: 10px 12px;
+    }
+
+    .op-sandbox-header h3 {
+        font-size: 14px;
+    }
+
+    .op-sandbox-nav {
+        padding: 0 8px;
+    }
+
+    .op-sandbox-tab {
+        padding: 8px 10px;
+        font-size: 12px;
+    }
+
+    .op-sandbox-body {
+        padding: 12px;
+    }
+
+    .op-sms-workspace {
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+}
+
+/* Style native select options to prevent invisible text in dark/light modes */
+select.op-input option {
+    background-color: var(--op-bg-card) !important;
+    color: var(--op-text) !important;
+}

@@ -1,0 +1,40 @@
+{
+  "name": "PayMe by HSBC",
+  "slug": "payme",
+  "version": "1.0.0",
+  "description": "PayMe by HSBC payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "PayMeGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\PayMe",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#E60028",
+  "csp": {
+    "script_src": [
+      "https://*.hsbc.com.hk",
+      "https://*.payme.hsbc.com.hk"
+    ],
+    "style_src": [
+      "https://*.hsbc.com.hk"
+    ],
+    "frame_src": [
+      "https://*.hsbc.com.hk"
+    ],
+    "connect_src": [
+      "https://*.hsbc.com.hk",
+      "https://api.payme.hsbc.com.hk",
+      "https://sandbox.api.payme.hsbc.com.hk"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

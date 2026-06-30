@@ -1,0 +1,22 @@
+{
+  "name": "PortWallet",
+  "slug": "portwallet",
+  "version": "1.0.0",
+  "description": "PortWallet payment gateway and aggregator service supporting cards and MFS",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "icon.svg",
+  "color": "#FF5722",
+  "entrypoint": "PortWalletGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\PortWallet",
+  "capabilities": ["gateway"],
+  "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+  "csp": {
+    "script_src": ["https://*.portwallet.com", "https://*.portpos.com"],
+    "style_src": ["https://*.portwallet.com", "https://*.portpos.com"],
+    "frame_src": ["https://*.portwallet.com", "https://*.portpos.com"],
+    "connect_src": ["https://*.portwallet.com", "https://*.portpos.com"]
+  },
+  "permissions": ["gateway.process"]
+}

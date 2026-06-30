@@ -1,0 +1,42 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Install Theme - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Install Theme</h1>
+        <p class="op-page-subtitle">Upload and install new sovereign checkout template themes.</p>
+    </div>
+    <a href="/admin/themes" class="op-btn op-btn-outline">Back to Themes</a>
+</div>
+
+{% if flash_error %}
+<div class="op-alert op-alert-danger">{{ flash_error }}</div>
+{% endif %}
+
+<div class="op-card op-max-w-md">
+    <div class="op-card-header">
+        <h3>Upload Theme Package</h3>
+    </div>
+    <div class="op-card-body">
+        <p class="op-text-muted op-mb-4">
+            If you have a theme in a .zip format, you may install or update it by uploading it here.
+        </p>
+
+        <form method="POST" action="/admin/themes/upload" enctype="multipart/form-data">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            
+            <div class="op-form-group">
+                <label for="theme_zip">Theme ZIP File</label>
+                <input type="file" id="theme_zip" name="theme_zip" accept=".zip" class="op-input" required>
+                <small class="op-text-muted">Maximum upload size: {{ max_upload_size }}</small>
+            </div>
+
+            <div class="op-form-actions op-mt-4">
+                <button type="submit" class="op-btn op-btn-primary">Install Theme</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

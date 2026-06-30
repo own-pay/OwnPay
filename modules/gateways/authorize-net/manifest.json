@@ -1,0 +1,39 @@
+{
+  "name": "Authorize.Net",
+  "slug": "authorize-net",
+  "version": "1.0.0",
+  "description": "Authorize.Net payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "AuthorizeNetGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\AuthorizeNet",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#243F60",
+  "csp": {
+    "script_src": [
+      "https://*.authorize.net"
+    ],
+    "style_src": [
+      "https://*.authorize.net"
+    ],
+    "frame_src": [
+      "https://*.authorize.net"
+    ],
+    "connect_src": [
+      "https://*.authorize.net"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

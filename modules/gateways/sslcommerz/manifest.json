@@ -1,0 +1,22 @@
+{
+  "name": "SSLCommerz",
+  "slug": "sslcommerz",
+  "version": "1.0.0",
+  "description": "SSLCommerz payment gateway for Bangladesh",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "icon.svg",
+  "color": "#2B4BC0",
+  "entrypoint": "SslCommerzGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\SslCommerz",
+  "capabilities": ["gateway"],
+  "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+  "csp": {
+    "script_src": ["https://*.sslcommerz.com"],
+    "style_src": ["https://*.sslcommerz.com"],
+    "frame_src": ["https://*.sslcommerz.com"],
+    "connect_src": ["https://*.sslcommerz.com"]
+  },
+  "permissions": ["gateway.process"]
+}

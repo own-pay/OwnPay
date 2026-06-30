@@ -1,0 +1,43 @@
+{
+  "name": "TSYS",
+  "slug": "tsys",
+  "version": "1.0.0",
+  "description": "TSYS payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "TsysGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Tsys",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#0D9488",
+  "csp": {
+    "script_src": [
+      "https://*.tsys.com",
+      "https://*.transfirst.com"
+    ],
+    "style_src": [
+      "https://*.tsys.com",
+      "https://*.transfirst.com"
+    ],
+    "frame_src": [
+      "https://*.tsys.com",
+      "https://*.transfirst.com"
+    ],
+    "connect_src": [
+      "https://*.tsys.com",
+      "https://*.transfirst.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

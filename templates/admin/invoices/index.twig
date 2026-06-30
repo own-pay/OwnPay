@@ -1,0 +1,41 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Invoices - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Invoices</h1>
+        <p class="op-page-subtitle">Generate and manage invoices, track payment status, and send payment reminders.</p>
+    </div>
+    <a href="/admin/invoices/create" class="op-btn op-btn-primary">+ Create Invoice</a>
+</div>
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>#</th><th>Customer</th><th>Amount</th><th>Status</th><th>Due Date</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for inv in invoices %}
+                <tr>
+                    <td data-label="#"><code>{{ inv.invoice_number }}</code></td>
+                    <td data-label="Customer">{{ inv.customer_name ?? '-' }}</td>
+                    <td data-label="Amount"><strong>{{ inv.currency }} {{ inv.total }}</strong></td>
+                    <td data-label="Status"><span class="op-badge op-badge-{{ inv.status == 'paid' ? 'success' : (inv.status == 'overdue' ? 'danger' : 'warning') }}">{{ inv.status }}</span></td>
+                    <td data-label="Due Date">{{ inv.due_date }}</td>
+                    <td data-label="Actions">
+                        <a href="/admin/invoices/{{ inv.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
+                        <a href="/admin/invoices/{{ inv.id }}/pdf" target="_blank" rel="noopener" class="op-btn op-btn-xs op-btn-outline">Print</a>
+                        <button data-copy="{{ base_url }}/invoice/{{ inv.token }}" class="op-btn op-btn-xs op-btn-outline">Copy Link</button>
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% if pagination.pages > 1 %}
+<nav class="op-pagination">
+    {% if pagination.page > 1 %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+    {% if pagination.page < pagination.pages %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

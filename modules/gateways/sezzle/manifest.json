@@ -1,0 +1,40 @@
+{
+  "name": "Sezzle",
+  "slug": "sezzle",
+  "version": "1.0.0",
+  "description": "Sezzle checkout integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "SezzleGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Sezzle",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#8A5CF5",
+  "csp": {
+    "script_src": [
+      "https://*.sezzle.com"
+    ],
+    "style_src": [
+      "https://*.sezzle.com"
+    ],
+    "frame_src": [
+      "https://*.sezzle.com"
+    ],
+    "connect_src": [
+      "https://*.sezzle.com",
+      "https://gateway.sezzle.com",
+      "https://sandbox.gateway.sezzle.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

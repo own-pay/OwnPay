@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="{{ locale() }}" data-theme="dark" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ site_title ?? app_name }}{% endblock %}</title>
+    <meta name="robots" content="noindex, nofollow">
+    {% if site_favicon is defined and site_favicon %}
+    <link rel="icon" href="{{ site_favicon }}" type="image/x-icon">
+    {% endif %}
+    <link rel="stylesheet" href="/assets/css/tokens.css?v=015">
+    <link rel="stylesheet" href="/assets/css/reset.css?v=017">
+    <link rel="stylesheet" href="/assets/css/animations.css?v=015">
+    <link rel="stylesheet" href="/assets/css/utilities.css?v=015">
+    <link rel="stylesheet" href="/assets/css/admin.css?v=058">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <script nonce="{{ csp_nonce }}" src="/assets/js/theme-init.js"></script>
+    <script nonce="{{ csp_nonce }}">window.OP_DOC_URL = "{{ doc_url }}";</script>
+    {% block head %}{% endblock %}
+    {{ hook('admin.head')|raw }}
+</head>
+<body class="op-admin">
+    <div class="op-layout">
+        {% include 'admin/layout/sidebar.twig' %}
+
+        <div class="op-main">
+            {% include 'admin/layout/navbar.twig' %}
+            {% include 'admin/layout/notification_panel.twig' %}
+            <div class="op-notif-panel-backdrop" id="notif-backdrop"></div>
+
+            <main class="op-content t-panel-slide" data-open="false">
+                {% if flash_success is defined and flash_success %}
+                <div class="op-alert op-alert-success op-alert-dismissible">
+                    {{ flash_success }}
+                    <button type="button" class="op-alert-close">×</button>
+                </div>
+                {% endif %}
+                {% if flash_error is defined and flash_error %}
+                <div class="op-alert op-alert-danger op-alert-dismissible">
+                    {{ flash_error }}
+                    <button type="button" class="op-alert-close">×</button>
+                </div>
+                {% endif %}
+
+                {% block content %}{% endblock %}
+            </main>
+
+            {% include 'admin/layout/footer.twig' %}
+        </div>
+    </div>
+
+    {% include 'admin/layout/modals.twig' %}
+
+    <script nonce="{{ csp_nonce }}" src="/assets/js/admin.js?v=048"></script>
+    {% block scripts %}{% endblock %}
+    {{ hook('admin.footer')|raw }}
+    <div id="toast-container" class="op-toast-container"></div>
+</body>
+</html>

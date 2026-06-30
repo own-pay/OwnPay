@@ -1,0 +1,39 @@
+{
+  "name": "Mollie Payments",
+  "slug": "mollie",
+  "version": "1.0.0",
+  "description": "Mollie Payments payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "MollieGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Mollie",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#202020",
+  "csp": {
+    "script_src": [
+      "https://*.mollie.com"
+    ],
+    "style_src": [
+      "https://*.mollie.com"
+    ],
+    "frame_src": [
+      "https://*.mollie.com"
+    ],
+    "connect_src": [
+      "https://*.mollie.com",
+      "https://api.mollie.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

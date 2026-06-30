@@ -1,0 +1,37 @@
+{
+  "name": "BTCPay Server",
+  "slug": "btcpay",
+  "version": "1.0.0",
+  "description": "BTCPay Server payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "BTCPayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\BTCPay",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "icon": "icon.svg",
+  "category": "global",
+  "color": "#F5A623",
+  "csp": {
+    "script_src": [
+      "https://*"
+    ],
+    "style_src": [
+      "https://*"
+    ],
+    "frame_src": [
+      "https://*"
+    ],
+    "connect_src": [
+      "https://*"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ]
+}

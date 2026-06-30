@@ -1,0 +1,39 @@
+{
+  "name": "Sofort",
+  "slug": "sofort",
+  "version": "1.0.0",
+  "description": "Sofort (Klarna) payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "SofortGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Sofort",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "europe",
+  "color": "#FFB3C7",
+  "csp": {
+    "script_src": [
+      "https://*.sofort.com"
+    ],
+    "style_src": [
+      "https://*.sofort.com"
+    ],
+    "frame_src": [
+      "https://*.sofort.com"
+    ],
+    "connect_src": [
+      "https://*.sofort.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

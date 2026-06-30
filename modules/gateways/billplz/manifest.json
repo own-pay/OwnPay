@@ -1,0 +1,38 @@
+{
+  "name": "Billplz",
+  "slug": "billplz",
+  "version": "1.0.0",
+  "description": "Billplz Direct Debit payment integration for Malaysia",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "BillplzGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Billplz",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#00AFEC",
+  "csp": {
+    "script_src": [
+      "https://*.billplz.com"
+    ],
+    "style_src": [
+      "https://*.billplz.com"
+    ],
+    "frame_src": [
+      "https://*.billplz.com"
+    ],
+    "connect_src": [
+      "https://*.billplz.com",
+      "https://www.billplz.com/api"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

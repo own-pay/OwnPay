@@ -1,0 +1,39 @@
+{
+  "name": "BLIK",
+  "slug": "blik",
+  "version": "1.0.0",
+  "description": "BLIK mobile payment gateway integration (via Przelewy24) for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "BlikGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Blik",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "europe",
+  "color": "#000000",
+  "csp": {
+    "script_src": [
+      "https://*.przelewy24.pl"
+    ],
+    "style_src": [
+      "https://*.przelewy24.pl"
+    ],
+    "frame_src": [
+      "https://*.przelewy24.pl"
+    ],
+    "connect_src": [
+      "https://*.przelewy24.pl"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

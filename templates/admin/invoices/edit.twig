@@ -1,0 +1,94 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}{{ invoice is not empty and invoice.id is defined and invoice.id ? 'Edit' : 'Create' }} Invoice - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>{{ invoice is not empty and invoice.id is defined and invoice.id ? 'Edit' : 'Create' }} Invoice</h1>
+        <p class="op-page-subtitle">Create or edit invoice metadata, client details, and itemized billing lines.</p>
+    </div>
+    <a href="/admin/invoices" class="op-btn op-btn-outline">← Back</a>
+</div>
+<form method="POST" action="/admin/invoices/{{ invoice is not empty and invoice.id is defined and invoice.id ? invoice.id ~ '/update' : 'store' }}" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <div class="op-grid op-grid-2">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Invoice Details</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label>Invoice Number</label>
+                    <input type="text" name="invoice_number" value="{{ invoice.invoice_number ?? '' }}" class="op-input" required>
+                </div>
+                <div class="op-form-group">
+                    <label>Customer</label>
+                    <select name="customer_id" class="op-input">
+                        <option value="">Select Customer</option>
+                        {% for c in customers %}<option value="{{ c.id }}" {{ (invoice.customer_id ?? '') == c.id ? 'selected' : '' }}>{{ c.name }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Currency</label>
+                        <select name="currency" class="op-input">
+                            {% for cur in currencies %}<option value="{{ cur.code }}" {{ (invoice.currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }}</option>{% endfor %}
+                        </select>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Due Date</label>
+                        <div class="op-date-picker">
+                            <input type="hidden" name="due_date" value="{{ invoice.due_date ?? '' }}">
+                            <div class="op-date-picker-group">
+                                <input type="text" class="op-date-picker-input" placeholder="Select due date" value="{{ invoice.due_date ?? '' }}" readonly required>
+                                <button type="button" class="op-date-picker-trigger" aria-label="Pick date">
+                                    <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+                                </button>
+                            </div>
+                            <div class="op-calendar-popover">
+                                <div class="op-calendar-header">
+                                    <button type="button" class="op-calendar-nav-btn op-calendar-prev"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+                                    <div class="op-calendar-heading"></div>
+                                    <button type="button" class="op-calendar-nav-btn op-calendar-next"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+                                </div>
+                                <div class="op-calendar-grid-header"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+                                <div class="op-calendar-grid-body"></div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label>Notes</label>
+                    <textarea name="notes" rows="3" class="op-input">{{ invoice.notes ?? '' }}</textarea>
+                </div>
+                {% if invoice is not empty and invoice.id is defined and invoice.id %}
+                <div class="op-form-group">
+                    <label>Status</label>
+                    <select name="status" class="op-input">
+                        {% for s in ['draft', 'sent', 'paid', 'overdue', 'cancelled'] %}
+                            <option value="{{ s }}" {{ (invoice.status ?? 'draft') == s ? 'selected' : '' }}>{{ s|capitalize }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        <div class="op-card">
+            <div class="op-card-header"><h3>Line Items</h3><button type="button" id="add-item" class="op-btn op-btn-sm op-btn-outline">+ Add</button></div>
+            <div class="op-card-body" id="items-container">
+                {% set items = invoice.items ?? [{}] %}
+                {% for i, item in items %}
+                <div class="op-item-row op-form-row op-mb-2">
+                    <div class="op-form-group op-col-5"><input type="text" name="items[{{ i }}][description]" value="{{ item.description ?? '' }}" class="op-input" placeholder="Description" required></div>
+                    <div class="op-form-group op-col-2"><input type="number" name="items[{{ i }}][quantity]" value="{{ item.quantity ?? 1 }}" class="op-input" min="1" required></div>
+                    <div class="op-form-group op-col-3"><input type="number" name="items[{{ i }}][amount]" value="{{ item.unit_price ?? item.amount ?? '' }}" class="op-input" step="0.01" placeholder="Amount" required></div>
+                    <div class="op-form-group op-col-2"><button type="button" class="op-btn op-btn-sm op-btn-danger remove-item">×</button></div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div class="op-form-actions op-mt-4">
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg">{{ invoice is not empty and invoice.id is defined and invoice.id ? 'Update' : 'Create' }} Invoice</button>
+    </div>
+</form>
+{% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/invoice-edit.js"></script>{% endblock %}
+

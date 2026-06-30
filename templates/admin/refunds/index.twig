@@ -1,0 +1,126 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Refunds - {{ app_name }}{% endblock %}
+{% block content %}
+
+<div class="op-page-header">
+    <div>
+        <h1>Refunds</h1>
+        <p class="op-page-subtitle">List and process payment refunds, view reconciliation states, and reversal logs.</p>
+    </div>
+    <div class="op-header-actions">
+        <span class="op-text-muted op-text-sm">{{ pagination.total_items ?? 0 }} total</span>
+    </div>
+</div>
+
+{# -- Status Chips ------------------------------------------------ #}
+<div class="op-filter-chips-row op-mb-3">
+    {% set statuses = [
+        {key: '', label: 'All'},
+        {key: 'completed', label: 'Completed'},
+        {key: 'pending', label: 'Pending'},
+        {key: 'failed', label: 'Failed'},
+    ] %}
+    {% for s in statuses %}
+    <a href="?status={{ s.key }}&q={{ filters.q|default('') }}"
+       class="op-chip {{ (filters.status|default('')) == s.key ? 'op-chip-active' : '' }}
+              {% if s.key == 'completed' %}op-chip-success{% elseif s.key == 'pending' %}op-chip-warning{% elseif s.key == 'failed' %}op-chip-danger{% endif %}">
+        {{ s.label }}
+    </a>
+    {% endfor %}
+</div>
+
+{# -- Advanced Filters -------------------------------------------- #}
+<div class="op-card op-mb-4">
+    <div class="op-card-body">
+        <form method="GET" class="op-advanced-filters" id="refund-filter-form">
+            <input type="hidden" name="status" value="{{ filters.status|default('') }}">
+            <div class="op-filter-field op-flex-1">
+                <div class="op-filter-search-wrap">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input type="search" name="q" value="{{ filters.q|default('') }}" placeholder="Search reason or refund UUID…" class="op-input op-input-sm op-search-input">
+                </div>
+            </div>
+            <button type="submit" class="op-filter-btn">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                Filter
+            </button>
+            {% if filters.q %}
+            <a href="?status={{ filters.status|default('') }}" class="op-filter-btn">✕ Clear</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+{# -- Refunds Table ----------------------------------------------- #}
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>Refund ID / UUID</th>
+                        <th>Original Transaction</th>
+                        <th>Amount</th>
+                        <th>Reason</th>
+                        <th>Status</th>
+                        <th>Processed At</th>
+                        <th>Date</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for ref in refunds %}
+                    <tr>
+                        <td data-label="Refund ID">
+                            <span class="op-text-monospace op-text-sm" title="{{ ref.uuid }}">
+                                {{ ref.uuid|slice(0, 8) }}...
+                            </span>
+                        </td>
+                        <td data-label="Transaction">
+                            <a href="/admin/transactions/{{ ref.transaction_id }}" class="op-btn op-btn-xs op-btn-outline op-text-monospace">
+                                View Trx #{{ ref.transaction_id }}
+                            </a>
+                        </td>
+                        <td data-label="Amount">
+                            <strong class="op-text-danger">- {{ ref.amount }}</strong>
+                        </td>
+                        <td data-label="Reason">
+                            <span class="op-text-sm op-text-muted">{{ ref.reason|default('-') }}</span>
+                        </td>
+                        <td data-label="Status">
+                            <span class="op-badge op-badge-{{ ref.status == 'completed' ? 'success' : (ref.status == 'pending' ? 'warning' : 'danger') }}">
+                                {{ ref.status|capitalize }}
+                            </span>
+                        </td>
+                        <td data-label="Processed" class="op-text-muted op-text-sm">
+                            {{ ref.processed_at ? ref.processed_at|date("M d, Y H:i") : '-' }}
+                        </td>
+                        <td data-label="Date" class="op-text-muted op-text-sm">
+                            {{ ref.created_at|date("M d, Y H:i") }}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="op-empty">
+                            No refunds found for current filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# -- Pagination -------------------------------------------------- #}
+{% if pagination is defined and pagination.total_pages > 1 %}
+{% set qs = '' %}
+{% if filters.q is not empty %}{% set qs = qs ~ '&q=' ~ filters.q|url_encode %}{% endif %}
+{% if filters.status is not empty %}{% set qs = qs ~ '&status=' ~ filters.status|url_encode %}{% endif %}
+<nav class="op-pagination op-mt-4">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}{{ qs }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total_items }} total)</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}{{ qs }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+
+{% endblock %}

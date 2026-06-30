@@ -1,0 +1,97 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Disputes - {{ app_name }}{% endblock %}
+{% block content %}
+
+<div class="op-page-header">
+    <div>
+        <h1>Disputes</h1>
+        <p class="op-page-subtitle">Track payment disputes, chargeback statuses, and customer resolution states.</p>
+    </div>
+    <div class="op-header-actions">
+        <span class="op-text-muted op-text-sm">{{ total|default(0) }} total disputes</span>
+    </div>
+</div>
+
+{# -- Disputes Table ------------------------------------------ #}
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>Dispute ID</th>
+                        <th>Transaction ID</th>
+                        <th>Reason</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Date Opened</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dispute in disputes %}
+                    <tr>
+                        <td data-label="ID"><strong>#{{ dispute.id }}</strong></td>
+                        <td data-label="Txn ID">
+                            <a href="/admin/transactions/{{ dispute.transaction_id }}" class="op-link">
+                                <code class="op-trx-id">Txn #{{ dispute.transaction_id }}</code>
+                            </a>
+                        </td>
+                        <td data-label="Reason">
+                            <span class="op-text-bold">{{ dispute.reason|capitalize }}</span>
+                        </td>
+                        <td data-label="Amount">
+                            <strong>{{ dispute.amount }}</strong>
+                        </td>
+                        <td data-label="Status">
+                            {% set status = dispute.status|lower %}
+                            <span class="op-badge op-badge-{{ status == 'won' ? 'success' : (status == 'lost' ? 'danger' : (status == 'closed' ? 'secondary' : 'warning')) }}">
+                                {% if status == 'won' or status == 'lost' or status == 'closed' %}
+                                    {{ status|capitalize }}
+                                {% else %}
+                                    {{ status == 'under_review' ? 'Under Review' : 'Open' }}
+                                {% endif %}
+                            </span>
+                        </td>
+                        <td data-label="Date" class="op-text-muted op-text-sm">
+                            {{ dispute.created_at|date("M d, Y H:i") }}
+                        </td>
+                        <td data-label="Actions">
+                            <a href="/admin/disputes/{{ dispute.id }}" class="op-btn op-btn-xs op-btn-outline">
+                                Manage
+                            </a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="op-empty">
+                            <div class="op-empty-state">
+                                <div class="op-empty-icon">
+                                    <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="op-text-muted" style="margin: 0 auto;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg>
+                                </div>
+                                <h3 class="op-empty-title">No disputes found</h3>
+                                <p>Your brand doesn't have any customer dispute or chargeback cases recorded.</p>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# -- Pagination -------------------------------------------------- #}
+{% if pages is defined and pages > 1 %}
+<nav class="op-pagination op-mt-4">
+    {% if page > 1 %}
+        <a href="?page={{ page - 1 }}" class="op-page-link">← Prev</a>
+    {% endif %}
+    <span class="op-page-info">Page {{ page }} of {{ pages }} ({{ total }} total)</span>
+    {% if page < pages %}
+        <a href="?page={{ page + 1 }}" class="op-page-link">Next →</a>
+    {% endif %}
+</nav>
+{% endif %}
+
+{% endblock %}

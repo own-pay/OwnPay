@@ -1,0 +1,39 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Brands - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Brands</h1>
+        <p class="op-page-subtitle">Manage white-label store brands, configure domains, and assign brand staff members.</p>
+    </div>
+    <a href="/admin/brands/create" class="op-btn op-btn-primary">+ Add Brand</a>
+</div>
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>ID</th><th>Business</th><th>Domain</th><th>Currency</th><th>Status</th><th>Created</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for m in brand_list %}
+                <tr>
+                    <td data-label="ID">{{ m.id }}</td>
+                    <td data-label="Business"><strong>{{ m.name }}</strong></td>
+                    <td data-label="Domain"><code>{{ m.domain is defined and m.domain ? m.domain : '-' }}</code></td>
+                    <td data-label="Currency">{{ m.default_currency ?? 'BDT' }}</td>
+                    <td data-label="Status"><span class="op-badge op-badge-{{ m.status == 'active' ? 'success' : 'muted' }}">{{ m.status }}</span></td>
+                    <td data-label="Created">{{ m.created_at|date("M d, Y") }}</td>
+                    <td data-label="Actions" class="op-nowrap">
+                        <a href="/admin/brands/{{ m.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
+                        {% if brand_list|length > 1 %}
+                        <form method="POST" action="/admin/brands/{{ m.id }}/delete" class="op-inline-form" onsubmit="return confirm('⚠️ DELETE brand \'{{ m.name|e('js') }}\'? This removes ALL associated data (transactions, customers, gateways). This action is IRREVERSIBLE.')">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="op-btn op-btn-xs op-btn-danger">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% endblock %}

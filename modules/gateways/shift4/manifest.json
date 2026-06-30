@@ -1,0 +1,39 @@
+{
+  "name": "Shift4",
+  "slug": "shift4",
+  "version": "1.0.0",
+  "description": "Shift4 payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "Shift4Gateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Shift4",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#000000",
+  "csp": {
+    "script_src": [
+      "https://*.shift4.com"
+    ],
+    "style_src": [
+      "https://*.shift4.com"
+    ],
+    "frame_src": [
+      "https://*.shift4.com"
+    ],
+    "connect_src": [
+      "https://*.shift4.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>503 - Service Unavailable</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style nonce="{{ csp_nonce }}">
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', sans-serif; background: #0f0f23; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .op-error { text-align: center; padding: 40px 20px; }
+        .op-error-code { font-size: 5rem; font-weight: 800; background: linear-gradient(135deg, #fdcb6e, #e17055); -webkit-background-clip: text; -webkit-text-fill-color: transparent; background-clip: text; }
+        .op-error-msg { font-size: 1.2rem; color: #94a3b8; margin: 16px 0 8px; }
+        .op-error-sub { font-size: 0.9rem; color: #64748b; }
+        .op-retry { margin-top: 32px; display: inline-block; padding: 12px 24px; background: #6C5CE7; color: #fff; border-radius: 8px; text-decoration: none; font-weight: 600; }
+        .op-retry:hover { background: #7c6df7; }
+    </style>
+    <meta http-equiv="refresh" content="{{ retry_after|default(300) }}">
+</head>
+<body>
+    <div class="op-error">
+        <div class="op-error-code">503</div>
+        <p class="op-error-msg">{{ reason|default('Service temporarily unavailable.') }}</p>
+        <p class="op-error-sub">We're working on it. This page refreshes automatically in ~{{ (retry_after|default(300) / 60)|round }} min.</p>
+        <a href="/" class="op-retry">Try Again</a>
+    </div>
+</body>
+</html>

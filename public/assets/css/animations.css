@@ -1,0 +1,305 @@
+/* ═══════════════════════════════════════════════════════
+   animations.css - OwnPay Shared Keyframes & Animations
+   Extracted from checkout.css, checkout-status.css
+   ═══════════════════════════════════════════════════════ */
+
+/* -----------------------------------------------
+   KEYFRAMES
+   ----------------------------------------------- */
+
+/* Fade in up - primary entrance (checkout: ck-fu) */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Spin - loading indicators (checkout: ck-spin) */
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Slide down - toast/error entrance (checkout: ck-slideDown) */
+@keyframes slideDown {
+  from {
+    opacity: 0;
+    transform: translateX(-50%) translateY(-20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+}
+
+/* Pulse - loading/breathing (checkout: st-pulse) */
+@keyframes pulse {
+
+  0%,
+  100% {
+    opacity: 1;
+  }
+
+  50% {
+    opacity: 0.5;
+  }
+}
+
+/* Status reveal - status page entrance (checkout: st-up) */
+@keyframes statusReveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Success checkmark draw */
+@keyframes checkDraw {
+  from {
+    stroke-dashoffset: 24;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+/* Scale in - modal/popup entrance */
+@keyframes scaleIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Scale out - modal/popup exit */
+@keyframes scaleOut {
+  from {
+    opacity: 1;
+    transform: scale(1);
+  }
+
+  to {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+}
+
+/* Shake - form validation error */
+@keyframes shake {
+
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+
+  10%,
+  30%,
+  50%,
+  70%,
+  90% {
+    transform: translateX(-4px);
+  }
+
+  20%,
+  40%,
+  60%,
+  80% {
+    transform: translateX(4px);
+  }
+}
+
+/* Slide in right - panel/toast entrance */
+@keyframes slideInRight {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Slide in left - sidebar entrance */
+@keyframes slideInLeft {
+  from {
+    opacity: 0;
+    transform: translateX(-16px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+/* Pop in - badge/notification entrance */
+@keyframes popIn {
+  0% {
+    opacity: 0;
+    transform: scale(0.5);
+  }
+
+  50% {
+    transform: scale(1.1);
+  }
+
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+/* Number flip - timer/digit change */
+@keyframes numberFlip {
+  from {
+    opacity: 0;
+    transform: translateY(-8px);
+    filter: blur(2px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+    filter: blur(0);
+  }
+}
+
+/* Skeleton shimmer - loading placeholder */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+/* -----------------------------------------------
+   ANIMATION CLASSES
+   ----------------------------------------------- */
+
+/* Entrance animations */
+.fade-in {
+  animation: fadeInUp var(--duration-slow) var(--ease-out) forwards;
+  opacity: 0;
+}
+
+.fade-in-up {
+  animation: fadeInUp var(--duration-slow) var(--ease-out) forwards;
+  opacity: 0;
+}
+
+.scale-in {
+  animation: scaleIn var(--duration-normal) var(--ease-out) forwards;
+  opacity: 0;
+}
+
+.slide-in-right {
+  animation: slideInRight var(--duration-normal) var(--ease-out) forwards;
+  opacity: 0;
+}
+
+.slide-in-left {
+  animation: slideInLeft var(--duration-normal) var(--ease-out) forwards;
+  opacity: 0;
+}
+
+.pop-in {
+  animation: popIn var(--duration-normal) var(--ease-spring) forwards;
+  opacity: 0;
+}
+
+/* Looping animations */
+.spinner {
+  animation: spin 0.8s linear infinite;
+}
+
+.pulse {
+  animation: pulse 2s ease infinite;
+}
+
+/* Utility */
+.shake {
+  animation: shake 0.5s ease;
+}
+
+.number-flip {
+  animation: numberFlip 0.2s var(--ease-out);
+}
+
+/* Skeleton loading */
+.skeleton {
+  background: linear-gradient(90deg,
+      var(--cloud) 25%,
+      var(--snow) 50%,
+      var(--cloud) 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s ease-in-out infinite;
+  border-radius: var(--r-md);
+}
+
+/* -----------------------------------------------
+   STAGGER DELAYS (for lists/grids)
+   ----------------------------------------------- */
+.stagger>* {
+  opacity: 0;
+  animation: fadeInUp var(--duration-slow) var(--ease-out) forwards;
+}
+
+.stagger>*:nth-child(1) {
+  animation-delay: 0ms;
+}
+
+.stagger>*:nth-child(2) {
+  animation-delay: 50ms;
+}
+
+.stagger>*:nth-child(3) {
+  animation-delay: 100ms;
+}
+
+.stagger>*:nth-child(4) {
+  animation-delay: 150ms;
+}
+
+.stagger>*:nth-child(5) {
+  animation-delay: 200ms;
+}
+
+.stagger>*:nth-child(6) {
+  animation-delay: 250ms;
+}
+
+.stagger>*:nth-child(7) {
+  animation-delay: 300ms;
+}
+
+.stagger>*:nth-child(8) {
+  animation-delay: 350ms;
+}
+
+.stagger>*:nth-child(9) {
+  animation-delay: 400ms;
+}

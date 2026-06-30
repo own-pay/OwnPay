@@ -1,0 +1,128 @@
+/* ═══════════════════════════════════════════════════════
+   tokens.css — OwnPay Design System Tokens
+   Glassmorphic / Neo-Modern Design System
+   ═══════════════════════════════════════════════════════ */
+
+:root {
+  /* ───────────────────────────────────────────────
+     BRAND COLORS
+     ─────────────────────────────────────────────── */
+  --brand-blue:       #0F96ED;
+  --brand-blue-hover: #0D7FC8;
+  --brand-blue-light: rgb(15 150 237 / 10%);
+  --brand-blue-glow:  rgb(15 150 237 / 25%);
+  --brand-navy:       #112964;
+  --brand-navy-deep:  #0A1A40;
+
+  /* ───────────────────────────────────────────────
+     STATUS COLORS (Crucial for Payments)
+     ─────────────────────────────────────────────── */
+  --green:  #10B981;
+  --amber:  #F59E0B;
+  --red:    #EF4444;
+  --blue:   #0F96ED;
+
+  /* Success */
+  --success-bg:      rgb(16 185 129 / 10%);
+  --success-border:  rgb(16 185 129 / 25%);
+  --success-text:    #059669;
+  --success-icon-bg: rgb(16 185 129 / 15%);
+
+  /* Danger */
+  --danger-bg:      rgb(239 68 68 / 10%);
+  --danger-border:  rgb(239 68 68 / 25%);
+  --danger-text:    #DC2626;
+  --danger-icon-bg: rgb(239 68 68 / 15%);
+
+  /* Warning */
+  --warning-bg:      rgb(245 158 11 / 10%);
+  --warning-border:  rgb(245 158 11 / 25%);
+  --warning-text:    #D97706;
+  --warning-icon-bg: rgb(245 158 11 / 15%);
+
+  /* Info */
+  --info-bg:      rgb(15 150 237 / 10%);
+  --info-border:  rgb(15 150 237 / 25%);
+  --info-text:    #0F96ED;
+  --info-icon-bg: rgb(15 150 237 / 15%);
+
+  /* Muted */
+  --muted-bg:      rgb(100 116 139 / 10%);
+  --muted-border:  rgb(100 116 139 / 25%);
+  --muted-text:    #475569;
+
+  /* ───────────────────────────────────────────────
+     TYPOGRAPHY
+     ─────────────────────────────────────────────── */
+  --font: 'Inter', -apple-system, blinkmacsystemfont, 'Segoe UI', roboto, sans-serif;
+  --font-heading: 'Inter', sans-serif;
+  --mono: 'JetBrains Mono', 'Fira Code', 'SF Mono', monospace;
+
+  /* ───────────────────────────────────────────────
+     SPACING SCALE
+     ─────────────────────────────────────────────── */
+  --sp-1:   2px;
+  --sp-2:   4px;
+  --sp-3:   6px;
+  --sp-4:   8px;
+  --sp-5:   10px;
+  --sp-6:   12px;
+  --sp-8:   16px;
+  --sp-10:  20px;
+  --sp-12:  24px;
+  --sp-14:  28px;
+  --sp-16:  32px;
+  --sp-20:  40px;
+  --sp-24:  48px;
+
+  /* ───────────────────────────────────────────────
+     BORDER RADIUS
+     ─────────────────────────────────────────────── */
+  --r-sm:    6px;
+  --r-md:    8px;
+  --r-lg:    12px;
+  --r-xl:    14px;
+  --r-2xl:   16px;
+  --r-3xl:   20px;
+  --r-shell: 24px;
+  --r-popup: 28px;
+  --r-pill:  9999px;
+
+  /* ───────────────────────────────────────────────
+     SHADOWS
+     ─────────────────────────────────────────────── */
+  --shadow-shell:        0 40px 80px rgb(0 0 0 / 6%), 0 0 0 1px rgb(0 0 0 / 3%);
+  --shadow-card:         0 4px 20px rgb(0 0 0 / 3%);
+  --shadow-card-hover:   0 16px 48px rgb(0 0 0 / 8%);
+  --shadow-floating:     0 10px 40px rgb(0 0 0 / 4%);
+  --shadow-popup:        0 40px 80px rgb(0 0 0 / 18%);
+  --shadow-modal:        0 32px 64px rgb(0 0 0 / 14%);
+  --shadow-btn-hover:    0 4px 20px rgb(15 150 237 / 30%);
+  --shadow-gw-selected:  0 0 0 3px var(--brand-blue-glow), 0 4px 18px rgb(15 150 237 / 8%);
+  --shadow-gw-hover:     0 8px 28px rgb(0 0 0 / 5%);
+
+  /* ───────────────────────────────────────────────
+     MOTION
+     ─────────────────────────────────────────────── */
+  --ease-out:    cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-fast:   200ms;
+  --duration-normal: 300ms;
+  --duration-slow:   500ms;
+
+  /* ───────────────────────────────────────────────
+     BREAKPOINTS
+     ─────────────────────────────────────────────── */
+  --bp-sm: 480px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1280px;
+
+  /* ───────────────────────────────────────────────
+     GLASSMORPHIC DESIGN SYSTEM
+     ─────────────────────────────────────────────── */
+  --glass-radius: 24px;
+  --glass-radius-pill: 99px;
+  --glass-gap: 24px;
+  --glass-padding: 32px;
+}

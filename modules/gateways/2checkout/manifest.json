@@ -1,0 +1,43 @@
+{
+  "name": "2Checkout",
+  "slug": "2checkout",
+  "version": "1.0.0",
+  "description": "2Checkout payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "TwoCheckoutGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\TwoCheckout",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#FF5F00",
+  "csp": {
+    "script_src": [
+      "https://*.2checkout.com",
+      "https://*.verifone.com"
+    ],
+    "style_src": [
+      "https://*.2checkout.com",
+      "https://*.verifone.com"
+    ],
+    "frame_src": [
+      "https://*.2checkout.com",
+      "https://*.verifone.com"
+    ],
+    "connect_src": [
+      "https://*.2checkout.com",
+      "https://*.verifone.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

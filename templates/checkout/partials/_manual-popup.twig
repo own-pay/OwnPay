@@ -1,0 +1,49 @@
+{# MANUAL PAYMENT POPUP - overlay for manual gateway flow #}
+<div id="manualPopup" class="ck-popup ck-hidden">
+    <div class="ck-popup-backdrop" data-action="close-manual"></div>
+    <div class="ck-popup-dialog">
+        <div class="ck-popup-header">
+            <div class="ck-popup-gw-info">
+                <div class="ck-popup-gw-icon" id="mpIcon"></div>
+                <div>
+                    <p class="ck-popup-gw-name" id="mpName"></p>
+                    <p class="ck-popup-gw-type" id="mpType"></p>
+                </div>
+            </div>
+            <button type="button" data-action="close-manual" class="ck-popup-close">&times;</button>
+        </div>
+
+        <div class="ck-popup-body">
+            {# Step 1: Payment instructions #}
+            <div id="mpStep1">
+                <div class="ck-popup-amount">
+                    <p class="ck-popup-label">{{ lang.send_exactly ?? 'Send exactly' }}</p>
+                    <p class="ck-popup-value">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }}</p>
+                </div>
+                <div class="ck-popup-to">
+                    <p class="ck-popup-label">{{ lang.to_number ?? 'To this number' }}</p>
+                    <p class="ck-popup-number" id="mpNumber"></p>
+                    <button type="button" data-action="copy-num" class="ck-copy-btn">{{ lang.copy ?? 'Copy' }}</button>
+                </div>
+                <div class="ck-popup-steps" id="mpSteps"></div>
+                <button type="button" data-action="go-mp-step" data-step="2" class="ck-popup-next-btn">{{ lang.i_have_sent ?? "I've sent the money" }}</button>
+            </div>
+
+            {# Step 2: Verification #}
+            <div id="mpStep2" class="ck-hidden">
+                <button type="button" data-action="go-mp-step" data-step="1" class="ck-popup-back-link">← {{ lang.back ?? 'Back' }}</button>
+                <form id="mpVerifyForm">
+                    <div class="ck-popup-field">
+                        <label>{{ lang.sender_number ?? 'Your sender number' }}</label>
+                        <input type="text" name="sender_number" class="ck-popup-input" required placeholder="01XXXXXXXXX">
+                    </div>
+                    <div class="ck-popup-field">
+                        <label>{{ lang.transaction_id ?? 'Transaction ID' }}</label>
+                        <input type="text" name="transaction_id" class="ck-popup-input" required placeholder="TrxID from SMS">
+                    </div>
+                    <button type="submit" class="ck-popup-submit-btn">{{ lang.verify_payment ?? 'Verify Payment' }}</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
