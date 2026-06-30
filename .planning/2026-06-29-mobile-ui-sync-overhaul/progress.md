@@ -117,3 +117,17 @@
 - Re-processed the 3 existing rows -> now `pending` / `regex` / gateway bkash-personal / amount+trx set
   (visible parsed in SMS Logs). Future bKash SMS now auto-parse. (Order-matching to "confirmed" is the next
   downstream step, needs a real pending order.)
+
+## 2026-06-29 — app icon (navy ring + blue segment)
+- User pasted the brand icon (2000x2000 navy ring `#112964` + bright-blue segment, transparent bg/center).
+  Extracted exact bytes from the session transcript -> `mobile-app/assets/icon/app_icon.png`.
+- GD-generated source art: `app_icon_foreground.png` (near full-bleed ring for adaptive), `app_icon_legacy.png`
+  (white-flattened for legacy Android + iOS, which can't have alpha).
+- Added dev-dep `flutter_launcher_icons: ^0.14.3` + config (android adaptive bg `#FFFFFF` + foreground;
+  ios true, remove_alpha; min_sdk 24). Generated: legacy mipmaps, adaptive (mipmap-anydpi-v26 +
+  ic_launcher_foreground + colors.xml), iOS AppIcon set.
+- Monochrome notification icon (white ring silhouette via IMG_FILTER_COLORIZE) -> `drawable-*/ic_stat_notify.png`
+  (5 densities). Wired: `local_notifier.dart` `@mipmap/ic_launcher` -> `@drawable/ic_stat_notify`;
+  `SmsMonitorService.kt` `android.R.drawable.stat_notify_sync` -> `R.drawable.ic_stat_notify`.
+- Verified: analyze clean, debug APK builds (Kotlin R.drawable ref resolves), 149 Flutter tests pass.
+  On-device launcher screenshot PENDING (device dropped off adb again — user reconnect to verify visually).

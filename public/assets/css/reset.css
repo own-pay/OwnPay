@@ -1,11 +1,11 @@
 /* ═══════════════════════════════════════════════════════
-   reset.css - OwnPay Shared Reset
+   reset.css — OwnPay Shared Reset
    Modern reset aligned with checkout template base
    ═══════════════════════════════════════════════════════ */
 
 :root {
-  /* -- Core Fallbacks for Shared Reset -- */
-  --font: 'Outfit', -apple-system, blinkmacsystemfont, 'Segoe UI', roboto, sans-serif;
+  /* ── Core Fallbacks for Shared Reset ── */
+  --font: 'Inter', -apple-system, blinkmacsystemfont, 'Segoe UI', roboto, sans-serif;
   --ink: #080D1A;
   --cloud: #ECEEF5;
   --teal: #0D9488;
@@ -16,16 +16,14 @@
   --r-pill: 9999px;
 }
 
-/* -- Box Sizing -- */
-*,
-*::before,
-*::after {
+/* ── Box Sizing ── */
+*, *::before, *::after {
   box-sizing: border-box;
   margin: 0;
   padding: 0;
 }
 
-/* -- Document -- */
+/* ── Document ── */
 html {
   -webkit-text-size-adjust: 100%;
   -moz-text-size-adjust: 100%;
@@ -45,61 +43,40 @@ body {
   min-height: 100vh;
 }
 
-/* -- Typography Reset -- */
-h1,
-h2,
-h3,
-h4,
-h5,
-h6 {
+/* ── Typography Reset ── */
+h1, h2, h3, h4, h5, h6 {
   font-size: inherit;
   font-weight: inherit;
   line-height: inherit;
 }
 
-p,
-ul,
-ol,
-figure,
-blockquote {
+p, ul, ol, figure, blockquote {
   margin: 0;
 }
 
-/* -- Links -- */
+/* ── Links ── */
 a {
   color: inherit;
   text-decoration: none;
 }
 
-/* -- Lists -- */
-ul,
-ol {
+/* ── Lists ── */
+ul, ol {
   list-style: none;
 }
 
-/* -- Media -- */
-img,
-svg,
-video,
-canvas,
-audio,
-iframe,
-embed,
-object {
+/* ── Media ── */
+img, svg, video, canvas, audio, iframe, embed, object {
   display: block;
   max-width: 100%;
 }
 
-img,
-video {
+img, video {
   height: auto;
 }
 
-/* -- Forms -- */
-button,
-input,
-textarea,
-select {
+/* ── Forms ── */
+button, input, textarea, select {
   font: inherit;
   color: inherit;
   background: none;
@@ -121,13 +98,13 @@ input[type="number"] {
   appearance: textfield;
 }
 
-/* -- Table -- */
+/* ── Table ── */
 table {
   border-collapse: collapse;
   border-spacing: 0;
 }
 
-/* -- Misc -- */
+/* ── Misc ── */
 hr {
   border: none;
   height: 1px;
@@ -140,13 +117,13 @@ dialog {
   background: none;
 }
 
-/* -- Focus Visible -- */
+/* ── Focus Visible ── */
 :focus-visible {
   outline: none;
   box-shadow: 0 0 0 3px var(--teal-glow);
 }
 
-/* -- Selection -- */
+/* ── Selection ── */
 ::selection {
   background: #0D9488;
   background: var(--teal);
@@ -154,7 +131,7 @@ dialog {
   color: var(--white);
 }
 
-/* -- Scrollbar (Webkit) -- */
+/* ── Scrollbar (Webkit) ── */
 ::-webkit-scrollbar {
   width: 6px;
   height: 6px;
@@ -173,12 +150,9 @@ dialog {
   background: var(--mute);
 }
 
-/* -- Reduced Motion -- */
+/* ── Reduced Motion ── */
 @media (prefers-reduced-motion: reduce) {
-
-  *,
-  *::before,
-  *::after {
+  *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;

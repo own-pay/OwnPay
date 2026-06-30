@@ -4,8 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <meta name="robots" content="noindex,nofollow">
-    <title>{{ lang.checkout ?? 'Secure Checkout' }} - {{ brand.name }}</title>
+    <title>{{ lang.checkout ?? 'Secure Checkout' }} — {{ brand.name }}</title>
     {% if brand.favicon|default('') %}<link rel="shortcut icon" href="{{ brand.favicon }}">{% endif %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
     <link rel="stylesheet" href="/assets/css/reset.css?v=016">
     <link rel="stylesheet" href="/assets/css/animations.css?v=014">
@@ -18,10 +21,10 @@
     <div class="ck-toast" id="cToast">{{ lang.copied ?? 'Copied!' }}</div>
 
     <div id="checkoutShell" class="ck-shell">
-        {# LEFT PANEL - Order Summary (desktop) #}
+        {# LEFT PANEL — Order Summary (desktop) #}
         {% include 'checkout/partials/_left-panel.twig' %}
 
-        {# RIGHT PANEL - Payment #}
+        {# RIGHT PANEL — Payment #}
         <div class="ck-right">
             {% include 'checkout/partials/_top-bar.twig' %}
 
@@ -64,7 +67,7 @@
     </div>
 
     <script nonce="{{ csp_nonce }}" src="/assets/js/op-fetch.js"></script>
-    <script nonce="{{ csp_nonce }}" src="/assets/js/checkout.js?v=015"></script>
+    <script nonce="{{ csp_nonce }}" src="/assets/js/checkout.js"></script>
     {{ hook('checkout.footer')|raw }}
 </body>
 </html>
