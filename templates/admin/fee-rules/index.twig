@@ -1,0 +1,112 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}{{ __('fee_rules.title') }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>{{ __('fee_rules.title') }}</h1>
+        <p class="op-page-subtitle">Configure percentage or flat processing fee surcharges for customer payments.</p>
+    </div>
+    <a href="/admin/fee-rules/create" class="op-btn op-btn-primary">
+        + Create Fee Rule
+    </a>
+</div>
+
+<div class="op-card">
+    <div class="op-card-header">
+        <h3>Processing Fee Rules</h3>
+    </div>
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+        <table class="op-table">
+            <thead>
+                <tr>
+                    <th>Brand / Store</th>
+                    <th>Gateway</th>
+                    <th>Currency</th>
+                    <th>Fee Type</th>
+                    <th>Value / Details</th>
+                    <th>Min / Max Caps</th>
+                    <th>Status</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for rule in rules %}
+                <tr>
+                    <td data-label="Brand / Store">
+                        <strong>{{ rule.brand_name }}</strong>
+                    </td>
+                    <td data-label="Gateway">
+                        <span class="op-text-semibold">{{ rule.gateway_name }}</span>
+                    </td>
+                    <td data-label="Currency">
+                        <span class="op-badge op-badge-outline">{{ rule.currency }}</span>
+                    </td>
+                    <td data-label="Fee Type">
+                        <span class="op-text-capitalize">{{ rule.type }}</span>
+                    </td>
+                    <td data-label="Value / Details">
+                        {% if rule.type == 'flat' %}
+                            {{ rule.currency }} {{ rule.value|number_format(2) }}
+                        {% elseif rule.type == 'percentage' %}
+                            {{ rule.value|number_format(2) }}%
+                        {% elseif rule.type == 'tiered' %}
+                            <span class="op-text-muted">Tiered rules configured</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Min / Max Caps">
+                        {% if rule.min_fee or rule.max_fee %}
+                            <span class="op-text-sm">
+                                Min: {{ rule.min_fee ? (rule.currency ~ ' ' ~ rule.min_fee|number_format(2)) : 'None' }} <br>
+                                Max: {{ rule.max_fee ? (rule.currency ~ ' ' ~ rule.max_fee|number_format(2)) : 'None' }}
+                            </span>
+                        {% else %}
+                            <span class="op-text-muted">-</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Status">
+                        {% if rule.status == 'active' %}
+                            <span class="op-badge op-badge-success">Active</span>
+                        {% else %}
+                            <span class="op-badge op-badge-danger">Inactive</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Actions" class="op-actions">
+                        <a href="/admin/fee-rules/{{ rule.id }}/edit" class="op-btn op-btn-sm op-btn-outline">Edit</a>
+                        
+                        <form method="POST" action="/admin/fee-rules/{{ rule.id }}/delete" class="op-inline-form"
+                              data-confirm="Delete this fee rule? This cannot be undone.">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="op-btn op-btn-sm op-btn-danger">Delete</button>
+                        </form>
+                    </td>
+                </tr>
+            {% else %}
+                <tr>
+                    <td colspan="8" class="op-empty">
+                        No custom fee rules defined yet. System defaults will apply. Click <strong>"Create Fee Rule"</strong> above to get started.
+                    </td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+{% if pagination.total_pages > 1 %}
+<nav class="op-pagination op-mt-4">
+    {% if pagination.page > 1 %}
+        <a href="/admin/fee-rules?page={{ pagination.page - 1 }}" class="op-page-link">← Previous</a>
+    {% endif %}
+    
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    
+    {% if pagination.page < pagination.total_pages %}
+        <a href="/admin/fee-rules?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>
+    {% endif %}
+</nav>
+{% endif %}
+{% endblock %}

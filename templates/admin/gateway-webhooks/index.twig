@@ -1,0 +1,108 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Gateway Webhooks (IPN) - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Gateway Webhooks (IPN)</h1>
+        <p class="op-page-subtitle">The address your payment gateways use to tell {{ app_name }} when a payment happens. Copy it into your gateway dashboard.</p>
+    </div>
+</div>
+
+{# -- What is it? -- #}
+<div class="op-card op-mb-4">
+    <div class="op-card-header"><h3>What is a gateway webhook / IPN?</h3></div>
+    <div class="op-card-body">
+        <p class="op-text-muted op-gw-prose">
+            When a customer pays through a gateway (bKash, Nagad, Stripe, PayPal, and so on), the gateway needs a way
+            to tell {{ app_name }} <em>"this payment succeeded / failed."</em> It does that by quietly sending a message
+            to a special web address on your site the moment the payment finishes. That address is called a
+            <strong>webhook URL</strong> - some gateways call it <strong>IPN</strong> (Instant Payment Notification),
+            <strong>callback URL</strong>, or <strong>notify URL</strong>. They all mean the same thing.
+        </p>
+        <p class="op-text-muted op-gw-prose">
+            You copy the URL below, paste it into your gateway's dashboard once, and from then on payments update
+            automatically - orders get marked paid, receipts go out, and your reports stay accurate without anyone
+            clicking anything.
+        </p>
+    </div>
+</div>
+
+{# -- Your webhook URL -- #}
+<div class="op-card op-mb-4">
+    <div class="op-card-header"><h3>Your webhook URL</h3></div>
+    <div class="op-card-body">
+        {% if is_global_view ?? true %}
+            <p class="op-text-muted op-text-sm op-mb-4">
+                You're in <strong>All Brands</strong>. This uses your main {{ app_name }} address. Every brand can use
+                this URL; to give a brand its own branded webhook address, switch to that brand and set a custom domain.
+            </p>
+        {% elseif using_brand_domain %}
+            <p class="op-text-muted op-text-sm op-mb-4">
+                Showing the webhook address for <strong>{{ brand_name ?? 'this brand' }}</strong> using its custom
+                domain <strong>{{ brand_domain }}</strong>.
+            </p>
+        {% else %}
+            <div class="op-alert op-alert-info op-mb-4">
+                <strong>{{ brand_name ?? 'This brand' }} has no custom domain yet.</strong>
+                For a brand-specific webhook address, first add and verify a domain in
+                <a href="/admin/domains">Domains</a>. Until then you can use the main {{ app_name }} webhook URL shown below
+                (set from <strong>All Brands</strong>).
+            </div>
+        {% endif %}
+
+        <label class="op-text-xs op-text-muted op-display-block op-mb-1">Base webhook address (replace the last part with your gateway's name)</label>
+        <div class="op-copy-row">
+            <input class="op-input op-input-monospace" type="text" readonly value="{{ effective_base }}/{gateway}">
+            <button type="button" class="op-btn op-btn-sm op-btn-outline op-copy-btn" data-copy="{{ effective_base }}/{gateway}">Copy</button>
+        </div>
+
+        {% if gateways is not empty %}
+        <label class="op-text-xs op-text-muted op-display-block op-mt-4 op-mb-1">Ready-to-use URLs for your installed gateways</label>
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead><tr><th>Gateway</th><th>Webhook URL</th><th class="op-text-right">Action</th></tr></thead>
+                <tbody>
+                {% for gw in gateways %}
+                    <tr>
+                        <td data-label="Gateway"><strong>{{ gw.name }}</strong></td>
+                        <td data-label="Webhook URL"><code class="op-code-pill">{{ gw.url }}</code></td>
+                        <td data-label="Action" class="op-text-right"><button type="button" class="op-btn op-btn-xs op-btn-outline" data-copy="{{ gw.url }}">Copy</button></td>
+                    </tr>
+                {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# -- Setup guide -- #}
+<div class="op-card op-mb-4">
+    <div class="op-card-header"><h3>How to set it up</h3></div>
+    <div class="op-card-body">
+        <ol class="op-gw-steps">
+            <li>Copy the webhook URL for your gateway from the box above.</li>
+            <li>Log in to that gateway's own dashboard (for example bKash Merchant, Stripe Dashboard, PayPal).</li>
+            <li>Find the setting named <strong>Webhook</strong>, <strong>IPN</strong>, <strong>Callback URL</strong>, or <strong>Notify URL</strong>. It's usually under Developer, API, or Notifications settings.</li>
+            <li>Paste the URL exactly as copied and save.</li>
+            <li>If the gateway asks which events to send, choose payment success/completed and payment failed (or "all payment events").</li>
+            <li>Make a small test payment to confirm the status updates here automatically.</li>
+        </ol>
+    </div>
+</div>
+
+{# -- Notes -- #}
+<div class="op-card">
+    <div class="op-card-header"><h3>Good to know</h3></div>
+    <div class="op-card-body">
+        <ul class="op-gw-notes">
+            <li>Paste the address <strong>exactly</strong> - a missing or extra character means payments won't update.</li>
+            <li>The address must be reachable over the public internet on <strong>https</strong>. It won't work on a laptop-only address.</li>
+            <li>You don't need to build or host anything - {{ app_name }} already listens at this address for you.</li>
+            <li>Each brand can have its own address by giving the brand a custom domain in <a href="/admin/domains">Domains</a>; otherwise the main {{ app_name }} address (set from All Brands) is used.</li>
+        </ul>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,39 @@
+{
+  "name": "PayTabs",
+  "slug": "paytabs",
+  "version": "1.0.0",
+  "description": "PayTabs payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "PayTabsGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\PayTabs",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "mena",
+  "color": "#007cbe",
+  "csp": {
+    "script_src": [
+      "https://*.paytabs.com"
+    ],
+    "style_src": [
+      "https://*.paytabs.com"
+    ],
+    "frame_src": [
+      "https://*.paytabs.com"
+    ],
+    "connect_src": [
+      "https://*.paytabs.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

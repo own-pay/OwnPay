@@ -1,0 +1,40 @@
+{
+  "name": "Affirm",
+  "slug": "affirm",
+  "version": "1.0.0",
+  "description": "Affirm checkout integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "AffirmGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Affirm",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#4A90E2",
+  "csp": {
+    "script_src": [
+      "https://*.affirm.com"
+    ],
+    "style_src": [
+      "https://*.affirm.com"
+    ],
+    "frame_src": [
+      "https://*.affirm.com"
+    ],
+    "connect_src": [
+      "https://*.affirm.com",
+      "https://api.affirm.com",
+      "https://sandbox.affirm.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.png"
+}

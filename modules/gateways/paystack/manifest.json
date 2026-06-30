@@ -1,0 +1,41 @@
+{
+  "name": "Paystack",
+  "slug": "paystack",
+  "version": "1.0.0",
+  "description": "Paystack payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "PaystackGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Paystack",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#3ECF8E",
+  "csp": {
+    "script_src": [
+      "https://*.paystack.co",
+      "https://js.paystack.co"
+    ],
+    "style_src": [
+      "https://*.paystack.co"
+    ],
+    "frame_src": [
+      "https://*.paystack.co",
+      "https://checkout.paystack.com"
+    ],
+    "connect_src": [
+      "https://*.paystack.co",
+      "https://api.paystack.co"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

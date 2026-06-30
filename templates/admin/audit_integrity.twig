@@ -1,0 +1,73 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Audit Trail Cryptographic Integrity Check - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Audit Trail Cryptographic Integrity</h1>
+        <p class="op-page-subtitle">Verify that the database ledger audit logs have not been tampered with since creation.</p>
+    </div>
+    <div class="op-header-actions">
+        <form method="POST" action="/admin/audit-integrity/scan" class="op-filter-bar">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <button type="submit" class="op-btn op-btn-sm op-btn-primary">Run Integrity Scan</button>
+        </form>
+    </div>
+</div>
+
+{% if is_secure is defined %}
+    {% if is_secure %}
+        <div class="op-alert op-alert-success op-mt-4">
+            <h4>🛡️ System Integrity: SECURE</h4>
+            <p>Cryptographic scan executed successfully across all recorded administrative activity logs. Every log entry signature matches perfectly. No unauthorized data modifications, additions, or deletions were detected in the database.</p>
+            {% if signed_count > 0 %}
+                <p><strong>Note:</strong> Backported cryptographic signatures to {{ signed_count }} old pre-existing log entries successfully.</p>
+            {% endif %}
+        </div>
+    {% else %}
+        <div class="op-alert op-alert-danger op-mt-4">
+            <h4>🚨 CRITICAL ALERT: Database Tampering Detected!</h4>
+            <p>The cryptographic verification scan identified <strong>{{ compromised|length }} corrupted audit log entries</strong> where the stored SHA-256 HMAC checksum signature failed to validate. This indicates that one or more log rows were modified or deleted directly in the database, bypassing the OwnPay application layer.</p>
+        </div>
+
+        <div class="op-card op-mt-4">
+            <div class="op-card-header">
+                <h3>Corrupted Audit Log Entries</h3>
+            </div>
+            <div class="op-card-body op-p-0">
+                <div class="op-table-responsive">
+                    <table class="op-table">
+                        <thead>
+                            <tr>
+                                <th>Log ID</th>
+                                <th>Action</th>
+                                <th>Operator ID</th>
+                                <th>IP Address</th>
+                                <th>Timestamp</th>
+                                <th>Stored Signature</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for log in compromised %}
+                                <tr>
+                                    <td data-label="Log ID">#{{ log.id }}</td>
+                                    <td data-label="Action"><strong class="op-text-danger">{{ log.action }}</strong></td>
+                                    <td data-label="Operator ID">{{ log.user_id ?? 'System' }}</td>
+                                    <td data-label="IP Address">{{ log.ip_address ?? 'N/A' }}</td>
+                                    <td data-label="Timestamp">{{ log.created_at }}</td>
+                                    <td data-label="Signature"><code class="op-text-muted">{{ log.signature|slice(0, 8) }}...</code></td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+{% else %}
+    <div class="op-card op-mt-4">
+        <div class="op-card-body op-text-center op-text-muted op-py-5">
+            <p>Click "Run Integrity Scan" to verify the cryptographic HMAC signature of every audit log entry in the system.</p>
+        </div>
+    </div>
+{% endif %}
+{% endblock %}

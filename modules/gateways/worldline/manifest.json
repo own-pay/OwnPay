@@ -1,0 +1,41 @@
+{
+  "name": "Worldline Connect",
+  "slug": "worldline",
+  "version": "1.0.0",
+  "description": "Worldline Connect payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "WorldlineGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Worldline",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "bank",
+  "color": "#0066B3",
+  "csp": {
+    "script_src": [
+      "https://*.worldline-solutions.com",
+      "https://*.e-merchant.com"
+    ],
+    "style_src": [
+      "https://*.worldline-solutions.com"
+    ],
+    "frame_src": [
+      "https://*.worldline-solutions.com"
+    ],
+    "connect_src": [
+      "https://*.worldline-solutions.com",
+      "https://payment.worldline-solutions.com",
+      "https://payment.sandbox.worldline-solutions.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

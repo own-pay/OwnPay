@@ -1,0 +1,22 @@
+{
+  "name": "NexusPay",
+  "slug": "nexuspay",
+  "version": "1.0.0",
+  "description": "Dutch-Bangla Bank Limited (DBBL) NexusPay payment gateway integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "icon.svg",
+  "color": "#009688",
+  "entrypoint": "NexusPayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\NexusPay",
+  "capabilities": ["gateway"],
+  "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+  "csp": {
+    "script_src": ["https://*.dutchbanglabank.com"],
+    "style_src": ["https://*.dutchbanglabank.com"],
+    "frame_src": ["https://*.dutchbanglabank.com"],
+    "connect_src": ["https://*.dutchbanglabank.com"]
+  },
+  "permissions": ["gateway.process"]
+}

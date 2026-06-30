@@ -1,0 +1,22 @@
+{
+  "name": "Tap",
+  "slug": "tap",
+  "version": "1.0.0",
+  "description": "Trust Axiata Pay (Tap) mobile financial services and digital checkout integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "icon.svg",
+  "color": "#E91E63",
+  "entrypoint": "TapGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Tap",
+  "capabilities": ["gateway"],
+  "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+  "csp": {
+    "script_src": ["https://*.trustaxiatapay.com", "https://*.tap.company"],
+    "style_src": ["https://*.trustaxiatapay.com", "https://*.tap.company"],
+    "frame_src": ["https://*.trustaxiatapay.com", "https://*.tap.company"],
+    "connect_src": ["https://*.trustaxiatapay.com", "https://*.tap.company"]
+  },
+  "permissions": ["gateway.process"]
+}

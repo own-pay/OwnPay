@@ -1,0 +1,161 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Create Fee Rule - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Create Fee Rule</h1>
+        <p class="op-page-subtitle">Create a new payment processing fee rule with dynamic brand/gateway thresholds.</p>
+    </div>
+    <div class="op-header-actions">
+        <a href="/admin/fee-rules" class="op-btn op-btn-sm op-btn-secondary">← Back to Fee Rules</a>
+    </div>
+</div>
+
+<form method="POST" action="/admin/fee-rules/store" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header">
+            <h3>Rule Parameters</h3>
+        </div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                {# Brand/Merchant Scope #}
+                <div class="op-form-group op-col-6">
+                    <label for="merchant_id">Brand / Store Context *</label>
+                    {% if is_global %}
+                        <select id="merchant_id" name="merchant_id" class="op-input" required>
+                            <option value="">{{ __('fee_rules.global') }}</option>
+                            {% for b in brands %}
+                                <option value="{{ b.id }}">{{ b.name }}</option>
+                            {% endfor %}
+                        </select>
+                    {% else %}
+                        <input type="text" value="{{ active_brand ? active_brand.name : 'System' }}" class="op-input" readonly>
+                        <input type="hidden" name="merchant_id" value="{{ active_brand_id|default('') }}">
+                    {% endif %}
+                </div>
+
+                {# Gateway #}
+                <div class="op-form-group op-col-6">
+                    <label for="gateway_slug">Payment Gateway *</label>
+                    <select id="gateway_slug" name="gateway_slug" class="op-input">
+                        <option value="">All Gateways</option>
+                        {% for g in gateways %}
+                            <option value="{{ g.slug }}">{{ g.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+
+            <div class="op-form-row">
+                {# Currency #}
+                <div class="op-form-group op-col-6">
+                    <label for="currency">Currency *</label>
+                    <select id="currency" name="currency" class="op-input" required>
+                        {% for c in currencies %}
+                            <option value="{{ c.code }}" {{ c.code == 'BDT' ? 'selected' : '' }}>{{ c.code }} ({{ c.symbol }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                {# Fee Type #}
+                <div class="op-form-group op-col-6">
+                    <label for="type">Fee Type *</label>
+                    <select id="type" name="type" class="op-input" required>
+                        <option value="percentage" selected>Percentage (%)</option>
+                        <option value="flat">Flat Amount</option>
+                        <option value="tiered">Tiered Pricing</option>
+                    </select>
+                </div>
+            </div>
+
+            {# Simple Value Input (for Flat & Percentage) #}
+            <div class="op-form-group" id="simple-value-group">
+                <label for="value">Fee Value *</label>
+                <input type="number" id="value" name="value" value="0.00" step="0.0001" min="0" class="op-input">
+                <small class="op-text-muted">For percentage type, enter e.g. 2.5 for 2.5% fee.</small>
+            </div>
+        </div>
+    </div>
+
+    {# Tiered Editor Card (visible only when type=tiered) #}
+    <div class="op-card op-mb-4" id="tiered-setup-card" style="display: none;">
+        <div class="op-card-header">
+            <h3>Tiered Pricing Setup</h3>
+            <button type="button" id="add-tier-btn" class="op-btn op-btn-sm op-btn-outline">+ Add Tier</button>
+        </div>
+        <div class="op-card-body">
+            <p class="op-text-muted op-mb-3 op-text-sm">
+                Define pricing tiers based on transaction amount. Leave the limit empty on the last tier to act as a catch-all fallback.
+            </p>
+            <div id="tiers-container">
+                {# Dynamically populated #}
+            </div>
+        </div>
+    </div>
+
+    {# Fee Limits/Caps #}
+    <div class="op-card op-mb-4">
+        <div class="op-card-header">
+            <h3>Fee Limits (Optional)</h3>
+        </div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label for="min_fee">Minimum Fee</label>
+                    <input type="number" id="min_fee" name="min_fee" step="0.01" min="0" placeholder="None" class="op-input">
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label for="max_fee">Maximum Fee</label>
+                    <input type="number" id="max_fee" name="max_fee" step="0.01" min="0" placeholder="None" class="op-input">
+                </div>
+            </div>
+            
+            <div class="op-form-group op-mt-3">
+                <label class="op-checkbox-label">
+                    <input type="checkbox" name="status" value="active" checked>
+                    Rule is Active
+                </label>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-form-actions">
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg">Create Rule</button>
+        <a href="/admin/fee-rules" class="op-btn op-btn-outline op-btn-lg">Cancel</a>
+    </div>
+</form>
+
+<template id="tier-row-template">
+    <div class="op-field-row op-card op-card-bordered op-mb-2 op-p-3 op-tier-row">
+        <div class="op-form-row">
+            <div class="op-form-group op-col-4">
+                <label>Amount Limit <=</label>
+                <input type="number" name="tiers[__IDX__][limit]" step="0.01" min="0" class="op-input tier-limit-input" placeholder="Catch-all / No Limit">
+            </div>
+            <div class="op-form-group op-col-3">
+                <label>Fee Type</label>
+                <select name="tiers[__IDX__][type]" class="op-input">
+                    <option value="percentage">Percentage (%)</option>
+                    <option value="flat">Flat Amount</option>
+                </select>
+            </div>
+            <div class="op-form-group op-col-3">
+                <label>Fee Value</label>
+                <input type="number" name="tiers[__IDX__][value]" step="0.0001" min="0" value="0.00" class="op-input" required>
+            </div>
+            <div class="op-form-group op-col-2">
+                <label>&nbsp;</label>
+                <button type="button" class="op-btn op-btn-sm op-btn-danger remove-tier-btn" style="width: 100%;">Remove</button>
+            </div>
+        </div>
+    </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/fee-rules.js?v=014"></script>
+{% endblock %}

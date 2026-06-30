@@ -1,0 +1,101 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Push Notifications Log - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-back-navigation op-mb-3">
+    <a href="/admin/devices" class="op-back-link">← Back to Paired Devices</a>
+</div>
+
+<div class="op-page-header">
+    <div>
+        <h1>Push Notifications Log</h1>
+        <p class="op-page-subtitle">History of outbound push notifications dispatched to paired mobile companion devices.</p>
+    </div>
+</div>
+
+<div class="op-filter-bar op-mb-4">
+    <form method="GET" action="/admin/devices/notifications" style="display: flex; gap: 8px; align-items: center; flex-wrap: wrap; width: 100%;">
+        <div class="op-form-group op-flex-grow op-mb-0">
+            <input type="text" name="q" class="op-input" placeholder="Search by title, body, device UUID..." value="{{ filters.q }}">
+        </div>
+        <div class="op-form-group op-mb-0" style="min-width: 180px;">
+            <div class="op-custom-dropdown" data-auto-submit>
+                <input type="hidden" name="type" value="{{ filters.type }}">
+                <button type="button" class="op-custom-dropdown-btn" style="width:100%">
+                    <span class="op-custom-dropdown-label">{{ filters.type ? filters.type|replace({'_': ' '})|title : 'All Types' }}</span>
+                    <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="op-custom-dropdown-menu">
+                    <button type="button" class="op-custom-dropdown-option {{ filters.type == '' ? 'active' : '' }}" data-value="">All Types</button>
+                    <button type="button" class="op-custom-dropdown-option {{ filters.type == 'heartbeat' ? 'active' : '' }}" data-value="heartbeat">Heartbeat</button>
+                    <button type="button" class="op-custom-dropdown-option {{ filters.type == 'transaction_pending' ? 'active' : '' }}" data-value="transaction_pending">Transaction Pending</button>
+                    <button type="button" class="op-custom-dropdown-option {{ filters.type == 'transaction_completed' ? 'active' : '' }}" data-value="transaction_completed">Transaction Completed</button>
+                    <button type="button" class="op-custom-dropdown-option {{ filters.type == 'pairing_success' ? 'active' : '' }}" data-value="pairing_success">Pairing Success</button>
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="op-filter-btn">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            Filter
+        </button>
+        {% if filters.q or filters.type %}
+            <a href="/admin/devices/notifications" class="op-filter-btn">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>Device UUID</th>
+                        <th>Type</th>
+                        <th>Title</th>
+                        <th>Body</th>
+                        <th>Read Status</th>
+                        <th>Sent At</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for notification in notifications %}
+                    <tr>
+                        <td data-label="Device UUID"><code class="op-text-xs" style="font-size: 11px;">{{ notification.device_uuid }}</code></td>
+                        <td data-label="Type"><span class="op-badge op-badge-outline">{{ notification.type }}</span></td>
+                        <td data-label="Title"><strong>{{ notification.title }}</strong></td>
+                        <td data-label="Body" class="op-text-sm">{{ notification.body|default('-') }}</td>
+                        <td data-label="Read Status">
+                            {% if notification.is_read %}
+                                <span class="op-badge op-badge-success" title="Read at: {{ notification.read_at }}">Read</span>
+                            {% else %}
+                                <span class="op-badge op-badge-warning">Sent (Unread)</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="Sent At" class="op-text-muted op-text-sm">{{ notification.created_at|date("M d, Y H:i:s") }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="op-empty">
+                            No push notification logs found for current filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# -- Pagination -------------------------------------------------- #}
+{% if pagination is defined and pagination.total_pages > 1 %}
+{% set qs = '' %}
+{% if filters.q is not empty %}{% set qs = qs ~ '&q=' ~ filters.q|url_encode %}{% endif %}
+{% if filters.type is not empty %}{% set qs = qs ~ '&type=' ~ filters.type|url_encode %}{% endif %}
+<nav class="op-pagination op-mt-4">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}{{ qs }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total_items }} total)</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}{{ qs }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+
+{% endblock %}

@@ -1,0 +1,41 @@
+{
+  "name": "Razorpay",
+  "slug": "razorpay",
+  "version": "1.0.0",
+  "description": "Razorpay payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "RazorpayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Razorpay",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "bank",
+  "color": "#3399FF",
+  "csp": {
+    "script_src": [
+      "https://*.razorpay.com",
+      "https://checkout.razorpay.com"
+    ],
+    "style_src": [
+      "https://*.razorpay.com"
+    ],
+    "frame_src": [
+      "https://*.razorpay.com",
+      "https://api.razorpay.com"
+    ],
+    "connect_src": [
+      "https://*.razorpay.com",
+      "https://api.razorpay.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

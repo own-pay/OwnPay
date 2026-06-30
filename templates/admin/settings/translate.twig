@@ -1,0 +1,156 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Translate {{ name }} - {{ app_name }}{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/assets/css/pages/settings.css?v=014">
+    <style>
+        .op-translation-row.hidden {
+            display: none !important;
+        }
+        .op-translation-grid {
+            margin-top: 1.5rem;
+        }
+        .op-search-controls {
+            display: flex;
+            gap: 1rem;
+            background: var(--op-bg-card, #ffffff);
+            padding: 1rem;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.02);
+            border: 1px solid var(--op-border-color, #e0e0e0);
+        }
+        .op-search-input-group {
+            flex-grow: 1;
+        }
+        .op-translation-table th {
+            text-align: left;
+        }
+        .op-translation-key {
+            font-family: monospace;
+            font-size: 0.85rem;
+            color: var(--op-color-text-muted, #7f8c8d);
+            width: 25%;
+        }
+        .op-translation-english {
+            font-size: 0.9rem;
+            width: 35%;
+            color: var(--op-color-text-dark, #2c3e50);
+            padding-right: 1.5rem;
+        }
+        .op-translation-input-col {
+            width: 40%;
+        }
+    </style>
+{% endblock %}
+{% block content %}
+<div class="op-page-header op-flex op-justify-between op-items-center op-mb-4">
+    <div>
+        <a href="/admin/settings/language" class="op-btn op-btn-sm op-btn-outline op-mb-2 op-inline-flex op-items-center op-gap-1">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="15 18 9 12 15 6"/></svg>
+            Back to Languages
+        </a>
+        <h1>Translate Language: {{ name }} (<code>{{ code }}</code>)</h1>
+        <p class="op-page-subtitle">Add or translate language key-value strings to localize checkout views.</p>
+    </div>
+</div>
+
+<div class="op-search-controls op-mb-4">
+    <div class="op-search-input-group">
+        <input type="text" id="translation-search" class="op-input" placeholder="Search translation keys or text...">
+    </div>
+    <div class="op-filter-select-group" style="min-width: 200px;">
+        <div class="op-custom-dropdown">
+            <input type="hidden" id="prefix-filter" value="all">
+            <button type="button" class="op-custom-dropdown-btn" style="width:100%">
+                <span class="op-custom-dropdown-label">All Sections</span>
+                <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="op-custom-dropdown-menu">
+                <button type="button" class="op-custom-dropdown-option active" data-value="all">All Sections</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="menu">Menu / Sidebar (menu.*)</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="common">Common UI (common.*)</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="dashboard">Dashboard (dashboard.*)</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="settings">Settings (settings.*)</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="language">Language (language.*)</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="POST" action="/admin/settings/language/{{ code }}/translate/save" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>Translation Keys</h3>
+        </div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
+                <table class="op-table op-translation-table">
+                    <thead>
+                        <tr>
+                            <th>Key Path</th>
+                            <th>Original (English)</th>
+                            <th>Translation ({{ name }})</th>
+                        </tr>
+                    </thead>
+                    <tbody id="translations-list-body">
+                        {% for key, value in strings %}
+                        <tr class="op-translation-row" data-key="{{ key }}" data-en="{{ en_strings[key] ?? '' }}">
+                            <td class="op-translation-key"><code>{{ key }}</code></td>
+                            <td class="op-translation-english">{{ en_strings[key] ?? '' }}</td>
+                            <td class="op-translation-input-col">
+                                <input type="text" name="strings[{{ key }}]" value="{{ value }}" class="op-input op-input-sm translation-text-input">
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-form-actions op-mt-4">
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg">Save Translations</button>
+    </div>
+</form>
+
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function() {
+        const searchInput = document.getElementById('translation-search');
+        const prefixFilter = document.getElementById('prefix-filter');
+        const rows = document.querySelectorAll('.op-translation-row');
+
+        function filterTranslations() {
+            const query = searchInput.value.toLowerCase().trim();
+            const section = prefixFilter.value;
+
+            rows.forEach(row => {
+                const key = row.getAttribute('data-key');
+                const english = row.getAttribute('data-en').toLowerCase();
+                const input = row.querySelector('.translation-text-input').value.toLowerCase();
+                
+                let matchesSearch = true;
+                if (query !== '') {
+                    matchesSearch = key.includes(query) || english.includes(query) || input.includes(query);
+                }
+
+                let matchesSection = true;
+                if (section !== 'all') {
+                    matchesSection = key.startsWith(section + '.');
+                }
+
+                if (matchesSearch && matchesSection) {
+                    row.classList.remove('hidden');
+                } else {
+                    row.classList.add('hidden');
+                }
+            });
+        }
+
+        searchInput.addEventListener('input', filterTranslations);
+        prefixFilter.addEventListener('change', filterTranslations);
+    });
+</script>
+{% endblock %}

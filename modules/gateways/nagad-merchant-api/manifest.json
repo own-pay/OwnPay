@@ -1,0 +1,25 @@
+{
+  "name": "Nagad Merchant API",
+  "slug": "nagad-merchant-api",
+  "version": "1.0.0",
+  "description": "Nagad Merchant API payment gateway integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "mfs",
+  "icon": "assets/icon.png",
+  "color": "#F15A22",
+  "entrypoint": "NagadMerchantApiGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\NagadMerchantApi",
+  "capabilities": ["gateway"],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": ["https://*.mynagad.com"],
+    "style_src": ["https://*.mynagad.com"],
+    "frame_src": ["https://*.mynagad.com"],
+    "connect_src": ["https://*.mynagad.com"]
+  },
+  "permissions": ["gateway.process"]
+}

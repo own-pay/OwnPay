@@ -1,0 +1,91 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Login Attempts - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Activity & Audit Logs</h1>
+        <p class="op-page-subtitle">Review failed administrative login attempts, IP addresses, and lockouts.</p>
+    </div>
+</div>
+
+<div class="op-tabs op-mb-4" style="display: flex; gap: 8px; margin-bottom: 20px;">
+    <a href="/admin/activities" class="op-btn {% if active_subpage == 'activities' %}op-btn-primary{% else %}op-btn-outline{% endif %}">📋 Staff Activities</a>
+    {% if is_superadmin %}
+    <a href="/admin/login-attempts" class="op-btn {% if active_subpage == 'login_attempts' %}op-btn-primary{% else %}op-btn-outline{% endif %}">🔒 Login Attempts</a>
+    {% endif %}
+</div>
+
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Email / Identity</th>
+                        <th>IP Address</th>
+                        <th>Status</th>
+                        <th>User Agent</th>
+                        <th class="op-text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for attempt in attempts %}
+                    <tr>
+                        <td data-label="Time" class="op-text-sm op-text-muted" style="white-space:nowrap">
+                            {{ attempt.created_at ? attempt.created_at|date('M d, Y H:i:s') : '-' }}
+                        </td>
+                        <td data-label="Email"><strong>{{ attempt.email }}</strong></td>
+                        <td data-label="IP Address" class="op-text-sm">{{ attempt.ip_address }}</td>
+                        <td data-label="Status">
+                            {% if attempt.success %}
+                            <span class="op-badge op-badge-success">Success</span>
+                            {% else %}
+                            <span class="op-badge op-badge-danger">Failed</span>
+                            {% endif %}
+                        </td>
+                        <td data-label="User Agent" class="op-text-sm op-text-muted" style="max-width:300px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap" title="{{ attempt.user_agent }}">
+                            {{ attempt.user_agent ?? '-' }}
+                        </td>
+                        <td data-label="Actions" class="op-text-right">
+                            {% if not attempt.success %}
+                            <div class="op-btn-group" style="display:inline-flex; gap:4px;">
+                                <form method="POST" action="/admin/login-attempts/unlock" style="display:inline;" onsubmit="return confirm('Clear lockout and unlock login attempts for this Email?');">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="email" value="{{ attempt.email }}">
+                                    <button type="submit" class="op-btn op-btn-xs op-btn-outline" title="Unlock Email">Unlock Email</button>
+                                </form>
+                                <form method="POST" action="/admin/login-attempts/unlock" style="display:inline;" onsubmit="return confirm('Clear lockout and unlock login attempts for this IP?');">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="ip" value="{{ attempt.ip_address }}">
+                                    <button type="submit" class="op-btn op-btn-xs op-btn-outline" title="Unlock IP">Unlock IP</button>
+                                </form>
+                            </div>
+                            {% else %}
+                            <span class="op-text-muted op-text-xs">-</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="6" class="op-text-center op-text-muted op-py-8">No login attempts recorded.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if pagination.total_pages > 1 %}
+<nav class="op-pagination">
+    {% if pagination.has_prev %}
+    <a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>
+    {% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}
+    <a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>
+    {% endif %}
+</nav>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,40 @@
+{
+  "name": "Stripe",
+  "slug": "stripe",
+  "version": "1.0.0",
+  "description": "Stripe payment gateway - cards, wallets, international payments",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "icon.svg",
+  "color": "#635BFF",
+  "entrypoint": "StripeGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Stripe",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": [
+      "https://*.stripe.com"
+    ],
+    "style_src": [
+      "https://*.stripe.com"
+    ],
+    "frame_src": [
+      "https://*.stripe.com"
+    ],
+    "connect_src": [
+      "https://api.stripe.com",
+      "https://*.stripe.com",
+      "https://q.stripe.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ]
+}

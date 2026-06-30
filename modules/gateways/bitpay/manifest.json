@@ -1,0 +1,40 @@
+{
+  "name": "BitPay",
+  "slug": "bitpay",
+  "version": "1.0.0",
+  "description": "BitPay crypto checkout integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "BitpayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Bitpay",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#1A2B49",
+  "csp": {
+    "script_src": [
+      "https://*.bitpay.com"
+    ],
+    "style_src": [
+      "https://*.bitpay.com"
+    ],
+    "frame_src": [
+      "https://*.bitpay.com"
+    ],
+    "connect_src": [
+      "https://*.bitpay.com",
+      "https://bitpay.com",
+      "https://test.bitpay.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,22 @@
+{
+  "name": "PayU India",
+  "slug": "payu",
+  "version": "1.0.0",
+  "description": "PayU India secure checkout integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "mfs",
+  "icon": "icon.svg",
+  "color": "#84c01a",
+  "entrypoint": "PayuGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Payu",
+  "capabilities": ["gateway"],
+  "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+  "csp": {
+    "script_src": ["https://*.payu.in"],
+    "style_src": ["https://*.payu.in"],
+    "frame_src": ["https://*.payu.in"],
+    "connect_src": ["https://*.payu.in"]
+  },
+  "permissions": ["gateway.process"]
+}

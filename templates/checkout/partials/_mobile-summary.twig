@@ -1,0 +1,51 @@
+{# MOBILE SUMMARY — collapsible dropdown, shown only on small screens #}
+<div class="ck-mobile-summary">
+    <button type="button" class="ck-mobile-trigger" data-action="toggle-mobile-summary" aria-expanded="false" aria-controls="ckMobileDetails">
+        <div class="ck-mobile-logo">
+            {% if brand.logo %}
+                <img src="{{ brand.logo }}" alt="" class="ck-brand-img-sm">
+            {% else %}
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="var(--teal)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+            {% endif %}
+        </div>
+        <p class="ck-mobile-merchant">{{ brand.name }}</p>
+        <p class="ck-mobile-amount">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(0) }}<span class="ck-mobile-dec">.{{ '%02d'|format(((txn.amount - txn.amount|round(0, 'floor')) * 100)|round) }}</span></p>
+        <svg class="ck-mobile-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+    </button>
+    <div class="ck-mobile-details" id="ckMobileDetails">
+        <div class="ck-mobile-details-inner">
+            {% set subtotal = 0 %}
+            {% if items is empty %}
+                <div class="ck-mobile-line">
+                    <span class="ck-mobile-line-name">Payment to {{ brand.name }}</span>
+                    <span class="ck-mobile-line-price">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }}</span>
+                </div>
+                {% set subtotal = txn.amount %}
+            {% else %}
+                {% for item in items %}
+                <div class="ck-mobile-line">
+                    <span class="ck-mobile-line-name">{{ item.name ?? item.description ?? 'Payment' }}</span>
+                    <span class="ck-mobile-line-price">{{ txn.currency_symbol ?? '৳' }}{{ (item.total ?? item.unit_price ?? 0)|number_format(2) }}</span>
+                </div>
+                {% set subtotal = subtotal + (item.total ?? item.unit_price ?? 0) %}
+                {% endfor %}
+            {% endif %}
+            <div class="ck-mobile-divider"></div>
+            <div class="ck-mobile-line ck-mobile-line-muted">
+                <span>{{ lang.subtotal ?? 'Subtotal' }}</span>
+                <span>{{ txn.currency_symbol ?? '৳' }}{{ subtotal|number_format(2) }}</span>
+            </div>
+            {% if txn.tax_amount|default(0) > 0 %}
+            <div class="ck-mobile-line ck-mobile-line-muted">
+                <span>{{ lang.vat ?? 'VAT' }}</span>
+                <span>{{ txn.currency_symbol ?? '৳' }}{{ txn.tax_amount|number_format(2) }}</span>
+            </div>
+            {% endif %}
+            <div class="ck-mobile-divider"></div>
+            <div class="ck-mobile-line ck-mobile-line-total">
+                <span>{{ lang.total ?? 'Total' }}</span>
+                <span>{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }} {{ txn.currency ?? 'BDT' }}</span>
+            </div>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,329 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Forgot Password - {{ app_name ?? 'OwnPay' }}</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
+    <link rel="stylesheet" href="/assets/css/reset.css?v=017">
+    <link rel="stylesheet" href="/assets/css/animations.css?v=014">
+    <link rel="stylesheet" href="/assets/css/utilities.css?v=014">
+    <link rel="stylesheet" href="/assets/css/auth.css?v=015">
+    {% if site_favicon is defined and site_favicon %}
+    <link rel="icon" href="{{ site_favicon }}" type="image/x-icon">
+    {% endif %}
+</head>
+<body class="op-auth-page">
+    <div class="op-auth-container">
+
+        <div class="op-visual-panel">
+            <div class="op-bg-grid"></div>
+            <div class="op-glow-blob-1"></div>
+            <div class="op-glow-blob-2"></div>
+
+            <div class="op-brand">
+                <div class="op-brand-icon">
+                    <img src="/assets/img/logo-dark.svg" alt="{{ app_name ?? 'OwnPay' }}" style="height: 32px; width: auto;">
+                </div>
+            </div>
+
+            <div class="op-hero-text">
+                <div class="op-hero-headline">
+                    <p class="op-hero-static">OwnPay</p>
+                    <div class="op-rotating-wrapper" id="op-rotating-wrapper">
+                        <div class="op-word-track" id="op-word-track"></div>
+                    </div>
+                </div>
+                <p class="op-hero-sub">The payment gateway that puts you in control.</p>
+            </div>
+
+            <div class="op-footer-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Contact</a>
+            </div>
+        </div>
+
+        <div class="op-form-panel">
+            <div class="op-form-wrapper">
+
+                <div class="op-header-text t-stagger" id="header-stagger">
+                    <div class="op-auth-logo">
+                        <img src="/assets/img/logo-light.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-auth-logo-img op-logo-light" style="height: 40px; width: auto;">
+                        <img src="/assets/img/logo-dark.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-auth-logo-img op-logo-dark" style="height: 40px; width: auto;">
+                    </div>
+                    <h1 class="t-stagger-line t-stagger-line--1">Reset Password</h1>
+                    <p class="t-stagger-line t-stagger-line--2">Enter your email to receive a reset link.</p>
+                </div>
+
+                <div class="t-input-wrap" id="error-wrap">
+                    {% if success is defined and success %}
+                    <div class="op-alert op-alert-success t-error-msg">{{ success }}</div>
+                    {% endif %}
+                    {% if error is defined and error %}
+                    <div class="op-alert op-alert-danger t-error-msg">{{ error }}</div>
+                    {% endif %}
+                </div>
+
+                <form method="POST" action="/forgot-password">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+                    <div class="op-forgot-stage-wrap">
+                        <div class="op-speech-bubble" id="speech-bubble">
+                            We are actually not looking, it's secure end to end!
+                        </div>
+
+                        <div class="op-stage">
+                            <div class="op-character op-char-purple" id="char-purple">
+                                <div class="op-eyes-container" id="eyes-purple">
+                                    <div class="op-eye-base"><div class="op-pupil"></div></div>
+                                    <div class="op-eye-base"><div class="op-pupil"></div></div>
+                                </div>
+                            </div>
+
+                            <div class="op-character op-char-black" id="char-black">
+                                <div class="op-eyes-container" id="eyes-black">
+                                    <div class="op-eye-base"><div class="op-pupil"></div></div>
+                                    <div class="op-eye-base"><div class="op-pupil"></div></div>
+                                </div>
+                            </div>
+
+                            <div class="op-character op-char-orange" id="char-orange">
+                                <div class="op-eyes-container" id="eyes-orange">
+                                    <div class="op-pupil"></div>
+                                    <div class="op-pupil"></div>
+                                </div>
+                            </div>
+
+                            <div class="op-character op-char-yellow" id="char-yellow">
+                                <div class="op-eyes-container" id="eyes-yellow">
+                                    <div class="op-pupil"></div>
+                                    <div class="op-pupil"></div>
+                                </div>
+                                <div class="op-mouth" id="mouth-yellow"></div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="op-form-group">
+                        <label for="email">Email</label>
+                        <input type="email" id="email" name="email" class="op-input" required autofocus>
+                    </div>
+
+                    <button type="submit" class="op-btn op-btn-primary">Send Reset Link</button>
+                </form>
+
+                <div class="op-auth-footer">
+                    <a href="/login" class="op-forgot-link">← Back to Login</a>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-mobile-brand-footer">
+            <div class="op-mobile-brand-logo">
+                <img src="/assets/img/logo-dark.svg" alt="{{ app_name ?? 'OwnPay' }}" style="height: 24px; width: auto;">
+            </div>
+            <div class="op-mobile-brand-text">
+                <span class="op-mobile-brand-static">OwnPay</span>
+                <div class="op-rotating-wrapper op-mobile-rotating-wrapper" id="op-mobile-rotating-wrapper">
+                    <div class="op-word-track op-mobile-word-track" id="op-mobile-word-track"></div>
+                </div>
+            </div>
+            <p class="op-mobile-brand-tagline">The payment gateway that puts you in control.</p>
+            <div class="op-mobile-brand-links">
+                <a href="#">Privacy Policy</a>
+                <a href="#">Terms of Service</a>
+                <a href="#">Contact</a>
+            </div>
+        </div>
+    </div>
+
+    <script nonce="{{ csp_nonce }}">
+    (function() {
+        var mouseX = window.innerWidth / 2;
+        var mouseY = window.innerHeight / 2;
+
+        var chars = {
+            purple: { body: document.getElementById('char-purple'), eyes: document.querySelectorAll('#eyes-purple .op-eye-base'), pupils: document.querySelectorAll('#eyes-purple .op-pupil'), maxDist: 8 },
+            black: { body: document.getElementById('char-black'), eyes: document.querySelectorAll('#eyes-black .op-eye-base'), pupils: document.querySelectorAll('#eyes-black .op-pupil'), maxDist: 6 },
+            orange: { body: document.getElementById('char-orange'), pupils: document.querySelectorAll('#eyes-orange .op-pupil'), maxDist: 6 },
+            yellow: { body: document.getElementById('char-yellow'), pupils: document.querySelectorAll('#eyes-yellow .op-pupil'), maxDist: 6 }
+        };
+
+        function handlePointerMove(e) {
+            if (e.touches && e.touches.length > 0) {
+                mouseX = e.touches[0].clientX;
+                mouseY = e.touches[0].clientY;
+            } else {
+                mouseX = e.clientX;
+                mouseY = e.clientY;
+            }
+            updateCharacters();
+        }
+
+        window.addEventListener('mousemove', handlePointerMove);
+        window.addEventListener('touchmove', handlePointerMove, { passive: true });
+        window.addEventListener('touchstart', handlePointerMove, { passive: true });
+
+        function updateCharacters() {
+            var centerWindow = window.innerWidth / 2;
+            var deltaX = mouseX - centerWindow;
+            var baseSkew = Math.max(-6, Math.min(6, -deltaX / 120));
+
+            Object.keys(chars).forEach(function(key) {
+                var char = chars[key];
+                var rect = char.body.getBoundingClientRect();
+
+                var eyeCenterX = rect.left + rect.width / 2;
+                var eyeCenterY = rect.top + rect.height / 3;
+                var dx = mouseX - eyeCenterX;
+                var dy = mouseY - eyeCenterY;
+                var angle = Math.atan2(dy, dx);
+                var dist = Math.min(Math.hypot(dx, dy) / 30, char.maxDist);
+
+                var targetPupilX = Math.cos(angle) * dist;
+                var targetPupilY = Math.sin(angle) * dist;
+
+                char.body.style.transform = 'skewX(' + (key === 'black' ? baseSkew * 1.5 : baseSkew) + 'deg)';
+
+                if (char.eyes) {
+                    char.eyes.forEach(function(eye) {
+                        eye.style.height = key === 'purple' ? '36px' : '32px';
+                        eye.style.borderRadius = '50% / 60%';
+                        eye.style.backgroundColor = 'white';
+                    });
+                }
+                char.pupils.forEach(function(pupil) { pupil.style.opacity = '1'; });
+
+                char.pupils.forEach(function(pupil) {
+                    pupil.style.transform = 'translate(' + targetPupilX + 'px, ' + targetPupilY + 'px)';
+                });
+            });
+        }
+
+        function triggerBlink(charKey) {
+            var char = chars[charKey];
+            char.eyes.forEach(function(eye) {
+                eye.style.height = '2px';
+                eye.style.borderRadius = '2px';
+            });
+
+            setTimeout(function() {
+                char.eyes.forEach(function(eye) {
+                    eye.style.height = charKey === 'purple' ? '36px' : '32px';
+                    eye.style.borderRadius = '50% / 60%';
+                });
+            }, 150);
+        }
+
+        setInterval(function() { triggerBlink('purple'); }, 4000);
+        setInterval(function() { triggerBlink('black'); }, 5500);
+        updateCharacters();
+        /* -- Hero Text Rotation -- */
+        var heroTexts = [
+            "your money, stays yours.",
+            "your gateway, your rules.",
+            "secure by design.",
+            "built for scale.",
+            "payments, simplified.",
+            "no middlemen.",
+            "fast. secure. yours."
+        ];
+
+        var wordTrack = document.getElementById('op-word-track');
+        var mobileWordTrack = document.getElementById('op-mobile-word-track');
+        var heroIndex = 0;
+        var staggerDuration = 0.025;
+        var rotationInterval = 2500;
+
+        function buildWordElements(track, word) {
+            track.innerHTML = '';
+            var chars = Array.from(word);
+            chars.forEach(function(char, index) {
+                var span = document.createElement('span');
+                if (char === ' ') {
+                    span.innerHTML = '&nbsp;';
+                } else {
+                    span.textContent = char;
+                }
+                span.className = 'op-char';
+                var delay = (chars.length - 1 - index) * staggerDuration;
+                span.style.animationDelay = delay + 's';
+                track.appendChild(span);
+            });
+        }
+
+        function cycleTrack(track) {
+            var currentWord = heroTexts[heroIndex];
+            buildWordElements(track, currentWord);
+            track.classList.remove('op-animating-out');
+            track.classList.add('op-animating-in');
+
+            var charsLength = Array.from(currentWord).length;
+            var maxDelay = (charsLength - 1) * staggerDuration * 1000;
+
+            setTimeout(function() {
+                track.classList.remove('op-animating-in');
+                track.classList.add('op-animating-out');
+            }, rotationInterval - 400);
+        }
+
+        function cycleHeroText() {
+            var tracks = [];
+            if (wordTrack) tracks.push(wordTrack);
+            if (mobileWordTrack) tracks.push(mobileWordTrack);
+
+            tracks.forEach(function(track) { cycleTrack(track); });
+
+            var currentWord = heroTexts[heroIndex];
+            var charsLength = Array.from(currentWord).length;
+            var maxDelay = (charsLength - 1) * staggerDuration * 1000;
+
+            setTimeout(function() {
+                heroIndex = (heroIndex + 1) % heroTexts.length;
+                cycleHeroText();
+            }, rotationInterval + maxDelay);
+        }
+
+        if (wordTrack || mobileWordTrack) {
+            cycleHeroText();
+        }
+
+        /* -- Texts Reveal: stagger header entrance -- */
+        var headerStagger = document.getElementById('header-stagger');
+        if (headerStagger) {
+            headerStagger.classList.remove('is-hiding');
+            headerStagger.classList.remove('is-shown');
+            void headerStagger.offsetHeight;
+            headerStagger.classList.add('is-shown');
+        }
+
+        /* -- Error State Shake -- */
+        var errorWrap = document.getElementById('error-wrap');
+        var errorAlert = errorWrap ? errorWrap.querySelector('.op-alert') : null;
+        if (errorAlert) {
+            errorWrap.classList.add('is-error');
+            errorAlert.classList.add('t-input', 'is-error');
+
+            errorAlert.classList.remove('is-shaking');
+            void errorAlert.offsetWidth;
+            errorAlert.classList.add('is-shaking');
+
+            var cs = getComputedStyle(document.documentElement);
+            var shakeMs =
+                (parseFloat(cs.getPropertyValue('--shake-dur-a')) || 80) * 2 +
+                (parseFloat(cs.getPropertyValue('--shake-dur-b')) || 60) * 2;
+            setTimeout(function() { errorAlert.classList.remove('is-shaking'); }, shakeMs + 20);
+
+            var hold = parseFloat(cs.getPropertyValue('--revert-hold')) || 3000;
+            setTimeout(function() {
+                errorWrap.classList.remove('is-error');
+                errorAlert.classList.remove('is-error');
+            }, shakeMs + hold);
+        }
+    })();
+    </script>
+</body>
+</html>

@@ -1,0 +1,42 @@
+{
+  "name": "Klarna",
+  "slug": "klarna",
+  "version": "1.0.0",
+  "description": "Klarna payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "KlarnaGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Klarna",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#FFB3C7",
+  "csp": {
+    "script_src": [
+      "https://*.klarna.com",
+      "https://*.klarnacdn.net"
+    ],
+    "style_src": [
+      "https://*.klarna.com",
+      "https://*.klarnacdn.net"
+    ],
+    "frame_src": [
+      "https://*.klarna.com"
+    ],
+    "connect_src": [
+      "https://*.klarna.com",
+      "https://api.klarna.com",
+      "https://api.playground.klarna.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,191 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Transactions - {{ app_name }}{% endblock %}
+{% block content %}
+
+<div class="op-page-header">
+    <div>
+        <h1>Transactions</h1>
+        <p class="op-text-muted op-mt-1">All payment transactions across your active brand.</p>
+    </div>
+    <div class="op-header-actions">
+        <span class="op-text-muted op-text-sm">{{ pagination.total_items ?? 0 }} total</span>
+    </div>
+</div>
+
+{# -- Status Chips ------------------------------------------------ #}
+<div class="op-filter-chips-row op-mb-3">
+    {% set statuses = [
+        {key: '', label: 'All'},
+        {key: 'completed', label: 'Completed'},
+        {key: 'pending', label: 'Pending'},
+        {key: 'failed', label: 'Failed'},
+        {key: 'refunded', label: 'Refunded'},
+        {key: 'canceled', label: 'Canceled'},
+    ] %}
+    {% for s in statuses %}
+    <a href="?status={{ s.key }}&q={{ filters.q|default('') }}&gateway={{ filters.gateway|default('') }}&date_from={{ filters.date_from|default('') }}&date_to={{ filters.date_to|default('') }}"
+       class="op-chip {{ (filters.status|default('')) == s.key ? 'op-chip-active' : '' }}
+              {% if s.key == 'completed' %}op-chip-success{% elseif s.key == 'pending' %}op-chip-warning{% elseif s.key == 'failed' or s.key == 'canceled' %}op-chip-danger{% elseif s.key == 'refunded' %}op-chip-info{% endif %}">
+        {{ s.label }}
+    </a>
+    {% endfor %}
+</div>
+
+{# -- Advanced Filters -------------------------------------------- #}
+<div class="op-card op-mb-4">
+    <div class="op-card-body">
+        <form method="GET" class="op-advanced-filters" id="txn-filter-form">
+            <input type="hidden" name="status" value="{{ filters.status|default('') }}">
+            <div class="op-filter-field">
+                <div class="op-filter-search-wrap">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                    <input type="search" name="q" value="{{ filters.q|default('') }}" placeholder="TrxID, amount…" class="op-input op-input-sm op-search-input">
+                </div>
+            </div>
+            <div class="op-filter-field">
+                <div class="op-custom-dropdown" id="gateway-dropdown-wrap" data-auto-submit>
+                    <input type="hidden" name="gateway" value="{{ filters.gateway|default('') }}">
+                    <button type="button" class="op-custom-dropdown-btn" id="gateway-dropdown-btn">
+                        <span id="gateway-dropdown-label">{{ filters.gateway|default('') ? gateways|filter(g => g.slug == filters.gateway)|first.name : 'All Gateways' }}</span>
+                        <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <div class="op-custom-dropdown-menu" id="gateway-dropdown-menu">
+                        <button type="button" class="op-custom-dropdown-option {{ filters.gateway|default('') == '' ? 'active' : '' }}" data-value="">All Gateways</button>
+                        {% for gw in gateways %}
+                        <button type="button" class="op-custom-dropdown-option {{ filters.gateway|default('') == gw.slug ? 'active' : '' }}" data-value="{{ gw.slug }}">{{ gw.name }}</button>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="op-filter-field">
+                <div class="op-date-picker" data-auto-submit>
+                    <input type="hidden" name="date_from" value="{{ filters.date_from|default('') }}">
+                    <div class="op-date-picker-group">
+                        <input type="text" class="op-date-picker-input" placeholder="From date" value="{{ filters.date_from|default('') }}" readonly>
+                        <button type="button" class="op-date-picker-trigger" aria-label="Pick date">
+                            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+                        </button>
+                    </div>
+                    <div class="op-calendar-popover">
+                        <div class="op-calendar-header">
+                            <button type="button" class="op-calendar-nav-btn op-calendar-prev"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+                            <div class="op-calendar-heading"></div>
+                            <button type="button" class="op-calendar-nav-btn op-calendar-next"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+                        </div>
+                        <div class="op-calendar-grid-header"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+                        <div class="op-calendar-grid-body"></div>
+                    </div>
+                </div>
+            </div>
+            <div class="op-filter-field">
+                <div class="op-date-picker" data-auto-submit>
+                    <input type="hidden" name="date_to" value="{{ filters.date_to|default('') }}">
+                    <div class="op-date-picker-group">
+                        <input type="text" class="op-date-picker-input" placeholder="To date" value="{{ filters.date_to|default('') }}" readonly>
+                        <button type="button" class="op-date-picker-trigger" aria-label="Pick date">
+                            <svg fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 0 1 2.25-2.25h13.5A2.25 2.25 0 0 1 21 7.5v11.25m-18 0A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75m-18 0v-7.5A2.25 2.25 0 0 1 5.25 9h13.5A2.25 2.25 0 0 1 21 11.25v7.5"/></svg>
+                        </button>
+                    </div>
+                    <div class="op-calendar-popover">
+                        <div class="op-calendar-header">
+                            <button type="button" class="op-calendar-nav-btn op-calendar-prev"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg></button>
+                            <div class="op-calendar-heading"></div>
+                            <button type="button" class="op-calendar-nav-btn op-calendar-next"><svg width="16" height="16" fill="none" viewBox="0 0 24 24" stroke="currentColor" stroke-width="2"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg></button>
+                        </div>
+                        <div class="op-calendar-grid-header"><span>Su</span><span>Mo</span><span>Tu</span><span>We</span><span>Th</span><span>Fr</span><span>Sa</span></div>
+                        <div class="op-calendar-grid-body"></div>
+                    </div>
+                </div>
+            </div>
+            <button type="submit" class="op-filter-btn">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                Filter
+            </button>
+            {% if filters.q or filters.gateway or filters.date_from or filters.date_to %}
+            <a href="?status={{ filters.status|default('') }}" class="op-filter-btn">✕ Clear</a>
+            {% endif %}
+        </form>
+
+        {# Active filter badges #}
+        {% if filters.q or filters.gateway or filters.date_from or filters.date_to %}
+        <div class="op-active-filters op-mt-2">
+            <span class="op-text-xs op-text-muted">Active filters:</span>
+            {% if filters.q %}<span class="op-filter-badge">Search: {{ filters.q }}<a href="?status={{ filters.status|default('') }}&gateway={{ filters.gateway|default('') }}" class="op-filter-badge-remove">×</a></span>{% endif %}
+            {% if filters.gateway %}<span class="op-filter-badge">Gateway: {{ filters.gateway }}<a href="?status={{ filters.status|default('') }}&q={{ filters.q|default('') }}" class="op-filter-badge-remove">×</a></span>{% endif %}
+            {% if filters.date_from %}<span class="op-filter-badge">From: {{ filters.date_from }}</span>{% endif %}
+            {% if filters.date_to %}<span class="op-filter-badge">To: {{ filters.date_to }}</span>{% endif %}
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{# -- Transactions Table ------------------------------------------ #}
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>TRX ID</th>
+                        <th>Customer</th>
+                        <th>Amount</th>
+                        <th>Gateway</th>
+                        <th>Status</th>
+                        <th>Date</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for txn in transactions %}
+                    <tr>
+                        <td data-label="TRX">
+                            <div style="display: flex; align-items: center; gap: 4px;">
+                                <code class="op-trx-id">{{ txn.trx_id }}</code>
+                                <button type="button" class="op-btn-ghost op-copy-btn" data-copy="{{ txn.trx_id }}" title="Copy TRX ID" style="flex-shrink: 0;">
+                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td data-label="Customer">{{ txn.customer_name|default('-') }}</td>
+                        <td data-label="Amount"><strong>{{ txn.currency }} {{ txn.amount }}</strong></td>
+                        <td data-label="Gateway"><span class="op-badge op-badge-outline">{{ txn.gateway_name }}</span></td>
+                        <td data-label="Status">
+                            <span class="op-badge op-badge-{{ txn.status == 'completed' ? 'success' : (txn.status == 'pending' ? 'warning' : (txn.status == 'refunded' ? 'info' : 'danger')) }}">
+                                {{ txn.status|capitalize }}
+                            </span>
+                        </td>
+                        <td data-label="Date" class="op-text-muted op-text-sm">{{ txn.created_at|date("M d, Y H:i") }}</td>
+                        <td data-label="Action">
+                            <a href="/admin/transactions/{{ txn.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="op-empty">
+                            No transactions found for current filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# -- Pagination -------------------------------------------------- #}
+{% if pagination is defined and pagination.total_pages > 1 %}
+{% set qs = '' %}
+{% if filters.q is not empty %}{% set qs = qs ~ '&q=' ~ filters.q|url_encode %}{% endif %}
+{% if filters.status is not empty %}{% set qs = qs ~ '&status=' ~ filters.status|url_encode %}{% endif %}
+{% if filters.gateway is not empty %}{% set qs = qs ~ '&gateway=' ~ filters.gateway|url_encode %}{% endif %}
+{% if filters.date_from is not empty %}{% set qs = qs ~ '&date_from=' ~ filters.date_from|url_encode %}{% endif %}
+{% if filters.date_to is not empty %}{% set qs = qs ~ '&date_to=' ~ filters.date_to|url_encode %}{% endif %}
+<nav class="op-pagination op-mt-4">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}{{ qs }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total_items }} total)</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}{{ qs }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+
+{% endblock %}
+

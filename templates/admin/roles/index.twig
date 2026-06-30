@@ -1,0 +1,172 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Roles & Permissions - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Roles & Permissions</h1>
+        <p class="op-page-subtitle">Define custom administrative roles and granular RBAC permission assignments.</p>
+    </div>
+    <button class="op-btn op-btn-primary" data-open-modal="add-role-modal">
+        + Create Role
+    </button>
+</div>
+
+{# -- Roles List ----------------------------------------- #}
+<div class="op-card">
+    <div class="op-card-header"><h3>Active Roles</h3></div>
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+        <table class="op-table" id="roles-table">
+            <thead>
+                <tr>
+                    <th>Role</th>
+                    <th>Slug</th>
+                    <th>Description</th>
+                    <th>Permissions</th>
+                    <th>Type</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for role in roles %}
+                <tr>
+                    <td data-label="Role"><strong>{{ role.name }}</strong></td>
+                    <td data-label="Slug"><code class="op-text-xs">{{ role.slug }}</code></td>
+                    <td data-label="Description" class="op-text-muted">{{ role.description|default('-') }}</td>
+                    <td data-label="Permissions">
+                        <span class="op-badge op-badge-info">{{ role.permission_count }} permissions</span>
+                    </td>
+                    <td data-label="Type">
+                        {% if role.is_system %}
+                            <span class="op-badge op-badge-warning">System</span>
+                        {% else %}
+                            <span class="op-badge op-badge-muted">Custom</span>
+                        {% endif %}
+                    </td>
+                    <td data-label="Actions" class="op-actions">
+                        <button class="op-btn op-btn-sm op-btn-outline btn-edit-role"
+                                data-role="{{ role|json_encode|e('html_attr') }}">
+                            Edit
+                        </button>
+                        {% if not role.is_system %}
+                        <form method="POST" action="/admin/roles/{{ role.id }}/delete" class="op-inline-form"
+                              data-confirm="Delete role '{{ role.name }}'? Staff members with this role will lose access.">
+                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                            <button type="submit" class="op-btn op-btn-sm op-btn-danger">Delete</button>
+                        </form>
+                        {% endif %}
+                    </td>
+                </tr>
+            {% else %}
+                <tr><td colspan="6" class="op-empty">No roles found. Create your first role above.</td></tr>
+            {% endfor %}
+            </tbody>
+        </table>
+        </div>
+    </div>
+</div>
+
+{# -- Permission Reference -------------------------------- #}
+{% if permissions|length > 0 %}
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>Available Permissions</h3></div>
+    <div class="op-card-body">
+        <div class="op-alert op-alert-info op-mb-3">
+            These permissions are defined by the system. Click "Edit" on a role above to assign permissions.
+        </div>
+        {% for group, perms in permissions %}
+        <div class="op-mb-3">
+            <h4 class="op-text-xs op-text-uppercase op-text-muted op-mb-1">{{ group|replace({'_': ' '})|capitalize }}</h4>
+            <div class="op-perm-grid">
+                {% for perm in perms %}
+                <span class="op-perm-chip" title="{{ perm.slug }}">{{ perm.name }}</span>
+                {% endfor %}
+            </div>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+{# -- Create Role Modal ------------------------------------ #}
+<div class="op-modal" id="add-role-modal" hidden>
+    <div class="op-modal-backdrop" data-close-modal="add-role-modal"></div>
+    <div class="op-modal-dialog">
+        <div class="op-modal-header">
+            <h3>Create Role</h3>
+            <button class="op-modal-close" type="button" data-close-modal="add-role-modal">×</button>
+        </div>
+        <form method="POST" action="/admin/roles/store">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <div class="op-modal-body">
+                <div class="op-form-group">
+                    <label>Role Name *</label>
+                    <input type="text" name="name" class="op-input" placeholder="e.g. Finance Manager" required autofocus>
+                </div>
+                <div class="op-form-group">
+                    <label>Description</label>
+                    <input type="text" name="description" class="op-input" placeholder="Brief description of this role">
+                </div>
+            </div>
+            <div class="op-modal-footer">
+                <button type="button" class="op-btn op-btn-outline" data-close-modal="add-role-modal">Cancel</button>
+                <button type="submit" class="op-btn op-btn-primary">Create Role</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# -- Edit Role Modal -------------------------------------- #}
+<div class="op-modal" id="edit-role-modal" hidden>
+    <div class="op-modal-backdrop" data-close-modal="edit-role-modal"></div>
+    <div class="op-modal-dialog op-modal-lg">
+        <div class="op-modal-header">
+            <h3>Edit Role: <span id="edit-role-name-display"></span></h3>
+            <button class="op-modal-close" type="button" data-close-modal="edit-role-modal">×</button>
+        </div>
+        <form method="POST" id="edit-role-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <div class="op-modal-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Role Name</label>
+                        <input type="text" name="name" id="edit-role-name" class="op-input" required>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Description</label>
+                        <input type="text" name="description" id="edit-role-desc" class="op-input">
+                    </div>
+                </div>
+                <hr class="op-divider">
+                <h4 class="op-mb-2">Assign Permissions</h4>
+                {% for group, perms in permissions %}
+                <div class="op-mb-3">
+                    <h5 class="op-text-xs op-text-uppercase op-text-muted op-mb-1">
+                        <label class="op-toggle-label op-toggle-label-sm">
+                            <input type="checkbox" class="op-group-toggle" data-group="{{ group }}">
+                            <span>{{ group|replace({'_': ' '})|capitalize }}</span>
+                        </label>
+                    </h5>
+                    <div class="op-perm-grid">
+                        {% for perm in perms %}
+                        <label class="op-perm-check" title="{{ perm.slug }}">
+                            <input type="checkbox" name="permissions[]" value="{{ perm.id }}"
+                                   class="perm-cb" data-group="{{ group }}" data-slug="{{ perm.slug }}">
+                            <span>{{ perm.name }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="op-modal-footer">
+                <button type="button" class="op-btn op-btn-outline" data-close-modal="edit-role-modal">Cancel</button>
+                <button type="submit" class="op-btn op-btn-primary">Save Permissions</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+
+{% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/roles.js"></script>{% endblock %}

@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="noindex,nofollow">
+    <title>{{ lang.checkout ?? 'Secure Checkout' }} — {{ brand.name }}</title>
+    {% if brand.favicon|default('') %}<link rel="shortcut icon" href="{{ brand.favicon }}">{% endif %}
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
+    <link rel="stylesheet" href="/assets/css/reset.css?v=016">
+    <link rel="stylesheet" href="/assets/css/animations.css?v=014">
+    <link rel="stylesheet" href="/assets/css/checkout.css?v=014">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    {{ hook('checkout.head')|raw }}
+    <meta name="csp-nonce" content="{{ csp_nonce }}">
+</head>
+<body class="ck-body">
+    <div class="ck-toast" id="cToast">{{ lang.copied ?? 'Copied!' }}</div>
+
+    <div id="checkoutShell" class="ck-shell">
+        {# LEFT PANEL — Order Summary (desktop) #}
+        {% include 'checkout/partials/_left-panel.twig' %}
+
+        {# RIGHT PANEL — Payment #}
+        <div class="ck-right">
+            {% include 'checkout/partials/_top-bar.twig' %}
+
+            <div class="ck-scroll">
+                {# Mobile summary #}
+                {% include 'checkout/partials/_mobile-summary.twig' %}
+
+                {# Express checkout #}
+                {% if gateways.express|default([]) is not empty %}
+                    {% include 'checkout/partials/_express-checkout.twig' %}
+                {% endif %}
+
+                {# Gateway tabs #}
+                {% include 'checkout/partials/_gateway-tabs.twig' %}
+
+                {# Gateway grids #}
+                {% include 'checkout/partials/_gateway-grid.twig' %}
+            </div>
+
+            {% include 'checkout/partials/_footer.twig' %}
+        </div>
+    </div>
+
+    {# Manual payment popup #}
+    {% include 'checkout/partials/_manual-popup.twig' %}
+
+    {# Modals #}
+    {% include 'checkout/partials/_modals.twig' %}
+
+    <input type="hidden" id="op-csrf" value="{{ csrf_token }}">
+    <input type="hidden" id="op-checkout-hash" value="{{ checkout_hash }}">
+    <div id="op-checkout-data"
+         class="ck-hidden"
+         data-config="{{ config|json_encode(constant('JSON_HEX_TAG') b-or constant('JSON_HEX_AMP') b-or constant('JSON_HEX_APOS') b-or constant('JSON_HEX_QUOT'))|escape('html_attr') }}"
+         data-manual-gateways="{{ manual_gateways|default('{}')|escape('html_attr') }}"
+         data-brand-color="{{ brand.color ?? '#0D9488' }}"
+         data-brand-accent-color="{{ brand.accent_color ?? brand.color ?? '#0D9488' }}"
+         data-custom-css="{{ brand.custom_css|default('') }}"
+         data-custom-js="{{ brand.custom_js|default('') }}">
+    </div>
+
+    <script nonce="{{ csp_nonce }}" src="/assets/js/op-fetch.js"></script>
+    <script nonce="{{ csp_nonce }}" src="/assets/js/checkout.js"></script>
+    {{ hook('checkout.footer')|raw }}
+</body>
+</html>

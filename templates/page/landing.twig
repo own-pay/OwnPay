@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ app_name ?? 'OwnPay' }} | Enterprise Payment Infrastructure</title>
+    <meta name="description" content="{{ landing_description ?? 'Self-hosted payment gateway platform with multi-brand support and enterprise-grade security.' }}">
+    <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
+    <link rel="stylesheet" href="/assets/css/reset.css?v=017">
+    <link rel="stylesheet" href="/assets/css/animations.css?v=014">
+    <link rel="stylesheet" href="/assets/css/utilities.css?v=014">
+    <link rel="stylesheet" href="/assets/css/landing.css?v=014">
+    {% if site_favicon is defined and site_favicon %}
+    <link rel="icon" href="{{ site_favicon }}" type="image/x-icon">
+    {% endif %}
+    {{ hook('landing.head')|raw }}
+</head>
+<body class="op-landing">
+    {{ hook('admin.landing.render')|raw }}
+
+    <header class="op-landing-header">
+        <nav class="op-landing-nav">
+            <a href="/" class="op-logo">
+                {% if site_logo is defined and site_logo %}
+                    <img src="/assets/img/logo-light.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-logo-light" style="max-height: 32px; width: auto; display: inline-block; vertical-align: middle;">
+                    <img src="/assets/img/logo-dark.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-logo-dark" style="max-height: 32px; width: auto; vertical-align: middle;">
+                {% else %}
+                    <span class="op-logo-icon">OP</span>
+                {% endif %}
+                <span>{{ app_name ?? 'OwnPay' }}</span>
+            </a>
+            <a href="https://github.com/own-pay/OwnPay" class="op-btn op-btn-outline" target="_blank" rel="external">GitHub</a>
+        </nav>
+    </header>
+
+    <section class="op-hero">
+        <div class="op-hero-badge">Open Source Payment Orchestrator</div>
+        <h1>{{ landing_title ?? 'The Payment Infrastructure You Actually Own.' }}</h1>
+        <p>{{ landing_subtitle ?? 'A fully self-hosted, multi-brand orchestrator. Process payments your way, eliminate third-party vendor lock-in, and scale with absolute sovereignty.' }}</p>
+        
+        <div class="op-hero-actions">
+            <a href="https://github.com/own-pay/OwnPay" class="op-btn op-btn-primary op-btn-lg" target="_blank" rel="external">
+                View on GitHub
+            </a>
+            <a href="https://docs.ownpay.org" class="op-btn op-btn-outline op-btn-lg" target="_blank" rel="external">
+                Read the Docs
+            </a>
+        </div>
+
+        <!-- Realistic Split View -->
+        <div class="op-hero-split" aria-hidden="true">
+            <div class="op-code-window">
+                <div class="op-code-header">
+                    <div class="op-mac-dots">
+                        <span class="op-mac-dot op-dot-r"></span>
+                        <span class="op-mac-dot op-dot-y"></span>
+                        <span class="op-mac-dot op-dot-g"></span>
+                    </div>
+                    <span class="op-code-title">POST /api/v1/payment-intents</span>
+                </div>
+                <div class="op-code-body">
+<pre><code><span class="op-token-keyword">curl</span> -X POST https://api.yourdomain.com/v1/intents \
+  -H <span class="op-token-string">"Authorization: Bearer sk_live_..."</span> \
+  -H <span class="op-token-string">"Content-Type: application/json"</span> \
+  -d <span class="op-token-string">'{
+    "amount": "150.00",
+    "currency": "USD",
+    "gateway": "stripe"
+}'</span></code></pre>
+                </div>
+            </div>
+
+            <div class="op-checkout-ui">
+                <div class="op-checkout-card">
+                    <div class="op-checkout-header">
+                        <div class="op-checkout-brand">
+                            <div class="op-checkout-brand-logo">AC</div>
+                            <span style="font-weight:600; color:var(--text-secondary);">Acme Corp</span>
+                        </div>
+                        <div class="op-checkout-amount">$150.00</div>
+                    </div>
+                    <div class="op-checkout-body">
+                        <div class="op-form-group">
+                            <label class="op-form-label">Email</label>
+                            <input type="email" class="op-form-input" value="user@example.com" readonly tabindex="-1">
+                        </div>
+                        <div class="op-form-group">
+                            <label class="op-form-label">Card Information</label>
+                            <input type="text" class="op-form-input" value="•••• •••• •••• 4242" readonly tabindex="-1">
+                        </div>
+                        <div class="op-form-row">
+                            <div class="op-form-group">
+                                <input type="text" class="op-form-input" value="12/26" readonly tabindex="-1">
+                            </div>
+                            <div class="op-form-group">
+                                <input type="text" class="op-form-input" value="123" readonly tabindex="-1">
+                            </div>
+                        </div>
+                        <button class="op-checkout-submit">Pay $150.00</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Gateway Banner -->
+    <section class="op-gateway-banner">
+        <p>Orchestrating payments across the best platforms</p>
+        <div class="op-gateway-logos">
+            <span>Stripe</span>
+            <span>PayPal</span>
+            <span>SSLCommerz</span>
+            <span>bKash</span>
+            <span>Nagad</span>
+        </div>
+    </section>
+
+    {% if features|length > 0 %}
+    <section class="op-features">
+        <div class="op-section-header">
+            <h2 class="op-section-title">Developer-first Infrastructure</h2>
+            <p class="op-section-subtitle">Everything you need to run a high-performance, sovereign payment gateway.</p>
+        </div>
+        <div class="op-feature-grid">
+            {% for idx, feat in features %}
+            <div class="op-feature-card">
+                <div class="op-feature-icon">
+                    {% if idx == 0 %}
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 12V7H5a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-3"/></svg>
+                    {% elseif idx == 1 %}
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"/></svg>
+                    {% elseif idx == 2 %}
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    {% else %}
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+                    {% endif %}
+                </div>
+                <h3>{{ feat.title }}</h3>
+                <p>{{ feat.description }}</p>
+            </div>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    {% if faqs|length > 0 %}
+    <section class="op-faq" id="faq">
+        <div class="op-section-header">
+            <h2 class="op-section-title">Frequently Asked Questions</h2>
+        </div>
+        <div class="op-faq-list">
+            {% for faq in faqs %}
+            <details class="op-faq-item" name="faq-accordion">
+                <summary>{{ faq.question }}</summary>
+                <p>{{ faq.answer }}</p>
+            </details>
+            {% endfor %}
+        </div>
+    </section>
+    {% endif %}
+
+    <footer class="op-landing-footer">
+        <div class="op-footer-content">
+            <div class="op-logo">
+                {% if site_logo is defined and site_logo %}
+                    <img src="{{ site_logo }}" alt="{{ app_name ?? 'OwnPay' }}" style="max-height: 24px; width: auto; display: inline-block; vertical-align: middle;">
+                {% else %}
+                    <span class="op-logo-icon" style="width:24px;height:24px;font-size:10px;border-radius:6px;">OP</span>
+                {% endif %}
+                <span>{{ app_name ?? 'OwnPay' }}</span>
+            </div>
+            <p class="op-footer-text">&copy; {{ "now"|date("Y") }} {{ app_name ?? 'OwnPay' }}. Self-hosted & Sovereign.</p>
+        </div>
+    </footer>
+</body>
+</html>

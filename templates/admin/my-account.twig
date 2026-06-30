@@ -1,0 +1,67 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}My Account - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header"><div>
+        <h1>My Account</h1>
+        <p class="op-page-subtitle">Update your administrative profile name, password, email, and session preferences.</p>
+    </div></div>
+
+<div class="op-grid op-grid-2">
+    <div class="op-card">
+        <div class="op-card-header"><h3>Profile</h3></div>
+        <div class="op-card-body">
+            <form method="POST" action="/admin/my-account/update" class="op-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="type" value="profile">
+                <div class="op-form-group"><label>Name</label><input type="text" name="name" value="{{ current_user.name }}" class="op-input" required></div>
+                <div class="op-form-group"><label>Email</label><input type="email" name="email" value="{{ current_user.email }}" class="op-input" required></div>
+                <div class="op-form-group">
+                    <label>Preferred Language</label>
+                    <select name="language" class="op-input">
+                        <option value="">System Default</option>
+                        {% for lang in languages %}
+                            <option value="{{ lang.code }}" {% if profile_user.language == lang.code %}selected{% endif %}>{{ lang.name }} ({{ lang.code }})</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <button type="submit" class="op-btn op-btn-primary">Update Profile</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="op-card">
+        <div class="op-card-header"><h3>Change Password</h3></div>
+        <div class="op-card-body">
+            <form method="POST" action="/admin/my-account/update" class="op-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="type" value="password">
+                <div class="op-form-group"><label>Current Password</label><input type="password" name="current_password" class="op-input" required></div>
+                <div class="op-form-group"><label>New Password</label><input type="password" name="new_password" class="op-input" required minlength="8"></div>
+                <div class="op-form-group"><label>Confirm</label><input type="password" name="confirm_password" class="op-input" required></div>
+                <button type="submit" class="op-btn op-btn-primary">Change Password</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+<div class="op-card op-mt-4">
+    <div class="op-card-header"><h3>Two-Factor Authentication</h3></div>
+    <div class="op-card-body">
+        {% if current_user.two_fa_enabled %}
+            <p class="op-text-success">✓ 2FA is enabled on your account.</p>
+            <p class="op-text-muted op-mt-2">To disable 2FA, confirm your current password:</p>
+            <form method="POST" action="/admin/my-account/2fa/disable" class="op-form" style="max-width:400px;" onsubmit="return confirm('Disable 2FA? Your account will be less secure.')">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <div class="op-form-group">
+                    <label>Current Password</label>
+                    <input type="password" name="password" class="op-input" required autocomplete="current-password">
+                </div>
+                <button type="submit" class="op-btn op-btn-danger">Disable 2FA</button>
+            </form>
+        {% else %}
+            <p class="op-text-muted">2FA adds extra security to your account.</p>
+            <a href="/admin/my-account/2fa" class="op-btn op-btn-primary op-mt-2">Enable 2FA</a>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,52 @@
+{
+  "name": "own-pay/ownpay",
+  "description": "OwnPay v0.1.0 - Enterprise-grade Open-Source Payment Gateway",
+  "type": "project",
+  "license": "AGPL-3.0-or-later",
+  "require": {
+    "php": "^8.3",
+    "ext-bcmath": "*",
+    "ext-json": "*",
+    "ext-mbstring": "*",
+    "ext-openssl": "*",
+    "ext-pdo": "*",
+    "chillerlan/php-qrcode": "^5.0",
+    "firebase/php-jwt": "^7.0",
+    "ramsey/uuid": "^4.9",
+    "twig/twig": "^3.26.0",
+    "vlucas/phpdotenv": "^5.6"
+  },
+  "autoload": {
+    "psr-4": {
+      "OwnPay\\": "src/"
+    },
+    "exclude-from-classmap": [
+      "src/**/*Test.php"
+    ]
+  },
+  "autoload-dev": {
+    "psr-4": {
+      "Tests\\": "tests/"
+    }
+  },
+  "config": {
+    "optimize-autoloader": true,
+    "sort-packages": true
+  },
+  "require-dev": {
+    "php-parallel-lint/php-parallel-lint": "^1.4",
+    "phpstan/phpstan": "^2.1",
+    "phpunit/phpunit": "12.5.29",
+    "vincentlanglet/twig-cs-fixer": "^3.14"
+  },
+  "scripts": {
+    "security-check": "composer audit --format=json",
+    "test": "vendor/bin/phpunit",
+    "analyse": "vendor/bin/phpstan analyse",
+    "lint:twig": "vendor/bin/twig-cs-fixer lint templates",
+    "lint:js": "npm run lint:js",
+    "lint:css": "npm run lint:css",
+    "lint:json": "npm run lint:json",
+    "lint": "npm run lint && composer lint:twig"
+  }
+}

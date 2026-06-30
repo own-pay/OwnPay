@@ -1,0 +1,163 @@
+:root{--ink:#080D1A;--ink-2:#1A2038;--ink-3:#2D3555;--ink-4:#4A5578;--mute:#7A84A0;--faint:#A8B0C8;--whisper:#D4D9E8;--cloud:#ECEEF5;--snow:#F5F6FA;--white:#FFF;--teal:#0D9488;--teal-deep:#0A7B70;--teal-pale:#CCFBF1;--font:'Inter',sans-serif;--mono:'JetBrains Mono',monospace}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font);background:var(--cloud);color:var(--ink);-webkit-font-smoothing:antialiased;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:16px}
+.st-shell{width:100%;max-width:520px;animation:st-up .6s cubic-bezier(.16,1,.3,1) forwards;opacity:0}
+
+@keyframes st-up{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+
+/* Card */
+.st-card{border-radius:28px;overflow:hidden;box-shadow:0 32px 72px rgb(0 0 0 / 6%),0 0 0 1px rgb(0 0 0 / 3%)}
+.st-header{padding:48px 32px 40px;text-align:center;position:relative}
+.st-icon-wrap{position:relative;width:80px;height:80px;margin:0 auto 24px}
+.st-icon-ring1{position:absolute;inset:-12px;border-radius:50%;opacity:.4}
+.st-icon-ring2{position:absolute;inset:-4px;border-radius:50%;opacity:.6}
+.st-icon-circle{width:80px;height:80px;border-radius:50%;display:flex;align-items:center;justify-content:center;position:relative;z-index:1}
+.st-title{font-size:22px;font-weight:800;margin-bottom:8px;letter-spacing:-.3px}
+.st-subtitle{font-size:13px;color:var(--ink-4);line-height:1.65;max-width:360px;margin:0 auto}
+
+/* Details */
+.st-body{background:var(--white);padding:0 32px 32px}
+.st-details{background:var(--snow);border-radius:18px;padding:6px}
+.st-row{display:flex;justify-content:space-between;align-items:center;padding:13px 18px;border-radius:12px;transition:background .2s}
+.st-row:hover{background:rgb(0 0 0 / 2%)}
+.st-row-label{font-size:12px;font-weight:600;color:var(--mute);text-transform:uppercase;letter-spacing:.06em}
+.st-row-value{font-size:13px;font-weight:700;color:var(--ink);font-family:var(--mono);text-align:right;max-width:60%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.st-row-divider{height:1px;background:var(--cloud);margin:0 18px}
+
+/* Amount highlight */
+.st-amount-row .st-row-value{font-size:17px;font-weight:800;color:var(--ink)}
+
+/* Actions */
+.st-actions{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:24px;padding:0 32px 32px}
+.st-btn{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;padding:18px 12px;border-radius:18px;border:1.5px solid var(--cloud);background:var(--white);cursor:pointer;transition:all .25s;text-decoration:none;color:var(--ink)}
+.st-btn:hover{border-color:var(--whisper);transform:translateY(-2px);box-shadow:0 8px 24px rgb(0 0 0 / 5%)}
+.st-btn-icon{width:38px;height:38px;border-radius:12px;display:flex;align-items:center;justify-content:center}
+.st-btn-label{font-size:12px;font-weight:700;text-align:center;line-height:1.35}
+
+/* Footer */
+.st-footer{text-align:center;padding:20px;font-size:10px;color:var(--faint);display:flex;align-items:center;justify-content:center;gap:6px}
+.st-footer a{color:var(--ink-4);text-decoration:none;font-weight:600}
+
+/* Status badge */
+.st-badge{display:inline-flex;align-items:center;gap:5px;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:.04em;margin-bottom:20px}
+
+/* Spinner */
+@keyframes st-spin{to{transform:rotate(360deg)}}
+.st-spinner{width:28px;height:28px;border:3px solid rgb(255 255 255 / 30%);border-top-color:#fff;border-radius:50%;animation:st-spin .7s linear infinite;margin:0 auto 8px}
+
+/* Pulse */
+@keyframes st-pulse{0%,100%{opacity:1}50%{opacity:.5}}
+.st-pulse{animation:st-pulse 2s ease infinite}
+
+/* Responsive */
+@media(max-width:480px){
+    .st-header{padding:36px 20px 32px}
+    .st-body{padding:0 20px 20px}
+    .st-actions{padding:0 20px 20px;gap:10px}
+    .st-title{font-size:19px}
+    .st-subtitle{font-size:12px}
+    .st-row{padding:11px 14px}
+    .st-row-label{font-size:11px}
+    .st-row-value{font-size:12px}
+}
+.st-countdown-wrapper{margin-top: 16px; background: var(--white); border-radius: 18px; padding: 16px 20px; box-shadow: 0 4px 12px rgb(0 0 0 / 3%); border: 1.5px solid var(--cloud); display: flex; align-items: center; gap: 14px; animation: st-up .6s cubic-bezier(.16,1,.3,1) forwards;}
+.st-countdown-container{position: relative; width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; flex-shrink: 0;}
+.st-countdown-svg{transform: rotate(-90deg);}
+.st-countdown-number{position: absolute; font-size: 11px; font-weight: 800; color: var(--teal); line-height: 1;}
+.st-countdown-info{flex-grow: 1;}
+.st-countdown-title{font-size: 12.5px; font-weight: 800; color: var(--ink); line-height: 1.2;}
+.st-countdown-desc{font-size: 11.5px; color: var(--mute); margin-top: 2px; line-height: 1.2;}
+.st-countdown-btn{font-size: 11.5px; font-weight: 700; color: var(--teal); text-decoration: none; padding: 8px 16px; border-radius: 12px; background: var(--teal-pale); transition: all 0.2s; white-space: nowrap;}
+
+/* Success Status Classes */
+.st-header-success { background: linear-gradient(180deg, #ECFDF5 0%, #F6F8FA 40%, #F5F6FA 100%) !important; }
+.st-icon-ring1-success { background: rgb(16 185 129 / 6%) !important; }
+.st-icon-ring2-success { background: rgb(16 185 129 / 12%) !important; }
+.st-icon-circle-success { background: rgb(16 185 129 / 15%) !important; }
+.st-badge-success { background: rgb(16 185 129 / 10%) !important; color: #059669 !important; }
+.st-btn-icon-download { background: rgb(16 185 129 / 8%) !important; }
+
+/* Failed Status Classes */
+.st-header-failed { background: linear-gradient(180deg,#FEF2F2 0%,#F6F8FA 40%,#F5F6FA 100%) !important; }
+.st-icon-ring1-failed { background: rgb(220 38 38 / 6%) !important; }
+.st-icon-ring2-failed { background: rgb(220 38 38 / 12%) !important; }
+.st-icon-circle-failed { background: rgb(220 38 38 / 15%) !important; }
+.st-badge-failed { background: rgb(220 38 38 / 10%) !important; color: #DC2626 !important; }
+.st-text-failed { color: #DC2626 !important; }
+.st-btn-icon-failed { background: rgb(220 38 38 / 8%) !important; }
+
+/* Cancelled Status Classes */
+.st-header-cancelled { background: linear-gradient(180deg,#FFF1F2 0%,#F6F8FA 40%,#F5F6FA 100%) !important; }
+.st-icon-ring1-cancelled { background: rgb(244 63 94 / 6%) !important; }
+.st-icon-ring2-cancelled { background: rgb(244 63 94 / 12%) !important; }
+.st-icon-circle-cancelled { background: rgb(244 63 94 / 15%) !important; }
+.st-badge-cancelled { background: rgb(244 63 94 / 10%) !important; color: #E11D48 !important; }
+.st-text-cancelled { color: #E11D48 !important; }
+.st-btn-icon-cancelled { background: rgb(244 63 94 / 8%) !important; }
+
+/* Expired Status Classes */
+.st-header-expired { background: linear-gradient(180deg,#F1F5F9 0%,#F6F8FA 40%,#F5F6FA 100%) !important; }
+.st-icon-ring1-expired { background: rgb(100 116 139 / 6%) !important; }
+.st-icon-ring2-expired { background: rgb(100 116 139 / 12%) !important; }
+.st-icon-circle-expired { background: rgb(100 116 139 / 15%) !important; }
+.st-badge-expired { background: rgb(100 116 139 / 10%) !important; color: #475569 !important; }
+.st-text-expired { color: #94A3B8 !important; }
+.st-text-expired-crossed { color: #94A3B8 !important; text-decoration: line-through !important; }
+.st-btn-icon-expired { background: rgb(100 116 139 / 8%) !important; }
+
+/* Shared Return Button Class */
+.st-btn-icon-return { background: rgb(13 148 136 / 8%) !important; }
+
+/* Processing Status Classes */
+.st-header-processing { background: linear-gradient(180deg,#EFF6FF 0%,#F6F8FA 40%,#F5F6FA 100%) !important; }
+.st-icon-ring1-processing { background: rgb(37 99 235 / 6%) !important; }
+.st-icon-ring2-processing { background: rgb(37 99 235 / 12%) !important; }
+.st-icon-circle-processing { background: rgb(37 99 235 / 15%) !important; }
+.st-badge-processing { background: rgb(37 99 235 / 10%) !important; color: #2563EB !important; }
+
+.st-spinner-border-processing {
+    width: 28px;
+    height: 28px;
+    border: 3px solid rgb(37 99 235 / 18%);
+    border-top-color: #2563EB !important;
+    border-radius: 50%;
+    animation: st-spin .7s linear infinite;
+    margin: 0 auto;
+}
+
+.st-pulse-spinner-processing {
+    width: 8px;
+    height: 8px;
+    border: 1.5px solid rgb(37 99 235 / 25%);
+    border-top-color: #2563EB !important;
+    border-radius: 50%;
+    animation: st-spin .7s linear infinite;
+}
+.st-row-value-processing { color: #2563EB !important; }
+.st-btn-icon-refresh-processing { background: rgb(37 99 235 / 8%) !important; }
+
+/* Under Review Status Classes */
+.st-header-review { background: linear-gradient(180deg,#FFFBEB 0%,#F6F8FA 40%,#F5F6FA 100%) !important; }
+.st-icon-ring1-review { background: rgb(217 119 6 / 6%) !important; }
+.st-icon-ring2-review { background: rgb(217 119 6 / 12%) !important; }
+.st-icon-circle-review { background: rgb(217 119 6 / 15%) !important; }
+.st-badge-review { background: rgb(217 119 6 / 10%) !important; color: #D97706 !important; }
+.st-row-value-review { color: #D97706 !important; }
+.st-btn-icon-refresh-review { background: rgb(217 119 6 / 8%) !important; }
+
+/* Pending Status Classes */
+.st-header-pending { background: linear-gradient(180deg,#FFF7ED 0%,#F6F8FA 40%,#F5F6FA 100%) !important; }
+.st-icon-ring1-pending { background: rgb(234 88 12 / 6%) !important; }
+.st-icon-ring2-pending { background: rgb(234 88 12 / 12%) !important; }
+.st-icon-circle-pending { background: rgb(234 88 12 / 15%) !important; }
+.st-badge-pending { background: rgb(234 88 12 / 10%) !important; color: #EA580C !important; }
+.st-row-value-pending { color: #EA580C !important; }
+.st-btn-icon-refresh-pending { background: rgb(234 88 12 / 8%) !important; }
+
+/* SVG Stroke Color Overrides */
+.st-icon-circle-review svg { stroke: #D97706 !important; }
+.st-icon-circle-pending svg { stroke: #EA580C !important; }
+.st-btn-icon-refresh-processing svg { stroke: #2563EB !important; }
+.st-btn-icon-refresh-review svg { stroke: #D97706 !important; }
+.st-btn-icon-refresh-pending svg { stroke: #EA580C !important; }
+.st-btn-icon-return svg { stroke: #0D9488 !important; }

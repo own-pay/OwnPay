@@ -1,0 +1,447 @@
+{# Onboarding Setup Wizard Component #}
+<div id="op-setup-wizard" class="op-setup-wizard-card">
+    <button type="button" class="op-wizard-dismiss" title="{{ __('common.close') }}" aria-label="{{ __('common.close') }}">×</button>
+
+    <div class="op-wizard-header">
+        <div class="op-wizard-title" id="wizard-title">{{ __('wizard.system_setup') }}</div>
+        <div class="op-wizard-subtitle" id="wizard-subtitle">{{ __('wizard.welcome_subtitle') }}</div>
+    </div>
+
+    <!-- 5-Step Stepper Progress Bar -->
+    <div class="op-wizard-steps">
+        <div class="op-wizard-progress-bar" id="wizard-progress-bar"></div>
+        <div class="op-wizard-step active" data-step="1">
+            1
+            <div class="op-wizard-step-label">{{ __('wizard.step_platform') }}</div>
+        </div>
+        <div class="op-wizard-step" data-step="2">
+            2
+            <div class="op-wizard-step-label">{{ __('wizard.step_brand') }}</div>
+        </div>
+        <div class="op-wizard-step" data-step="3">
+            3
+            <div class="op-wizard-step-label">{{ __('wizard.step_mail') }}</div>
+        </div>
+        <div class="op-wizard-step" data-step="4">
+            4
+            <div class="op-wizard-step-label">{{ __('wizard.step_gateways') }}</div>
+        </div>
+        <div class="op-wizard-step" data-step="5">
+            5
+            <div class="op-wizard-step-label">{{ __('wizard.step_device') }}</div>
+        </div>
+    </div>
+
+    <!-- Notification Messages -->
+    <div class="op-wizard-error" id="wizard-error">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+        <span id="wizard-error-text"></span>
+    </div>
+    <div class="op-wizard-success" id="wizard-success">
+        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+        <span id="wizard-success-text"></span>
+    </div>
+
+    <!-- STEP 1 PANEL: Platform Settings -->
+    <div class="op-wizard-panel active" id="panel-1">
+        <form id="form-step-1">
+            <div class="op-wizard-form-grid">
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="site_name">{{ __('wizard.system_name') }}</label>
+                    <input type="text" id="site_name" name="site_name" class="op-wizard-input" value="{{ app_name }}" required placeholder="{{ __('wizard.system_name_placeholder') }}">
+                    <div class="op-wizard-hint">{{ __('wizard.system_name_hint') }}</div>
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="site_tagline">{{ __('wizard.system_tagline') }}</label>
+                    <input type="text" id="site_tagline" name="site_tagline" class="op-wizard-input" value="Enterprise Payment Gateway" placeholder="{{ __('wizard.system_tagline_placeholder') }}">
+                    <div class="op-wizard-hint">{{ __('wizard.system_tagline_hint') }}</div>
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="base_currency">{{ __('wizard.base_currency') }}</label>
+                    <select id="base_currency" name="currency" class="op-wizard-select" required>
+                        {% for cur in currencies %}
+                            <option value="{{ cur.code }}" {{ cur.code == 'USD' ? 'selected' : '' }}>{{ cur.code }} - {{ cur.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="op-wizard-hint">{{ __('wizard.base_currency_hint') }}</div>
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="timezone">{{ __('wizard.platform_timezone') }}</label>
+                    <select id="timezone" name="timezone" class="op-wizard-select" required>
+                        {% for tz_code, tz_name in timezones %}
+                            <option value="{{ tz_code }}" {{ tz_code == 'UTC' ? 'selected' : '' }}>{{ tz_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="op-wizard-hint">{{ __('wizard.platform_timezone_hint') }}</div>
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="timer_minutes">{{ __('wizard.checkout_expiry') }}</label>
+                    <input type="number" id="timer_minutes" name="timer_minutes" class="op-wizard-input" value="10" min="1" required placeholder="10">
+                    <div class="op-wizard-hint">{{ __('wizard.checkout_expiry_hint') }}</div>
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label">{{ __('wizard.require_phone') }}</label>
+                    <div class="op-wizard-toggle-wrapper">
+                        <label class="op-wizard-switch">
+                            <input type="checkbox" id="require_customer_phone" name="require_customer_phone" value="1">
+                            <span class="op-wizard-slider"></span>
+                        </label>
+                        <span class="op-wizard-hint op-wizard-hint-mt-0">{{ __('wizard.require_phone_hint') }}</span>
+                    </div>
+                </div>
+                <div class="op-wizard-field-full">
+                    <label class="op-wizard-label">{{ __('wizard.landing_page') }}</label>
+                    <div class="op-wizard-toggle-wrapper">
+                        <label class="op-wizard-switch">
+                            <input type="checkbox" id="landing_page_enabled" name="landing_page_enabled" value="1" checked>
+                            <span class="op-wizard-slider"></span>
+                        </label>
+                        <span class="op-wizard-hint op-wizard-hint-mt-0">{{ __('wizard.landing_page_hint') }}</span>
+                    </div>
+                </div>
+            </div>
+            <div class="op-wizard-actions">
+                <div></div>
+                <button type="submit" class="op-wizard-btn op-wizard-btn-next">
+                    {{ __('wizard.continue_to_brand') }}
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- STEP 2 PANEL: Create First Brand -->
+    <div class="op-wizard-panel" id="panel-2">
+        <form id="form-step-2">
+            <div class="op-wizard-form-grid">
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="brand_name">{{ __('wizard.brand_name') }}</label>
+                    <input type="text" id="brand_name" name="brand_name" class="op-wizard-input" required placeholder="{{ __('wizard.brand_name_placeholder') }}">
+                    <div class="op-wizard-hint">{{ __('wizard.brand_name_hint') }}</div>
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="brand_email">{{ __('wizard.support_email') }}</label>
+                    <input type="email" id="brand_email" name="brand_email" class="op-wizard-input" required placeholder="support@acmestore.com">
+                    <div class="op-wizard-hint">{{ __('wizard.support_email_hint') }}</div>
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="brand_phone">{{ __('wizard.support_phone') }}</label>
+                    <input type="text" id="brand_phone" name="brand_phone" class="op-wizard-input" placeholder="+1234567890">
+                    <div class="op-wizard-hint">{{ __('wizard.support_phone_hint') }}</div>
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="brand_currency">{{ __('wizard.brand_currency') }}</label>
+                    <select id="brand_currency" name="brand_currency" class="op-wizard-select" required>
+                        {% for cur in currencies %}
+                            <option value="{{ cur.code }}" {{ cur.code == 'USD' ? 'selected' : '' }}>{{ cur.code }} - {{ cur.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="op-wizard-hint">{{ __('wizard.brand_currency_hint') }}</div>
+                </div>
+                <div class="op-wizard-field-full">
+                    <label class="op-wizard-label" for="brand_timezone">{{ __('wizard.brand_timezone') }}</label>
+                    <select id="brand_timezone" name="brand_timezone" class="op-wizard-select" required>
+                        {% for tz_code, tz_name in timezones %}
+                            <option value="{{ tz_code }}" {{ tz_code == 'UTC' ? 'selected' : '' }}>{{ tz_name }}</option>
+                        {% endfor %}
+                    </select>
+                    <div class="op-wizard-hint">{{ __('wizard.brand_timezone_hint') }}</div>
+                </div>
+            </div>
+            <div class="op-wizard-actions">
+                <button type="button" class="op-wizard-btn op-wizard-btn-prev" data-prev-step="1">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    {{ __('common.back') }}
+                </button>
+                <button type="submit" class="op-wizard-btn op-wizard-btn-next">
+                    {{ __('wizard.continue_to_mail') }}
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <!-- STEP 3 PANEL: Outgoing Mail Configuration -->
+    <div class="op-wizard-panel" id="panel-3">
+        <form id="form-step-3">
+            <div class="op-choice-cards">
+                <div class="op-choice-card selected" id="choice-mail-smtp" data-provider="smtp">
+                    <div class="op-choice-check">
+                        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <div class="op-choice-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="4" width="20" height="16" rx="2"/><path d="M22 4L12 13 2 4"/></svg>
+                    </div>
+                    <div class="op-choice-label">SMTP</div>
+                    <div class="op-choice-desc">{{ __('wizard.smtp_desc') }}</div>
+                </div>
+                <div class="op-choice-card" id="choice-mail-mailgun" data-provider="mailgun">
+                    <div class="op-choice-check">
+                        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <div class="op-choice-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
+                    </div>
+                    <div class="op-choice-label">Mailgun</div>
+                    <div class="op-choice-desc">{{ __('wizard.mailgun_desc') }}</div>
+                </div>
+                <div class="op-choice-card" id="choice-mail-sendgrid" data-provider="sendgrid">
+                    <div class="op-choice-check">
+                        <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    <div class="op-choice-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                    </div>
+                    <div class="op-choice-label">SendGrid</div>
+                    <div class="op-choice-desc">{{ __('wizard.sendgrid_desc') }}</div>
+                </div>
+            </div>
+
+            <!-- Global Sender Fields -->
+            <div class="op-wizard-form-grid op-wizard-form-grid-border">
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="mail_from_name">{{ __('wizard.sender_name') }}</label>
+                    <input type="text" id="mail_from_name" class="op-wizard-input" value="Own Pay" required placeholder="{{ __('wizard.sender_name_placeholder') }}">
+                    <div class="op-wizard-hint">{{ __('wizard.sender_name_hint') }}</div>
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="mail_from_email">{{ __('wizard.sender_email') }}</label>
+                    <input type="email" id="mail_from_email" class="op-wizard-input" value="noreply@example.com" required placeholder="billing@yourdomain.com">
+                    <div class="op-wizard-hint">{{ __('wizard.sender_email_hint') }}</div>
+                </div>
+            </div>
+
+            <!-- Dynamic SMTP Fields -->
+            <div id="mail-smtp-fields" class="op-mail-smtp-fields-class">
+                <h4 class="op-wizard-subheading">{{ __('wizard.smtp_details') }}</h4>
+                <div class="op-wizard-form-grid">
+                    <div class="op-wizard-field">
+                        <label class="op-wizard-label" for="mail_smtp_host">{{ __('wizard.smtp_host') }}</label>
+                        <input type="text" id="mail_smtp_host" class="op-wizard-input" placeholder="smtp.mailtrap.io">
+                    </div>
+                    <div class="op-wizard-field">
+                        <label class="op-wizard-label" for="mail_smtp_port">{{ __('wizard.smtp_port') }}</label>
+                        <input type="number" id="mail_smtp_port" class="op-wizard-input" value="587" placeholder="587">
+                    </div>
+                    <div class="op-wizard-field">
+                        <label class="op-wizard-label" for="mail_smtp_user">{{ __('wizard.smtp_username') }}</label>
+                        <input type="text" id="mail_smtp_user" class="op-wizard-input" placeholder="{{ __('wizard.smtp_username_placeholder') }}">
+                    </div>
+                    <div class="op-wizard-field">
+                        <label class="op-wizard-label" for="mail_smtp_password">{{ __('wizard.smtp_password') }}</label>
+                        <input type="password" id="mail_smtp_password" class="op-wizard-input" placeholder="{{ __('wizard.smtp_password_placeholder') }}">
+                    </div>
+                    <div class="op-wizard-field-full">
+                        <label class="op-wizard-label" for="mail_smtp_encryption">{{ __('wizard.smtp_encryption') }}</label>
+                        <select id="mail_smtp_encryption" class="op-wizard-select">
+                            <option value="tls" selected>TLS ({{ __('common.recommended') }})</option>
+                            <option value="ssl">SSL</option>
+                            <option value="none">{{ __('common.none') }}</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Mailgun Fields -->
+            <div id="mail-mailgun-fields" class="op-mail-other-fields-class">
+                <h4 class="op-wizard-subheading">{{ __('wizard.mailgun_credentials') }}</h4>
+                <div class="op-wizard-form-grid">
+                    <div class="op-wizard-field">
+                        <label class="op-wizard-label" for="mail_mailgun_domain">{{ __('wizard.sending_domain') }}</label>
+                        <input type="text" id="mail_mailgun_domain" class="op-wizard-input" placeholder="mg.yourdomain.com">
+                    </div>
+                    <div class="op-wizard-field">
+                        <label class="op-wizard-label" for="mail_mailgun_key">{{ __('wizard.mailgun_api_key') }}</label>
+                        <input type="password" id="mail_mailgun_key" class="op-wizard-input" placeholder="key-...">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic SendGrid Fields -->
+            <div id="mail-sendgrid-fields" class="op-mail-other-fields-class">
+                <h4 class="op-wizard-subheading">{{ __('wizard.sendgrid_credentials') }}</h4>
+                <div class="op-wizard-form-grid">
+                    <div class="op-wizard-field-full">
+                        <label class="op-wizard-label" for="mail_sendgrid_key">{{ __('wizard.sendgrid_api_key') }}</label>
+                        <input type="password" id="mail_sendgrid_key" class="op-wizard-input" placeholder="SG....">
+                    </div>
+                </div>
+            </div>
+
+            <div class="op-wizard-actions">
+                <button type="button" class="op-wizard-btn op-wizard-btn-prev" data-prev-step="2">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                    {{ __('common.back') }}
+                </button>
+                <div class="op-flex-gap-1rem">
+                    <button type="button" class="op-wizard-btn op-wizard-btn-prev" id="btn-skip-mail">
+                        {{ __('wizard.skip_mail') }}
+                    </button>
+                    <button type="submit" class="op-wizard-btn op-wizard-btn-next" id="btn-save-mail">
+                        {{ __('wizard.save_continue') }}
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+
+    <!-- STEP 4 PANEL: Gateway Configuration -->
+    <div class="op-wizard-panel" id="panel-4">
+        <div class="op-choice-cards">
+            <div class="op-choice-card" id="choice-stripe" data-gateway="stripe">
+                <div class="op-choice-check">
+                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="op-choice-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2"/><line x1="1" y1="10" x2="23" y2="10"/></svg>
+                </div>
+                <div class="op-choice-label">Stripe</div>
+                <div class="op-choice-desc">{{ __('wizard.stripe_desc') }}</div>
+            </div>
+            <div class="op-choice-card" id="choice-paypal" data-gateway="paypal">
+                <div class="op-choice-check">
+                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="op-choice-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M7 21H3a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M17 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4"/><circle cx="12" cy="12" r="3"/><path d="M12 2v4"/><path d="M12 18v4"/></svg>
+                </div>
+                <div class="op-choice-label">PayPal</div>
+                <div class="op-choice-desc">{{ __('wizard.paypal_desc') }}</div>
+            </div>
+            <div class="op-choice-card" id="choice-manual" data-gateway="manual">
+                <div class="op-choice-check">
+                    <svg viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                </div>
+                <div class="op-choice-icon">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 21h18"/><path d="M5 21V7l8-4 8 4v14"/><rect x="9" y="13" width="6" height="8"/><path d="M9 9h.01"/><path d="M15 9h.01"/></svg>
+                </div>
+                <div class="op-choice-label">{{ __('wizard.manual_bank') }}</div>
+                <div class="op-choice-desc">{{ __('wizard.manual_bank_desc') }}</div>
+            </div>
+        </div>
+
+        <!-- Dynamic configuration sub-forms -->
+        <div id="stripe-fields" class="op-gateway-fields-class">
+            <h4 class="op-wizard-subheading">{{ __('wizard.configure_stripe') }}</h4>
+            <div class="op-wizard-form-grid">
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="stripe_key">{{ __('wizard.publishable_key') }}</label>
+                    <input type="text" id="stripe_key" class="op-wizard-input" placeholder="pk_test_...">
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="stripe_secret">{{ __('wizard.secret_key') }}</label>
+                    <input type="password" id="stripe_secret" class="op-wizard-input" placeholder="sk_test_...">
+                </div>
+            </div>
+        </div>
+
+        <div id="paypal-fields" class="op-gateway-fields-class">
+            <h4 class="op-wizard-subheading">{{ __('wizard.configure_paypal') }}</h4>
+            <div class="op-wizard-form-grid">
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="paypal_client_id">{{ __('wizard.client_id') }}</label>
+                    <input type="text" id="paypal_client_id" class="op-wizard-input" placeholder="{{ __('wizard.client_id') }}">
+                </div>
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="paypal_secret">{{ __('wizard.client_secret') }}</label>
+                    <input type="password" id="paypal_secret" class="op-wizard-input" placeholder="{{ __('wizard.client_secret') }}">
+                </div>
+            </div>
+        </div>
+
+        <div id="manual-fields" class="op-gateway-fields-class">
+            <h4 class="op-wizard-subheading">{{ __('wizard.configure_manual') }}</h4>
+            <div class="op-wizard-form-grid">
+                <div class="op-wizard-field">
+                    <label class="op-wizard-label" for="manual_name">{{ __('wizard.payment_option_name') }}</label>
+                    <input type="text" id="manual_name" class="op-wizard-input" value="Bank Transfer">
+                </div>
+                <div class="op-wizard-field-full">
+                    <label class="op-wizard-label" for="manual_details">{{ __('wizard.payment_details') }}</label>
+                    <textarea id="manual_details" rows="3" class="op-wizard-textarea" placeholder="{{ __('wizard.payment_details_placeholder') }}"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-wizard-actions">
+            <button type="button" class="op-wizard-btn op-wizard-btn-prev" data-prev-step="3">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                {{ __('common.back') }}
+            </button>
+            <button type="button" class="op-wizard-btn op-wizard-btn-next" id="btn-save-gateway">
+                {{ __('wizard.save_continue') }}
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
+            </button>
+        </div>
+    </div>
+
+    <!-- STEP 5 PANEL: Device Pairing / Complete -->
+    <div class="op-wizard-panel" id="panel-5">
+        <div class="op-pairing-container">
+            <div class="op-qr-mock">
+                <!-- Placeholder SVG first, replaced dynamically by loaded QR Code IMG -->
+                <svg id="op-wizard-qr-placeholder" class="op-qr-svg" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="100" height="100" fill="#ffffff"/>
+                    <rect x="5" y="5" width="20" height="20" fill="#111827" />
+                    <rect x="8" y="8" width="14" height="14" fill="#ffffff" />
+                    <rect x="11" y="11" width="8" height="8" fill="#0F97ED" />
+                    <rect x="75" y="5" width="20" height="20" fill="#111827" />
+                    <rect x="78" y="8" width="14" height="14" fill="#ffffff" />
+                    <rect x="81" y="11" width="8" height="8" fill="#0F97ED" />
+                    <rect x="5" y="75" width="20" height="20" fill="#111827" />
+                    <rect x="8" y="78" width="14" height="14" fill="#ffffff" />
+                    <rect x="11" y="81" width="8" height="8" fill="#0F97ED" />
+                    <rect x="75" y="75" width="20" height="20" fill="#111827" />
+                    <rect x="78" y="78" width="14" height="14" fill="#ffffff" />
+                    <path d="M30,5 h5 v5 h-5 z M35,10 h5 v5 h-5 z M45,5 h10 v5 h-10 z M60,5 h10 v5 h-10 z M30,20 h5 v5 h-5 z M40,25 h15 v5 h-15 z M65,20 h5 v5 h-5 z M30,35 h10 v5 h-10 z M50,35 h5 v5 h-5 z M60,35 h15 v5 h-15 z M5,30 h10 v5 h-10 z M15,40 h5 v5 h-5 z M25,45 h10 v5 h-10 z M40,45 h5 v5 h-5 z M55,45 h10 v5 h-10 z M70,45 h5 v5 h-5 z M10,55 h15 v5 h-15 z M30,55 h5 v5 h-5 z M45,55 h10 v5 h-10 z M65,55 h10 v5 h-10 z M5,65 h5 v5 h-5 z M20,65 h10 v5 h-10 z M40,65 h5 v5 h-5 z M50,65 h10 v5 h-10 z M65,65 h5 v5 h-5 z M35,75 h5 v5 h-5 z M45,75 h15 v5 h-15 z M65,75 h5 v5 h-5 z" fill="#111827"/>
+                    <rect x="42" y="42" width="16" height="16" rx="4" fill="#0F97ED" />
+                    <circle cx="50" cy="50" r="4" fill="#ffffff" />
+                </svg>
+                <img id="op-wizard-qr-img" class="op-qr-svg op-qr-svg-img" alt="Dynamic QR Code" />
+            </div>
+            <div class="op-pairing-text">
+                <h4>{{ __('wizard.pair_device') }}</h4>
+                <p>{{ __('wizard.pair_device_desc') }}</p>
+                <div class="op-pairing-steps">
+                    <div class="op-pairing-step-item">
+                        <div class="op-pairing-step-num">1</div>
+                        <div>{{ __('wizard.pair_step_1') }}</div>
+                    </div>
+                    <div class="op-pairing-step-item">
+                        <div class="op-pairing-step-num">2</div>
+                        <div>{{ __('wizard.pair_step_2') }}</div>
+                    </div>
+                    <div class="op-pairing-step-item">
+                        <div class="op-pairing-step-num">3</div>
+                        <div>{{ __('wizard.pair_step_3') }}</div>
+                    </div>
+                    <!-- OTP Fallback display -->
+                    <div id="op-wizard-otp-wrapper" class="op-otp-wrapper">
+                        <span class="op-otp-label-header">
+                            <span>{{ __('wizard.otp_fallback') }}</span>
+                            <span id="op-wizard-otp-copied" class="op-otp-copied-text">{{ __('common.copied') }}</span>
+                        </span>
+                        <div class="op-otp-flex-row">
+                            <span id="op-wizard-otp-display" class="op-otp-display-span" title="{{ __('common.click_to_copy') }}">------</span>
+                            <span id="op-wizard-otp-timer" class="op-otp-timer-span">{{ __('wizard.expires_in') }} 5:00</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-wizard-actions">
+            <button type="button" class="op-wizard-btn op-wizard-btn-prev" data-prev-step="4">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+                {{ __('common.back') }}
+            </button>
+            <button type="button" class="op-wizard-btn op-wizard-btn-finish" id="btn-finish-wizard">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>
+                {{ __('wizard.finish_launch') }}
+            </button>
+        </div>
+    </div>
+</div>
+
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/setup-wizard.js"></script>

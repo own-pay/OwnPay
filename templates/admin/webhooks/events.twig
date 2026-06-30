@@ -1,0 +1,146 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Webhook Deliveries & Logs - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Webhook Deliveries &amp; Logs</h1>
+        <p class="op-page-subtitle">Track transaction webhooks sent to merchants and API logs from payment gateways.</p>
+    </div>
+</div>
+
+<div class="op-card">
+    <div class="op-card-header op-flex-col op-items-start op-gap-4">
+        <h3 class="op-mb-0">Merchant Event Delivery Queue (DLQ)</h3>
+        <span class="op-text-muted op-text-sm">This queue sends transaction updates (like payments) to your merchants' websites. If a merchant's site goes offline, the system automatically saves the message and retries sending it later so that transaction details are never lost.</span>
+    </div>
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Webhook Destination</th>
+                        <th>Event Type</th>
+                        <th>Status</th>
+                        <th>Attempts</th>
+                        <th>Last Attempt</th>
+                        <th>Next Retry</th>
+                        <th class="op-text-right">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for event in events %}
+                        <tr>
+                            <td data-label="ID">#{{ event.id }}</td>
+                            <td data-label="URL"><code class="op-text-sm">{{ event.webhook_url }}</code></td>
+                            <td data-label="Event"><span class="op-badge op-badge-info">{{ event.event_type }}</span></td>
+                            <td data-label="Status">
+                                {% if event.status == 'delivered' %}
+                                    <span class="op-badge op-badge-success">Delivered</span>
+                                {% elseif event.status == 'failed' %}
+                                    {% if event.next_retry_at is empty %}
+                                        <span class="op-badge op-badge-danger">DLQ (Quarantined)</span>
+                                    {% else %}
+                                        <span class="op-badge op-badge-warning">Retrying</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="op-badge op-badge-muted">Pending</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Attempts">
+                                <strong class="op-text-sm">{{ event.attempts }}</strong> <span class="op-text-muted">/ 6</span>
+                            </td>
+                            <td data-label="Last Attempt" class="op-text-sm op-text-muted">
+                                {{ event.last_attempt_at ? event.last_attempt_at|date('M d, H:i:s') : '-' }}
+                            </td>
+                            <td data-label="Next Retry" class="op-text-sm op-text-muted">
+                                {% if event.status == 'failed' and event.next_retry_at is not empty %}
+                                    <span class="op-text-warning">{{ event.next_retry_at|date('M d, H:i:s') }}</span>
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </td>
+                            <td data-label="Actions" class="op-text-right">
+                                <div class="op-btn-group">
+                                    <a href="/admin/webhooks/events/{{ event.id }}/logs" class="op-btn op-btn-xs op-btn-secondary">Logs</a>
+                                    
+                                    {% if event.status == 'failed' %}
+                                        <form method="POST" action="/admin/webhooks/events/{{ event.id }}/replay" class="op-inline-form">
+                                            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                            <button type="submit" class="op-btn op-btn-xs op-btn-primary">Replay</button>
+                                        </form>
+                                    {% endif %}
+                                </div>
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="8" class="op-text-center op-text-muted op-py-8">No webhook event logs recorded yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{% if pagination.total_pages > 1 %}
+<nav class="op-pagination">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+
+{# -- Webhook Deliveries ------------------------------------------ #}
+<div class="op-card op-mt-4">
+    <div class="op-card-header op-flex-col op-items-start op-gap-4">
+        <h3 class="op-mb-0">Gateway &amp; Integration Traffic Logs</h3>
+        <span class="op-text-muted op-text-sm">This logs all webhook traffic moving in and out of the platform, including payment updates from gateways (inbound) and notifications sent to merchants (outbound). It is important for checking network response times and debugging connections.</span>
+    </div>
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>Direction</th>
+                        <th>Event</th>
+                        <th>URL</th>
+                        <th>Status</th>
+                        <th>Status Code</th>
+                        <th>Response Time</th>
+                        <th>Attempt</th>
+                        <th>Timestamp</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dl in webhook_deliveries %}
+                    <tr>
+                        <td data-label="Direction">
+                            <span class="op-badge op-badge-{{ dl.direction == 'inbound' ? 'info' : 'outline' }}">
+                                {{ dl.direction|capitalize }}
+                            </span>
+                        </td>
+                        <td data-label="Event"><span class="op-badge op-badge-outline">{{ dl.event|default('-') }}</span></td>
+                        <td data-label="URL"><code class="op-text-xs" title="{{ dl.url }}">{{ dl.url|slice(0, 50) }}{{ dl.url|length > 50 ? '...' : '' }}</code></td>
+                        <td data-label="Status">
+                            <span class="op-badge op-badge-{{ dl.status == 'delivered' ? 'success' : (dl.status == 'failed' ? 'danger' : (dl.status == 'rejected' ? 'danger' : 'warning')) }}">
+                                {{ dl.status|capitalize }}
+                            </span>
+                        </td>
+                        <td data-label="Code"><strong>{{ dl.status_code|default('-') }}</strong></td>
+                        <td data-label="Response Time" class="op-text-sm">{{ dl.response_time_ms ? dl.response_time_ms ~ ' ms' : '-' }}</td>
+                        <td data-label="Attempt">Attempt {{ dl.attempt }}</td>
+                        <td data-label="Timestamp" class="op-text-muted op-text-sm">{{ dl.created_at|date("M d, Y H:i") }}</td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="8" class="op-empty">No webhook delivery logs recorded.</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

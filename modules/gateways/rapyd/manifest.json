@@ -1,0 +1,39 @@
+{
+  "name": "Rapyd",
+  "slug": "rapyd",
+  "version": "1.0.0",
+  "description": "Rapyd payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "RapydGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Rapyd",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#FF5A00",
+  "csp": {
+    "script_src": [
+      "https://*.rapyd.net"
+    ],
+    "style_src": [
+      "https://*.rapyd.net"
+    ],
+    "frame_src": [
+      "https://*.rapyd.net"
+    ],
+    "connect_src": [
+      "https://*.rapyd.net"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

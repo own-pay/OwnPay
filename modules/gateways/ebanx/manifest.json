@@ -1,0 +1,43 @@
+{
+  "name": "Ebanx",
+  "slug": "ebanx",
+  "version": "1.0.0",
+  "description": "Ebanx payment gateway integration for Latin America",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "EbanxGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Ebanx",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "latam",
+  "color": "#000000",
+  "csp": {
+    "script_src": [
+      "https://*.ebanxpay.com",
+      "https://*.ebanx.com"
+    ],
+    "style_src": [
+      "https://*.ebanxpay.com",
+      "https://*.ebanx.com"
+    ],
+    "frame_src": [
+      "https://*.ebanxpay.com",
+      "https://*.ebanx.com"
+    ],
+    "connect_src": [
+      "https://*.ebanxpay.com",
+      "https://*.ebanx.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

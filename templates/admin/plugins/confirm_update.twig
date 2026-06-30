@@ -1,0 +1,67 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Confirm Update - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <h1>Confirm Plugin Update</h1>
+    <a href="/admin/plugins" class="op-btn op-btn-outline">← Cancel</a>
+</div>
+
+<div class="op-card">
+    <div class="op-card-header">
+        <h3>Plugin Already Installed</h3>
+        <p class="op-text-muted">You are attempting to upload a plugin that is already installed in the system.</p>
+    </div>
+
+    <div class="op-card-body">
+        <div class="op-alert op-alert-warning" style="display: flex; gap: 12px; align-items: flex-start;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-mr-2" style="flex-shrink: 0; margin-top: 2px;">
+                <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"></path>
+                <line x1="12" y1="9" x2="12" y2="13"></line>
+                <line x1="12" y1="17" x2="12.01" y2="17"></line>
+            </svg>
+            <div>
+                <p class="op-text-bold">You have already installed the plugin '{{ slug }}'</p>
+                <p class="op-mt-1">
+                    The uploaded plugin is a <strong>{{ version_relation }} version (v{{ new_version }})</strong>, 
+                    while the currently installed version is <strong>v{{ existing_version }}</strong>.
+                </p>
+                <p class="op-mt-2">want to continue upload? This will replace the old plugin with the new one.</p>
+            </div>
+        </div>
+
+        {% if has_migrations %}
+        <div class="op-alert op-alert-info op-mt-3" style="display: flex; gap: 12px; align-items: flex-start;">
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-mr-2" style="flex-shrink: 0; margin-top: 2px;">
+                <circle cx="12" cy="12" r="10"></circle>
+                <line x1="12" y1="16" x2="12" y2="12"></line>
+                <line x1="12" y1="8" x2="12.01" y2="8"></line>
+            </svg>
+            <div>
+                <p class="op-text-bold">Database Update Required</p>
+                <p class="op-mt-1">This update contains new database migrations. The database schema will be updated, but existing database data will NOT be removed.</p>
+            </div>
+        </div>
+        {% endif %}
+
+        <div style="display: flex; gap: 12px; margin-top: 24px;">
+            <form method="POST" action="/admin/plugins/upload">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="temp_zip" value="{{ temp_zip }}">
+                <input type="hidden" name="confirm_update" value="1">
+                <button type="submit" class="op-btn op-btn-primary op-btn-lg">
+                    Confirm & Update
+                </button>
+            </form>
+            <form method="POST" action="/admin/plugins/upload/cancel">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="temp_zip" value="{{ temp_zip }}">
+                <button type="submit" class="op-btn op-btn-outline op-btn-lg">
+                    Cancel
+                </button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

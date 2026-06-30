@@ -1,0 +1,288 @@
+/* ═══════════════════════════════════════════════════════
+   developer.css - Developer Hub Page
+   Page-specific overrides only. Global styles from admin.css.
+   ═══════════════════════════════════════════════════════ */
+
+/* New API key reveal card */
+.op-new-key-reveal {
+    border: 2px solid var(--op-primary) !important;
+    background: rgb(15 151 237 / 5%) !important;
+}
+
+.op-new-key-reveal-header {
+    border-bottom: 1px solid rgb(15 151 237 / 15%) !important;
+}
+
+/* Flex utilities */
+.op-flex-gap-8 {
+    display: flex;
+    gap: 8px;
+}
+
+.op-flex-gap-16 {
+    display: flex;
+    gap: 16px;
+}
+
+.op-flex-align-center {
+    align-items: center;
+}
+
+.op-flex-align-stretch {
+    align-items: stretch;
+}
+
+.op-flex-wrap {
+    flex-wrap: wrap;
+}
+
+.op-flex-1 {
+    flex: 1;
+    min-width: 0;
+}
+
+.op-flex-row-space-between {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Monospace input - now in admin.css */
+
+/* Eye toggle */
+.op-btn-eye-toggle {
+    position: absolute;
+    right: 8px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    color: var(--op-text-muted);
+    padding: 4px;
+    border-radius: 4px;
+    transition: color 0.15s ease;
+}
+
+.op-btn-eye-toggle:hover {
+    color: var(--op-text);
+}
+
+/* Copy */
+.op-copy-btn-large {
+    white-space: nowrap;
+    min-width: 120px;
+    font-weight: 600;
+}
+
+.op-copy-btn {
+    white-space: nowrap;
+}
+
+.op-copy-inline {
+    padding: 2px 6px;
+}
+
+.op-copy-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+/* Feedback */
+.op-feedback-text {
+    margin-top: 6px;
+    font-size: 13px;
+    color: var(--op-primary);
+    font-weight: 500;
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+.op-code-block {
+    display: block;
+    padding: 10px 14px;
+    background: var(--op-bg-input);
+    border: 1px solid var(--op-border);
+    border-radius: var(--op-radius);
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--op-text);
+    overflow-x: auto;
+    word-break: break-word;
+}
+
+.op-code-example {
+    border: 1px solid var(--op-border);
+    border-radius: var(--op-radius);
+    overflow: hidden;
+    min-width: 0;
+}
+
+.op-code-example-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 8px 14px;
+    background: var(--op-bg-hover);
+    border-bottom: 1px solid var(--op-border);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--op-text-muted);
+}
+
+.op-pre {
+    margin: 0;
+    padding: 14px;
+    background: var(--op-bg-input);
+    font-family: var(--mono);
+    font-size: 12px;
+    line-height: 1.6;
+    color: var(--op-text-body);
+    overflow-x: auto;
+    white-space: pre-wrap;
+    word-break: break-word;
+}
+
+/* Method badges */
+.op-method-badge {
+    display: inline-block;
+    padding: 2px 8px;
+    border-radius: 4px;
+    font-size: 11px;
+    font-weight: 700;
+    font-family: var(--mono);
+    text-transform: uppercase;
+}
+
+.op-method-get {
+    background: rgb(16 185 129 / 10%);
+    color: var(--op-success);
+}
+
+.op-method-post {
+    background: rgb(15 151 237 / 10%);
+    color: var(--op-primary);
+}
+
+.op-method-put {
+    background: rgb(245 158 11 / 10%);
+    color: var(--op-warning);
+}
+
+.op-method-patch {
+    background: rgb(139 92 246 / 10%);
+    color: #8B5CF6;
+}
+
+.op-method-delete {
+    background: rgb(239 68 68 / 10%);
+    color: var(--op-danger);
+}
+
+/* Endpoint table */
+.op-endpoint-table {
+    min-width: auto;
+}
+
+/* Stat grid */
+.op-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+}
+
+.op-stat-box {
+    background: var(--op-bg-input);
+    border: 1px solid var(--op-border);
+    border-radius: var(--op-radius);
+    padding: 16px;
+    text-align: center;
+}
+
+.op-stat-box .op-stat-value {
+    font-size: 1.5rem;
+    font-weight: 700;
+    font-family: var(--mono);
+    color: var(--op-text);
+    margin-bottom: 4px;
+}
+
+.op-stat-box .op-stat-label {
+    font-size: 12px;
+    color: var(--op-text-muted);
+    margin-bottom: 2px;
+}
+
+.op-stat-box .op-stat-sub {
+    font-size: 11px;
+    color: var(--op-text-dim);
+}
+
+/* Checkbox label */
+.op-checkbox-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--op-text-body);
+}
+
+/* Scope checkboxes */
+.op-scope-label {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font-size: 14px;
+    color: var(--op-text-body);
+}
+
+.op-scope-label input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    flex-shrink: 0;
+    accent-color: var(--op-primary);
+}
+
+/* Card footer */
+.op-card-footer {
+    padding: 12px 16px;
+    background: var(--op-bg-hover);
+    border-top: 1px solid var(--op-border);
+}
+
+/* Utilities */
+.op-relative {
+    position: relative;
+}
+
+.op-cursor-pointer {
+    cursor: pointer;
+}
+
+.op-font-semibold {
+    font-weight: 600;
+}
+
+.op-badge-inline {
+    display: inline-block;
+    margin-right: 4px;
+    margin-bottom: 4px;
+}
+
+.op-empty {
+    padding: 24px 16px;
+    text-align: center;
+    color: var(--op-text-muted);
+    font-size: 13px;
+}
+
+/* Stat grid */
+@media (max-width: 768px) {
+    .op-stat-grid {
+        grid-template-columns: 1fr;
+    }
+}

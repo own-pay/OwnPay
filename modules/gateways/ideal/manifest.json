@@ -1,0 +1,41 @@
+{
+  "name": "iDEAL",
+  "slug": "ideal",
+  "version": "1.0.0",
+  "description": "iDEAL payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "IdealGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Ideal",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "bank",
+  "color": "#EC008C",
+  "csp": {
+    "script_src": [
+      "https://*.ideal.nl",
+      "https://*.mollie.com"
+    ],
+    "style_src": [
+      "https://*.ideal.nl",
+      "https://*.mollie.com"
+    ],
+    "frame_src": [
+      "https://*.ideal.nl",
+      "https://*.mollie.com"
+    ],
+    "connect_src": [
+      "https://*.ideal.nl",
+      "https://*.mollie.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

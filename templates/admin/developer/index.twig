@@ -1,0 +1,668 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Developer Hub - {{ app_name }}{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/assets/css/pages/developer.css?v=014">
+{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Developer Hub</h1>
+        <p class="op-page-subtitle">Access API keys, endpoint reference docs, webhook configurations, and rate limits.</p>
+    </div>
+    <a href="https://docs.ownpay.org" class="op-btn op-btn-outline" target="_blank" rel="external">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="op-mr-1"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        API Docs
+    </a>
+</div>
+
+<div class="op-tabs" id="dev-tabs">
+    <button class="op-tab active" data-tab="api-keys">API Keys</button>
+    <button class="op-tab" data-tab="endpoints">Endpoint Reference</button>
+    <button class="op-tab" data-tab="webhooks">Webhooks / IPN</button>
+    <button class="op-tab" data-tab="auth">Authentication</button>
+    <button class="op-tab" data-tab="rate-limits">Rate Limits</button>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TAB: API Keys
+   ══════════════════════════════════════════════════════════ #}
+<div class="op-tab-panel active" id="tab-api-keys">
+    {% if generated_key %}
+    <div class="op-card op-mb-4 op-new-key-reveal" id="new-key-reveal">
+        <div class="op-card-header op-new-key-reveal-header">
+            <h3 class="op-flex-gap-8 op-flex-align-center">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                New API Key Generated - {{ generated_key_label }}
+            </h3>
+        </div>
+        <div class="op-card-body">
+            <div class="op-alert op-alert-danger op-mb-3 op-flex-gap-8 op-flex-align-center">
+                <strong>⚠ Store this key now.</strong> It will never be displayed again after you leave this page.
+            </div>
+            <label class="op-text-muted op-text-sm op-mb-1 op-display-block">Your API Key</label>
+            <div class="op-flex-gap-8 op-flex-align-stretch">
+                <div class="op-flex-1 op-relative">
+                    <input type="text" id="generated-key-input" value="{{ generated_key }}" readonly
+                           class="op-input op-input-monospace">
+                    <button type="button" id="toggle-key-vis" title="Show/hide key"
+                            class="op-btn-eye-toggle">
+                        <svg id="eye-icon" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    </button>
+                </div>
+                <button type="button" id="copy-key-btn" class="op-btn op-btn-primary op-copy-btn-large">
+                    <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="op-mr-1"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                    Copy Key
+                </button>
+            </div>
+            <div id="copy-feedback" class="op-feedback-text"></div>
+            <p class="op-text-muted op-text-sm op-mt-3 op-line-height-1-6">
+                Use this key in the <code>Authorization</code> header: <code>Authorization: Bearer {{ generated_key }}</code><br>
+                Add it to your environment variables - <strong>never commit API keys to source code.</strong>
+            </p>
+        </div>
+    </div>
+    {% endif %}
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>API Keys</h3>
+            <span class="op-text-muted op-text-sm">Use Bearer token authentication: <code>Authorization: Bearer &lt;key&gt;</code></span>
+        </div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
+            <table class="op-table">
+                <thead><tr><th>Label</th><th>Key Prefix</th><th>Scopes</th><th>Created</th><th>Last Used</th><th>Actions</th></tr></thead>
+                <tbody>
+                    {% for key in api_keys %}
+                    <tr>
+                        <td data-label="Label"><strong>{{ key.name }}</strong></td>
+                        <td data-label="Key Prefix">
+                            <code class="op-code-pill">{{ key.key_prefix }}••••••••••••••••</code>
+                        </td>
+                        <td data-label="Scopes">
+                            {% for scope in key.scopes %}
+                                <span class="op-badge op-badge-{{ scope == 'admin' ? 'danger' : 'info' }}">{{ scope }}</span>
+                            {% else %}
+                                <span class="op-text-muted">-</span>
+                            {% endfor %}
+                        </td>
+                        <td data-label="Created">{{ key.created_at|date('M d, Y') }}</td>
+                        <td data-label="Last Used">{{ key.last_used_at ? key.last_used_at|date('M d, Y H:i') : '-' }}</td>
+                        <td data-label="Actions">
+                            <form method="POST" action="/admin/api-keys/{{ key.id }}/revoke" class="op-inline-form" data-confirm="Revoke this API key? All requests using it will fail immediately.">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-sm op-btn-danger">Revoke</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="6" class="op-empty">No API keys yet. Generate one below.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mt-4">
+        <div class="op-card-header"><h3>Generate New API Key</h3></div>
+        <div class="op-card-body">
+            <form method="POST" action="/admin/api-keys/generate" class="op-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Key Label *</label>
+                        <input type="text" name="label" class="op-input" placeholder="e.g. Production Server, Mobile App, Staging" required>
+                        <small class="op-text-muted">Descriptive name to identify where this key is used</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>API Key Scopes *</label>
+                        <div class="op-flex-gap-16 op-flex-wrap op-mt-2">
+                            <label class="op-scope-label">
+                                <input type="checkbox" name="scopes[]" value="read" checked>
+                                <span>Read</span>
+                            </label>
+                            <label class="op-scope-label">
+                                <input type="checkbox" name="scopes[]" value="write" checked>
+                                <span>Write</span>
+                            </label>
+                            <label class="op-scope-label op-text-danger op-font-semibold">
+                                <input type="checkbox" name="scopes[]" value="admin">
+                                <span>Admin (Administrative Access)</span>
+                            </label>
+                        </div>
+                        <small class="op-text-muted op-display-block op-mt-1">Select the operations this key is permitted to perform</small>
+                    </div>
+                </div>
+                <div class="op-form-row op-mt-3">
+                    <div class="op-form-group op-col-3">
+                        <button type="submit" class="op-btn op-btn-primary op-w-full">
+                            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="op-mr-1"><path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 11-7.778 7.778 5.5 5.5 0 017.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"/></svg>
+                            Generate Key
+                        </button>
+                    </div>
+                </div>
+            </form>
+            <div class="op-alert op-alert-warning op-mt-3">
+                <strong>⚠ Security Notice:</strong> The full API key is only shown once upon generation. Store it securely in your environment variables, never in source code.
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TAB: Endpoint Reference
+══════════════════════════════════════════════════════════ #}
+<div class="op-tab-panel" id="tab-endpoints">
+    <div class="op-card op-mb-3">
+        <div class="op-card-body">
+            <div class="op-form-group op-mb-0">
+                <label>Base URL</label>
+                <div class="op-copy-row">
+                    <code class="op-code-block" id="base-url-val">{{ base_url }}</code>
+                    <button class="op-btn op-btn-sm op-btn-outline op-copy-btn" data-copy="base-url-val">Copy</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% for section, routes in endpoints %}
+    <div class="op-card op-mb-3">
+        <div class="op-card-header"><h3>{{ section }}</h3></div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
+            <table class="op-table op-endpoint-table">
+                <thead><tr><th width="80">Method</th><th>Endpoint</th><th width="90">Auth</th><th>Description</th></tr></thead>
+                <tbody>
+                    {% for ep in routes %}
+                    <tr>
+                        <td data-label="Method">
+                            <span class="op-method-badge op-method-{{ ep.method|lower }}">{{ ep.method }}</span>
+                        </td>
+                        <td data-label="Endpoint">
+                            <div class="op-copy-row">
+                                <code class="op-text-sm">{{ base_url }}{{ ep.path }}</code>
+                                <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="{{ base_url }}{{ ep.path }}" title="Copy URL">
+                                    <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                </button>
+                            </div>
+                        </td>
+                        <td data-label="Auth">
+                            <span class="op-badge op-badge-{{ ep.auth == 'Bearer' ? 'info' : (ep.auth == 'JWT' ? 'warning' : (ep.auth == 'None' ? 'muted' : 'success')) }}">{{ ep.auth }}</span>
+                        </td>
+                        <td data-label="Description" class="op-text-sm op-text-muted">{{ ep.desc }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TAB: Webhooks / IPN
+══════════════════════════════════════════════════════════ #}
+<div class="op-tab-panel" id="tab-webhooks">
+    <div class="op-card op-mb-4">
+        <div class="op-card-header op-flex-row-space-between">
+            <h3>Webhook Endpoints</h3>
+            <button type="button" class="op-btn op-btn-sm op-btn-primary" data-open-modal="webhook-modal" onclick="window.prepareWebhookForm()">+ Add Endpoint</button>
+        </div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
+                <table class="op-table">
+                    <thead>
+                        <tr>
+                            <th>URL</th>
+                            <th>Status</th>
+                            <th>Subscribed Events</th>
+                            <th>Secret Key</th>
+                            <th class="op-text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for wh in webhooks %}
+                        <tr>
+                            <td data-label="URL"><code class="op-text-sm">{{ wh.url }}</code></td>
+                            <td data-label="Status">
+                                <span class="op-badge op-badge-{{ wh.status == 'active' ? 'success' : 'muted' }}">
+                                    {{ wh.status|capitalize }}
+                                </span>
+                            </td>
+                            <td data-label="Events">
+                                {% for evt in wh.decoded_events %}
+                                    <span class="op-badge op-badge-outline op-text-xs op-badge-inline">{{ evt }}</span>
+                                {% else %}
+                                    <span class="op-text-muted op-text-xs">None</span>
+                                {% endfor %}
+                            </td>
+                            <td data-label="Secret">
+                                <div class="op-flex-gap-8 op-flex-align-center">
+                                    <code class="op-text-xs" id="wh-sec-{{ wh.id }}">{{ wh.secret|slice(0, 8) }}••••••••••••••••</code>
+                                    <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="{{ wh.secret }}" title="Copy Secret">
+                                        <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1"/></svg>
+                                    </button>
+                                </div>
+                            </td>
+                            <td data-label="Actions" class="op-text-right">
+                                <button type="button" class="op-btn op-btn-xs op-btn-outline op-mr-1"
+                                        data-open-modal="webhook-modal"
+                                        onclick='window.prepareWebhookForm({{ wh|json_encode|raw }})'>
+                                    Edit
+                                </button>
+                                <form method="POST" action="/admin/developer/webhooks/{{ wh.id }}/toggle" class="op-inline-form">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-xs op-btn-outline {{ wh.status == 'active' ? 'op-text-warning' : 'op-text-success' }}">
+                                        {{ wh.status == 'active' ? 'Deactivate' : 'Activate' }}
+                                    </button>
+                                </form>
+                                <form method="POST" action="/admin/developer/webhooks/{{ wh.id }}/delete" class="op-inline-form" data-confirm="Are you sure you want to delete this webhook endpoint?">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <button type="submit" class="op-btn op-btn-xs op-btn-danger op-ml-1">Delete</button>
+                                </form>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="5" class="op-empty">No webhook endpoints configured. Click "+ Add Endpoint" to register one.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+
+    <div class="op-card">
+        <div class="op-card-header"><h3>Webhook Events Reference</h3></div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
+            <table class="op-table">
+                <thead><tr><th>Event</th><th>Trigger</th></tr></thead>
+                <tbody>
+                    <tr><td data-label="Event"><code>payment.completed</code></td><td data-label="Trigger">Transaction confirmed and marked completed</td></tr>
+                    <tr><td data-label="Event"><code>payment.failed</code></td><td data-label="Trigger">Payment attempt failed or expired</td></tr>
+                    <tr><td data-label="Event"><code>payment.pending</code></td><td data-label="Trigger">Payment received, awaiting verification</td></tr>
+                    <tr><td data-label="Event"><code>refund.created</code></td><td data-label="Trigger">Refund request submitted</td></tr>
+                    <tr><td data-label="Event"><code>refund.completed</code></td><td data-label="Trigger">Refund processed successfully</td></tr>
+                    <tr><td data-label="Event"><code>invoice.paid</code></td><td data-label="Trigger">Invoice marked as paid</td></tr>
+                    <tr><td data-label="Event"><code>customer.created</code></td><td data-label="Trigger">New customer record created</td></tr>
+                    <tr><td data-label="Event"><code>webhook.test</code></td><td data-label="Trigger">Manual test event sent from Developer Hub</td></tr>
+                </tbody>
+            </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# Modal for Add/Edit Webhook Endpoint #}
+<div class="op-modal" id="webhook-modal" hidden>
+    <div class="op-modal-backdrop" data-close-modal="webhook-modal"></div>
+    <div class="op-modal-dialog">
+        <form method="POST" action="/admin/developer/webhooks/store" class="op-form" id="webhook-form">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <input type="hidden" name="id" value="" id="webhook-id-field">
+            
+            <div class="op-modal-header">
+                <h4 id="webhook-modal-title">Add Webhook Endpoint</h4>
+                <button type="button" class="op-modal-close" data-close-modal="webhook-modal">&times;</button>
+            </div>
+            <div class="op-modal-body">
+                <div class="op-form-group">
+                    <label>Webhook URL *</label>
+                    <input type="url" name="url" id="webhook-url-field" class="op-input" placeholder="https://yourapp.com/ownpay/webhook" required>
+                    <small class="op-text-muted">Must be a secure (HTTPS) URL</small>
+                </div>
+                <div class="op-form-group">
+                    <label>Signing Secret (Optional)</label>
+                    <input type="text" name="secret" id="webhook-secret-field" class="op-input" placeholder="Auto-generated if left blank">
+                    <small class="op-text-muted">Signing secret to verify payload authenticity using HMAC-SHA256 signature.</small>
+                </div>
+                <div class="op-form-group">
+                    <label>Subscribed Events *</label>
+                    <div class="op-grid op-grid-2 op-mt-2">
+                        {% set webhook_events = [
+                            'payment.completed',
+                            'payment.failed',
+                            'payment.pending',
+                            'refund.created',
+                            'refund.completed',
+                            'invoice.paid',
+                            'customer.created'
+                        ] %}
+                        {% for ev in webhook_events %}
+                        <label class="op-checkbox-label op-mb-2">
+                            <input type="checkbox" name="events[]" value="{{ ev }}" class="webhook-event-checkbox">
+                            <span class="op-text-sm">{{ ev }}</span>
+                        </label>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="op-modal-footer">
+                <button type="button" class="op-btn op-btn-outline" data-close-modal="webhook-modal">Cancel</button>
+                <button type="submit" class="op-btn op-btn-primary" id="webhook-submit-btn">Save Endpoint</button>
+            </div>
+        </form>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TAB: Authentication
+══════════════════════════════════════════════════════════ #}
+<div class="op-tab-panel" id="tab-auth">
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Bearer Token (Merchant API)</h3></div>
+        <div class="op-card-body">
+            <p class="op-text-muted op-mb-3">All Merchant API endpoints require a Bearer token in the <code>Authorization</code> header. Generate tokens from the <strong>API Keys</strong> tab.</p>
+            <div class="op-code-example">
+                <div class="op-code-example-header">
+                    <span>Example Request</span>
+                    <button class="op-btn op-btn-xs op-btn-ghost op-copy-inline" data-copy-text="curl -H &quot;Authorization: Bearer op_your_api_key&quot; {{ base_url }}/api/v1/transactions">Copy</button>
+                </div>
+                <pre class="op-pre">curl -X GET \
+  {{ base_url }}/api/v1/transactions \
+  -H "Authorization: Bearer op_your_api_key" \
+  -H "Accept: application/json"</pre>
+            </div>
+        </div>
+    </div>
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>JWT (Mobile Device API)</h3></div>
+        <div class="op-card-body">
+            <p class="op-text-muted op-mb-3">Mobile companion app endpoints use short-lived JWTs (15 min) issued after device pairing. Include <code>X-Device-Fingerprint</code> header on all requests.</p>
+            <div class="op-alert op-alert-info">
+                <strong>Flow:</strong> Admin generates OTP → App scans QR → <code>POST /api/mobile/v1/devices</code> → Receive access_token + refresh_token → Use access_token for all subsequent calls → Refresh with <code>POST /api/mobile/v1/devices/heartbeats</code>
+            </div>
+        </div>
+    </div>
+    <div class="op-card">
+        <div class="op-card-header"><h3>Webhook Signature Verification</h3></div>
+        <div class="op-card-body">
+            <p class="op-text-muted op-mb-3">Every outgoing webhook POST includes an <code>X-OwnPay-Signature</code> header. Verify it in your server to prevent spoofed events.</p>
+            <div class="op-code-example">
+                <div class="op-code-example-header"><span>PHP Verification Example</span></div>
+                <pre class="op-pre">$signature = $_SERVER['HTTP_X_OWNPAY_SIGNATURE']; // "sha256=abc123..."
+$body = file_get_contents('php://input');
+$expected = 'sha256=' . hash_hmac('sha256', $body, YOUR_WEBHOOK_SECRET);
+if (!hash_equals($expected, $signature)) {
+    http_response_code(401);
+    exit;
+}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# ══════════════════════════════════════════════════════════
+   TAB: Rate Limits
+══════════════════════════════════════════════════════════ #}
+<div class="op-tab-panel" id="tab-rate-limits">
+    {% if is_superadmin %}
+    <form method="POST" action="/admin/developer/rate-limits/save" class="op-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>IP Whitelist Configurations</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label>IP Whitelist</label>
+                    <textarea name="rate_limit_whitelist_ips" class="op-input op-mb-1" rows="4" placeholder="Enter IP addresses or CIDR blocks, one per line or comma-separated (e.g. 192.168.1.1, 10.0.0.0/24)">{{ rate_limit_whitelist_ips }}</textarea>
+                    <small class="op-text-muted">Requests originating from these IP addresses will bypass all rate limiting checks entirely. Supports IPv4, IPv6, and CIDR notations.</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mb-4">
+            <div class="op-card-header">
+                <h3>Custom Dynamic Rules</h3>
+                <span class="op-text-muted op-text-sm">Define custom rate limit thresholds and window scopes for specific URL paths.</span>
+            </div>
+            <div class="op-card-body op-p-0">
+                <div class="op-table-responsive">
+                    <table class="op-table" id="rules-table">
+                        <thead>
+                            <tr>
+                                <th>URL Path Pattern (use * for wildcard)</th>
+                                <th width="150">HTTP Method</th>
+                                <th width="150">Max Requests</th>
+                                <th width="150">Window (seconds)</th>
+                                <th class="op-text-right" width="100">Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody id="rules-tbody">
+                            {% for index, rule in rate_limit_rules %}
+                            <tr data-index="{{ index }}">
+                                <td data-label="Path Pattern">
+                                    <input type="text" name="rules[{{ index }}][path]" class="op-input op-input-sm op-input-monospace" value="{{ rule.path }}" placeholder="e.g. /api/v1/payments/*" required>
+                                </td>
+                                <td data-label="HTTP Method">
+                                    <select name="rules[{{ index }}][method]" class="op-input op-input-sm">
+                                        <option value="ALL" {% if rule.method == 'ALL' %}selected{% endif %}>ALL METHODS</option>
+                                        <option value="GET" {% if rule.method == 'GET' %}selected{% endif %}>GET</option>
+                                        <option value="POST" {% if rule.method == 'POST' %}selected{% endif %}>POST</option>
+                                        <option value="PUT" {% if rule.method == 'PUT' %}selected{% endif %}>PUT</option>
+                                        <option value="DELETE" {% if rule.method == 'DELETE' %}selected{% endif %}>DELETE</option>
+                                        <option value="PATCH" {% if rule.method == 'PATCH' %}selected{% endif %}>PATCH</option>
+                                    </select>
+                                </td>
+                                <td data-label="Max Requests">
+                                    <input type="number" name="rules[{{ index }}][limit]" class="op-input op-input-sm" value="{{ rule.limit }}" min="1" required>
+                                </td>
+                                <td data-label="Window">
+                                    <input type="number" name="rules[{{ index }}][window]" class="op-input op-input-sm" value="{{ rule.window }}" min="1" required>
+                                </td>
+                                <td data-label="Actions" class="op-text-right">
+                                    <button type="button" class="op-btn op-btn-xs op-btn-danger remove-rule-btn">Remove</button>
+                                </td>
+                            </tr>
+                            {% else %}
+                            <tr class="op-empty-placeholder">
+                                <td colspan="5" class="op-empty op-text-center op-text-muted op-py-8">No custom rate limit rules configured. Click "+ Add Rule" to add one.</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="op-card-footer op-flex-row-space-between">
+                <button type="button" class="op-btn op-btn-sm op-btn-secondary" id="add-rule-btn">+ Add Rule</button>
+                <button type="submit" class="op-btn op-btn-sm op-btn-primary">Save Rate Limiting Config</button>
+            </div>
+        </div>
+    </form>
+    {% else %}
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>IP Whitelist Configurations (Read-only)</h3></div>
+        <div class="op-card-body">
+            <div class="op-alert op-alert-info op-mb-3">
+                <strong>Read-only Access:</strong> Only Super Administrators are permitted to configure rate limiting rules and whitelists.
+            </div>
+            <div class="op-form-group op-mb-0">
+                <label>Whitelisted IPs & Subnets</label>
+                <textarea class="op-input op-input-monospace" rows="4" readonly placeholder="No whitelisted IPs configured.">{{ rate_limit_whitelist_ips }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Custom Dynamic Rules (Read-only)</h3></div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
+                <table class="op-table">
+                    <thead>
+                        <tr>
+                            <th>URL Path Pattern</th>
+                            <th>HTTP Method</th>
+                            <th>Max Requests</th>
+                            <th>Window (seconds)</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for rule in rate_limit_rules %}
+                        <tr>
+                            <td data-label="Path"><code>{{ rule.path }}</code></td>
+                            <td data-label="Method"><span class="op-badge op-badge-info">{{ rule.method }}</span></td>
+                            <td data-label="Max Requests"><strong>{{ rule.limit }}</strong> hits</td>
+                            <td data-label="Window">every <strong>{{ rule.window }}</strong> seconds</td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="op-empty op-text-center op-text-muted op-py-8">No custom rate limit rules configured.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Current Default Limits</h3></div>
+        <div class="op-card-body">
+            <div class="op-stat-grid">
+                <div class="op-stat-box">
+                    <div class="op-stat-value">{{ api_rate_limit }}</div>
+                    <div class="op-stat-label">Requests / minute</div>
+                    <div class="op-stat-sub">Merchant API</div>
+                </div>
+                <div class="op-stat-box">
+                    <div class="op-stat-value">5</div>
+                    <div class="op-stat-label">Requests / 5 min</div>
+                    <div class="op-stat-sub">Device Pairing OTP</div>
+                </div>
+                <div class="op-stat-box">
+                    <div class="op-stat-value">20</div>
+                    <div class="op-stat-label">SMS per batch</div>
+                    <div class="op-stat-sub">Mobile SMS submit</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Active Rate Limit Buckets</h3></div>
+        <div class="op-card-body op-p-0">
+            <div class="op-table-responsive">
+                <table class="op-table">
+                    <thead>
+                        <tr>
+                            <th>Bucket / Key</th>
+                            <th>Hits</th>
+                            <th>Expires In</th>
+                            <th class="op-text-right">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for limit in active_limits %}
+                        <tr>
+                            <td data-label="Bucket"><code>{{ limit.key_name }}</code></td>
+                            <td data-label="Hits">{{ limit.hits }}</td>
+                            <td data-label="Expires In">
+                                {% set remaining = limit.expires_at - now %}
+                                {{ remaining > 0 ? remaining ~ 's' : 'Expired' }}
+                            </td>
+                            <td data-label="Actions" class="op-text-right">
+                                {% if is_superadmin %}
+                                <form method="POST" action="/admin/developer/rate-limits/reset" class="op-inline-form" onsubmit="return confirm('Reset rate limit bucket for this key?');">
+                                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                    <input type="hidden" name="key" value="{{ limit.key_name }}">
+                                    <button type="submit" class="op-btn op-btn-xs op-btn-danger">Reset</button>
+                                </form>
+                                {% else %}
+                                <span class="op-text-muted op-text-sm">No Permission</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="op-text-center op-text-muted op-py-8">No active rate limit blocks or buckets.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card">
+        <div class="op-card-header"><h3>Rate Limit Response Reference</h3></div>
+        <div class="op-card-body">
+            <p class="op-text-muted op-mb-3">When rate limited on standard browser requests, users will see a rate limit page. For API or JSON endpoints, the server returns <strong>HTTP 429</strong> with a Retry-After header and a raw JSON payload.</p>
+            <div class="op-code-example">
+                <div class="op-code-example-header"><span>JSON 429 Response</span></div>
+                <pre class="op-pre">HTTP/1.1 429 Too Many Requests
+Retry-After: 30
+X-RateLimit-Limit: 60
+X-RateLimit-Remaining: 0
+
+{"success": false, "message": "Rate limit exceeded. Try again later."}</pre>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/developer.js?v=002"></script>
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    var addRuleBtn = document.getElementById('add-rule-btn');
+    var rulesTbody = document.getElementById('rules-tbody');
+    
+    if (addRuleBtn && rulesTbody) {
+        var ruleIndex = rulesTbody.querySelectorAll('tr[data-index]').length;
+        
+        addRuleBtn.addEventListener('click', function() {
+            var emptyRow = rulesTbody.querySelector('.op-empty-placeholder');
+            if (emptyRow) {
+                emptyRow.remove();
+            }
+
+            var row = document.createElement('tr');
+            row.setAttribute('data-index', ruleIndex);
+            row.innerHTML = '<td data-label="Path Pattern">' +
+                '<input type="text" name="rules[' + ruleIndex + '][path]" class="op-input op-input-sm op-input-monospace" placeholder="e.g. /api/v1/payments/*" required>' +
+                '</td><td data-label="HTTP Method">' +
+                '<select name="rules[' + ruleIndex + '][method]" class="op-input op-input-sm">' +
+                '<option value="ALL">ALL METHODS</option>' +
+                '<option value="GET">GET</option>' +
+                '<option value="POST">POST</option>' +
+                '<option value="PUT">PUT</option>' +
+                '<option value="DELETE">DELETE</option>' +
+                '<option value="PATCH">PATCH</option>' +
+                '</select>' +
+                '</td><td data-label="Max Requests">' +
+                '<input type="number" name="rules[' + ruleIndex + '][limit]" class="op-input op-input-sm" value="60" min="1" required>' +
+                '</td><td data-label="Window">' +
+                '<input type="number" name="rules[' + ruleIndex + '][window]" class="op-input op-input-sm" value="60" min="1" required>' +
+                '</td><td data-label="Actions" class="op-text-right">' +
+                '<button type="button" class="op-btn op-btn-xs op-btn-danger remove-rule-btn">Remove</button>' +
+                '</td>';
+            
+            rulesTbody.appendChild(row);
+            ruleIndex++;
+        });
+
+        rulesTbody.addEventListener('click', function(e) {
+            if (e.target && e.target.classList.contains('remove-rule-btn')) {
+                var row = e.target.closest('tr');
+                if (row) {
+                    row.remove();
+                    if (rulesTbody.querySelectorAll('tr[data-index]').length === 0) {
+                        var placeholder = document.createElement('tr');
+                        placeholder.className = 'op-empty-placeholder';
+                        placeholder.innerHTML = '<td colspan="5" class="op-empty op-text-center op-text-muted op-py-8">No custom rate limit rules configured. Click "+ Add Rule" to add one.</td>';
+                        rulesTbody.appendChild(placeholder);
+                    }
+                }
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
+

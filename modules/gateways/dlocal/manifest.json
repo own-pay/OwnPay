@@ -1,0 +1,43 @@
+{
+  "name": "dLocal",
+  "slug": "dlocal",
+  "version": "1.0.0",
+  "description": "dLocal payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "DLocalGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\DLocal",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#0038FF",
+  "csp": {
+    "script_src": [
+      "https://*.dlocal.com",
+      "https://*.dlocal-payments.com"
+    ],
+    "style_src": [
+      "https://*.dlocal.com",
+      "https://*.dlocal-payments.com"
+    ],
+    "frame_src": [
+      "https://*.dlocal.com",
+      "https://*.dlocal-payments.com"
+    ],
+    "connect_src": [
+      "https://*.dlocal.com",
+      "https://*.dlocal-payments.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

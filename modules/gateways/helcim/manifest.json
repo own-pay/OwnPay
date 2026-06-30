@@ -1,0 +1,39 @@
+{
+  "name": "Helcim",
+  "slug": "helcim",
+  "version": "1.0.0",
+  "description": "Helcim payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "HelcimGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Helcim",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#0369A1",
+  "csp": {
+    "script_src": [
+      "https://*.helcim.com"
+    ],
+    "style_src": [
+      "https://*.helcim.com"
+    ],
+    "frame_src": [
+      "https://*.helcim.com"
+    ],
+    "connect_src": [
+      "https://*.helcim.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "shurjoPay",
+  "slug": "shurjopay",
+  "version": "1.0.0",
+  "description": "Accept shurjoPay payments directly from customers.",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "mobile",
+  "icon": "assets/icon.png",
+  "color": "#eb7324",
+  "entrypoint": "ShurjopayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Shurjopay",
+  "capabilities": ["gateway"],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": ["https://*.shurjopayment.com"],
+    "style_src": ["https://*.shurjopayment.com"],
+    "frame_src": ["https://*.shurjopayment.com"],
+    "connect_src": ["https://*.shurjopayment.com"]
+  },
+  "permissions": ["gateway.process"]
+}

@@ -1,0 +1,98 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}{{ brand is not null and brand.id is defined and brand.id ? 'Edit' : 'Create' }} Brand - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>{{ brand is not null and brand.id is defined and brand.id ? 'Edit: ' ~ brand.name : 'Create Brand' }}</h1>
+        <p class="op-page-subtitle">Modify business details, profile metadata, and operational status for this brand.</p>
+    </div>
+    <a href="/admin/brands" class="op-btn op-btn-outline">← Back</a>
+</div>
+<form method="POST" action="/admin/brands/{{ brand is not null and brand.id is defined and brand.id ? brand.id ~ '/update' : 'store' }}" class="op-form" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Business Info</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label>Business Name *</label>
+                    <input type="text" name="name" value="{{ brand.name ?? '' }}" class="op-input" required>
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>Brand Slug</label>
+                    <input type="text" name="slug" value="{{ brand.slug ?? '' }}" class="op-input" readonly placeholder="Auto-generated from name">
+                    <small class="op-text-muted">Unique brand identifier used in domains and checkout pages.</small>
+                </div>
+            </div>
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label>Contact Email</label>
+                    <input type="email" name="email" value="{{ brand.email ?? '' }}" class="op-input">
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>Phone</label>
+                    <input type="tel" name="phone" value="{{ brand.phone ?? '' }}" class="op-input">
+                </div>
+            </div>
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label>Status</label>
+                    <select name="status" class="op-input">
+                        <option value="active" {{ (brand.status ?? 'active') == 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="suspended" {{ (brand.status ?? '') == 'suspended' ? 'selected' : '' }}>Suspended</option>
+                        <option value="pending" {{ (brand.status ?? '') == 'pending' ? 'selected' : '' }}>Pending</option>
+                    </select>
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>Timezone</label>
+                    <select name="timezone" class="op-input">
+                        {% for tz in ['Asia/Dhaka', 'Asia/Kolkata', 'UTC', 'America/New_York', 'Europe/London', 'Asia/Dubai', 'Asia/Singapore'] %}
+                            <option value="{{ tz }}" {{ (brand.timezone ?? 'Asia/Dhaka') == tz ? 'selected' : '' }}>{{ tz }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label>Default Currency</label>
+                    <input type="text" name="default_currency" value="{{ brand.default_currency ?? 'BDT' }}" class="op-input" maxlength="3" placeholder="BDT">
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>Default Checkout Language</label>
+                    <select name="language" class="op-input">
+                        {% for lang in languages %}
+                            <option value="{{ lang.code }}" {{ (brand.theme.language ?? 'en') == lang.code ? 'selected' : '' }}>{{ lang.name }} ({{ lang.code|upper }})</option>
+                        {% endfor %}
+                    </select>
+                    <small class="op-text-muted">The default language this brand's checkout shows to customers.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Custom Domain</h3></div>
+        <div class="op-card-body">
+            {% if brand is not null and brand.primary_domain is defined and brand.primary_domain %}
+            <dl class="op-detail-list op-mb-3">
+                <dt>Domain</dt><dd><code>{{ brand.primary_domain }}</code></dd>
+                <dt>DNS Status</dt><dd><span class="op-badge op-badge-{{ brand.dns_verified is defined and brand.dns_verified ? 'success' : 'warning' }}">{{ brand.dns_verified is defined and brand.dns_verified ? 'Verified' : 'Pending' }}</span></dd>
+            </dl>
+            <p class="op-text-muted">Manage domains in <a href="/admin/domains">Domains →</a></p>
+            {% else %}
+            <div class="op-form-group">
+                <label>Custom Domain</label>
+                <input type="text" name="custom_domain" class="op-input" placeholder="e.g. pay.example.com">
+                <small>Optional. You can configure DNS after saving.</small>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+
+
+
+    <div class="op-form-actions">
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg">{{ brand is not null and brand.id is defined and brand.id ? 'Save' : 'Create' }}</button>
+    </div>
+</form>
+{% endblock %}

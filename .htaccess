@@ -1,0 +1,29 @@
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Redirect all requests to public/ directory
+    RewriteRule ^$ public/ [L]
+    RewriteRule (.*) public/$1 [L]
+</IfModule>
+
+# Deny access to sensitive files
+<FilesMatch "\.(env|sql|md|json|lock|yml|yaml|xml|log|sh|bat)$">
+    <IfModule mod_authz_core.c>
+        Require all denied
+    </IfModule>
+    <IfModule !mod_authz_core.c>
+        Order deny,allow
+        Deny from all
+    </IfModule>
+</FilesMatch>
+
+# Deny access to hidden files and directories
+<IfModule mod_rewrite.c>
+    RewriteRule (^|/)\.(?!well-known/) - [F]
+</IfModule>
+
+# Deny access to sensitive directories, allowing public media assets under storage/gateways/ and storage/uploads/
+<IfModule mod_rewrite.c>
+    RewriteCond %{REQUEST_URI} !^/storage/(gateways|uploads)/
+    RewriteRule ^(config|src|templates|database|storage|modules|tests|vendor)/ - [F,L]
+</IfModule>

@@ -1,0 +1,100 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}{{ user is not null and user.id is defined and user.id ? 'Edit Staff' : 'Add Staff' }} - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>{{ user is not null and user.id is defined and user.id ? 'Edit: ' ~ user.name : 'Add Staff Member' }}</h1>
+        <p class="op-page-subtitle">Create or modify staff account details, brand permissions, and role roles.</p>
+    </div>
+    <a href="/admin/staff" class="op-btn op-btn-outline">← Back</a>
+</div>
+<form method="POST" action="/admin/staff/{{ user is not null and user.id is defined and user.id ? user.id ~ '/update' : 'store' }}" class="op-form" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <div class="op-card">
+        <div class="op-card-body">
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label>Name *</label>
+                    <input type="text" name="name" value="{{ user.name ?? '' }}" class="op-input" required>
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>Email *</label>
+                    <input type="email" name="email" value="{{ user.email ?? '' }}" class="op-input" required>
+                </div>
+            </div>
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label>{{ user is not null and user.id is defined and user.id ? 'New Password (leave blank to keep)' : 'Password *' }}</label>
+                    <input type="password" name="password" class="op-input" {{ user is not null and user.id is defined and user.id ? '' : 'required' }} minlength="8">
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>Role *</label>
+                    <select name="role_id" class="op-input" required>
+                        <option value="">- Select Role -</option>
+                        {% for role in roles %}
+                        <option value="{{ role.id }}" {{ (user.role_id is defined and user.role_id == role.id) ? 'selected' : '' }}>{{ role.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label>Username</label>
+                    <input type="text" name="username" value="{{ user.username ?? '' }}" class="op-input" placeholder="e.g. johndoe">
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>Phone</label>
+                    <input type="tel" name="phone" value="{{ user.phone ?? '' }}" class="op-input" placeholder="e.g. +8801700000000">
+                </div>
+            </div>
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label>Status</label>
+                    <select name="status" class="op-input">
+                        <option value="active" {{ (user.status ?? 'active') == 'active' ? 'selected' : '' }}>Active</option>
+                        <option value="suspended" {{ (user.status ?? '') == 'suspended' ? 'selected' : '' }}>Suspended</option>
+                        <option value="pending" {{ (user.status ?? '') == 'pending' ? 'selected' : '' }}>Pending</option>
+                    </select>
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>Avatar / Profile Photo</label>
+                    {% if user is not null and user.avatar_path is defined and user.avatar_path %}
+                        <div class="op-mb-2">
+                            <img src="{{ user.avatar_path }}" alt="Current Avatar" class="op-avatar-sm">
+                        </div>
+                    {% endif %}
+                    <input type="file" name="avatar" accept="image/*" class="op-input op-input-file">
+                </div>
+            </div>
+            <div class="op-form-group">
+                <label>Permissions</label>
+                <div class="op-checkbox-grid">
+                    {% for perm in available_permissions %}
+                    <label class="op-checkbox-label">
+                        <input type="checkbox" name="permissions[]" value="{{ perm }}" {{ perm in (user.permissions ?? []) ? 'checked' : '' }}>
+                        {{ perm }}
+                    </label>
+                    {% endfor %}
+                </div>
+            </div>
+
+            {% if user is not null and user.two_factor_enabled %}
+            <div class="op-form-group op-mt-4">
+                <label>Two-Factor Authentication (2FA)</label>
+                <div class="op-alert op-alert-info op-flex-row op-justify-between op-items-center">
+                    <span class="op-text-sm">Two-Factor Authentication is currently enabled for this staff member.</span>
+                    <button type="submit" form="reset-2fa-form" class="op-btn op-btn-sm op-btn-danger">Reset 2FA</button>
+                </div>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    <div class="op-form-actions op-mt-4"><button type="submit" class="op-btn op-btn-primary op-btn-lg">{{ user is not null and user.id is defined and user.id ? 'Save' : 'Create' }}</button></div>
+</form>
+
+{% if user is not null and user.id is defined and user.id %}
+<form id="reset-2fa-form" method="POST" action="/admin/staff/{{ user.id }}/reset-2fa" class="op-d-none">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+{% endif %}
+{% endblock %}

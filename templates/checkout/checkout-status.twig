@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="robots" content="noindex,nofollow">
+    <title>{{ status_label ?? (status|capitalize) }} — {{ brand.name ?? 'Own Pay' }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
+    <link rel="stylesheet" href="/assets/css/reset.css?v=016">
+    <link rel="stylesheet" href="/assets/css/animations.css?v=014">
+    <link rel="stylesheet" href="/assets/css/checkout-status.css?v=014">
+</head>
+<body>
+    <div class="st-shell">
+        {% if status == 'success' or status == 'completed' %}
+            {% include 'checkout/partials/_success.twig' %}
+        {% elseif status == 'failed' %}
+            {% include 'checkout/partials/_failed.twig' %}
+        {% elseif status == 'cancelled' or status == 'canceled' %}
+            {% include 'checkout/partials/_cancelled.twig' %}
+        {% elseif status == 'pending' or status == 'pending_review' or status == 'awaiting_verification' or status == 'processing' or status == 'callback_processing' %}
+            {% include 'checkout/partials/_pending.twig' %}
+        {% else %}
+            {% include 'checkout/partials/_expired.twig' %}
+        {% endif %}
+
+        {% if is_intent is defined and is_intent and merchant_redirect_url is defined and merchant_redirect_url %}
+            <div id="countdown-wrapper" class="st-countdown-wrapper" data-redirect-url="{{ merchant_redirect_url }}" data-payment-id="{{ intent_payment_id }}" data-status="{{ intent_status }}">
+                <div class="st-countdown-container">
+                    <svg width="28" height="28" viewBox="0 0 36 36" class="st-countdown-svg">
+                        <circle cx="18" cy="18" r="16" fill="none" stroke="var(--cloud)" stroke-width="3.5"></circle>
+                        <circle id="countdown-circle" cx="18" cy="18" r="16" fill="none" stroke="var(--teal)" stroke-width="3.5" stroke-dasharray="100.53" stroke-dashoffset="0" style="transition: stroke-dashoffset 1s linear;"></circle>
+                    </svg>
+                    <span id="countdown-number" class="st-countdown-number">5</span>
+                </div>
+                <div class="st-countdown-info">
+                    <h4 class="st-countdown-title">Autonomous Handoff Active</h4>
+                    <p class="st-countdown-desc">Redirecting back to Merchant Website in <span id="countdown-text">5</span> seconds...</p>
+                </div>
+                <a id="countdown-instant" href="#" class="st-countdown-btn">Redirect Now</a>
+            </div>
+        {% endif %}
+    </div>
+
+    <script nonce="{{ csp_nonce }}" src="/assets/js/checkout-status.js"></script>
+</body>
+</html>

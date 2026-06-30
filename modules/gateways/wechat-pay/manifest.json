@@ -1,0 +1,39 @@
+{
+  "name": "WeChat Pay",
+  "slug": "wechat-pay",
+  "version": "1.0.0",
+  "description": "WeChat Pay payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "WechatPayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\WechatPay",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#09BB07",
+  "csp": {
+    "script_src": [
+      "https://*.tenpay.com",
+      "https://*.wechat.com"
+    ],
+    "style_src": [
+      "https://*.wechat.com"
+    ],
+    "frame_src": [
+      "https://*.wechat.com"
+    ],
+    "connect_src": [
+      "https://*.tenpay.com",
+      "https://api.mch.weixin.qq.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,39 @@
+{
+  "name": "Airtel Money",
+  "slug": "airtel-money",
+  "version": "1.0.0",
+  "description": "Airtel Money payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "AirtelMoneyGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\AirtelMoney",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#FF0000",
+  "csp": {
+    "script_src": [
+      "https://*.airtel.com",
+      "https://*.airtel.in"
+    ],
+    "style_src": [
+      "https://*.airtel.com"
+    ],
+    "frame_src": [
+      "https://*.airtel.com"
+    ],
+    "connect_src": [
+      "https://*.airtel.com",
+      "https://openapi.airtel.africa"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

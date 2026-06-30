@@ -1,0 +1,66 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Themes - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Themes</h1>
+        <p class="op-page-subtitle">Select and configure sovereign checkout page styling themes.</p>
+    </div>
+    {% if is_global_view ?? true %}
+    <a href="/admin/themes/install" class="op-btn op-btn-primary">
+        <span class="op-icon">+</span> Install Theme
+    </a>
+    {% endif %}
+</div>
+{% if not (is_global_view ?? true) %}
+{% include 'admin/partials/_all_brands_only.twig' with {title: 'Themes are managed from All Brands', message: 'Themes are uploaded once at the platform level and then selected per brand.'} only %}
+{% endif %}
+
+
+
+<div class="op-theme-grid">
+    {% for theme in themes %}
+    <div class="op-theme-card {% if theme.slug == active_theme %}op-theme-active{% endif %}">
+        <div class="op-theme-preview">
+            {% if theme.screenshot is defined and theme.screenshot %}
+                <img src="/modules/themes/{{ theme.slug }}/screenshot.png" alt="{{ theme.name }} preview" loading="lazy">
+            {% else %}
+                <div class="op-theme-placeholder">
+                    <span>{{ theme.name|first }}</span>
+                </div>
+            {% endif %}
+            {% if theme.slug == active_theme %}
+                <span class="op-theme-badge">Active</span>
+            {% endif %}
+        </div>
+        <div class="op-theme-info">
+            <h3>{{ theme.name }}</h3>
+            <p class="op-text-muted">v{{ theme.version }} - {{ theme.author|default('Unknown') }}</p>
+            {% if theme.description is defined and theme.description %}
+                <p class="op-theme-desc">{{ theme.description|length > 100 ? theme.description|slice(0, 100) ~ '...' : theme.description }}</p>
+            {% endif %}
+        </div>
+        <div class="op-theme-actions">
+            {% if theme.slug == active_theme %}
+                <a href="/admin/plugins/{{ theme.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Customize</a>
+            {% else %}
+                <form method="POST" action="/admin/themes/{{ theme.slug }}/activate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-primary">Activate</button>
+                </form>
+            {% endif %}
+            {% if theme.slug != 'default' and theme.slug != active_theme %}
+                <form method="POST" action="/admin/themes/{{ theme.slug }}/uninstall" class="op-inline-form" onsubmit="return confirm('Remove this theme?')">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-danger">Remove</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+        <p class="op-empty">No themes installed.</p>
+    {% endfor %}
+</div>
+{% endblock %}

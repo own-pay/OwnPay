@@ -1,0 +1,180 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Edit {{ gateway.name }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Edit: {{ gateway.name }}</h1>
+        <p class="op-page-subtitle">Edit manual payment gateway credentials, logos, instruction texts, and options.</p>
+    </div>
+    <a href="/admin/gateways" class="op-btn op-btn-outline">← Back</a>
+</div>
+
+{% if errors is defined and errors|length > 0 %}
+<div class="op-alert op-alert-danger">
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="POST" action="/admin/gateways/{{ gateway.id }}/update" enctype="multipart/form-data" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Basic Info</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label for="name">Gateway Name *</label>
+                    <input type="text" id="name" name="name" value="{{ gateway.name }}" required class="op-input">
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label for="slug">Slug</label>
+                    <input type="text" id="slug" name="slug" value="{{ gateway.slug }}" class="op-input" readonly>
+                    <small>Cannot change after creation.</small>
+                </div>
+            </div>
+            <div class="op-form-group">
+                <label for="instructions">Payment Instructions</label>
+                <textarea id="instructions" name="instructions" rows="4" class="op-input">{{ gateway.instructions }}</textarea>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Branding</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label>Logo</label>
+                    {% if gateway.logo_path is defined and gateway.logo_path %}
+                        <div class="op-mb-2"><img src="/storage/{{ gateway.logo_path }}" alt="" width="64" class="op-rounded"></div>
+                    {% endif %}
+                    <input type="file" name="logo" accept="image/*" class="op-input-file">
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>QR Code</label>
+                    {% if gateway.qr_code_path is defined and gateway.qr_code_path %}
+                        <div class="op-mb-2"><img src="/storage/{{ gateway.qr_code_path }}" alt="" width="64" class="op-rounded"></div>
+                    {% endif %}
+                    <input type="file" name="qr_code" accept="image/*" class="op-input-file">
+                </div>
+            </div>
+            {% set colors = gateway.colors is defined ? gateway.colors : {} %}
+            <div class="op-form-row">
+                <div class="op-form-group op-col-4">
+                    <label>Primary Color</label>
+                    <input type="color" name="color_primary" value="{{ colors.primary ?? '#E2136E' }}" class="op-input-color">
+                </div>
+                <div class="op-form-group op-col-4">
+                    <label>Secondary Color</label>
+                    <input type="color" name="color_secondary" value="{{ colors.secondary ?? '#FFFFFF' }}" class="op-input-color">
+                </div>
+                <div class="op-form-group op-col-4">
+                    <label>Text Color</label>
+                    <input type="color" name="color_text" value="{{ colors.text ?? '#FFFFFF' }}" class="op-input-color">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Limits & Verification</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                <div class="op-form-group op-col-4">
+                    <label>Min Amount</label>
+                    <input type="number" name="min_amount" value="{{ gateway.min_amount ?? '0' }}" step="0.01" class="op-input">
+                </div>
+                <div class="op-form-group op-col-4">
+                    <label>Max Amount</label>
+                    <input type="number" name="max_amount" value="{{ gateway.max_amount ?? '0' }}" step="0.01" class="op-input">
+                </div>
+                <div class="op-form-group op-col-4">
+                    <label>SMS Verification</label>
+                    <p class="op-mb-0"><span class="op-badge op-badge-success">Always on</span></p>
+                    <small class="op-text-muted">Mandatory for manual gateways.</small>
+                </div>
+            </div>
+            <div class="op-form-row op-mt-3" id="sms-patterns-row">
+                <div class="op-form-group op-col-6">
+                    <label>SMS Sender Pattern</label>
+                    <input type="text" name="sms_sender_pattern" value="{{ gateway.sms_sender_pattern ?? '' }}" class="op-input" placeholder="e.g. bKash, 1234">
+                    <small class="op-text-muted">Expected sender name or number for verification SMS</small>
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>SMS Matching Regex Template</label>
+                    <input type="text" name="sms_regex_template" value="{{ gateway.sms_regex_template ?? '' }}" class="op-input" placeholder="e.g. /TrxID\s+([A-Z0-9]+)/i">
+                    <small class="op-text-muted">Regular expression to extract the Transaction ID (TrxID) from the SMS text</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header">
+            <h3>Input Fields</h3>
+            <button type="button" id="add-field-btn" class="op-btn op-btn-sm op-btn-outline">+ Add Field</button>
+        </div>
+        <div class="op-card-body">
+            <div id="input-fields-container">
+                {% set existing_fields = gateway.input_fields is defined ? gateway.input_fields : [] %}
+                {% for i, field in existing_fields %}
+                <div class="op-field-row op-card op-card-bordered op-mb-2 op-p-3">
+                    <div class="op-form-row">
+                        <div class="op-form-group op-col-3">
+                            <label>Field Name</label>
+                            <input type="text" name="fields[{{ i }}][name]" value="{{ field.name }}" class="op-input" required>
+                        </div>
+                        <div class="op-form-group op-col-3">
+                            <label>Label</label>
+                            <input type="text" name="fields[{{ i }}][label]" value="{{ field.label }}" class="op-input" required>
+                        </div>
+                        <div class="op-form-group op-col-2">
+                            <label>Type</label>
+                            <select name="fields[{{ i }}][type]" class="op-input">
+                                <option value="text" {{ field.type == 'text' ? 'selected' : '' }}>Text</option>
+                                <option value="number" {{ field.type == 'number' ? 'selected' : '' }}>Number</option>
+                                <option value="tel" {{ field.type == 'tel' ? 'selected' : '' }}>Phone</option>
+                                <option value="email" {{ field.type == 'email' ? 'selected' : '' }}>Email</option>
+                                <option value="file" {{ field.type == 'file' ? 'selected' : '' }}>File</option>
+                            </select>
+                        </div>
+                        <div class="op-form-group op-col-2">
+                            <label class="op-checkbox-label">
+                                <input type="checkbox" name="fields[{{ i }}][required]" value="1" {{ field.required ? 'checked' : '' }}>
+                                Required
+                            </label>
+                        </div>
+                        <div class="op-form-group op-col-2">
+                            <button type="button" class="op-btn op-btn-sm op-btn-danger remove-field-btn">Remove</button>
+                        </div>
+                    </div>
+                </div>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+
+    <div class="op-form-actions">
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg">Save Changes</button>
+        <a href="/admin/gateways" class="op-btn op-btn-outline op-btn-lg">Cancel</a>
+    </div>
+</form>
+
+<template id="field-template">
+    <div class="op-field-row op-card op-card-bordered op-mb-2 op-p-3">
+        <div class="op-form-row">
+            <div class="op-form-group op-col-3"><label>Field Name</label><input type="text" name="fields[__IDX__][name]" class="op-input" required></div>
+            <div class="op-form-group op-col-3"><label>Label</label><input type="text" name="fields[__IDX__][label]" class="op-input" required></div>
+            <div class="op-form-group op-col-2"><label>Type</label><select name="fields[__IDX__][type]" class="op-input"><option value="text">Text</option><option value="number">Number</option><option value="tel">Phone</option><option value="email">Email</option><option value="file">File</option></select></div>
+            <div class="op-form-group op-col-2"><label class="op-checkbox-label"><input type="checkbox" name="fields[__IDX__][required]" value="1" checked>Required</label></div>
+            <div class="op-form-group op-col-2"><button type="button" class="op-btn op-btn-sm op-btn-danger remove-field-btn">Remove</button></div>
+        </div>
+    </div>
+</template>
+
+
+{% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/gateway-manual.js"></script>{% endblock %}
+

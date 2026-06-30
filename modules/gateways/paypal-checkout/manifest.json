@@ -1,0 +1,39 @@
+{
+  "name": "PayPal Checkout",
+  "slug": "paypal-checkout",
+  "version": "1.0.0",
+  "description": "Accept PayPal Checkout payments directly from customers.",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "icon.svg",
+  "color": "#003087",
+  "entrypoint": "PaypalCheckoutGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\PaypalCheckout",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": [
+      "https://*.paypal.com",
+      "https://*.paypalobjects.com"
+    ],
+    "style_src": [
+      "https://*.paypal.com"
+    ],
+    "frame_src": [
+      "https://*.paypal.com"
+    ],
+    "connect_src": [
+      "https://*.paypal.com",
+      "https://*.paypalobjects.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ]
+}

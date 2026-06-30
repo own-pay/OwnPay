@@ -1,0 +1,43 @@
+{
+  "name": "Moneris",
+  "slug": "moneris",
+  "version": "1.0.0",
+  "description": "Moneris payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "MonerisGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Moneris",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#B91C1C",
+  "csp": {
+    "script_src": [
+      "https://*.moneris.com",
+      "https://*.moneris.ca"
+    ],
+    "style_src": [
+      "https://*.moneris.com",
+      "https://*.moneris.ca"
+    ],
+    "frame_src": [
+      "https://*.moneris.com",
+      "https://*.moneris.ca"
+    ],
+    "connect_src": [
+      "https://*.moneris.com",
+      "https://*.moneris.ca"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,38 @@
+{
+  "name": "Easypaisa",
+  "slug": "easypaisa",
+  "version": "1.0.0",
+  "description": "Easypaisa payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "EasypaisaGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Easypaisa",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#009944",
+  "csp": {
+    "script_src": [
+      "https://*.easypaisa.com.pk"
+    ],
+    "style_src": [
+      "https://*.easypaisa.com.pk"
+    ],
+    "frame_src": [
+      "https://*.easypaisa.com.pk"
+    ],
+    "connect_src": [
+      "https://*.easypaisa.com.pk",
+      "https://easypay.easypaisa.com.pk"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,39 @@
+{
+  "name": "Payoneer",
+  "slug": "payoneer",
+  "version": "1.0.0",
+  "description": "Payoneer payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "PayoneerGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Payoneer",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#FF4E00",
+  "csp": {
+    "script_src": [
+      "https://*.payoneer.com"
+    ],
+    "style_src": [
+      "https://*.payoneer.com"
+    ],
+    "frame_src": [
+      "https://*.payoneer.com"
+    ],
+    "connect_src": [
+      "https://*.payoneer.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

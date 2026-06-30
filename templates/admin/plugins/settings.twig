@@ -1,0 +1,41 @@
+{% extends "admin/layout/base.twig" %}
+
+{% block title %}{{ plugin.name }} Settings - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>{{ plugin.name }} Settings</h1>
+        <p class="op-page-subtitle">Configure credential keys and operational parameters for the selected plugin integration.</p>
+    </div>
+    {% if plugin.type == 'gateway' %}
+        <a href="/admin/gateways" class="op-btn op-btn-outline">← Back to Gateways</a>
+    {% else %}
+        <a href="/admin/plugins" class="op-btn op-btn-outline">← Back to Plugins & Addons</a>
+    {% endif %}
+</div>
+
+
+
+<div class="op-card">
+    <div class="op-plugin-meta">
+        <span class="op-badge op-badge-{{ plugin.type }}">{{ plugin.type|capitalize }}</span>
+        <span class="op-text-muted">v{{ plugin.version }}</span>
+        <span class="op-text-muted">by {{ plugin.author|default('Unknown') }}</span>
+    </div>
+
+    {% if plugin.description %}
+    <p class="op-plugin-desc">{{ plugin.description }}</p>
+    {% endif %}
+</div>
+
+<div class="op-card op-mt-4">
+    <h3>Configuration</h3>
+
+    {% if settings_html %}
+        {{ settings_html|raw }}
+    {% else %}
+        <p class="op-text-muted">This plugin has no configurable settings.</p>
+    {% endif %}
+</div>
+{% endblock %}
