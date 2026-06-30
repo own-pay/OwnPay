@@ -1,0 +1,22 @@
+{
+  "name": "Paytm",
+  "slug": "paytm",
+  "version": "1.0.0",
+  "description": "Paytm secure transaction token showPaymentPage integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "mfs",
+  "icon": "icon.svg",
+  "color": "#002970",
+  "entrypoint": "PaytmGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Paytm",
+  "capabilities": ["gateway"],
+  "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+  "csp": {
+    "script_src": ["https://*.paytm.in", "https://*.paytmpayments.com"],
+    "style_src": ["https://*.paytm.in", "https://*.paytmpayments.com"],
+    "frame_src": ["https://*.paytm.in", "https://*.paytmpayments.com"],
+    "connect_src": ["https://*.paytm.in", "https://*.paytmpayments.com"]
+  },
+  "permissions": ["gateway.process"]
+}

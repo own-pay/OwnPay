@@ -1,0 +1,32 @@
+{% extends "checkout/layout.twig" %}
+
+{% block title %}Enter Amount - {{ link.title|default('Payment') }}{% endblock %}
+
+{% block content %}
+<div class="payment-amount-card">
+    <h2 class="payment-amount-title">
+        {{ link.title|default('Payment Link') }}
+    </h2>
+    {% if link.description is defined and link.description %}
+        <p class="payment-amount-desc">{{ link.description }}</p>
+    {% endif %}
+
+    <form method="POST" action="/pay/{{ link.slug }}/submit" class="payment-amount-form">
+        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        <label class="payment-amount-label">Amount ({{ link.currency|default('BDT') }})</label>
+        <input type="number" name="amount" step="0.01" min="1"
+               placeholder="Enter amount"
+               class="payment-amount-input"
+               required>
+        {% if link.min_amount is defined and link.min_amount %}
+            <small class="payment-amount-limit">Min: {{ link.min_amount }} {{ link.currency|default('BDT') }}</small>
+        {% endif %}
+        {% if link.max_amount is defined and link.max_amount %}
+            <small class="payment-amount-limit">Max: {{ link.max_amount }} {{ link.currency|default('BDT') }}</small>
+        {% endif %}
+        <button type="submit" class="payment-amount-submit">
+            Continue to Payment
+        </button>
+    </form>
+</div>
+{% endblock %}

@@ -1,0 +1,38 @@
+{
+  "name": "MoMo Wallet",
+  "slug": "momo",
+  "version": "1.0.0",
+  "description": "MoMo E-wallet payment integration for Vietnam",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "MomoGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Momo",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#A50064",
+  "csp": {
+    "script_src": [
+      "https://*.momo.vn"
+    ],
+    "style_src": [
+      "https://*.momo.vn"
+    ],
+    "frame_src": [
+      "https://*.momo.vn"
+    ],
+    "connect_src": [
+      "https://*.momo.vn",
+      "https://payment.momo.vn"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,37 @@
+{
+  "name": "PromptPay QR",
+  "slug": "promptpay",
+  "version": "1.0.0",
+  "description": "PromptPay QR payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "PromptPayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\PromptPay",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#003B70",
+  "csp": {
+    "script_src": [
+      "https://*.promptpay.io"
+    ],
+    "style_src": [
+      "https://*.promptpay.io"
+    ],
+    "frame_src": [
+      "https://*.promptpay.io"
+    ],
+    "connect_src": [
+      "https://*.promptpay.io"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

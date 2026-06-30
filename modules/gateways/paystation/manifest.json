@@ -1,0 +1,25 @@
+{
+  "name": "PayStation",
+  "slug": "paystation",
+  "version": "1.0.0",
+  "description": "Accept PayStation payments directly from customers.",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "mobile",
+  "icon": "assets/icon.png",
+  "color": "#e01a22",
+  "entrypoint": "PaystationGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Paystation",
+  "capabilities": ["gateway"],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": ["https://*.paystation.com.bd"],
+    "style_src": ["https://*.paystation.com.bd"],
+    "frame_src": ["https://*.paystation.com.bd"],
+    "connect_src": ["https://*.paystation.com.bd"]
+  },
+  "permissions": ["gateway.process"]
+}

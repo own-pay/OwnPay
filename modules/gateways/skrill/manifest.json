@@ -1,0 +1,39 @@
+{
+  "name": "Skrill",
+  "slug": "skrill",
+  "version": "1.0.0",
+  "description": "Skrill payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "SkrillGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Skrill",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#8A1538",
+  "csp": {
+    "script_src": [
+      "https://*.skrill.com"
+    ],
+    "style_src": [
+      "https://*.skrill.com"
+    ],
+    "frame_src": [
+      "https://*.skrill.com"
+    ],
+    "connect_src": [
+      "https://*.skrill.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

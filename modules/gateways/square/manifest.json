@@ -1,0 +1,42 @@
+{
+  "name": "Square Payments",
+  "slug": "square",
+  "version": "1.0.0",
+  "description": "Square Payments payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "SquareGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Square",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#000000",
+  "csp": {
+    "script_src": [
+      "https://*.squareup.com",
+      "https://*.squareupsandbox.com"
+    ],
+    "style_src": [
+      "https://*.squareup.com",
+      "https://*.squareupsandbox.com"
+    ],
+    "frame_src": [
+      "https://*.squareup.com",
+      "https://*.squareupsandbox.com"
+    ],
+    "connect_src": [
+      "https://*.squareup.com",
+      "https://*.squareupsandbox.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

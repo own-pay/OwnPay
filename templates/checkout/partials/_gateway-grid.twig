@@ -1,0 +1,73 @@
+{# GATEWAY GRIDS - dynamically populated from DB #}
+
+{# TAB: CARDS (global gateways) #}
+<div id="t-cards" class="ck-tc">
+    <div class="ck-gw-grid" id="cardG">
+        {% for gw in gateways.global %}
+        <div class="ck-gw" data-action="pick-gw" data-tab="card" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
+            {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
+            <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
+                {% if gw.logo is defined and gw.logo %}
+                    <img src="{% if gw.mode == 'manual' %}/storage/{% endif %}{{ gw.logo }}" alt="" class="ck-gw-logo">
+                    <span class="ck-gw-fallback">{{ gw.name[:2] }}</span>
+                {% else %}
+                    <span class="ck-gw-fallback op-show-fallback">{{ gw.name[:2] }}</span>
+                {% endif %}
+            </div>
+            <span class="ck-gw-name">{{ gw.name }}{% if gw.converted_amount is defined and gw.converted_amount %} ({{ gw.converted_amount }} {{ gw.converted_currency }}){% endif %}</span>
+        </div>
+        {% endfor %}
+        {% if gateways.global is empty %}
+            <p class="ck-empty-gw">{{ lang.no_gateways ?? 'No card gateways configured.' }}</p>
+        {% endif %}
+    </div>
+    <button type="button" id="cardBtn" disabled class="ck-pay-btn ck-pay-disabled">{{ lang.select_gateway ?? 'Select a gateway' }}</button>
+</div>
+
+{# TAB: MFS #}
+<div id="t-mfs" class="ck-tc ck-hidden">
+    <div class="ck-gw-grid" id="mfsG">
+        {% for gw in gateways.mfs %}
+        <div class="ck-gw" data-action="pick-gw" data-tab="mfs" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
+            {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
+            <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
+                {% if gw.logo is defined and gw.logo %}
+                    <img src="{% if gw.mode == 'manual' %}/storage/{% endif %}{{ gw.logo }}" alt="" class="ck-gw-logo">
+                    <span class="ck-gw-fallback">{{ gw.name[:2] }}</span>
+                {% else %}
+                    <span class="ck-gw-fallback op-show-fallback">{{ gw.name[:2] }}</span>
+                {% endif %}
+            </div>
+            <span class="ck-gw-name">{{ gw.name }}{% if gw.converted_amount is defined and gw.converted_amount %} ({{ gw.converted_amount }} {{ gw.converted_currency }}){% endif %}</span>
+        </div>
+        {% endfor %}
+        {% if gateways.mfs is empty %}
+            <p class="ck-empty-gw">{{ lang.no_gateways ?? 'No MFS gateways configured.' }}</p>
+        {% endif %}
+    </div>
+    <button type="button" id="mfsBtn" disabled class="ck-pay-btn ck-pay-disabled">{{ lang.select_provider ?? 'Select a provider' }}</button>
+</div>
+
+{# TAB: NET BANKING #}
+<div id="t-bank" class="ck-tc ck-hidden">
+    <div class="ck-gw-grid" id="bankG">
+        {% for gw in gateways.bank %}
+        <div class="ck-gw" data-action="pick-gw" data-tab="bank" data-slug="{{ gw.slug }}" data-name="{{ gw.name }}" data-mode="{{ gw.mode ?? 'api' }}" data-color="{{ gw.color|default('#ECEEF5') }}">
+            {% if gw.mode == 'manual' %}<div class="ck-gw-badge">Manual</div>{% endif %}
+            <div class="ck-gw-ico ck-gw-ico-{{ gw.slug }}">
+                {% if gw.logo is defined and gw.logo %}
+                    <img src="{% if gw.mode == 'manual' %}/storage/{% endif %}{{ gw.logo }}" alt="" class="ck-gw-logo">
+                    <span class="ck-gw-fallback">{{ gw.name[:2] }}</span>
+                {% else %}
+                    <span class="ck-gw-fallback op-show-fallback">{{ gw.name[:2] }}</span>
+                {% endif %}
+            </div>
+            <span class="ck-gw-name">{{ gw.name }}{% if gw.converted_amount is defined and gw.converted_amount %} ({{ gw.converted_amount }} {{ gw.converted_currency }}){% endif %}</span>
+        </div>
+        {% endfor %}
+        {% if gateways.bank is empty %}
+            <p class="ck-empty-gw">{{ lang.no_gateways ?? 'No banks configured.' }}</p>
+        {% endif %}
+    </div>
+    <button type="button" id="bankBtn" disabled class="ck-pay-btn ck-pay-disabled">{{ lang.select_bank ?? 'Select a bank' }}</button>
+</div>

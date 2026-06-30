@@ -1,0 +1,195 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Gateways - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Payment Gateways</h1>
+        <p class="op-page-subtitle">Configure active payment channels, manual gateways, and credentials rules.</p>
+    </div>
+    <div class="op-header-actions">
+        {% if is_global_view ?? true %}
+        <a href="/admin/gateways/create-manual" class="op-btn op-btn-primary">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>
+            Add Manual Gateway
+        </a>
+        {% endif %}
+    </div>
+</div>
+{% if not (is_global_view ?? true) %}
+{% include 'admin/partials/_all_brands_only.twig' with {title: 'Manual gateways are managed from All Brands', message: 'Custom/manual payment gateways are created at the platform level so every brand can use them. You can still activate and configure the gateways below for this brand.'} only %}
+{% endif %}
+
+{# --- Tabs Navigation --- #}
+<div class="op-tabs op-mb-4">
+    <button class="op-tab active" data-tab="all">
+        All Gateways
+        <span class="op-tab-count" id="count-all">0</span>
+    </button>
+    <button class="op-tab" data-tab="api">
+        API Gateways
+        <span class="op-tab-count" id="count-api">0</span>
+    </button>
+    <button class="op-tab" data-tab="manual">
+        Manual Gateways
+        <span class="op-tab-count" id="count-manual">0</span>
+    </button>
+</div>
+
+{# --- Filtering & Search Toolbar --- #}
+<div class="op-filter-bar op-mb-4">
+    <div class="op-search-box">
+        <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="8"></circle>
+            <path d="M21 21l-4.35-4.35"></path>
+        </svg>
+        <input type="text" id="gateway-search" placeholder="Search gateways..." class="op-input">
+    </div>
+    <div class="op-filter-actions">
+        <div class="op-custom-dropdown">
+            <input type="hidden" id="status-filter" value="all">
+            <button type="button" class="op-custom-dropdown-btn">
+                <span class="op-custom-dropdown-label">All Statuses</span>
+                <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+            </button>
+            <div class="op-custom-dropdown-menu">
+                <button type="button" class="op-custom-dropdown-option active" data-value="all">All Statuses</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="active">Active Only</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="inactive">Inactive Only</button>
+                <button type="button" class="op-custom-dropdown-option" data-value="uninstalled">Not Installed Only</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+{# --- Unified Card Grid --- #}
+<div class="op-gateway-grid" id="gateway-list">
+    <!-- API Gateways -->
+    {% for gw in api_gateways %}
+    <div class="op-gateway-card op-card-item {% if gw.status == 'active' %}op-gateway-active{% elseif gw.status == 'installed' %}op-gateway-installed{% else %}op-gateway-inactive{% endif %}"
+         data-type="api"
+         data-status="{{ gw.status }}"
+         data-name="{{ gw.name|lower }}"
+         data-slug="{{ gw.slug|lower }}"
+         data-desc="{{ gw.description|lower }}">
+        <div class="op-gateway-logo">
+            {% if gw.logo is defined and gw.logo %}
+                <img src="{{ gw.logo }}" alt="{{ gw.name }}" loading="lazy" class="op-gateway-logo-img">
+                <div class="op-gateway-icon op-gateway-fallback">{{ gw.name[0:2]|upper }}</div>
+            {% else %}
+                <div class="op-gateway-icon">{{ gw.name[0:2]|upper }}</div>
+            {% endif %}
+        </div>
+        <div class="op-gateway-info">
+            <div class="op-flex op-items-center op-gap-2 op-mb-1">
+                <h4 class="op-m-0">{{ gw.name }}</h4>
+                <span class="op-badge op-badge-info">API</span>
+            </div>
+            <p class="op-text-muted op-text-xs op-mb-2">{{ gw.description }}</p>
+            <div class="op-flex op-items-center op-gap-1">
+                {% if gw.status == 'active' %}
+                    <span class="op-badge op-badge-success">active</span>
+                    {% if gw.mode %}<span class="op-badge op-badge-{{ gw.mode == 'live' ? 'primary' : 'warning' }}">{{ gw.mode }}</span>{% endif %}
+                {% elseif gw.status == 'installed' %}
+                    <span class="op-badge op-badge-info">installed</span>
+                {% elseif gw.status == 'inactive' %}
+                    <span class="op-badge op-badge-muted">inactive</span>
+                {% elseif gw.status == 'error' %}
+                    <span class="op-badge op-badge-danger">error</span>
+                {% else %}
+                    <span class="op-badge op-badge-muted">not installed</span>
+                {% endif %}
+            </div>
+        </div>
+        <div class="op-gateway-actions">
+            {% if gw.status == 'uninstalled' %}
+                <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-success">Install</button>
+                </form>
+            {% elseif gw.status == 'installed' %}
+                <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
+            {% elseif gw.status == 'active' %}
+                <a href="/admin/plugins/{{ gw.slug }}/settings" class="op-btn op-btn-sm op-btn-outline">Configure</a>
+                <form method="POST" action="/admin/plugins/{{ gw.slug }}/deactivate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-warning">Deactivate</button>
+                </form>
+            {% elseif gw.status == 'error' %}
+                <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-warning">Retry</button>
+                </form>
+            {% else %}
+                <form method="POST" action="/admin/plugins/{{ gw.slug }}/activate" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-success">Activate</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+
+    <!-- Manual Gateways -->
+    {% for mg in manual_gateways %}
+    <div class="op-gateway-card op-card-item {% if mg.status == 'active' %}op-gateway-active{% else %}op-gateway-inactive{% endif %}"
+         data-type="manual"
+         data-status="{{ mg.status }}"
+         data-name="{{ mg.name|lower }}"
+         data-slug="{{ mg.slug|lower }}"
+         data-desc="{{ mg.instructions|default('')|lower }}">
+        <div class="op-gateway-logo">
+            {% if mg.logo_path is defined and mg.logo_path %}
+                <img src="/storage/{{ mg.logo_path }}" alt="{{ mg.name }}" loading="lazy" class="op-gateway-logo-img">
+                <div class="op-gateway-icon op-gateway-fallback">{{ mg.name[0:2]|upper }}</div>
+            {% else %}
+                <div class="op-gateway-icon">{{ mg.name[0:2]|upper }}</div>
+            {% endif %}
+        </div>
+        <div class="op-gateway-info">
+            <div class="op-flex op-items-center op-gap-2 op-mb-1">
+                <h4 class="op-m-0">{{ mg.name }}</h4>
+                <span class="op-badge op-badge-secondary">Manual</span>
+            </div>
+            <p class="op-text-muted op-text-xs op-mb-2">Limits: {{ mg.min_amount|default('0.00') }} - {{ mg.max_amount|default('Unlimited') }} BDT</p>
+            <div class="op-flex op-items-center op-gap-1">
+                <span class="op-badge {% if mg.status == 'active' %}op-badge-success{% else %}op-badge-muted{% endif %}">{{ mg.status }}</span>
+                {% if (mg.is_template ?? false) and not (mg.is_own ?? false) %}
+                    <span class="op-badge op-badge-info" title="Defined by All Brands. Uses the platform default account until you configure your own.">Platform default</span>
+                {% elseif not (is_global_view ?? true) and (mg.is_own ?? false) %}
+                    <span class="op-badge op-badge-primary" title="Your brand's own account - customers pay this.">Your account</span>
+                {% endif %}
+                <span class="op-badge {{ mg.sms_verification ? 'op-badge-success' : 'op-badge-muted' }}">SMS: {{ mg.sms_verification ? 'ON' : 'OFF' }}</span>
+            </div>
+        </div>
+        <div class="op-gateway-actions">
+            {% if (mg.is_template ?? false) and not (mg.is_own ?? false) %}
+                {# Platform-defined template the brand has not overridden: configure this brand's own account. #}
+                <a href="/admin/gateways/configure/{{ mg.slug }}" class="op-btn op-btn-sm op-btn-primary">Configure account</a>
+            {% else %}
+                <a href="/admin/gateways/{{ mg.id }}/edit" class="op-btn op-btn-sm op-btn-outline">Edit</a>
+                <form method="POST" action="/admin/gateways/{{ mg.id }}/toggle" class="op-inline-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm {{ mg.status == 'active' ? 'op-btn-warning' : 'op-btn-success' }}">
+                        {{ mg.status == 'active' ? 'Disable' : 'Enable' }}
+                    </button>
+                </form>
+                <form method="POST" action="/admin/gateways/{{ mg.id }}/delete" class="op-inline-form" onsubmit="return confirm('Delete gateway {{ mg.name }}?')">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-btn op-btn-sm op-btn-danger">Delete</button>
+                </form>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<div class="op-empty-state" id="gateway-empty" style="display:none;">
+    <p>No gateways match your search or filter criteria.</p>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/gateways.js"></script>
+{% endblock %}

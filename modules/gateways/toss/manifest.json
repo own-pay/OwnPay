@@ -1,0 +1,39 @@
+{
+  "name": "Toss Payments",
+  "slug": "toss",
+  "version": "1.0.0",
+  "description": "Toss Payments payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "TossGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Toss",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#0064FF",
+  "csp": {
+    "script_src": [
+      "https://*.tosspayments.com",
+      "https://js.tosspayments.com"
+    ],
+    "style_src": [
+      "https://*.tosspayments.com"
+    ],
+    "frame_src": [
+      "https://*.tosspayments.com"
+    ],
+    "connect_src": [
+      "https://*.tosspayments.com",
+      "https://api.tosspayments.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

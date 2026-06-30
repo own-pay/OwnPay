@@ -1,0 +1,39 @@
+{
+  "name": "Payfast",
+  "slug": "payfast",
+  "version": "1.0.0",
+  "description": "Payfast payment gateway integration for South Africa",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "PayfastGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Payfast",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "africa",
+  "color": "#e35e25",
+  "csp": {
+    "script_src": [
+      "https://*.payfast.co.za"
+    ],
+    "style_src": [
+      "https://*.payfast.co.za"
+    ],
+    "frame_src": [
+      "https://*.payfast.co.za"
+    ],
+    "connect_src": [
+      "https://*.payfast.co.za"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

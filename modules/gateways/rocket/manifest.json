@@ -1,0 +1,38 @@
+{
+  "name": "DBBL Rocket",
+  "slug": "rocket",
+  "version": "1.0.0",
+  "description": "DBBL Rocket payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "RocketGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Rocket",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#8C2070",
+  "csp": {
+    "script_src": [
+      "https://*.dutchbanglabank.com"
+    ],
+    "style_src": [
+      "https://*.dutchbanglabank.com"
+    ],
+    "frame_src": [
+      "https://*.dutchbanglabank.com"
+    ],
+    "connect_src": [
+      "https://*.dutchbanglabank.com",
+      "https://sandbox.dutchbanglabank.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

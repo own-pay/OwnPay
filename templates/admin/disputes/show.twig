@@ -1,0 +1,173 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Dispute #{{ dispute.id }} - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Dispute: <code>#{{ dispute.id }}</code></h1>
+        <p class="op-page-subtitle">Detailed dispute transaction records, status timelines, and resolution comments.</p>
+    </div>
+    <a href="/admin/disputes" class="op-btn op-btn-outline">← Back</a>
+</div>
+
+<div class="op-grid op-grid-2">
+    {# -- Dispute Details Card -- #}
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>Dispute Details</h3>
+        </div>
+        <div class="op-card-body">
+            <dl class="op-detail-list">
+                <dt>Status</dt>
+                <dd>
+                    {% set status = dispute.status|lower %}
+                    <span class="op-badge op-badge-{{ status == 'won' ? 'success' : (status == 'lost' ? 'danger' : (status == 'closed' ? 'secondary' : 'warning')) }} op-badge-lg">
+                        {% if status == 'won' or status == 'lost' or status == 'closed' %}
+                            {{ status|capitalize }}
+                        {% else %}
+                            {{ status == 'under_review' ? 'Under Review' : 'Open' }}
+                        {% endif %}
+                    </span>
+                </dd>
+
+                <dt>Disputed Amount</dt>
+                <dd><strong>{{ dispute.amount }}</strong></dd>
+
+                <dt>Reason</dt>
+                <dd><span class="op-badge op-badge-outline">{{ dispute.reason|capitalize }}</span></dd>
+
+                <dt>Opened</dt>
+                <dd>{{ dispute.created_at|date("M d, Y H:i:s") }}</dd>
+
+                {% if dispute.resolved_at is not empty %}
+                    <dt>Resolved At</dt>
+                    <dd>{{ dispute.resolved_at|date("M d, Y H:i:s") }}</dd>
+                {% endif %}
+
+                {% if dispute.evidence is not empty %}
+                    <dt>Resolution Proof</dt>
+                    <dd class="op-text-muted">
+                        {% if dispute.evidence is iterable %}
+                            {% if dispute.evidence.notes is not empty %}
+                                <div class="op-mb-2"><strong>Notes:</strong> {{ dispute.evidence.notes }}</div>
+                            {% endif %}
+                            {% if dispute.evidence.shipping_carrier is not empty %}
+                                <div class="op-mb-2"><strong>Shipping Carrier:</strong> {{ dispute.evidence.shipping_carrier }}</div>
+                            {% endif %}
+                            {% if dispute.evidence.tracking_number is not empty %}
+                                <div class="op-mb-2"><strong>Tracking Number:</strong> {{ dispute.evidence.tracking_number }}</div>
+                            {% endif %}
+                            {% if dispute.evidence.file_path is not empty %}
+                                <div class="op-mb-2"><strong>Evidence File:</strong> <a href="{{ dispute.evidence.file_path }}" target="_blank" class="op-link op-text-decoration-underline">{{ dispute.evidence.file_path|split('/')|last }}</a></div>
+                            {% endif %}
+                        {% else %}
+                            <div style="white-space: pre-wrap;">{{ dispute.evidence }}</div>
+                        {% endif %}
+                    </dd>
+                {% endif %}
+            </dl>
+        </div>
+    </div>
+
+    {# -- Linked Transaction Details Card -- #}
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>Linked Transaction Details</h3>
+        </div>
+        <div class="op-card-body">
+            {% if transaction is not null %}
+                <dl class="op-detail-list">
+                    <dt>TRX ID</dt>
+                    <dd>
+                        <a href="/admin/transactions/{{ transaction.id }}" class="op-link op-font-mono">
+                            {{ transaction.trx_id }}
+                        </a>
+                    </dd>
+
+                    <dt>Original Status</dt>
+                    <dd>
+                        <span class="op-badge op-badge-{{ transaction.status == 'completed' ? 'success' : (transaction.status == 'pending' ? 'warning' : 'danger') }}">
+                            {{ transaction.status|upper }}
+                        </span>
+                    </dd>
+
+                    <dt>Total Amount</dt>
+                    <dd><strong>{{ transaction.currency }} {{ transaction.amount }}</strong></dd>
+
+                    <dt>Customer Name</dt>
+                    <dd>{{ transaction.customer_name|default('-') }}</dd>
+
+                    <dt>Customer Email</dt>
+                    <dd>{{ transaction.customer_email|default('-') }}</dd>
+
+                    <dt>Gateway</dt>
+                    <dd><span class="op-badge op-badge-outline">{{ transaction.gateway_name }}</span></dd>
+
+                    <dt>Processed Date</dt>
+                    <dd>{{ transaction.created_at|date("M d, Y H:i:s") }}</dd>
+                </dl>
+            {% else %}
+                <div class="op-empty-state">
+                    <p class="op-text-danger">Linked transaction (ID: {{ dispute.transaction_id }}) could not be resolved or was deleted.</p>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{# -- Resolution / Actions Card -- #}
+<div class="op-card op-mt-4">
+    <div class="op-card-header">
+        <h3>Administrative Actions</h3>
+    </div>
+    <div class="op-card-body">
+        {% if status == 'won' or status == 'lost' or status == 'closed' %}
+            <div class="op-alert op-alert-success op-mb-0">
+                <strong>Verdict Finalized:</strong> This dispute has been resolved as <strong>{{ status|upper }}</strong>. The record is now locked for audit trail integrity.
+            </div>
+        {% else %}
+            <form method="POST" action="/admin/disputes/{{ dispute.id }}/resolve" enctype="multipart/form-data" class="op-settings-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+                <div class="op-form-group">
+                    <label for="status">Dispute Verdict Status <span class="op-required">*</span></label>
+                    <select name="status" id="status" class="op-input" required>
+                        <option value="" disabled selected>-- Select Verdict --</option>
+                        <option value="won">Won (Merchant Wins / Dispute Defended)</option>
+                        <option value="lost">Lost (Customer Wins / Chargeback Deducted)</option>
+                        <option value="closed">Closed (Dismissed / Closed Without Fault)</option>
+                    </select>
+                </div>
+
+                <div class="op-form-group">
+                    <label for="shipping_carrier">Shipping Carrier (Optional)</label>
+                    <input type="text" name="shipping_carrier" id="shipping_carrier" class="op-input" placeholder="e.g. DHL, FedEx, UPS...">
+                </div>
+
+                <div class="op-form-group">
+                    <label for="tracking_number">Tracking Number (Optional)</label>
+                    <input type="text" name="tracking_number" id="tracking_number" class="op-input" placeholder="e.g. 1Z999AA10123456784...">
+                </div>
+
+                <div class="op-form-group">
+                    <label for="evidence_file">Evidence Document / File (Optional)</label>
+                    <input type="file" name="evidence_file" id="evidence_file" class="op-input" accept=".jpg,.jpeg,.png,.gif,.webp,.svg,.ico,.pdf,.zip">
+                    <small>Accepted formats: JPG, PNG, WEBP, SVG, PDF, ZIP. Max upload size is determined by system server config.</small>
+                </div>
+
+                <div class="op-form-group">
+                    <label for="resolution">Evidence & Resolution Notes</label>
+                    <textarea name="resolution" id="resolution" class="op-input op-resize-vertical" rows="5" placeholder="Provide additional communication transcripts, shipping details, or reasons justifying this verdict..."></textarea>
+                    <small>These notes and files will be recorded timing-safely in the secure dispute ledger database and system audit log.</small>
+                </div>
+
+                <div class="op-form-actions">
+                    <button type="submit" class="op-btn op-btn-primary">
+                        Resolve & Lock Verdict
+                    </button>
+                    <a href="/admin/disputes" class="op-btn op-btn-outline">Cancel</a>
+                </div>
+            </form>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,65 @@
+{# MODALS - cancel, info, FAQ, help #}
+
+{# CANCEL MODAL #}
+<div id="mCancel" class="ck-modal ck-hidden">
+    <div class="ck-modal-backdrop" data-action="close-modal" data-target="mCancel"></div>
+    <div class="ck-modal-dialog">
+        <h3>{{ lang.cancel_title ?? 'Cancel Payment?' }}</h3>
+        <p>{{ lang.cancel_msg ?? 'Your transaction will be cancelled and you will be redirected back.' }}</p>
+        <div class="ck-modal-actions">
+            <button type="button" data-action="close-modal" data-target="mCancel" class="ck-modal-btn-outline">{{ lang.stay_here ?? 'Stay Here' }}</button>
+            <form method="POST" action="/checkout/{{ txn.trx_id }}/cancel">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="checkout_hash" value="{{ checkout_hash }}">
+                <button type="submit" class="ck-modal-btn-danger">{{ lang.yes_cancel ?? 'Yes, Cancel' }}</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+{# INFO MODAL #}
+<div id="mInfo" class="ck-modal ck-hidden">
+    <div class="ck-modal-backdrop" data-action="close-modal" data-target="mInfo"></div>
+    <div class="ck-modal-dialog">
+        <h3>{{ lang.payment_info ?? 'Payment Information' }}</h3>
+        <div class="ck-info-list">
+            <div><span>{{ lang.transaction_ref ?? 'Reference' }}</span><code>{{ txn.trx_id }}</code></div>
+            <div><span>{{ lang.amount ?? 'Amount' }}</span><span>{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }} {{ txn.currency ?? 'BDT' }}</span></div>
+            <div><span>{{ lang.merchant ?? 'Merchant' }}</span><span>{{ brand.name }}</span></div>
+        </div>
+        <button type="button" data-action="close-modal" data-target="mInfo" class="ck-modal-btn-outline ck-modal-full">{{ lang.close ?? 'Close' }}</button>
+    </div>
+</div>
+
+{# FAQ MODAL #}
+<div id="mFaq" class="ck-modal ck-hidden">
+    <div class="ck-modal-backdrop" data-action="close-modal" data-target="mFaq"></div>
+    <div class="ck-modal-dialog">
+        <h3>{{ lang.faq_title ?? 'Frequently Asked Questions' }}</h3>
+        <div class="ck-faq-list">
+            {% for faq in faqs %}
+            <details class="ck-faq-item">
+                <summary>{{ faq.question }}</summary>
+                <p>{{ faq.answer }}</p>
+            </details>
+            {% endfor %}
+            {% if faqs is empty %}
+                <p class="ck-text-muted">{{ lang.no_faqs ?? 'No FAQs available.' }}</p>
+            {% endif %}
+        </div>
+        <button type="button" data-action="close-modal" data-target="mFaq" class="ck-modal-btn-outline ck-modal-full">{{ lang.close ?? 'Close' }}</button>
+    </div>
+</div>
+
+{# HELP MODAL #}
+<div id="mHelp" class="ck-modal ck-hidden">
+    <div class="ck-modal-backdrop" data-action="close-modal" data-target="mHelp"></div>
+    <div class="ck-modal-dialog">
+        <h3>{{ lang.need_help ?? 'Need Help?' }}</h3>
+        <p>{{ lang.help_msg ?? 'Contact the merchant support team for assistance.' }}</p>
+        {% if brand.support_email %}
+            <a href="mailto:{{ brand.support_email }}" class="ck-help-email">{{ brand.support_email }}</a>
+        {% endif %}
+        <button type="button" data-action="close-modal" data-target="mHelp" class="ck-modal-btn-outline ck-modal-full">{{ lang.close ?? 'Close' }}</button>
+    </div>
+</div>

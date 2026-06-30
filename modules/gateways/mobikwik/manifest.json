@@ -1,0 +1,22 @@
+{
+  "name": "MobiKwik",
+  "slug": "mobikwik",
+  "version": "1.0.0",
+  "description": "MobiKwik Zaakpay hosted checkout integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "mfs",
+  "icon": "icon.svg",
+  "color": "#004b93",
+  "entrypoint": "MobikwikGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Mobikwik",
+  "capabilities": ["gateway"],
+  "requires": { "core": ">=0.1.0", "php": ">=8.1" },
+  "csp": {
+    "script_src": ["https://*.mobikwik.com", "https://*.zaakpay.com"],
+    "style_src": ["https://*.mobikwik.com", "https://*.zaakpay.com"],
+    "frame_src": ["https://*.mobikwik.com", "https://*.zaakpay.com"],
+    "connect_src": ["https://*.mobikwik.com", "https://*.zaakpay.com"]
+  },
+  "permissions": ["gateway.process"]
+}

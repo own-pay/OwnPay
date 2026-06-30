@@ -1,0 +1,50 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Customer {{ customer.name }} - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Customer: {{ customer.name }}</h1>
+        <p class="op-page-subtitle">Customer profile details, contact information, and associated financial transactions.</p>
+    </div>
+    <div class="op-header-actions">
+        <a href="/admin/customers" class="op-btn op-btn-secondary">← Back</a>
+    </div>
+</div>
+
+<div class="op-grid op-grid-cols-2">
+    <div class="op-card">
+        <div class="op-card-header"><h3>Details</h3></div>
+        <div class="op-card-body">
+            <dl class="op-dl">
+                <dt>ID</dt><dd><code>{{ customer.id }}</code></dd>
+                <dt>Email</dt><dd>{{ customer.email ?? '-' }}</dd>
+                <dt>Phone</dt><dd>{{ customer.phone ?? '-' }}</dd>
+                <dt>Joined</dt><dd>{{ customer.created_at|date("M d, Y H:i") }}</dd>
+            </dl>
+        </div>
+    </div>
+</div>
+
+<h2 class="op-mt-lg">Recent Transactions</h2>
+<div class="op-card op-mt-md">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead><tr><th>Txn ID</th><th>Amount</th><th>Status</th><th>Date</th></tr></thead>
+                <tbody>
+                    {% for txn in transactions %}
+                    <tr>
+                        <td data-label="Txn ID"><code>{{ txn.id }}</code></td>
+                        <td data-label="Amount">{{ txn.currency }} {{ txn.amount }}</td>
+                        <td data-label="Status"><span class="op-badge op-badge-{{ txn.status }}">{{ txn.status|capitalize }}</span></td>
+                        <td data-label="Date">{{ txn.created_at|date("M d, Y H:i") }}</td>
+                    </tr>
+                    {% else %}
+                    <tr><td colspan="4" class="op-text-center">No transactions found.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+<div class="op-notif-panel" id="notification-panel">
+    <div class="op-notif-panel-header">
+        <h3>Notifications</h3>
+        <button class="op-notif-mark-read" id="notif-mark-read">Mark all read</button>
+    </div>
+    <div class="op-notif-panel-body">
+        {% if notifications_bell is defined and notifications_bell is not empty %}
+            {% for notif in notifications_bell %}
+            <div class="op-notif-item {{ notif.read ? '' : 'op-notif-unread' }}" data-id="{{ notif.id }}">
+                <div class="op-notif-icon op-notif-icon-{{ notif.icon }}">
+                    {% if notif.icon == 'payment' %}
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    {% elseif notif.icon == 'failed' %}
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
+                    {% elseif notif.icon == 'dispute' %}
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    {% else %}
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                    {% endif %}
+                </div>
+                <div class="op-notif-content">
+                    <div class="op-notif-title">{{ notif.title }}</div>
+                    <div class="op-notif-message">{{ notif.message }}</div>
+                    <div class="op-notif-time">{{ notif.time }}</div>
+                </div>
+                {% if not notif.read %}
+                <div class="op-notif-dot"></div>
+                {% endif %}
+                <button class="op-notif-delete" data-id="{{ notif.id }}" title="Delete">
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div style="padding: 40px 24px; text-align: center; color: var(--op-text-muted); font-size: 13px;">No notifications</div>
+        {% endif %}
+    </div>
+    <div class="op-notif-panel-footer">
+        <a href="/admin/activities">View all notifications</a>
+    </div>
+</div>

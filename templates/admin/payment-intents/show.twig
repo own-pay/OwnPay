@@ -1,0 +1,113 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Payment Intent Details - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-back-navigation op-mb-3">
+    <a href="/admin/payment-intents" class="op-back-link">← Back to Payment Intents</a>
+</div>
+
+<div class="op-page-header">
+    <div>
+        <div class="op-flex op-align-center op-gap-2">
+            <h1>Payment Intent Details</h1>
+            <span class="op-badge op-badge-{{ intent.status == 'completed' ? 'success' : (intent.status == 'pending' ? 'warning' : (intent.status == 'processing' ? 'info' : 'danger')) }}">
+                {{ intent.status|capitalize }}
+            </span>
+        </div>
+        <p class="op-page-subtitle">Payment intent lifecycle status, raw API payloads, and state transitions. (UUID: <code>{{ intent.uuid }}</code>)</p>
+    </div>
+</div>
+
+<div class="op-form-row">
+    {# Main intent details card #}
+    <div class="op-col-8">
+        <div class="op-card op-mb-4">
+            <div class="op-card-header">
+                <h3>General Information</h3>
+            </div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Amount</label>
+                        <div class="op-input op-readonly" style="font-weight: bold;">
+                            {{ intent.currency }} {{ intent.amount }}
+                        </div>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Customer ID</label>
+                        <div class="op-input op-readonly">
+                            {{ intent.customer_id|default('Guest Checkout') }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="op-form-group">
+                    <label>Description</label>
+                    <div class="op-input op-readonly" style="height: auto; min-height: 38px;">
+                        {{ intent.description|default('-') }}
+                    </div>
+                </div>
+
+                <div class="op-form-group">
+                    <label>Secure Token</label>
+                    <div class="op-flex op-gap-2">
+                        <input type="text" class="op-input op-readonly" value="{{ intent.token }}" id="intent-token-input" readonly>
+                        <button type="button" class="op-btn op-btn-outline" onclick="window.opCopyText(document.getElementById('intent-token-input').value, this)">Copy</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mb-4">
+            <div class="op-card-header">
+                <h3>Integration & Callbacks</h3>
+            </div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label>Redirect URL (Return Path)</label>
+                    <input type="text" class="op-input op-readonly" value="{{ intent.redirect_url|default('-') }}" readonly>
+                </div>
+                <div class="op-form-group">
+                    <label>Cancel URL</label>
+                    <input type="text" class="op-input op-readonly" value="{{ intent.cancel_url|default('-') }}" readonly>
+                </div>
+                <div class="op-form-group">
+                    <label>Webhook Notifications Endpoint</label>
+                    <input type="text" class="op-input op-readonly" value="{{ intent.webhook_url|default('-') }}" readonly>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Sidebar meta card #}
+    <div class="op-col-4">
+        <div class="op-card op-mb-4">
+            <div class="op-card-header">
+                <h3>Status & Timeline</h3>
+            </div>
+            <div class="op-card-body op-text-sm">
+                <div class="op-mb-3">
+                    <strong class="op-d-block op-text-muted">Created At</strong>
+                    <span>{{ intent.created_at|date("M d, Y H:i:s") }}</span>
+                </div>
+                <div class="op-mb-3">
+                    <strong class="op-d-block op-text-muted">Expires At</strong>
+                    <span>{{ intent.expires_at ? intent.expires_at|date("M d, Y H:i:s") : '-' }}</span>
+                </div>
+                <div>
+                    <strong class="op-d-block op-text-muted">Last Updated</strong>
+                    <span>{{ intent.updated_at|date("M d, Y H:i:s") }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card">
+            <div class="op-card-header">
+                <h3>Metadata</h3>
+            </div>
+            <div class="op-card-body op-p-0">
+                <pre style="margin: 0; padding: 12px; font-size: 11px; background: var(--bg-subtle, #f8f9fa); overflow-x: auto; max-height: 300px;"><code>{% if intent.metadata is not empty %}{{ intent.metadata|json_encode(constant('JSON_PRETTY_PRINT')) }}{% else %}{}{% endif %}</code></pre>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

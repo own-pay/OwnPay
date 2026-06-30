@@ -1,0 +1,66 @@
+{# ═══════ EXPIRED STATUS ═══════ #}
+<div class="st-card">
+    <div class="st-header st-header-expired">
+        <div class="st-icon-wrap">
+            <div class="st-icon-ring1 st-icon-ring1-expired"></div>
+            <div class="st-icon-ring2 st-icon-ring2-expired"></div>
+            <div class="st-icon-circle st-icon-circle-expired">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            </div>
+        </div>
+        <span class="st-badge st-badge-expired">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Expired
+        </span>
+        <h1 class="st-title">{{ status_label ?? 'Payment Expired' }}</h1>
+        <p class="st-subtitle">This payment session has expired for security reasons. Please start a new payment if needed.</p>
+    </div>
+
+    <div class="st-body">
+        <div class="st-details">
+            {% if txn.trx_id is defined and txn.trx_id %}
+            <div class="st-row">
+                <span class="st-row-label">Transaction ID</span>
+                <span class="st-row-value">{{ txn.trx_id }}</span>
+            </div>
+            <div class="st-row-divider"></div>
+            {% endif %}
+            {% if txn.amount is defined and txn.amount %}
+            <div class="st-row st-amount-row">
+                <span class="st-row-label">Amount</span>
+                <span class="st-row-value st-text-expired-crossed">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }} {{ txn.currency ?? 'BDT' }}</span>
+            </div>
+            <div class="st-row-divider"></div>
+            {% endif %}
+            <div class="st-row">
+                <span class="st-row-label">Merchant</span>
+                <span class="st-row-value">{{ brand.name ?? 'OwnPay' }}</span>
+            </div>
+            <div class="st-row-divider"></div>
+            <div class="st-row">
+                <span class="st-row-label">Status</span>
+                <span class="st-row-value st-text-expired">Session expired</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="st-actions">
+        <a href="{{ merchant_redirect_url ?? '/' }}" class="st-btn op-back-btn">
+            <div class="st-btn-icon st-btn-icon-expired">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#64748B" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <span class="st-btn-label">Start<br>New Payment</span>
+        </a>
+        <a href="{{ merchant_redirect_url ?? '/' }}" class="st-btn">
+            <div class="st-btn-icon st-btn-icon-return">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </div>
+            <span class="st-btn-label">Return to<br>Merchant</span>
+        </a>
+    </div>
+</div>
+
+<div class="st-footer">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Secured by <a href="/">{{ brand.name ?? 'OwnPay' }}</a> · 256-bit encryption
+</div>

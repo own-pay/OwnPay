@@ -1,0 +1,275 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Dashboard - {{ app_name }}{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="/assets/css/pages/dashboard.css?v=025">
+    {% if onboarding_completed == 0 %}
+        <link rel="stylesheet" href="/assets/css/pages/setup-wizard.css?v=016">
+    {% endif %}
+{% endblock %}
+
+{% block content %}
+
+{% if onboarding_completed == 0 %}
+    {% include 'admin/dashboard/_setup_wizard.twig' %}
+{% endif %}
+
+{{ hook('admin.dashboard.before')|raw }}
+
+{# -- Page Header -- #}
+<div class="dash-header">
+    <div>
+        <h1 class="dash-page-title">Dashboard</h1>
+        <p class="op-page-subtitle">Welcome back! Overview of your platform's payment volume, transaction trends, and system status.</p>
+    </div>
+</div>
+
+{# -- KPI Grid -- #}
+<div class="dash-kpi-grid">
+    {# Total Payments #}
+    <div class="dash-card">
+        <p class="dash-kpi-title">Total Payments</p>
+        <h3 class="dash-kpi-value">{{ dashboard.completed_count }}</h3>
+        <div class="dash-kpi-footer">
+            <span class="dash-trend-up">
+                <svg class="dash-trend-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 19L19 5M19 5v10M19 5H9"/></svg>
+                {{ dashboard.payments_trend_percent }}
+            </span>
+            <span class="dash-kpi-context">vs last 30 days</span>
+        </div>
+    </div>
+
+    {# Total Revenue #}
+    <div class="dash-card">
+        <p class="dash-kpi-title">Total Revenue</p>
+        <h3 class="dash-kpi-value">{{ dashboard.total_revenue }}</h3>
+        <div class="dash-kpi-footer">
+            <span class="dash-trend-down">
+                <svg class="dash-trend-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M19 5L5 19M5 19V9M5 19h10"/></svg>
+                {{ dashboard.revenue_trend_percent }}
+            </span>
+            <span class="dash-kpi-context">vs last 30 days</span>
+        </div>
+    </div>
+
+    {# New Customers #}
+    <div class="dash-card">
+        <p class="dash-kpi-title">New Customers</p>
+        <h3 class="dash-kpi-value">{{ dashboard.customer_count|number_format }}</h3>
+        <div class="dash-kpi-footer">
+            <span class="dash-trend-up">
+                <svg class="dash-trend-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 19L19 5M19 5v10M19 5H9"/></svg>
+                {{ dashboard.customer_trend_percent }}
+            </span>
+            <span class="dash-kpi-context">vs last 30 days</span>
+        </div>
+    </div>
+
+    {# Today's Payments #}
+    <div class="dash-card">
+        <p class="dash-kpi-title">Todays Payments</p>
+        <h3 class="dash-kpi-value">{{ dashboard.today_count }}</h3>
+        <div class="dash-kpi-footer">
+            <span class="dash-trend-up">
+                <svg class="dash-trend-icon" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 19L19 5M19 5v10M19 5H9"/></svg>
+                {{ dashboard.today_trend_percent }}
+            </span>
+            <span class="dash-kpi-context">vs last 30 days</span>
+        </div>
+    </div>
+</div>
+
+{# -- Main Grid: Chart + Transaction History | Gauge + Updates -- #}
+<div class="dash-main-grid">
+    <div class="dash-stack-grid">
+        {# Revenue Chart #}
+        <div class="dash-card">
+            <div class="dash-card-header">
+                <h2 class="dash-card-title">Revenue</h2>
+                <div class="dash-chart-filters">
+                    <button class="dash-filter-btn" data-range="today">Today</button>
+                    <button class="dash-filter-btn" data-range="7d">Last 7 Days</button>
+                    <button class="dash-filter-btn active" data-range="30d">Last 30 Days</button>
+                    <button class="dash-filter-btn" data-range="all">All Time</button>
+                </div>
+            </div>
+            <div class="dash-chart-container">
+                <canvas id="revenueChart"></canvas>
+            </div>
+        </div>
+
+        {# Transaction History #}
+        <div class="dash-card">
+            <div class="dash-card-header">
+                <h2 class="dash-card-title">Transaction History</h2>
+                <a href="/admin/transactions" class="dash-btn-outline">
+                    <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+                    View All
+                </a>
+            </div>
+            <div class="dash-table-container">
+                <table class="dash-table">
+                    <thead>
+                        <tr>
+                            <th style="width: 35%">Client</th>
+                            <th style="width: 30%">Description</th>
+                            <th style="width: 15%">Amount</th>
+                            <th style="width: 20%" class="align-right">Date</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for tx in dashboard.recent_tx %}
+                        <tr>
+                            <td data-label="Client">
+                                <div class="dash-td-client-name">{{ tx.name }}</div>
+                                <div class="dash-td-client-email">{{ tx.email }}</div>
+                            </td>
+                            <td data-label="Description">{{ tx.description|default('Payment') }}</td>
+                            <td data-label="Amount">{{ tx.amount }}</td>
+                            <td data-label="Date" class="dash-td-align-right">{{ tx.time }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <div class="dash-stack-grid">
+        {# Monthly Revenue Snapshot (Gauge) #}
+        <div class="dash-card">
+            <div class="dash-gauge-container">
+                <canvas id="gaugeChart" style="width: 100%; height: 100%;"></canvas>
+                <div class="dash-gauge-text">
+                    <div class="dash-gauge-value">{{ dashboard.monthly_revenue|default('৳ 1,50,000') }}</div>
+                    <div class="dash-gauge-label">November · Target {{ dashboard.gauge_target|default('৳ 2,00,000') }}</div>
+                </div>
+            </div>
+            <div style="margin-top: 32px;">
+                <h3 class="dash-card-title">Montly Revenue Snapshot</h3>
+            </div>
+        </div>
+
+        {# Recent Payment Intents #}
+        <div class="dash-card">
+            <h2 class="dash-card-title" style="margin-bottom: 24px;">Recent Payment Intents</h2>
+            <div class="dash-update-list">
+                {% for intent in payment_intents %}
+                <a href="/admin/payment-intents/{{ intent.id }}" class="dash-update-item" style="text-decoration: none; color: inherit;">
+                    <div class="dash-update-img">{{ intent.uuid|slice(3, 2)|upper }}</div>
+                    <div class="dash-update-info" style="flex: 1;">
+                        <div class="dash-update-text"><strong>{{ intent.uuid|slice(0, 16) }}...</strong> {{ intent.description|default('Guest checkout') }}</div>
+                        <div class="dash-update-time"><strong style="color: {% if intent.status == 'completed' %}var(--op-success){% elseif intent.status == 'pending' %}var(--op-warning){% else %}var(--op-danger){% endif %};">{{ intent.currency }} {{ intent.amount }}</strong> · {{ intent.created_at|time_ago }}</div>
+                    </div>
+                    <span class="dash-intent-status dash-intent-{{ intent.status }}">{{ intent.status|capitalize }}</span>
+                </a>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+</div>
+
+{{ hook('admin.dashboard.bottom')|raw }}
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}" src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', function() {
+    var brandColor = getComputedStyle(document.documentElement).getPropertyValue('--op-primary').trim() || '#0F97ED';
+    var fontFamily = getComputedStyle(document.documentElement).getPropertyValue('--op-font').trim() || "'Inter', sans-serif";
+    var isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+    var gridColor = isDark ? 'rgba(255,255,255,0.06)' : 'rgba(0,0,0,0.06)';
+    var tickColor = isDark ? '#475569' : '#9ca3af';
+    var gaugeBg = isDark ? '#334155' : '#f3f4f6';
+    var lineColor = isDark ? 'rgba(15, 151, 237, 0.75)' : brandColor;
+    var gradientTop = isDark ? 'rgba(15, 151, 237, 0.1)' : 'rgba(15, 151, 237, 0.15)';
+    var gradientBottom = 'rgba(15, 151, 237, 0.0)';
+
+    // Revenue Line Chart
+    var ctxLine = document.getElementById('revenueChart');
+    var revenueChart = null;
+    var chartDataSets = {
+        'today': {{ dashboard.revenue_chart_today|json_encode|raw }},
+        '7d': {{ dashboard.revenue_chart_7d|json_encode|raw }},
+        '30d': {{ dashboard.revenue_chart_30d|json_encode|raw }},
+        'all': {{ dashboard.revenue_chart|json_encode|raw }}
+    };
+
+    if (ctxLine) {
+        var gradientLine = ctxLine.getContext('2d').createLinearGradient(0, 0, 0, 280);
+        gradientLine.addColorStop(0, gradientTop);
+        gradientLine.addColorStop(1, gradientBottom);
+
+        revenueChart = new Chart(ctxLine, {
+            type: 'line',
+            data: {
+                labels: chartDataSets['30d'].labels,
+                datasets: [{
+                    data: chartDataSets['30d'].data,
+                    borderColor: lineColor,
+                    borderWidth: isDark ? 1.5 : 2,
+                    backgroundColor: gradientLine,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 0,
+                    pointHoverRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false }, tooltip: { mode: 'index', intersect: false } },
+                scales: {
+                    x: { grid: { display: false, drawBorder: false }, ticks: { color: tickColor, font: { family: fontFamily, size: 11 } } },
+                    y: { beginAtZero: true, border: { display: false }, grid: { color: gridColor, drawBorder: false }, ticks: { color: tickColor, callback: function(value) { return value === 0 ? '0' : (value / 1000) + 'K'; } } }
+                }
+            }
+        });
+
+        // Chart filter buttons
+        document.querySelectorAll('.dash-chart-filters .dash-filter-btn').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var range = this.getAttribute('data-range');
+                document.querySelectorAll('.dash-chart-filters .dash-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+                this.classList.add('active');
+                if (revenueChart && chartDataSets[range]) {
+                    revenueChart.data.labels = chartDataSets[range].labels;
+                    revenueChart.data.datasets[0].data = chartDataSets[range].data;
+                    revenueChart.update();
+                }
+            });
+        });
+    }
+
+    // Gauge Chart
+    var ctxGauge = document.getElementById('gaugeChart');
+    if (ctxGauge) {
+        new Chart(ctxGauge, {
+            type: 'doughnut',
+            data: {
+                labels: ['Revenue', 'Remaining'],
+                datasets: [{ data: [{{ dashboard.gauge_percent|default(75) }}, {{ 100 - dashboard.gauge_percent|default(75) }}], backgroundColor: [brandColor, gaugeBg], borderWidth: 0 }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                circumference: 180,
+                rotation: 270,
+                cutout: '80%',
+                plugins: { legend: { display: false }, tooltip: { enabled: false } }
+            }
+        });
+    }
+
+    // Chart filter buttons
+    document.querySelectorAll('.dash-filter-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            this.closest('.dash-chart-filters').querySelectorAll('.dash-filter-btn').forEach(function(b) { b.classList.remove('active'); });
+            this.classList.add('active');
+        });
+    });
+});
+</script>
+{% endblock %}

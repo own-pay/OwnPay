@@ -1,0 +1,40 @@
+{
+  "name": "Flutterwave",
+  "slug": "flutterwave",
+  "version": "1.0.0",
+  "description": "Flutterwave payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "FlutterwaveGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Flutterwave",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#F5A623",
+  "csp": {
+    "script_src": [
+      "https://*.flutterwave.com",
+      "https://api.flutterwave.com"
+    ],
+    "style_src": [
+      "https://*.flutterwave.com"
+    ],
+    "frame_src": [
+      "https://*.flutterwave.com"
+    ],
+    "connect_src": [
+      "https://*.flutterwave.com",
+      "https://api.flutterwave.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

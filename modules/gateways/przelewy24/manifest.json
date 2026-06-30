@@ -1,0 +1,39 @@
+{
+  "name": "Przelewy24",
+  "slug": "przelewy24",
+  "version": "1.0.0",
+  "description": "Przelewy24 payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "Przelewy24Gateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Przelewy24",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "europe",
+  "color": "#D32F2F",
+  "csp": {
+    "script_src": [
+      "https://*.przelewy24.pl"
+    ],
+    "style_src": [
+      "https://*.przelewy24.pl"
+    ],
+    "frame_src": [
+      "https://*.przelewy24.pl"
+    ],
+    "connect_src": [
+      "https://*.przelewy24.pl"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

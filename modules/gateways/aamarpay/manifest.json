@@ -1,0 +1,25 @@
+{
+  "name": "Aamarpay",
+  "slug": "aamarpay",
+  "version": "1.0.0",
+  "description": "Aamarpay payment gateway integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "mfs",
+  "icon": "assets/icon.png",
+  "color": "#FF6B00",
+  "entrypoint": "AamarpayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Aamarpay",
+  "capabilities": ["gateway"],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": ["https://*.aamarpay.com"],
+    "style_src": ["https://*.aamarpay.com"],
+    "frame_src": ["https://*.aamarpay.com"],
+    "connect_src": ["https://*.aamarpay.com"]
+  },
+  "permissions": ["gateway.process"]
+}

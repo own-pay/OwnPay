@@ -1,0 +1,40 @@
+{
+  "name": "GoCardless",
+  "slug": "gocardless",
+  "version": "1.0.0",
+  "description": "GoCardless direct debit integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "GocardlessGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Gocardless",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#205FFF",
+  "csp": {
+    "script_src": [
+      "https://*.gocardless.com"
+    ],
+    "style_src": [
+      "https://*.gocardless.com"
+    ],
+    "frame_src": [
+      "https://*.gocardless.com"
+    ],
+    "connect_src": [
+      "https://*.gocardless.com",
+      "https://api.gocardless.com",
+      "https://api-sandbox.gocardless.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

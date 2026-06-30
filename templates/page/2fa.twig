@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Two-Factor Auth - {{ app_name ?? 'OwnPay' }}</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
+    <link rel="stylesheet" href="/assets/css/reset.css?v=017">
+    <link rel="stylesheet" href="/assets/css/animations.css?v=014">
+    <link rel="stylesheet" href="/assets/css/utilities.css?v=014">
+    <link rel="stylesheet" href="/assets/css/auth.css?v=014">
+    {% if site_favicon is defined and site_favicon %}
+    <link rel="icon" href="{{ site_favicon }}" type="image/x-icon">
+    {% endif %}
+</head>
+<body class="op-auth-page">
+    <div class="op-auth-container">
+        <div class="op-auth-card">
+            <div class="op-auth-header">
+                {% if settings_logo is defined and settings_logo %}
+                    <div class="op-logo-img-container">
+                        <img src="/assets/img/logo-light.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-auth-logo-img op-logo-light" style="height: 40px; width: auto;">
+                        <img src="/assets/img/logo-dark.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-auth-logo-img op-logo-dark" style="height: 40px; width: auto;">
+                    </div>
+                {% else %}
+                    <div class="op-logo">
+                        <span class="op-logo-icon">OP</span>
+                    </div>
+                {% endif %}
+                <h1>Two-Factor Authentication</h1>
+                <p>Enter the 6-digit code from your authenticator app.</p>
+            </div>
+
+            {% if error %}
+            <div class="op-alert op-alert-danger">{{ error }}</div>
+            {% endif %}
+
+            <form method="POST" action="/2fa" class="op-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <div class="op-form-group">
+                    <label for="code">Verification Code</label>
+                    <input type="text" id="code" name="code" class="op-input op-input-lg op-text-center" 
+                           maxlength="6" pattern="[0-9]{6}" inputmode="numeric" autocomplete="one-time-code" 
+                           required autofocus placeholder="000000"
+                           style="font-size: 2rem; letter-spacing: 0.5em; text-align: center;">
+                </div>
+                <button type="submit" class="op-btn op-btn-primary op-btn-lg op-btn-block">Verify</button>
+            </form>
+
+            <div class="op-auth-footer">
+                <form method="POST" action="/logout" class="op-inline">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <button type="submit" class="op-link op-btn-link">Cancel & Logout</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

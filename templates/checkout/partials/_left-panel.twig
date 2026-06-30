@@ -1,0 +1,66 @@
+{# LEFT PANEL - Order Summary (desktop only) #}
+<div class="ck-left">
+    <div class="ck-fi">
+        <div class="ck-brand">
+            <div class="ck-brand-logo">
+                {% if brand.logo is defined and brand.logo %}
+                    <img src="{{ brand.logo }}" alt="" class="ck-brand-img">
+                {% else %}
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#5EEAD4" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/></svg>
+                {% endif %}
+            </div>
+            <div>
+                <p class="ck-label-xs">{{ lang.paying_to ?? 'Paying to' }}</p>
+                <p class="ck-brand-name">{{ brand.name }}</p>
+            </div>
+        </div>
+    </div>
+
+    <div class="ck-fi ck-items">
+        <p class="ck-section-label">{{ lang.order_summary ?? 'Order Summary' }}</p>
+        <div class="ck-item-list">
+            {% set subtotal = 0 %}
+            {% if items is empty %}
+                {# L-03 FIX: Synthetic item for non-invoice payments #}
+                <div class="ck-item">
+                    <div>
+                        <p class="ck-item-name">Payment to {{ brand.name }}</p>
+                    </div>
+                    <p class="ck-item-price">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(2) }}</p>
+                </div>
+                {% set subtotal = txn.amount %}
+            {% else %}
+                {% for item in items %}
+                <div class="ck-item">
+                    <div>
+                        <p class="ck-item-name">{{ item.name ?? item.description ?? 'Payment' }}</p>
+                        {% if item.description is defined and item.description %}<p class="ck-item-desc">{{ item.description }}</p>{% endif %}
+                    </div>
+                    <p class="ck-item-price">{{ txn.currency_symbol ?? '৳' }}{{ (item.total ?? item.unit_price ?? 0)|number_format(2) }}</p>
+                </div>
+                {% set subtotal = subtotal + (item.total ?? item.unit_price ?? 0) %}
+                {% endfor %}
+            {% endif %}
+            <div class="ck-divider"></div>
+            <div class="ck-row"><span class="ck-text-muted">{{ lang.subtotal ?? 'Subtotal' }}</span><span class="ck-text-mono">{{ txn.currency_symbol ?? '৳' }}{{ subtotal|number_format(2) }}</span></div>
+            {% if txn.tax_amount|default(0) > 0 %}
+            <div class="ck-row"><span class="ck-text-muted">{{ lang.vat ?? 'VAT' }}</span><span class="ck-text-mono">{{ txn.currency_symbol ?? '৳' }}{{ txn.tax_amount|number_format(2) }}</span></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="ck-fi">
+        <div class="ck-divider"></div>
+        <div class="ck-total-row">
+            <span class="ck-total-label">{{ lang.total ?? 'Total' }}</span>
+            <div class="ck-total-amount">
+                <p class="ck-total-big">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|number_format(0) }}</p>
+                <p class="ck-total-decimal">.{{ '%02d'|format(((txn.amount - txn.amount|round(0, 'floor')) * 100)|round) }} {{ txn.currency ?? 'BDT' }}</p>
+            </div>
+        </div>
+        <div class="ck-security-badge">
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+            256-bit SSL · PCI DSS Level 1 · 3D Secure 2.0
+        </div>
+    </div>
+</div>

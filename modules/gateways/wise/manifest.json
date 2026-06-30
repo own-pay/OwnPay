@@ -1,0 +1,42 @@
+{
+  "name": "Wise",
+  "slug": "wise",
+  "version": "1.0.0",
+  "description": "Wise payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "WiseGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Wise",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#00E676",
+  "csp": {
+    "script_src": [
+      "https://*.wise.com",
+      "https://*.transferwise.tech"
+    ],
+    "style_src": [
+      "https://*.wise.com",
+      "https://*.transferwise.tech"
+    ],
+    "frame_src": [
+      "https://*.wise.com",
+      "https://*.transferwise.tech"
+    ],
+    "connect_src": [
+      "https://*.wise.com",
+      "https://*.transferwise.tech"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

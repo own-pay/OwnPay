@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Reset Password - {{ app_name ?? 'OwnPay' }}</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
+    <link rel="stylesheet" href="/assets/css/reset.css?v=017">
+    <link rel="stylesheet" href="/assets/css/animations.css?v=014">
+    <link rel="stylesheet" href="/assets/css/utilities.css?v=014">
+    <link rel="stylesheet" href="/assets/css/auth.css?v=014">
+    {% if site_favicon is defined and site_favicon %}
+    <link rel="icon" href="{{ site_favicon }}" type="image/x-icon">
+    {% endif %}
+</head>
+<body class="op-auth-page">
+    <div class="op-auth-container">
+        <div class="op-auth-card">
+            <div class="op-auth-header">
+                {% if settings_logo is defined and settings_logo %}
+                    <div class="op-logo-img-container">
+                        <img src="/assets/img/logo-light.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-auth-logo-img op-logo-light" style="height: 40px; width: auto;">
+                        <img src="/assets/img/logo-dark.svg" alt="{{ app_name ?? 'OwnPay' }}" class="op-auth-logo-img op-logo-dark" style="height: 40px; width: auto;">
+                    </div>
+                {% else %}
+                    <div class="op-logo">
+                        <span class="op-logo-icon">OP</span>
+                    </div>
+                {% endif %}
+                <h1>Set a New Password</h1>
+                <p>Choose a strong password you haven't used before.</p>
+            </div>
+
+            {% if error is defined and error %}
+            <div class="op-alert op-alert-danger">{{ error }}</div>
+            {% endif %}
+
+            {% if invalid is defined and invalid %}
+            <div class="op-auth-footer">
+                <a href="/forgot-password" class="op-link">Request a new reset link</a>
+            </div>
+            {% else %}
+            <form method="POST" action="/reset-password" class="op-form">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <input type="hidden" name="token" value="{{ token ?? '' }}">
+                <div class="op-form-group">
+                    <label for="password">New Password</label>
+                    <input type="password" id="password" name="password" class="op-input" minlength="8" required autofocus autocomplete="new-password">
+                    <small class="op-text-muted">At least 8 characters.</small>
+                </div>
+                <div class="op-form-group">
+                    <label for="password_confirm">Confirm New Password</label>
+                    <input type="password" id="password_confirm" name="password_confirm" class="op-input" minlength="8" required autocomplete="new-password">
+                </div>
+                <button type="submit" class="op-btn op-btn-primary op-btn-lg op-btn-block">Reset Password</button>
+            </form>
+
+            <div class="op-auth-footer">
+                <a href="/login" class="op-link">← Back to Login</a>
+            </div>
+            {% endif %}
+        </div>
+    </div>
+</body>
+</html>

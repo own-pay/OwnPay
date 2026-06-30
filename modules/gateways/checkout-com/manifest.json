@@ -1,0 +1,39 @@
+{
+  "name": "Checkout.com",
+  "slug": "checkout-com",
+  "version": "1.0.0",
+  "description": "Checkout.com payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "CheckoutComGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\CheckoutCom",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#000000",
+  "csp": {
+    "script_src": [
+      "https://*.checkout.com"
+    ],
+    "style_src": [
+      "https://*.checkout.com"
+    ],
+    "frame_src": [
+      "https://*.checkout.com"
+    ],
+    "connect_src": [
+      "https://*.checkout.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

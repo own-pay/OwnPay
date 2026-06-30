@@ -1,0 +1,1956 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Settings - {{ app_name }}{% endblock %}
+{% block head %}
+    <link rel="stylesheet" href="/assets/css/pages/settings.css?v=018">
+{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div class="op-page-header-left">
+        <h1>Settings</h1>
+        <p class="op-page-subtitle">Configure system settings, custom themes, email configurations, and platform integrations.</p>
+    </div>
+    <div class="op-tab-scroll-hint" id="tab-scroll-hint">
+        <button type="button" class="op-tab-scroll-btn" id="tab-scroll-left" aria-label="Scroll tabs left">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <span class="op-tab-scroll-label">Scroll</span>
+        <button type="button" class="op-tab-scroll-btn" id="tab-scroll-right" aria-label="Scroll tabs right">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+    </div>
+</div>
+
+<div class="op-settings-layout">
+    <aside class="op-settings-sidebar" id="settings-tabs">
+        {% if is_brand_view %}
+        <!-- Brand Settings Group -->
+        <div class="op-sidebar-group">
+            <div class="op-sidebar-group-title">Brand Settings</div>
+            <nav class="op-sidebar-nav">
+                <button type="button" class="op-tab {{ default_tab == 'branding' or default_tab is empty ? 'active' : '' }}" data-tab="branding">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                    </span>
+                    Identity &amp; Branding
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'checkout' ? 'active' : '' }}" data-tab="checkout">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                    </span>
+                    Checkout Settings
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'domains' ? 'active' : '' }}" data-tab="domains">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                    </span>
+                    Custom Domains
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'faq' ? 'active' : '' }}" data-tab="faq">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </span>
+                    Checkout FAQs
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'payment' ? 'active' : '' }}" data-tab="payment">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    </span>
+                    Currency Settings
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'notifications' ? 'active' : '' }}" data-tab="notifications">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    </span>
+                    Email Notifications
+                </button>
+            </nav>
+        </div>
+        {% else %}
+        <!-- Basic Settings Group -->
+        <div class="op-sidebar-group">
+            <div class="op-sidebar-group-title">Basic Settings</div>
+            <nav class="op-sidebar-nav">
+                <button type="button" class="op-tab {{ default_tab == 'general' or default_tab is empty ? 'active' : '' }}" data-tab="general">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    </span>
+                    General
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'branding' ? 'active' : '' }}" data-tab="branding">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"></path></svg>
+                    </span>
+                    Branding Defaults
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'faq' ? 'active' : '' }}" data-tab="faq">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"></path><line x1="12" y1="17" x2="12.01" y2="17"></line></svg>
+                    </span>
+                    FAQ
+                </button>
+            </nav>
+        </div>
+
+        <!-- Appearance & Portal Group -->
+        <div class="op-sidebar-group">
+            <div class="op-sidebar-group-title">Appearance & Portal</div>
+            <nav class="op-sidebar-nav">
+                <button type="button" class="op-tab {{ default_tab == 'landing' ? 'active' : '' }}" data-tab="landing">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="3" width="20" height="14" rx="2" ry="2"></rect><line x1="8" y1="21" x2="16" y2="21"></line><line x1="12" y1="17" x2="12" y2="21"></line></svg>
+                    </span>
+                    Landing Page
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'checkout' ? 'active' : '' }}" data-tab="checkout">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="4" width="22" height="16" rx="2" ry="2"></rect><line x1="1" y1="10" x2="23" y2="10"></line></svg>
+                    </span>
+                    Checkout
+                </button>
+            </nav>
+        </div>
+
+        <!-- Gateways & Messages Group -->
+        <div class="op-sidebar-group">
+            <div class="op-sidebar-group-title">Gateways & Messages</div>
+            <nav class="op-sidebar-nav">
+                <button type="button" class="op-tab {{ default_tab == 'payment' ? 'active' : '' }}" data-tab="payment">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>
+                    </span>
+                    Currency Settings
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'email' ? 'active' : '' }}" data-tab="email">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path><polyline points="22,6 12,13 2,6"></polyline></svg>
+                    </span>
+                    Email / SMTP
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'notification' ? 'active' : '' }}" data-tab="notification">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+                    </span>
+                    Notifications
+                </button>
+            </nav>
+        </div>
+
+        <!-- System & Advanced Group -->
+        <div class="op-sidebar-group">
+            <div class="op-sidebar-group-title">System & Advanced</div>
+            <nav class="op-sidebar-nav">
+                <button type="button" class="op-tab {{ default_tab == 'security' ? 'active' : '' }}" data-tab="security">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect><path d="M7 11V7a5 5 0 0 1 10 0v4"></path></svg>
+                    </span>
+                    Security
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'cron' ? 'active' : '' }}" data-tab="cron">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    </span>
+                    Cron Jobs
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'language' ? 'active' : '' }}" data-tab="language">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="2" y1="12" x2="22" y2="12"></line><path d="M12 2a15.3 15.3 0 0 1 4 10 15.3 15.3 0 0 1-4 10 15.3 15.3 0 0 1-4-10 15.3 15.3 0 0 1 4-10z"></path></svg>
+                    </span>
+                    Language
+                </button>
+                <button type="button" class="op-tab {{ default_tab == 'queue' ? 'active' : '' }}" data-tab="queue">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                    </span>
+                    Queue Monitor
+                </button>
+                <button type="button" class="op-tab op-tab-highlight {{ default_tab == 'optimization' ? 'active' : '' }}" data-tab="optimization">
+                    <span class="op-tab-icon">
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon></svg>
+                    </span>
+                    Optimization &amp; Maintenance
+                </button>
+                {{ hook('admin.settings.tabs')|raw }}
+            </nav>
+        </div>
+        {% endif %}
+    </aside>
+    <div class="op-settings-main">
+
+<form method="POST" action="/admin/settings/save" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="_tab" id="active-tab-input" value="{{ default_tab ?? 'general' }}">
+
+    {# -- General Tab ------------------------------------------ #}
+    {% if not is_brand_view %}
+    <div class="op-tab-panel {{ default_tab == 'general' ? 'active' : '' }}" id="tab-general">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Application Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>App Name *</label>
+                        <input type="text" name="app_name" value="{{ settings.app_name ?? '' }}" class="op-input" required>
+                        <small class="op-text-muted">Shown in header, emails, and receipts</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Base URL</label>
+                        <input type="url" name="base_url" value="{{ settings.base_url ?? '' }}" class="op-input" placeholder="https://pay.example.com">
+                        <small class="op-text-muted">Public-facing URL of your payment gateway</small>
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Timezone</label>
+                        <select name="timezone" class="op-input">
+                            {% for tz in timezones %}<option value="{{ tz }}" {{ (settings.timezone ?? 'Asia/Dhaka') == tz ? 'selected' : '' }}>{{ tz }}</option>{% endfor %}
+                        </select>
+                        <small class="op-text-muted">The default system timezone used for logging and displaying transaction times.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Support Email</label>
+                        <input type="email" name="support_email" value="{{ settings.support_email ?? '' }}" class="op-input" placeholder="support@example.com">
+                        <small class="op-text-muted">Shown on checkout and error pages for public support inquiries.</small>
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label>Footer Text</label>
+                    <input type="text" name="footer_text" value="{{ settings.footer_text ?? '' }}" class="op-input" placeholder="© 2026 Your Company. All rights reserved.">
+                    <small class="op-text-muted">Global copyright or branding text shown at the bottom of public portal pages.</small>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="maintenance_mode" value="1" {{ (settings.maintenance_mode ?? 0) ? 'checked' : '' }} id="maintenance-toggle">
+                        <span class="op-toggle-switch"></span>
+                        <span>Maintenance Mode</span>
+                    </label>
+                    <small class="op-text-muted op-d-block op-mt-1">Toggling this active will block public access to checkout/landing pages with a 503 response.</small>
+                    <small class="op-text-muted op-text-warning {% if not (settings.maintenance_mode ?? 0) %}op-d-none{% endif %}" id="maintenance-warning">
+                        ⚠ Site is in maintenance mode. Public users see a 503 page. Admin panel stays accessible.
+                    </small>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.general')|raw }}
+    </div>
+    {% endif %}
+
+    {# -- Branding Tab ------------------------------------------ #}
+    <div class="op-tab-panel {{ default_tab == 'branding' ? 'active' : '' }}" id="tab-branding">
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>Logo & Favicon</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    {# -- Site Logo --------------- #}
+                    <div class="op-form-group op-col-6">
+                        <label>Site Logo</label>
+                        <p class="op-text-muted op-text-sm op-mb-2">Recommended: 200×60px PNG or SVG</p>
+                        {% if branding.site_logo is defined and branding.site_logo %}
+                        <div class="op-upload-current">
+                            <img src="{{ branding.site_logo }}" alt="Current Logo" class="op-upload-preview-img">
+                            <div>
+                                <span class="op-badge op-badge-success">Uploaded</span>
+                                <div class="op-text-xs op-text-muted op-mt-1">{{ branding.site_logo }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="op-upload-zone" id="logo-drop-zone">
+                            <div class="op-upload-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                            </div>
+                            <div class="op-upload-text">
+                                <strong>Click to upload</strong> or drag and drop<br>
+                                PNG, SVG, JPEG, WebP
+                            </div>
+                        </div>
+                    </div>
+
+                    {# -- Favicon ----------------- #}
+                    <div class="op-form-group op-col-6">
+                        <label>Favicon</label>
+                        <p class="op-text-muted op-text-sm op-mb-2">Recommended: 32×32px ICO or PNG</p>
+                        {% if branding.site_favicon is defined and branding.site_favicon %}
+                        <div class="op-upload-current">
+                            <img src="{{ branding.site_favicon }}" alt="Current Favicon" class="op-brand-favicon-preview">
+                            <div>
+                                <span class="op-badge op-badge-success">Uploaded</span>
+                                <div class="op-text-xs op-text-muted op-mt-1">{{ branding.site_favicon }}</div>
+                            </div>
+                        </div>
+                        {% endif %}
+                        <div class="op-upload-zone" id="favicon-drop-zone">
+                            <div class="op-upload-icon">
+                                <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+                            </div>
+                            <div class="op-upload-text">
+                                <strong>Click to upload</strong> or drag and drop<br>
+                                ICO, PNG, SVG
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% if not is_brand_view %}
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>Theme Customization</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Primary Theme Color</label>
+                        <input type="color" name="primary_color" value="{{ theme.primary_color ?? '#6C5CE7' }}" class="op-input-color">
+                        <small class="op-text-muted">The main theme color used for buttons, links, active tabs, and primary highlights across default views.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Accent Theme Color</label>
+                        <input type="color" name="accent_color" value="{{ theme.accent_color ?? '#00CEC9' }}" class="op-input-color">
+                        <small class="op-text-muted">The theme accent color used for secondary hover states and minor visual highlights.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card">
+            <div class="op-card-header"><h3>Site Identity &amp; SEO</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Admin Panel Title</label>
+                        <input type="text" name="admin_panel_title" value="{{ branding.admin_panel_title ?? '' }}" class="op-input" placeholder="{{ app_name }} Admin">
+                        <small class="op-text-muted">Shown in browser tab for admin panel</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Site Title (SEO)</label>
+                        <input type="text" name="site_seo_title" value="{{ branding.site_seo_title ?? '' }}" class="op-input" placeholder="{{ app_name }} - Secure Payments">
+                        <small class="op-text-muted">Used in landing page &lt;title&gt; tag</small>
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label>Site Meta Description</label>
+                    <textarea name="site_meta_description" rows="2" class="op-input" placeholder="Self-hosted payment gateway platform…">{{ branding.site_meta_description ?? '' }}</textarea>
+                    <small class="op-text-muted">150–160 chars. Shown in search engine results.</small>
+                </div>
+                <div class="op-form-group">
+                    <label>Site Keywords</label>
+                    <input type="text" name="site_keywords" value="{{ branding.site_keywords ?? '' }}" class="op-input" placeholder="payment gateway, fintech, self-hosted">
+                    <small class="op-text-muted">Comma-separated list of keywords that search engines index for your landing page.</small>
+                </div>
+                <div class="op-form-group">
+                    <label>Brand Tagline</label>
+                    <input type="text" name="brand_tagline" value="{{ branding.brand_tagline ?? '' }}" class="op-input" placeholder="Payments you actually own">
+                    <small class="op-text-muted">A short, catchy phrase representing your payment service (shown on landing page header).</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if is_brand_view %}
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>Brand Profile</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Brand Name *</label>
+                        <input type="text" name="brand_name" value="{{ brand.name ?? '' }}" class="op-input" required>
+                        <small class="op-text-muted">The public name of the brand/merchant store.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Contact Email *</label>
+                        <input type="email" name="brand_email" value="{{ brand.email ?? '' }}" class="op-input" required>
+                        <small class="op-text-muted">Primary contact email address for administrative notifications.</small>
+                    </div>
+                </div>
+                <div class="op-form-row op-mt-3">
+                    <div class="op-form-group op-col-6">
+                        <label>Phone Number</label>
+                        <input type="text" name="brand_phone" value="{{ brand.phone ?? '' }}" class="op-input" placeholder="+123456789">
+                        <small class="op-text-muted">Official business phone number for the brand store.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Timezone</label>
+                        <select name="brand_timezone" class="op-input">
+                            {% for tz in timezones %}
+                                <option value="{{ tz }}" {{ (brand.timezone ?? 'Asia/Dhaka') == tz ? 'selected' : '' }}>{{ tz }}</option>
+                            {% endfor %}
+                        </select>
+                        <small class="op-text-muted">The timezone used to stamp transactions and activities.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>Brand Customization</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Primary Theme Color</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="color" name="primary_color" value="{{ branding.primary_color ?? '#0D9488' }}" class="op-input-color" style="width: 60px; height: 38px; padding: 2px; cursor: pointer; border: 1px solid var(--border-color, #e2e8f0);">
+                            <span class="op-text-muted op-text-sm">Sets primary button & accents</span>
+                        </div>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Accent Theme Color</label>
+                        <div style="display: flex; gap: 8px; align-items: center;">
+                            <input type="color" name="accent_color" value="{{ branding.accent_color ?? '#0F766E' }}" class="op-input-color" style="width: 60px; height: 38px; padding: 2px; cursor: pointer; border: 1px solid var(--border-color, #e2e8f0);">
+                            <span class="op-text-muted op-text-sm">Hover states and highlights</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="op-form-row op-mt-3">
+                    <div class="op-form-group op-col-6">
+                        <label>Support Contact Email</label>
+                        <input type="email" name="support_email" value="{{ settings.support_email ?? '' }}" class="op-input" placeholder="support@brand.com">
+                        <small class="op-text-muted">Customer queries from checkout will route here.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Custom Checkout Footer Text</label>
+                        <input type="text" name="footer_text" value="{{ settings.footer_text ?? '' }}" class="op-input" placeholder="Secured by {{ brand.name ?? 'Brand' }} · 256-bit encryption">
+                        <small class="op-text-muted">Displays at the bottom of the checkout view footer.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {{ hook('admin.settings.branding')|raw }}
+    </div>
+
+    {% if not is_brand_view %}
+    {# -- Landing Page Tab --------------------------------------- #}
+    <div class="op-tab-panel {{ default_tab == 'landing' ? 'active' : '' }}" id="tab-landing">
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>Landing Page Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="landing_enabled" value="1" {{ (landing.landing_enabled ?? '1') == '1' ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Enable Landing Page at <code>/</code></span>
+                    </label>
+                    <small class="op-text-muted">When disabled, visiting <code>/</code> redirects to the admin login page</small>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Hero Title</label>
+                        <input type="text" name="landing_title" value="{{ landing.landing_title ?? '' }}" class="op-input" placeholder="The Payment Gateway You Actually Own">
+                        <small class="op-text-muted">The main large title header displayed in the hero section of the landing page.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Hero Subtitle</label>
+                        <input type="text" name="landing_subtitle" value="{{ landing.landing_subtitle ?? '' }}" class="op-input" placeholder="Self-hosted, multi-brand…">
+                        <small class="op-text-muted">A short descriptive paragraph below the title explaining the service.</small>
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>CTA Button Text</label>
+                        <input type="text" name="landing_cta_text" value="{{ landing.landing_cta_text ?? 'Get Started' }}" class="op-input">
+                        <small class="op-text-muted">The label displayed on the primary call-to-action button.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>CTA Button URL</label>
+                        <input type="url" name="landing_cta_url" value="{{ landing.landing_cta_url ?? '' }}" class="op-input" placeholder="https://ownpay.org">
+                        <small class="op-text-muted">Destination web URL when a visitor clicks the call-to-action button.</small>
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label class="op-toggle-label">
+                            <input type="checkbox" name="landing_show_features" value="1" {{ (landing.landing_show_features ?? '1') == '1' ? 'checked' : '' }}>
+                            <span class="op-toggle-switch"></span>
+                            <span>Show Features Section</span>
+                        </label>
+                        <small class="op-text-muted op-d-block op-mt-1">Toggle whether the features list grid is visible on the landing page.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label class="op-toggle-label">
+                            <input type="checkbox" name="landing_show_faq" value="1" {{ (landing.landing_show_faq ?? '1') == '1' ? 'checked' : '' }}>
+                            <span class="op-toggle-switch"></span>
+                            <span>Show FAQ Section</span>
+                        </label>
+                        <small class="op-text-muted op-d-block op-mt-1">Toggle whether the frequently asked questions list is visible on the landing page.</small>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+        <div class="op-card">
+            <div class="op-card-header"><h3>Feature Cards</h3></div>
+            <div class="op-card-body" id="features-container">
+                {% for i, feat in (landing.features ?? []) %}
+                <div class="op-faq-row op-card op-card-bordered op-mb-2 op-p-3">
+                    <div class="op-form-row">
+                        <div class="op-form-group op-col-6"><label>Title</label><input type="text" name="features[{{ i }}][title]" value="{{ feat.title ?? '' }}" class="op-input"></div>
+                        <div class="op-form-group op-col-6"><label>Description</label><input type="text" name="features[{{ i }}][description]" value="{{ feat.description ?? '' }}" class="op-input"></div>
+                    </div>
+                    <button type="button" class="op-btn op-btn-sm op-btn-danger op-faq-remove">Remove</button>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="op-card-body op-p-3">
+                <button type="button" class="op-btn op-btn-outline" id="add-feature">+ Add Feature Card</button>
+            </div>
+        </div>
+        {{ hook('admin.settings.landing')|raw }}
+    </div>
+    {% endif %}
+
+    {# -- Currency Settings Tab ------------------------------------------ #}
+    <div class="op-tab-panel {{ default_tab == 'payment' ? 'active' : '' }}" id="tab-payment">
+        {% if is_brand_view %}
+        <div class="op-card">
+            <div class="op-card-header"><h3>Currency Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group op-col-6 op-p-0">
+                    <label>Default Currency</label>
+                    <select name="brand_currency" class="op-input">
+                        {% for cur in currencies %}
+                            <option value="{{ cur.code }}" {{ (brand.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} - {{ cur.name }}</option>
+                        {% endfor %}
+                    </select>
+                    <small class="op-text-muted">The default ledger and transaction pricing currency for this brand.</small>
+                </div>
+            </div>
+        </div>
+        {% else %}
+        <div class="op-card">
+            <div class="op-card-header"><h3>Currency Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Default Currency</label>
+                        <select name="default_currency" class="op-input">
+                            {% for cur in currencies %}<option value="{{ cur.code }}" {{ (settings.default_currency ?? 'BDT') == cur.code ? 'selected' : '' }}>{{ cur.code }} - {{ cur.name }}</option>{% endfor %}
+                        </select>
+                        <small class="op-text-muted">The primary ledger and base currency for platform-wide pricing calculations.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Exchange Rate Update Mode</label>
+                        <select name="exchange_rate_mode" class="op-input">
+                            <option value="auto" {{ (settings.exchange_rate_mode ?? 'auto') == 'auto' ? 'selected' : '' }}>Automatic</option>
+                            <option value="manual" {{ (settings.exchange_rate_mode ?? '') == 'manual' ? 'selected' : '' }}>Manual</option>
+                        </select>
+                        <small class="op-text-muted">Choose whether exchange rates are updated automatically via API or updated manually in the table below.</small>
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label>Custom Exchange Rate API URL</label>
+                    <input type="text" name="exchange_rate_api_url" value="{{ settings.exchange_rate_api_url ?? '' }}" class="op-input" placeholder="e.g., https://custom-api.example.com/v1/currencies/{currency}.json">
+                    <small class="op-text-muted">Optional. Leave blank to use <a href="https://github.com/fawazahmed0/exchange-api" target="_blank" rel="noopener noreferrer" class="op-text-primary op-underline">Fawaz Ahmed API</a> CDN. Use <code>{currency}</code> placeholder for base currency code.</small>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Payment Expiry (minutes)</label>
+                        <input type="number" name="payment_expiry_minutes" value="{{ settings.payment_expiry_minutes ?? 30 }}" class="op-input" min="5" max="1440">
+                        <small class="op-text-muted">The duration in minutes before an unpaid checkout session is marked as expired and cancelled.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Invoice Due Days (default)</label>
+                        <input type="number" name="invoice_due_days" value="{{ settings.invoice_due_days ?? 7 }}" class="op-input" min="1" max="365">
+                        <small class="op-text-muted">The default number of days allowed for customers to pay newly generated invoices.</small>
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="auto_approve_payments" value="1" {{ (settings.auto_approve_payments ?? 0) ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Auto-approve verified payments</span>
+                    </label>
+                    <small class="op-text-muted op-d-block op-mt-1">When enabled, payments matched via SMS parsing are approved automatically without manual review.</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <div class="op-card op-mt-4">
+            <div class="op-card-header">
+                <h3>Currencies &amp; Exchange Rates</h3>
+                {% if not is_brand_view %}
+                <div class="op-header-actions">
+                    <button type="button" id="btn-sync-rates" class="op-btn op-btn-sm op-btn-outline">
+                         Sync Rates Now
+                    </button>
+                    <button type="button" id="btn-add-currency" class="op-btn op-btn-sm op-btn-primary">
+                         Add Currency
+                    </button>
+                </div>
+                {% endif %}
+            </div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <input type="text" id="currency-search" class="op-input" placeholder="Search currency code or name...">
+                </div>
+                
+                <div class="op-table-responsive op-currency-table-container">
+                    <table class="op-table" id="currency-table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Symbol</th>
+                                <th>Decimals</th>
+                                <th>Status</th>
+                                <th>Exchange Rate (per {{ base_currency ?? 'BDT' }})</th>
+                                {% if not is_brand_view %}<th>Actions</th>{% endif %}
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for cur in currencies %}
+                            <tr class="currency-row" data-code="{{ cur.code }}" data-name="{{ cur.name }}">
+                                <td data-label="Code"><strong>{{ cur.code }}</strong></td>
+                                <td data-label="Name">{{ cur.name }}</td>
+                                <td data-label="Symbol"><code class="op-badge op-badge-outline">{{ cur.symbol }}</code></td>
+                                <td data-label="Decimals">{{ cur.decimal_places }}</td>
+                                <td data-label="Status">
+                                    {% if cur.status == 'active' %}
+                                    <span class="op-badge op-badge-success">Active</span>
+                                    {% else %}
+                                    <span class="op-badge op-badge-muted">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Rate">
+                                    <div class="op-flex op-items-center op-gap-2">
+                                        <input type="text" name="currencies[{{ cur.code }}][rate]" value="{{ cur.rate }}" class="op-input op-input-sm op-currency-rate-input" {% if (settings.exchange_rate_mode ?? 'auto') == 'auto' or is_brand_view %}readonly title="Exchange rates are read-only in brand settings or when Automatic mode is enabled."{% endif %}>
+                                        <small class="op-text-muted">{{ base_currency ?? 'BDT' }}</small>
+                                    </div>
+                                </td>
+                                {% if not is_brand_view %}
+                                <td data-label="Actions">
+                                    <button type="button" class="op-btn op-btn-xs btn-toggle-currency {{ cur.status == 'active' ? 'op-btn-danger' : 'op-btn-success' }}" data-code="{{ cur.code }}">
+                                        {{ cur.status == 'active' ? 'Deactivate' : 'Activate' }}
+                                    </button>
+                                </td>
+                                {% endif %}
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.payment')|raw }}
+    </div>
+
+    {% if not is_brand_view %}
+    {# -- Email Tab -------------------------------------------- #}
+    <div class="op-tab-panel {{ default_tab == 'email' ? 'active' : '' }}" id="tab-email">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Email / SMTP Configuration</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>SMTP Host</label>
+                        <input type="text" name="smtp_host" value="{{ settings.smtp_host ?? '' }}" class="op-input" placeholder="smtp.mailtrap.io">
+                        <small class="op-text-muted">The hostname of your outgoing SMTP server (e.g. mail.smtpbucket.com).</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>SMTP Port</label>
+                        <input type="number" name="smtp_port" value="{{ settings.smtp_port ?? 2525 }}" class="op-input" min="1" max="65535">
+                        <small class="op-text-muted">The port number required by the mail server (usually 587, 465, or 25).</small>
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>SMTP Username</label>
+                        <input type="text" name="smtp_user" value="{{ settings.smtp_user ?? '' }}" class="op-input">
+                        <small class="op-text-muted">The username credential used to authenticate with your SMTP mail server.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>SMTP Password</label>
+                        <input type="password" name="smtp_pass" value="{{ settings.smtp_pass ?? '' }}" class="op-input">
+                        <small class="op-text-muted">The password credential used to authenticate with your SMTP mail server.</small>
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>SMTP Encryption</label>
+                        <select name="smtp_secure" class="op-input">
+                            <option value="" {{ (settings.smtp_secure ?? '') == '' ? 'selected' : '' }}>None</option>
+                            <option value="ssl" {{ (settings.smtp_secure ?? '') == 'ssl' ? 'selected' : '' }}>SSL</option>
+                            <option value="tls" {{ (settings.smtp_secure ?? '') == 'tls' ? 'selected' : '' }}>TLS</option>
+                        </select>
+                        <small class="op-text-muted">The transport layer security protocol (TLS recommended, SSL, or None).</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Test Target Email Address</label>
+                        <div class="op-input-group">
+                            <input type="email" id="test-email-target" class="op-input" placeholder="you@domain.com">
+                            <button type="button" id="btn-test-smtp" class="op-btn op-btn-outline">Test Connection</button>
+                        </div>
+                        <small class="op-text-muted">Provide a temporary email recipient address to send a verification test message.</small>
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>From Email</label>
+                        <input type="email" name="mail_from_email" value="{{ settings.mail_from_email ?? '' }}" class="op-input" placeholder="no-reply@ownpay.org">
+                        <small class="op-text-muted">The email address from which outgoing system emails appear to be sent.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>From Name</label>
+                        <input type="text" name="mail_from_name" value="{{ settings.mail_from_name ?? '' }}" class="op-input" placeholder="Own Pay">
+                        <small class="op-text-muted">The friendly sender name associated with outgoing system emails.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.email')|raw }}
+    </div>
+    {% endif %}
+
+    {% if not is_brand_view %}
+    {# -- Security Tab ----------------------------------------- #}
+    <div class="op-tab-panel {{ default_tab == 'security' ? 'active' : '' }}" id="tab-security">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Security Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Session Lifetime (minutes)</label>
+                        <input type="number" name="session_lifetime" value="{{ settings.session_lifetime ?? 120 }}" class="op-input" min="5" max="1440">
+                        <small class="op-text-muted">The duration of inactivity in minutes before an administrator session expires and requires re-login.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Max Login Attempts</label>
+                        <input type="number" name="max_login_attempts" value="{{ settings.max_login_attempts ?? 5 }}" class="op-input" min="3" max="20">
+                        <small class="op-text-muted">The maximum number of failed login attempts allowed before the account is temporarily locked.</small>
+                    </div>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Lockout Time (minutes)</label>
+                        <input type="number" name="lockout_time" value="{{ settings.lockout_time ?? 15 }}" class="op-input" min="1" max="1440">
+                        <small class="op-text-muted">The period in minutes an account remains locked out after exceeding the maximum failed attempts.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Password Min Length</label>
+                        <input type="number" name="password_min_length" value="{{ settings.password_min_length ?? 8 }}" class="op-input" min="6" max="32">
+                        <small class="op-text-muted">The minimum required length for administrative and staff account passwords.</small>
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="require_2fa" value="1" {{ (settings.require_2fa ?? 0) ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Require 2FA for all staff</span>
+                    </label>
+                    <small class="op-text-muted op-d-block op-mt-1">When active, all staff members must configure and verify two-factor authentication (TOTP) to access the panel.</small>
+                </div>
+                <hr class="op-divider">
+                <div class="op-form-group">
+                    <label>Admin Login URL Slug</label>
+                    <div class="op-input-group">
+                        <span class="op-input-prefix">{{ settings.base_url ?? '' }}/</span>
+                        <input type="text" name="admin_login_slug" value="{{ landing.admin_login_slug ?? 'login' }}" class="op-input" placeholder="login" pattern="[a-z0-9\-]+" title="Lowercase letters, numbers, hyphens only">
+                    </div>
+                    <small class="op-text-muted op-text-warning">⚠ Change this to make your admin login URL harder to guess. Default: <code>/login</code>. After saving, bookmark the new URL - old URL stops working.</small>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.security')|raw }}
+    </div>
+    {% endif %}
+
+    {# -- Checkout Tab ----------------------------------------- #}
+    <div class="op-tab-panel {{ default_tab == 'checkout' ? 'active' : '' }}" id="tab-checkout">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Checkout Page Settings</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label>Success Message</label>
+                    <textarea name="checkout_success_msg" rows="2" class="op-input">{{ checkout_settings.checkout_success_msg ?? 'Payment completed successfully! Thank you for your payment.' }}</textarea>
+                    <small class="op-text-muted">The message displayed to customers on a successful transaction completion.</small>
+                </div>
+                <div class="op-form-group">
+                    <label>Pending Message</label>
+                    <textarea name="checkout_pending_msg" rows="2" class="op-input">{{ checkout_settings.checkout_pending_msg ?? 'Your payment is being verified. You will receive a confirmation shortly.' }}</textarea>
+                    <small class="op-text-muted">The message displayed to customers when their payment is queued/pending verification.</small>
+                </div>
+                <div class="op-form-group">
+                    <label>Failed/Expired Message</label>
+                    <textarea name="checkout_failed_msg" rows="2" class="op-input">{{ checkout_settings.checkout_failed_msg ?? 'This payment session has expired or was cancelled.' }}</textarea>
+                    <small class="op-text-muted">The message displayed to customers if the checkout session fails or expires.</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>Checkout Timer</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="timer_enabled" value="1" {{ (checkout_settings.timer_enabled ?? '1') == '1' ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Enable Checkout Timer</span>
+                    </label>
+                    <small class="op-text-muted op-d-block op-mt-1">When active, a countdown timer is shown on checkout page. Upon expiry, the transaction is automatically cancelled.</small>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>
+                            Timer Duration (seconds)
+                            <span class="op-help-tooltip" data-tooltip="Seconds before the checkout session expires automatically.">ⓘ</span>
+                        </label>
+                        <input type="number" name="timer_seconds" value="{{ checkout_settings.timer_seconds ?? 600 }}" class="op-input" min="60" max="3600" step="30">
+                        <small class="op-text-muted">Default: 600 (10 minutes). Range: 60–3600 seconds.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>Checkout Display</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="show_faq" value="1" {{ (checkout_settings.show_faq ?? '1') == '1' ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Show FAQ Button on Checkout</span>
+                    </label>
+                    <small class="op-text-muted op-d-block op-mt-1">Toggle the display of the FAQ help widget on the checkout page. FAQ questions can be defined in the FAQ tab.</small>
+                </div>
+            </div>
+        </div>
+
+        {% if is_brand_view and is_superadmin %}
+        <div class="op-card op-mt-4">
+            <div class="op-card-header"><h3>Custom CSS &amp; JavaScript</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label>Custom CSS Overrides</label>
+                    <textarea name="custom_css" class="op-input op-input-monospace" rows="6" placeholder="/* Append custom CSS rules for checkout theme */" style="font-family: monospace; font-size: 13px;">{{ checkout_settings.custom_css ?? '' }}</textarea>
+                    <small class="op-text-muted">Applied to the brand's checkout pages. Be careful with styling.</small>
+                </div>
+                <div class="op-form-group op-mt-3">
+                    <label>Custom JavaScript</label>
+                    <textarea name="custom_js" class="op-input op-input-monospace" rows="6" placeholder="// Custom analytics or interface script hooks" style="font-family: monospace; font-size: 13px;">{{ checkout_settings.custom_js ?? '' }}</textarea>
+                    <small class="op-text-muted">Injected at the bottom of the checkout page. Do not include <code>&lt;script&gt;</code> tags.</small>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {{ hook('admin.settings.checkout')|raw }}
+    </div>
+
+    {# -- Notifications Tab ------------------------------------ #}
+    {% if not is_brand_view %}
+    {# -- Notifications Tab ------------------------------------ #}
+    <div class="op-tab-panel {{ default_tab == 'notification' ? 'active' : '' }}" id="tab-notification">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Notification Preferences</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-group">
+                    <label>Admin Notification Email</label>
+                    <input type="email" name="admin_notification_email" value="{{ settings.admin_notification_email ?? '' }}" class="op-input" placeholder="admin@example.com">
+                    <small class="op-text-muted">Receive payment and refund status alerts at this administrative email address.</small>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="email_on_payment" value="1" {{ (settings.email_on_payment ?? 0) ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Email on new payment</span>
+                    </label>
+                    <small class="op-text-muted op-d-block op-mt-1">Toggling this active will send an automated notification email to the administrator for every successful new payment.</small>
+                </div>
+                <div class="op-form-group">
+                    <label class="op-toggle-label">
+                        <input type="checkbox" name="email_on_refund" value="1" {{ (settings.email_on_refund ?? 0) ? 'checked' : '' }}>
+                        <span class="op-toggle-switch"></span>
+                        <span>Email on refund</span>
+                    </label>
+                    <small class="op-text-muted op-d-block op-mt-1">Toggling this active will send an automated notification email to the administrator for every refund processed.</small>
+                </div>
+            </div>
+        </div>
+        {{ hook('admin.settings.notification')|raw }}
+    </div>
+    {% endif %}
+
+    {# -- Brand Email Notifications Tab (per-brand sender + prefs, inherits All Brands) -- #}
+    {% if is_brand_view %}
+    <div class="op-tab-panel {{ default_tab == 'notifications' ? 'active' : '' }}" id="tab-notifications">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Email &amp; Notifications</h3></div>
+            <div class="op-card-body">
+                <p class="op-text-muted op-mb-3">These apply to this brand only. Leave a field blank (or choose “Inherit”) to use the All&nbsp;Brands default.</p>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>From Name</label>
+                        <input type="text" name="mail_from_name" value="{{ settings.mail_from_name ?? '' }}" class="op-input" placeholder="{{ inherited.mail_from_name ?? '' }}">
+                        <small class="op-text-muted">Sender name on this brand's emails. Blank = inherit{% if inherited.mail_from_name %} ({{ inherited.mail_from_name }}){% endif %}.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>From Email</label>
+                        <input type="email" name="mail_from_email" value="{{ settings.mail_from_email ?? '' }}" class="op-input" placeholder="{{ inherited.mail_from_email ?? '' }}">
+                        <small class="op-text-muted">Sender address. Blank = inherit{% if inherited.mail_from_email %} ({{ inherited.mail_from_email }}){% endif %}.</small>
+                    </div>
+                </div>
+                <div class="op-form-group">
+                    <label>Notification Email</label>
+                    <input type="email" name="admin_notification_email" value="{{ settings.admin_notification_email ?? '' }}" class="op-input" placeholder="{{ inherited.admin_notification_email ?? '' }}">
+                    <small class="op-text-muted">Where this brand receives payment &amp; refund alerts. Blank = inherit{% if inherited.admin_notification_email %} ({{ inherited.admin_notification_email }}){% endif %}.</small>
+                </div>
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Email on new payment</label>
+                        <select name="email_on_payment" class="op-input">
+                            <option value="" {{ (settings.email_on_payment ?? '') == '' ? 'selected' : '' }}>Inherit ({{ inherited.email_on_payment == '1' ? 'On' : 'Off' }})</option>
+                            <option value="1" {{ (settings.email_on_payment ?? '') == '1' ? 'selected' : '' }}>On</option>
+                            <option value="0" {{ (settings.email_on_payment ?? '') == '0' ? 'selected' : '' }}>Off</option>
+                        </select>
+                        <small class="op-text-muted">Notify on every successful payment for this brand.</small>
+                    </div>
+                    <div class="op-form-group op-col-6">
+                        <label>Email on refund</label>
+                        <select name="email_on_refund" class="op-input">
+                            <option value="" {{ (settings.email_on_refund ?? '') == '' ? 'selected' : '' }}>Inherit ({{ inherited.email_on_refund == '1' ? 'On' : 'Off' }})</option>
+                            <option value="1" {{ (settings.email_on_refund ?? '') == '1' ? 'selected' : '' }}>On</option>
+                            <option value="0" {{ (settings.email_on_refund ?? '') == '0' ? 'selected' : '' }}>Off</option>
+                        </select>
+                        <small class="op-text-muted">Notify on every processed refund for this brand.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+
+
+    {# -- FAQ Tab ----------------------------------------------- #}
+    <div class="op-tab-panel {{ default_tab == 'faq' ? 'active' : '' }}" id="tab-faq">
+        <div class="op-card">
+            <div class="op-card-header"><h3>Checkout FAQ</h3></div>
+            <div class="op-card-body" id="faq-container">
+                {% for i, faq in (settings.faqs ?? []) %}
+                <div class="op-faq-row op-card op-card-bordered op-mb-2 op-p-3">
+                    <div class="op-form-group"><label>Question</label><input type="text" name="faqs[{{ i }}][question]" value="{{ faq.question }}" class="op-input"></div>
+                    <div class="op-form-group"><label>Answer</label><textarea name="faqs[{{ i }}][answer]" rows="2" class="op-input">{{ faq.answer }}</textarea></div>
+                    <button type="button" class="op-btn op-btn-sm op-btn-danger op-faq-remove">Remove</button>
+                </div>
+                {% endfor %}
+            </div>
+            <div class="op-card-body op-p-3"><button type="button" class="op-btn op-btn-outline" id="add-faq">+ Add FAQ</button></div>
+        </div>
+        {{ hook('admin.settings.faq')|raw }}
+    </div>
+
+    {# -- Custom Domains Tab --------------------------------------- #}
+    {% if is_brand_view %}
+    <div class="op-tab-panel {{ default_tab == 'domains' ? 'active' : '' }}" id="tab-domains">
+        <div class="op-page-header" style="margin-top: 0; padding-top: 0; border-bottom: none;">
+            <div>
+                <h3>Custom Domains</h3>
+                <p class="op-text-muted op-mt-1">Map your own domain to a brand's checkout and payment pages.</p>
+            </div>
+            <button type="button" class="op-btn op-btn-primary" id="btn-add-domain-trigger" data-open-modal="add-domain-modal">
+                + Add Domain
+            </button>
+        </div>
+
+        {# -- Domain List -- #}
+        <div class="op-card op-mb-6">
+            <div class="op-card-header"><h3>Your Domains</h3></div>
+            <div class="op-card-body op-p-0">
+                <div class="op-table-responsive">
+                    <table class="op-table">
+                        <thead>
+                            <tr>
+                                <th>Domain</th>
+                                <th>Type</th>
+                                <th>Primary</th>
+                                <th>SSL Status</th>
+                                <th>TXT Verification Token</th>
+                                <th>Status</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                        {% for d in domains %}
+                            <tr>
+                                <td data-label="Domain">
+                                    <strong>{{ d.domain }}</strong>
+                                    {% if d.status == 'active' or d.status == 'verified' %}
+                                        <a href="https://{{ d.domain }}" target="_blank" class="op-link op-text-xs op-ml-1">↗ Visit</a>
+                                    {% endif %}
+                                    {% if d.redirect_url %}
+                                        <br><small class="op-text-muted">Redirects to: <code>{{ d.redirect_url }}</code></small>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Type"><span class="op-badge">{{ d.type|capitalize }}</span></td>
+                                <td data-label="Primary">
+                                    {% if d.is_primary %}
+                                        <span class="op-badge op-badge-primary">★ Primary</span>
+                                    {% else %}
+                                        <button type="submit" form="primary-domain-form-{{ d.id }}" class="op-btn op-btn-xs op-btn-outline">Set Primary</button>
+                                    {% endif %}
+                                </td>
+                                <td data-label="SSL">
+                                    {% if d.ssl_status == 'active' %}
+                                        <span class="op-badge op-badge-success">✓ Active SSL</span>
+                                    {% elseif d.ssl_status == 'pending' %}
+                                        <span class="op-badge op-badge-warning">Pending SSL</span>
+                                    {% elseif d.ssl_status == 'expired' %}
+                                        <span class="op-badge op-badge-danger">Expired SSL</span>
+                                    {% else %}
+                                        <span class="op-badge op-badge-secondary">None</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="TXT Token">
+                                    {% if d.verification_token is defined and d.verification_token %}
+                                    <div class="op-copy-row">
+                                        <code class="op-text-xs" id="tok-{{ d.id }}">ownpay-verify={{ d.verification_token }}</code>
+                                        <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="tok-{{ d.id }}">Copy</button>
+                                    </div>
+                                    {% else %}
+                                        <span class="op-text-muted op-text-xs">-</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Status">
+                                    {% if d.status == 'active' or d.status == 'verified' %}
+                                        <span class="op-badge op-badge-success">✓ Active</span>
+                                    {% elseif d.status == 'pending' %}
+                                        <span class="op-badge op-badge-warning">Pending DNS</span>
+                                    {% else %}
+                                        <span class="op-badge op-badge-danger">{{ d.status|capitalize }}</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Actions" class="op-actions">
+                                    <div style="display: flex; gap: 4px;">
+                                        {% if d.status != 'active' and d.status != 'verified' %}
+                                        <button type="submit" form="verify-domain-form-{{ d.id }}" class="op-btn op-btn-sm op-btn-success">Verify DNS</button>
+                                        {% endif %}
+                                        
+                                        <button type="submit" form="ssl-domain-form-{{ d.id }}" class="op-btn op-btn-sm op-btn-outline">Check SSL</button>
+
+                                        <button type="button" class="op-btn op-btn-sm op-btn-outline op-edit-domain-btn"
+                                                data-id="{{ d.id }}"
+                                                data-domain="{{ d.domain }}"
+                                                data-type="{{ d.type }}"
+                                                data-redirect-url="{{ d.redirect_url }}"
+                                                data-status="{{ d.status }}"
+                                                data-dns-verified="{{ d.dns_verified ? '1' : '0' }}"
+                                                data-is-primary="{{ d.is_primary ? '1' : '0' }}"
+                                                data-open-modal="edit-domain-modal">
+                                            Edit
+                                        </button>
+
+                                        <button type="submit" form="delete-domain-form-{{ d.id }}" class="op-btn op-btn-sm op-btn-danger"
+                                              data-confirm="Remove {{ d.domain }}? This cannot be undone.">Remove</button>
+                                    </div>
+                                </td>
+                            </tr>
+                        {% else %}
+                            <tr><td colspan="7" class="op-empty">No custom domains added yet. Click <strong>"+ Add Domain"</strong> above to get started.</td></tr>
+                        {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        {# -- DNS Setup Guide -- #}
+        <div class="op-card op-mt-6">
+            <div class="op-card-header">
+                <h3>📋 Custom Domain DNS Configuration Guide</h3>
+            </div>
+            <div class="op-card-body op-p-6">
+                <div style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.5rem;">
+                    <!-- Step 1: TXT Verification -->
+                    <div class="op-dns-card p-4 border rounded-lg bg-snow" style="border: 1px solid var(--border-color, #e2e8f0); padding: 1rem; border-radius: 0.5rem; background: var(--bg-snow, #f8fafc);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <span class="op-badge op-badge-primary text-xs" style="font-size: 0.75rem;">Step 1</span>
+                            <h4 class="font-bold text-md" style="margin: 0; font-weight: bold;">Ownership Proof (TXT)</h4>
+                        </div>
+                        <p class="op-text-muted text-sm mb-4" style="font-size: 0.875rem; color: var(--text-muted, #64748b);">Add a TXT record to prove domain ownership. Safe to do, it won't affect any existing email or website.</p>
+                        <div class="op-dns-record-details font-mono text-xs p-2 border rounded bg-white gap-2" style="font-family: monospace; font-size: 0.75rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 0.25rem; background: #fff; padding: 0.5rem; display: flex; flex-col: column; gap: 0.5rem; flex-direction: column;">
+                            <div><strong>Type:</strong> TXT</div>
+                            <div><strong>Name/Host:</strong> <code id="guide-txt-host">_ownpay-verify</code> <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="guide-txt-host">Copy</button></div>
+                            <div><strong>Value:</strong> <code>ownpay-verify={token}</code></div>
+                        </div>
+                    </div>
+                    
+                    <!-- Step 2: CNAME or A Record -->
+                    <div class="op-dns-card p-4 border rounded-lg bg-snow" style="border: 1px solid var(--border-color, #e2e8f0); padding: 1rem; border-radius: 0.5rem; background: var(--bg-snow, #f8fafc);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <span class="op-badge op-badge-primary text-xs" style="font-size: 0.75rem;">Step 2</span>
+                            <h4 class="font-bold text-md" style="margin: 0; font-weight: bold;">Routing Traffic (A / CNAME)</h4>
+                        </div>
+                        <p class="op-text-muted text-sm mb-4" style="font-size: 0.875rem; color: var(--text-muted, #64748b);">Route requests to our server. Choose **one** option depending on your domain structure:</p>
+                        <div class="op-dns-record-details font-mono text-xs p-2 border rounded bg-white gap-2" style="font-family: monospace; font-size: 0.75rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 0.25rem; background: #fff; padding: 0.5rem; display: flex; flex-col: column; gap: 0.5rem; flex-direction: column;">
+                            <div><strong>Option A (Subdomain CNAME):</strong><br>Point CNAME record to: <code id="guide-cname-val">testing.ownpay.org</code> <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="guide-cname-val">Copy</button></div>
+                            <div class="border-t my-1" style="border-top: 1px solid var(--border-color, #e2e8f0); margin: 0.25rem 0;"></div>
+                            <div><strong>Option B (Root A Record):</strong><br>Point A record to IP: <code id="guide-a-val">{{ server_ip }}</code> <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="guide-a-val">Copy</button></div>
+                        </div>
+                    </div>
+
+                    <!-- Step 3: Verification -->
+                    <div class="op-dns-card p-4 border rounded-lg bg-snow" style="border: 1px solid var(--border-color, #e2e8f0); padding: 1rem; border-radius: 0.5rem; background: var(--bg-snow, #f8fafc);">
+                        <div style="display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.5rem;">
+                            <span class="op-badge op-badge-primary text-xs" style="font-size: 0.75rem;">Step 3</span>
+                            <h4 class="font-bold text-md" style="margin: 0; font-weight: bold;">Verification & SSL Check</h4>
+                        </div>
+                        <p class="op-text-muted text-sm mb-4" style="font-size: 0.875rem; color: var(--text-muted, #64748b);">DNS propagation takes 5-30 minutes. Once DNS is verified, trigger **Check SSL** to verify that a secure certificate is active.</p>
+                        <div class="op-dns-record-details text-xs p-2 border rounded bg-white gap-2" style="font-size: 0.75rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 0.25rem; background: #fff; padding: 0.5rem; display: flex; flex-col: column; gap: 0.5rem; flex-direction: column;">
+                            <div><strong>Automatic Check:</strong> Run by background cron.</div>
+                            <div><strong>Manual Verification:</strong> Click "Verify DNS" in the domain list.</div>
+                        </div>
+                    </div>
+                </div>
+
+                {% if domains|length > 0 %}
+                <div class="op-alert op-alert-success op-mt-6" style="margin-top: 1.5rem;">
+                    <h4 class="font-bold mb-2" style="font-weight: bold; margin-bottom: 0.5rem;">Your Domains Configuration Values</h4>
+                    <div style="display: flex; flex-direction: column; gap: 0.5rem; font-family: monospace; font-size: 0.75rem;">
+                    {% for d in domains %}
+                        {% if d.verification_token is defined and d.verification_token %}
+                        <div style="display: flex; align-items: center; justify-content: space-between; padding: 0.5rem; border: 1px solid var(--border-color, #e2e8f0); border-radius: 0.25rem; background: #fff;">
+                            <div>
+                                <strong>{{ d.domain }}</strong>:
+                                TXT name: <code id="c-name-{{ d.id }}">_ownpay-verify.{{ d.domain }}</code>
+                                &nbsp;|&nbsp;
+                                Value: <code id="c-val-{{ d.id }}">ownpay-verify={{ d.verification_token }}</code>
+                            </div>
+                            <div style="display: flex; gap: 4px;">
+                                <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="c-name-{{ d.id }}">Copy Name</button>
+                                <button type="button" class="op-btn op-btn-xs op-btn-outline op-copy-btn" data-copy="c-val-{{ d.id }}">Copy Value</button>
+                            </div>
+                        </div>
+                        {% endif %}
+                    {% endfor %}
+                    </div>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if not is_brand_view %}
+    {# -- Mobile App Tab -------------------------------------- #}
+
+
+    {# -- Cron Jobs Tab -------------------------------------- #}
+    <div class="op-tab-panel {{ default_tab == 'cron' ? 'active' : '' }}" id="tab-cron">
+        <div class="op-alert op-alert-info op-mb-4">
+            <div class="op-cron-alert-content">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="op-cron-alert-icon">
+                    <circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/>
+                </svg>
+                <div>
+                    <strong class="op-cron-alert-title">Cron Service Configured</strong>
+                    <span>Scheduled tasks automate queue processing, transaction matching, SMS notifications, and system audits. Set up the crontab entry below on your server to run every minute.</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mb-4">
+            <div class="op-card-header">
+                <h3 class="op-cron-section-header">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    Cron Credentials & Command
+                </h3>
+            </div>
+            <div class="op-card-body">
+                <div class="op-form-group op-mb-4">
+                    <label>Cron Trigger Secret</label>
+                    <div class="op-cron-input-container">
+                        <input type="password" id="cron-secret-input" value="{{ cron_secret }}" class="op-input op-cron-input-secret" readonly>
+                        <div class="op-cron-secret-actions">
+                            <button type="button" class="op-btn op-btn-sm op-btn-outline op-cron-icon-btn" id="btn-toggle-cron-secret" title="Toggle visibility">
+                                <svg id="secret-eye-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                            </button>
+                            <button type="button" class="op-btn op-btn-sm op-btn-outline op-cron-icon-btn btn-copy-cron" data-target="#cron-secret-input" title="Copy Secret">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <small class="op-text-muted op-cron-help-text">Used to authenticate public cron requests securely. Keep this secret private.</small>
+                    <div class="op-mt-3">
+                        <button type="submit" form="cron-regenerate-form" class="op-btn op-btn-sm op-btn-danger" id="btn-cron-regenerate">
+                             Regenerate Secret
+                        </button>
+                    </div>
+                </div>
+
+                <hr class="op-cron-divider">
+
+                <div class="op-form-group op-mb-4">
+                    <label>Webhook Execution URL</label>
+                    <div class="op-cron-input-container">
+                        <input type="text" id="cron-url-input" value="{{ cron_url }}" class="op-input op-cron-input-url" readonly>
+                        <div class="op-cron-url-actions">
+                            <button type="button" class="op-btn op-btn-sm op-btn-outline op-cron-icon-btn btn-copy-cron" data-target="#cron-url-input" title="Copy URL">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <small class="op-text-muted op-cron-help-text">Configure external web cron services (e.g., EasyCron) to send requests here.</small>
+                </div>
+
+                <hr class="op-cron-divider">
+
+                <div class="op-form-group">
+                    <label>Recommended Crontab Command</label>
+                    <div class="op-cron-input-container">
+                        <input type="text" id="cron-cmd-input" value="* * * * * curl -s -S &quot;{{ cron_url }}&quot; > /dev/null 2>&1" class="op-input op-cron-input-cmd" readonly>
+                        <div class="op-cron-url-actions">
+                            <button type="button" class="op-btn op-btn-sm op-btn-outline op-cron-icon-btn btn-copy-cron" data-target="#cron-cmd-input" title="Copy Command">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+                            </button>
+                        </div>
+                    </div>
+                    <small class="op-text-muted op-cron-help-text">SSH to your server, type <code>crontab -e</code>, and add the line above to trigger scheduled tasks every minute.</small>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card">
+            <div class="op-card-header">
+                <h3 class="op-cron-section-header">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/></svg>
+                    Registered System Cron Jobs
+                </h3>
+            </div>
+            <div class="op-card-body op-p-0">
+                <table class="op-table">
+                    <thead>
+                        <tr>
+                            <th>Job Name & Description</th>
+                            <th>Schedule Interval</th>
+                            <th>Last Run Status</th>
+                            <th class="op-text-right">Action</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for job in cron_jobs %}
+                        <tr>
+                            <td data-label="Job Name">
+                                <div class="op-cron-job-name">{{ job.name }}</div>
+                                <div class="op-cron-job-desc">{{ job.description }}</div>
+                            </td>
+                            <td data-label="Schedule">
+                                <span class="op-badge op-badge-info op-cron-job-badge-info">
+                                    ⏱ {{ job.schedule }}
+                                </span>
+                            </td>
+                            <td data-label="Last Run">
+                                {% if job.last_run == 'Never' %}
+                                <span class="op-badge op-badge-warning op-cron-job-badge-warn">
+                                    <span class="op-status-dot op-status-dot-warning"></span>
+                                    Never Executed
+                                </span>
+                                {% else %}
+                                <span class="op-badge op-badge-success op-cron-job-badge-warn" title="Last execution timestamp: {{ job.last_run_timestamp|date('Y-m-d H:i:s') }}">
+                                    <span class="op-status-dot op-status-dot-success"></span>
+                                    {{ job.last_run }}
+                                </span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Action" class="op-text-right">
+                                <button type="submit" form="cron-run-form-{{ job.name }}" class="op-btn op-btn-sm op-btn-primary op-btn-flex-center">
+                                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>
+                                    Run Now
+                                </button>
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr>
+                            <td colspan="4" class="op-text-center op-text-muted op-cron-empty-row">No scheduled jobs registered.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        {{ hook('admin.settings.cron')|raw }}
+    </div>
+
+    {# -- Language Tab ------------------------------------------ #}
+    <div class="op-tab-panel {{ default_tab == 'language' ? 'active' : '' }}" id="tab-language">
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>System Default Language</h3></div>
+            <div class="op-card-body">
+                <div class="op-form-row op-align-end">
+                    <div class="op-form-group op-col-8 op-mb-0">
+                        <label>Default Language</label>
+                        <select name="default_language" class="op-input" form="save-default-lang-form">
+                            {% for lang in languages %}
+                                <option value="{{ lang.code }}" {{ default_language == lang.code ? 'selected' : '' }}>
+                                    {{ lang.name }} ({{ lang.code }})
+                                </option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="op-form-group op-col-4 op-mb-0">
+                        <button type="submit" form="save-default-lang-form" class="op-btn op-btn-primary op-btn-block">Save Default</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-card op-mb-4">
+            <div class="op-card-header"><h3>Manage Languages</h3></div>
+            <div class="op-card-body">
+                <div class="op-table-responsive">
+                    <table class="op-table">
+                        <thead>
+                            <tr>
+                                <th>Code</th>
+                                <th>Name</th>
+                                <th>Status</th>
+                                <th>Default</th>
+                                <th>Actions</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lang in languages %}
+                            <tr>
+                                <td data-label="Code"><code>{{ lang.code }}</code></td>
+                                <td data-label="Name">{{ lang.name }}</td>
+                                <td data-label="Status">
+                                    {% if lang.status == 'active' %}
+                                        <span class="op-badge op-badge-success">Active</span>
+                                    {% else %}
+                                        <span class="op-badge op-badge-muted">Inactive</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Default">
+                                    {% if lang.is_default %}
+                                        <span class="op-badge op-badge-primary">Default</span>
+                                    {% else %}
+                                        <span class="op-text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td data-label="Actions">
+                                    <div class="op-flex op-gap-2">
+                                        <a href="/admin/settings/language/{{ lang.code }}/translate" class="op-btn op-btn-sm op-btn-outline">Translate</a>
+                                        {% if lang.code != 'en' %}
+                                            <button type="submit" form="delete-lang-form-{{ lang.code }}" class="op-btn op-btn-sm op-btn-danger" onclick="return confirm('Are you sure you want to delete this language?')">Delete</button>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-row op-gap-4">
+            <div class="op-col-6">
+                <div class="op-card">
+                    <div class="op-card-header"><h3>Upload Translation File (JSON)</h3></div>
+                    <div class="op-card-body">
+                        <div class="op-form-group">
+                            <label>Language Code *</label>
+                            <input type="text" name="code" form="upload-lang-form" class="op-input" required placeholder="e.g. bn" pattern="[a-z]{2,5}" maxlength="5">
+                            <small class="op-text-muted">ISO 2-letter or 5-letter locale code (e.g. bn, es, pt-br)</small>
+                        </div>
+                        <div class="op-form-group">
+                            <label>Language Name *</label>
+                            <input type="text" name="name" form="upload-lang-form" class="op-input" required placeholder="e.g. Bengali">
+                        </div>
+                        <div class="op-form-group">
+                            <label>Translation File (.json) *</label>
+                            <input type="file" name="language_file" form="upload-lang-form" class="op-input" required accept=".json">
+                            <small class="op-text-muted">Upload a valid translations JSON. File can contain nested or flat key-values.</small>
+                        </div>
+                        <button type="submit" form="upload-lang-form" class="op-btn op-btn-primary op-btn-block">Upload Language</button>
+                    </div>
+                </div>
+            </div>
+            <div class="op-col-6">
+                <div class="op-card">
+                    <div class="op-card-header"><h3>Manually Add Language</h3></div>
+                    <div class="op-card-body">
+                        <div class="op-form-group">
+                            <label>Language Code *</label>
+                            <input type="text" name="code" form="create-lang-form" class="op-input" required placeholder="e.g. bn" pattern="[a-z]{2,5}" maxlength="5">
+                            <small class="op-text-muted">ISO 2-letter or 5-letter locale code (e.g. bn, es, pt-br)</small>
+                        </div>
+                        <div class="op-form-group">
+                            <label>Language Name *</label>
+                            <input type="text" name="name" form="create-lang-form" class="op-input" required placeholder="e.g. Bengali">
+                            <small class="op-text-muted">Will copy baseline English keys to translate manually</small>
+                        </div>
+                        <button type="submit" form="create-lang-form" class="op-btn op-btn-primary op-btn-block">Create Language</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <div class="op-form-actions op-mt-4" {% if default_tab == 'optimization' or default_tab == 'queue' or default_tab == 'domains' %}style="display: none;"{% endif %}>
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg op-btn-flex-center">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-right: 8px;"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>
+            Save Settings
+        </button>
+    </div>
+</form>
+
+    {% if not is_brand_view %}
+    {# -- Optimization & Maintenance Tab -------------------------------------- #}
+    <div class="op-tab-panel {{ default_tab == 'optimization' ? 'active' : '' }}" id="tab-optimization">
+    <div class="op-card op-mb-4">
+        <div class="op-card-header">
+            <h3>Platform Resource Metrics</h3>
+            <span class="op-text-muted op-text-sm">Real-time usage statistics</span>
+        </div>
+        <div class="op-card-body">
+            <div class="op-grid-4">
+                {# Cache Metric Card #}
+                <div class="op-metric-card op-gradient-blue">
+                    <div class="op-metric-icon">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m12 0V5a2 2 0 00-2-2H7a2 2 0 00-2 2v2m12 0h-2M5 7h2"/></svg>
+                    </div>
+                    <div class="op-metric-content">
+                        <div class="op-metric-value">{{ (general_cache_size + twig_cache_size)|format_bytes }}</div>
+                        <div class="op-metric-label">Cache Storage</div>
+                        <div class="op-metric-meta">
+                            <span>App: {{ general_cache_size|format_bytes }} ({{ general_cache_count }} items)</span><br>
+                            <span>Twig: {{ twig_cache_size|format_bytes }} ({{ twig_cache_count }} views)</span>
+                        </div>
+                    </div>
+                </div>
+
+                {# Database Metric Card #}
+                <div class="op-metric-card op-gradient-purple">
+                    <div class="op-metric-icon">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v6c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 11v6c0 1.66 4 3 9 3s9-1.34 9-3v-6"/></svg>
+                    </div>
+                    <div class="op-metric-content">
+                        <div class="op-metric-value">{{ db_stats.total_size|format_bytes }}</div>
+                        <div class="op-metric-label">Database Size</div>
+                        <div class="op-metric-meta">
+                            <span>Tables: {{ db_stats.table_count }} tables</span><br>
+                            <span>Fragmented: {{ db_stats.free_size|format_bytes }}</span>
+                        </div>
+                    </div>
+                </div>
+
+                {# Logs & Sessions Metric Card #}
+                <div class="op-metric-card op-gradient-green">
+                    <div class="op-metric-icon">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253"/></svg>
+                    </div>
+                    <div class="op-metric-content">
+                        <div class="op-metric-value">{{ (log_stats.audit_count + log_stats.login_count + log_stats.comm_count + log_stats.webhook_count)|number_format }}</div>
+                        <div class="op-metric-label">System Logs</div>
+                        <div class="op-metric-meta">
+                            <span>Audit: {{ log_stats.audit_count|number_format }} | Webhook: {{ log_stats.webhook_count|number_format }}</span><br>
+                            <span>Sessions: {{ log_stats.session_count|number_format }} active</span>
+                        </div>
+                    </div>
+                </div>
+
+                {# Temp Files Metric Card #}
+                <div class="op-metric-card op-gradient-orange">
+                    <div class="op-metric-icon">
+                        <svg width="24" height="24" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+                    </div>
+                    <div class="op-metric-content">
+                        <div class="op-metric-value">{{ temp_uploads_size|format_bytes }}</div>
+                        <div class="op-metric-label">Temporary Files</div>
+                        <div class="op-metric-meta">
+                            <span>Files: {{ temp_uploads_count }} items</span><br>
+                            <span>Ready to reclaim</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header">
+            <h3>Manual Optimization Tools</h3>
+            <span class="op-text-muted op-text-sm">Safe actions recommended once a month in production</span>
+        </div>
+        <div class="op-card-body">
+            {# 1. Cache Tool #}
+            <div class="op-opt-tool-row">
+                <div class="op-opt-tool-info">
+                    <h4>Clean Application &amp; View Cache</h4>
+                    <p class="op-text-muted op-text-sm">Flushes key-value Redis/File cache pools, clears compiled Twig templates, and invalidates temporary URL caches. 100% safe to run anytime.</p>
+                    <small class="op-text-muted">
+                        Last executed: 
+                        {% if opt_settings.last_cache_clear %}
+                            <strong>{{ opt_settings.last_cache_clear|time_ago }}</strong> ({{ opt_settings.last_cache_clear|datetime }})
+                        {% else %}
+                            <span class="op-text-warning">Never run</span>
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="op-opt-tool-action">
+                    <button type="submit" form="optimize-cache-form" class="op-btn op-btn-outline btn-opt-trigger">Clean Cache</button>
+                </div>
+            </div>
+
+            <hr class="op-divider">
+
+            {# 2. DB Tool #}
+            <div class="op-opt-tool-row">
+                <div class="op-opt-tool-info">
+                    <h4>Analyze &amp; Defragment Database</h4>
+                    <p class="op-text-muted op-text-sm">Runs query optimization analyzer and defragments indices on active high-churn tables (transactions, ledger, and logs) to boost lookup speeds. Executed online and table-by-table to prevent locking issues.</p>
+                    <small class="op-text-muted">
+                        Last executed: 
+                        {% if opt_settings.last_db_optimize %}
+                            <strong>{{ opt_settings.last_db_optimize|time_ago }}</strong> ({{ opt_settings.last_db_optimize|datetime }})
+                        {% else %}
+                            <span class="op-text-warning">Never run</span>
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="op-opt-tool-action">
+                    <button type="submit" form="optimize-db-form" class="op-btn op-btn-outline btn-opt-trigger">Optimize DB</button>
+                </div>
+            </div>
+
+            <hr class="op-divider">
+
+            {# 3. Logs & Sessions Tool #}
+            <div class="op-opt-tool-row">
+                <div class="op-opt-tool-info">
+                    <h4>Purge Logs &amp; Sessions</h4>
+                    <p class="op-text-muted op-text-sm">Wipes expired login attempts, webhook delivery records, communication logs, and audit entries older than the configured retention period. Clears dead guest user sessions.</p>
+                    <div class="op-form-group op-mt-2">
+                        <label class="op-text-sm">Log Retention Period:</label>
+                        <select id="log-retention-select" class="op-input op-input-sm op-retention-select">
+                            <option value="30" {{ opt_settings.log_retention_days == 30 ? 'selected' : '' }}>30 days</option>
+                            <option value="60" {{ opt_settings.log_retention_days == 60 ? 'selected' : '' }}>60 days</option>
+                            <option value="90" {{ opt_settings.log_retention_days == 90 ? 'selected' : '' }}>90 days (Recommended)</option>
+                            <option value="180" {{ opt_settings.log_retention_days == 180 ? 'selected' : '' }}>180 days</option>
+                        </select>
+                    </div>
+                    <small class="op-text-muted op-mt-1 op-opt-last-run">
+                        Last executed: 
+                        {% if opt_settings.last_logs_purge %}
+                            <strong>{{ opt_settings.last_logs_purge|time_ago }}</strong> ({{ opt_settings.last_logs_purge|datetime }})
+                        {% else %}
+                            <span class="op-text-warning">Never run</span>
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="op-opt-tool-action">
+                    <button type="submit" form="optimize-logs-form" class="op-btn op-btn-outline btn-opt-trigger">Purge Logs</button>
+                </div>
+            </div>
+
+            <hr class="op-divider">
+
+            {# 4. Temp Uploads Tool #}
+            <div class="op-opt-tool-row">
+                <div class="op-opt-tool-info">
+                    <h4>Clean Temporary Uploads</h4>
+                    <p class="op-text-muted op-text-sm">Deletes orphaned and abandoned temporary files inside the system temp storage older than 24 hours to reclaim disk space. Perfectly safe and non-disruptive.</p>
+                    <small class="op-text-muted">
+                        Last executed: 
+                        {% if opt_settings.last_uploads_purge %}
+                            <strong>{{ opt_settings.last_uploads_purge|time_ago }}</strong> ({{ opt_settings.last_uploads_purge|datetime }})
+                        {% else %}
+                            <span class="op-text-warning">Never run</span>
+                        {% endif %}
+                    </small>
+                </div>
+                <div class="op-opt-tool-action">
+                    <button type="submit" form="optimize-uploads-form" class="op-btn op-btn-outline btn-opt-trigger">Clean Temp Files</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {# Master Action Panel #}
+    <div class="op-card op-card-bordered op-gradient-panel op-p-4 op-text-center op-mb-4">
+        <h4>Complete Platform Performance Sweep</h4>
+        <p class="op-text-muted op-max-width-600 op-mx-auto op-mt-1 op-mb-3 op-text-sm">
+            Boost your system performance by running a full optimization run. This will execute all safe cache, database index defragmentation, temporary upload cleans, and expired logging maintenance scripts sequentially.
+        </p>
+        <button type="submit" form="optimize-all-form" class="op-btn op-btn-primary op-btn-lg btn-opt-trigger">
+            ⚡ Run Full Platform Maintenance
+        </button>
+    </div>
+</div>
+    
+    {# -- Queue Monitor Tab ------------------------------------------ #}
+    <div class="op-tab-panel {{ default_tab == 'queue' ? 'active' : '' }}" id="tab-queue">
+        <div class="op-card op-mb-4">
+            <div class="op-card-header">
+                <h3>Queue System Configuration</h3>
+            </div>
+            <div class="op-card-body">
+                <div class="op-form-row">
+                    <div class="op-form-group op-col-6">
+                        <label>Queue Driver</label>
+                        <div class="op-input op-readonly">{{ queue_driver_stats.driver }}</div>
+                        <small class="op-text-muted">Configured via <code>QUEUE_DRIVER</code> in your <code>.env</code> file.</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="op-stack op-mb-4">
+            <div class="op-card op-mb-4">
+                <div class="op-card-header">
+                    <h3>File/Redis Driver Queue Sizes</h3>
+                    </div>
+                    <div class="op-card-body op-p-0">
+                        <div class="op-table-responsive">
+                            <table class="op-table">
+                                <thead>
+                                    <tr>
+                                        <th>Queue/Channel Name</th>
+                                        <th>Pending Jobs Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for qName, size in queue_driver_stats.sizes %}
+                                    <tr>
+                                        <td data-label="Queue Name"><code>{{ qName }}</code></td>
+                                        <td data-label="Pending Jobs"><strong>{{ size }}</strong></td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="op-card">
+                <div class="op-card-header">
+                    <h3>Database Job Queue (op_job_queue)</h3>
+                    </div>
+                    <div class="op-card-body op-p-0">
+                        <div class="op-table-responsive">
+                            <table class="op-table">
+                                <thead>
+                                    <tr>
+                                        <th>Job Status</th>
+                                        <th>Jobs Count</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr>
+                                        <td data-label="Status"><span class="op-badge op-badge-warning">Pending</span></td>
+                                        <td data-label="Count"><strong>{{ db_queue_stats.pending }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td data-label="Status"><span class="op-badge op-badge-info">Processing</span></td>
+                                        <td data-label="Count"><strong>{{ db_queue_stats.processing }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td data-label="Status"><span class="op-badge op-badge-success">Completed</span></td>
+                                        <td data-label="Count"><strong>{{ db_queue_stats.completed }}</strong></td>
+                                    </tr>
+                                    <tr>
+                                        <td data-label="Status"><span class="op-badge op-badge-danger">Failed</span></td>
+                                        <td data-label="Count"><strong>{{ db_queue_stats.failed }}</strong></td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    </div> {# op-settings-main #}
+</div> {# op-settings-layout #}
+
+    {% if not is_brand_view %}
+    <form id="optimize-cache-form" method="POST" action="/admin/settings/optimize/cache">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+<form id="optimize-db-form" method="POST" action="/admin/settings/optimize/database">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+<form id="optimize-logs-form" method="POST" action="/admin/settings/optimize/logs">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="log_retention_days" id="logs-retention-input" value="90">
+</form>
+<form id="optimize-uploads-form" method="POST" action="/admin/settings/optimize/uploads">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+<form id="optimize-all-form" method="POST" action="/admin/settings/optimize/all">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="hidden" name="log_retention_days" id="all-retention-input" value="90">
+</form>
+
+<script nonce="{{ csp_nonce }}">
+    document.addEventListener('DOMContentLoaded', function () {
+        var select = document.getElementById('log-retention-select');
+        var inputLogs = document.getElementById('logs-retention-input');
+        var inputAll = document.getElementById('all-retention-input');
+        if (select && inputLogs && inputAll) {
+            select.addEventListener('change', function () {
+                inputLogs.value = this.value;
+                inputAll.value = this.value;
+            });
+            // Initial sync
+            inputLogs.value = select.value;
+            inputAll.value = select.value;
+        }
+
+        // Setup loading confirmation / spinner state when optimization is clicked
+        var buttons = document.querySelectorAll('.btn-opt-trigger');
+        buttons.forEach(function (btn) {
+            btn.addEventListener('click', function (e) {
+                var btnText = btn.innerText;
+                btn.disabled = true;
+                btn.innerHTML = '<span class="op-spinner"></span> Optimizing...';
+                
+                // Find form and submit it manually since we disabled button
+                var formId = btn.getAttribute('form');
+                if (formId) {
+                    var form = document.getElementById(formId);
+                    if (form) {
+                        e.preventDefault();
+                        form.submit();
+                    }
+                }
+            });
+        });
+    });
+</script>
+
+<form id="save-default-lang-form" method="POST" action="/admin/settings/language/save-default">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+<form id="create-lang-form" method="POST" action="/admin/settings/language/create">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+<form id="upload-lang-form" method="POST" action="/admin/settings/language/upload" enctype="multipart/form-data">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+{% for lang in languages %}
+    {% if lang.code != 'en' %}
+        <form id="delete-lang-form-{{ lang.code }}" method="POST" action="/admin/settings/language/{{ lang.code }}/delete" style="display:none;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+    {% endif %}
+{% endfor %}
+
+<form id="generate-form" method="POST" action="/admin/api-keys/generate">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+{% for key in api_keys %}
+<form id="revoke-form-{{ key.id }}" method="POST" action="/admin/api-keys/{{ key.id }}/revoke">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+{% endfor %}
+
+<form id="cron-regenerate-form" method="POST" action="/admin/settings/cron/regenerate">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+{% for job in cron_jobs %}
+<form id="cron-run-form-{{ job.name }}" method="POST" action="/admin/settings/cron/run/{{ job.name }}">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+{% endfor %}
+    {% endif %}
+
+
+
+<form id="logo-upload-form" method="POST" action="/admin/settings/upload" enctype="multipart/form-data" class="op-hidden">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="file" name="site_logo" accept="image/*" id="logo-file-input" class="op-hidden">
+</form>
+
+<form id="favicon-upload-form" method="POST" action="/admin/settings/upload" enctype="multipart/form-data" class="op-hidden">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+    <input type="file" name="site_favicon" accept="image/*,.ico" id="favicon-file-input" class="op-hidden">
+</form>
+
+    {% if not is_brand_view %}
+    <form id="currency-toggle-form" method="POST" action="" class="op-hidden">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+<form id="currency-sync-form" method="POST" action="/admin/currencies/sync-rates" class="op-hidden">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+</form>
+
+<!-- Add Currency Modal -->
+<div class="op-modal" id="add-currency-modal" hidden>
+    <div class="op-modal-backdrop close-currency-modal-trigger"></div>
+    <div class="op-modal-dialog">
+        <div class="op-modal-header">
+            <h3>Add New Currency</h3>
+            <button type="button" class="op-modal-close close-currency-modal-trigger">&times;</button>
+        </div>
+        <form method="POST" action="/admin/currencies/update">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+            <div class="op-modal-body">
+                <div class="op-form-group">
+                    <label>Currency Code (ISO 4217) *</label>
+                    <input type="text" name="code" class="op-input op-currency-code-input" required placeholder="e.g., USD" maxlength="3">
+                </div>
+                <div class="op-form-group">
+                    <label>Name *</label>
+                    <input type="text" name="name" class="op-input" required placeholder="e.g., US Dollar">
+                </div>
+                <div class="op-form-group">
+                    <label>Symbol *</label>
+                    <input type="text" name="symbol" class="op-input" required placeholder="e.g., $">
+                </div>
+                <div class="op-form-group">
+                    <label>Decimal Places</label>
+                    <input type="number" name="decimal_places" class="op-input" value="2" min="0" max="8">
+                </div>
+                <div class="op-form-group">
+                    <label>Exchange Rate (relative to base currency)</label>
+                    <input type="text" name="rate" class="op-input" placeholder="e.g., 1.0">
+                </div>
+                <div class="op-form-group">
+                    <label>Status</label>
+                    <select name="status" class="op-input">
+                        <option value="active">Active</option>
+                        <option value="inactive">Inactive</option>
+                    </select>
+                </div>
+            </div>
+            <div class="op-modal-footer">
+                <button type="button" class="op-btn op-btn-outline close-currency-modal-trigger">Cancel</button>
+                <button type="submit" class="op-btn op-btn-primary">Save Currency</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endif %}
+
+{% if is_brand_view %}
+    {# -- Domain Action Forms -- #}
+    {% for d in domains %}
+        <form id="primary-domain-form-{{ d.id }}" method="POST" action="/admin/domains/{{ d.id }}/primary" style="display:none;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+        <form id="verify-domain-form-{{ d.id }}" method="POST" action="/admin/domains/{{ d.id }}/verify" style="display:none;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+        <form id="ssl-domain-form-{{ d.id }}" method="POST" action="/admin/domains/{{ d.id }}/check-ssl" style="display:none;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+        <form id="delete-domain-form-{{ d.id }}" method="POST" action="/admin/domains/{{ d.id }}/delete" style="display:none;">
+            <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+        </form>
+    {% endfor %}
+
+    <!-- Add Custom Domain Modal -->
+    <div class="op-modal" id="add-domain-modal" hidden>
+        <div class="op-modal-backdrop" data-close-modal="add-domain-modal"></div>
+        <div class="op-modal-dialog">
+            <div class="op-modal-header">
+                <h3>Add Custom Domain</h3>
+                <button class="op-modal-close" type="button" data-close-modal="add-domain-modal">×</button>
+            </div>
+            <form method="POST" action="/admin/domains">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <div class="op-modal-body">
+                    <div class="op-form-group">
+                        <label>Domain Name *</label>
+                        <input type="text" name="domain" class="op-input op-input-lg" placeholder="pay.yourbusiness.com"
+                               pattern="^([a-zA-Z0-9]([a-zA-Z0-9\-]{0,61}[a-zA-Z0-9])?\.)+[a-zA-Z]{2,}$"
+                               title="Enter a valid domain name (e.g. pay.example.com)" required autofocus>
+                        <small class="op-text-muted">Do not include <code>https://</code> - just the domain name</small>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Domain Type</label>
+                        <select name="type" class="op-input">
+                            <option value="checkout">Checkout domain</option>
+                            <option value="admin">Admin domain</option>
+                            <option value="api">API domain</option>
+                        </select>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Redirect URL</label>
+                        <input type="url" name="redirect_url" class="op-input" placeholder="https://example.com/failed-direct">
+                        <small class="op-text-muted">Optional. Redirect target if accessed directly.</small>
+                    </div>
+                    <div class="op-alert op-alert-info">
+                        After adding, you'll see the TXT verification token and server IP to configure in your DNS provider.
+                    </div>
+                </div>
+                <div class="op-modal-footer">
+                    <button type="button" class="op-btn op-btn-outline" data-close-modal="add-domain-modal">Cancel</button>
+                    <button type="submit" class="op-btn op-btn-primary">Add Domain</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Edit Custom Domain Modal -->
+    <div class="op-modal" id="edit-domain-modal" hidden>
+        <div class="op-modal-backdrop" data-close-modal="edit-domain-modal"></div>
+        <div class="op-modal-dialog">
+            <div class="op-modal-header">
+                <h3>Edit Custom Domain Settings</h3>
+                <button class="op-modal-close" type="button" data-close-modal="edit-domain-modal">×</button>
+            </div>
+            <form method="POST" action="">
+                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                <div class="op-modal-body">
+                    <div class="op-form-group">
+                        <label>Domain Name</label>
+                        <input type="text" name="domain_display" class="op-input" disabled>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Domain Type</label>
+                        <select name="type" class="op-input">
+                            <option value="checkout">Checkout domain</option>
+                            <option value="admin">Admin domain</option>
+                            <option value="api">API domain</option>
+                        </select>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Redirect URL</label>
+                        <input type="url" name="redirect_url" class="op-input" placeholder="https://example.com/failed-direct">
+                        <small class="op-text-muted">Optional. Redirect target if accessed directly.</small>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Domain Status</label>
+                        <select name="status" class="op-input">
+                            <option value="active">Active</option>
+                            <option value="pending">Pending DNS</option>
+                            <option value="inactive">Inactive</option>
+                        </select>
+                    </div>
+                    <div class="op-form-group">
+                        <label>DNS Verification State</label>
+                        <select name="dns_verified" class="op-input">
+                            <option value="1">Verified (1)</option>
+                            <option value="0">Unverified / Pending (0)</option>
+                        </select>
+                    </div>
+                    <div class="op-form-group">
+                        <label>Is Primary Domain</label>
+                        <select name="is_primary" class="op-input">
+                            <option value="1">Yes (Primary)</option>
+                            <option value="0">No (Secondary)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="op-modal-footer">
+                    <button type="button" class="op-btn op-btn-outline" data-close-modal="edit-domain-modal">Cancel</button>
+                    <button type="submit" class="op-btn op-btn-primary">Save Changes</button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}
+
+{% endblock %}
+{% block scripts %}
+<script nonce="{{ csp_nonce }}" src="/assets/js/pages/settings.js"></script>
+{% endblock %}
+

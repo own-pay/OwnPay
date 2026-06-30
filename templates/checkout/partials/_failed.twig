@@ -1,0 +1,62 @@
+{# ═══════ FAILED STATUS ═══════ #}
+<div class="st-card">
+    <div class="st-header st-header-failed">
+        <div class="st-icon-wrap">
+            <div class="st-icon-ring1 st-icon-ring1-failed"></div>
+            <div class="st-icon-ring2 st-icon-ring2-failed"></div>
+            <div class="st-icon-circle st-icon-circle-failed">
+                <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+            </div>
+        </div>
+        <span class="st-badge st-badge-failed">
+            <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            Declined
+        </span>
+        <h1 class="st-title">{{ status_label ?? 'Payment Failed' }}</h1>
+        <p class="st-subtitle">{{ lang.failed_msg ?? 'We couldn\'t process your payment. Please try again or use a different payment method.' }}</p>
+    </div>
+
+    <div class="st-body">
+        <div class="st-details">
+            <div class="st-row st-amount-row">
+                <span class="st-row-label">Amount</span>
+                <span class="st-row-value">{{ txn.currency_symbol ?? '৳' }}{{ txn.amount|default(0)|number_format(2) }} {{ txn.currency ?? 'BDT' }}</span>
+            </div>
+            <div class="st-row-divider"></div>
+            <div class="st-row">
+                <span class="st-row-label">Transaction ID</span>
+                <span class="st-row-value">{{ txn.trx_id ?? '-' }}</span>
+            </div>
+            <div class="st-row-divider"></div>
+            <div class="st-row">
+                <span class="st-row-label">Gateway</span>
+                <span class="st-row-value">{{ txn.gateway_slug ?? 'OwnPay' }}</span>
+            </div>
+            <div class="st-row-divider"></div>
+            <div class="st-row">
+                <span class="st-row-label">Reason</span>
+                <span class="st-row-value st-text-failed">Transaction declined</span>
+            </div>
+        </div>
+    </div>
+
+    <div class="st-actions">
+        <a href="{% if is_intent is defined and is_intent %}/checkout/intent/{{ txn.trx_id }}{% else %}/checkout/{{ txn.trx_id }}{% endif %}" class="st-btn op-back-btn">
+            <div class="st-btn-icon st-btn-icon-failed">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            </div>
+            <span class="st-btn-label">Try<br>Again</span>
+        </a>
+        <a href="{{ merchant_redirect_url ?? '/' }}" class="st-btn">
+            <div class="st-btn-icon st-btn-icon-return">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#0D9488" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
+            </div>
+            <span class="st-btn-label">Return to<br>Merchant</span>
+        </a>
+    </div>
+</div>
+
+<div class="st-footer">
+    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+    Secured by <a href="/">{{ brand.name ?? 'OwnPay' }}</a> · 256-bit encryption
+</div>

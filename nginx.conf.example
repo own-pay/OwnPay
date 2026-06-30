@@ -1,0 +1,44 @@
+server {
+    listen 80;
+    # server_name yourdomain.com; # Replace with your domain (e.g. ownpay.org)
+    # root /var/www/ownpay/public; # Replace with your absolute path to the public/ directory
+
+    index index.php index.html;
+
+    # Universal Front Controller
+    location / {
+        try_files $uri $uri/ /index.php?$query_string;
+    }
+
+    # Hide sensitive files
+    location ~ \.(env|git|md|json|lock|installed)$ {
+        deny all;
+    }
+
+    # Hide internal files and directories (defense in depth)
+    location ~ ^/(app|src|tests|errors|vendor|migrations|storage)/ {
+        deny all;
+    }
+
+    # PHP-FPM Configuration
+    location ~ \.php$ {
+        # include snippets/fastcgi-php.conf; # Ubuntu/Debian Standard
+        # fastcgi_pass unix:/var/run/php/php8.2-fpm.sock; # Adjust PHP version
+        
+        # Or if using TCP (like Windows/Laragon):
+        # fastcgi_pass 127.0.0.1:9000;
+        
+        fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
+        include fastcgi_params;
+        
+        # Prevent execution of other PHP scripts natively unless via index.php
+        if ($fastcgi_script_name !~ "^/index\.php$") {
+            return 403;
+        }
+    }
+
+    # Deny access to hidden files (.htaccess, .htpasswd, etc)
+    location ~ /\.ht {
+        deny all;
+    }
+}

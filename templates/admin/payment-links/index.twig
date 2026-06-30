@@ -1,0 +1,35 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Payment Links - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Payment Links</h1>
+        <p class="op-page-subtitle">Create, list, and manage reusable public payment URLs and checkout links.</p>
+    </div>
+    <a href="/admin/payment-links/create" class="op-btn op-btn-primary">+ Create Link</a>
+</div>
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>Title</th><th>Amount</th><th>Uses</th><th>Status</th><th>Link</th><th>Actions</th></tr></thead>
+            <tbody>
+                {% for pl in payment_links %}
+                <tr>
+                    <td data-label="Title"><strong>{{ pl.title }}</strong></td>
+                    <td data-label="Amount">{{ pl.currency }} {{ pl.amount ?? 'Custom' }}</td>
+                    <td data-label="Uses">{{ pl.use_count ?? 0 }}{% if pl.max_uses %}/{{ pl.max_uses }}{% endif %}</td>
+                    <td data-label="Status"><span class="op-badge op-badge-{{ pl.status == 'active' ? 'success' : 'muted' }}">{{ pl.status }}</span></td>
+                    <td data-label="Link"><code class="op-text-sm">/pay/{{ pl.slug }}</code></td>
+                    <td data-label="Actions">
+                        <a href="/admin/payment-links/{{ pl.id }}" class="op-btn op-btn-xs op-btn-outline">Edit</a>
+                        <button data-copy="{{ base_url }}/pay/{{ pl.slug }}" class="op-btn op-btn-xs op-btn-outline">Copy Link</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="6" class="op-text-center op-text-muted op-py-8">No payment links yet. <a href="/admin/payment-links/create">Create one</a>.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% endblock %}

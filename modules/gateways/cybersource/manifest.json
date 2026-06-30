@@ -1,0 +1,39 @@
+{
+  "name": "Cybersource",
+  "slug": "cybersource",
+  "version": "1.0.0",
+  "description": "Cybersource payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "CybersourceGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Cybersource",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#003366",
+  "csp": {
+    "script_src": [
+      "https://*.cybersource.com"
+    ],
+    "style_src": [
+      "https://*.cybersource.com"
+    ],
+    "frame_src": [
+      "https://*.cybersource.com"
+    ],
+    "connect_src": [
+      "https://*.cybersource.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

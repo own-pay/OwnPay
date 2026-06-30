@@ -1,0 +1,39 @@
+{
+  "name": "Tap Payments",
+  "slug": "tap-payments",
+  "version": "1.0.0",
+  "description": "Tap Payments (goSell API v2) checkout and card integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "TapPaymentsGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\TapPayments",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#00A3FF",
+  "csp": {
+    "script_src": [
+      "https://*.tap.company"
+    ],
+    "style_src": [
+      "https://*.tap.company"
+    ],
+    "frame_src": [
+      "https://*.tap.company"
+    ],
+    "connect_src": [
+      "https://*.tap.company",
+      "https://api.tap.company"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,21 @@
+<div class="op-activity-details op-p-2">
+    <div class="op-mb-4 op-line-height-1-6">
+        <p><strong>Action:</strong> <span class="op-badge op-badge-muted">{{ log.action }}</span></p>
+        <p><strong>Performed By:</strong> {{ log.user_name }} (ID: {{ log.user_id ?? 'System' }})</p>
+        <p><strong>Target Entity:</strong> {{ log.entity_type ?? 'N/A' }} {% if log.entity_id %}(ID: {{ log.entity_id }}){% endif %}</p>
+        <p><strong>IP Address:</strong> {{ log.ip_address ?? 'N/A' }}</p>
+        <p><strong>User Agent:</strong> <span class="op-text-sm op-text-muted">{{ log.user_agent ?? 'N/A' }}</span></p>
+        <p><strong>Timestamp:</strong> {{ log.created_at ? log.created_at|date('Y-m-d H:i:s') : 'N/A' }}</p>
+    </div>
+
+    <div class="op-form-row">
+        <div class="op-form-group op-col-6">
+            <label class="op-font-bold op-display-block op-mb-2">Old Values (Before Change)</label>
+            <pre class="op-pre op-code-block-scroll">{{ old_values ? old_values|json_encode(constant('JSON_PRETTY_PRINT')) : '{}' }}</pre>
+        </div>
+        <div class="op-form-group op-col-6">
+            <label class="op-font-bold op-display-block op-mb-2">New Values (After Change)</label>
+            <pre class="op-pre op-code-block-scroll">{{ new_values ? new_values|json_encode(constant('JSON_PRETTY_PRINT')) : '{}' }}</pre>
+        </div>
+    </div>
+</div>

@@ -1,0 +1,40 @@
+{
+  "name": "Amazon Pay",
+  "slug": "amazon-pay",
+  "version": "1.0.0",
+  "description": "Amazon Pay checkout integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "AmazonPayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\AmazonPay",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#FF9900",
+  "csp": {
+    "script_src": [
+      "https://*.amazon.com"
+    ],
+    "style_src": [
+      "https://*.amazon.com"
+    ],
+    "frame_src": [
+      "https://*.amazon.com"
+    ],
+    "connect_src": [
+      "https://*.amazon.com",
+      "https://pay-api.amazon.com",
+      "https://pay-api.amazon.eu"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

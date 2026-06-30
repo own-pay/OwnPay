@@ -1,0 +1,28 @@
+{
+    "name": "Example Kit",
+    "slug": "example-kit",
+    "version": "1.0.0",
+    "description": "Reference addon exercising multi-file classes, a public route, an authenticated route, a cron job, an admin-menu entry, and a hook listener.",
+    "author": "OwnPay Core",
+    "type": "addon",
+    "entrypoint": "Plugin.php",
+    "namespace": "OwnPay\\Modules\\Addons\\ExampleKit",
+    "capabilities": ["addon", "hooks", "cron"],
+    "requires": {
+        "core": ">=0.1.0"
+    },
+    "routes": [
+        ["GET", "/plugins/example-kit/ping", "ping"],
+        ["GET", "/admin/example-kit", "adminHome", "admin"]
+    ],
+    "cron": [
+        {
+            "name": "heartbeat",
+            "schedule": "every_5min",
+            "class": "OwnPay\\Modules\\Addons\\ExampleKit\\Cron\\HeartbeatJob"
+        }
+    ],
+    "admin_menu": [
+        { "label": "Example Kit", "url": "/admin/example-kit" }
+    ]
+}

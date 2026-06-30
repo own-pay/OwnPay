@@ -1,0 +1,132 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Webhook Event Delivery Logs - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Webhook Event #{{ event.id }}</h1>
+        <p class="op-page-subtitle">Real-time delivery attempts, payloads, and response codes of outbound webhook notifications.</p>
+    </div>
+    <div class="op-header-actions" style="margin-bottom: 1rem">
+        <a href="/admin/webhooks/events" class="op-btn op-btn-sm op-btn-secondary">← Back to Queue</a>
+    </div>
+</div>
+
+<div class="op-grid op-grid-2 op-gap-4 op-mt-4">
+    <!-- Event Details Card -->
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>Event Meta</h3>
+        </div>
+        <div class="op-card-body">
+            <div class="op-description-list">
+                <div class="op-dl-row">
+                    <span class="op-dl-label">Webhook URL:</span>
+                    <span class="op-dl-value"><code>{{ webhook.url }}</code></span>
+                </div>
+                <div class="op-dl-row">
+                    <span class="op-dl-label">Event Type:</span>
+                    <span class="op-dl-value"><span class="op-badge op-badge-info">{{ event.event_type }}</span></span>
+                </div>
+                <div class="op-dl-row">
+                    <span class="op-dl-label">Current Status:</span>
+                    <span class="op-dl-value">
+                        {% if event.status == 'delivered' %}
+                            <span class="op-badge op-badge-success">Delivered</span>
+                        {% elseif event.status == 'failed' %}
+                            {% if event.next_retry_at is empty %}
+                                <span class="op-badge op-badge-danger">DLQ (Quarantined)</span>
+                            {% else %}
+                                <span class="op-badge op-badge-warning">Retrying</span>
+                            {% endif %}
+                        {% else %}
+                            <span class="op-badge op-badge-muted">Pending</span>
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="op-dl-row">
+                    <span class="op-dl-label">Total Attempts:</span>
+                    <span class="op-dl-value"><strong>{{ event.attempts }}</strong> / 6</span>
+                </div>
+                {% if event.status == 'failed' and event.next_retry_at is not empty %}
+                    <div class="op-dl-row">
+                        <span class="op-dl-label">Next Retry Scheduled:</span>
+                        <span class="op-dl-value op-text-warning"><strong>{{ event.next_retry_at|date('M d, H:i:s') }}</strong></span>
+                    </div>
+                {% endif %}
+            </div>
+            
+            {% if event.status == 'failed' %}
+                <div class="op-mt-4">
+                    <form method="POST" action="/admin/webhooks/events/{{ event.id }}/replay">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="op-btn op-btn-primary op-btn-block">Force Replay/Redeliver Now</button>
+                    </form>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Payload Card -->
+    <div class="op-card">
+        <div class="op-card-header">
+            <h3>Event Payload Body (JSON)</h3>
+        </div>
+        <div class="op-card-body op-p-0">
+            <pre class="op-code-block" style="margin: 0; padding: 1.5rem; max-height: 250px; overflow-y: auto;"><code class="op-text-sm">{{ event.payload }}</code></pre>
+        </div>
+    </div>
+</div>
+
+<!-- Delivery Attempt History -->
+<div class="op-card op-mt-4">
+    <div class="op-card-header">
+        <h3>Delivery Attempt History</h3>
+    </div>
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Status Code</th>
+                        <th>Duration</th>
+                        <th>Response Body Preview / Error Details</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in logs %}
+                        <tr>
+                            <td data-label="Time" class="op-text-sm op-text-muted" style="white-space:nowrap">{{ log.created_at|date('M d, H:i:s') }}</td>
+                            <td data-label="Status Code">
+                                {% if log.response_code >= 200 and log.response_code < 300 %}
+                                    <span class="op-badge op-badge-success">HTTP {{ log.response_code }}</span>
+                                {% elseif log.response_code %}
+                                    <span class="op-badge op-badge-danger">HTTP {{ log.response_code }}</span>
+                                {% else %}
+                                    <span class="op-badge op-badge-danger">Failed</span>
+                                {% endif %}
+                            </td>
+                            <td data-label="Duration" class="op-text-sm">
+                                {{ log.duration_ms ? log.duration_ms ~ ' ms' : '-' }}
+                            </td>
+                            <td data-label="Response / Error">
+                                {% if log.error %}
+                                    <span class="op-text-danger"><strong class="op-text-sm">Error:</strong> <code>{{ log.error }}</code></span>
+                                {% elseif log.response_body %}
+                                    <pre class="op-code-block op-text-sm" style="margin:0; max-height:100px; overflow-y:auto;"><code>{{ log.response_body }}</code></pre>
+                                {% else %}
+                                    <span class="op-text-muted">Empty response</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                    {% else %}
+                        <tr>
+                            <td colspan="4" class="op-text-center op-text-muted op-py-8">No delivery attempts recorded yet.</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}
