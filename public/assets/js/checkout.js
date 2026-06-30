@@ -69,9 +69,7 @@
             document.body.appendChild(script);
         }
     }
-    // Resolve the base path for all checkout XHR/form actions.
-    // PaymentIntentCheckoutController sets checkoutBasePath = '/checkout/intent/{token}'
-    // Legacy CheckoutController leaves it unset, so fallback to '/checkout/{token}'
+
     var basePath = cfg.checkoutBasePath || ("/checkout/" + cfg.txnRef);
 
     // ---------- TIMER ----------
@@ -121,7 +119,6 @@
                     tEl.textContent = "00:00";
                     clearInterval(iv);
                     localStorage.removeItem(storageKey);
-                    // M-4 FIX: POST cancel on timeout instead of just redirecting
                     var csrf = document.getElementById("op-csrf");
                     var hashEl = document.getElementById("op-checkout-hash");
                     var cancelForm = document.createElement("form");
@@ -134,7 +131,6 @@
                         csrfInput.value = csrf.value;
                         cancelForm.appendChild(csrfInput);
                     }
-                    // H-03 FIX: Include checkout_hash for cancel auth
                     if (hashEl) {
                         var hashInput = document.createElement("input");
                         hashInput.type = "hidden";
@@ -187,10 +183,6 @@
             return;
         }
 
-        // ARCHITECTURE FIX: Use AJAX POST instead of form submit.
-        // Server returns JSON { success, redirect_url } or { success: false, error }.
-        // On success: browser does hard redirect OUT to external gateway (Stripe/bKash).
-        // On failure: inline error shown on checkout page — user can retry.
         showLoading();
 
         var csrf = document.getElementById("op-csrf");
@@ -206,14 +198,10 @@
         window.opPost(basePath + "/pay", payload)
             .then(function (res) {
                 if (res.ok && res.data && res.data.success && res.data.redirect_url) {
-                    // SUCCESS: External gateway returned a payment URL.
-                    // Force the browser to LEAVE OwnPay entirely and go to Stripe/bKash.
-                    // Status stays 'pending' → transitions to 'processing' only after this redirect.
                     window.location.href = res.data.redirect_url;
                     return;
                 }
 
-                // FAILURE: Gateway API returned an error — show on checkout page.
                 hideLoading();
                 var errorMsg = (res.data && res.data.error)
                     ? res.data.error
@@ -226,7 +214,6 @@
             });
     }
 
-    // U-01 FIX: Loading overlay for gateway redirects
     function showLoading() {
         var existing = document.getElementById("ck-loading");
         if (existing) {return;}
@@ -255,9 +242,7 @@
         if (overlay) {overlay.remove();}
     }
 
-    // Show inline error toast on the checkout page (no page navigation)
     function showCheckoutError(msg) {
-        // Remove any existing error toast
         var existing = document.getElementById("ck-error-toast");
         if (existing) {existing.remove();}
 
@@ -283,7 +268,6 @@
 
         document.body.appendChild(toast);
 
-        // Auto-dismiss after 8 seconds
         setTimeout(function () {
             if (toast.parentNode) {
                 toast.classList.add("ck-error-toast-fade");
@@ -308,8 +292,6 @@
             iconEl.textContent = meta.logoText || name.slice(0, 2).toUpperCase();
         }
 
-        // C-5 FIX: Read from embedded OP_MANUAL_GATEWAYS instead of missing API endpoint
-        var gwData = manualGateways[slug] || {};
         var stepsEl = document.getElementById("mpSteps");
         if (stepsEl) {
             stepsEl.textContent = ""; // Clear previous
@@ -327,7 +309,6 @@
             });
         }
 
-        // CK-07 FIX: Populate payment number from input_fields
         var numEl = document.getElementById("mpNumber");
         if (numEl) {
             var fields = gwData.input_fields || [];
@@ -345,8 +326,6 @@
             numEl.textContent = paymentNumber || "N/A";
         }
 
-        // CROSS-CURRENCY FIX: If gateway has a converted_amount (e.g. BDT for bKash
-        // when invoice is in USD), update the popup amount display dynamically.
         var amountEl = document.querySelector("#mpStep1 .ck-popup-value");
         if (amountEl && gwData.converted_amount && gwData.converted_currency) {
             var convSymbol = gwData.converted_currency === "BDT" ? "৳" : gwData.converted_currency + " ";
@@ -379,7 +358,6 @@
         if (p) {p.classList.add("ck-hidden");}
     };
 
-    // L-05 FIX: Support both forward and backward navigation in manual popup
     window.goMpStep = function (step) {
         var s1 = document.getElementById("mpStep1");
         var s2 = document.getElementById("mpStep2");
@@ -499,11 +477,11 @@
                 var errorMsg = (res.data && res.data.error)
                     ? res.data.error
                     : "Express checkout failed. Please try another method.";
-                alert(errorMsg);
+                showCheckoutError(errorMsg);
             })
             .catch(function () {
                 hideLoading();
-                alert("Express checkout is temporarily unavailable. Please try another method.");
+                showCheckoutError("Express checkout is temporarily unavailable. Please try another method.");
             });
     };
 
