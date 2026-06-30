@@ -1,0 +1,57 @@
+# Environment & secrets
+.env
+.env.*
+!.env.example
+
+# PHPUnit cache
+.phpunit.cache/
+
+# Debug / test artifacts
+cookie.txt
+test_*.php
+check_db.php
+phpstan_report*.txt
+phpstan_results.json
+
+# Dependencies
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Installer lock file (generated at runtime)
+storage/.installed
+
+# IDE 
+.github/
+cli/
+update/
+
+# Runtime storage (keep structure, ignore contents)
+storage/cache/*
+storage/logs/*
+storage/pdf/*
+storage/sessions/*
+storage/backups/*
+!storage/*/.gitkeep
+
+#Php cli nd update
+/update/releases/*
+storage/cron/98a234fa4953567787cf87e47c1f5e21.lock
+update_private_key.pem
+public/assets/uploads/site_logo_1779482544.jpg
+public/storage/
+
+# Local HTTP debugging files (curl output, cookie jars)
+
+storage/update.lock
+storage/cron/98a234fa4953567787cf87e47c1f5e21.running.lock
+storage/cron/250aafceaee3b63c95d9d5352b43431d.running.lock
+*.zip
