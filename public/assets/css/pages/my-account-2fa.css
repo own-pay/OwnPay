@@ -1,0 +1,6 @@
+.op-form-2fa { max-width: 400px; }
+.op-2fa-qr-container { margin: 1.5rem 0; }
+.op-qr-img { border: 8px solid white; border-radius: 8px; }
+.op-details-summary { cursor: pointer; }
+.op-secret-code { display: block; padding: 0.75rem; letter-spacing: 3px; font-size: 1.1rem; }
+.op-verify-input { font-size: 1.5rem; letter-spacing: 6px; text-align: center; }

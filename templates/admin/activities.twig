@@ -1,0 +1,48 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Activity Log - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Activity & Audit Logs</h1>
+        <p class="op-page-subtitle">Track administrative actions and system events for security auditing and accountability.</p>
+    </div>
+</div>
+
+<div class="op-tabs op-mb-4" style="display: flex; gap: 8px; margin-bottom: 20px;">
+    <a href="/admin/activities" class="op-btn {% if active_subpage == 'activities' %}op-btn-primary{% else %}op-btn-outline{% endif %}">📋 Staff Activities</a>
+    {% if is_superadmin %}
+    <a href="/admin/login-attempts" class="op-btn {% if active_subpage == 'login_attempts' %}op-btn-primary{% else %}op-btn-outline{% endif %}">🔒 Login Attempts</a>
+    {% endif %}
+</div>
+
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>Time</th><th>User</th><th>Action</th><th>Entity</th><th>IP</th><th class="op-text-right">Details</th></tr></thead>
+            <tbody>
+                {% for log in logs %}
+                <tr>
+                    <td data-label="Time" class="op-text-sm op-text-muted" style="white-space:nowrap">{{ log.created_at is defined and log.created_at ? log.created_at|date('M d, H:i') : '-' }}</td>
+                    <td data-label="User">{{ log.user_name ?? 'System' }}</td>
+                    <td data-label="Action"><span class="op-badge op-badge-{{ log.action starts with 'delete' ? 'danger' : (log.action starts with 'create' ? 'success' : (log.action starts with 'update' ? 'warning' : 'muted')) }}">{{ log.action }}</span></td>
+                    <td data-label="Entity" class="op-text-sm">{{ log.entity_type ?? '' }}{% if log.entity_id %} #{{ log.entity_id }}{% endif %}</td>
+                    <td data-label="IP" class="op-text-sm op-text-muted">{{ log.ip_address ?? '-' }}</td>
+                    <td data-label="Details" class="op-text-right">
+                        <button type="button" class="op-btn op-btn-xs op-btn-outline" data-open-detail-modal="/admin/activities/{{ log.id }}/details" data-modal-title="Activity Details">View</button>
+                    </td>
+                </tr>
+                {% else %}
+                <tr><td colspan="5" class="op-text-center op-text-muted op-py-8">No activity recorded yet.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% if pagination.total_pages > 1 %}
+<nav class="op-pagination">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

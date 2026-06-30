@@ -1,0 +1,41 @@
+{
+  "name": "SMS Gateway",
+  "slug": "sms-gateway",
+  "version": "1.0.0",
+  "description": "SMS Gateway addon - send SMS via Twilio, Vonage, or custom HTTP API.",
+  "author": "OwnPay",
+  "type": "addon",
+  "entry": "Plugin.php",
+  "entrypoint": "Plugin.php",
+  "namespace": "OwnPay\\Modules\\Addons\\SmsGateway",
+  "capabilities": [
+    "addon",
+    "communication"
+  ],
+  "requires": {
+    "core": ">=0.1.0"
+  },
+  "hooks": [
+    "sms.send",
+    "invoice.created",
+    "payment.transaction.completed"
+  ],
+  "settings": {
+    "provider": "custom",
+    "twilio_sid": "",
+    "twilio_token": "",
+    "twilio_from": "",
+    "vonage_key": "",
+    "vonage_secret": "",
+    "vonage_from": "",
+    "custom_api_url": "",
+    "custom_api_key": "",
+    "custom_api_method": "POST",
+    "custom_api_body_template": "{\"to\":\"{{to}}\",\"message\":\"{{message}}\"}",
+    "send_on_invoice_created": false,
+    "invoice_created_template": "Hi {{customer}}, invoice {{invoice_number}} of {{currency}} {{due_amount}} is ready. Due date: {{due_date}}. Pay here: {{url}}",
+    "send_on_payment_success": false,
+    "payment_success_template": "Thank you {{customer}}, your payment of {{currency}} {{amount}} (Trx ID: {{trx_id}}) was successful!",
+    "enabled": true
+  }
+}

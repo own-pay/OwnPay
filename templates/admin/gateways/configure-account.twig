@@ -1,0 +1,65 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Configure {{ template.name }} - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Configure account: {{ template.name }}</h1>
+        <p class="op-page-subtitle">Set the account your customers pay to for this gateway. The gateway type is defined by All Brands - you control only your own payment details.</p>
+    </div>
+    <a href="/admin/gateways" class="op-btn op-btn-outline">← Back</a>
+</div>
+
+{% if errors is defined and errors|length > 0 %}
+<div class="op-alert op-alert-danger">
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="POST" action="/admin/gateways/configure/{{ template.slug }}" enctype="multipart/form-data" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Your payment account</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-group">
+                <label for="instructions">Payment Instructions / Account *</label>
+                <textarea id="instructions" name="instructions" rows="4" class="op-input" required placeholder="e.g. Send money to 01XXXXXXXXX (Personal)">{{ instructions_text }}</textarea>
+                <small>Shown to your customers at checkout - include the number/account they must send money to. One step per line.</small>
+                {% if template_instructions_text %}
+                <small class="op-text-muted">Platform default: {{ template_instructions_text }}</small>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>QR / Logo (optional)</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label for="qr_code">QR Code</label>
+                    {% if (account.qr_code_path ?? '') %}
+                    <div class="op-mb-2"><img src="/storage/{{ account.qr_code_path }}" alt="" width="64" class="op-rounded"></div>
+                    {% endif %}
+                    <input type="file" id="qr_code" name="qr_code" accept="image/*" class="op-input-file">
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label for="logo">Logo override</label>
+                    {% if (account.logo_path ?? '') %}
+                    <div class="op-mb-2"><img src="/storage/{{ account.logo_path }}" alt="" width="64" class="op-rounded"></div>
+                    {% endif %}
+                    <input type="file" id="logo" name="logo" accept="image/*" class="op-input-file">
+                    <small>Leave empty to use the platform logo.</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-form-actions">
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg">Save account</button>
+        <a href="/admin/gateways" class="op-btn op-btn-outline op-btn-lg">Cancel</a>
+    </div>
+</form>
+{% endblock %}

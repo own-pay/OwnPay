@@ -1,0 +1,40 @@
+{
+  "name": "MyFatoorah",
+  "slug": "myfatoorah",
+  "version": "1.0.0",
+  "description": "MyFatoorah V2 API invoice and payment gateway integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "MyfatoorahGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Myfatoorah",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#00A9E0",
+  "csp": {
+    "script_src": [
+      "https://*.myfatoorah.com"
+    ],
+    "style_src": [
+      "https://*.myfatoorah.com"
+    ],
+    "frame_src": [
+      "https://*.myfatoorah.com"
+    ],
+    "connect_src": [
+      "https://*.myfatoorah.com",
+      "https://api.myfatoorah.com",
+      "https://api-sandbox.myfatoorah.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process",
+    "gateway.refund"
+  ],
+  "icon": "icon.svg"
+}

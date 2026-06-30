@@ -1,0 +1,120 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Customers - {{ app_name }}{% endblock %}
+{% block content %}
+
+<div class="op-page-header">
+    <div>
+        <h1>Customers</h1>
+        <p class="op-page-subtitle">View customer profiles, contact info, transaction history, and payment lifecycles.</p>
+    </div>
+    <a href="/admin/customers/create" class="op-btn op-btn-primary">
+        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" class="op-mr-1" style="vertical-align:middle"><path d="M12 5v14M5 12h14"/></svg>
+        Add Customer
+    </a>
+</div>
+
+{# -- Stats ------------------------------------------------------- #}
+<div class="op-stat-grid op-mb-4">
+    <div class="op-stat-card">
+        <div class="op-stat-value">{{ pagination.total_items ?? customers|length }}</div>
+        <div class="op-stat-label">Total Customers</div>
+    </div>
+</div>
+
+{# -- Search & Filter --------------------------------------------- #}
+<div class="op-card op-mb-4">
+    <div class="op-card-body">
+        <form method="GET" class="op-filter-row" id="customer-search-form">
+            <div class="op-filter-search">
+                <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input type="search" name="q" value="{{ filters.q|default('') }}" placeholder="Search name, email, phone…" class="op-input op-filter-input" autofocus>
+            </div>
+            <button type="submit" class="op-filter-btn">
+                <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                Filter
+            </button>
+            {% if filters.q is defined and filters.q %}
+                <a href="/admin/customers" class="op-filter-btn">Clear</a>
+            {% endif %}
+        </form>
+    </div>
+</div>
+
+{# -- Customer Table ---------------------------------------------- #}
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>Customer</th>
+                        <th>Email</th>
+                        <th>Phone</th>
+                        <th>Transactions</th>
+                        <th>Total Spent</th>
+                        <th>Joined</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for c in customers %}
+                    <tr>
+                        <td data-label="Customer">
+                            <a href="/admin/customers/{{ c.id }}" class="op-customer-link">
+                                <span class="op-avatar-sm">{{ c.name|slice(0, 1)|upper }}</span>
+                                <div>
+                                    <strong>{{ c.name }}</strong>
+                                    <br><code class="op-text-xs op-text-muted">#{{ c.id }}</code>
+                                </div>
+                            </a>
+                        </td>
+                        <td data-label="Email">{{ c.email|default('-') }}</td>
+                        <td data-label="Phone">{{ c.phone|default('-') }}</td>
+                        <td data-label="Txns">
+                            <span class="op-badge op-badge-outline">{{ c.txn_count|default(0) }}</span>
+                        </td>
+                        <td data-label="Spent"><strong>{{ c.currency|default('BDT') }} {{ c.total_spent|default('0.00') }}</strong></td>
+                        <td data-label="Joined" class="op-text-muted">{{ c.created_at|date("M d, Y") }}</td>
+                        <td data-label="Actions" class="op-nowrap">
+                            <a href="/admin/customers/{{ c.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
+                            <form method="POST" action="/admin/customers/{{ c.id }}/delete" class="op-inline-form"
+                                  onsubmit="return confirm('Delete customer {{ c.name|e('js') }}? This cannot be undone.')">
+                                <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                <button type="submit" class="op-btn op-btn-xs op-btn-danger">Delete</button>
+                            </form>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="op-empty">
+                            {% if filters.q is defined and filters.q %}
+                                No customers match "<strong>{{ filters.q }}</strong>".
+                                <a href="/admin/customers" class="op-link">Clear search</a>
+                            {% else %}
+                                No customers yet.
+                                <a href="/admin/customers/create" class="op-link">Add the first customer</a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# -- Pagination -------------------------------------------------- #}
+{% if pagination is defined and pagination.total_pages > 1 %}
+<nav class="op-pagination op-mt-4">
+    {% if pagination.has_prev %}
+        <a href="?page={{ pagination.page - 1 }}&q={{ filters.q|default('') }}" class="op-page-link">← Prev</a>
+    {% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total_items }} total)</span>
+    {% if pagination.has_next %}
+        <a href="?page={{ pagination.page + 1 }}&q={{ filters.q|default('') }}" class="op-page-link">Next →</a>
+    {% endif %}
+</nav>
+{% endif %}
+
+{% endblock %}
+

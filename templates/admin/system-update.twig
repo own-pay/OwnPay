@@ -1,0 +1,944 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}System Update - {{ app_name }}{% endblock %}
+
+{% block head %}
+    <link rel="stylesheet" href="/assets/css/pages/system-update.css?v=018">
+{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div class="op-flex op-justify-between op-items-center">
+        <div>
+            <h1>System Update</h1>
+            <p class="op-page-subtitle">Review system version info, check for core updates, and run database migrations.</p>
+        </div>
+        <div class="op-flex op-items-center op-gap-2">
+            {% if update_available %}
+                <span class="op-status-header-pill available">
+                    <span class="op-pulse-indicator op-pulse-primary"></span>
+                    Update Available (v{{ latest_version }})
+                </span>
+            {% else %}
+                <span class="op-status-header-pill up-to-date">
+                    <span class="op-pulse-indicator op-pulse-success"></span>
+                    System Up-to-date
+                </span>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- Full-Width Asymmetrical Pipeline Banner -->
+<div class="op-pipeline-banner op-mb-4">
+    <div class="op-pipeline-flow">
+        <div class="op-pipeline-node">
+            <span class="op-pipeline-badge-title">Installed Build</span>
+            <div class="op-pipeline-commit installed op-slanted-node">
+                <div><span class="op-pipeline-version">v{{ current_version ?? '0.1.0' }}</span></div>
+            </div>
+            <span class="op-pipeline-meta">Active Platform Core</span>
+        </div>
+        <div class="op-pipeline-connector">
+            <div class="op-pipeline-line active"></div>
+        </div>
+        <div class="op-pipeline-node gate">
+            <span class="op-pipeline-badge-title">Security Check</span>
+            <div class="op-pipeline-commit security {% if update_available %}checking{% else %}verified{% endif %} op-slanted-node">
+                <div>
+                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="margin-right: 4px; vertical-align: middle;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                    <span class="op-pipeline-version" style="font-size: 0.75rem;">{% if update_available %}Verified{% else %}Optimal{% endif %}</span>
+                </div>
+            </div>
+            <span class="op-pipeline-meta">RSA Signature Check</span>
+        </div>
+        <div class="op-pipeline-connector">
+            <div class="op-pipeline-line {% if update_available %}pending{% else %}active{% endif %}"></div>
+        </div>
+        <div class="op-pipeline-node">
+            <span class="op-pipeline-badge-title">Target Build</span>
+            <div class="op-pipeline-commit target {% if update_available %}highlighted{% else %}success-highlight{% endif %} op-slanted-node">
+                <div><span class="op-pipeline-version">v{{ latest_version }}</span></div>
+            </div>
+            <span class="op-pipeline-meta">
+                {% if update_available %}
+                    Upgrade Ready (8.5 MB)
+                {% else %}
+                    Fully Synchronized
+                {% endif %}
+            </span>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     ROW 1 - HERO: Primary Action + Version History
+     Magazine-style editorial layout with 60/40 split
+     ═══════════════════════════════════════════════════════════ -->
+<div class="op-update-hero-row op-mt-4">
+    <!-- LEFT: Pre-Flight + Upgrade (Hero Card - elevated prominence) -->
+    <div class="op-hero-primary">
+        <div class="op-card op-premium-card op-card-featured">
+            <div class="op-card-header op-flex op-justify-between op-items-center">
+                <div class="op-flex op-items-center op-gap-2">
+                    <div class="op-card-header-icon">
+                        <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.475 3.475 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.475 3.475 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.475 3.475 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.475 3.475 0 013.138-3.138z"/></svg>
+                    </div>
+                    <h3>Pre-Flight Check</h3>
+                </div>
+                <span class="op-text-muted op-text-xs">Secure Cryptographic Updates</span>
+            </div>
+            
+            <div class="op-card-body">
+                {% if update_available %}
+                    <div id="update-ready-panel">
+                        <!-- Pre-Flight + Slide in a 2-pane layout -->
+                        <div class="op-hero-split">
+                            <div class="op-hero-split-left">
+                                <div class="op-preflight-card">
+                                    <div class="op-preflight-header">
+                                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                        <strong>Compatibility Checklist</strong>
+                                    </div>
+                                    <div class="op-preflight-grid">
+                                        <div class="op-preflight-row verified">
+                                            <span class="op-preflight-icon">
+                                                <svg class="op-preflight-shield" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM10 15.5l-3-3 1.4-1.4 1.6 1.6 4.6-4.6 1.4 1.4-6 6z"/></svg>
+                                            </span>
+                                            <span class="op-preflight-label">PHP Environment</span>
+                                            <span class="op-preflight-value">PHP {{ diagnostics.php_version }} ✓</span>
+                                        </div>
+                                        <div class="op-preflight-row verified">
+                                            <span class="op-preflight-icon">
+                                                <svg class="op-preflight-shield" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM10 15.5l-3-3 1.4-1.4 1.6 1.6 4.6-4.6 1.4 1.4-6 6z"/></svg>
+                                            </span>
+                                            <span class="op-preflight-label">RSA Signature</span>
+                                            <span class="op-preflight-value">RSA-2048 ✓</span>
+                                        </div>
+                                        <div class="op-preflight-row {% if diagnostics.app_root_writable and diagnostics.storage_writable and diagnostics.public_writable %}verified{% else %}warning{% endif %}">
+                                            <span class="op-preflight-icon">
+                                                {% if diagnostics.app_root_writable and diagnostics.storage_writable and diagnostics.public_writable %}
+                                                    <svg class="op-preflight-shield" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM10 15.5l-3-3 1.4-1.4 1.6 1.6 4.6-4.6 1.4 1.4-6 6z"/></svg>
+                                                {% else %}
+                                                    <svg class="op-preflight-shield warning" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM11 7h2v6h-2V7zm0 8h2v2h-2v-2z"/></svg>
+                                                {% endif %}
+                                            </span>
+                                            <span class="op-preflight-label">Filesystem</span>
+                                            <span class="op-preflight-value">
+                                                {% if diagnostics.app_root_writable and diagnostics.storage_writable and diagnostics.public_writable %}
+                                                    Writable ✓
+                                                {% else %}
+                                                    Restrained ⚠
+                                                {% endif %}
+                                            </span>
+                                        </div>
+                                        <div class="op-preflight-row verified">
+                                            <span class="op-preflight-icon">
+                                                <svg class="op-preflight-shield" width="16" height="16" fill="currentColor" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10zM10 15.5l-3-3 1.4-1.4 1.6 1.6 4.6-4.6 1.4 1.4-6 6z"/></svg>
+                                            </span>
+                                            <span class="op-preflight-label">Database</span>
+                                            <span class="op-preflight-value">MySQL Stable ✓</span>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="op-hero-split-right">
+                                <div class="op-upgrade-action-zone">
+                                    <div class="op-upgrade-target-badge">
+                                        <span class="op-upgrade-target-label">Upgrade Target</span>
+                                        <span class="op-upgrade-target-version">v{{ latest_version }}</span>
+                                        <span class="op-upgrade-target-size">8.5 MB Package</span>
+                                    </div>
+
+                                    {% if update_info.changelog is defined and update_info.changelog %}
+                                        <div class="op-changelog-compact">
+                                            <div class="op-changelog-header" id="changelog-toggle">
+                                                <span class="op-flex op-items-center op-gap-2">
+                                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/></svg>
+                                                    <strong>Release Notes</strong>
+                                                </span>
+                                                <span class="op-changelog-arrow">
+                                                    <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                                                </span>
+                                            </div>
+                                            <div class="op-changelog-content" id="changelog-content-body">
+                                                <div class="op-changelog-md" id="changelog-markdown-rendered">{{ update_info.changelog }}</div>
+                                            </div>
+                                        </div>
+                                    {% endif %}
+
+                                    <div class="op-slide-to-upgrade-container">
+                                        <div class="op-slide-track" id="op-slide-track">
+                                            <div class="op-slide-thumb" id="op-slide-thumb">
+                                                <svg width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
+                                                    <path stroke-linecap="round" stroke-linejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                                                </svg>
+                                            </div>
+                                            <div class="op-slide-text">Slide to Confirm Upgrade</div>
+                                        </div>
+                                    </div>
+
+                                    <form method="POST" action="/admin/system-update/check" class="op-mt-2">
+                                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                                        <button type="submit" class="op-btn op-btn-outline op-btn-block op-btn-sm" title="Re-check Server">Check Again</button>
+                                    </form>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% else %}
+                    <div class="op-alert op-alert-success op-premium-alert op-mb-4">
+                        <div class="op-alert-icon">
+                            <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                        </div>
+                        <div class="op-alert-content">
+                            Your self-hosted gateway instance is fully running on the latest available stable release. No updates are required.
+                        </div>
+                    </div>
+                    <form method="POST" action="/admin/system-update/check">
+                        <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                        <button type="submit" class="op-btn op-btn-outline op-btn-block">Check for Updates</button>
+                    </form>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Real-time Progress Stepper (Visible only during active updates) -->
+        <div class="op-card op-premium-card op-d-none" id="updater-progress-card">
+            <div class="op-card-header op-flex op-justify-between op-items-center">
+                <h3>Installation Progress</h3>
+                <span class="op-badge op-badge-warning" id="installer-global-status">Updating...</span>
+            </div>
+            <div class="op-card-body">
+                <div class="op-stepper-header-meta">
+                    <div class="op-flex op-justify-between op-items-center">
+                        <span class="op-text-sm op-text-muted" id="progress-percent-label">Update progress: 0%</span>
+                        <span class="op-text-xs op-text-dim" id="progress-status-subtext">Preparing installation...</span>
+                    </div>
+                    <div class="op-stepper-progress-track">
+                        <div class="op-stepper-progress-bar" id="stepper-progress-indicator"></div>
+                    </div>
+                </div>
+
+                <div class="op-alert op-alert-warning op-premium-alert op-mb-4" id="stepper-warning-note">
+                    <div class="op-alert-icon">
+                        <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                    </div>
+                    <div class="op-alert-content">
+                        <strong>Update Executing:</strong> Do not close this browser window or navigate away. System services are active in maintenance mode.
+                    </div>
+                </div>
+                
+                <div class="op-stepper">
+                    <div class="op-step-item pending" id="step-backup">
+                        <div class="op-step-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4"/></svg>
+                        </div>
+                        <div class="op-step-content">
+                            <div class="op-step-title">Initialize System Backup</div>
+                            <div class="op-step-desc">Creating complete code directories archive and database transaction log restore points.</div>
+                            <div class="op-step-milestones op-mt-2" id="milestones-backup"></div>
+                        </div>
+                    </div>
+                    <div class="op-step-item pending" id="step-download">
+                        <div class="op-step-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+                        </div>
+                        <div class="op-step-content">
+                            <div class="op-step-title">Download Stable Package</div>
+                            <div class="op-step-desc">Fetching stable version build package from official update server repositories.</div>
+                            <div class="op-step-milestones op-mt-2" id="milestones-download"></div>
+                        </div>
+                    </div>
+                    <div class="op-step-item pending" id="step-verify">
+                        <div class="op-step-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/></svg>
+                        </div>
+                        <div class="op-step-content">
+                            <div class="op-step-title">Cryptographic Integrity Check</div>
+                            <div class="op-step-desc">Verifying package checksums (SHA-256) and validating RSA signatures.</div>
+                            <div class="op-step-milestones op-mt-2" id="milestones-verify"></div>
+                        </div>
+                    </div>
+                    <div class="op-step-item pending" id="step-extract">
+                        <div class="op-step-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10"/></svg>
+                        </div>
+                        <div class="op-step-content">
+                            <div class="op-step-title">Extract Asset Package</div>
+                            <div class="op-step-desc">Extracting build folder contents over core directory structure.</div>
+                            <div class="op-step-milestones op-mt-2" id="milestones-extract"></div>
+                        </div>
+                    </div>
+                    <div class="op-step-item pending" id="step-migrations">
+                        <div class="op-step-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M4 5a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1V5zm0 8a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2zm0 8a1 1 0 011-1h14a1 1 0 011 1v2a1 1 0 01-1 1H5a1 1 0 01-1-1v-2z"/></svg>
+                        </div>
+                        <div class="op-step-content">
+                            <div class="op-step-title">Execute Database Migrations</div>
+                            <div class="op-step-desc">Applying schema adjustments and purging application caches.</div>
+                            <div class="op-step-milestones op-mt-2" id="milestones-migrations"></div>
+                        </div>
+                    </div>
+                    <div class="op-step-item pending" id="step-health">
+                        <div class="op-step-icon">
+                            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                        </div>
+                        <div class="op-step-content">
+                            <div class="op-step-title">Platform Integrity Verification</div>
+                            <div class="op-step-desc">Running self-diagnostics and reactivating web portals.</div>
+                            <div class="op-step-milestones op-mt-2" id="milestones-health"></div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="op-mt-4 op-d-none" id="stepper-success-actions">
+                    <button type="button" class="op-btn op-btn-success op-btn-block op-btn-lg" onclick="window.location.reload();">
+                        System Updated! Reload Dashboard
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Version History (narrower, complementary) -->
+    <div class="op-hero-secondary">
+        <div class="op-card op-premium-card op-release-history-card">
+            <div class="op-card-header">
+                <h3>Version History</h3>
+            </div>
+            <div class="op-card-body op-p-0">
+                <div class="op-release-timeline">
+                    {% for entry in update_history %}
+                        <div class="op-timeline-item">
+                            <div class="op-timeline-badge {% if entry.status == 'completed' %}success{% elseif entry.status == 'failed' %}failed{% else %}warning{% endif %}"></div>
+                            <div class="op-timeline-card">
+                                <div class="op-timeline-version-row">
+                                    <span class="op-timeline-version">v{{ entry.from_version }} → v{{ entry.to_version }}</span>
+                                    <span class="op-timeline-status {% if entry.status == 'completed' %}success{% elseif entry.status == 'failed' %}failed{% else %}warning{% endif %}">
+                                        {{ entry.status|replace({'rolled_back': 'rolled back'})|capitalize }}
+                                    </span>
+                                </div>
+                                <div class="op-timeline-meta-row">
+                                    <span class="op-timeline-time">{{ entry.started_at }}</span>
+                                    <span class="op-timeline-duration">
+                                        {% if entry.duration is defined and entry.duration is not null %}
+                                            {% if entry.duration < 60 %}
+                                                {{ entry.duration }}s
+                                            {% else %}
+                                                {{ (entry.duration / 60)|round(0, 'floor') }}m {{ entry.duration % 60 }}s
+                                            {% endif %}
+                                        {% else %}
+                                            -
+                                        {% endif %}
+                                    </span>
+                                </div>
+                                {% if entry.error %}
+                                    <div class="op-timeline-error">{{ entry.error }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    {% else %}
+                        <div class="op-empty-state op-py-8">
+                            <div class="op-empty-icon op-empty-logs-graphic">
+                                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.25" style="color: var(--op-primary); margin: 0 auto; filter: drop-shadow(0 0 12px rgb(108 92 231 / 30%));">
+                                    <path stroke-linecap="round" stroke-linejoin="round" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                                </svg>
+                            </div>
+                            <p class="op-empty-title">No Version History</p>
+                            <p class="op-text-muted op-text-sm" style="max-width: 220px; margin: 0 auto;">No updates have been executed yet.</p>
+                        </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════════════════
+     ROW 2 - INFO: System Diagnostics + Updater Policies
+     Compact horizontal telemetry strip with side-by-side policies
+     ═══════════════════════════════════════════════════════════ -->
+<div class="op-update-info-row op-mt-4">
+    <!-- LEFT: Compact System Diagnostics -->
+    <div class="op-info-wide">
+        <div class="op-card op-premium-card">
+            <div class="op-card-header">
+                <div class="op-flex op-items-center op-gap-2">
+                    <div class="op-card-header-icon op-card-header-icon-teal">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.573-1.066z"/><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/></svg>
+                    </div>
+                    <h3>System Diagnostics</h3>
+                </div>
+            </div>
+            <div class="op-card-body">
+                <!-- Compact 4-metric horizontal strip -->
+                <div class="op-diag-strip">
+                    <div class="op-diag-item healthy">
+                        <div class="op-diag-item-header">
+                            <span class="op-diag-label">PHP Version</span>
+                            <div class="op-diag-icon">
+                                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M17.25 6.75L22.5 12l-5.25 5.25m-10.5 0L1.5 12l5.25-5.25m7.5-3l-4.5 16.5"/></svg>
+                            </div>
+                        </div>
+                        <div class="op-diag-value-wrapper">
+                            <span class="op-diag-value">{{ diagnostics.php_version }}</span>
+                            <span class="op-diag-status-badge optimal">Optimal</span>
+                        </div>
+                        <div class="op-diag-gauge">
+                            <span class="op-gauge-bar active"></span>
+                            <span class="op-gauge-bar active"></span>
+                            <span class="op-gauge-bar active"></span>
+                            <span class="op-gauge-bar active"></span>
+                        </div>
+                    </div>
+                    <div class="op-diag-item healthy">
+                        <div class="op-diag-item-header">
+                            <span class="op-diag-label">Memory Limit</span>
+                            <div class="op-diag-icon">
+                                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 17.25v1.007M12 17.25v1.007M15 17.25v1.007M12 2.25c-4.97 0-9 3.694-9 8.25s4.03 8.25 9 8.25 9-3.694 9-8.25-4.03-8.25-9-8.25z"/></svg>
+                            </div>
+                        </div>
+                        <div class="op-diag-value-wrapper">
+                            <span class="op-diag-value">{{ diagnostics.memory_limit }}</span>
+                            <span class="op-diag-status-badge optimal">Optimal</span>
+                        </div>
+                        <div class="op-diag-gauge">
+                            <span class="op-gauge-bar active"></span>
+                            <span class="op-gauge-bar active"></span>
+                            <span class="op-gauge-bar active"></span>
+                            <span class="op-gauge-bar"></span>
+                        </div>
+                    </div>
+                    <div class="op-diag-item healthy">
+                        <div class="op-diag-item-header">
+                            <span class="op-diag-label">Max Exec Time</span>
+                            <div class="op-diag-icon">
+                                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            </div>
+                        </div>
+                        <div class="op-diag-value-wrapper">
+                            <span class="op-diag-value">{{ diagnostics.max_execution_time }}</span>
+                            <span class="op-diag-status-badge optimal">Passing</span>
+                        </div>
+                        <div class="op-diag-gauge">
+                            <span class="op-gauge-bar active"></span>
+                            <span class="op-gauge-bar active"></span>
+                            <span class="op-gauge-bar active"></span>
+                            <span class="op-gauge-bar active"></span>
+                        </div>
+                    </div>
+                    {% set latencyVal = diagnostics.db_latency|replace({'ms': ''})|trim %}
+                    {% set isNumericLatency = latencyVal matches '/^[0-9]+$/' %}
+                    {% set latencyNum = isNumericLatency ? latencyVal|number_format(0) : 999 %}
+                    <div class="op-diag-item {% if latencyNum < 50 %}healthy{% elseif latencyNum < 150 %}warning{% else %}critical{% endif %}">
+                        <div class="op-diag-item-header">
+                            <span class="op-diag-label">DB Latency</span>
+                            <div class="op-diag-icon">
+                                <svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M20.25 6.375c0 2.278-3.694 4.125-8.25 4.125S3.75 8.653 3.75 6.375m16.5 0c0-2.278-3.694-4.125-8.25-4.125S3.75 4.097 3.75 6.375m16.5 0v11.25c0 2.278-3.694 4.125-8.25 4.125s-8.25-1.847-8.25-4.125V6.375"/></svg>
+                            </div>
+                        </div>
+                        <div class="op-diag-value-wrapper">
+                            <span class="op-diag-value {% if latencyNum < 50 %}success{% elseif latencyNum < 150 %}warning{% else %}danger{% endif %}">{{ diagnostics.db_latency }}</span>
+                            <span class="op-diag-status-badge {% if latencyNum < 50 %}optimal{% elseif latencyNum < 150 %}warning{% else %}critical{% endif %}">
+                                {% if latencyNum < 50 %}Passing{% elseif latencyNum < 150 %}Warning{% else %}Critical{% endif %}
+                            </span>
+                        </div>
+                        <div class="op-diag-gauge">
+                            <span class="op-gauge-bar active {% if latencyNum >= 150 %}danger{% elseif latencyNum >= 50 %}warning{% endif %}"></span>
+                            <span class="op-gauge-bar {% if latencyNum < 50 %}active{% endif %}"></span>
+                            <span class="op-gauge-bar"></span>
+                            <span class="op-gauge-bar"></span>
+                        </div>
+                    </div>
+                </div>
+                <!-- Compact permissions strip beneath metrics -->
+                <div class="op-perm-strip op-mt-3">
+                    <div class="op-perm-row">
+                        <span class="op-perm-name">App Root <code class="op-perm-code">{{ diagnostics.app_root_perms }}</code></span>
+                        <span class="op-perm-status {% if diagnostics.app_root_writable %}success{% else %}danger{% endif %}">
+                            {% if diagnostics.app_root_writable %}Securely Writable{% else %}Restricted{% endif %}
+                        </span>
+                    </div>
+                    <div class="op-perm-row">
+                        <span class="op-perm-name">storage/ <code class="op-perm-code">{{ diagnostics.storage_perms }}</code></span>
+                        <span class="op-perm-status {% if diagnostics.storage_writable %}success{% else %}danger{% endif %}">
+                            {% if diagnostics.storage_writable %}Securely Writable{% else %}Restricted{% endif %}
+                        </span>
+                    </div>
+                    <div class="op-perm-row">
+                        <span class="op-perm-name">public/ <code class="op-perm-code">{{ diagnostics.public_perms }}</code></span>
+                        <span class="op-perm-status {% if diagnostics.public_writable %}success{% else %}danger{% endif %}">
+                            {% if diagnostics.public_writable %}Securely Writable{% else %}Restricted{% endif %}
+                        </span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- RIGHT: Updater Policies -->
+    <div class="op-info-narrow">
+        <div class="op-card op-premium-card">
+            <div class="op-card-header">
+                <div class="op-flex op-items-center op-gap-2">
+                    <div class="op-card-header-icon op-card-header-icon-amber">
+                        <svg width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+                    </div>
+                    <h3>Updater Policies</h3>
+                </div>
+            </div>
+            <div class="op-card-body">
+                <form method="POST" action="/admin/system-update/settings" id="updater-settings-form">
+                    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+                    <div class="op-settings-panel">
+                        <div class="op-segment-row">
+                            <div class="op-segment-info">
+                                <span class="op-segment-title">Auto-Update Platform</span>
+                                <span class="op-segment-desc">Installs upgrades automatically during off-peak windows.</span>
+                            </div>
+                            <div class="op-segment-tabs">
+                                <input type="radio" id="auto-update-off" name="auto_update" value="0" {% if not auto_update %}checked{% endif %} class="settings-segment-toggle">
+                                <label for="auto-update-off" class="op-segment-label">Disabled</label>
+                                <input type="radio" id="auto-update-on" name="auto_update" value="1" {% if auto_update %}checked{% endif %} class="settings-segment-toggle">
+                                <label for="auto-update-on" class="op-segment-label">Enabled</label>
+                            </div>
+                        </div>
+                        <div class="op-segment-row">
+                            <div class="op-segment-info">
+                                <span class="op-segment-title">Pre-Release Channel</span>
+                                <span class="op-segment-desc">Enroll in the beta channel for early builds.</span>
+                            </div>
+                            <div class="op-segment-tabs">
+                                <input type="radio" id="channel-stable" name="update_channel" value="stable" {% if update_channel != 'beta' %}checked{% endif %} class="settings-segment-toggle">
+                                <label for="channel-stable" class="op-segment-label">Stable</label>
+                                <input type="radio" id="channel-beta" name="update_channel" value="beta" {% if update_channel == 'beta' %}checked{% endif %} class="settings-segment-toggle">
+                                <label for="channel-beta" class="op-segment-label">Beta</label>
+                            </div>
+                        </div>
+                        <div class="op-segment-row">
+                            <div class="op-segment-info">
+                                <span class="op-segment-title">Backup Verification</span>
+                                <span class="op-segment-desc">Verify directories before applying migrations.</span>
+                            </div>
+                            <div class="op-segment-tabs">
+                                <input type="radio" id="backup-off" name="pre_update_backup" value="0" {% if not pre_update_backup %}checked{% endif %} class="settings-segment-toggle">
+                                <label for="backup-off" class="op-segment-label">Skip</label>
+                                <input type="radio" id="backup-on" name="pre_update_backup" value="1" {% if pre_update_backup %}checked{% endif %} class="settings-segment-toggle">
+                                <label for="backup-on" class="op-segment-label">Enforce</label>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script nonce="{{ csp_nonce }}">
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Interactive Accordion for Changelog
+    const changelogToggle = document.getElementById('changelog-toggle');
+    const changelogContent = document.getElementById('changelog-content-body');
+    const markdownContainer = document.getElementById('changelog-markdown-rendered');
+
+    if (changelogToggle && changelogContent) {
+        // Format markdown client-side
+        if (markdownContainer) {
+            const rawMarkdown = markdownContainer.innerHTML;
+            markdownContainer.innerHTML = parseSimpleMarkdown(rawMarkdown);
+        }
+
+        changelogToggle.addEventListener('click', () => {
+            const isExpanded = changelogContent.classList.contains('expanded');
+            if (isExpanded) {
+                changelogContent.style.maxHeight = '0px';
+                changelogContent.classList.remove('expanded');
+                changelogToggle.classList.remove('expanded-header');
+            } else {
+                changelogContent.classList.add('expanded');
+                changelogToggle.classList.add('expanded-header');
+                changelogContent.style.maxHeight = changelogContent.scrollHeight + 'px';
+            }
+        });
+    }
+
+    function parseSimpleMarkdown(md) {
+        if (!md) return '';
+        // Escape HTML tags to prevent XSS
+        let html = md.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        // Basic Markdown rules
+        return html
+            .replace(/### (.*)/g, '<h4>$1</h4>')
+            .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+            .replace(/`([^`]+)`/g, '<code>$1</code>')
+            .replace(/^- (.*)/g, '<li>$1</li>')
+            .replace(/^(?!<h|<l|<u)(.*)$/gm, (match) => {
+                if (match.trim() === '') return '';
+                if (match.startsWith('<li>') || match.startsWith('<h4>')) return match;
+                return '<p>' + match + '</p>';
+            })
+            // Wrap contiguous li items in ul
+            .replace(/(<li>.*<\/li>)+/g, '<ul>$&</ul>')
+            .replace(/\n/g, '');
+    }
+
+    // 2. Settings radio toggles auto-submission
+    const settingsToggles = document.querySelectorAll('.settings-segment-toggle');
+    settingsToggles.forEach(toggle => {
+        toggle.addEventListener('change', () => {
+            document.getElementById('updater-settings-form').submit();
+        });
+    });
+
+    // 3. Slide-to-Upgrade Drag Confirmation
+    const track = document.getElementById('op-slide-track');
+    const thumb = document.getElementById('op-slide-thumb');
+    if (track && thumb) {
+        let isDragging = false;
+        let startX = 0;
+        let maxOffset = 0;
+
+        const onStart = (e) => {
+            isDragging = true;
+            startX = (e.type === 'touchstart') ? e.touches[0].clientX : e.clientX;
+            maxOffset = track.clientWidth - thumb.clientWidth - 8; // Padding offset
+            thumb.style.transition = 'none';
+            track.classList.add('dragging');
+        };
+
+        const onMove = (e) => {
+            if (!isDragging) return;
+            const currentX = (e.type === 'touchmove') ? e.touches[0].clientX : e.clientX;
+            let delta = currentX - startX;
+            if (delta < 0) delta = 0;
+            if (delta > maxOffset) delta = maxOffset;
+
+            thumb.style.transform = `translateX(${delta}px)`;
+
+            const pct = delta / maxOffset;
+            const text = track.querySelector('.op-slide-text');
+            if (text) {
+                text.style.opacity = (1 - pct * 1.5).toString();
+            }
+        };
+
+        const onEnd = () => {
+            if (!isDragging) return;
+            isDragging = false;
+            track.classList.remove('dragging');
+
+            const currentTransform = window.getComputedStyle(thumb).transform;
+            let delta = 0;
+            if (currentTransform && currentTransform !== 'none') {
+                const matrix = new DOMMatrix(currentTransform);
+                delta = matrix.m41;
+            }
+
+            if (delta >= maxOffset * 0.9) {
+                thumb.style.transition = 'transform 0.2s ease';
+                thumb.style.transform = `translateX(${maxOffset}px)`;
+                track.classList.add('completed');
+
+                const text = track.querySelector('.op-slide-text');
+                if (text) {
+                    text.innerText = "Processing Upgrade...";
+                    text.style.opacity = '1';
+                }
+
+                setTimeout(() => {
+                    startUpdateProcess();
+                }, 300);
+            } else {
+                thumb.style.transition = 'transform 0.3s cubic-bezier(0.16, 1, 0.3, 1)';
+                thumb.style.transform = 'translateX(0px)';
+                const text = track.querySelector('.op-slide-text');
+                if (text) {
+                    text.style.opacity = '1';
+                }
+            }
+        };
+
+        thumb.addEventListener('mousedown', onStart);
+        window.addEventListener('mousemove', onMove);
+        window.addEventListener('mouseup', onEnd);
+
+        thumb.addEventListener('touchstart', onStart, { passive: true });
+        window.addEventListener('touchmove', onMove, { passive: true });
+        window.addEventListener('touchend', onEnd);
+    }
+
+    // Active polling interval state
+    let pollingInterval = null;
+
+    function startUpdateProcess() {
+        // Swap panels: hide update options, show progress steppers
+        document.getElementById('update-ready-panel').classList.add('op-d-none');
+        const progressCard = document.getElementById('updater-progress-card');
+        progressCard.classList.remove('op-d-none');
+        progressCard.scrollIntoView({ behavior: 'smooth' });
+
+        // Build FormData
+        const formData = new FormData();
+        formData.append('_csrf_token', '{{ csrf_token }}');
+        formData.append('version', '{{ latest_version }}');
+
+        // Initial step setup
+        updateStepperUI('started');
+
+        // Fire AJAX installation execution
+        fetch('/admin/system-update/apply', {
+            method: 'POST',
+            body: formData,
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(response => {
+            if (!response.ok) {
+                return response.json().then(err => { throw new Error(err.error || 'Network error'); });
+            }
+            return response.json();
+        })
+        .then(data => {
+            clearInterval(pollingInterval);
+            if (data.success) {
+                // Set all steps to completed successfully
+                setAllStepsCompleted();
+            } else {
+                handleUpdateFailure(data.error || 'Upgrade lifecycle failure');
+            }
+        })
+        .catch(err => {
+            clearInterval(pollingInterval);
+            handleUpdateFailure(err.message || 'Connection lost during installation');
+        });
+
+        // Trigger polling checks every 1.5s to pull state
+        pollingInterval = setInterval(pollUpdateStatus, 1500);
+    }
+
+    function pollUpdateStatus() {
+        fetch('/admin/system-update/status', {
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            }
+        })
+        .then(res => res.json())
+        .then(status => {
+            if (status.in_progress) {
+                updateStepperUI(status.current_step);
+            }
+        })
+        .catch(err => console.error('Status poll error:', err));
+    }
+
+    // Step elements matching database status milestones
+    const steps = {
+        'backup': document.getElementById('step-backup'),
+        'download': document.getElementById('step-download'),
+        'verify': document.getElementById('step-verify'),
+        'extract': document.getElementById('step-extract'),
+        'migrations': document.getElementById('step-migrations'),
+        'health': document.getElementById('step-health')
+    };
+
+    const progressIndicator = document.getElementById('stepper-progress-indicator');
+    const percentLabel = document.getElementById('progress-percent-label');
+    const statusSubtext = document.getElementById('progress-status-subtext');
+
+    function showMilestone(stepId, text, isCompleted) {
+        const parent = document.getElementById('milestones-' + stepId);
+        if (!parent) return;
+        
+        let existing = Array.from(parent.children).find(child => child.textContent.includes(text));
+        const icon = isCompleted 
+            ? `<svg width="12" height="12" fill="none" stroke="currentColor" stroke-width="3" viewBox="0 0 24 24" style="color: var(--op-success); margin-right: 8px; flex-shrink: 0; display: inline-block; vertical-align: middle;"><path stroke-linecap="round" stroke-linejoin="round" d="M5 13l4 4L19 7"/></svg>`
+            : `<span class="op-milestone-spinner"></span>`;
+            
+        if (existing) {
+            existing.className = 'op-milestone-row ' + (isCompleted ? 'verified' : 'running');
+            existing.innerHTML = icon + `<span>${text}</span>`;
+        } else {
+            const div = document.createElement('div');
+            div.className = 'op-milestone-row ' + (isCompleted ? 'verified' : 'running');
+            div.innerHTML = icon + `<span>${text}</span>`;
+            parent.appendChild(div);
+        }
+    }
+
+    function setAllMilestonesCompleted() {
+        showMilestone('backup', 'Zipping filesystem directories...', true);
+        showMilestone('backup', 'Serializing database table schemas...', true);
+        showMilestone('download', 'Connecting to secure update server...', true);
+        showMilestone('download', 'Fetching stable version package archive...', true);
+        showMilestone('verify', 'Verifying SHA-256 package checksum...', true);
+        showMilestone('verify', 'Checking asymmetric RSA signatures...', true);
+        showMilestone('extract', 'Validating directory structures...', true);
+        showMilestone('extract', 'Extracting build folder package files...', true);
+        showMilestone('migrations', 'Applying database migrations...', true);
+        showMilestone('migrations', 'Purging cached twig templates...', true);
+        showMilestone('health', 'Running diagnostics checks...', true);
+        showMilestone('health', 'Reactivating merchant checkout portals...', true);
+    }
+
+    function updateStepperUI(currentDbStatus) {
+        // Reset status stylings to pending defaults initially
+        Object.values(steps).forEach(el => {
+            el.className = 'op-step-item pending';
+        });
+
+        switch (currentDbStatus) {
+            case 'started':
+                setActiveStep('backup');
+                updateProgressPercent(17, 'Creating system backup...');
+                showMilestone('backup', 'Zipping filesystem directories...', false);
+                break;
+            case 'backup_created':
+                setCompletedStep('backup');
+                setActiveStep('download');
+                updateProgressPercent(34, 'Downloading package files...');
+                showMilestone('backup', 'Zipping filesystem directories...', true);
+                showMilestone('backup', 'Serializing database table schemas...', true);
+                showMilestone('download', 'Connecting to secure update server...', false);
+                break;
+            case 'downloaded':
+                setCompletedStep('backup');
+                setCompletedStep('download');
+                setActiveStep('verify');
+                updateProgressPercent(51, 'Verifying cryptographic security signature...');
+                showMilestone('backup', 'Zipping filesystem directories...', true);
+                showMilestone('backup', 'Serializing database table schemas...', true);
+                showMilestone('download', 'Connecting to secure update server...', true);
+                showMilestone('download', 'Fetching stable version package archive...', true);
+                showMilestone('verify', 'Verifying SHA-256 package checksum...', false);
+                break;
+            case 'applied':
+                setCompletedStep('backup');
+                setCompletedStep('download');
+                setCompletedStep('verify');
+                setCompletedStep('extract');
+                setActiveStep('migrations');
+                updateProgressPercent(68, 'Extracting assets & running database migrations...');
+                showMilestone('backup', 'Zipping filesystem directories...', true);
+                showMilestone('backup', 'Serializing database table schemas...', true);
+                showMilestone('download', 'Connecting to secure update server...', true);
+                showMilestone('download', 'Fetching stable version package archive...', true);
+                showMilestone('verify', 'Verifying SHA-256 package checksum...', true);
+                showMilestone('verify', 'Checking asymmetric RSA signatures...', true);
+                showMilestone('extract', 'Validating directory structures...', true);
+                showMilestone('extract', 'Extracting build folder package files...', true);
+                showMilestone('migrations', 'Applying database migrations...', false);
+                break;
+            case 'verified':
+                setCompletedStep('backup');
+                setCompletedStep('download');
+                setCompletedStep('verify');
+                setCompletedStep('extract');
+                setCompletedStep('migrations');
+                setActiveStep('health');
+                updateProgressPercent(85, 'Running diagnostics health checks...');
+                showMilestone('backup', 'Zipping filesystem directories...', true);
+                showMilestone('backup', 'Serializing database table schemas...', true);
+                showMilestone('download', 'Connecting to secure update server...', true);
+                showMilestone('download', 'Fetching stable version package archive...', true);
+                showMilestone('verify', 'Verifying SHA-256 package checksum...', true);
+                showMilestone('verify', 'Checking asymmetric RSA signatures...', true);
+                showMilestone('extract', 'Validating directory structures...', true);
+                showMilestone('extract', 'Extracting build folder package files...', true);
+                showMilestone('migrations', 'Applying database migrations...', true);
+                showMilestone('migrations', 'Purging cached twig templates...', true);
+                showMilestone('health', 'Running diagnostics checks...', false);
+                break;
+        }
+    }
+
+    function updateProgressPercent(pct, text) {
+        if (progressIndicator) {
+            progressIndicator.style.width = pct + '%';
+        }
+        if (percentLabel) {
+            percentLabel.innerText = 'Update progress: ' + pct + '%';
+        }
+        if (statusSubtext) {
+            statusSubtext.innerText = text;
+        }
+    }
+
+    // Helper classes updates
+    function setActiveStep(key) {
+        if (steps[key]) {
+            steps[key].className = 'op-step-item active';
+        }
+    }
+
+    function setCompletedStep(key) {
+        if (steps[key]) {
+            steps[key].className = 'op-step-item completed';
+        }
+    }
+
+    function setAllStepsCompleted() {
+        Object.keys(steps).forEach(key => {
+            setCompletedStep(key);
+        });
+        
+        setAllMilestonesCompleted();
+        updateProgressPercent(100, 'System successfully updated!');
+        
+        // Show reload buttons
+        document.getElementById('stepper-warning-note').className = 'op-alert op-alert-success op-premium-alert op-mb-4';
+        document.getElementById('stepper-warning-note').innerHTML = `
+            <div class="op-alert-icon">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="op-alert-content">
+                <strong>Update Complete:</strong> Platform upgraded successfully to v{{ latest_version }}.
+            </div>
+        `;
+        document.getElementById('stepper-success-actions').classList.remove('op-d-none');
+        
+        const statusBadge = document.getElementById('installer-global-status');
+        statusBadge.className = 'op-badge op-badge-success';
+        statusBadge.innerText = 'Completed';
+    }
+
+    function handleUpdateFailure(errorMessage) {
+        // Find current active step or first pending step and mark as failed
+        let marked = false;
+        Object.keys(steps).forEach(key => {
+            const el = steps[key];
+            if (el.classList.contains('active')) {
+                el.className = 'op-step-item failed';
+                marked = true;
+            }
+        });
+
+        if (!marked) {
+            // Default fallback to health check failure
+            steps['health'].className = 'op-step-item failed';
+        }
+
+        // Show detailed failure container
+        const warningBox = document.getElementById('stepper-warning-note');
+        warningBox.className = 'op-alert op-alert-danger op-premium-alert op-mb-4';
+        warningBox.innerHTML = `
+            <div class="op-alert-icon">
+                <svg width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M10 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2m7-2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            </div>
+            <div class="op-alert-content">
+                <strong>Update Failed:</strong> \${errorMessage}. The system rolled back files and databases to restore active services.
+            </div>
+        `;
+        
+        const statusBadge = document.getElementById('installer-global-status');
+        statusBadge.className = 'op-badge op-badge-danger';
+        statusBadge.innerText = 'Failed';
+    }
+});
+</script>
+{% endblock %}

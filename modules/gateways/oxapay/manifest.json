@@ -1,0 +1,25 @@
+{
+  "name": "OxaPay Crypto",
+  "slug": "oxapay",
+  "version": "1.0.0",
+  "description": "Accept OxaPay Crypto payments directly from customers.",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "crypto",
+  "icon": "assets/icon.png",
+  "color": "#f15a24",
+  "entrypoint": "OxapayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Oxapay",
+  "capabilities": ["gateway"],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": ["https://*.oxapay.com"],
+    "style_src": ["https://*.oxapay.com"],
+    "frame_src": ["https://*.oxapay.com"],
+    "connect_src": ["https://*.oxapay.com"]
+  },
+  "permissions": ["gateway.process"]
+}

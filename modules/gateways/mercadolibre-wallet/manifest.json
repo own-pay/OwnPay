@@ -1,0 +1,39 @@
+{
+  "name": "MercadoLibre Wallet",
+  "slug": "mercadolibre-wallet",
+  "version": "1.0.0",
+  "description": "MercadoLibre Wallet payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "MercadoLibreWalletGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\MercadoLibreWallet",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "global",
+  "color": "#FFE600",
+  "csp": {
+    "script_src": [
+      "https://*.mercadolibre.com",
+      "https://*.mercadopago.com"
+    ],
+    "style_src": [
+      "https://*.mercadolibre.com"
+    ],
+    "frame_src": [
+      "https://*.mercadolibre.com"
+    ],
+    "connect_src": [
+      "https://*.mercadolibre.com",
+      "https://api.mercadopago.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

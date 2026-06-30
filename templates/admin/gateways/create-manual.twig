@@ -1,0 +1,164 @@
+{% extends 'admin/layout/base.twig' %}
+
+{% block title %}Create Manual Gateway - {{ app_name }}{% endblock %}
+
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Create Manual Gateway</h1>
+        <p class="op-page-subtitle">Set up a manual payment gateway (e.g. mobile money, bank transfer) with instructions.</p>
+    </div>
+    <a href="/admin/gateways" class="op-btn op-btn-outline">← Back</a>
+</div>
+
+{% if errors is defined and errors|length > 0 %}
+<div class="op-alert op-alert-danger">
+    <ul>{% for e in errors %}<li>{{ e }}</li>{% endfor %}</ul>
+</div>
+{% endif %}
+
+<form method="POST" action="/admin/gateways/store-manual" enctype="multipart/form-data" class="op-form">
+    <input type="hidden" name="_csrf_token" value="{{ csrf_token }}">
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Basic Info</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label for="name">Gateway Name *</label>
+                    <input type="text" id="name" name="name" value="{{ old.name ?? '' }}" required class="op-input" placeholder="e.g. bKash Personal">
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label for="slug">Slug *</label>
+                    <input type="text" id="slug" name="slug" value="{{ old.slug ?? '' }}" required class="op-input" pattern="[a-z0-9\-]+" placeholder="e.g. bkash-personal">
+                    <small>Lowercase, hyphens only. Used in API.</small>
+                </div>
+            </div>
+
+            <div class="op-form-group">
+                <label for="instructions">Payment Instructions</label>
+                <textarea id="instructions" name="instructions" rows="4" class="op-input">{{ old.instructions ?? '' }}</textarea>
+                <small>Shown to customer on checkout page.</small>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Branding</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                <div class="op-form-group op-col-6">
+                    <label for="logo">Logo</label>
+                    <input type="file" id="logo" name="logo" accept="image/*" class="op-input-file">
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label for="qr_code">QR Code (optional)</label>
+                    <input type="file" id="qr_code" name="qr_code" accept="image/*" class="op-input-file">
+                </div>
+            </div>
+            <div class="op-form-row">
+                <div class="op-form-group op-col-4">
+                    <label for="color_primary">Primary Color</label>
+                    <input type="color" id="color_primary" name="color_primary" value="{{ old.color_primary ?? '#E2136E' }}" class="op-input-color">
+                </div>
+                <div class="op-form-group op-col-4">
+                    <label for="color_secondary">Secondary Color</label>
+                    <input type="color" id="color_secondary" name="color_secondary" value="{{ old.color_secondary ?? '#FFFFFF' }}" class="op-input-color">
+                </div>
+                <div class="op-form-group op-col-4">
+                    <label for="color_text">Text Color</label>
+                    <input type="color" id="color_text" name="color_text" value="{{ old.color_text ?? '#FFFFFF' }}" class="op-input-color">
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header"><h3>Limits & Verification</h3></div>
+        <div class="op-card-body">
+            <div class="op-form-row">
+                <div class="op-form-group op-col-4">
+                    <label for="min_amount">Min Amount</label>
+                    <input type="number" id="min_amount" name="min_amount" value="{{ old.min_amount ?? '0' }}" step="0.01" class="op-input">
+                </div>
+                <div class="op-form-group op-col-4">
+                    <label for="max_amount">Max Amount</label>
+                    <input type="number" id="max_amount" name="max_amount" value="{{ old.max_amount ?? '0' }}" step="0.01" class="op-input">
+                    <small>0 = unlimited</small>
+                </div>
+                <div class="op-form-group op-col-4">
+                    <label>SMS Verification</label>
+                    <p class="op-mb-0"><span class="op-badge op-badge-success">Always on</span></p>
+                    <small class="op-text-muted">Auto-verify via the companion app's SMS parsing - mandatory for manual gateways.</small>
+                </div>
+            </div>
+            <div class="op-form-row op-mt-3" id="sms-patterns-row">
+                <div class="op-form-group op-col-6">
+                    <label>SMS Sender Pattern</label>
+                    <input type="text" name="sms_sender_pattern" value="{{ old.sms_sender_pattern ?? '' }}" class="op-input" placeholder="e.g. bKash, 1234">
+                    <small class="op-text-muted">Expected sender name or number for verification SMS</small>
+                </div>
+                <div class="op-form-group op-col-6">
+                    <label>SMS Matching Regex Template</label>
+                    <input type="text" name="sms_regex_template" value="{{ old.sms_regex_template ?? '' }}" class="op-input" placeholder="e.g. /TrxID\s+([A-Z0-9]+)/i">
+                    <small class="op-text-muted">Regular expression to extract the Transaction ID (TrxID) from the SMS text</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="op-card op-mb-4">
+        <div class="op-card-header">
+            <h3>Input Fields</h3>
+            <button type="button" id="add-field-btn" class="op-btn op-btn-sm op-btn-outline">+ Add Field</button>
+        </div>
+        <div class="op-card-body">
+            <p class="op-text-muted">Fields customer must fill during checkout (e.g. phone number, transaction ID).</p>
+            <div id="input-fields-container"></div>
+        </div>
+    </div>
+
+    <div class="op-form-actions">
+        <button type="submit" class="op-btn op-btn-primary op-btn-lg">Create Gateway</button>
+        <a href="/admin/gateways" class="op-btn op-btn-outline op-btn-lg">Cancel</a>
+    </div>
+</form>
+
+<template id="field-template">
+    <div class="op-field-row op-card op-card-bordered op-mb-2 op-p-3">
+        <div class="op-form-row">
+            <div class="op-form-group op-col-3">
+                <label>Field Name</label>
+                <input type="text" name="fields[__IDX__][name]" class="op-input" placeholder="phone_number" required>
+            </div>
+            <div class="op-form-group op-col-3">
+                <label>Label</label>
+                <input type="text" name="fields[__IDX__][label]" class="op-input" placeholder="Phone Number" required>
+            </div>
+            <div class="op-form-group op-col-2">
+                <label>Type</label>
+                <select name="fields[__IDX__][type]" class="op-input">
+                    <option value="text">Text</option>
+                    <option value="number">Number</option>
+                    <option value="tel">Phone</option>
+                    <option value="email">Email</option>
+                    <option value="file">File Upload</option>
+                </select>
+            </div>
+            <div class="op-form-group op-col-2">
+                <label class="op-checkbox-label">
+                    <input type="checkbox" name="fields[__IDX__][required]" value="1" checked>
+                    Required
+                </label>
+            </div>
+            <div class="op-form-group op-col-2">
+                <button type="button" class="op-btn op-btn-sm op-btn-danger remove-field-btn">Remove</button>
+            </div>
+        </div>
+    </div>
+</template>
+
+
+{% endblock %}
+{% block scripts %}<script nonce="{{ csp_nonce }}" src="/assets/js/pages/gateway-manual.js"></script>{% endblock %}
+

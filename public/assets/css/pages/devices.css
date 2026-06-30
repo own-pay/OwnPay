@@ -1,0 +1,500 @@
+/* ═══════════════════════════════════════════════════════
+   devices.css - Devices Hub Page
+   Page-specific overrides only. Global styles from admin.css.
+   ═══════════════════════════════════════════════════════ */
+
+.op-stat-danger .op-stat-icon {
+    background: rgba(239 68 68 / 12%);
+    color: var(--op-danger);
+}
+
+.op-devices-stats {
+    grid-template-columns: repeat(3, 1fr);
+}
+
+/* ═══════════════════════════════════════════════════════
+   PAIR NEW DEVICE DIALOG
+   ═══════════════════════════════════════════════════════ */
+.op-pairing-dialog {
+    max-width: 480px;
+    max-height: 90vh;
+    overflow-y: auto;
+}
+
+/* -- Pair New Device button - distinctive violet accent -- */
+.op-pairing-trigger {
+    background: linear-gradient(135deg, #7c3aed, #6d28d9) !important;
+    color: #fff !important;
+    box-shadow: 0 2px 10px rgb(124 58 237 / 30%) !important;
+    border: none !important;
+}
+
+.op-pairing-trigger:hover {
+    background: linear-gradient(135deg, #6d28d9, #5b21b6) !important;
+    box-shadow: 0 4px 14px rgb(124 58 237 / 40%) !important;
+    transform: translateY(-1px);
+}
+
+.op-pairing-body {
+    padding: 28px 24px !important;
+}
+
+/* -- Phase (shared) -- */
+.op-pairing-phase {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+}
+
+/* -- Phase 1: Generate -- */
+.op-pairing-hero {
+    margin-bottom: 24px;
+}
+
+.op-pairing-hero-icon {
+    width: 56px;
+    height: 56px;
+    border-radius: 16px;
+    background: rgba(15 151 237 / 8%);
+    color: var(--op-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 16px;
+}
+
+.op-pairing-hero h4 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--op-text);
+    margin: 0 0 6px;
+}
+
+.op-pairing-hero p {
+    font-size: 13px;
+    color: var(--op-text-muted);
+    line-height: 1.5;
+    margin: 0;
+    max-width: 320px;
+}
+
+.op-pairing-gen-btn {
+    width: 100%;
+    max-width: 280px;
+    justify-content: center;
+    padding: 12px 24px;
+    font-size: 14px;
+    font-weight: 600;
+    border-radius: 10px;
+    margin-bottom: 24px;
+}
+
+/* -- Steps row -- */
+.op-pairing-steps-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 12px 16px;
+    background: var(--op-bg-input);
+    border-radius: 8px;
+    width: 100%;
+}
+
+.op-pairing-step-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    color: var(--op-text-muted);
+    white-space: nowrap;
+}
+
+.op-pairing-step-num {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border-radius: 50%;
+    background: var(--op-bg-card);
+    border: 1px solid var(--op-border);
+    font-size: 10px;
+    font-weight: 700;
+    color: var(--op-text-muted);
+    flex-shrink: 0;
+}
+
+.op-pairing-step-arrow {
+    color: var(--op-text-dim);
+    flex-shrink: 0;
+    display: flex;
+}
+
+/* -- Phase 2: Code + QR -- */
+.op-pairing-code-section {
+    display: flex;
+    align-items: center;
+    gap: 28px;
+    margin-bottom: 20px;
+    width: 100%;
+    justify-content: center;
+}
+
+.op-pairing-code-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+}
+
+.op-pairing-code-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--op-text-muted);
+    font-weight: 600;
+    margin-bottom: 4px;
+}
+
+.op-pairing-code {
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: 5px;
+    color: var(--op-primary);
+    font-family: var(--mono);
+    line-height: 1.2;
+}
+
+.op-pairing-timer {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    color: var(--op-text-muted);
+    font-weight: 500;
+    margin-top: 2px;
+}
+
+.op-pairing-timer span {
+    font-family: var(--mono);
+    font-weight: 700;
+    color: var(--op-danger);
+}
+
+.op-pairing-qr-block {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+}
+
+.op-qr-container {
+    background: #fff;
+    padding: 8px;
+    border-radius: 10px;
+    box-shadow: 0 2px 8px rgb(0 0 0 / 6%);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 140px;
+    height: 140px;
+    overflow: hidden;
+}
+
+.op-qr-container svg,
+.op-qr-container img {
+    width: 100% !important;
+    height: 100% !important;
+    display: block;
+}
+
+.op-qr-placeholder {
+    font-size: 12px;
+    color: var(--op-text-dim);
+    font-style: italic;
+}
+
+.op-pairing-qr-label {
+    font-size: 11px;
+    color: var(--op-text-muted);
+    font-weight: 500;
+}
+
+/* -- Done row -- */
+.op-pairing-done-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    width: 100%;
+    padding-top: 16px;
+    border-top: 1px solid var(--op-border-light);
+}
+
+/* ═══════════════════════════════════════════════════════
+   DEVICE TABLE
+   ═══════════════════════════════════════════════════════ */
+.op-device-info {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.op-device-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: var(--op-bg-input);
+    color: var(--op-text-muted);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--op-border);
+    flex-shrink: 0;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+}
+
+tr:hover .op-device-icon {
+    background: rgba(15 151 237 / 6%);
+    color: var(--op-primary);
+    border-color: rgba(15 151 237 / 20%);
+}
+
+.op-status-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    margin-right: 5px;
+    vertical-align: middle;
+}
+
+.op-badge-success .op-status-dot {
+    background-color: var(--op-success);
+}
+
+.op-badge-danger .op-status-dot {
+    background-color: var(--op-danger);
+}
+
+.op-badge-muted .op-status-dot {
+    background-color: var(--op-text-muted);
+}
+
+.op-font-mono {
+    font-family: var(--mono) !important;
+    font-size: 13px !important;
+    line-height: 1.6 !important;
+}
+
+.op-textarea {
+    resize: vertical;
+}
+
+/* ═══════════════════════════════════════════════════════
+   LIVE STATUS + REFRESH
+   ═══════════════════════════════════════════════════════ */
+.op-card-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.op-devices-refresh-hint {
+    font-size: 11px;
+    color: var(--op-text-muted);
+}
+
+#devices-refresh-btn svg {
+    transition: transform 0.2s;
+}
+
+.op-spin svg {
+    animation: op-spin 0.8s linear infinite;
+}
+
+@keyframes op-spin {
+    to {
+        transform: rotate(360deg);
+    }
+}
+
+/* Online dot pulses; idle/revoked dots stay static (frozen). */
+.op-status-dot--pulse {
+    animation: op-dot-pulse 1.6s ease-in-out infinite;
+}
+
+@keyframes op-dot-pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+        box-shadow: 0 0 0 0 rgb(34 197 94 / 45%);
+    }
+
+    50% {
+        opacity: 0.6;
+        box-shadow: 0 0 0 4px rgb(34 197 94 / 0%);
+    }
+}
+
+/* ═══════════════════════════════════════════════════════
+   PAIRING - WAITING + CONNECTED (PHASE 3)
+   ═══════════════════════════════════════════════════════ */
+.op-pairing-waiting {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--op-text-muted);
+    margin-bottom: 14px;
+}
+
+.op-pairing-waiting-spinner {
+    width: 12px;
+    height: 12px;
+    border: 2px solid var(--op-border);
+    border-top-color: var(--op-primary);
+    border-radius: 50%;
+    animation: op-spin 0.8s linear infinite;
+    flex-shrink: 0;
+}
+
+.op-pairing-success-icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgb(34 197 94 / 12%);
+    color: var(--op-success);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 8px auto 18px;
+    animation: op-success-pop 0.35s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes op-success-pop {
+    0% {
+        transform: scale(0.4);
+        opacity: 0;
+    }
+
+    100% {
+        transform: scale(1);
+        opacity: 1;
+    }
+}
+
+.op-pairing-phase-3 h4 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--op-text);
+    margin: 0 0 6px;
+}
+
+.op-pairing-phase-3 p {
+    font-size: 13px;
+    color: var(--op-text-muted);
+    line-height: 1.5;
+    margin: 0 0 20px;
+    max-width: 320px;
+}
+
+.op-pairing-done-row--center {
+    justify-content: center;
+    border-top: none;
+    padding-top: 0;
+}
+
+/* ═══════════════════════════════════════════════════════
+   RESPONSIVE
+   ═══════════════════════════════════════════════════════ */
+@media (max-width: 768px) {
+    .op-devices-stats {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    /* Right-align the Pair New Device button on mobile */
+    .op-page-header .op-header-actions {
+        display: flex;
+        justify-content: flex-end;
+    }
+
+    /* Keep dialog centered and capped to viewport */
+    .op-pairing-dialog {
+        margin: auto !important;
+        max-height: 88vh;
+    }
+
+    .op-pairing-code-section {
+        flex-direction: column;
+        gap: 20px;
+    }
+
+    .op-pairing-code {
+        font-size: 28px;
+        letter-spacing: 4px;
+    }
+}
+
+@media (max-width: 600px) {
+    .op-devices-stats {
+        grid-template-columns: 1fr 1fr;
+        gap: 6px;
+    }
+
+    .op-pairing-dialog {
+        max-height: 85vh;
+        border-radius: 16px !important;
+    }
+
+    .op-pairing-body {
+        padding: 20px 16px !important;
+    }
+
+    .op-pairing-hero-icon {
+        width: 48px;
+        height: 48px;
+        border-radius: 12px;
+    }
+
+    .op-pairing-hero h4 {
+        font-size: 15px;
+    }
+
+    .op-pairing-gen-btn {
+        max-width: 100%;
+    }
+
+    .op-pairing-steps-row {
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px 6px;
+        padding: 10px 12px;
+    }
+
+    .op-pairing-step-arrow {
+        display: none;
+    }
+
+    .op-pairing-step-item {
+        font-size: 11px;
+    }
+
+    .op-pairing-code {
+        font-size: 24px;
+        letter-spacing: 3px;
+    }
+
+    .op-qr-container {
+        width: 120px;
+        height: 120px;
+    }
+
+    .op-pairing-trigger {
+        width: 100%;
+        justify-content: center;
+    }
+}

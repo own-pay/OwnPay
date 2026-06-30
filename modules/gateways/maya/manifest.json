@@ -1,0 +1,40 @@
+{
+  "name": "Maya Wallet",
+  "slug": "maya",
+  "version": "1.0.0",
+  "description": "Maya Wallet payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "MayaGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Maya",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#00F076",
+  "csp": {
+    "script_src": [
+      "https://*.maya.ph",
+      "https://*.paymaya.com"
+    ],
+    "style_src": [
+      "https://*.maya.ph"
+    ],
+    "frame_src": [
+      "https://*.maya.ph"
+    ],
+    "connect_src": [
+      "https://*.maya.ph",
+      "https://pg-sandbox.paymaya.com",
+      "https://pg.paymaya.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,38 @@
+{
+  "name": "Touch 'n Go eWallet",
+  "slug": "touch-n-go",
+  "version": "1.0.0",
+  "description": "Touch 'n Go eWallet payment integration via Stripe PaymentIntent",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "TouchNGoGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\TouchNGo",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#0052B4",
+  "csp": {
+    "script_src": [
+      "https://*.tngdigital.com.my"
+    ],
+    "style_src": [
+      "https://*.tngdigital.com.my"
+    ],
+    "frame_src": [
+      "https://*.tngdigital.com.my"
+    ],
+    "connect_src": [
+      "https://*.tngdigital.com.my",
+      "https://api.tngdigital.com.my"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

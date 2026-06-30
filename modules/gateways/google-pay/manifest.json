@@ -1,0 +1,25 @@
+{
+  "name": "Google Pay",
+  "slug": "google-pay",
+  "version": "1.0.0",
+  "description": "Google Pay Express Checkout gateway plugin",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "express",
+  "icon": "icon.svg",
+  "color": "#4285F4",
+  "entrypoint": "GooglePayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\GooglePay",
+  "capabilities": ["gateway"],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": ["https://*.google.com", "https://pay.google.com"],
+    "style_src": ["https://*.google.com"],
+    "frame_src": ["https://*.google.com", "https://pay.google.com"],
+    "connect_src": ["https://*.google.com", "https://pay.google.com"]
+  },
+  "permissions": ["gateway.process"]
+}

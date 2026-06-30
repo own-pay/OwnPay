@@ -1,0 +1,39 @@
+{
+  "name": "Global Payments",
+  "slug": "global-payments",
+  "version": "1.0.0",
+  "description": "Global Payments payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "GlobalPaymentsGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\GlobalPayments",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#002D62",
+  "csp": {
+    "script_src": [
+      "https://*.globalpay.com"
+    ],
+    "style_src": [
+      "https://*.globalpay.com"
+    ],
+    "frame_src": [
+      "https://*.globalpay.com"
+    ],
+    "connect_src": [
+      "https://*.globalpay.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,25 @@
+{
+  "name": "Apple Pay",
+  "slug": "apple-pay",
+  "version": "1.0.0",
+  "description": "Apple Pay Express Checkout gateway plugin",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "express",
+  "icon": "icon.svg",
+  "color": "#080D1A",
+  "entrypoint": "ApplePayGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\ApplePay",
+  "capabilities": ["gateway"],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": ["https://applepay.cdn-apple.com"],
+    "style_src": [],
+    "frame_src": [],
+    "connect_src": ["https://apple-pay-gateway.apple.com"]
+  },
+  "permissions": ["gateway.process"]
+}

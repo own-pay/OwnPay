@@ -1,0 +1,25 @@
+{
+  "name": "CashMaal",
+  "slug": "cashmaal",
+  "version": "1.0.0",
+  "description": "CashMaal payment gateway integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "global",
+  "icon": "assets/icon.png",
+  "color": "#1F95F4",
+  "entrypoint": "CashmaalGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Cashmaal",
+  "capabilities": ["gateway"],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": ["https://*.cmaal.com"],
+    "style_src": ["https://*.cmaal.com"],
+    "frame_src": ["https://*.cmaal.com"],
+    "connect_src": ["https://*.cmaal.com"]
+  },
+  "permissions": ["gateway.process"]
+}

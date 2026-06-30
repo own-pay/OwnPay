@@ -1,0 +1,25 @@
+{
+  "name": "EPS",
+  "slug": "eps",
+  "version": "1.0.0",
+  "description": "EPS payment gateway integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "category": "mfs",
+  "icon": "assets/icon.png",
+  "color": "#019A44",
+  "entrypoint": "EpsGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Eps",
+  "capabilities": ["gateway"],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "csp": {
+    "script_src": ["https://*.eps.com.bd"],
+    "style_src": ["https://*.eps.com.bd"],
+    "frame_src": ["https://*.eps.com.bd"],
+    "connect_src": ["https://*.eps.com.bd"]
+  },
+  "permissions": ["gateway.process"]
+}

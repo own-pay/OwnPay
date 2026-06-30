@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Checkout{% endblock %} — {{ app_name|default('Own Pay') }}</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/assets/css/tokens.css?v=014">
+    <link rel="stylesheet" href="/assets/css/reset.css?v=016">
+    <link rel="stylesheet" href="/assets/css/animations.css?v=014">
+    <link rel="stylesheet" href="/assets/css/utilities.css?v=014">
+    <link rel="stylesheet" href="/assets/css/payment-link.css?v=014">
+    {% block head %}{% endblock %}
+</head>
+<body>
+    <div class="checkout-wrapper">
+        <div class="checkout-brand">
+            <h1>{{ app_name|default('OwnPay') }}</h1>
+            <div class="brand-sub">Secure Payment</div>
+        </div>
+        {% block content %}{% endblock %}
+        <div class="checkout-footer">
+            {% if brand is defined and brand is not null and brand.show_powered_by is defined %}
+                {% if brand.show_powered_by|default('1') != '0' %}
+                    {{ ownpay_footer()|raw }} &middot;
+                {% endif %}
+            {% else %}
+                {{ ownpay_footer()|raw }} &middot;
+            {% endif %}
+            <a href="/">Home</a>
+        </div>
+    </div>
+</body>
+</html>

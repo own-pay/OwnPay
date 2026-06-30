@@ -1,0 +1,39 @@
+{
+  "name": "Orange Money",
+  "slug": "orange-money",
+  "version": "1.0.0",
+  "description": "Orange Mobile Money API integration",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "OrangeMoneyGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\OrangeMoney",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#FF6600",
+  "csp": {
+    "script_src": [
+      "https://*.orange.com",
+      "https://*.orange-money.com"
+    ],
+    "style_src": [
+      "https://*.orange.com"
+    ],
+    "frame_src": [
+      "https://*.orange.com"
+    ],
+    "connect_src": [
+      "https://*.orange.com",
+      "https://api.orange.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

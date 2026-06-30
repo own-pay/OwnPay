@@ -1,0 +1,39 @@
+{
+  "name": "Kushki",
+  "slug": "kushki",
+  "version": "1.0.0",
+  "description": "Kushki payment gateway integration for Latin America",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "KushkiGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Kushki",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "latam",
+  "color": "#e83e8c",
+  "csp": {
+    "script_src": [
+      "https://*.kushkipagos.com"
+    ],
+    "style_src": [
+      "https://*.kushkipagos.com"
+    ],
+    "frame_src": [
+      "https://*.kushkipagos.com"
+    ],
+    "connect_src": [
+      "https://*.kushkipagos.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,43 @@
+{
+  "name": "Biller Genie",
+  "slug": "biller-genie",
+  "version": "1.0.0",
+  "description": "Biller Genie payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "BillerGenieGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\BillerGenie",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#0D9488",
+  "csp": {
+    "script_src": [
+      "https://*.billergenie.com",
+      "https://*.billergenieapi.com"
+    ],
+    "style_src": [
+      "https://*.billergenie.com",
+      "https://*.billergenieapi.com"
+    ],
+    "frame_src": [
+      "https://*.billergenie.com",
+      "https://*.billergenieapi.com"
+    ],
+    "connect_src": [
+      "https://*.billergenie.com",
+      "https://*.billergenieapi.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,39 @@
+{
+  "name": "Neteller",
+  "slug": "neteller",
+  "version": "1.0.0",
+  "description": "Neteller payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "NetellerGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Neteller",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#8CC63F",
+  "csp": {
+    "script_src": [
+      "https://*.neteller.com"
+    ],
+    "style_src": [
+      "https://*.neteller.com"
+    ],
+    "frame_src": [
+      "https://*.neteller.com"
+    ],
+    "connect_src": [
+      "https://*.neteller.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

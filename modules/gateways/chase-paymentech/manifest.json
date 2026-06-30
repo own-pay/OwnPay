@@ -1,0 +1,43 @@
+{
+  "name": "Chase Paymentech",
+  "slug": "chase-paymentech",
+  "version": "1.0.0",
+  "description": "Chase Paymentech payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "ChasePaymentechGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\ChasePaymentech",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#115E59",
+  "csp": {
+    "script_src": [
+      "https://*.chase.com",
+      "https://*.paymentech.com"
+    ],
+    "style_src": [
+      "https://*.chase.com",
+      "https://*.paymentech.com"
+    ],
+    "frame_src": [
+      "https://*.chase.com",
+      "https://*.paymentech.com"
+    ],
+    "connect_src": [
+      "https://*.chase.com",
+      "https://*.paymentech.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,39 @@
+{
+  "name": "Pix Dynamic",
+  "slug": "pix",
+  "version": "1.0.0",
+  "description": "Pix Dynamic payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "PixGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Pix",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "bank",
+  "color": "#32B4A4",
+  "csp": {
+    "script_src": [
+      "https://*.mercadopago.com",
+      "https://*.mercadolibre.com"
+    ],
+    "style_src": [
+      "https://*.mercadopago.com"
+    ],
+    "frame_src": [
+      "https://*.mercadopago.com"
+    ],
+    "connect_src": [
+      "https://*.mercadopago.com",
+      "https://api.mercadopago.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

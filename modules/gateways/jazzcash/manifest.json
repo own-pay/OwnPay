@@ -1,0 +1,38 @@
+{
+  "name": "JazzCash",
+  "slug": "jazzcash",
+  "version": "1.0.0",
+  "description": "JazzCash payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "JazzCashGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\JazzCash",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "category": "mfs",
+  "color": "#FFCC00",
+  "csp": {
+    "script_src": [
+      "https://*.jazzcash.com.pk"
+    ],
+    "style_src": [
+      "https://*.jazzcash.com.pk"
+    ],
+    "frame_src": [
+      "https://*.jazzcash.com.pk"
+    ],
+    "connect_src": [
+      "https://*.jazzcash.com.pk",
+      "https://sandbox.jazzcash.com.pk"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

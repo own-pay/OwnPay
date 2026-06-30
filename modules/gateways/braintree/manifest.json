@@ -1,0 +1,43 @@
+{
+  "name": "Braintree",
+  "slug": "braintree",
+  "version": "1.0.0",
+  "description": "Braintree payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "BraintreeGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Braintree",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#3465A4",
+  "csp": {
+    "script_src": [
+      "https://*.braintreegateway.com",
+      "https://*.braintreedata.com"
+    ],
+    "style_src": [
+      "https://*.braintreegateway.com",
+      "https://*.braintreedata.com"
+    ],
+    "frame_src": [
+      "https://*.braintreegateway.com",
+      "https://*.braintreedata.com"
+    ],
+    "connect_src": [
+      "https://*.braintreegateway.com",
+      "https://*.braintreedata.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

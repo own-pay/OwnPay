@@ -1,0 +1,55 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}SMS Data - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header"><div>
+        <h1>SMS Data</h1>
+        <p class="op-page-subtitle">Raw incoming SMS messages received from companion mobile device sync services.</p>
+    </div></div>
+<div class="op-card">
+    <div class="op-card-header">
+        <h3>Parsed SMS Logs</h3>
+        <form method="GET" class="op-filter-bar">
+            <div class="op-custom-dropdown" data-auto-submit>
+                <input type="hidden" name="status" value="{{ filters.status ?? '' }}">
+                <button type="button" class="op-custom-dropdown-btn">
+                    <span class="op-custom-dropdown-label">{{ (filters.status ?? '') ? (filters.status)|capitalize : 'All' }}</span>
+                    <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="op-custom-dropdown-menu">
+                    <button type="button" class="op-custom-dropdown-option {{ (filters.status ?? '') == '' ? 'active' : '' }}" data-value="">All</button>
+                    <button type="button" class="op-custom-dropdown-option {{ (filters.status ?? '') == 'matched' ? 'active' : '' }}" data-value="matched">Matched</button>
+                    <button type="button" class="op-custom-dropdown-option {{ (filters.status ?? '') == 'unmatched' ? 'active' : '' }}" data-value="unmatched">Unmatched</button>
+                    <button type="button" class="op-custom-dropdown-option {{ (filters.status ?? '') == 'pending' ? 'active' : '' }}" data-value="pending">Pending</button>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive"><table class="op-table">
+            <thead><tr><th>Sender</th><th>Amount</th><th>TRX ID</th><th>Gateway</th><th>Status</th><th>Message</th><th>Received</th></tr></thead>
+            <tbody>
+                {% for sms in sms_data %}
+                <tr>
+                    <td data-label="Sender">{{ sms.sender }}</td>
+                    <td data-label="Amount">{{ sms.amount ?? '-' }}</td>
+                    <td data-label="TRX ID"><code>{{ sms.trx_id ?? '-' }}</code></td>
+                    <td data-label="Gateway">{{ sms.gateway_slug ?? '-' }}</td>
+                    <td data-label="Status"><span class="op-badge op-badge-{{ sms.match_status == 'matched' ? 'success' : (sms.match_status == 'pending' ? 'warning' : 'muted') }}">{{ sms.match_status ?? '-' }}</span></td>
+                    <td data-label="Message" class="op-text-sm">{{ sms.body ?? '-' }}</td>
+                    <td data-label="Received">{{ sms.received_at is defined and sms.received_at ? sms.received_at|date("M d, H:i") : '-' }}</td>
+                </tr>
+                {% else %}
+                <tr><td colspan="7" class="op-text-center op-text-muted">No parsed SMS data found.</td></tr>
+                {% endfor %}
+            </tbody>
+        </table></div>
+    </div>
+</div>
+{% if pagination.total_pages > 1 %}
+<nav class="op-pagination">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}&status={{ filters.status ?? '' }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }}</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}&status={{ filters.status ?? '' }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+{% endblock %}

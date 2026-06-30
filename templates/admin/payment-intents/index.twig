@@ -1,0 +1,101 @@
+{% extends 'admin/layout/base.twig' %}
+{% block title %}Payment Intents - {{ app_name }}{% endblock %}
+{% block content %}
+<div class="op-page-header">
+    <div>
+        <h1>Payment Intents</h1>
+        <p class="op-page-subtitle">Track low-level payment intents, checkout sessions, and verification statuses.</p>
+    </div>
+</div>
+
+<div class="op-filter-bar op-mb-4">
+    <form method="GET" action="/admin/payment-intents" class="op-filter-bar">
+        <div class="op-form-group op-flex-grow op-mb-0">
+            <input type="text" name="q" class="op-input" placeholder="Search by UUID, description, currency..." value="{{ filters.q }}">
+        </div>
+        <div class="op-form-group op-mb-0 op-mw-200">
+            <div class="op-custom-dropdown" data-auto-submit>
+                <input type="hidden" name="status" value="{{ filters.status }}">
+                <button type="button" class="op-custom-dropdown-btn op-w-full">
+                    <span class="op-custom-dropdown-label">{{ filters.status ? filters.status|capitalize : 'All Statuses' }}</span>
+                    <svg class="op-dropdown-chevron" width="12" height="12" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <div class="op-custom-dropdown-menu">
+                    <button type="button" class="op-custom-dropdown-option {{ filters.status == '' ? 'active' : '' }}" data-value="">All Statuses</button>
+                    <button type="button" class="op-custom-dropdown-option {{ filters.status == 'pending' ? 'active' : '' }}" data-value="pending">Pending</button>
+                    <button type="button" class="op-custom-dropdown-option {{ filters.status == 'processing' ? 'active' : '' }}" data-value="processing">Processing</button>
+                    <button type="button" class="op-custom-dropdown-option {{ filters.status == 'completed' ? 'active' : '' }}" data-value="completed">Completed</button>
+                    <button type="button" class="op-custom-dropdown-option {{ filters.status == 'failed' ? 'active' : '' }}" data-value="failed">Failed</button>
+                    <button type="button" class="op-custom-dropdown-option {{ filters.status == 'cancelled' ? 'active' : '' }}" data-value="cancelled">Cancelled</button>
+                    <button type="button" class="op-custom-dropdown-option {{ filters.status == 'expired' ? 'active' : '' }}" data-value="expired">Expired</button>
+                </div>
+            </div>
+        </div>
+        <button type="submit" class="op-filter-btn">
+            <svg fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"/></svg>
+            Filter
+        </button>
+        {% if filters.q or filters.status %}
+            <a href="/admin/payment-intents" class="op-filter-btn">Clear</a>
+        {% endif %}
+    </form>
+</div>
+
+<div class="op-card">
+    <div class="op-card-body op-p-0">
+        <div class="op-table-responsive">
+            <table class="op-table">
+                <thead>
+                    <tr>
+                        <th>UUID</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Expires At</th>
+                        <th>Created At</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for intent in payment_intents %}
+                    <tr>
+                        <td data-label="UUID"><code class="op-trx-id" style="font-size: 11px;">{{ intent.uuid }}</code></td>
+                        <td data-label="Description">{{ intent.description|default('-') }}</td>
+                        <td data-label="Amount"><strong>{{ intent.currency }} {{ intent.amount }}</strong></td>
+                        <td data-label="Status">
+                            <span class="op-badge op-badge-{{ intent.status == 'completed' ? 'success' : (intent.status == 'pending' ? 'warning' : (intent.status == 'processing' ? 'info' : 'danger')) }}">
+                                {{ intent.status|capitalize }}
+                            </span>
+                        </td>
+                        <td data-label="Expires" class="op-text-sm">{{ intent.expires_at ? intent.expires_at|date("M d, Y H:i") : '-' }}</td>
+                        <td data-label="Created" class="op-text-muted op-text-sm">{{ intent.created_at|date("M d, Y H:i") }}</td>
+                        <td data-label="Actions">
+                            <a href="/admin/payment-intents/{{ intent.id }}" class="op-btn op-btn-xs op-btn-outline">View</a>
+                        </td>
+                    </tr>
+                    {% else %}
+                    <tr>
+                        <td colspan="7" class="op-empty">
+                            No payment intents found for current filters.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+{# -- Pagination -------------------------------------------------- #}
+{% if pagination is defined and pagination.total_pages > 1 %}
+{% set qs = '' %}
+{% if filters.q is not empty %}{% set qs = qs ~ '&q=' ~ filters.q|url_encode %}{% endif %}
+{% if filters.status is not empty %}{% set qs = qs ~ '&status=' ~ filters.status|url_encode %}{% endif %}
+<nav class="op-pagination op-mt-4">
+    {% if pagination.has_prev %}<a href="?page={{ pagination.page - 1 }}{{ qs }}" class="op-page-link">← Prev</a>{% endif %}
+    <span class="op-page-info">Page {{ pagination.page }} of {{ pagination.total_pages }} ({{ pagination.total_items }} total)</span>
+    {% if pagination.has_next %}<a href="?page={{ pagination.page + 1 }}{{ qs }}" class="op-page-link">Next →</a>{% endif %}
+</nav>
+{% endif %}
+
+{% endblock %}

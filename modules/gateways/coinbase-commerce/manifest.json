@@ -1,0 +1,39 @@
+{
+  "name": "Coinbase Commerce",
+  "slug": "coinbase-commerce",
+  "version": "1.0.0",
+  "description": "Coinbase Commerce payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "CoinbaseGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Coinbase",
+  "capabilities": [
+    "gateway"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.1"
+  },
+  "icon": "icon.svg",
+  "category": "global",
+  "color": "#0052FF",
+  "csp": {
+    "script_src": [
+      "https://*.coinbase.com",
+      "https://*.commerce.coinbase.com"
+    ],
+    "style_src": [
+      "https://*.coinbase.com"
+    ],
+    "frame_src": [
+      "https://*.coinbase.com"
+    ],
+    "connect_src": [
+      "https://*.coinbase.com",
+      "https://api.commerce.coinbase.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ]
+}

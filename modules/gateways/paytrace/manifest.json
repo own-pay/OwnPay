@@ -1,0 +1,43 @@
+{
+  "name": "Paytrace",
+  "slug": "paytrace",
+  "version": "1.0.0",
+  "description": "Paytrace payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "PaytraceGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Paytrace",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#4F46E5",
+  "csp": {
+    "script_src": [
+      "https://*.paytrace.com",
+      "https://*.paytrace.net"
+    ],
+    "style_src": [
+      "https://*.paytrace.com",
+      "https://*.paytrace.net"
+    ],
+    "frame_src": [
+      "https://*.paytrace.com",
+      "https://*.paytrace.net"
+    ],
+    "connect_src": [
+      "https://*.paytrace.com",
+      "https://*.paytrace.net"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

@@ -1,0 +1,43 @@
+{
+  "name": "Trustly",
+  "slug": "trustly",
+  "version": "1.0.0",
+  "description": "Trustly bank payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "TrustlyGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\Trustly",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "europe",
+  "color": "#43B02A",
+  "csp": {
+    "script_src": [
+      "https://*.trustly.com",
+      "https://*.trustly.net"
+    ],
+    "style_src": [
+      "https://*.trustly.com",
+      "https://*.trustly.net"
+    ],
+    "frame_src": [
+      "https://*.trustly.com",
+      "https://*.trustly.net"
+    ],
+    "connect_src": [
+      "https://*.trustly.com",
+      "https://*.trustly.net"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}

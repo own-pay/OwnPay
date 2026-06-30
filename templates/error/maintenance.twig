@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Maintenance - {{ app_name ?? 'OwnPay' }}</title>
+    <style nonce="{{ csp_nonce }}">
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: 'Inter', -apple-system, sans-serif; background: #0f0f23; color: #e2e8f0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+        .op-maint { text-align: center; max-width: 500px; padding: 40px 20px; }
+        .op-maint-icon { font-size: 4rem; margin-bottom: 20px; }
+        .op-maint h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 12px; }
+        .op-maint p { font-size: 1rem; color: #94a3b8; line-height: 1.6; }
+        .op-maint-reason { margin-top: 20px; padding: 16px; background: rgba(108,92,231,0.1); border: 1px solid rgba(108,92,231,0.3); border-radius: 8px; font-size: 0.9rem; color: #a29bfe; }
+        .op-maint-eta { margin-top: 16px; font-size: 0.85rem; color: #64748b; }
+    </style>
+    <meta http-equiv="refresh" content="60">
+</head>
+<body>
+    <div class="op-maint">
+        <div class="op-maint-icon">🔧</div>
+        <h1>Under Maintenance</h1>
+        <p>We're performing scheduled maintenance. We'll be back shortly.</p>
+        {% if reason %}
+        <div class="op-maint-reason">{{ reason }}</div>
+        {% endif %}
+        {% if eta %}
+        <div class="op-maint-eta">Estimated return: {{ eta }}</div>
+        {% endif %}
+    </div>
+</body>
+</html>

@@ -1,0 +1,43 @@
+{
+  "name": "Payline Data",
+  "slug": "payline-data",
+  "version": "1.0.0",
+  "description": "Payline Data payment gateway integration for OwnPay",
+  "author": "OwnPay Core",
+  "type": "gateway",
+  "entrypoint": "PaylineDataGateway.php",
+  "namespace": "OwnPay\\Modules\\Gateways\\PaylineData",
+  "capabilities": [
+    "gateway",
+    "http_outbound",
+    "hooks"
+  ],
+  "requires": {
+    "core": ">=0.1.0",
+    "php": ">=8.2"
+  },
+  "category": "global",
+  "color": "#0284C7",
+  "csp": {
+    "script_src": [
+      "https://*.paylinedata.com",
+      "https://*.payline.com"
+    ],
+    "style_src": [
+      "https://*.paylinedata.com",
+      "https://*.payline.com"
+    ],
+    "frame_src": [
+      "https://*.paylinedata.com",
+      "https://*.payline.com"
+    ],
+    "connect_src": [
+      "https://*.paylinedata.com",
+      "https://*.payline.com"
+    ]
+  },
+  "permissions": [
+    "gateway.process"
+  ],
+  "icon": "icon.svg"
+}
