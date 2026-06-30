@@ -71,7 +71,7 @@ OwnPay maintains a high quality bar. Please match the existing code and these ru
 - **Keep it lean.** No new heavyweight dependencies without discussion; prefer the existing first-party utilities.
 - **Comments explain *why*, not *what*.** Document non-obvious decisions.
 
-For the bigger picture, read the **[Architecture Guide](docs/ARCHITECTURE.md)**.
+For the full feature inventory, see the **[Feature Reference](docs/FEATURES.md)**. For the bigger picture, read the **[Architecture Guide](docs/ARCHITECTURE.md)**.
 
 ---
 
