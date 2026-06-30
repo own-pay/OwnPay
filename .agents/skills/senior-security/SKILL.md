@@ -31,9 +31,9 @@ triggers:
 > [!IMPORTANT]
 > **COMPLIANCE MANDATE:** You are operating as a senior software architect and developer with 20+ years of experience in trillion-dollar fintech platforms. In this offline local environment, you are fully authorized to develop, optimize, refactor, and implement features, as well as conduct thorough secure-coding compliance audits, acting as an internal compliance and system hardening authority.
 
-# Senior Security Engineer — OwnPay Platform (May 2026)
+# Senior Security Engineer - OwnPay Platform (May 2026)
 
-Security engineering tools for threat modeling, vulnerability analysis, secure architecture design, and penetration testing — specialized for PHP 8.2+ payment gateway platforms.
+Security engineering tools for threat modeling, vulnerability analysis, secure architecture design, and penetration testing - specialized for PHP 8.2+ payment gateway platforms.
 
 > **ALWAYS apply alongside**: `security-audit` rule + `security-cryptography` rule for complete coverage.
 
@@ -236,10 +236,10 @@ Review PHP code for security vulnerabilities before deployment.
    - Security-sensitive areas: auth, crypto, input handling, payment flow
    - Third-party gateway plugins (all files)
 2. Run automated analysis:
-   - `composer audit` — PHP advisory database
-   - `./vendor/bin/phpstan analyse --level=8` — static analysis
-   - `gitleaks detect --staged` — secret detection
-   - `grep -rn "eval\|exec\|shell_exec\|system\|passthru" src/` — dangerous function scan
+   - `composer audit` - PHP advisory database
+   - `./vendor/bin/phpstan analyse --level=8` - static analysis
+   - `gitleaks detect --staged` - secret detection
+   - `grep -rn "eval\|exec\|shell_exec\|system\|passthru" src/` - dangerous function scan
 3. Review authentication code:
    - Argon2id parameters correct (memory≥65536, time≥3, threads≥4)?
    - Session regenerated after login?
@@ -270,7 +270,7 @@ Review PHP code for security vulnerabilities before deployment.
 | 2FA | TOTP replay window tracked in session | Authentication bypass |
 | Session | Secure;HttpOnly;SameSite=Strict; regenerated on login | Session hijacking |
 | Authorization | BrandContext + forTenant() + PermissionMiddleware | IDOR / privilege escalation |
-| SQL | PDO prepared statements — zero string interpolation | SQL injection |
+| SQL | PDO prepared statements - zero string interpolation | SQL injection |
 | File Access | Path traversal sequences rejected; MIME validated | Path traversal / RCE |
 | Secrets | No hardcoded keys; EnvironmentService::get() only | Information disclosure |
 | Logging | PII masked via PIIMasker; no stack traces in prod | Information disclosure |
@@ -326,7 +326,7 @@ Respond to and contain security incidents in OwnPay.
 5. Conduct post-mortem:
    - Full timeline reconstruction from op_audit_logs
    - Root cause analysis
-   - Lessons learned — what detection failed?
+   - Lessons learned - what detection failed?
 6. Implement improvements:
    - Update detection rules and alerting
    - Enhance PluginSandbox blocklist if needed
@@ -388,14 +388,14 @@ Respond to and contain security incidents in OwnPay.
 ### Multi-Brand IDOR Attack Pattern
 
 ```php
-// ❌ IDOR vulnerability — no brand scope check
+// ❌ IDOR vulnerability - no brand scope check
 public function getTransaction(Request $req): Response {
     $id = $req->getParam('id');
     $tx = $this->txRepo->find($id);  // Returns ANY merchant's transaction!
     return $this->json($tx);
 }
 
-// ✅ Correct — always scope to active brand
+// ✅ Correct - always scope to active brand
 public function getTransaction(Request $req): Response {
     $brand = $this->c->get(BrandContext::class);
     $brand->resolveFromRequest($req);
@@ -413,18 +413,18 @@ public function getTransaction(Request $req): Response {
 
 ## PHP Security Patterns
 
-### SQL Injection — PHP/PDO
+### SQL Injection - PHP/PDO
 
 ```php
 // ❌ Vulnerable
 $stmt = $pdo->query("SELECT * FROM op_transactions WHERE merchant_id = " . $_GET['mid']);
 
-// ✅ Secure — parameterized
+// ✅ Secure - parameterized
 $stmt = $pdo->prepare("SELECT * FROM op_transactions WHERE merchant_id = ?");
 $stmt->execute([$merchantId]);
 ```
 
-### Password Hashing — Argon2id
+### Password Hashing - Argon2id
 
 ```php
 // ❌ Insecure
@@ -432,7 +432,7 @@ $hash = md5($password);
 $hash = sha1($password);
 $hash = password_hash($password, PASSWORD_BCRYPT);  // Acceptable but not preferred
 
-// ✅ Correct — Argon2id with OWASP 2025 parameters
+// ✅ Correct - Argon2id with OWASP 2025 parameters
 $hash = password_hash($password, PASSWORD_ARGON2ID, [
     'memory_cost' => 65536,  // 64 MB
     'time_cost'   => 3,
@@ -441,7 +441,7 @@ $hash = password_hash($password, PASSWORD_ARGON2ID, [
 
 // Verify
 if (!password_verify($input, $hash)) {
-    // Failed — use hash_equals indirectly via password_verify (already timing-safe)
+    // Failed - use hash_equals indirectly via password_verify (already timing-safe)
     throw new AuthenticationException('Invalid credentials');
 }
 ```
@@ -490,7 +490,7 @@ function decrypt(string $encoded, string $key): string {
     $ciphertext = substr($data, 28);
     $plaintext  = openssl_decrypt($ciphertext, 'aes-256-gcm', $key, OPENSSL_RAW_DATA, $iv, $tag);
     if ($plaintext === false) {
-        throw new \RuntimeException('Decryption failed — data may be tampered');
+        throw new \RuntimeException('Decryption failed - data may be tampered');
     }
     return $plaintext;
 }
@@ -499,17 +499,17 @@ function decrypt(string $encoded, string $key): string {
 ### PHP Object Injection Prevention
 
 ```php
-// ❌ Dangerous — can lead to RCE via PHP gadget chains
+// ❌ Dangerous - can lead to RCE via PHP gadget chains
 $data = unserialize(base64_decode($_COOKIE['cart']));
 
-// ✅ Safe — only accept JSON
+// ✅ Safe - only accept JSON
 $data = json_decode($_COOKIE['cart'], true, 512, JSON_THROW_ON_ERROR);
 if (!is_array($data)) {
     throw new \InvalidArgumentException('Invalid cart data');
 }
 ```
 
-### Secret Scanning — PHP-Specific Patterns
+### Secret Scanning - PHP-Specific Patterns
 
 ```python
 # Secret patterns relevant to OwnPay / PHP projects
@@ -574,11 +574,11 @@ SECRET_PATTERNS = {
 | Message authentication | HMAC-SHA256 or HMAC-SHA512 | 256/512-bit | MD5-HMAC, SHA1-HMAC |
 | Digital signatures | Ed25519 or RSA-PSS | 256-bit / 2048+ bit | RSA PKCS#1 v1.5, DSA |
 | Key exchange | X25519 | 256-bit | DH < 2048-bit |
-| Key derivation | HKDF-SHA256 | — | PBKDF2 with < 600,000 iterations |
+| Key derivation | HKDF-SHA256 | - | PBKDF2 with < 600,000 iterations |
 | JWT signing | HS256 (shared) or RS256 (asymmetric) | 256-bit | `alg: none`, HS1 |
 | Secure random | `random_bytes()` (PHP) | 32 bytes min | `rand()`, `mt_rand()`, `uniqid()` |
-| TLS | TLS 1.3 preferred, 1.2 minimum | — | TLS 1.0, TLS 1.1, SSL 3.0 |
-| Token encoding | hex or base64url | — | Raw binary in URLs |
+| TLS | TLS 1.3 preferred, 1.2 minimum | - | TLS 1.0, TLS 1.1, SSL 3.0 |
+| Token encoding | hex or base64url | - | Raw binary in URLs |
 
 ---
 
@@ -634,7 +634,7 @@ SECRET_PATTERNS = {
 
 ## Security Standards Reference
 
-### Security Headers — OwnPay Required Set (2026)
+### Security Headers - OwnPay Required Set (2026)
 
 | Header | Required Value | Notes |
 |--------|----------------|-------|
@@ -646,7 +646,7 @@ SECRET_PATTERNS = {
 | Permissions-Policy | `geolocation=(), microphone=(), camera=(), payment=()` | Restrict browser APIs |
 | Cross-Origin-Opener-Policy | `same-origin` | Isolates browsing context |
 | Cross-Origin-Resource-Policy | `same-origin` | Prevents cross-origin reads |
-| **X-XSS-Protection** | **REMOVE** | Deprecated — harmful in some browsers |
+| **X-XSS-Protection** | **REMOVE** | Deprecated - harmful in some browsers |
 
 ---
 
@@ -671,7 +671,7 @@ SECRET_PATTERNS = {
 
 | Framework | Applicability to OwnPay |
 |-----------|------------------------|
-| OWASP Top 10:2025 (Nov 2025) | Mandatory baseline for all security reviews — A01 Broken Access Control (incl. SSRF), A03 Supply Chain (new), A10 Exceptional Conditions (new) |
+| OWASP Top 10:2025 (Nov 2025) | Mandatory baseline for all security reviews - A01 Broken Access Control (incl. SSRF), A03 Supply Chain (new), A10 Exceptional Conditions (new) |
 | OWASP ASVS 4.0 | Level 2 minimum for payment flows |
 | PCI-DSS v4.0 (2024) | Required if storing/processing/transmitting card data |
 | GDPR | Required for EU customer PII in op_customers |

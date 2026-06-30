@@ -50,12 +50,16 @@ final class SmsTemplateRepository extends BaseRepository
     }
 
     /**
-     * Finds active templates whose sender pattern exactly matches the incoming SMS sender string.
+     * Finds active templates whose sender pattern matches the incoming SMS sender string.
      *
-     * Performs a BINARY exact string match (case-sensitive) to differentiate SMS senders
-     * like "bKash" from "bkash" or fake senders, retrieving both merchant-specific and global configurations.
+     * Matching is **case-insensitive** (`LOWER(...) = LOWER(...)`): carriers send the same alpha sender
+     * id with inconsistent casing ("bKash" / "bkash" / "BKASH"), so a case-sensitive (BINARY) match
+     * silently failed to find an otherwise-correct template — the SMS then fell through to admin-review
+     * unparsed. This mirrors the device-side whitelist ([getSenderWhitelist]), which is also
+     * case-insensitive, keeping capture and parsing consistent. Retrieves both merchant-specific and
+     * global (merchant_id IS NULL) configurations.
      *
-     * @param string $sender The exact sender identifier (From field) received from the mobile app.
+     * @param string $sender The sender identifier (From field) received from the mobile app.
      * @param int $brandId The unique identifier of the merchant brand.
      * @return array<int, array<string, mixed>> Matching template records ordered by priority ascending.
      */
@@ -65,7 +69,7 @@ final class SmsTemplateRepository extends BaseRepository
             "SELECT * FROM {$this->table}
              WHERE status = 'active'
                AND (merchant_id IS NULL OR merchant_id = :mid)
-               AND BINARY sender_pattern = :sender
+               AND LOWER(sender_pattern) = LOWER(:sender)
              ORDER BY priority ASC",
             ['mid' => $brandId, 'sender' => $sender]
         );

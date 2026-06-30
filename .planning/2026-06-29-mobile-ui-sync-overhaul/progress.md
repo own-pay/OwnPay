@@ -103,5 +103,17 @@
   TenantScope paginateScoped/countScoped. php -l clean; 26 admin/sms PHP tests pass (incl.
   AllBrandsDeviceSmsVerificationTest, AdminApiSecurity, Sovereign).
 - VERIFIED via DB: old All-Brands query (merchant_id=0) = 0 rows; fixed (global) = 4 rows. User sees them
-  in the All Brands view → Mobile & SMS → SMS Logs. (They show admin_review/parse_error = synced but not
-  auto-matched to a payment — template tuning, deferred per user.)
+  in the All Brands view → Mobile & SMS → SMS Logs.
+
+## 2026-06-29 — template tuning (SMS auto-parse)
+- The 3 bKash SMS were `admin_review` (unparsed). ROOT CAUSE: `SmsTemplateRepository::findBySender` used
+  **`BINARY sender_pattern = :sender`** (case-sensitive); device sends sender **`bKash`** but the template
+  `sender_pattern` is **`bkash`** -> no template found -> attemptParse null -> admin_review. (The template's
+  amount/trx regexes were already correct; `getSenderWhitelist` was already case-insensitive — findBySender
+  was the inconsistent one.) FIX: `LOWER(sender_pattern) = LOWER(:sender)` (case-insensitive). php -l clean;
+  full PHP suite **598 tests pass**.
+- VERIFIED on real data (read-only harness): all 3 decryptable bodies now parse -> gateway=bkash-personal,
+  amount=10/11/10, trx=DFT5SQ70QD/DFT4SQ8A2A/DFT8T4323C. Row 1 stays parse_error (stale-key, undecryptable).
+- Re-processed the 3 existing rows -> now `pending` / `regex` / gateway bkash-personal / amount+trx set
+  (visible parsed in SMS Logs). Future bKash SMS now auto-parse. (Order-matching to "confirmed" is the next
+  downstream step, needs a real pending order.)
