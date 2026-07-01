@@ -749,6 +749,8 @@ phase_system_packages() {
         apt-transport-https dnsutils net-tools \
         openssl cron logrotate
   else
+    # Add nginx user early so PHP-FPM doesn't fail if installed next
+    useradd -r -s /sbin/nologin nginx 2>/dev/null || true
     pkg_install \
         curl wget git unzip zip gnupg2 ca-certificates \
         bind-utils net-tools openssl cronie logrotate epel-release
@@ -983,13 +985,13 @@ _install_nginx() {
   if [ "$OS_FAMILY" = "rhel" ]; then
     local fpm_pool="/etc/php-fpm.d/www.conf"
     if [ -f "$fpm_pool" ]; then
-      sed -i 's/^user = apache/user = nginx/' "$fpm_pool"
-      sed -i 's/^group = apache/group = nginx/' "$fpm_pool"
-      sed -i 's/^listen.owner = nobody/listen.owner = nginx/' "$fpm_pool"
-      sed -i 's/^listen.group = nobody/listen.group = nginx/' "$fpm_pool"
-      sed -i 's/^;listen.owner = nobody/listen.owner = nginx/' "$fpm_pool"
-      sed -i 's/^;listen.group = nobody/listen.group = nginx/' "$fpm_pool"
-      sed -i 's/^listen.acl_users = apache/listen.acl_users = apache,nginx/' "$fpm_pool"
+      sed -i 's/^user =.*/user = nginx/' "$fpm_pool"
+      sed -i 's/^group =.*/group = nginx/' "$fpm_pool"
+      sed -i 's/^listen.owner =.*/listen.owner = nginx/' "$fpm_pool"
+      sed -i 's/^listen.group =.*/listen.group = nginx/' "$fpm_pool"
+      sed -i 's/^;listen.owner =.*/listen.owner = nginx/' "$fpm_pool"
+      sed -i 's/^;listen.group =.*/listen.group = nginx/' "$fpm_pool"
+      sed -i 's/^listen.acl_users =.*/listen.acl_users = apache,nginx/' "$fpm_pool"
       systemctl restart php-fpm 2>/dev/null || true
     fi
   fi
