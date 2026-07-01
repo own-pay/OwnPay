@@ -866,19 +866,7 @@ OPCACHE
     log_success "OPcache configured"
   fi
 
-  # Change PHP-FPM user/group on RHEL if needed
-  if [ "$OS_FAMILY" = "rhel" ] && [ "$WEBSERVER" = "nginx" ]; then
-    local fpm_pool="/etc/php-fpm.d/www.conf"
-    if [ -f "$fpm_pool" ]; then
-      sed -i 's/^user = apache/user = nginx/' "$fpm_pool"
-      sed -i 's/^group = apache/group = nginx/' "$fpm_pool"
-      sed -i 's/^listen.owner = nobody/listen.owner = nginx/' "$fpm_pool"
-      sed -i 's/^listen.group = nobody/listen.group = nginx/' "$fpm_pool"
-      sed -i 's/^;listen.owner = nobody/listen.owner = nginx/' "$fpm_pool"
-      sed -i 's/^;listen.group = nobody/listen.group = nginx/' "$fpm_pool"
-      sed -i 's/^listen.acl_users = apache/listen.acl_users = apache,nginx/' "$fpm_pool"
-    fi
-  fi
+
 
   run_quiet "Restarting PHP-FPM" systemctl restart "$PHP_SVC"
   run_quiet "Enabling PHP-FPM on boot" systemctl enable "$PHP_SVC"
@@ -989,6 +977,21 @@ _install_nginx() {
     log_success "Installing Nginx"
   else
     log_success "Nginx already installed"
+  fi
+
+  # Change PHP-FPM user/group on RHEL now that nginx user exists
+  if [ "$OS_FAMILY" = "rhel" ]; then
+    local fpm_pool="/etc/php-fpm.d/www.conf"
+    if [ -f "$fpm_pool" ]; then
+      sed -i 's/^user = apache/user = nginx/' "$fpm_pool"
+      sed -i 's/^group = apache/group = nginx/' "$fpm_pool"
+      sed -i 's/^listen.owner = nobody/listen.owner = nginx/' "$fpm_pool"
+      sed -i 's/^listen.group = nobody/listen.group = nginx/' "$fpm_pool"
+      sed -i 's/^;listen.owner = nobody/listen.owner = nginx/' "$fpm_pool"
+      sed -i 's/^;listen.group = nobody/listen.group = nginx/' "$fpm_pool"
+      sed -i 's/^listen.acl_users = apache/listen.acl_users = apache,nginx/' "$fpm_pool"
+      systemctl restart php-fpm 2>/dev/null || true
+    fi
   fi
 
   # Write vhost
