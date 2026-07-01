@@ -40,6 +40,8 @@ Phase 1
 | Use `mysql` CLI for SQL source imports | PDO exec had unbuffered query failures with MySQL dynamic queries and user variables. |
 | Populate both seed SQL and Controller fallback code | Ensures legal documents are served perfectly in both normal and DB failure/recovery states. |
 | Refactor founder message quote layout from Grid to Flexbox | Prevent layout squeezing and text wrapping issues when the avatar image fails to render or load. |
+| Redesign the About page to showcase the 4 Pillars and project timeline | Deliver a high-quality, real, and premium presentation of OwnPay's core architecture and historical roadmap. |
+| Left-align title, subtitle, and actions in grid hero columns | Resolve the alignment mismatch on the Plugins page where the badge was left-aligned but other elements were centered. |
 
 ## Errors Encountered
 | Error | Resolution |
