@@ -165,13 +165,13 @@ final class BkashApiGateway implements PluginInterface, GatewayAdapterInterface
                 'X-APP-Key: ' . $appKey,
             ],
             CURLOPT_POSTFIELDS => (string) json_encode([
-                'mode'                => '0011',
-                'payerReference'      => $params['trx_id'],
-                'callbackURL'         => $params['redirect_url'],
-                'amount'              => $params['amount'],
-                'currency'            => 'BDT',
-                'intent'              => 'sale',
-                'merchantInvoiceNumber' => $params['trx_id'],
+                'mode'                  => '0011',
+                'payerReference'        => preg_replace('/[^a-zA-Z0-9]/', '', $params['trx_id']),
+                'callbackURL'           => $params['redirect_url'],
+                'amount'                => $params['amount'],
+                'currency'              => 'BDT',
+                'intent'                => 'sale',
+                'merchantInvoiceNumber' => preg_replace('/[^a-zA-Z0-9]/', '', $params['trx_id']),
             ]),
         ]);
 
