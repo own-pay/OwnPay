@@ -39,17 +39,23 @@
             $failed = [];
             $allOk = true;
             foreach ($requirements as $r):
+                if (!is_array($r)) {
+                    continue;
+                }
                 $isOk = !empty($r['ok']);
+                $rName = is_string($r['name'] ?? null) ? $r['name'] : 'Unknown';
+                $rCurrent = is_string($r['current'] ?? null) ? $r['current'] : 'Not found';
+                $rRequired = is_string($r['required'] ?? null) ? $r['required'] : '';
                 if (!$isOk) {
                     $allOk = false;
-                    $failed[] = $r['name'] ?? 'Unknown';
+                    $failed[] = $rName;
                 }
             ?>
             <div class="ins-req <?= $isOk ? 'ins-req-ok' : 'ins-req-fail' ?>">
                 <span class="ins-req-icon"><?= $isOk ? '✓' : '✗' ?></span>
-                <span class="ins-req-name"><?= htmlspecialchars($r['name'] ?? '') ?></span>
-                <span class="ins-req-val"><?= htmlspecialchars($r['current'] ?? 'Not found') ?></span>
-                <span class="ins-req-need"><?= htmlspecialchars($r['required'] ?? '') ?></span>
+                <span class="ins-req-name"><?= htmlspecialchars($rName) ?></span>
+                <span class="ins-req-val"><?= htmlspecialchars($rCurrent) ?></span>
+                <span class="ins-req-need"><?= htmlspecialchars($rRequired) ?></span>
             </div>
             <?php endforeach; ?>
         </div>
@@ -75,6 +81,6 @@
     </div>
 </main>
 
-<div class="ins-footer">OwnPay · Secure Payment Platform · v0.1.0</div>
+<div class="ins-footer">OwnPay · Secure Payment Platform · v<?php echo \OwnPay\Support\Version::CURRENT; ?></div>
 </body>
 </html>

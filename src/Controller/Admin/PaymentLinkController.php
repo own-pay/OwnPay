@@ -105,11 +105,25 @@ final class PaymentLinkController
         }
 
         $postData = $req->post();
-        /** @var array{title?: string, slug?: string, description?: string|null, amount?: float|int|string|null, currency?: string, is_amount_fixed?: bool|int, min_amount?: float|int|string|null, max_amount?: float|int|string|null} $data */
+        /** @var array{title?: string, slug?: string, description?: string|null, amount?: float|int|string|null, currency?: string, is_amount_fixed?: bool|int, min_amount?: float|int|string|null, max_amount?: float|int|string|null, redirect_url?: string|null} $data */
         $data = is_array($postData) ? $postData : [];
         if ($guard = $this->requireActiveBrand($mid, '/admin/payment-links')) {
             return $guard;
         }
+
+        // Restrict redirect_url to http/https, mirroring Api\PaymentController::initiate() -
+        // customers are sent to this URL after paying, so a javascript:/data: scheme here would
+        // let a malicious or compromised admin account plant a client-side attack against them.
+        $redirectUrlRaw = $data['redirect_url'] ?? null;
+        if (is_string($redirectUrlRaw) && $redirectUrlRaw !== '') {
+            $validatedUrl = filter_var($redirectUrlRaw, FILTER_VALIDATE_URL);
+            $scheme = $validatedUrl !== false ? parse_url($validatedUrl, PHP_URL_SCHEME) : null;
+            if ($validatedUrl === false || !in_array($scheme, ['http', 'https'], true)) {
+                $this->session->flashError('Redirect URL must be a valid http or https URL.');
+                return Response::redirect('/admin/payment-links/create');
+            }
+        }
+
         $link = $this->links->create($mid, $data);
         $this->events->doAction('payment_link.created', $link);
         $this->session->flashSuccess('Payment link created');

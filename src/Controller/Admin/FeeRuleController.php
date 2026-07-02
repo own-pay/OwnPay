@@ -406,9 +406,6 @@ final class FeeRuleController
         if ($isGlobal) {
             $this->feeRuleRepo->forAllTenants()->update($id, $data);
         } else {
-            if ($mid === null) {
-                throw new \RuntimeException('Tenant ID required for scoped operations.');
-            }
             $this->feeRuleRepo->forTenant($mid)->updateScoped($id, $data);
         }
 
@@ -446,9 +443,6 @@ final class FeeRuleController
         if ($isGlobal) {
             $this->feeRuleRepo->forAllTenants()->delete($id);
         } else {
-            if ($mid === null) {
-                throw new \RuntimeException('Tenant ID required for scoped operations.');
-            }
             $this->feeRuleRepo->forTenant($mid)->deleteScoped($id);
         }
 
