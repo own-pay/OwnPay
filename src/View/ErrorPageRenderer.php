@@ -266,7 +266,7 @@ HTML;
             <div class="card-body">
                 <div class="env-bar">
                     <span>PHP {$phpVersion}</span>
-                    <span>OwnPay v0.1.0</span>
+                    <span>OwnPay v0.2.0</span>
                     <span>{$envName}</span>
                 </div>
                 <div class="warn">⚠ This debug page is visible because APP_DEBUG=true. Set APP_DEBUG=false in production to show a generic error page.</div>

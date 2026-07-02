@@ -3,6 +3,7 @@ declare(strict_types=1);
 
 namespace OwnPay\View\TwigExtension;
 
+use OwnPay\Support\Version;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFunction;
 
@@ -34,7 +35,7 @@ final class CoreExtension extends AbstractExtension
      * @param string $appVersion The semantic version of the application.
      * @param string $appUrl The base application URL.
      */
-    public function __construct(string $appVersion = '0.1.0', string $appUrl = '')
+    public function __construct(string $appVersion = Version::CURRENT, string $appUrl = '')
     {
         $this->appVersion = $appVersion;
         $this->appUrl     = $appUrl;

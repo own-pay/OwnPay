@@ -5,6 +5,7 @@ namespace OwnPay\Plugin;
 
 use OwnPay\Container;
 use OwnPay\Event\EventManager;
+use OwnPay\Support\Version;
 
 /**
  * PluginLoader scans, discovers, validates, and boots active plugins.
@@ -203,7 +204,7 @@ final class PluginLoader
 
         // Version compatibility check
         $configApp = $this->container->get('config.app');
-        $coreVersion = '0.1.0';
+        $coreVersion = Version::CURRENT;
         if (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) {
             $coreVersion = $configApp['version'];
         }

@@ -5,6 +5,7 @@ namespace OwnPay\Update;
 
 use OwnPay\Service\System\Logger;
 use OwnPay\Support\DateHelper;
+use OwnPay\Support\Version;
 
 /**
  * OwnPay backup and rollback recovery service (Enterprise Grade).
@@ -77,7 +78,7 @@ class BackupService
 
         file_put_contents($backupPath . '/manifest.json', json_encode([
             'timestamp'  => $timestamp,
-            'version'    => getenv('APP_VERSION') ?: '0.1.0',
+            'version'    => Version::CURRENT,
             'php'        => PHP_VERSION,
             'db_file'    => 'database.sql',
             'code_file'  => 'code.zip',

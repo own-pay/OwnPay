@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\View;
 
 use OwnPay\Container;
+use OwnPay\Support\Version;
 use Twig\Environment;
 use Twig\Loader\FilesystemLoader;
 
@@ -101,7 +102,7 @@ final class TwigFactory
         $twig->addExtension(new TwigExtensions($container));
 
         $appName = isset($config['name']) && is_string($config['name']) ? $config['name'] : 'OwnPay';
-        $appVersion = isset($config['version']) && is_string($config['version']) ? $config['version'] : '0.1.0';
+        $appVersion = isset($config['version']) && is_string($config['version']) ? $config['version'] : Version::CURRENT;
 
         $twig->addGlobal('app_name', $appName);
         $twig->addGlobal('app_version', $appVersion);
