@@ -1,6 +1,6 @@
 {
   "name": "own-pay/ownpay",
-  "description": "OwnPay v0.1.0 - Enterprise-grade Open-Source Payment Gateway",
+  "description": "OwnPay - Enterprise-grade Open-Source Payment Gateway",
   "type": "project",
   "license": "AGPL-3.0-or-later",
   "require": {
