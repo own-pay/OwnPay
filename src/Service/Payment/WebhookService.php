@@ -7,6 +7,7 @@ use OwnPay\Event\EventManager;
 use OwnPay\Repository\WebhookRepository;
 use OwnPay\Repository\CommLogRepository;
 use OwnPay\Repository\WebhookEventRepository;
+use OwnPay\Support\Version;
 
 /**
  * Service managing outbound webhook notifications dispatched to merchant API endpoints.
@@ -171,7 +172,7 @@ final class WebhookService
                     'X-Signature: sha256=' . $signature,
                     'X-Timestamp: ' . (string) time(),
                     'X-Event: ' . $eventType,
-                    'User-Agent: OwnPay-Webhook/0.1.0',
+                    'User-Agent: OwnPay-Webhook/' . Version::CURRENT,
                 ],
                 CURLOPT_FOLLOWLOCATION => false,
             ]);

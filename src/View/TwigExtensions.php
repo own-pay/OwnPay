@@ -5,6 +5,7 @@ namespace OwnPay\View;
 
 use OwnPay\Container;
 use OwnPay\Event\EventManager;
+use OwnPay\Support\Version;
 use Twig\Extension\AbstractExtension;
 use Twig\TwigFilter;
 use Twig\TwigFunction;
@@ -123,7 +124,7 @@ final class TwigExtensions extends AbstractExtension
     public function asset(string $path): string
     {
         $configApp = $this->container->get('config.app');
-        $version = '0.1.0';
+        $version = Version::CURRENT;
         if (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) {
             $version = $configApp['version'];
         }
@@ -262,7 +263,7 @@ final class TwigExtensions extends AbstractExtension
         if (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) {
             return $configApp['version'];
         }
-        return '0.1.0';
+        return Version::CURRENT;
     }
 
     /**

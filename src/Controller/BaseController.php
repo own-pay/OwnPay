@@ -7,6 +7,7 @@ use OwnPay\Container;
 use OwnPay\Event\EventManager;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
+use OwnPay\Support\Version;
 use Twig\Environment as Twig;
 
 /**
@@ -48,7 +49,7 @@ abstract class BaseController
         // Inject global template vars
         $configApp = $this->container->get('config.app');
         $data['app_name'] = (is_array($configApp) && isset($configApp['name']) && is_string($configApp['name'])) ? $configApp['name'] : 'OwnPay';
-        $data['app_version'] = (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) ? $configApp['version'] : '0.1.0';
+        $data['app_version'] = (is_array($configApp) && isset($configApp['version']) && is_string($configApp['version'])) ? $configApp['version'] : Version::CURRENT;
         $data['csrf_token'] = \OwnPay\Security\SecurityHelpers::csrfToken();
         
         $session = $this->container->has(\OwnPay\Service\Admin\AdminSession::class)

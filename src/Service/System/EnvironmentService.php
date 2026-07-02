@@ -4,6 +4,7 @@ declare(strict_types=1);
 namespace OwnPay\Service\System;
 
 use OwnPay\Repository\SettingsRepository;
+use OwnPay\Support\Version;
 
 /**
  * Service orchestrating runtime environment detection and DB-backed configuration access.
@@ -77,15 +78,15 @@ final class EnvironmentService
     /**
      * Retrieves the current system version specifier.
      *
+     * Always reflects the version of the deployed code (`Version::CURRENT`) - not
+     * overridable via `.env`, since the reported version must never diverge from
+     * what is actually running.
+     *
      * @return string The defined version identifier.
      */
     public static function version(): string
     {
-        $env = getenv('APP_VERSION');
-        if ($env === false) {
-            $env = $_ENV['APP_VERSION'] ?? $_SERVER['APP_VERSION'] ?? '0.1.0';
-        }
-        return is_scalar($env) ? (string) $env : '0.1.0';
+        return Version::CURRENT;
     }
 
     /**

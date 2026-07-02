@@ -226,7 +226,7 @@ return static function (\OwnPay\Container $c): void {
             $twig->addExtension(new \OwnPay\View\TwigExtensions($c));
         }
         // Register CoreExtension - provides ownpay_footer(), ownpay_meta()
-        $appVersion = ensureString($appCfg['version'] ?? '0.1.0');
+        $appVersion = ensureString($appCfg['version'] ?? \OwnPay\Support\Version::CURRENT);
         $appUrlRaw = $_ENV['APP_URL'] ?? $_SERVER['APP_URL'] ?? getenv('APP_URL') ?: '';
         $appUrl = rtrim(is_string($appUrlRaw) ? $appUrlRaw : '', '/');
         $twig->addExtension(new \OwnPay\View\TwigExtension\CoreExtension($appVersion, $appUrl));
@@ -692,7 +692,7 @@ return static function (\OwnPay\Container $c): void {
 
     $c->singleton(\OwnPay\Cron\SystemUpdateJob::class, static function (\OwnPay\Container $c): \OwnPay\Cron\SystemUpdateJob {
         $appCfg = ensureArray($c->get('config.app'));
-        $version = ensureString($appCfg['version'] ?? '0.1.0');
+        $version = ensureString($appCfg['version'] ?? \OwnPay\Support\Version::CURRENT);
         return new \OwnPay\Cron\SystemUpdateJob(
             $version,
             ensureType($c->get(\OwnPay\Event\EventManager::class), \OwnPay\Event\EventManager::class),

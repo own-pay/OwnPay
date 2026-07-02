@@ -5,6 +5,7 @@ namespace OwnPay\Controller\Admin;
 
 use OwnPay\Http\Response;
 use OwnPay\Service\Admin\AdminSession;
+use OwnPay\Support\Version;
 
 /**
  * Trait AdminPageTrait
@@ -44,7 +45,7 @@ trait AdminPageTrait
         
         $appConfig = $c->get('config.app');
         $appName = is_array($appConfig) && isset($appConfig['name']) && is_string($appConfig['name']) ? $appConfig['name'] : 'OwnPay';
-        $appVersion = is_array($appConfig) && isset($appConfig['version']) && is_string($appConfig['version']) ? $appConfig['version'] : '0.1.0';
+        $appVersion = is_array($appConfig) && isset($appConfig['version']) && is_string($appConfig['version']) ? $appConfig['version'] : Version::CURRENT;
 
         $data['app_name']    = $appName;
         $data['app_version'] = $appVersion;
