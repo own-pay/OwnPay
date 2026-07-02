@@ -30,6 +30,7 @@ This project and everyone participating in it is governed by our [Code of Conduc
 1. **Fork** the repository and clone your fork.
 2. Follow **[LOCAL_SETUP.md](docs/LOCAL_SETUP.md)** to get a local instance running (~2 minutes).
 3. Create a feature branch from `dev` (the integration branch PRs target):
+
    ```bash
    git checkout dev
    git checkout -b feat/short-description
@@ -44,11 +45,13 @@ This project and everyone participating in it is governed by our [Code of Conduc
 1. Make your changes in a focused branch (one logical change per PR).
 2. Add or update tests for any behavior you change.
 3. Run the full local check suite (this is what CI runs):
+
    ```bash
    composer test       # PHPUnit — all tests must pass
    composer analyse    # PHPStan — must stay clean at level 9
    composer lint       # Twig + JS + CSS linting
    ```
+
 4. Commit with a clear message and a **DCO sign-off** (see below).
 5. Push to your fork and open a Pull Request against `dev`.
 

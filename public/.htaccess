@@ -14,9 +14,6 @@
     RewriteRule ^(.*)$ index.php [QSA,L]
 </IfModule>
 
-# Prevent directory listing
-# Options -Indexes
-
 # Set default charset
 AddDefaultCharset UTF-8
 

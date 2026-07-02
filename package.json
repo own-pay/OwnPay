@@ -1,0 +1,25 @@
+{
+  "name": "ownpay-frontend-linting",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "ESLint, Stylelint, and JSON linting setup for OwnPay static assets",
+  "private": true,
+  "scripts": {
+    "lint:js": "eslint \"public/assets/js/**/*.js\"",
+    "lint:css": "stylelint \"public/assets/css/**/*.css\"",
+    "lint:json": "eslint \"**/*.json\" --ext .json",
+    "lint": "npm run lint:js && npm run lint:css",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage"
+  },
+  "devDependencies": {
+    "eslint": "^9.20.0",
+    "eslint-plugin-jsonc": "^2.19.1",
+    "globals": "^15.15.0",
+    "jsdom": "^29.1.1",
+    "stylelint": "^16.14.1",
+    "stylelint-config-standard": "^36.0.1",
+    "vitest": "^4.1.9"
+  }
+}
