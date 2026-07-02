@@ -11,13 +11,6 @@ use OwnPay\Controller\Admin\SettingsController;
 use OwnPay\Http\Request;
 use Tests\Integration\IntegrationTestCase;
 
-/**
- * PlatformMaintenanceTest
- *
- * Integration test suite for the Maintenance & Optimization Suite.
- *
- * @group Integration
- */
 final class PlatformMaintenanceTest extends IntegrationTestCase
 {
     private Container $c;
@@ -45,21 +38,14 @@ final class PlatformMaintenanceTest extends IntegrationTestCase
         assert($controller instanceof SettingsController);
         $this->controller = $controller;
 
-        // Clear test execution times
         $this->settingsRepo->set('runtime', 'optimization.last_cache_clear_time', '');
         $this->settingsRepo->set('runtime', 'optimization.last_db_optimize_time', '');
         $this->settingsRepo->set('runtime', 'optimization.last_logs_purge_time', '');
         $this->settingsRepo->set('runtime', 'optimization.last_uploads_purge_time', '');
     }
 
-    protected function tearDown(): void
-    {
-        parent::tearDown();
-    }
-
     public function testOptimizeCacheAction(): void
     {
-        // Place a mock cache file
         $cacheDir = dirname(__DIR__, 2) . '/storage/cache/twig';
         if (!is_dir($cacheDir)) {
             @mkdir($cacheDir, 0755, true);
@@ -68,7 +54,6 @@ final class PlatformMaintenanceTest extends IntegrationTestCase
         file_put_contents($mockFile, '<?php echo "twig";');
         $this->assertFileExists($mockFile);
 
-        // Trigger action
         $req = new Request();
         $response = $this->controller->optimizeCache($req);
 
@@ -92,15 +77,13 @@ final class PlatformMaintenanceTest extends IntegrationTestCase
 
     public function testOptimizeLogsAction(): void
     {
-        // Insert some mock logs
         $oldDate = date('Y-m-d H:i:s', strtotime('-100 days'));
         $newDate = date('Y-m-d H:i:s');
 
-        // Bypass integrity checks by manually adding mock records or using record helper
         $db = Database::getInstance();
         $db->execute("DELETE FROM op_audit_logs");
 
-        // We use insert to bypass HMAC signing verification logic checks during plain inserts
+        // Plain insert bypasses HMAC signing verification
         $db->execute(
             "INSERT INTO op_audit_logs (merchant_id, user_id, action, created_at) 
              VALUES (1, 1, 'mock.old', :old), (1, 1, 'mock.new', :new)",
@@ -111,13 +94,11 @@ final class PlatformMaintenanceTest extends IntegrationTestCase
         $count = is_numeric($countVal) ? (int) $countVal : 0;
         $this->assertSame(2, $count);
 
-        // Trigger log optimization action with 90-day retention
         $req = new Request([], ['log_retention_days' => '90']);
         $response = $this->controller->optimizeLogs($req);
 
         $this->assertSame(302, $response->getStatusCode());
 
-        // Verify old log is deleted and new log remains alongside the newly created audit log entry
         $remaining = $db->fetchAll("SELECT action FROM op_audit_logs");
         $actions = array_column($remaining, 'action');
         $this->assertNotContains('mock.old', $actions);
@@ -142,7 +123,7 @@ final class PlatformMaintenanceTest extends IntegrationTestCase
         file_put_contents($mockOldFile, 'old');
         file_put_contents($mockNewFile, 'new');
 
-        // Set mock mtime for old file to 25 hours ago
+        // 25 hours ago - exceeds the 24h cleanup threshold
         touch($mockOldFile, time() - 90000);
         touch($mockNewFile, time());
 

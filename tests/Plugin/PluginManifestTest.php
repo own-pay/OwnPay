@@ -9,7 +9,7 @@ use OwnPay\Plugin\PluginManifest;
 use PHPUnit\Framework\TestCase;
 use RuntimeException;
 
-class PluginManifestTest extends TestCase
+final class PluginManifestTest extends TestCase
 {
     private function validManifestData(): array
     {
@@ -41,8 +41,6 @@ class PluginManifestTest extends TestCase
             'migrations' => ['migrations/001_init.sql'],
         ];
     }
-
-    // â”€â”€ fromArray() construction â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testFromArrayPopulatesAllFields(): void
     {
@@ -83,8 +81,6 @@ class PluginManifestTest extends TestCase
         ]);
         $this->assertSame(['valid', 'also-valid'], $m->dependencies);
     }
-
-    // â”€â”€ fromFile() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testFromFileParsesValidJsonFile(): void
     {
@@ -133,8 +129,6 @@ class PluginManifestTest extends TestCase
             @unlink($path);
         }
     }
-
-    // â”€â”€ validate() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testValidateReturnsEmptyForValidManifest(): void
     {
@@ -270,8 +264,6 @@ class PluginManifestTest extends TestCase
         $this->assertTrue($found);
     }
 
-    // â”€â”€ Capability helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testHasCapabilityChecksDeclaredCapabilities(): void
     {
         $data = $this->validManifestData();
@@ -292,8 +284,6 @@ class PluginManifestTest extends TestCase
         $this->assertCount(2, $caps);
     }
 
-    // â”€â”€ Class name resolution â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testGetFullyQualifiedClassNameUsesNamespaceAndEntrypoint(): void
     {
         $data = $this->validManifestData();
@@ -313,8 +303,6 @@ class PluginManifestTest extends TestCase
         $this->assertSame('OwnPay\\Plugins\\SmsNotifications\\Plugin', $m->getFullyQualifiedClassName());
     }
 
-    // â”€â”€ Serialisation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testToArrayRoundTrip(): void
     {
         $original = $this->validManifestData();
@@ -325,4 +313,3 @@ class PluginManifestTest extends TestCase
         $this->assertSame($original['hooks']['actions'], $array['hooks']['actions']);
     }
 }
-

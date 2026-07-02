@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -10,10 +11,8 @@ use OwnPay\Service\Device\DevicePairingService;
 
 /**
  * Security regression: a mobile refresh token whose subject does not resolve to a real user
- * (sub <= 0, e.g. a non-numeric/legacy subject) MUST be rejected - it must NOT be silently
- * upgraded to user 1 (the superadmin). Legitimate device tokens (sub > 0) must still refresh.
- *
- * Uses 'zztest-dev-' device ids so it never touches real data and is self-cleaning.
+ * (sub <= 0) MUST be rejected - it must NOT be silently upgraded to user 1 (the superadmin).
+ * Legitimate device tokens (sub > 0) must still refresh.
  */
 final class DeviceRefreshPrivilegeTest extends IntegrationTestCase
 {
@@ -73,7 +72,6 @@ final class DeviceRefreshPrivilegeTest extends IntegrationTestCase
     public function testZeroSubjectRefreshIsRejectedNotEscalated(): void
     {
         $this->insertDevice('zztest-dev-zero', 'fp-zero');
-        // A signed token whose subject does not resolve to a real user id (sub = 0).
         $token = $this->jwt->issueRefreshToken(0, 1, 'zztest-dev-zero');
 
         $res = $this->svc->refreshAccessToken($token, 'fp-zero');

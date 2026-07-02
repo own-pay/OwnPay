@@ -7,18 +7,6 @@ namespace Tests\Service;
 use OwnPay\Service\Sms\SmsRegexParser;
 use PHPUnit\Framework\TestCase;
 
-/**
- * SmsRegexParserTest â€” Unit tests for Tier 1 regex-based SMS parsing.
- *
- * Tests cover:
- *   - bKash credit/debit patterns
- *   - Nagad patterns
- *   - Optional field handling (trx_id, balance)
- *   - Comma-separated amounts
- *   - No-match fallthrough
- *   - Invalid regex skip
- *   - Amount-less match skip
- */
 final class SmsRegexParserTest extends TestCase
 {
     private SmsRegexParser $parser;
@@ -27,8 +15,6 @@ final class SmsRegexParserTest extends TestCase
     {
         $this->parser = new SmsRegexParser();
     }
-
-    // â”€â”€â”€ bKash Credit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testBkashCreditFullMatch(): void
     {
@@ -86,8 +72,6 @@ final class SmsRegexParserTest extends TestCase
         $this->assertSame(12500.75, $result['parsed_amount']);
     }
 
-    // â”€â”€â”€ bKash Debit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testBkashSendMoney(): void
     {
         $template = [
@@ -107,8 +91,6 @@ final class SmsRegexParserTest extends TestCase
         $this->assertSame('debit', $result['parsed_type']);
     }
 
-    // â”€â”€â”€ Nagad â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testNagadCredit(): void
     {
         $template = [
@@ -127,8 +109,6 @@ final class SmsRegexParserTest extends TestCase
         $this->assertSame(5000.0, $result['parsed_balance']);
         $this->assertSame('credit', $result['parsed_type']);
     }
-
-    // â”€â”€â”€ Edge Cases â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testNoMatchReturnsNull(): void
     {
@@ -171,7 +151,6 @@ final class SmsRegexParserTest extends TestCase
 
     public function testPriorityOrder(): void
     {
-        // Two templates match, first one should win
         $t1 = $this->bkashCreditTemplate();
         $t1['id'] = 10;
         $t2 = $this->bkashCreditTemplate();
@@ -193,10 +172,8 @@ final class SmsRegexParserTest extends TestCase
 
         $sms = 'Tk 0.00 balance notification.';
         $result = $this->parser->parse($sms, $templates);
-        $this->assertNull($result); // 0 amount = not useful
+        $this->assertNull($result);
     }
-
-    // â”€â”€â”€ Helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private function bkashCreditTemplate(): array
     {
@@ -207,4 +184,3 @@ final class SmsRegexParserTest extends TestCase
         ];
     }
 }
-

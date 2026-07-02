@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -41,7 +42,7 @@ class EventManagerTest extends TestCase
         $em->addFilter('chain', function (int $v): int { return $v + 1; }, 10);
         $em->addFilter('chain', function (int $v): int { return $v * 2; }, 20);
         $result = $em->applyFilter('chain', 5);
-        $this->assertSame(12, $result); // (5+1)*2
+        $this->assertSame(12, $result);
     }
 
     public function testRemoveHook(): void

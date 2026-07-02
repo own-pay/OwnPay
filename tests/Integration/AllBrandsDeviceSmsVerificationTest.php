@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -6,21 +7,7 @@ namespace Tests\Integration;
 use OwnPay\Core\Database;
 use OwnPay\Cron\SmsVerificationJob;
 use OwnPay\Service\Brand\BrandContext;
-use Tests\Integration\IntegrationTestCase;
 
-/**
- * AllBrandsDeviceSmsVerificationTest
- *
- * Verifies the multi-brand ("all-brands") companion-device SMS verification rule:
- *   - A device paired from the All-Brands view (op_paired_devices.merchant_id = platform id)
- *     has its SMS matched GLOBALLY across every brand, then rebound + completed under the
- *     brand that actually owns the matched transaction.
- *   - A device paired to a specific brand still NEVER matches another brand's transaction.
- *   - Cross-brand amount matching is money-safe: an amount that is ambiguous across brands
- *     is refused (never auto-completed).
- *
- * @group Integration
- */
 final class AllBrandsDeviceSmsVerificationTest extends IntegrationTestCase
 {
     private Database $db;
@@ -70,7 +57,6 @@ final class AllBrandsDeviceSmsVerificationTest extends IntegrationTestCase
             "DELETE FROM op_sms_parsed WHERE device_id IN (:d1, :d2)",
             ['d1' => $this->deviceAllBrands, 'd2' => $this->deviceBrandScoped]
         );
-        // Entries cascade from ledger_transactions / ledger_accounts (ON DELETE CASCADE).
         $this->db->execute("DELETE FROM op_ledger_transactions WHERE merchant_id IN (99993, 99994)");
         $this->db->execute("DELETE FROM op_ledger_accounts WHERE merchant_id IN (99993, 99994)");
         $this->db->execute("DELETE FROM op_transactions WHERE merchant_id IN (99993, 99994)");

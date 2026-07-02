@@ -18,7 +18,6 @@ namespace Tests\Integration {
     use OwnPay\Cron\CurrencyUpdateJob;
     use OwnPay\Service\System\HttpClient;
     use OwnPay\Repository\SettingsRepository;
-    use Tests\Integration\IntegrationTestCase;
 
     class CurrencyIntegrationTest extends IntegrationTestCase
     {
@@ -36,17 +35,14 @@ namespace Tests\Integration {
 
             $this->db = Database::getInstance();
 
-            // Clean tables to start clean
             $this->db->execute("DELETE FROM op_exchange_rates");
             $this->db->execute("DELETE FROM op_currencies");
 
-            // Seed basic currencies
             $this->db->execute("INSERT INTO op_currencies (code, name, symbol, decimal_places, status) VALUES ('USD', 'US Dollar', '$', 2, 'active')");
             $this->db->execute("INSERT INTO op_currencies (code, name, symbol, decimal_places, status) VALUES ('BDT', 'Bangladeshi Taka', '৳', 2, 'active')");
             $this->db->execute("INSERT INTO op_currencies (code, name, symbol, decimal_places, status) VALUES ('EUR', 'Euro', '€', 2, 'active')");
             $this->db->execute("INSERT INTO op_currencies (code, name, symbol, decimal_places, status) VALUES ('JPY', 'Japanese Yen', '¥', 0, 'active')");
 
-            // Initialize default base currency as USD in settings
             $this->settingsRepo = new SettingsRepository($this->db);
             $this->settingsRepo->set('general', 'base_currency', 'USD');
             $this->settingsRepo->set('general', 'default_currency', 'USD');
@@ -54,7 +50,6 @@ namespace Tests\Integration {
             $this->settingsRepo->set('general', 'exchange_rate_mode', 'auto');
             $this->settingsRepo->set('general', 'exchange_rate_api_url', '');
 
-            // Seed initial rates relative to USD
             $this->db->execute("INSERT INTO op_exchange_rates (base_currency, target_currency, rate, source) VALUES ('USD', 'USD', 1.00000000, 'manual')");
             $this->db->execute("INSERT INTO op_exchange_rates (base_currency, target_currency, rate, source) VALUES ('USD', 'BDT', 117.50000000, 'manual')");
             $this->db->execute("INSERT INTO op_exchange_rates (base_currency, target_currency, rate, source) VALUES ('USD', 'EUR', 0.92000000, 'manual')");
@@ -72,15 +67,12 @@ namespace Tests\Integration {
 
         public function testConversions(): void
         {
-            // Convert 100 USD to BDT (rate is 117.5) -> should be 11750.00
             $result = $this->currencyService->convert('100.00', 'USD', 'BDT');
             $this->assertSame('11750.00', $result);
 
-            // Convert 117.5 BDT to USD -> should be 1.00
             $result2 = $this->currencyService->convert('117.50', 'BDT', 'USD');
             $this->assertSame('1.00', $result2);
 
-            // Convert 100 EUR to JPY: 100 EUR / 0.92 = 108.69565217 USD * 156 JPY = 16956 JPY (0 decimals)
             $result3 = $this->currencyService->convert('100.00', 'EUR', 'JPY');
             $this->assertSame('16956', $result3);
         }
@@ -95,7 +87,7 @@ namespace Tests\Integration {
         public function testAddManualCurrency(): void
         {
             $this->currencyService->upsert('CAD', 'Canadian Dollar', 'C$', 'active', 2);
-            
+
             $currencies = $this->currencyService->listAll();
             $codes = array_column($currencies, 'code');
             $this->assertContains('CAD', $codes);
@@ -116,7 +108,6 @@ namespace Tests\Integration {
 
         public function testSyncRatesJobWithFawazAhmedFallback(): void
         {
-            // Mock jsDelivr response
             $mockJson = json_encode([
                 'date' => '2026-05-29',
                 'usd' => [
@@ -141,7 +132,6 @@ namespace Tests\Integration {
             $this->assertTrue($res['success']);
             $this->assertGreaterThan(0, $res['updated']);
 
-            // Reload currencies list
             $currencySvc = new CurrencyService($this->db);
             $this->assertSame('118.00', $currencySvc->convert('1.00', 'USD', 'BDT'));
             $this->assertSame('0.93', $currencySvc->convert('1.00', 'USD', 'EUR'));
@@ -149,7 +139,6 @@ namespace Tests\Integration {
 
         public function testSyncRatesJobWithCloudflareFallback(): void
         {
-            // Force jsDelivr to fail, so it falls back to Cloudflare Pages
             $mockJson = json_encode([
                 'date' => '2026-05-29',
                 'usd' => [
@@ -177,7 +166,7 @@ namespace Tests\Integration {
             $res = $job->run(true);
 
             $this->assertTrue($res['success']);
-            
+
             $currencySvc = new CurrencyService($this->db);
             $this->assertSame('119.50', $currencySvc->convert('1.00', 'USD', 'BDT'));
         }
@@ -208,7 +197,7 @@ namespace Tests\Integration {
             $res = $job->run(true);
 
             $this->assertTrue($res['success']);
-            
+
             $currencySvc = new CurrencyService($this->db);
             $this->assertSame('121.25', $currencySvc->convert('1.00', 'USD', 'BDT'));
         }

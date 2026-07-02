@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -26,7 +27,6 @@ class PluginSystemTest extends TestCase
 
     public function testPluginInterfaceContract(): void
     {
-        // Verify all built-in plugins implement PluginInterface
         $plugins = [
             'modules/addons/sms-gateway/manifest.json',
             'modules/addons/mail-gateway/manifest.json',

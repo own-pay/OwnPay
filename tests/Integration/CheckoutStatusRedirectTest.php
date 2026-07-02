@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -8,15 +9,12 @@ use OwnPay\Core\Database;
 use OwnPay\Controller\Checkout\CheckoutController;
 use OwnPay\Controller\Checkout\PaymentIntentCheckoutController;
 use OwnPay\Http\Request;
-use OwnPay\Http\Response;
 
 /**
  * Regression: the checkout STATUS page must only render for transactions/intents that have had a real
  * payment EVENT. A pre-payment state (txn 'pending'/'created', intent 'pending') means the customer is
  * still on the gateway-selection step - visiting /status then must redirect back to the checkout page,
  * not show a misleading "pending payment" status screen.
- *
- * Uses 'zztest-' tokens so it never touches real data and is self-cleaning.
  */
 final class CheckoutStatusRedirectTest extends IntegrationTestCase
 {

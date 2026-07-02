@@ -1,14 +1,14 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use OwnPay\Container;
+use OwnPay\Http\Request;
+use OwnPay\Http\Router;
 
-/**
- * Router unit tests - test route pattern compilation + matching logic
- * without requiring the full Container (tests regex/param extraction).
- */
 class RouterTest extends TestCase
 {
     public function testStaticRouteRegex(): void
@@ -77,12 +77,11 @@ class RouterTest extends TestCase
 
     public function testIdentifierParameterAllowsEmailAndPhone(): void
     {
-        $container = new \OwnPay\Container();
-        $router = new \OwnPay\Http\Router($container);
+        $container = new Container();
+        $router = new Router($container);
         $router->get('/api/v1/customers/{identifier}', 'Api\\CustomerController@show');
 
-        // Test matching raw email
-        $requestEmail = new \OwnPay\Http\Request([], [], [
+        $requestEmail = new Request([], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/customers/john.doe@example.com'
         ]);
@@ -90,8 +89,7 @@ class RouterTest extends TestCase
         $this->assertNotNull($matchEmail);
         $this->assertSame('john.doe@example.com', $matchEmail['params']['identifier'] ?? null);
 
-        // Test matching raw phone with +
-        $requestPhone = new \OwnPay\Http\Request([], [], [
+        $requestPhone = new Request([], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/customers/+8801700000000'
         ]);
@@ -99,8 +97,7 @@ class RouterTest extends TestCase
         $this->assertNotNull($matchPhone);
         $this->assertSame('+8801700000000', $matchPhone['params']['identifier'] ?? null);
 
-        // Test matching URL encoded email
-        $requestEncodedEmail = new \OwnPay\Http\Request([], [], [
+        $requestEncodedEmail = new Request([], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/customers/john.doe%40example.com'
         ]);

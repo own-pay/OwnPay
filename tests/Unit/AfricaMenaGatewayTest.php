@@ -1,11 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 
-// Dynamically import Africa & MENA Batch 4 gateway plugin classes before execution
 require_once dirname(__DIR__, 2) . '/modules/gateways/mtn-momo/MtnMomoGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/orange-money/OrangeMoneyGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/opay/OpayGateway.php';
@@ -18,14 +18,8 @@ use OwnPay\Modules\Gateways\Opay\OpayGateway;
 use OwnPay\Modules\Gateways\Myfatoorah\MyfatoorahGateway;
 use OwnPay\Modules\Gateways\TapPayments\TapPaymentsGateway;
 
-/**
- * Unit and contract tests for the new Africa & Middle East (MENA) payment gateways (Batch 4).
- */
 class AfricaMenaGatewayTest extends TestCase
 {
-    /**
-     * Test the manifest validation logic for all five Batch 4 gateways.
-     */
     public function testAfricaMenaGatewayManifestSpecs(): void
     {
         $root = dirname(__DIR__, 2);
@@ -45,9 +39,6 @@ class AfricaMenaGatewayTest extends TestCase
         }
     }
 
-    /**
-     * Test OPay HMAC-SHA512 webhook signature verification.
-     */
     public function testOpayWebhookSignatureVerification(): void
     {
         $gateway = new OpayGateway();
@@ -59,8 +50,6 @@ class AfricaMenaGatewayTest extends TestCase
         ];
 
         $rawBody = '{"id":"opay_trx_100","amount":{"total":2500},"reference":"TX1000"}';
-
-        // HMAC-SHA512 calculated over raw body using secret key
         $expectedSignature = hash_hmac('sha512', $rawBody, 'opay_sec_key_456');
 
         $headers = [
@@ -68,16 +57,13 @@ class AfricaMenaGatewayTest extends TestCase
         ];
 
         $isValid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertTrue($isValid, "OPay verifyWebhook should authenticate valid signature.");
+        $this->assertTrue($isValid);
 
         $headers['x-opay-signature'] = 'invalid_signature';
         $isInvalid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertFalse($isInvalid, "OPay verifyWebhook should reject invalid signature.");
+        $this->assertFalse($isInvalid);
     }
 
-    /**
-     * Test MyFatoorah base64-encoded binary HMAC-SHA256 webhook signature verification.
-     */
     public function testMyfatoorahWebhookSignatureVerification(): void
     {
         $gateway = new MyfatoorahGateway();
@@ -88,8 +74,6 @@ class AfricaMenaGatewayTest extends TestCase
         ];
 
         $rawBody = '{"InvoiceId":12345,"InvoiceStatus":"PAID","InvoiceValue":50.00}';
-
-        // base64(hmac-sha256(rawBody, secretKey, raw_binary=true))
         $expectedSignature = base64_encode(hash_hmac('sha256', $rawBody, 'mf_webhook_secret_456', true));
 
         $headers = [
@@ -97,16 +81,13 @@ class AfricaMenaGatewayTest extends TestCase
         ];
 
         $isValid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertTrue($isValid, "MyFatoorah verifyWebhook should authenticate valid signature.");
+        $this->assertTrue($isValid);
 
         $headers['myfatoorah-signature'] = 'invalid_signature';
         $isInvalid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertFalse($isInvalid, "MyFatoorah verifyWebhook should reject invalid signature.");
+        $this->assertFalse($isInvalid);
     }
 
-    /**
-     * Test Tap Payments HMAC-SHA256 webhook signature verification.
-     */
     public function testTapPaymentsWebhookSignatureVerification(): void
     {
         $gateway = new TapPaymentsGateway();
@@ -117,8 +98,6 @@ class AfricaMenaGatewayTest extends TestCase
         ];
 
         $rawBody = '{"id":"chg_123","amount":100.0,"status":"CAPTURED"}';
-
-        // HMAC-SHA256 calculated over raw body using webhook secret
         $expectedSignature = hash_hmac('sha256', $rawBody, 'tap_webhook_secret_456');
 
         $headers = [
@@ -126,16 +105,13 @@ class AfricaMenaGatewayTest extends TestCase
         ];
 
         $isValid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertTrue($isValid, "Tap Payments verifyWebhook should authenticate valid signature.");
+        $this->assertTrue($isValid);
 
         $headers['x-tap-sign'] = 'invalid_signature';
         $isInvalid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertFalse($isInvalid, "Tap Payments verifyWebhook should reject invalid signature.");
+        $this->assertFalse($isInvalid);
     }
 
-    /**
-     * Verify that sandbox simulator validation strictly blocks live mode bypass across all Batch 4 gateways.
-     */
     public function testSandboxSimulatorLiveModeBypassBlocking(): void
     {
         $mtnmomo = new MtnMomoGateway();
@@ -165,44 +141,39 @@ class AfricaMenaGatewayTest extends TestCase
             'cancel_url' => 'https://example.com/cancel',
         ];
 
-        // 1. MTN MoMo Live Initiate validation
         try {
             $mtnmomo->initiate($params, $liveCreds);
-            $this->fail("MTN MoMo should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('MTN MoMo should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // 2. Orange Money Live Initiate validation
         try {
             $orangemoney->initiate($params, $liveCreds);
-            $this->fail("Orange Money should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('Orange Money should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // 3. OPay Live Initiate validation
         try {
             $opay->initiate($params, $liveCreds);
-            $this->fail("OPay should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('OPay should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // 4. MyFatoorah Live Initiate validation
         try {
             $myfatoorah->initiate($params, $liveCreds);
-            $this->fail("MyFatoorah should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('MyFatoorah should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // 5. Tap Payments Live Initiate validation
         try {
             $tappayments->initiate($params, $liveCreds);
-            $this->fail("Tap Payments should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('Tap Payments should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
     }
 }

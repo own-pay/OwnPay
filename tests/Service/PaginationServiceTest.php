@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
-use PHPUnit\Framework\TestCase;
 use OwnPay\Service\System\PaginationService;
+use PHPUnit\Framework\TestCase;
 
-class PaginationServiceTest extends TestCase
+final class PaginationServiceTest extends TestCase
 {
     public function testCalculatePaginationMetadata(): void
     {

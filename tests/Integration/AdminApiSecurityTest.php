@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -8,18 +9,10 @@ use OwnPay\Core\Database;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Middleware\AdminBearerAuthMiddleware;
-use OwnPay\Repository\ApiKeyRepository;
 use OwnPay\Repository\AuditLogRepository;
-use OwnPay\Repository\MerchantRepository;
-use OwnPay\Repository\SmsParsedRepository;
-use OwnPay\Repository\TransactionRepository;
 use OwnPay\Service\Customer\ApiKeyService;
 use OwnPay\Cron\SmsVerificationJob;
-use OwnPay\Gateway\GatewayBridge;
-use OwnPay\Modules\Gateways\Stripe\StripeGateway;
-use OwnPay\Modules\Gateways\Razorpay\RazorpayGateway;
 use OwnPay\Update\BackupService;
-use OwnPay\Security\SecurityHelpers;
 
 final class AdminApiSecurityTest extends IntegrationTestCase
 {
@@ -48,7 +41,6 @@ final class AdminApiSecurityTest extends IntegrationTestCase
         $this->db->execute("DELETE FROM op_sms_parsed WHERE merchant_id IN (99998, 99999)");
         $this->db->execute("DELETE FROM op_transactions WHERE merchant_id IN (99998, 99999)");
 
-        // Seed test merchants
         $this->db->execute(
             "INSERT INTO op_merchants (id, uuid, name, slug, email, status, settings)
              VALUES (99998, 'test-merchant-uuid-99998', 'Security Test Merchant A', 'sec-test-a', 'sec-a@test.com', 'active', '{}')"
@@ -70,29 +62,22 @@ final class AdminApiSecurityTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    /**
-     * Test 1: Admin Bearer Authorization Middleware
-     */
     public function testAdminBearerAuthEnforcesAdminScope(): void
     {
         $apiKeyService = $this->container->get(ApiKeyService::class);
         $this->assertInstanceOf(ApiKeyService::class, $apiKeyService);
 
-        // Generate standard API key (read, write)
         $standardKeyInfo = $apiKeyService->generate(99999, 'Standard Key', ['read', 'write']);
-        
-        // Generate admin API key (read, write, admin)
         $adminKeyInfo = $apiKeyService->generate(99999, 'Admin Key', ['read', 'write', 'admin']);
 
         $middleware = new AdminBearerAuthMiddleware($this->container);
 
-        // A. Request with standard key (no admin scope)
         $reqStandard = new Request([], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/admin/v1/sms-templates',
             'HTTP_AUTHORIZATION' => 'Bearer ' . $standardKeyInfo['key']
         ]);
-        
+
         $responseStandard = $middleware->handle($reqStandard, function(Request $r) {
             return Response::plain('Passed');
         });
@@ -102,13 +87,12 @@ final class AdminApiSecurityTest extends IntegrationTestCase
         $this->assertFalse($bodyStandard['success']);
         $this->assertStringContainsString('Insufficient scope', $bodyStandard['message']);
 
-        // B. Request with admin key (has admin scope)
         $reqAdmin = new Request([], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/admin/v1/sms-templates',
             'HTTP_AUTHORIZATION' => 'Bearer ' . $adminKeyInfo['key']
         ]);
-        
+
         $responseAdmin = $middleware->handle($reqAdmin, function(Request $r) {
             return Response::plain('Passed');
         });
@@ -117,18 +101,14 @@ final class AdminApiSecurityTest extends IntegrationTestCase
         $this->assertSame('Passed', $responseAdmin->getBody());
     }
 
-    /**
-     * Test 2: Webhooks signature verification fails closed
-     */
     public function testGatewayWebhooksFailClosedWhenSecretIsEmpty(): void
     {
-        $stripe = new StripeGateway();
-        $razorpay = new RazorpayGateway();
+        $stripe = new \OwnPay\Modules\Gateways\Stripe\StripeGateway();
+        $razorpay = new \OwnPay\Modules\Gateways\Razorpay\RazorpayGateway();
 
         $rawBody = '{"event": "payment_intent.succeeded"}';
         $headers = ['stripe-signature' => 't=123,v1=signature'];
 
-        // Stripe verifyWebhook returns false if credentials don't have webhook_secret
         $resStripe = $stripe->verifyWebhook($rawBody, $headers, [
             'secret_key' => 'sk_test_123',
             'publishable_key' => 'pk_test_123',
@@ -137,7 +117,6 @@ final class AdminApiSecurityTest extends IntegrationTestCase
         ]);
         $this->assertFalse($resStripe);
 
-        // Razorpay verifyWebhook returns false if credentials don't have webhook_secret
         $resRazorpay = $razorpay->verifyWebhook($rawBody, ['x-razorpay-signature' => 'sig'], [
             'key_id' => 'key_123',
             'key_secret' => 'secret_123',
@@ -146,21 +125,16 @@ final class AdminApiSecurityTest extends IntegrationTestCase
         $this->assertFalse($resRazorpay);
     }
 
-    /**
-     * Test 3: SMS Verification isolation bounds
-     */
     public function testSmsVerificationJobDoesNotCrossMerchantBoundaries(): void
     {
         $trxId = 'TXN_SEC_TEST_999';
 
-        // Brand A (99998) transaction
         $this->db->execute(
             "INSERT INTO op_transactions (merchant_id, uuid, trx_id, amount, fee, net_amount, currency, gateway_slug, method, status)
              VALUES (99998, 'txn-uuid-sec-998', :trx, 1000.00, 0.00, 1000.00, 'BDT', 'bKash', 'sms', 'pending')",
             ['trx' => $trxId]
         );
 
-        // Brand B (99999) parsed SMS
         $this->db->execute(
             "INSERT INTO op_sms_parsed (merchant_id, device_id, sender, body, amount, trx_id, gateway_slug, parser_type, match_status, received_at)
              VALUES (99999, 'device-sec-999', 'bKash', 'You received money...', 1000.00, :trx, 'bKash', 'regex', 'pending', NOW())",
@@ -170,32 +144,25 @@ final class AdminApiSecurityTest extends IntegrationTestCase
         $job = $this->container->get(SmsVerificationJob::class);
         $res = $job->run();
 
-        // Should not match since transaction and SMS are under different merchant contexts
         $this->assertSame(0, $res['matched']);
 
-        // Assert transaction remains pending
         $tx = $this->db->fetchOne("SELECT * FROM op_transactions WHERE trx_id = :trx", ['trx' => $trxId]);
         $this->assertSame('pending', $tx['status']);
 
-        // Assert parsed SMS merchant remains Brand B (99999) and pending
         $sms = $this->db->fetchOne("SELECT * FROM op_sms_parsed WHERE trx_id = :trx", ['trx' => $trxId]);
         $this->assertSame(99999, (int)$sms['merchant_id']);
         $this->assertSame('pending', $sms['match_status']);
     }
 
-    /**
-     * Test 4: Audit secret fail-closed constraints
-     */
     public function testAuditLogRepositoryThrowsExceptionOnInsecureSecret(): void
     {
         $auditRepo = $this->container->get(AuditLogRepository::class);
         $this->assertInstanceOf(AuditLogRepository::class, $auditRepo);
 
-        // Set temporarily insecure/empty audit secret
         $oldSecret = getenv('AUDIT_HMAC_SECRET');
         putenv('AUDIT_HMAC_SECRET=too-short');
         \OwnPay\Service\System\EnvironmentService::clearCache();
-        
+
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('Insecure or missing AUDIT_HMAC_SECRET');
 
@@ -211,15 +178,11 @@ final class AdminApiSecurityTest extends IntegrationTestCase
         }
     }
 
-    /**
-     * Test 5: ZIP restore extraction validation
-     */
     public function testBackupServiceZipRestoreValidation(): void
     {
         $backupService = $this->container->get(BackupService::class);
         $this->assertInstanceOf(BackupService::class, $backupService);
 
-        // Create temporary directory and zip file containing traversal path
         $tempDir = sys_get_temp_dir() . '/ownpay_sec_test_' . uniqid();
         mkdir($tempDir);
         file_put_contents($tempDir . '/manifest.json', json_encode(['version' => '0.1.0']));

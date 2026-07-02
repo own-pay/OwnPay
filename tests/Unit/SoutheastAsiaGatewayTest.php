@@ -1,11 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 
-// Dynamically import Southeast Asia Batch 3 gateway plugin classes before execution
 require_once dirname(__DIR__, 2) . '/modules/gateways/shopeepay/ShopeePayGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/touch-n-go/TouchNGoGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/billplz/BillplzGateway.php';
@@ -18,14 +18,8 @@ use OwnPay\Modules\Gateways\Billplz\BillplzGateway;
 use OwnPay\Modules\Gateways\Momo\MomoGateway;
 use OwnPay\Modules\Gateways\TrueMoney\TrueMoneyGateway;
 
-/**
- * Unit and contract tests for the new Southeast Asia MFS & E-Wallets payment gateways (Batch 3).
- */
 class SoutheastAsiaGatewayTest extends TestCase
 {
-    /**
-     * Test the manifest validation logic for the new Batch 3 gateways.
-     */
     public function testSoutheastAsiaGatewayManifestSpecs(): void
     {
         $root = dirname(__DIR__, 2);
@@ -45,9 +39,6 @@ class SoutheastAsiaGatewayTest extends TestCase
         }
     }
 
-    /**
-     * Test Billplz signature webhook verification.
-     */
     public function testBillplzWebhookSignatureVerification(): void
     {
         $gateway = new BillplzGateway();
@@ -59,8 +50,6 @@ class SoutheastAsiaGatewayTest extends TestCase
         ];
 
         $rawBody = '{"id":"bill_id_100","collection_id":"col_123","paid":"true","amount":25050}';
-        
-        // HMAC-SHA256 signature calculated over raw body
         $expectedSignature = hash_hmac('sha256', $rawBody, 'billplz_signature_key_456');
 
         $headers = [
@@ -68,16 +57,13 @@ class SoutheastAsiaGatewayTest extends TestCase
         ];
 
         $isValid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertTrue($isValid, "Billplz verifyWebhook should authenticate valid signature.");
+        $this->assertTrue($isValid);
 
         $headers['x-signature'] = 'invalid_signature';
         $isInvalid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertFalse($isInvalid, "Billplz verifyWebhook should reject invalid signature.");
+        $this->assertFalse($isInvalid);
     }
 
-    /**
-     * Test MoMo dynamic signature calculation and webhook verification.
-     */
     public function testMomoWebhookSignatureVerification(): void
     {
         $gateway = new MomoGateway();
@@ -98,7 +84,6 @@ class SoutheastAsiaGatewayTest extends TestCase
             'transId' => '987654321',
         ];
 
-        // 1. Sort alphabetically
         $dataToSign = $webhookPayload;
         ksort($dataToSign);
 
@@ -109,23 +94,18 @@ class SoutheastAsiaGatewayTest extends TestCase
         $rawHash = implode('&', $params);
         $expectedSignature = hash_hmac('sha256', $rawHash, 'MOMO_SECRET_KEY_789');
 
-        // 2. Add signature to payload
         $webhookPayload['signature'] = $expectedSignature;
         $rawBody = (string) json_encode($webhookPayload);
 
-        // 3. Validate
         $isValid = $gateway->verifyWebhook($rawBody, [], $credentials);
-        $this->assertTrue($isValid, "MoMo verifyWebhook should authenticate valid signature.");
+        $this->assertTrue($isValid);
 
         $webhookPayload['signature'] = 'invalid_signature';
         $rawBodyInvalid = (string) json_encode($webhookPayload);
         $isInvalid = $gateway->verifyWebhook($rawBodyInvalid, [], $credentials);
-        $this->assertFalse($isInvalid, "MoMo verifyWebhook should reject invalid signature.");
+        $this->assertFalse($isInvalid);
     }
 
-    /**
-     * Verify that sandbox simulator validation strictly blocks live mode bypass across all Batch 3 gateways.
-     */
     public function testSandboxSimulatorLiveModeBypassBlocking(): void
     {
         $shopeepay = new ShopeePayGateway();
@@ -150,44 +130,39 @@ class SoutheastAsiaGatewayTest extends TestCase
             'redirect_url' => 'https://example.com/callback',
         ];
 
-        // ShopeePay Live Initiate validation
         try {
             $shopeepay->initiate($params, $liveCreds);
-            $this->fail("ShopeePay should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('ShopeePay should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // Touch 'n Go Live Initiate validation
         try {
             $touchngo->initiate($params, $liveCreds);
             $this->fail("Touch 'n Go should throw RuntimeException on live mode sandbox credential usage.");
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // Billplz Live Initiate validation
         try {
             $billplz->initiate($params, $liveCreds);
-            $this->fail("Billplz should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('Billplz should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // MoMo Live Initiate validation
         try {
             $momo->initiate($params, $liveCreds);
-            $this->fail("MoMo should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('MoMo should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // TrueMoney Live Initiate validation
         try {
             $truemoney->initiate($params, $liveCreds);
-            $this->fail("TrueMoney should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('TrueMoney should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
     }
 }

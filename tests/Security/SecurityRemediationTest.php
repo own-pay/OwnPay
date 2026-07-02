@@ -4,27 +4,40 @@ declare(strict_types=1);
 
 namespace Tests\Security;
 
-// Manually load the gateways since they are not in the main composer PSR-4 autoload mapping
 require_once dirname(__DIR__, 2) . '/modules/gateways/apple-pay/ApplePayGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/google-pay/GooglePayGateway.php';
 
-use PHPUnit\Framework\TestCase;
-use PHPUnit\Framework\Attributes\DataProvider;
-use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
-use OwnPay\Modules\Gateways\ApplePay\ApplePayGateway;
-use OwnPay\Modules\Gateways\GooglePay\GooglePayGateway;
-use OwnPay\Service\System\FilesystemService;
-use OwnPay\Plugin\PluginLoader;
-use OwnPay\Plugin\PluginRegistry;
-use OwnPay\Event\EventManager;
 use OwnPay\Container;
+use OwnPay\Controller\Admin\AuthController;
+use OwnPay\Controller\Admin\BrandController;
+use OwnPay\Controller\Admin\DashboardController;
+use OwnPay\Controller\Admin\DeveloperController;
+use OwnPay\Core\Database;
+use OwnPay\Event\EventManager;
+use OwnPay\Http\Request;
 use OwnPay\Http\Router;
 use OwnPay\Middleware\PermissionMiddleware;
 use OwnPay\Middleware\TwoFactorMiddleware;
+use OwnPay\Modules\Gateways\ApplePay\ApplePayGateway;
+use OwnPay\Modules\Gateways\GooglePay\GooglePayGateway;
+use OwnPay\Plugin\PluginInterface;
+use OwnPay\Plugin\PluginLoader;
+use OwnPay\Plugin\PluginManifest;
+use OwnPay\Plugin\PluginRegistry;
+use OwnPay\Plugin\PluginSandbox;
+use OwnPay\Repository\AuditLogRepository;
+use OwnPay\Repository\MerchantRepository;
+use OwnPay\Repository\PluginRepository;
+use OwnPay\Repository\SettingsRepository;
+use OwnPay\Service\Admin\AdminSession;
+use OwnPay\Service\Brand\BrandContext;
+use OwnPay\Service\System\AuditService;
+use OwnPay\Service\System\FilesystemService;
+use OwnPay\Service\System\HttpClient;
+use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\TestCase;
 
-/**
- * Integration and unit tests validating all 5 security remediations from audit_report.md.
- */
 #[AllowMockObjectsWithoutExpectations]
 final class SecurityRemediationTest extends TestCase
 {
@@ -41,7 +54,7 @@ final class SecurityRemediationTest extends TestCase
 
     protected function tearDown(): void
     {
-        \OwnPay\Service\System\HttpClient::$mockResponses = null;
+        HttpClient::$mockResponses = null;
         if (is_dir($this->tempDir)) {
             $this->removeDirectory($this->tempDir);
         }
@@ -58,63 +71,49 @@ final class SecurityRemediationTest extends TestCase
         rmdir($dir);
     }
 
-    // -------------------------------------------------------------------------
-    // 1. Apple Pay / Google Pay live mode mock rejection
-    // -------------------------------------------------------------------------
-
-    public function testApplePayRejectsMocksInLiveMode(): void
+    public function test_apple_pay_rejects_mocks_in_live_mode(): void
     {
         $gateway = new ApplePayGateway();
 
-        // Live mode initiate should throw RuntimeException
         $this->expectException(\RuntimeException::class);
         $gateway->initiate(['redirect_url' => 'http://test.test/cb'], ['mode' => 'live']);
     }
 
-    public function testApplePayVerifyRejectsMocksInLiveMode(): void
+    public function test_apple_pay_verify_rejects_mocks_in_live_mode(): void
     {
         $gateway = new ApplePayGateway();
 
-        // Live mode verify should fail
         $resLive = $gateway->verify(['paymentID' => 'APAY_MOCK_123'], ['mode' => 'live']);
         $this->assertFalse($resLive['success']);
         $this->assertSame('failed', $resLive['status']);
 
-        // Test mode verify should succeed
         $resTest = $gateway->verify(['paymentID' => 'APAY_MOCK_123', 'amount' => '10.00'], ['mode' => 'test']);
         $this->assertTrue($resTest['success']);
         $this->assertSame('success', $resTest['status']);
     }
 
-    public function testGooglePayRejectsMocksInLiveMode(): void
+    public function test_google_pay_rejects_mocks_in_live_mode(): void
     {
         $gateway = new GooglePayGateway();
 
-        // Live mode initiate should throw RuntimeException
         $this->expectException(\RuntimeException::class);
         $gateway->initiate(['redirect_url' => 'http://test.test/cb'], ['mode' => 'live']);
     }
 
-    public function testGooglePayVerifyRejectsMocksInLiveMode(): void
+    public function test_google_pay_verify_rejects_mocks_in_live_mode(): void
     {
         $gateway = new GooglePayGateway();
 
-        // Live mode verify should fail
         $resLive = $gateway->verify(['paymentID' => 'GPAY_MOCK_123'], ['mode' => 'live']);
         $this->assertFalse($resLive['success']);
         $this->assertSame('failed', $resLive['status']);
 
-        // Test mode verify should succeed
         $resTest = $gateway->verify(['paymentID' => 'GPAY_MOCK_123', 'amount' => '10.00'], ['mode' => 'test']);
         $this->assertTrue($resTest['success']);
         $this->assertSame('success', $resTest['status']);
     }
 
-    // -------------------------------------------------------------------------
-    // 2. SVG Upload Sanitization
-    // -------------------------------------------------------------------------
-
-    public function testFilesystemServiceAllowsSafeSvg(): void
+    public function test_filesystem_service_allows_safe_svg(): void
     {
         $fs = new FilesystemService($this->tempDir);
         $reflection = new \ReflectionClass(FilesystemService::class);
@@ -126,7 +125,7 @@ final class SecurityRemediationTest extends TestCase
     }
 
     #[DataProvider('provideMaliciousSvgPayloads')]
-    public function testFilesystemServiceRejectsMaliciousSvg(string $maliciousContent): void
+    public function test_filesystem_service_rejects_malicious_svg(string $maliciousContent): void
     {
         $fs = new FilesystemService($this->tempDir);
         $reflection = new \ReflectionClass(FilesystemService::class);
@@ -150,12 +149,8 @@ final class SecurityRemediationTest extends TestCase
         ];
     }
 
-    // -------------------------------------------------------------------------
-    // 3. Plugin Scanner Banned Expressions & Dynamic Code Blocks
-    // -------------------------------------------------------------------------
-
     #[DataProvider('provideBlockedPluginPayloads')]
-    public function testPluginLoaderScannerBlocksMaliciousCode(string $code, string $expectedExceptionMessage): void
+    public function test_plugin_loader_scanner_blocks_malicious_code(string $code, string $expectedExceptionMessage): void
     {
         $pluginSlug = 'malicious-plugin';
         $pluginDir = $this->tempDir . '/gateways/' . $pluginSlug;
@@ -163,7 +158,6 @@ final class SecurityRemediationTest extends TestCase
             mkdir($pluginDir, 0755, true);
         }
 
-        // Write manifest
         $manifest = [
             'name' => 'Malicious Plugin',
             'slug' => $pluginSlug,
@@ -180,7 +174,6 @@ final class SecurityRemediationTest extends TestCase
         file_put_contents($pluginDir . '/manifest.json', json_encode($manifest));
         file_put_contents($pluginDir . '/entrypoint.php', $code);
 
-        // Setup container with our test path
         $container = new Container();
         $container->instance('config.app', [
             'version' => '0.1.0',
@@ -190,12 +183,11 @@ final class SecurityRemediationTest extends TestCase
         ]);
 
         $events = new EventManager();
-        $db = $this->createMock(\OwnPay\Core\Database::class);
-        $repo = new \OwnPay\Repository\PluginRepository($db);
+        $db = $this->createMock(Database::class);
+        $repo = new PluginRepository($db);
         $registry = new PluginRegistry($repo);
         $loader = new PluginLoader($container, $events, $registry);
 
-        // Call the private loadPlugin method
         $reflection = new \ReflectionClass(PluginLoader::class);
         $method = $reflection->getMethod('loadPlugin');
         $method->setAccessible(true);
@@ -206,7 +198,7 @@ final class SecurityRemediationTest extends TestCase
         $method->invoke($loader, ['slug' => $pluginSlug, 'type' => 'gateway']);
     }
 
-    public function testPluginScannerAllowsOrdinaryPhp(): void
+    public function test_plugin_scanner_allows_ordinary_php(): void
     {
         $slug = 'friendly-plugin';
         $pluginDir = $this->tempDir . '/addons/' . $slug;
@@ -225,8 +217,8 @@ final class SecurityRemediationTest extends TestCase
         ];
         file_put_contents($pluginDir . '/manifest.json', (string) json_encode($manifest));
 
-        // Entrypoint uses idioms the OLD scanner blocked (array_map, reflection, arrow fns) and
-        // references a SECOND class that must autoload from the plugin directory.
+        // Entrypoint uses idioms the OLD scanner blocked (array_map, reflection, arrow fns)
+        // and references a second class that must autoload from the plugin directory.
         $entry = <<<'PHP'
 <?php
 namespace OwnPayTest\FriendlyPlugin;
@@ -247,7 +239,6 @@ final class Plugin implements PluginInterface
     {
         $doubled = array_map(static fn (int $n): int => $n * 2, [1, 2, 3]);
         $ref = new \ReflectionClass(self::class);
-        // Multi-file: this class lives in Support/Helper.php and must autoload.
         Helper::touch($doubled, $ref->getShortName());
     }
     public function boot(Container $container): void {}
@@ -279,8 +270,8 @@ PHP;
             'paths' => ['modules' => $this->tempDir],
         ]);
         $events = new EventManager();
-        $db = $this->createMock(\OwnPay\Core\Database::class);
-        $repo = new \OwnPay\Repository\PluginRepository($db);
+        $db = $this->createMock(Database::class);
+        $repo = new PluginRepository($db);
         $registry = new PluginRegistry($repo);
         $loader = new PluginLoader($container, $events, $registry);
 
@@ -299,14 +290,12 @@ PHP;
     }
 
     /**
-     * Full-trust footgun guard: under the WordPress-style model (owner-only plugin upload), the
-     * load-time scanner flags only the highest-risk, almost-never-legitimate primitives - direct OS
-     * command invocation and dynamic code evaluation. Ordinary PHP (callbacks, reflection, dynamic
-     * calls, include/require, file I/O) is intentionally permitted and is exercised by
-     * testPluginScannerAllowsOrdinaryPhp(). This guard is a safety net, not an isolation boundary.
+     * Full-trust footgun guard: the load-time scanner flags only direct OS command invocation
+     * and dynamic code evaluation. Ordinary PHP (callbacks, reflection, include/require, file I/O)
+     * is intentionally permitted.
      *
-     * Payload fragments are assembled with concatenation so the test source itself never contains a
-     * literal "<fn>(" token; at runtime each string reassembles into the exact payload/message.
+     * Payload fragments are assembled with concatenation so the test source itself never contains
+     * a literal "<fn>(" token; at runtime each string reassembles into the exact payload/message.
      *
      * @return array<string, array{0: string, 1: string}>
      */
@@ -330,25 +319,20 @@ PHP;
         ];
     }
 
-    // -------------------------------------------------------------------------
-    // 4. Login Slug Caching
-    // -------------------------------------------------------------------------
-
-    public function testMiddlewareResolvesLoginSlugFromCache(): void
+    public function test_middleware_resolves_login_slug_from_cache(): void
     {
         $cacheDir = dirname(__DIR__, 2) . '/storage/cache';
         if (!is_dir($cacheDir)) {
             mkdir($cacheDir, 0755, true);
         }
         $cacheFile = $cacheDir . '/login_slug.cache';
-        
+
         $testSlug = 'secure-portal-' . bin2hex(random_bytes(4));
         file_put_contents($cacheFile, $testSlug);
 
         try {
             $container = new Container();
-            
-            // Test PermissionMiddleware
+
             $permMiddleware = new PermissionMiddleware($container);
             $reflectionPerm = new \ReflectionClass(PermissionMiddleware::class);
             $methodPerm = $reflectionPerm->getMethod('resolveLoginSlug');
@@ -356,7 +340,6 @@ PHP;
             $resolvedPerm = $methodPerm->invoke($permMiddleware);
             $this->assertSame($testSlug, $resolvedPerm);
 
-            // Test TwoFactorMiddleware
             $twoFactorMiddleware = new TwoFactorMiddleware($container);
             $reflectionTwo = new \ReflectionClass(TwoFactorMiddleware::class);
             $methodTwo = $reflectionTwo->getMethod('resolveLoginSlug');
@@ -364,15 +347,14 @@ PHP;
             $resolvedTwo = $methodTwo->invoke($twoFactorMiddleware);
             $this->assertSame($testSlug, $resolvedTwo);
 
-            // Test AuthController
-            $refAuth = new \ReflectionClass(\OwnPay\Controller\Admin\AuthController::class);
+            $refAuth = new \ReflectionClass(AuthController::class);
             $authController = $refAuth->newInstanceWithoutConstructor();
             $propC = $refAuth->getProperty('c');
             $propC->setAccessible(true);
             $propC->setValue($authController, $container);
             $propSettings = $refAuth->getProperty('settings');
             $propSettings->setAccessible(true);
-            $refSettings = new \ReflectionClass(\OwnPay\Repository\SettingsRepository::class);
+            $refSettings = new \ReflectionClass(SettingsRepository::class);
             $settingsRepo = $refSettings->newInstanceWithoutConstructor();
             $propSettings->setValue($authController, $settingsRepo);
 
@@ -381,8 +363,7 @@ PHP;
             $resolvedAuth = $methodAuth->invoke($authController);
             $this->assertSame($testSlug, $resolvedAuth);
 
-            // Test DashboardController
-            $refDash = new \ReflectionClass(\OwnPay\Controller\Admin\DashboardController::class);
+            $refDash = new \ReflectionClass(DashboardController::class);
             $dashController = $refDash->newInstanceWithoutConstructor();
             $propDashC = $refDash->getProperty('c');
             $propDashC->setAccessible(true);
@@ -399,11 +380,7 @@ PHP;
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 5. GET logout route removal
-    // -------------------------------------------------------------------------
-
-    public function testLogoutRouteIsPostOnly(): void
+    public function test_logout_route_is_post_only(): void
     {
         $container = new Container();
         $router = new Router($container);
@@ -413,7 +390,6 @@ PHP;
 
         $routes = $router->getRoutes();
 
-        // Ensure GET /logout does not exist
         $getRoutes = $routes['GET'] ?? [];
         $hasGetLogout = false;
         foreach ($getRoutes as $route) {
@@ -424,7 +400,6 @@ PHP;
         }
         $this->assertFalse($hasGetLogout, 'GET /logout route must not exist');
 
-        // Ensure POST /logout exists
         $postRoutes = $routes['POST'] ?? [];
         $hasPostLogout = false;
         foreach ($postRoutes as $route) {
@@ -436,80 +411,68 @@ PHP;
         $this->assertTrue($hasPostLogout, 'POST /logout route must exist');
     }
 
-    // -------------------------------------------------------------------------
-    // 6. SQL Sandbox Hook Bypass & Filter Check
-    // -------------------------------------------------------------------------
-
-    public function testSqlSandboxHookBypassBlock(): void
+    public function test_sql_sandbox_hook_bypass_block(): void
     {
         $container = new Container();
-        
-        $db = $this->createMock(\OwnPay\Core\Database::class);
-        $repo = new \OwnPay\Repository\PluginRepository($db);
+
+        $db = $this->createMock(Database::class);
+        $repo = new PluginRepository($db);
         $registry = new PluginRegistry($repo);
-        
-        // Register sandbox for mock-plugin
-        $sandbox = new \OwnPay\Plugin\PluginSandbox($this->tempDir, []);
-        $manifest = \OwnPay\Plugin\PluginManifest::fromArray(['name' => 'Mock Plugin', 'slug' => 'mock-plugin']);
-        $pluginMock = $this->createMock(\OwnPay\Plugin\PluginInterface::class);
-        
+
+        $sandbox = new PluginSandbox($this->tempDir, []);
+        $manifest = PluginManifest::fromArray(['name' => 'Mock Plugin', 'slug' => 'mock-plugin']);
+        $pluginMock = $this->createMock(PluginInterface::class);
+
         $registry->registerLoaded('mock-plugin', $pluginMock, $manifest, $sandbox);
-        
+
         $container->instance(PluginRegistry::class, $registry);
-        
+
         $events = new EventManager();
         $events->setContainer($container);
-        
-        // Add filter hook under mock-plugin owner
+
         $events->addFilter('db.query.before', function ($queryData) {
-            $queryData['sql'] = 'SELECT * FROM op_merchants'; // restricted table
+            $queryData['sql'] = 'SELECT * FROM op_merchants';
             return $queryData;
         }, 10, 'mock-plugin');
-        
-        // We expect a RuntimeException from EventManager because the modified SQL is unsafe
+
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage("Database query modified by plugin 'mock-plugin' blocked");
-        
+
         $events->applyFilter('db.query.before', [
             'sql' => 'SELECT * FROM op_plugins',
             'params' => []
         ]);
     }
 
-    public function testDatabaseSqlSandboxCheckAfterFilter(): void
+    public function test_database_sql_sandbox_check_after_filter(): void
     {
         $container = new Container();
-        
-        $dbMock = $this->createMock(\OwnPay\Core\Database::class);
-        $repo = new \OwnPay\Repository\PluginRepository($dbMock);
+
+        $dbMock = $this->createMock(Database::class);
+        $repo = new PluginRepository($dbMock);
         $registry = new PluginRegistry($repo);
-        
-        // Register sandbox for mock-plugin
-        $sandbox = new \OwnPay\Plugin\PluginSandbox($this->tempDir, []);
-        $manifest = \OwnPay\Plugin\PluginManifest::fromArray(['name' => 'Mock Plugin', 'slug' => 'mock-plugin']);
-        $pluginMock = $this->createMock(\OwnPay\Plugin\PluginInterface::class);
-        
+
+        $sandbox = new PluginSandbox($this->tempDir, []);
+        $manifest = PluginManifest::fromArray(['name' => 'Mock Plugin', 'slug' => 'mock-plugin']);
+        $pluginMock = $this->createMock(PluginInterface::class);
+
         $registry->registerLoaded('mock-plugin', $pluginMock, $manifest, $sandbox);
-        
+
         $container->instance(PluginRegistry::class, $registry);
-        
+
         $events = new EventManager();
         $events->setContainer($container);
-        
-        // Set up connection details for a mock PDO
+
         $pdo = $this->createMock(\PDO::class);
-        $db = new \OwnPay\Core\Database($pdo);
+        $db = new Database($pdo);
         $db->setEventManager($events);
         $db->setPluginRegistry($registry);
-        
-        // Put a plugin on the owner stack
+
         $events->pushOwner('mock-plugin');
-        
-        // Execute the query directly. Since the active owner is 'mock-plugin' and the SQL is unsafe,
-        // it must throw RuntimeException.
+
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage("Database query blocked by plugin sandbox for 'mock-plugin'");
-        
+
         try {
             $db->execute('SELECT * FROM op_merchants');
         } finally {
@@ -517,32 +480,28 @@ PHP;
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 7. HttpClient Redirect SSRF Block
-    // -------------------------------------------------------------------------
-
-    public function testHttpClientRedirectSsrfBlocked(): void
+    public function test_http_client_redirect_ssrf_blocked(): void
     {
-        $client = new \OwnPay\Service\System\HttpClient(5);
+        $client = new HttpClient(5);
 
-        \OwnPay\Service\System\HttpClient::$mockResponses = [
+        HttpClient::$mockResponses = [
             'https://httpbin.org/redirect-to?url=https://127.0.0.1/&status_code=302' => [
                 'status' => 302,
                 'body' => '',
                 'headers' => ['Location' => 'https://127.0.0.1/']
             ]
         ];
-        
+
         $this->expectException(\RuntimeException::class);
         $this->expectExceptionMessage('URL blocked by SSRF protection');
         $client->get('https://httpbin.org/redirect-to?url=https://127.0.0.1/&status_code=302');
     }
 
-    public function testHttpClientPatchMethod(): void
+    public function test_http_client_patch_method(): void
     {
-        $client = new \OwnPay\Service\System\HttpClient(5);
+        $client = new HttpClient(5);
 
-        \OwnPay\Service\System\HttpClient::$mockResponses = [
+        HttpClient::$mockResponses = [
             'https://httpbin.org/patch' => [
                 'status' => 200,
                 'body' => (string) json_encode(['test' => 'data']),
@@ -555,11 +514,11 @@ PHP;
         $this->assertSame(json_encode(['test' => 'data']), $res['body']);
     }
 
-    public function testHttpClientProtocolRelativeRedirectBlocked(): void
+    public function test_http_client_protocol_relative_redirect_blocked(): void
     {
-        $client = new \OwnPay\Service\System\HttpClient(5);
+        $client = new HttpClient(5);
 
-        \OwnPay\Service\System\HttpClient::$mockResponses = [
+        HttpClient::$mockResponses = [
             'https://httpbin.org/redirect-to?url=//127.0.0.1/&status_code=302' => [
                 'status' => 302,
                 'body' => '',
@@ -572,24 +531,20 @@ PHP;
         $client->get('https://httpbin.org/redirect-to?url=//127.0.0.1/&status_code=302');
     }
 
-    // -------------------------------------------------------------------------
-    // 8. BrandController Referer Open Redirect Validation
-    // -------------------------------------------------------------------------
-
-    public function testBrandControllerRefererOpenRedirect(): void
+    public function test_brand_controller_referer_open_redirect(): void
     {
         $container = new Container();
-        $session = new \OwnPay\Service\Admin\AdminSession();
-        
-        $dbMock = $this->createMock(\OwnPay\Core\Database::class);
-        $brandContext = new \OwnPay\Service\Brand\BrandContext($dbMock);
-        
-        $merchantRepo = new \OwnPay\Repository\MerchantRepository($dbMock);
-        
-        $auditLogRepo = new \OwnPay\Repository\AuditLogRepository($dbMock);
-        $auditService = new \OwnPay\Service\System\AuditService($auditLogRepo, $session);
-        
-        $controller = new \OwnPay\Controller\Admin\BrandController(
+        $session = new AdminSession();
+
+        $dbMock = $this->createMock(Database::class);
+        $brandContext = new BrandContext($dbMock);
+
+        $merchantRepo = new MerchantRepository($dbMock);
+
+        $auditLogRepo = new AuditLogRepository($dbMock);
+        $auditService = new AuditService($auditLogRepo, $session);
+
+        $controller = new BrandController(
             $container,
             $session,
             $brandContext,
@@ -600,20 +555,20 @@ PHP;
         $_SESSION['is_superadmin'] = true;
         try {
             // External referer should fall back to /admin
-            $request1 = new \OwnPay\Http\Request(
-                [], // query
-                ['brand_id' => '1'], // post
-                ['HTTP_REFERER' => 'https://evil.com/admin/steal'], // server
+            $request1 = new Request(
+                [],
+                ['brand_id' => '1'],
+                ['HTTP_REFERER' => 'https://evil.com/admin/steal'],
             );
             $response1 = $controller->switchBrand($request1);
             $this->assertSame(302, $response1->getStatusCode());
             $this->assertSame('/admin', $response1->getHeaders()['Location']);
 
             // Relative safe referer should be allowed
-            $request2 = new \OwnPay\Http\Request(
-                [], // query
-                ['brand_id' => '1'], // post
-                ['HTTP_REFERER' => '/admin/brands/1'], // server
+            $request2 = new Request(
+                [],
+                ['brand_id' => '1'],
+                ['HTTP_REFERER' => '/admin/brands/1'],
             );
             $response2 = $controller->switchBrand($request2);
             $this->assertSame(302, $response2->getStatusCode());
@@ -623,49 +578,41 @@ PHP;
         }
     }
 
-    // -------------------------------------------------------------------------
-    // 9. DeveloperController Webhook Tester SSRF Validation
-    // -------------------------------------------------------------------------
-
-    public function testDeveloperWebhookTesterSsrf(): void
+    public function test_developer_webhook_tester_ssrf(): void
     {
         $container = new Container();
-        $session = new \OwnPay\Service\Admin\AdminSession();
-        
-        $dbMock = $this->createMock(\OwnPay\Core\Database::class);
-        $dbMock->method('fetchOne')->willReturnCallback(function($sql, $params) {
+        $session = new AdminSession();
+
+        $dbMock = $this->createMock(Database::class);
+        $dbMock->method('fetchOne')->willReturnCallback(function ($sql, $params) {
             if (str_contains($sql, 'op_system_settings') && ($params['k'] ?? '') === 'webhook_url') {
                 return ['value' => 'https://127.0.0.1/callback'];
             }
             return null;
         });
-        
-        $settings = new \OwnPay\Repository\SettingsRepository($dbMock);
-        $container->instance(\OwnPay\Repository\SettingsRepository::class, $settings);
-        
-        $brandContext = new \OwnPay\Service\Brand\BrandContext($dbMock);
-        $container->instance(\OwnPay\Service\Brand\BrandContext::class, $brandContext);
-        
-        $controller = new \OwnPay\Controller\Admin\DeveloperController($container, $session);
-        
-        $request = new \OwnPay\Http\Request();
+
+        $settings = new SettingsRepository($dbMock);
+        $container->instance(SettingsRepository::class, $settings);
+
+        $brandContext = new BrandContext($dbMock);
+        $container->instance(BrandContext::class, $brandContext);
+
+        $controller = new DeveloperController($container, $session);
+
+        $request = new Request();
         $response = $controller->webhookTest($request);
-        
+
         $this->assertSame(200, $response->getStatusCode());
         $data = json_decode($response->getBody(), true);
         $this->assertFalse($data['success']);
         $this->assertSame('Invalid webhook URL', $data['error']);
     }
 
-    // -------------------------------------------------------------------------
-    // 10. HttpClient Cross-Origin Redirect Header Stripping
-    // -------------------------------------------------------------------------
-
-    public function testHttpClientStripsSensitiveHeadersOnCrossOriginRedirect(): void
+    public function test_http_client_strips_sensitive_headers_on_cross_origin_redirect(): void
     {
-        $client = new \OwnPay\Service\System\HttpClient(5);
+        $client = new HttpClient(5);
 
-        \OwnPay\Service\System\HttpClient::$mockResponses = [
+        HttpClient::$mockResponses = [
             'https://httpbin.org/redirect-to?url=https://postman-echo.com/headers&status_code=302' => [
                 'status' => 302,
                 'body' => '',
@@ -685,7 +632,7 @@ PHP;
             'X-Api-Key' => 'key-value',
             'X-Safe-Header' => 'should-remain'
         ];
-        
+
         $res = $client->get(
             'https://httpbin.org/redirect-to?url=https://postman-echo.com/headers&status_code=302',
             $headers
@@ -694,8 +641,7 @@ PHP;
         $this->assertSame(200, $res['status']);
         $body = json_decode($res['body'], true);
         $echoHeaders = $body['headers'] ?? [];
-        
-        // Normalize keys to lowercase for robust assertion
+
         $normalized = [];
         foreach ($echoHeaders as $k => $v) {
             $normalized[strtolower($k)] = $v;
@@ -704,13 +650,12 @@ PHP;
         // Authorization and X-Api-Key must be stripped on cross-origin redirects
         $this->assertArrayNotHasKey('authorization', $normalized);
         $this->assertArrayNotHasKey('x-api-key', $normalized);
-        
-        // X-Safe-Header should still be present
+
         $this->assertArrayHasKey('x-safe-header', $normalized);
         $this->assertSame('should-remain', $normalized['x-safe-header']);
     }
 
-    public function testPermissionMiddlewareDefaultDenyOnUnmappedRoutes(): void
+    public function test_permission_middleware_default_deny_on_unmapped_routes(): void
     {
         $container = new Container();
         $middleware = new PermissionMiddleware($container);
@@ -718,16 +663,12 @@ PHP;
         $method = $reflection->getMethod('resolvePermission');
         $method->setAccessible(true);
 
-        // Exact match /admin should be dashboard.view
         $this->assertSame('dashboard.view', $method->invoke($middleware, '/admin', 'GET'));
-
-        // Prefix match under mapped should work
         $this->assertSame('transactions.view', $method->invoke($middleware, '/admin/transactions/1', 'GET'));
         $this->assertSame('transactions.manage', $method->invoke($middleware, '/admin/transactions/create', 'POST'));
 
-        // Unmapped routes must be strictly default-denied as system.unmapped, instead of falling back to dashboard.view
+        // Unmapped routes must be strictly default-denied as system.unmapped
         $this->assertSame('system.unmapped', $method->invoke($middleware, '/admin/secret-unmapped', 'GET'));
         $this->assertSame('system.unmapped', $method->invoke($middleware, '/admin/super-secret/nested', 'POST'));
     }
 }
-

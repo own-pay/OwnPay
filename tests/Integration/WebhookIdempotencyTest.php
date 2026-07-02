@@ -15,17 +15,6 @@ use OwnPay\Service\Payment\TransactionService;
 use OwnPay\Service\System\AuditLogger;
 use OwnPay\Service\System\Logger;
 
-/**
- * Verifies the DB-backed idempotency and state-machine guards on the inbound
- * webhook money path:
- *
- *  - duplicate deliveries (same payload hash) are processed exactly once,
- *    enforced by the uk_inbound_dedup unique index (migration 009), not just
- *    the application-level lookup;
- *  - distinct events for the same transaction complete it exactly once;
- *  - terminal transactions cannot be resurrected or downgraded by signed events;
- *  - refund events cannot post more to the ledger than the original charge.
- */
 class WebhookIdempotencyTest extends IntegrationTestCase
 {
     private const SECRET = 'whsec_test_secret_for_idempotency';
@@ -46,7 +35,7 @@ class WebhookIdempotencyTest extends IntegrationTestCase
 
         $this->db = Database::getInstance();
 
-        // The DB-level idempotency guard under test ships with migration 009.
+        // Migration 009 required for dedup_key column
         $hasDedupKey = $this->db->fetchOne(
             "SELECT 1 FROM information_schema.COLUMNS
              WHERE TABLE_SCHEMA = DATABASE()
@@ -102,11 +91,6 @@ class WebhookIdempotencyTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    /**
-     * Builds the signed header set the processor expects (X-OP-* scheme).
-     *
-     * @return array<string, string>
-     */
     private function signedHeaders(string $rawBody, string $eventId, string $eventType): array
     {
         $ts = (string) time();
@@ -176,9 +160,7 @@ class WebhookIdempotencyTest extends IntegrationTestCase
             ['hash' => $hash]
         );
 
-        // A racing duplicate that slipped past the SELECT fast path must die
-        // on the unique index - this is what makes concurrent identical
-        // deliveries safe regardless of application-level checks.
+        // Racing duplicate must die on the unique index regardless of application-level checks
         try {
             $this->db->execute(
                 "INSERT INTO op_webhook_deliveries (merchant_id, gateway, event, direction, status, payload_hash, attempt, created_at)
@@ -190,8 +172,7 @@ class WebhookIdempotencyTest extends IntegrationTestCase
             $this->assertSame(1062, (int) ($e->errorInfo[1] ?? 0));
         }
 
-        // Outbound retries legitimately reuse a payload hash - they must NOT
-        // be constrained (dedup_key is NULL for outbound rows).
+        // Outbound retries legitimately reuse payload hash (dedup_key is NULL for outbound)
         $this->db->execute(
             "INSERT INTO op_webhook_deliveries (merchant_id, gateway, event, url, direction, status, payload_hash, attempt, created_at)
              VALUES (1, 'system', 'payment.completed', 'https://example.com/hook', 'outbound', 'failed', :hash, 1, NOW(6))",

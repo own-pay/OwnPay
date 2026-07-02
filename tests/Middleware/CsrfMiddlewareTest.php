@@ -7,7 +7,7 @@ namespace Tests\Middleware;
 use OwnPay\Middleware\CsrfMiddleware;
 use PHPUnit\Framework\TestCase;
 
-class CsrfMiddlewareTest extends TestCase
+final class CsrfMiddlewareTest extends TestCase
 {
     private string $previousErrorLog = '';
 
@@ -17,7 +17,6 @@ class CsrfMiddlewareTest extends TestCase
         $_POST    = [];
         $_ENV['APP_HMAC_SECRET'] = '';
 
-        // Suppress error_log output during tests that intentionally trigger logging
         $this->previousErrorLog = ini_get('error_log') ?: '';
         ini_set('error_log', tempnam(sys_get_temp_dir(), 'csrf-test'));
     }
@@ -30,7 +29,6 @@ class CsrfMiddlewareTest extends TestCase
         unset($_ENV['APP_HMAC_SECRET']);
     }
 
-   
     public function testCsrfValidatesMatchingTokens(): void
     {
         $token = 'abc123session';
@@ -53,7 +51,6 @@ class CsrfMiddlewareTest extends TestCase
 
         $this->assertFalse($result['valid']);
         $this->assertSame('Invalid request token', $result['error']);
-        // A new token is generated and returned
         $this->assertNotNull($result['newToken']);
         $this->assertNotSame('expected-token', $result['newToken']);
         $this->assertNotSame('attacker-token', $result['newToken']);
@@ -62,7 +59,6 @@ class CsrfMiddlewareTest extends TestCase
     public function testCsrfRejectsMissingPostToken(): void
     {
         $_SESSION['_csrf_token'] = 'abc';
-        // No $_POST['_csrf_token']
 
         $result = (new CsrfMiddleware())->validate('');
 
@@ -73,7 +69,6 @@ class CsrfMiddlewareTest extends TestCase
     public function testCsrfRejectsMissingSessionToken(): void
     {
         $_POST['_csrf_token'] = 'abc';
-        // No $_SESSION['_csrf_token']
 
         $result = (new CsrfMiddleware())->validate('');
 
@@ -90,17 +85,14 @@ class CsrfMiddlewareTest extends TestCase
 
         $this->assertNotSame('old-token', $_SESSION['_csrf_token']);
         $this->assertNotEmpty($_SESSION['_csrf_token']);
-        // bin2hex(random_bytes(32)) returns 64 hex chars
         $this->assertSame(64, strlen($_SESSION['_csrf_token']));
     }
-
-    // â”€â”€ HMAC mode (validateHmac) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testHmacRejectsExpiredTimestamp(): void
     {
         $_ENV['APP_HMAC_SECRET'] = 'shared-secret';
         $_POST['op-app-id']        = 'client-1';
-        $_POST['op-app-timestamp'] = (string) (time() - 600);  // 10 minutes ago
+        $_POST['op-app-timestamp'] = (string) (time() - 600);
         $_POST['action']           = 'do-thing';
 
         $result = (new CsrfMiddleware())->validate('any-token');
@@ -166,7 +158,7 @@ class CsrfMiddlewareTest extends TestCase
         $_POST['op-app-timestamp']  = $timestamp;
         $_POST['action']            = 'transfer-money';
 
-        // Signature for a DIFFERENT action â€” should be rejected (replay protection)
+        // Signature for a different action - replay protection
         $signatureForOtherAction = hash_hmac('sha256', "{$appId}|{$timestamp}|view-balance", $secret);
 
         $result = (new CsrfMiddleware())->validate($signatureForOtherAction);
@@ -180,7 +172,6 @@ class CsrfMiddlewareTest extends TestCase
         $secret = 'shared-secret';
 
         $_ENV['APP_HMAC_SECRET'] = $secret;
-        // Only pp- fields provided (legacy prefix â€” should NOT be accepted)
         $_POST['pp-app-id']        = 'op-client';
         $_POST['pp-app-timestamp'] = (string) time();
         $_POST['action']           = 'test-action';
@@ -189,14 +180,12 @@ class CsrfMiddlewareTest extends TestCase
 
         $result = (new CsrfMiddleware())->validate($expected);
 
-        // Should fail because op-app-id / op-app-timestamp are not set
         $this->assertFalse($result['valid']);
     }
 
     public function testCsrfRejectsNonStringTokensGracefully(): void
     {
         $_SESSION['_csrf_token'] = 'expected-token';
-        // $_POST['_csrf_token'] is an array (e.g. spoofed array param)
         $_POST['_csrf_token']    = ['array', 'values'];
 
         $result = (new CsrfMiddleware())->validate('');
@@ -208,7 +197,7 @@ class CsrfMiddlewareTest extends TestCase
     public function testHmacRejectsNonStringParametersGracefully(): void
     {
         $_ENV['APP_HMAC_SECRET'] = 'shared-secret';
-        $_POST['op-app-id']        = ['array', 'values']; // appId is an array
+        $_POST['op-app-id']        = ['array', 'values'];
         $_POST['op-app-timestamp'] = (string) time();
         $_POST['action']           = 'do-thing';
 
@@ -218,4 +207,3 @@ class CsrfMiddlewareTest extends TestCase
         $this->assertSame('Request expired. Please try again.', $result['error']);
     }
 }
-

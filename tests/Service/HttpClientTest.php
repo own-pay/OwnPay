@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
-use PHPUnit\Framework\TestCase;
 use OwnPay\Service\System\HttpClient;
+use PHPUnit\Framework\TestCase;
 
-class HttpClientTest extends TestCase
+final class HttpClientTest extends TestCase
 {
     protected function tearDown(): void
     {
@@ -28,8 +28,8 @@ class HttpClientTest extends TestCase
             'https://httpbin.org/get' => [
                 'status' => 200,
                 'body' => (string) json_encode(['url' => 'https://httpbin.org/get']),
-                'headers' => ['Content-Type' => 'application/json']
-            ]
+                'headers' => ['Content-Type' => 'application/json'],
+            ],
         ];
 
         $result = HttpClient::get('https://httpbin.org/get', 5);

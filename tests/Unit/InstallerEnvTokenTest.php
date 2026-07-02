@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -6,12 +7,6 @@ namespace Tests\Unit;
 use OwnPay\Controller\Install\InstallerController;
 use PHPUnit\Framework\TestCase;
 
-/**
- * Verifies the installer's .env value encoding cannot be used to inject
- * additional environment directives (e.g. APP_DEBUG=true) via newlines in a
- * DB password / app name, and that values round-trip losslessly through the
- * temp-env parser.
- */
 final class InstallerEnvTokenTest extends TestCase
 {
     private InstallerController $controller;
@@ -79,7 +74,6 @@ final class InstallerEnvTokenTest extends TestCase
         $parsed = $this->parseTempEnv->invoke($this->controller, $tmp);
         @unlink($tmp);
 
-        // Crucially, an injection payload must NOT have created an APP_DEBUG key.
         $this->assertArrayNotHasKey('APP_DEBUG', $parsed);
 
         $i = 0;

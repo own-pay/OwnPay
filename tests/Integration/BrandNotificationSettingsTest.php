@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -13,7 +14,7 @@ use OwnPay\Repository\SettingsRepository;
 /**
  * Verifies the brand-scoped "Email Notifications" settings save path:
  * non-blank fields persist as per-brand overrides, blank text + "Inherit" toggles clear the
- * override so the brand falls back to the All-Brands default. Drives the real SettingsController.
+ * override so the brand falls back to the All-Brands default.
  */
 final class BrandNotificationSettingsTest extends IntegrationTestCase
 {
@@ -47,7 +48,6 @@ final class BrandNotificationSettingsTest extends IntegrationTestCase
         if (session_status() !== PHP_SESSION_ACTIVE) {
             @session_start();
         }
-        // Authenticated superadmin operating inside brand #1 (not the global All-Brands view).
         $_SESSION['auth_user_id']     = 1;
         $_SESSION['auth_merchant_id'] = 1;
         $_SESSION['active_brand_id']  = 1;
@@ -84,7 +84,7 @@ final class BrandNotificationSettingsTest extends IntegrationTestCase
             'mail_from_email'          => 'no-reply@brand.test',
             'admin_notification_email' => 'admin@brand.test',
             'email_on_payment'         => '1',
-            'email_on_refund'          => '', // inherit
+            'email_on_refund'          => '',
         ]);
         $this->assertSame(302, $response->getStatusCode());
 
@@ -109,7 +109,7 @@ final class BrandNotificationSettingsTest extends IntegrationTestCase
             'mail_from_name'           => '',
             'mail_from_email'          => '',
             'admin_notification_email' => '',
-            'email_on_payment'         => '', // inherit
+            'email_on_payment'         => '',
             'email_on_refund'          => '0',
         ]);
         $this->assertSame(302, $response->getStatusCode());

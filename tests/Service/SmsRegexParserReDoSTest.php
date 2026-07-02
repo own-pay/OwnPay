@@ -7,12 +7,6 @@ namespace Tests\Service;
 use OwnPay\Service\Sms\SmsRegexParser;
 use PHPUnit\Framework\TestCase;
 
-/**
- * Verifies the ReDoS guard on merchant-supplied SMS regex templates: a
- * catastrophic-backtracking pattern executed against a crafted SMS body must
- * fail fast (bounded PCRE backtracking) instead of pinning a CPU and stalling
- * the SMS cron / mobile endpoint.
- */
 final class SmsRegexParserReDoSTest extends TestCase
 {
     private SmsRegexParser $parser;
@@ -24,29 +18,25 @@ final class SmsRegexParserReDoSTest extends TestCase
 
     public function testCatastrophicPatternDoesNotHang(): void
     {
-        // Classic catastrophic-backtracking template configured by a malicious
-        // staff member, run against a long non-matching body.
+        // Catastrophic-backtracking template from a malicious staff member
         $template = [
             'id' => 7,
             'amount_regex' => '/(a+)+b/',
             'transaction_type' => 'credit',
         ];
-        $body = str_repeat('a', 60); // no trailing 'b' → forces backtracking
+        $body = str_repeat('a', 60);
 
         $start = microtime(true);
         $result = $this->parser->parse($body, [$template]);
         $elapsed = microtime(true) - $start;
 
-        // No match (the bounded execution returns false → treated as no match).
         $this->assertNull($result);
-        // Must complete well under a second; without the backtrack cap this
-        // pattern would run for many seconds / effectively hang.
+        // Without the backtrack cap this pattern would run for many seconds
         $this->assertLessThan(1.0, $elapsed, 'ReDoS pattern was not bounded - execution took too long');
     }
 
     public function testBenignPatternStillMatchesAfterGuard(): void
     {
-        // The backtracking cap must not break ordinary, well-formed templates.
         $template = [
             'id' => 8,
             'amount_regex' => '/Tk\s*([\d,]+(?:\.\d{2})?)/i',

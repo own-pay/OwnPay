@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -7,11 +8,6 @@ use OwnPay\Container;
 use OwnPay\Core\Database;
 use OwnPay\Service\System\TranslationService;
 
-/**
- * Security regression: language codes flow into storage file paths
- * (storage/languages/{code}.json), so they MUST be rejected when they contain path-traversal
- * sequences (CWE-22). Valid BCP-47-style codes must still be accepted.
- */
 final class TranslationCodeSecurityTest extends IntegrationTestCase
 {
     private TranslationService $svc;

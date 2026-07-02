@@ -7,7 +7,7 @@ namespace Tests\Service;
 use OwnPay\Service\System\InputSanitizer;
 use PHPUnit\Framework\TestCase;
 
-class InputSanitizerTest extends TestCase
+final class InputSanitizerTest extends TestCase
 {
     public function testHtmlStripsScriptTags(): void
     {
@@ -46,7 +46,6 @@ class InputSanitizerTest extends TestCase
         $this->assertNull(InputSanitizer::html(null));
     }
 
-    
     public function testTrimRemovesSurroundingWhitespace(): void
     {
         $this->assertSame('hello', InputSanitizer::trim("  hello\t\n"));
@@ -76,7 +75,6 @@ class InputSanitizerTest extends TestCase
         $this->assertNull(InputSanitizer::trim(null));
     }
 
-    
     public function testAlphanumericAcceptsValidSlug(): void
     {
         $this->assertSame('my-plugin_v2', InputSanitizer::alphanumeric('my-plugin_v2'));
@@ -101,4 +99,3 @@ class InputSanitizerTest extends TestCase
         $this->assertSame('valid-slug', InputSanitizer::alphanumeric('  valid-slug  '));
     }
 }
-

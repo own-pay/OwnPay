@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Tests\Service;
 
-use OwnPay\Service\Device\DevicePairingService;
+use OwnPay\Core\Database;
+use OwnPay\Repository\PairedDeviceRepository;
+use OwnPay\Security\FieldEncryptor;
 use OwnPay\Service\Auth\JwtService;
-use PHPUnit\Framework\TestCase;
+use OwnPay\Service\Device\DevicePairingService;
+use PDO;
+use PDOStatement;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
+use PHPUnit\Framework\TestCase;
 
-/**
- * Unit tests for DevicePairingService.
- *
- * Repos are final classes so we use anonymous-class stubs instead of mocks.
- */
 #[AllowMockObjectsWithoutExpectations]
-class DevicePairingServiceTest extends TestCase
+final class DevicePairingServiceTest extends TestCase
 {
     private JwtService $jwt;
 
@@ -23,130 +23,6 @@ class DevicePairingServiceTest extends TestCase
     {
         $this->jwt = new JwtService();
     }
-
-   
-    /**
-     * Build a DevicePairingService with controllable stub behaviour.
-     */
-    private function buildService(array $tokenStub = [], array $deviceStub = []): DevicePairingService
-    {
-        $stmtMock = $this->createMock(\PDOStatement::class);
-        $db = new class($tokenStub, $stmtMock) extends \OwnPay\Core\Database {
-            private array $cfg;
-            private \PDOStatement $stmt;
-            public array $executed = [];
-
-            public function __construct(array $cfg, \PDOStatement $stmt)
-            {
-                $this->cfg = $cfg;
-                $this->stmt = $stmt;
-            }
-
-            public function execute(string $sql, array $params = []): \PDOStatement
-            {
-                $this->executed[] = compact('sql', 'params');
-                return $this->stmt;
-            }
-
-            public function fetchOne(string $sql, array $params = []): ?array
-            {
-                if (strpos($sql, 'op_device_pairing_tokens') !== false) {
-                    if (strpos($sql, 'COUNT(*)') !== false) {
-                        return ['cnt' => $this->cfg['recentCount'] ?? 0];
-                    }
-                    return $this->cfg['validateResult'] ?? null;
-                }
-                if (strpos($sql, 'op_merchant_users') !== false) {
-                    return ['id' => 1];
-                }
-                return null;
-            }
-
-            public function transaction(callable $callback): mixed
-            {
-                return $callback();
-            }
-        };
-
-        $deviceRepo = new class($db, $deviceStub) extends \OwnPay\Repository\PairedDeviceRepository {
-            private array $cfg;
-            public array $created = [];
-            public array $revoked = [];
-            public array $refreshUpdates = [];
-            public array $touched = [];
-
-            public function __construct(\OwnPay\Core\Database $db, array $cfg)
-            {
-                parent::__construct($db);
-                $this->cfg = $cfg;
-            }
-
-            public function forTenant(int $merchantId): static
-            {
-                return $this;
-            }
-
-            public function findByFingerprintHash(string $hash, int $brand): ?array
-            {
-                return $this->cfg['existingDevice'] ?? null;
-            }
-
-            public function create(array $data): string
-            {
-                $this->created[] = $data;
-                return '1';
-            }
-
-            public function createScoped(array $data): string
-            {
-                $this->created[] = $data;
-                return '1';
-            }
-
-            public function revoke(int $id): int
-            {
-                $this->revoked[] = $id;
-                return 1;
-            }
-
-            public function findByRefreshTokenHash(string $hash): ?array
-            {
-                return $this->cfg['refreshDevice'] ?? null;
-            }
-
-            public function updateRefreshToken(string $uuid, string $hash, string $exp): bool
-            {
-                $this->refreshUpdates[] = compact('uuid', 'hash', 'exp');
-                return true;
-            }
-
-            public function touchLastSeen(string $uuid): void
-            {
-                $this->touched[] = $uuid;
-            }
-
-            public function findByUuid(string $uuid): ?array
-            {
-                return $this->cfg['findByUuidResult'] ?? null;
-            }
-        };
-
-        $encryptor = new class extends \OwnPay\Security\FieldEncryptor {
-            public function __construct()
-            {
-                // Do not invoke parent construct
-            }
-
-            public function encrypt(string $val): string
-            {
-                return 'enc_v1:stub:' . substr($val, 0, 8);
-            }
-        };
-
-        return new DevicePairingService($deviceRepo, $encryptor, $this->jwt);
-    }
-
-    //  generatePairingOtp()
 
     public function testGenerateOtpReturns6DigitCode(): void
     {
@@ -175,9 +51,6 @@ class DevicePairingServiceTest extends TestCase
         $this->assertArrayHasKey('otp', $result);
         $this->assertArrayNotHasKey('error', $result);
     }
-
-
-    //  pairDevice() -> valid OTP
 
     public function testPairDeviceSuccessWithValidOtp(): void
     {
@@ -210,18 +83,12 @@ class DevicePairingServiceTest extends TestCase
 
         $this->assertTrue($result['success']);
 
-        // Verify the JWT is decodable and contains the correct device UUID
         $decoded = $this->jwt->decode($result['access_token']);
-        // We can't easily get the secret from the result, but we can verify the device_id format
         $this->assertMatchesRegularExpression(
             '/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/',
             $result['device_id']
         );
     }
-
-
-    //  pairDevice() -> invalid / expired / used OTP
-
 
     public function testPairDeviceFailsWithInvalidOtp(): void
     {
@@ -241,8 +108,6 @@ class DevicePairingServiceTest extends TestCase
         $this->assertSame('INVALID_OTP', $result['error']);
     }
 
-    //  pairDevice() -> re-pairing (same fingerprint)
-
     public function testPairDeviceRevokesExistingOnRepairing(): void
     {
         $otp = '999999';
@@ -257,10 +122,9 @@ class DevicePairingServiceTest extends TestCase
         $this->assertNotSame('old-uuid-123', $result['device_id']);
     }
 
+    // Privilege-escalation guard: OTP with no creator must NOT fall back to superadmin
     public function testPairDeviceFailsClosedWhenOtpHasNoCreator(): void
     {
-        // Privilege-escalation guard: an OTP with no recorded creator must NOT
-        // fall back to a superadmin identity - pairing must fail.
         $otp = '424242';
         $svc = $this->buildService([
             'validateResult' => ['id' => 1, 'merchant_id' => 9, 'created_by' => null, 'otp_hash' => hash('sha256', $otp)],
@@ -272,14 +136,9 @@ class DevicePairingServiceTest extends TestCase
         $this->assertSame('PAIRING_CONTEXT_UNRESOLVED', $result['error']);
     }
 
-    //  refreshAccessToken()
-
+    // Privilege-escalation guard: refresh token with unresolvable subject must be rejected
     public function testRefreshWithUnresolvableSubjectIsRejected(): void
     {
-        // Privilege-escalation guard: a refresh token whose subject does not resolve to a real user
-        // (here an opaque, non-JWT token with no `sub` claim) MUST be rejected - it must never be
-        // silently upgraded to user 1 (the superadmin). The legitimate JWT happy path (sub > 0) is
-        // covered by tests/Integration/DeviceRefreshPrivilegeTest.
         $refreshToken = bin2hex(random_bytes(32));
         $fingerprint = 'android123:certsha';
         $fpHash = hash('sha256', $fingerprint);
@@ -419,15 +278,120 @@ class DevicePairingServiceTest extends TestCase
         $this->assertSame('DEVICE_REVOKED', $result['error']);
     }
 
-
-    /**
-     * We can't retrieve the JWT secret from the result (by design),
-     * so this helper exists for future test expansion.
-     */
-    private function getJwtSecretFromResult(array $result): string
+    private function buildService(array $tokenStub = [], array $deviceStub = []): DevicePairingService
     {
-        // Not available in production â€” only for test stub verification
-        return '';
+        $stmtMock = $this->createMock(PDOStatement::class);
+        $db = new class($tokenStub, $stmtMock) extends Database {
+            private array $cfg;
+            private PDOStatement $stmt;
+            public array $executed = [];
+
+            public function __construct(array $cfg, PDOStatement $stmt)
+            {
+                $this->cfg = $cfg;
+                $this->stmt = $stmt;
+            }
+
+            public function execute(string $sql, array $params = []): PDOStatement
+            {
+                $this->executed[] = compact('sql', 'params');
+                return $this->stmt;
+            }
+
+            public function fetchOne(string $sql, array $params = []): ?array
+            {
+                if (strpos($sql, 'op_device_pairing_tokens') !== false) {
+                    if (strpos($sql, 'COUNT(*)') !== false) {
+                        return ['cnt' => $this->cfg['recentCount'] ?? 0];
+                    }
+                    return $this->cfg['validateResult'] ?? null;
+                }
+                if (strpos($sql, 'op_merchant_users') !== false) {
+                    return ['id' => 1];
+                }
+                return null;
+            }
+
+            public function transaction(callable $callback): mixed
+            {
+                return $callback();
+            }
+        };
+
+        $deviceRepo = new class($db, $deviceStub) extends PairedDeviceRepository {
+            private array $cfg;
+            public array $created = [];
+            public array $revoked = [];
+            public array $refreshUpdates = [];
+            public array $touched = [];
+
+            public function __construct(Database $db, array $cfg)
+            {
+                parent::__construct($db);
+                $this->cfg = $cfg;
+            }
+
+            public function forTenant(int $merchantId): static
+            {
+                return $this;
+            }
+
+            public function findByFingerprintHash(string $hash, int $brand): ?array
+            {
+                return $this->cfg['existingDevice'] ?? null;
+            }
+
+            public function create(array $data): string
+            {
+                $this->created[] = $data;
+                return '1';
+            }
+
+            public function createScoped(array $data): string
+            {
+                $this->created[] = $data;
+                return '1';
+            }
+
+            public function revoke(int $id): int
+            {
+                $this->revoked[] = $id;
+                return 1;
+            }
+
+            public function findByRefreshTokenHash(string $hash): ?array
+            {
+                return $this->cfg['refreshDevice'] ?? null;
+            }
+
+            public function updateRefreshToken(string $uuid, string $hash, string $exp): bool
+            {
+                $this->refreshUpdates[] = compact('uuid', 'hash', 'exp');
+                return true;
+            }
+
+            public function touchLastSeen(string $uuid): void
+            {
+                $this->touched[] = $uuid;
+            }
+
+            public function findByUuid(string $uuid): ?array
+            {
+                return $this->cfg['findByUuidResult'] ?? null;
+            }
+        };
+
+        $encryptor = new class extends FieldEncryptor {
+            public function __construct()
+            {
+            }
+
+            public function encrypt(string $val): string
+            {
+                return 'enc_v1:stub:' . substr($val, 0, 8);
+            }
+        };
+
+        return new DevicePairingService($deviceRepo, $encryptor, $this->jwt);
     }
 }
-

@@ -7,20 +7,8 @@ namespace Tests\Service;
 use OwnPay\Service\Notification\MobileNotificationService;
 use PHPUnit\Framework\TestCase;
 
-/**
- * MobileNotificationServiceTest â€” Unit tests for the notification service.
- *
- * Tests cover:
- *   - Payment notification queueing (credit/debit/unknown)
- *   - Notification body formatting
- *   - Poll response structure
- *   - Mark-as-read passthrough
- *   - Cleanup passthrough
- */
 final class MobileNotificationServiceTest extends TestCase
 {
-    // â”€â”€â”€ Queue Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testQueueCreditNotification(): void
     {
         $repo = $this->stubRepo();
@@ -77,8 +65,6 @@ final class MobileNotificationServiceTest extends TestCase
         $this->assertSame('New transaction detected.', $repo->lastBody);
     }
 
-    // â”€â”€â”€ Poll Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testPollReturnsCorrectStructure(): void
     {
         $repo = $this->stubRepo(notifications: [
@@ -94,7 +80,6 @@ final class MobileNotificationServiceTest extends TestCase
         $this->assertSame(3, $result['unread_count']);
         $this->assertSame(10, $result['poll_interval_seconds']);
         $this->assertCount(1, $result['notifications']);
-        // Verify payload was decoded from JSON string to array
         $this->assertIsArray($result['notifications'][0]['payload']);
         $this->assertSame(500, $result['notifications'][0]['payload']['amount']);
     }
@@ -110,8 +95,6 @@ final class MobileNotificationServiceTest extends TestCase
         $this->assertSame(0, $result['unread_count']);
     }
 
-    // â”€â”€â”€ MarkRead Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testMarkReadPassthrough(): void
     {
         $repo = $this->stubRepo(markReadCount: 3);
@@ -121,8 +104,6 @@ final class MobileNotificationServiceTest extends TestCase
         $this->assertSame(3, $count);
     }
 
-    // â”€â”€â”€ Cleanup Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testCleanupPassthrough(): void
     {
         $repo = $this->stubRepo(purgeCount: 5);
@@ -131,8 +112,6 @@ final class MobileNotificationServiceTest extends TestCase
         $count = $service->cleanup(7);
         $this->assertSame(5, $count);
     }
-
-    // â”€â”€â”€ Stub â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     private function stubRepo(
         array $notifications = [],
@@ -179,4 +158,3 @@ final class MobileNotificationServiceTest extends TestCase
         };
     }
 }
-

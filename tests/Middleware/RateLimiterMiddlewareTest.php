@@ -1,14 +1,15 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Middleware;
 
 use OwnPay\Container;
+use OwnPay\Core\Database;
 use OwnPay\Http\Request;
 use OwnPay\Http\Response;
 use OwnPay\Middleware\RateLimiterMiddleware;
 use OwnPay\Repository\SettingsRepository;
-use OwnPay\Core\Database;
 use PHPUnit\Framework\TestCase;
 
 final class RateLimiterMiddlewareTest extends TestCase
@@ -21,7 +22,7 @@ final class RateLimiterMiddlewareTest extends TestCase
         $this->container = new Container();
     }
 
-    public function testIpWhitelistingVypassesRateLimit(): void
+    public function testIpWhitelistingBypassesRateLimit(): void
     {
         $dbMockForSettings = $this->createMock(Database::class);
         $dbMockForSettings->method('fetchOne')->willReturnCallback(function (string $sql, array $params) {
@@ -37,21 +38,18 @@ final class RateLimiterMiddlewareTest extends TestCase
 
         $middleware = new RateLimiterMiddleware($this->container);
 
-        // Test exact match (IPv4)
         $req1 = new Request([], [], ['REMOTE_ADDR' => '192.168.1.5']);
         $response1 = $middleware->handle($req1, function (Request $r) {
             return Response::json(['status' => 'passed']);
         });
         $this->assertSame(200, $response1->getStatusCode());
 
-        // Test CIDR subnet match (IPv4)
         $req2 = new Request([], [], ['REMOTE_ADDR' => '10.0.0.50']);
         $response2 = $middleware->handle($req2, function (Request $r) {
             return Response::json(['status' => 'passed']);
         });
         $this->assertSame(200, $response2->getStatusCode());
 
-        // Test CIDR subnet match (IPv6)
         $req3 = new Request([], [], ['REMOTE_ADDR' => '2001:db8:abcd::1']);
         $response3 = $middleware->handle($req3, function (Request $r) {
             return Response::json(['status' => 'passed']);
@@ -85,16 +83,12 @@ final class RateLimiterMiddlewareTest extends TestCase
         $this->container->instance('config.app', []);
 
         $dbMock = $this->createMock(Database::class);
-        // First request: hits = 1
-        // Second request: hits = 2
-        // Third request: hits = 3 (exceeds limit of 2)
         $dbMock->method('fetchColumn')->willReturnOnConsecutiveCalls(1, 2, 3);
 
         $this->container->instance(Database::class, $dbMock);
 
         $middleware = new RateLimiterMiddleware($this->container);
 
-        // First call
         $req = new Request([], [], [
             'REMOTE_ADDR' => '1.2.3.4',
             'REQUEST_URI' => '/api/v1/payments/intent_xyz',
@@ -108,13 +102,11 @@ final class RateLimiterMiddlewareTest extends TestCase
         $this->assertSame(200, $response1->getStatusCode());
         $this->assertSame('2', $response1->getHeaders()['X-RateLimit-Limit'] ?? null);
 
-        // Second call
         $response2 = $middleware->handle($req, function (Request $r) {
             return Response::json(['status' => 'passed']);
         });
         $this->assertSame(200, $response2->getStatusCode());
 
-        // Third call (should trigger 429)
         $response3 = $middleware->handle($req, function (Request $r) {
             return Response::json(['status' => 'passed']);
         });
@@ -139,12 +131,11 @@ final class RateLimiterMiddlewareTest extends TestCase
         $this->container->instance('config.app', []);
 
         $dbMock = $this->createMock(Database::class);
-        $dbMock->method('fetchColumn')->willReturn(1000); // High hit count to trigger 429
+        $dbMock->method('fetchColumn')->willReturn(1000);
         $this->container->instance(Database::class, $dbMock);
 
         $middleware = new RateLimiterMiddleware($this->container);
 
-        // Call expecting HTML
         $req = new Request([], [], [
             'REMOTE_ADDR' => '1.2.3.4',
             'REQUEST_URI' => '/some/web/page',

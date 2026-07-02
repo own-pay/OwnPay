@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Security;
 
-use PHPUnit\Framework\TestCase;
 use OwnPay\Security\PiiMasker;
+use PHPUnit\Framework\TestCase;
 
-class PiiMaskerTest extends TestCase
+final class PiiMaskerTest extends TestCase
 {
     private PiiMasker $masker;
 
@@ -16,7 +16,7 @@ class PiiMaskerTest extends TestCase
         $this->masker = new PiiMasker();
     }
 
-    public function testMaskEmail(): void
+    public function test_mask_email(): void
     {
         $data = ['email' => 'john@example.com'];
         $result = $this->masker->mask($data);
@@ -26,7 +26,7 @@ class PiiMaskerTest extends TestCase
         $this->assertStringContainsString('***', $result['email']);
     }
 
-    public function testMaskPhone(): void
+    public function test_mask_phone(): void
     {
         $data = ['phone' => '+8801712345678'];
         $result = $this->masker->mask($data);
@@ -35,7 +35,7 @@ class PiiMaskerTest extends TestCase
         $this->assertStringContainsString('***', $result['phone']);
     }
 
-    public function testMaskName(): void
+    public function test_mask_name(): void
     {
         $data = ['name' => 'John Doe'];
         $result = $this->masker->mask($data);
@@ -44,16 +44,16 @@ class PiiMaskerTest extends TestCase
         $this->assertStringStartsWith('J', $result['name']);
     }
 
-    public function testNonSensitiveFieldsUntouched(): void
+    public function test_non_sensitive_fields_untouched(): void
     {
         $data = ['amount' => '100.50', 'currency' => 'BDT'];
         $result = $this->masker->mask($data);
 
-        $this->assertEquals('100.50', $result['amount']);
-        $this->assertEquals('BDT', $result['currency']);
+        $this->assertSame('100.50', $result['amount']);
+        $this->assertSame('BDT', $result['currency']);
     }
 
-    public function testNestedArrayMasking(): void
+    public function test_nested_array_masking(): void
     {
         $data = [
             'customer' => [
@@ -67,4 +67,3 @@ class PiiMaskerTest extends TestCase
         $this->assertStringContainsString('***', $result['customer']['name']);
     }
 }
-

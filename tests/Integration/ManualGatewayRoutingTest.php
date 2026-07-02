@@ -9,12 +9,6 @@ use OwnPay\Repository\ManualGatewayRepository;
 
 /**
  * Money-critical: verifies that a customer's manual-gateway payment routes to the correct account.
- *
- * Phase 2c (model A): All Brands defines the gateway TYPE/default (platform-owned template); each
- * brand may set its OWN account; checkout uses the brand's account and falls back to the platform
- * template's account when the brand has not configured one. This test pins that resolution because
- * it decides which account real funds land in.
- *
  * Uses unique 'zztest-' slugs so it never touches real seeded gateways and is fully self-cleaning.
  */
 final class ManualGatewayRoutingTest extends IntegrationTestCase
@@ -58,10 +52,6 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
         $this->db->execute("DELETE FROM op_manual_gateways WHERE slug LIKE 'zztest-%'");
     }
 
-    /**
-     * Inserts a manual gateway row. `instructions` carries the account the customer pays to
-     * (confirmed against the seed: "Send money to 017...").
-     */
     private function insertGateway(int $merchantId, string $slug, string $account, string $status = 'active'): void
     {
         $this->db->execute(
@@ -79,7 +69,6 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
 
     /**
      * @param array<int, array<string, mixed>> $rows
-     * @return array<string, mixed>|null
      */
     private function findSlug(array $rows, string $slug): ?array
     {
@@ -103,7 +92,6 @@ final class ManualGatewayRoutingTest extends IntegrationTestCase
         $this->assertSame($this->brandId, (int) $gw['merchant_id'], 'Brand account must win - funds route to the brand');
         $this->assertStringContainsString('BRAND-ACCT-both', (string) $gw['instructions']);
 
-        // Exactly one entry for the slug (no duplicate template + account).
         $count = 0;
         foreach ($result as $row) {
             if (($row['slug'] ?? null) === 'zztest-both') {

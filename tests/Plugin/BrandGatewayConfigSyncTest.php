@@ -17,12 +17,6 @@ use OwnPay\Http\Request;
 use OwnPay\Controller\Admin\PluginController;
 use Tests\Integration\IntegrationTestCase;
 
-/**
- * BrandGatewayConfigSyncTest - Integration tests verifying that brand-specific gateway plugin
- * activations, deactivations, and settings saves correctly synchronize the `op_gateway_configs` table.
- *
- * @group Integration
- */
 final class BrandGatewayConfigSyncTest extends IntegrationTestCase
 {
     private Container $c;
@@ -48,7 +42,6 @@ final class BrandGatewayConfigSyncTest extends IntegrationTestCase
 
         $this->db = Database::getInstance();
 
-        // Initialize container
         $this->c = new Container();
         $bootstrap = require dirname(__DIR__, 2) . '/config/services.php';
         $bootstrap($this->c);
@@ -80,29 +73,24 @@ final class BrandGatewayConfigSyncTest extends IntegrationTestCase
 
     private function cleanupTestData(): void
     {
-        // 1. Delete gateway config entries
         $gw = $this->gwRepo->findBySlug($this->dummySlug);
         if ($gw !== null) {
             $this->db->execute("DELETE FROM op_gateway_configs WHERE gateway_id = :gw_id", ['gw_id' => $gw['id']]);
             $this->db->execute("DELETE FROM op_gateways WHERE id = :id", ['id' => $gw['id']]);
         }
 
-        // 2. Delete pivot table entries
         $this->db->execute("DELETE FROM op_brand_plugins WHERE plugin_slug = :slug", ['slug' => $this->dummySlug]);
 
-        // 3. Delete plugin record
         $plugin = $this->pluginRepo->findBySlug($this->dummySlug);
         if ($plugin !== null) {
             $this->db->execute("DELETE FROM op_plugins WHERE id = :id", ['id' => $plugin['id']]);
         }
 
-        // 4. Delete merchants
         foreach ($this->testMerchantIds as $id) {
             $this->db->execute("DELETE FROM op_merchants WHERE id = :id", ['id' => $id]);
         }
         $this->testMerchantIds = [];
 
-        // 5. Delete dummy plugin files
         if (is_dir($this->modulesPath)) {
             $this->removeDirectory($this->modulesPath);
         }
@@ -140,7 +128,6 @@ final class BrandGatewayConfigSyncTest extends IntegrationTestCase
         file_put_contents($this->modulesPath . '/logo.png', 'fake image bytes');
         file_put_contents($this->modulesPath . '/TestGatewayPlugin.php', "<?php\n\nnamespace OwnPay\\Plugins\\TestGatewayPlugin;\n\nclass TestGatewayPlugin implements \\OwnPay\\Plugin\\PluginInterface {\n    public function boot(\\OwnPay\\Container \$c): void {}\n    public function deactivate(\\OwnPay\\Container \$c): void {}\n    public function uninstall(\\OwnPay\\Container \$c): void {}\n    public function capabilities(): array { return [\\OwnPay\\Plugin\\Capability::Checkout]; }\n    public function fields(): array { return []; }\n}\n");
 
-        // Insert database record
         $this->pluginRepo->create([
             'slug' => $this->dummySlug,
             'name' => 'Test Gateway Plugin',
@@ -167,19 +154,14 @@ final class BrandGatewayConfigSyncTest extends IntegrationTestCase
         return $id;
     }
 
-    /**
-     * Test gateway synchronization of op_gateway_configs during activation, deactivation, and settings save.
-     */
     public function testGatewaySyncWorkflow(): void
     {
         $this->createDummyPlugin();
         $merchantId = $this->createTestMerchant('Gateway Brand', 'gateway-brand', 'gatewaybrand@example.com');
 
-        // 1. Initially no config exists
         $gw = $this->gwRepo->findBySlug($this->dummySlug);
         $this->assertNull($gw);
 
-        // 2. Activate for brand: should register gateway globally and insert op_gateway_configs with 'active'
         $res = $this->pluginManager->activate($this->dummySlug, $merchantId);
         $this->assertTrue($res['success']);
 
@@ -191,12 +173,10 @@ final class BrandGatewayConfigSyncTest extends IntegrationTestCase
         $this->assertNotNull($config);
         $this->assertSame('active', $config['status']);
 
-        // Check listActiveForCheckout returns it
         $checkoutGws = $this->gwConfigRepo->forTenant($merchantId)->listActiveForCheckout();
         $slugs = array_column($checkoutGws, 'slug');
         $this->assertContains($this->dummySlug, $slugs);
 
-        // 3. Deactivate for brand: should set status to 'inactive' in op_gateway_configs
         $res = $this->pluginManager->deactivate($this->dummySlug, $merchantId);
         $this->assertTrue($res['success']);
 
@@ -207,16 +187,14 @@ final class BrandGatewayConfigSyncTest extends IntegrationTestCase
         $slugs = array_column($checkoutGws, 'slug');
         $this->assertNotContains($this->dummySlug, $slugs);
 
-        // 4. Save settings: should reactivate in op_gateway_configs
         $this->brandContext->setActiveBrandId($merchantId);
-        
+
         $request = new Request(
             [],
             ['settings' => ['secret_key' => 'testing123']]
         );
         $request->setRouteParams(['slug' => $this->dummySlug]);
 
-        // Mock session
         if (session_status() !== PHP_SESSION_ACTIVE) {
             @session_start();
         }

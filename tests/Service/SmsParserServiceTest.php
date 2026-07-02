@@ -9,29 +9,10 @@ use OwnPay\Service\Sms\SmsRegexParser;
 use OwnPay\Service\Sms\SmsHeuristicParser;
 use PHPUnit\Framework\TestCase;
 
-/**
- * SmsParserServiceTest â€” Unit tests for the SMS parsing orchestrator.
- *
- * Uses anonymous-class stubs for repositories and encryptor.
- * Uses real AES-256-GCM encryption for payload testing (matching the
- * decryptSmsPayload format: base64(IV + ciphertext + tag)).
- *
- * Tests cover:
- *   - Full regex match pipeline
- *   - Heuristic fallback pipeline
- *   - Unparsed flow (admin review)
- *   - Duplicate detection
- *   - Missing fields rejection
- *   - Device not found
- *   - Key decryption failure
- *   - Batch processing
- *   - SMS decryption failure
- */
 final class SmsParserServiceTest extends TestCase
 {
     private const DEVICE_UUID = 'test-device-uuid-1234';
     private const BRAND_ID = 1;
-    // 64-char hex = 32-byte AES-256 key
     private const AES_KEY_HEX = 'a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2';
 
     private SmsRegexParser $regexParser;
@@ -42,8 +23,6 @@ final class SmsParserServiceTest extends TestCase
         $this->regexParser = new SmsRegexParser();
         $this->heuristicParser = new SmsHeuristicParser();
     }
-
-    // â”€â”€â”€ Full Pipeline Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testRegexMatchPipeline(): void
     {
@@ -100,11 +79,8 @@ final class SmsParserServiceTest extends TestCase
         ]]);
 
         $this->assertSame('accepted', $results[0]['status']);
-        // Verify admin_review status was passed to create()
         $this->assertNotNull($results[0]['server_ref']);
     }
-
-    // â”€â”€â”€ Dedup Tests â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testDuplicateDetection(): void
     {
@@ -120,8 +96,6 @@ final class SmsParserServiceTest extends TestCase
         $this->assertSame('duplicate', $results[0]['status']);
         $this->assertNull($results[0]['server_ref']);
     }
-
-    // â”€â”€â”€ Error Handling â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testDeviceNotFound(): void
     {
@@ -183,8 +157,6 @@ final class SmsParserServiceTest extends TestCase
         $this->assertSame('MISSING_FIELDS', $results[0]['error']);
     }
 
-    // â”€â”€â”€ Batch Processing â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testBatchProcessingMultipleMessages(): void
     {
         $service = $this->buildService(templates: []);
@@ -207,7 +179,6 @@ final class SmsParserServiceTest extends TestCase
     {
         $service = $this->buildService(templates: []);
 
-        // Provide invalid encrypted payload (not valid AES-256-GCM)
         $results = $service->processBatch(self::DEVICE_UUID, self::BRAND_ID, [[
             'local_id'          => 20,
             'encrypted_payload' => base64_encode('this_is_not_valid_aes_gcm_data_that_is_long_enough'),
@@ -236,12 +207,7 @@ final class SmsParserServiceTest extends TestCase
         }
     }
 
-    // â”€â”€â”€ Crypto Helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-    /**
-     * Encrypt a plaintext using AES-256-GCM with the test key.
-     * Format: base64(IV(12) + ciphertext + tag(16))
-     */
+    // AES-256-GCM format: base64(IV(12) + ciphertext + tag(16))
     private function encrypt(string $plaintext): string
     {
         $key = hex2bin(self::AES_KEY_HEX);
@@ -262,18 +228,12 @@ final class SmsParserServiceTest extends TestCase
         return base64_encode($iv . $ciphertext . $tag);
     }
 
-    // â”€â”€â”€ Service Builder â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-    /**
-     * Build SmsParserService with anonymous-class stubs.
-     */
     private function buildService(
         bool $deviceExists = true,
         bool $keyDecryptionFails = false,
         bool $isDuplicate = false,
         array $templates = [],
     ): SmsParserService {
-        // Stub: PairedDeviceRepository
         $deviceRepo = new class($deviceExists) {
             private bool $exists;
             public function __construct(bool $exists) { $this->exists = $exists; }
@@ -290,7 +250,6 @@ final class SmsParserServiceTest extends TestCase
             }
         };
 
-        // Stub: FieldEncryptor â€” returns real AES key hex on decrypt
         $aesKeyHex = self::AES_KEY_HEX;
         $encryptor = new class($keyDecryptionFails, $aesKeyHex) {
             private bool $fails;
@@ -305,14 +264,12 @@ final class SmsParserServiceTest extends TestCase
             }
         };
 
-        // Stub: SmsTemplateRepository
         $templateRepo = new class($templates) {
             private array $templates;
             public function __construct(array $templates) { $this->templates = $templates; }
             public function findBySender(string $sender): array { return $this->templates; }
         };
 
-        // Stub: SmsDataRepository
         $dataRepo = new class($isDuplicate) {
             private bool $isDup;
             private int $counter = 0;
@@ -327,7 +284,6 @@ final class SmsParserServiceTest extends TestCase
             }
         };
 
-        // Stub: MobileNotificationService (no-op)
         $notifService = new class {
             public function queuePaymentNotification(
                 string $deviceUuid, string $type,
@@ -347,4 +303,3 @@ final class SmsParserServiceTest extends TestCase
         );
     }
 }
-

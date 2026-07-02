@@ -1,14 +1,16 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
+use OwnPay\Core\Database;
+use OwnPay\Event\EventManager;
+use OwnPay\Security\UrlValidator;
+use OwnPay\Service\System\Logger;
+use OwnPay\Service\Notification\WebhookDispatcher;
 
-/**
- * WebhookDispatcher logic tests - HMAC signing, payload building, retry constants.
- * Tests core logic without requiring DB/curl.
- */
 class WebhookDispatcherTest extends TestCase
 {
     public function testHmacSigning(): void
@@ -17,9 +19,8 @@ class WebhookDispatcherTest extends TestCase
         $secret = 'merchant_webhook_secret_abc123';
         $signature = hash_hmac('sha256', $payload, $secret);
 
-        // Signature deterministic
         $this->assertSame(hash_hmac('sha256', $payload, $secret), $signature);
-        $this->assertSame(64, strlen($signature)); // SHA-256 = 64 hex chars
+        $this->assertSame(64, strlen($signature));
     }
 
     public function testHmacVerifiesCorrectly(): void
@@ -61,7 +62,7 @@ class WebhookDispatcherTest extends TestCase
     public function testRetryConstants(): void
     {
         $maxRetries = 3;
-        $delays = [60, 300, 1800]; // 1m, 5m, 30m
+        $delays = [60, 300, 1800];
 
         $this->assertCount($maxRetries, $delays);
         $this->assertSame(60, $delays[0]);
@@ -88,7 +89,6 @@ class WebhookDispatcherTest extends TestCase
 
     public function testGatewayTypeInPayload(): void
     {
-        // All gateway types must be representable
         $types = ['api', 'manual', 'bank', 'mfs', 'test'];
         foreach ($types as $type) {
             $payload = ['gateway_type' => $type];
@@ -116,7 +116,7 @@ class WebhookDispatcherTest extends TestCase
 
         foreach ($unsafeUrls as $url) {
             $this->assertFalse(
-                \OwnPay\Security\UrlValidator::isValidWebhookUrl($url),
+                UrlValidator::isValidWebhookUrl($url),
                 "URL {$url} should be blocked by SSRF protection."
             );
         }
@@ -132,7 +132,7 @@ class WebhookDispatcherTest extends TestCase
 
         foreach ($safeUrls as $url) {
             $this->assertTrue(
-                \OwnPay\Security\UrlValidator::isValidWebhookUrl($url),
+                UrlValidator::isValidWebhookUrl($url),
                 "URL {$url} should be permitted."
             );
         }
@@ -140,30 +140,30 @@ class WebhookDispatcherTest extends TestCase
 
     public function testBuildPayloadIncludesGatewayTrxId(): void
     {
-        $db = $this->createMock(\OwnPay\Core\Database::class);
-        $logger = new \OwnPay\Service\System\Logger('test');
-        $events = new \OwnPay\Event\EventManager();
-        
-        $dispatcher = new \OwnPay\Service\Notification\WebhookDispatcher($db, $logger, $events);
-        
+        $db = $this->createMock(Database::class);
+        $logger = new Logger('test');
+        $events = new EventManager();
+
+        $dispatcher = new WebhookDispatcher($db, $logger, $events);
+
         $data = [
             'transaction_id' => 'TXN_123',
             'gateway_trx_id' => 'GW_456',
             'amount' => '100.00',
         ];
-        
+
         $payload = $dispatcher->buildPayload('payment.completed', $data);
-        
+
         $this->assertSame('GW_456', $payload['gateway_trx_id']);
         $this->assertSame('TXN_123', $payload['transaction_id']);
     }
 
     public function testBuildPayloadQueriesDatabaseForGatewayTrxId(): void
     {
-        $db = $this->createMock(\OwnPay\Core\Database::class);
-        $logger = new \OwnPay\Service\System\Logger('test');
-        $events = new \OwnPay\Event\EventManager();
-        
+        $db = $this->createMock(Database::class);
+        $logger = new Logger('test');
+        $events = new EventManager();
+
         $db->expects($this->once())
             ->method('fetchOne')
             ->with(
@@ -171,16 +171,16 @@ class WebhookDispatcherTest extends TestCase
                 ['trxId' => 'TXN_123']
             )
             ->willReturn(['gateway_trx_id' => 'GW_789']);
-            
-        $dispatcher = new \OwnPay\Service\Notification\WebhookDispatcher($db, $logger, $events);
-        
+
+        $dispatcher = new WebhookDispatcher($db, $logger, $events);
+
         $data = [
             'transaction_id' => 'TXN_123',
             'amount' => '100.00',
         ];
-        
+
         $payload = $dispatcher->buildPayload('payment.completed', $data);
-        
+
         $this->assertSame('GW_789', $payload['gateway_trx_id']);
     }
 }

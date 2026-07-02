@@ -1,11 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 
-// Dynamically import Global Giants Batch 5 gateway plugin classes before execution
 require_once dirname(__DIR__, 2) . '/modules/gateways/amazon-pay/AmazonPayGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/gocardless/GocardlessGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/affirm/AffirmGateway.php';
@@ -20,14 +20,8 @@ use OwnPay\Modules\Gateways\Afterpay\AfterpayGateway;
 use OwnPay\Modules\Gateways\Sezzle\SezzleGateway;
 use OwnPay\Modules\Gateways\Bitpay\BitpayGateway;
 
-/**
- * Unit and contract tests for the new Global Giants payment gateways (Batch 5).
- */
 class GlobalGiantsGatewayTest extends TestCase
 {
-    /**
-     * Test the manifest validation logic for all six Batch 5 gateways.
-     */
     public function testGlobalGiantsGatewayManifestSpecs(): void
     {
         $root = dirname(__DIR__, 2);
@@ -50,9 +44,6 @@ class GlobalGiantsGatewayTest extends TestCase
         }
     }
 
-    /**
-     * Test GoCardless signature webhook verification.
-     */
     public function testGocardlessWebhookSignatureVerification(): void
     {
         $gateway = new GocardlessGateway();
@@ -63,8 +54,6 @@ class GlobalGiantsGatewayTest extends TestCase
         ];
 
         $rawBody = '{"id":"event_123","action":"paid","amount":25050}';
-        
-        // HMAC-SHA256 signature calculated over raw body using webhook secret
         $expectedSignature = hash_hmac('sha256', $rawBody, 'gc_secret_key_456');
 
         $headers = [
@@ -72,16 +61,13 @@ class GlobalGiantsGatewayTest extends TestCase
         ];
 
         $isValid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertTrue($isValid, "GoCardless verifyWebhook should authenticate valid signature.");
+        $this->assertTrue($isValid);
 
         $headers['webhook-signature'] = 'invalid_signature';
         $isInvalid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertFalse($isInvalid, "GoCardless verifyWebhook should reject invalid signature.");
+        $this->assertFalse($isInvalid);
     }
 
-    /**
-     * Test Sezzle signature webhook verification.
-     */
     public function testSezzleWebhookSignatureVerification(): void
     {
         $gateway = new SezzleGateway();
@@ -92,8 +78,6 @@ class GlobalGiantsGatewayTest extends TestCase
         ];
 
         $rawBody = '{"uuid":"sz_session_100","order":{"reference_id":"TX1000","order_amount":{"amount_in_cents":3000}}}';
-
-        // HMAC-SHA256 signature calculated over raw body using private key
         $expectedSignature = hash_hmac('sha256', $rawBody, 'sz_priv_key_456');
 
         $headers = [
@@ -101,16 +85,13 @@ class GlobalGiantsGatewayTest extends TestCase
         ];
 
         $isValid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertTrue($isValid, "Sezzle verifyWebhook should authenticate valid signature.");
+        $this->assertTrue($isValid);
 
         $headers['x-sezzle-signature'] = 'invalid_signature';
         $isInvalid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertFalse($isInvalid, "Sezzle verifyWebhook should reject invalid signature.");
+        $this->assertFalse($isInvalid);
     }
 
-    /**
-     * Test Amazon Pay signature webhook verification.
-     */
     public function testAmazonPayWebhookSignatureVerification(): void
     {
         $gateway = new AmazonPayGateway();
@@ -124,8 +105,6 @@ class GlobalGiantsGatewayTest extends TestCase
         ];
 
         $rawBody = '{"checkoutSessionId":"session_100","status":"PAID"}';
-
-        // Amazon Pay custom test verification check matching expected mock
         $expectedSignature = hash_hmac('sha256', $rawBody, 'amzn_store_456');
 
         $headers = [
@@ -133,16 +112,13 @@ class GlobalGiantsGatewayTest extends TestCase
         ];
 
         $isValid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertTrue($isValid, "Amazon Pay verifyWebhook should authenticate valid test signature.");
+        $this->assertTrue($isValid);
 
         $headers['x-amz-pay-signature'] = 'invalid_signature';
         $isInvalid = $gateway->verifyWebhook($rawBody, $headers, $credentials);
-        $this->assertFalse($isInvalid, "Amazon Pay verifyWebhook should reject invalid signature.");
+        $this->assertFalse($isInvalid);
     }
 
-    /**
-     * Verify that sandbox simulator validation strictly blocks live mode bypass across all Batch 5 gateways.
-     */
     public function testSandboxSimulatorLiveModeBypassBlocking(): void
     {
         $amazonPay = new AmazonPayGateway();
@@ -173,52 +149,46 @@ class GlobalGiantsGatewayTest extends TestCase
             'cancel_url' => 'https://example.com/cancel',
         ];
 
-        // 1. Amazon Pay Live Initiate validation
         try {
             $amazonPay->initiate($params, $liveCreds);
-            $this->fail("Amazon Pay should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('Amazon Pay should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // 2. GoCardless Live Initiate validation
         try {
             $gocardless->initiate($params, $liveCreds);
-            $this->fail("GoCardless should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('GoCardless should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // 3. Affirm Live Initiate validation
         try {
             $affirm->initiate($params, $liveCreds);
-            $this->fail("Affirm should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('Affirm should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // 4. Afterpay Live Initiate validation
         try {
             $afterpay->initiate($params, $liveCreds);
-            $this->fail("Afterpay should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('Afterpay should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // 5. Sezzle Live Initiate validation
         try {
             $sezzle->initiate($params, $liveCreds);
-            $this->fail("Sezzle should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('Sezzle should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
 
-        // 6. BitPay Live Initiate validation
         try {
             $bitpay->initiate($params, $liveCreds);
-            $this->fail("BitPay should throw RuntimeException on live mode sandbox credential usage.");
+            $this->fail('BitPay should throw RuntimeException on live mode sandbox credential usage.');
         } catch (\RuntimeException $e) {
-            $this->assertStringContainsString("Sandbox simulation", $e->getMessage());
+            $this->assertStringContainsString('Sandbox simulation', $e->getMessage());
         }
     }
 }

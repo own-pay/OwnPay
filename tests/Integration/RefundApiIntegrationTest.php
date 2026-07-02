@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -6,7 +7,6 @@ namespace Tests\Integration;
 use OwnPay\Container;
 use OwnPay\Core\Database;
 use OwnPay\Http\Request;
-use OwnPay\Http\Response;
 use OwnPay\Controller\Api\RefundController;
 
 final class RefundApiIntegrationTest extends IntegrationTestCase
@@ -33,10 +33,8 @@ final class RefundApiIntegrationTest extends IntegrationTestCase
 
         $this->controller = $this->container->get(RefundController::class);
 
-        // Clean up any stale records
         $this->cleanup();
 
-        // Seed merchant and transaction
         $this->db->execute(
             "INSERT INTO op_merchants (id, uuid, name, slug, email, status, settings)
              VALUES (99998, 'test-merchant-uuid-99998', 'Refund Test Merchant', 'refund-test', 'refund@test.com', 'active', '{}')"
@@ -69,7 +67,6 @@ final class RefundApiIntegrationTest extends IntegrationTestCase
 
     public function testRefundListAndFiltering(): void
     {
-        // 1. Insert two refunds under merchant 99998
         $this->db->execute(
             "INSERT INTO op_refunds (id, merchant_id, transaction_id, uuid, amount, reason, status, created_at)
              VALUES (999981, 99998, 999981, 'refund-uuid-1', 100.00, 'Faulty product', 'completed', '2026-06-16 11:00:00')"
@@ -79,7 +76,6 @@ final class RefundApiIntegrationTest extends IntegrationTestCase
              VALUES (999982, 99998, 999982, 'refund-uuid-2', 50.00, 'Customer requested', 'pending', '2026-06-17 13:00:00')"
         );
 
-        // 2. Query all refunds without filters
         $req = new Request([], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/refunds'
@@ -92,20 +88,18 @@ final class RefundApiIntegrationTest extends IntegrationTestCase
         $body = json_decode($res->getBody(), true);
         $this->assertTrue($body['success']);
         $this->assertCount(2, $body['data']);
-        $this->assertSame('refund-uuid-2', $body['data'][0]['uuid']); // Order by created_at DESC
+        $this->assertSame('refund-uuid-2', $body['data'][0]['uuid']);
         $this->assertSame('refund-uuid-1', $body['data'][1]['uuid']);
         $this->assertSame('OP-TRX-TEST-2', $body['data'][0]['trx_id']);
         $this->assertSame('OP-TRX-TEST-1', $body['data'][1]['trx_id']);
         $this->assertSame('BKASH-GW-2', $body['data'][0]['gateway_trx_id']);
         $this->assertSame('BKASH-GW-1', $body['data'][1]['gateway_trx_id']);
 
-        // Check metadata
         $this->assertSame(1, $body['meta']['page']);
         $this->assertSame(25, $body['meta']['per_page']);
         $this->assertSame(2, $body['meta']['total']);
         $this->assertSame(1, $body['meta']['total_pages']);
 
-        // 3. Filter by status
         $reqStatus = new Request(['status' => 'completed'], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/refunds'
@@ -118,7 +112,6 @@ final class RefundApiIntegrationTest extends IntegrationTestCase
         $this->assertSame('refund-uuid-1', $bodyStatus['data'][0]['uuid']);
         $this->assertSame('completed', $bodyStatus['data'][0]['status']);
 
-        // 4. Filter by trx_id
         $reqTrx = new Request(['trx_id' => 'OP-TRX-TEST-2'], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/refunds'
@@ -130,7 +123,6 @@ final class RefundApiIntegrationTest extends IntegrationTestCase
         $this->assertCount(1, $bodyTrx['data']);
         $this->assertSame('refund-uuid-2', $bodyTrx['data'][0]['uuid']);
 
-        // 5. Filter by date range (from/to)
         $reqDate = new Request(['from' => '2026-06-17', 'to' => '2026-06-17'], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/refunds'

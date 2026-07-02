@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -12,30 +13,20 @@ use OwnPay\Middleware\RateLimiterMiddleware;
 use PHPUnit\Framework\TestCase;
 
 /**
- *
- * This test deliberately loads the REAL config files (`config/routes/api.php` and
- * `config/middleware.php`) and replicates {@see \OwnPay\Kernel::runMiddleware()}'s
- * stack resolution (`global` + group, de-duplicated). It asserts the property the audit
- * cares about - what middleware actually executes for each route - rather than matching
- * a literal group name. If anyone ever re-points pairing back under `mobile`, deletes
- * the `mobile-bootstrap` group, or injects JWT auth into it, this fails loudly.
- *
- * It is intentionally container/DB-free: route matching and middleware-stack assembly
- * touch neither, so this is a fast, deterministic structural guard.
+ * Loads REAL config files and replicates Kernel::runMiddleware() stack resolution.
+ * Asserts what middleware actually executes for each route - if anyone re-points pairing
+ * back under `mobile`, deletes the `mobile-bootstrap` group, or injects JWT auth into it,
+ * this fails loudly. Intentionally container/DB-free.
  */
 final class MobileBootstrapRouteTest extends TestCase
 {
-    /** Routes that a token-less device MUST be able to reach to bootstrap itself. */
+    /** Routes a token-less device MUST reach to bootstrap itself. */
     private const BOOTSTRAP_ROUTES = [
         ['POST', '/api/mobile/v1/devices'],
         ['POST', '/api/mobile/v1/devices/token-refreshes'],
     ];
 
-    /**
-     * A representative sample of the authenticated mobile surface. Every one of these
-     * MUST keep the JWT gate - this guards against an over-correction that accidentally
-     * exposes protected endpoints while "fixing" the bootstrap deadlock.
-     */
+    /** Authenticated mobile surface that MUST keep the JWT gate. */
     private const AUTHENTICATED_ROUTES = [
         ['POST', '/api/mobile/v1/sms'],
         ['GET', '/api/mobile/v1/dashboard'],
@@ -118,17 +109,10 @@ final class MobileBootstrapRouteTest extends TestCase
             'The mobile-bootstrap middleware group must exist; pairing/refresh routes depend on it.'
         );
         self::assertNotContains(JwtAuthMiddleware::class, $config['mobile-bootstrap']);
-        // Sanity check the comparison set: the `mobile` group it diverges from DOES gate on JWT.
         self::assertContains(JwtAuthMiddleware::class, $config['mobile'] ?? []);
     }
 
-    // -- helpers
     /**
-     * Resolve the ordered middleware class list that the kernel would execute for a
-     * given request, by loading the real route + middleware config and mirroring
-     * {@see \OwnPay\Kernel::runMiddleware()} (global stack merged with the matched
-     * group, de-duplicated, order preserved).
-     *
      * @return list<string>
      */
     private function resolvedStackFor(string $method, string $path): array

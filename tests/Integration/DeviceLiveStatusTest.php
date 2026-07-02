@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -7,20 +8,7 @@ use OwnPay\Container;
 use OwnPay\Controller\Admin\DeviceController;
 use OwnPay\Core\Database;
 use OwnPay\Http\Request;
-use Tests\Integration\IntegrationTestCase;
 
-/**
- * DeviceLiveStatusTest
- *
- * Drives the admin live-status + pairing-detection endpoints on the real DeviceController:
- *   - GET /admin/devices/statuses    -> per-device status with a derived `online` flag; revoked frozen.
- *   - GET /admin/devices/pairing-status?since= -> detects a device paired after a baseline timestamp.
- *   - POST /admin/devices/generate-otp now returns `generated_at` (the baseline for pairing-status).
- *
- * Isolated under a dedicated test brand so "newest paired since" and the status list are deterministic.
- *
- * @group Integration
- */
 final class DeviceLiveStatusTest extends IntegrationTestCase
 {
     private Database $db;

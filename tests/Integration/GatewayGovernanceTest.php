@@ -11,10 +11,7 @@ use OwnPay\Http\Request;
 
 /**
  * Phase 2c governance + per-brand account configuration, driven through the real GatewayController.
- *
- * Asserts the model-A rules: only All Brands creates gateway TYPES (templates); a brand cannot create
- * types (direct-URL closed) but configures its OWN account for a platform template; that account then
- * wins at checkout. Uses 'zztest-' slugs so it never touches real seeded gateways.
+ * Uses 'zztest-' slugs so it never touches real seeded gateways.
  */
 final class GatewayGovernanceTest extends IntegrationTestCase
 {
@@ -100,9 +97,6 @@ final class GatewayGovernanceTest extends IntegrationTestCase
         );
     }
 
-    /**
-     * @return array<string, mixed>|null
-     */
     private function fetchGateway(int $merchantId, string $slug): ?array
     {
         return $this->db->fetchOne(
@@ -121,7 +115,6 @@ final class GatewayGovernanceTest extends IntegrationTestCase
             'instructions' => 'Send to BRAND',
         ]));
 
-        // The All-Brands-only guard must redirect before any insert (closes the brand direct-URL).
         $this->assertNull($this->fetchGateway($this->brandId, 'zztest-gov-brand'), 'Brand must not create a type');
         $this->assertNull($this->fetchGateway($this->platformId, 'zztest-gov-brand'), 'Nothing created at all');
     }
@@ -155,7 +148,6 @@ final class GatewayGovernanceTest extends IntegrationTestCase
         $this->assertNotNull($brandRow, 'Brand account row created for the template slug');
         $this->assertStringContainsString('BRAND-OWN-01711111111', (string) ($brandRow['instructions'] ?? ''));
 
-        // Money outcome: the brand's account now WINS at that brand's checkout.
         $repo = new \OwnPay\Repository\ManualGatewayRepository($this->db);
         $effective = $repo->listActiveForCheckout($this->brandId, $this->platformId);
         $found = null;
@@ -197,7 +189,6 @@ final class GatewayGovernanceTest extends IntegrationTestCase
             ['slug' => 'zztest-cfg']
         ));
 
-        // Configuring a brand account is a brand-scoped action; All Brands edits the template directly.
         $this->assertNull(
             $this->fetchGateway($this->platformId, 'zztest-cfg-shouldnotexist'),
             'no stray rows'

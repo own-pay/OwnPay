@@ -1,11 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 
-// Dynamically import MFS gateway plugin classes before execution
 require_once dirname(__DIR__, 2) . '/modules/gateways/portwallet/PortWalletGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/nexuspay/NexusPayGateway.php';
 require_once dirname(__DIR__, 2) . '/modules/gateways/cellfin/CellFinGateway.php';
@@ -18,14 +18,8 @@ use OwnPay\Modules\Gateways\CellFin\CellFinGateway;
 use OwnPay\Modules\Gateways\Tap\TapGateway;
 use OwnPay\Modules\Gateways\OkWallet\OkWalletGateway;
 
-/**
- * Unit and contract tests for the new Bangladesh MFS payment gateways.
- */
 class BangladeshMfsGatewayTest extends TestCase
 {
-    /**
-     * Test the manifest validation logic for the new gateways.
-     */
     public function testMfsGatewayManifestSpecs(): void
     {
         $root = dirname(__DIR__, 2);
@@ -45,16 +39,10 @@ class BangladeshMfsGatewayTest extends TestCase
         }
     }
 
-    /**
-     * Test high-precision BCMath math is applied to amount formatting and formatting conforms.
-     */
     public function testHighPrecisionAmountFormatting(): void
     {
         $portwallet = new PortWalletGateway();
         $nexuspay = new NexusPayGateway();
-        $cellfin = new CellFinGateway();
-        $tap = new TapGateway();
-        $okwallet = new OkWalletGateway();
 
         $params = [
             'amount' => '1234.56',
@@ -64,7 +52,6 @@ class BangladeshMfsGatewayTest extends TestCase
             'cancel_url' => 'https://example.com/cancel',
         ];
 
-        // PortWallet initiate test in sandbox mode
         $portCreds = [
             'app_key' => 'test_app_key',
             'secret_key' => 'test_secret_key',
@@ -73,7 +60,6 @@ class BangladeshMfsGatewayTest extends TestCase
         $res = $portwallet->initiate($params, $portCreds);
         $this->assertNotEmpty($res['redirect_url']);
 
-        // NexusPay verify test signature in sandbox mode
         $nexusCreds = [
             'merchant_id' => 'test_merchant',
             'secret_key' => 'test_secret',
@@ -89,9 +75,6 @@ class BangladeshMfsGatewayTest extends TestCase
         $this->assertSame('1234.56', $verifyRes['amount']);
     }
 
-    /**
-     * Verify that sandbox simulator validation strictly blocks SIM_ prefixes in live mode.
-     */
     public function testSandboxSimulatorLiveModeBypassBlocking(): void
     {
         $portwallet = new PortWalletGateway();
@@ -108,14 +91,12 @@ class BangladeshMfsGatewayTest extends TestCase
             'mode' => 'live',
         ];
 
-        // 1. PortWallet live mode bypass blocking
         $verifyRes = $portwallet->verify([
             'invoice_id' => 'SIM_123',
             'amount' => '100.00',
         ], $liveCreds);
         $this->assertFalse($verifyRes['success']);
 
-        // 2. NexusPay live mode bypass blocking
         $verifyRes = $nexuspay->verify([
             'trx_id' => 'TX1000',
             'gateway_trx_id' => 'SIM_123',
@@ -124,7 +105,6 @@ class BangladeshMfsGatewayTest extends TestCase
         ], $liveCreds);
         $this->assertFalse($verifyRes['success']);
 
-        // 3. CellFin live mode bypass blocking
         $verifyRes = $cellfin->verify([
             'trx_id' => 'TX1000',
             'gateway_trx_id' => 'SIM_123',
@@ -133,7 +113,6 @@ class BangladeshMfsGatewayTest extends TestCase
         ], $liveCreds);
         $this->assertFalse($verifyRes['success']);
 
-        // 4. Tap live mode bypass blocking
         $verifyRes = $tap->verify([
             'trx_id' => 'TX1000',
             'gateway_trx_id' => 'SIM_123',
@@ -142,7 +121,6 @@ class BangladeshMfsGatewayTest extends TestCase
         ], $liveCreds);
         $this->assertFalse($verifyRes['success']);
 
-        // 5. OK Wallet live mode bypass blocking
         $verifyRes = $okwallet->verify([
             'trx_id' => 'TX1000',
             'gateway_trx_id' => 'SIM_123',

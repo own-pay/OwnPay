@@ -9,19 +9,7 @@ use OwnPay\Repository\SmsTemplateRepository;
 use OwnPay\Repository\SmsDataRepository;
 use OwnPay\Repository\MobileNotificationRepository;
 use PHPUnit\Framework\Attributes\AllowMockObjectsWithoutExpectations;
-use Tests\Integration\IntegrationTestCase;
 
-/**
- * AdminFeaturesIntegrationTest - Integration tests for Part 5 admin features.
- *
- * Tests:
- *   1. SMS Template CRUD round-trip
- *   2. SMS record updateParsedData (reprocess/resolve)
- *   3. Notification cleanup (purgeOldRead)
- *   4. SMS stats query
- *
- * @group Integration
- */
 #[AllowMockObjectsWithoutExpectations]
 final class AdminFeaturesIntegrationTest extends IntegrationTestCase
 {
@@ -37,11 +25,9 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         $this->templateRepo = new SmsTemplateRepository(Database::getInstance());
         $this->dataRepo = new SmsDataRepository(Database::getInstance());
 
-        // Set tenant context (brand context 1)
         $this->templateRepo = $this->templateRepo->forTenant(1);
         $this->dataRepo = $this->dataRepo->forTenant(1);
 
-        // Ensure test device exists for Foreign Key constraints
         $pdo = Database::getInstance()->pdo();
         $pdo->exec("DELETE FROM op_sms_parsed WHERE device_id = '" . self::TEST_DEVICE_UUID . "'");
         $pdo->exec("DELETE FROM op_mobile_notifications WHERE device_uuid = '" . self::TEST_DEVICE_UUID . "'");
@@ -67,11 +53,8 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    // --- Test 1: Template CRUD -------------------------------------------
-
     public function testTemplateCrudRoundTrip(): void
     {
-        // Create
         $id = (int) $this->templateRepo->createScoped([
             'gateway_slug'   => 'bkash',
             'sender_pattern' => 'TestProvider',
@@ -82,13 +65,11 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         ]);
         $this->assertGreaterThan(0, $id);
 
-        // Read
         $template = $this->templateRepo->findScoped($id);
         $this->assertNotNull($template);
         $this->assertSame('TestProvider', $template['sender_pattern']);
         $this->assertSame(999, (int) $template['priority']);
 
-        // Update
         $this->templateRepo->updateScoped($id, [
             'priority' => 50,
             'status'   => 'inactive',
@@ -97,17 +78,13 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         $this->assertSame(50, (int) $updated['priority']);
         $this->assertSame('inactive', $updated['status']);
 
-        // Delete
         $this->templateRepo->deleteScoped($id);
         $deleted = $this->templateRepo->findScoped($id);
         $this->assertNull($deleted);
     }
 
-    // --- Test 2: updateParsedData -------------------------------------------
-
     public function testUpdateParsedDataForReprocess(): void
     {
-        // Insert a record with admin_review status
         $id = (int) $this->dataRepo->createScoped([
             'device_id'     => self::TEST_DEVICE_UUID,
             'sender'        => 'TestSender',
@@ -119,7 +96,6 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         ]);
         $this->assertGreaterThan(0, $id);
 
-        // Simulate admin reprocess
         $this->dataRepo->updateParsedData($id, [
             'amount'       => 500.0,
             'trx_id'       => 'RPR001',
@@ -136,43 +112,33 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
         $this->assertNotNull($record['created_at']);
     }
 
-    // --- Test 3: Notification cleanup ---------------------------------------
-
     public function testNotificationCleanup(): void
     {
         $notifRepo = new MobileNotificationRepository(Database::getInstance());
         $pdo = Database::getInstance()->pdo();
 
-        // Insert an old read notification (8 days ago)
         $pdo->prepare(
             "INSERT INTO op_mobile_notifications (merchant_id, device_uuid, type, title, body, payload, is_read, read_at, created_at)
              VALUES (1, :uuid, 'test', 'Old', 'Old body', '{}', 1, DATE_SUB(NOW(), INTERVAL 8 DAY), DATE_SUB(NOW(), INTERVAL 8 DAY))"
         )->execute([':uuid' => self::TEST_DEVICE_UUID]);
 
-        // Insert a recent read notification (1 day ago)
         $pdo->prepare(
             "INSERT INTO op_mobile_notifications (merchant_id, device_uuid, type, title, body, payload, is_read, read_at, created_at)
              VALUES (1, :uuid, 'test', 'Recent', 'Recent body', '{}', 1, DATE_SUB(NOW(), INTERVAL 1 DAY), DATE_SUB(NOW(), INTERVAL 1 DAY))"
         )->execute([':uuid' => self::TEST_DEVICE_UUID]);
 
-        // Purge > 7 days
         $purged = $notifRepo->purgeOldRead(7);
 
-        // At least the old one should be purged
         $this->assertGreaterThanOrEqual(1, $purged);
 
-        // Recent one should still exist
         $remaining = $notifRepo->forTenant(1)->pollSince(self::TEST_DEVICE_UUID);
         $this->assertIsArray($remaining);
     }
-
-    // --- Test 4: SMS stats aggregation ---------------------------------------
 
     public function testSmsStatsAggregation(): void
     {
         $pdo = Database::getInstance()->pdo();
 
-        // Insert test records
         $this->dataRepo->create([
             'merchant_id'      => 1,
             'device_id'        => self::TEST_DEVICE_UUID,
@@ -200,7 +166,6 @@ final class AdminFeaturesIntegrationTest extends IntegrationTestCase
             'match_status'     => 'accepted',
         ]);
 
-        // Query stats
         $statusStmt = $pdo->prepare(
             "SELECT match_status, COUNT(*) AS count FROM op_sms_parsed
              WHERE merchant_id = 1 AND device_id = :uuid GROUP BY match_status"

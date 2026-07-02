@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -15,21 +16,15 @@ use OwnPay\Security\Authenticator;
 use OwnPay\Service\Auth\PasswordResetService;
 use OwnPay\Service\Communication\MailProviderInterface;
 
-/**
- * In-memory mail provider capturing the reset email for assertions.
- */
 final class ResetMailCapture implements PluginInterface, MailProviderInterface
 {
-    /** @var array<int, array<string, mixed>> */
     public array $sent = [];
 
-    /** @return array{name: string, slug: string, version: string, description: string, author: string, type: string} */
     public static function metadata(): array
     {
         return ['name' => 'Reset Mail', 'slug' => 'reset-mail', 'version' => '1.0.0', 'description' => 't', 'author' => 't', 'type' => 'addon'];
     }
 
-    /** @return array<int, Capability> */
     public function capabilities(): array
     {
         return [Capability::COMMUNICATION];
@@ -51,7 +46,6 @@ final class ResetMailCapture implements PluginInterface, MailProviderInterface
     {
     }
 
-    /** @return array<int, array{name: string, label: string, type: string, default?: mixed, options?: array<string, string>}> */
     public function fields(): array
     {
         return [];
@@ -62,10 +56,6 @@ final class ResetMailCapture implements PluginInterface, MailProviderInterface
         return 'reset-mail';
     }
 
-    /**
-     * @param array{to: string, subject: string, body: string, html?: string, from?: string, reply_to?: string, attachments?: array<int, array<string, mixed>>} $message
-     * @return array{success: bool, message_id?: string, error?: string}
-     */
     public function send(array $message): array
     {
         $this->sent[] = $message;
@@ -73,11 +63,6 @@ final class ResetMailCapture implements PluginInterface, MailProviderInterface
     }
 }
 
-/**
- * Security-critical: verifies the self-service password-reset flow - token issuance (single valid
- * token, hashed, no account enumeration), and reset (valid token changes the password and is
- * consumed; expired/reused/invalid/short/mismatched are rejected without changing the password).
- */
 final class PasswordResetServiceTest extends IntegrationTestCase
 {
     private Database $db;
@@ -123,7 +108,7 @@ final class PasswordResetServiceTest extends IntegrationTestCase
 
         $this->cleanup();
 
-        // The test DB has no roles; create a throwaway role to satisfy the merchant_users.role_id FK.
+        // Throwaway role to satisfy merchant_users.role_id FK
         $this->db->execute(
             "INSERT INTO op_roles (merchant_id, name, slug) VALUES (1, 'PwReset Test Role', :slug)",
             ['slug' => self::ROLE_SLUG]
@@ -152,7 +137,6 @@ final class PasswordResetServiceTest extends IntegrationTestCase
 
     private function cleanup(): void
     {
-        // Delete the user first (role_id FK is ON DELETE RESTRICT); reset tokens cascade with the user.
         $this->db->execute("DELETE FROM op_merchant_users WHERE email = :email", ['email' => $this->email]);
         $this->db->execute("DELETE FROM op_roles WHERE merchant_id = 1 AND slug = :slug", ['slug' => self::ROLE_SLUG]);
     }

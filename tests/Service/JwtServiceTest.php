@@ -7,7 +7,7 @@ namespace Tests\Service;
 use OwnPay\Service\Auth\JwtService;
 use PHPUnit\Framework\TestCase;
 
-class JwtServiceTest extends TestCase
+final class JwtServiceTest extends TestCase
 {
     private JwtService $jwt;
     private string $secret;
@@ -18,8 +18,6 @@ class JwtServiceTest extends TestCase
         $this->jwt = new JwtService($this->secret);
     }
 
-    // --- Encoding ------------------------------------------------
-
     public function testEncodeReturnsTokenAndExpiry(): void
     {
         $result = $this->jwt->encode('test-uuid', 1);
@@ -28,7 +26,7 @@ class JwtServiceTest extends TestCase
         $this->assertArrayHasKey('expires_at', $result);
         $this->assertArrayHasKey('expires_in', $result);
         $this->assertIsString($result['token']);
-        $this->assertSame(900, $result['expires_in']); // default 15 min
+        $this->assertSame(900, $result['expires_in']);
     }
 
     public function testEncodeRespectsCustomTtl(): void
@@ -38,8 +36,6 @@ class JwtServiceTest extends TestCase
         $this->assertSame(60, $result['expires_in']);
         $this->assertGreaterThan(time(), $result['expires_at']);
     }
-
-    // --- Decoding ------------------------------------------------
 
     public function testDecodeValidToken(): void
     {
@@ -66,7 +62,6 @@ class JwtServiceTest extends TestCase
 
     public function testDecodeExpiredTokenReturnsExpiredError(): void
     {
-        // Create a token with 0-second TTL (already expired)
         $encoded = $this->jwt->encode('device-abc', 1, [], -1);
         $result = $this->jwt->decode($encoded['token']);
 
@@ -89,8 +84,6 @@ class JwtServiceTest extends TestCase
         $this->assertFalse($result['valid']);
     }
 
-    // --- Device UUID Extraction ----------------------------------
-
     public function testExtractDeviceUuidFromValidSub(): void
     {
         $uuid = $this->jwt->extractDeviceUuid('device:abc-123-def');
@@ -103,8 +96,6 @@ class JwtServiceTest extends TestCase
         $this->assertNull($this->jwt->extractDeviceUuid('device:'));
         $this->assertNull($this->jwt->extractDeviceUuid(''));
     }
-
-    // --- Secret Generation ---------------------------------------
 
     public function testGenerateSecretReturns64HexChars(): void
     {
@@ -130,4 +121,3 @@ class JwtServiceTest extends TestCase
         $this->assertSame($scopes, $decoded['payload']->scopes);
     }
 }
-

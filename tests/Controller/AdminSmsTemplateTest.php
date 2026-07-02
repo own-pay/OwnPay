@@ -7,15 +7,8 @@ namespace Tests\Controller;
 use OwnPay\Service\Sms\SmsRegexParser;
 use PHPUnit\Framework\TestCase;
 
-/**
- * AdminSmsTemplateTest â€” Tests for regex validation and parser tester logic.
- *
- * Tests the core logic without HTTP (regex validation, parse testing).
- */
 final class AdminSmsTemplateTest extends TestCase
 {
-    // â”€â”€â”€ Regex Validation â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testValidRegexPassesValidation(): void
     {
         $pattern = '/received Tk\s*(?P<amount>[\d,]+(?:\.\d{1,2})?)/i';
@@ -35,8 +28,6 @@ final class AdminSmsTemplateTest extends TestCase
         $result = @preg_match('', '');
         $this->assertFalse($result, 'Empty regex should fail');
     }
-
-    // â”€â”€â”€ Regex Tester Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testRegexTesterMatchesSampleText(): void
     {
@@ -82,17 +73,13 @@ final class AdminSmsTemplateTest extends TestCase
         $this->assertSame('ABC123DEF', $named['trx_id']);
     }
 
-    // â”€â”€â”€ Admin Queue Reprocess Logic â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testReprocessWithNewTemplate(): void
     {
         $parser = new SmsRegexParser();
 
-        // Initially no templates â†’ null
         $result1 = $parser->parse('Received Tk 750.00 from 01611222333. TrxID XYZ999.', []);
         $this->assertNull($result1);
 
-        // Add a template â†’ should match
         $templates = [[
             'id'               => 99,
             'sender_pattern'   => 'test',
@@ -109,7 +96,6 @@ final class AdminSmsTemplateTest extends TestCase
 
     public function testManualResolveDataStructure(): void
     {
-        // Simulate what the resolve endpoint would do
         $adminInput = [
             'amount'        => 500.00,
             'type'          => 'credit',
@@ -133,4 +119,3 @@ final class AdminSmsTemplateTest extends TestCase
         $this->assertSame('high', $updateData['parse_confidence']);
     }
 }
-

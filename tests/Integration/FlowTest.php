@@ -1,17 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 
-/**
- * Integration tests - validate controller-level flows.
- * These test request/response contracts, not DB state.
- */
 class FlowTest extends TestCase
 {
-    // L13: Auth flow
     public function testLoginRequiresCredentials(): void
     {
         $body = json_encode(['email' => '', 'password' => '']);
@@ -27,7 +23,6 @@ class FlowTest extends TestCase
         $this->assertTrue(password_verify($pw, $hash));
     }
 
-    // L14: Payment flow
     public function testPaymentInitiationRequiresAmount(): void
     {
         $payload = ['amount' => '', 'currency' => 'BDT'];
@@ -41,7 +36,6 @@ class FlowTest extends TestCase
         $this->assertGreaterThan(0, (float) $amount);
     }
 
-    // L15: SMS parsing integration
     public function testSmsReceptionPayload(): void
     {
         $payload = ['from' => '01712345678', 'body' => 'TrxID ABC123', 'received_at' => date('c')];
@@ -49,7 +43,6 @@ class FlowTest extends TestCase
         $this->assertStringContainsString('TrxID', $payload['body']);
     }
 
-    // L16: Plugin lifecycle
     public function testPluginManifestDiscovery(): void
     {
         $dirs = ['modules/addons/sms-gateway', 'modules/addons/mail-gateway', 'modules/addons/telegram-bot'];
@@ -65,21 +58,18 @@ class FlowTest extends TestCase
         $this->assertTrue(true);
     }
 
-    // L17: Manual gateway checkout
     public function testManualVerifyRequiresTxnId(): void
     {
         $txnId = '';
         $this->assertTrue($txnId === '', 'Empty txn ID should be rejected');
     }
 
-    // L18: Mobile API
     public function testDevicePairPayload(): void
     {
         $payload = ['device_name' => 'Pixel 8', 'device_id' => bin2hex(random_bytes(16))];
         $this->assertSame(32, strlen($payload['device_id']));
     }
 
-    // L19: Custom domain resolution
     public function testDomainParsingFromHost(): void
     {
         $host = 'pay.merchant.com';
@@ -87,7 +77,6 @@ class FlowTest extends TestCase
         $this->assertGreaterThanOrEqual(2, count($parts));
     }
 
-    // L20: Update + rollback
     public function testSemverComparison(): void
     {
         $this->assertTrue(version_compare('0.2.0', '0.1.0', '>'));

@@ -22,16 +22,7 @@ use OwnPay\Security\FieldEncryptor;
 use OwnPay\Gateway\GatewayAdapterInterface;
 use OwnPay\Event\EventManager;
 use OwnPay\Gateway\GatewayBridge;
-use Tests\Integration\IntegrationTestCase;
 
-/**
- * Class FinancialLeakageAuditTest
- *
- * Runs full-stack integration validations verifying concurrency locking, double-posting,
- * and duplicate/excess refund prevention strategies inside the general ledger pipeline.
- *
- * @package Tests\Integration
- */
 final class FinancialLeakageAuditTest extends IntegrationTestCase
 {
     private Database $db;
@@ -43,7 +34,7 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
     private AuditLogRepository $auditRepo;
     private SettingsRepository $settingsRepo;
     private FeeRuleRepository $feeRuleRepo;
-    
+
     private LedgerService $ledgerService;
     private TransactionService $transactionService;
     private FeeService $feeService;
@@ -62,8 +53,7 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
 
         $this->db = Database::getInstance();
         $this->db->execute("SET SESSION innodb_lock_wait_timeout = 2");
-        
-        // Clean tables
+
         $this->db->execute("DELETE FROM op_ledger_entries");
         $this->db->execute("DELETE FROM op_ledger_transactions");
         $this->db->execute("DELETE FROM op_ledger_accounts");
@@ -84,7 +74,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $this->transactionService = new TransactionService($this->transactionRepo, $this->events, $this->auditRepo);
         $this->feeService = new FeeService($this->events, $this->settingsRepo, $this->feeRuleRepo);
 
-        // Setup Gateway Mock Adapter registered on a real GatewayBridge
         $configsRepo = new GatewayConfigRepository($this->db);
         $encryptor = new FieldEncryptor('test-encryption-key-32-chars-long!');
         $this->bridge = new GatewayBridge($configsRepo, $encryptor, $this->events, $this->settingsRepo);
@@ -95,7 +84,7 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $adapter->method('supportedCurrencies')->willReturn(['BDT', 'USD']);
         $adapter->method('verify')->willReturn(['success' => true, 'gateway_trx_id' => 'GW_TRX_123', 'amount' => '100.00']);
         $adapter->method('refund')->willReturn(['success' => true]);
-        
+
         $this->bridge->registerAdapter($adapter);
 
         $this->gatewayApiService = new GatewayApiService(
@@ -113,7 +102,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
             $this->ledgerService
         );
 
-        // Seed default merchant
         $merchant = $this->db->fetchOne("SELECT * FROM op_merchants WHERE id = 1 LIMIT 1");
         if ($merchant === null) {
             $this->db->execute(
@@ -122,7 +110,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
             );
         }
 
-        // Seed gateway
         $gateway = $this->db->fetchOne("SELECT * FROM op_gateways WHERE id = 1 LIMIT 1");
         if ($gateway === null) {
             $this->db->execute(
@@ -145,28 +132,20 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    /**
-     * Verifies that sequential duplicate callback triggers for the same transaction via GatewayApiService::handleCallback
-     * are locked and blocked, resulting in exactly ONE payment record in the ledger.
-     */
     public function testGatewayCallbackConcurrencyPrevention(): void
     {
-        // 1. Create transaction in pending state
         $this->db->execute(
             "INSERT INTO op_transactions (id, merchant_id, uuid, trx_id, gateway_slug, amount, fee, net_amount, currency, status, payment_intent_id)
              VALUES (1001, 1, 'tx-uuid-1', 'TRX1001', 'stripe', 100.00, 5.00, 95.00, 'BDT', 'pending', 1001)"
         );
 
-        // 2. Trigger first callback -> should complete
         $res1 = $this->gatewayApiService->handleCallback(1, 'stripe', ['trx_id' => 'TRX1001']);
         $this->assertTrue($res1['success']);
 
-        // 3. Trigger second callback (concurrent/re-delivery scenario) -> should be skipped as duplicate
         $res2 = $this->gatewayApiService->handleCallback(1, 'stripe', ['trx_id' => 'TRX1001']);
         $this->assertFalse($res2['success']);
         $this->assertSame('Transaction not found or already processed', $res2['error']);
 
-        // 4. Verify exactly 3 balanced entries exist in the ledger (1 CASH, 1 PAYABLE, 1 REVENUE)
         $cashAcc = $this->ledgerRepo->findOrCreateAccount('CASH', 'asset', 'BDT', 1);
         $payableAcc = $this->ledgerRepo->findOrCreateAccount('MERCHANT_PAYABLE', 'liability', 'BDT', 1);
         $feeAcc = $this->ledgerRepo->findOrCreateAccount('PLATFORM_FEE_REVENUE', 'revenue', 'BDT', 1);
@@ -178,7 +157,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
 
     public function testCallbackWithMismatchedAmountIsRejected(): void
     {
-        // Adapter that reports success but an amount that differs from the order.
         $forge = $this->createStub(GatewayAdapterInterface::class);
         $forge->method('slug')->willReturn('forgegw');
         $forge->method('supportedCurrencies')->willReturn(['BDT']);
@@ -195,16 +173,12 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $this->assertFalse($res['success'], 'Mismatched-amount callback must not succeed.');
         $this->assertSame('Transaction amount mismatch', $res['error'] ?? null);
 
-        // Transaction must remain pending; no ledger transaction may exist for it.
         $txn = $this->db->fetchOne("SELECT status FROM op_transactions WHERE id = 2002");
         $this->assertSame('pending', $txn['status'] ?? null);
         $ledgerCount = (int) $this->db->fetchColumn("SELECT COUNT(*) FROM op_ledger_transactions");
         $this->assertSame(0, $ledgerCount, 'No ledger postings may occur for a rejected callback.');
     }
 
-    /**
-     * Verifies that attempting to request a refund exceeding the original transaction amount is strictly rejected.
-     */
     public function testRefundServiceRejectsExcessRefunds(): void
     {
         $this->db->execute(
@@ -212,7 +186,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
              VALUES (1002, 1, 'tx-uuid-2', 'TRX1002', 'stripe', 100.00, 5.00, 95.00, 'BDT', 'completed', 1002)"
         );
 
-        // Attempting to refund 150.00 on a 100.00 transaction must throw InvalidArgumentException
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Refund amount cannot exceed transaction amount');
 
@@ -223,10 +196,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         ]);
     }
 
-    /**
-     * Verifies that multiple partial refunds can be processed consecutively if their total sum does not exceed
-     * the transaction limit, but subsequent requests exceeding the limit are rejected.
-     */
     public function testRefundServiceAllowsPartialRefundsAndRejectsExcess(): void
     {
         $this->db->execute(
@@ -234,10 +203,8 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
              VALUES (1003, 1, 'tx-uuid-3', 'TRX1003', 'stripe', 100.00, 5.00, 95.00, 'BDT', 'completed', 1003)"
         );
 
-        // Seed merchant ledger balance to support refund checks
         $this->ledgerService->recordPaymentReceived(1, 1003, '100.00', '5.00', 'BDT');
 
-        // First partial refund (40.00)
         $ref1 = $this->refundService->create(1, [
             'transaction_id' => 1003,
             'amount' => '40.00',
@@ -245,7 +212,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         ]);
         $this->assertSame('completed', $ref1['status']);
 
-        // Second partial refund (50.00) -> total becomes 90.00
         $ref2 = $this->refundService->create(1, [
             'transaction_id' => 1003,
             'amount' => '50.00',
@@ -253,7 +219,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         ]);
         $this->assertSame('completed', $ref2['status']);
 
-        // Third partial refund (20.00) -> total becomes 110.00 (which exceeds 100.00) -> must fail!
         $this->expectException(\InvalidArgumentException::class);
         $this->expectExceptionMessage('Refund amount cannot exceed transaction amount');
 
@@ -264,23 +229,16 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         ]);
     }
 
-    /**
-     * Verifies that concurrent pay requests to PaymentIntentCheckoutController::pay
-     * are locked and prevented from creating multiple duplicate transactions.
-     */
     public function testPaymentIntentCheckoutConcurrencyPrevention(): void
     {
-        // 1. Seed a payment intent
         $this->db->execute(
             "INSERT INTO op_payment_intents (id, merchant_id, uuid, token, customer_id, amount, currency, status, expires_at)
              VALUES (2001, 1, 'intent-uuid-1', 'test-intent-token', NULL, 100.00, 'BDT', 'pending', DATE_ADD(NOW(), INTERVAL 1 HOUR))"
         );
 
-        // Configure HMAC key
         $_ENV['HMAC_KEY'] = 'test-hmac-key';
         $checkoutHash = hash_hmac('sha256', '100.00|BDT|test-intent-token', 'test-hmac-key');
 
-        // Instantiate controller
         $container = new \OwnPay\Container();
         $bootstrap = require dirname(__DIR__, 2) . '/config/services.php';
         $bootstrap($container);
@@ -298,7 +256,6 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
 
         $controller = $container->get(\OwnPay\Controller\Checkout\PaymentIntentCheckoutController::class);
 
-        // Request 1: POST /pay
         $req1 = new \OwnPay\Http\Request(
             query: [],
             post: [
@@ -314,21 +271,15 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $req1->setRouteParams(['token' => 'test-intent-token']);
         $req1->setAttribute('merchant_id', 1);
 
-        // Execute Request 1
         $res1 = $controller->pay($req1);
-        
-        // Assert Request 1 succeeded or redirected (meaning it created a transaction)
         $this->assertNotNull($res1);
 
-        // Verify one transaction was created
         $countBefore = (int) $this->db->fetchColumn("SELECT COUNT(*) FROM op_transactions WHERE payment_intent_id = 2001");
         $this->assertSame(1, $countBefore);
 
-        // Re-read intent status (should now be processing)
         $intent = $this->db->fetchOne("SELECT status FROM op_payment_intents WHERE id = 2001");
         $this->assertSame('processing', $intent['status']);
 
-        // Request 2 (concurrent submission): POST /pay again for the same intent
         $req2 = new \OwnPay\Http\Request(
             query: [],
             post: [
@@ -345,13 +296,10 @@ final class FinancialLeakageAuditTest extends IntegrationTestCase
         $req2->setRouteParams(['token' => 'test-intent-token']);
         $req2->setAttribute('merchant_id', 1);
 
-        // Execute Request 2
         $res2 = $controller->pay($req2);
 
-        // Assert Request 2 returned a 409 Conflict/already submitted response
         $this->assertSame(409, $res2->getStatusCode());
 
-        // Verify exactly one transaction exists (duplicate was not created)
         $countAfter = (int) $this->db->fetchColumn("SELECT COUNT(*) FROM op_transactions WHERE payment_intent_id = 2001");
         $this->assertSame(1, $countAfter);
     }

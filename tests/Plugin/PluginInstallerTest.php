@@ -1,10 +1,10 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Plugin;
 
 use OwnPay\Plugin\PluginInstaller;
-use OwnPay\Plugin\PluginManifest;
 use PHPUnit\Framework\TestCase;
 
 final class PluginInstallerTest extends TestCase
@@ -123,7 +123,6 @@ final class PluginInstallerTest extends TestCase
             'description' => 'Test plugin with Windows path separators'
         ];
 
-        // ZipArchive accepts backslashes in entry names
         $zipPath = $this->createZip('windows-plugin.zip', [
             'windows-path-plugin\\manifest.json' => json_encode($manifest),
             'windows-path-plugin\\Gateway.php' => '<?php // Gateway code'
@@ -276,7 +275,7 @@ final class PluginInstallerTest extends TestCase
         $targetDir = $this->tempModulesDir . '/gateways/overwrite-plugin';
         $this->assertFileExists($targetDir . '/Gateway.php');
         $this->assertFileExists($targetDir . '/new-file.php');
-        $this->assertFileDoesNotExist($targetDir . '/old-file.php'); // Verifies it wiped the old directory first!
+        $this->assertFileDoesNotExist($targetDir . '/old-file.php');
         $this->assertSame('<?php // V2_Updated', file_get_contents($targetDir . '/Gateway.php'));
     }
 }

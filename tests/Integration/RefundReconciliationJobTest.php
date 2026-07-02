@@ -11,11 +11,6 @@ use OwnPay\Repository\AuditLogRepository;
 use OwnPay\Service\System\AuditLogger;
 use OwnPay\Service\System\Logger;
 
-/**
- * Verifies that refunds stuck in 'pending' beyond the 24h stale window are
- * auto-failed (releasing the withheld merchant balance) with an audit trail
- * and notification event, while recent and terminal refunds stay untouched.
- */
 final class RefundReconciliationJobTest extends IntegrationTestCase
 {
     private Database $db;

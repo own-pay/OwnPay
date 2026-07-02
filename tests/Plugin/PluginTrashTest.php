@@ -8,19 +8,8 @@ use OwnPay\Container;
 use OwnPay\Core\Database;
 use OwnPay\Repository\PluginRepository;
 use OwnPay\Plugin\PluginManager;
-use OwnPay\Plugin\PluginLoader;
 use Tests\Integration\IntegrationTestCase;
 
-/**
- * PluginTrashTest - Automated integration tests for the Plugin Trash system.
- *
- * Checks:
- *   1. Move inactive plugin to trash (files moved to storage/trash/plugins, status = 'trashed')
- *   2. Restore plugin from trash (files moved back to modules, status = 'inactive')
- *   3. Permanent uninstall of trashed plugin (migration rollback, files deleted, record purged)
- *
- * @group Integration
- */
 final class PluginTrashTest extends IntegrationTestCase
 {
     private Container $c;
@@ -36,17 +25,14 @@ final class PluginTrashTest extends IntegrationTestCase
 
     protected function setUp(): void
     {
-        parent::setUp(); // verifies DB is available
+        parent::setUp();
 
-        // Initialize container
         $this->c = new Container();
         $bootstrap = require dirname(__DIR__, 2) . '/config/services.php';
         $bootstrap($this->c);
 
-        // Bind our Database singleton to PDO just in case
         $this->c->instance(Database::class, Database::getInstance());
 
-        // Ensure status enum contains 'trashed' in the test database schema
         $db = Database::getInstance();
         $col = $db->fetchOne("SHOW COLUMNS FROM op_plugins LIKE 'status'");
         if ($col && !str_contains($col['Type'], 'trashed')) {
@@ -60,7 +46,6 @@ final class PluginTrashTest extends IntegrationTestCase
         $this->modulesPath = $paths['modules'] . '/' . $this->dummyTypeDir . '/' . $this->dummySlug;
         $this->trashPath = $paths['storage'] . '/trash/plugins/' . $this->dummyTypeDir . '/' . $this->dummySlug;
 
-        // Clean up any leftover database records or directories from previous failures
         $this->cleanupDummyPlugin();
     }
 
@@ -74,18 +59,15 @@ final class PluginTrashTest extends IntegrationTestCase
 
     private function cleanupDummyPlugin(): void
     {
-        // Delete DB record
         $plugin = $this->pluginRepo->findBySlug($this->dummySlug);
         if ($plugin !== null) {
             $this->pluginRepo->delete((int) $plugin['id']);
         }
 
-        // Delete active modules folder
         if (is_dir($this->modulesPath)) {
             $this->removeDirectory($this->modulesPath);
         }
 
-        // Delete trash folder
         if (is_dir($this->trashPath)) {
             $this->removeDirectory($this->trashPath);
         }
@@ -107,7 +89,7 @@ final class PluginTrashTest extends IntegrationTestCase
     private function createDummyPlugin(): void
     {
         @mkdir($this->modulesPath, 0755, true);
-        
+
         $manifest = [
             'slug' => $this->dummySlug,
             'name' => 'Dummy Trash Test Plugin',
@@ -120,7 +102,6 @@ final class PluginTrashTest extends IntegrationTestCase
         file_put_contents($this->modulesPath . '/manifest.json', json_encode($manifest, JSON_PRETTY_PRINT));
         file_put_contents($this->modulesPath . '/DummyPlugin.php', "<?php\n\nclass DummyPlugin {}\n");
 
-        // Insert database record
         $this->pluginRepo->create([
             'slug' => $this->dummySlug,
             'name' => 'Dummy Trash Test Plugin',
@@ -134,7 +115,6 @@ final class PluginTrashTest extends IntegrationTestCase
 
     public function testPluginTrashingAndRestorationFlow(): void
     {
-        // 1. Create dummy plugin in live modules
         $this->createDummyPlugin();
         $this->assertDirectoryExists($this->modulesPath);
         $this->assertFileExists($this->modulesPath . '/manifest.json');
@@ -143,36 +123,29 @@ final class PluginTrashTest extends IntegrationTestCase
         $this->assertNotNull($record);
         $this->assertSame('inactive', $record['status']);
 
-        // 2. Trash the plugin
         $result = $this->pluginManager->trash($this->dummySlug);
         $this->assertTrue($result['success'], $result['error'] ?? 'Trashing failed');
 
-        // Check file movement
         $this->assertDirectoryDoesNotExist($this->modulesPath);
         $this->assertDirectoryExists($this->trashPath);
         $this->assertFileExists($this->trashPath . '/manifest.json');
 
-        // Check DB update
         $record = $this->pluginRepo->findBySlug($this->dummySlug);
         $this->assertSame('trashed', $record['status']);
 
-        // 3. Restore the plugin
         $result = $this->pluginManager->restore($this->dummySlug);
         $this->assertTrue($result['success'], $result['error'] ?? 'Restoring failed');
 
-        // Check file movement back
         $this->assertDirectoryExists($this->modulesPath);
         $this->assertDirectoryDoesNotExist($this->trashPath);
         $this->assertFileExists($this->modulesPath . '/manifest.json');
 
-        // Check DB update
         $record = $this->pluginRepo->findBySlug($this->dummySlug);
         $this->assertSame('inactive', $record['status']);
     }
 
     public function testPermanentDeletionOfTrashedPlugin(): void
     {
-        // 1. Create and trash dummy plugin
         $this->createDummyPlugin();
         $result = $this->pluginManager->trash($this->dummySlug);
         $this->assertTrue($result['success']);
@@ -180,15 +153,12 @@ final class PluginTrashTest extends IntegrationTestCase
         $this->assertDirectoryDoesNotExist($this->modulesPath);
         $this->assertDirectoryExists($this->trashPath);
 
-        // 2. Perform permanent delete (uninstall)
         $result = $this->pluginManager->uninstall($this->dummySlug);
         $this->assertTrue($result['success'], $result['error'] ?? 'Uninstall failed');
 
-        // Verify folders are deleted
         $this->assertDirectoryDoesNotExist($this->modulesPath);
         $this->assertDirectoryDoesNotExist($this->trashPath);
 
-        // Verify DB record is purged
         $record = $this->pluginRepo->findBySlug($this->dummySlug);
         $this->assertNull($record);
     }

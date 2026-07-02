@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -59,7 +60,6 @@ class CronJobRunnerTest extends TestCase
         $this->assertSame('all-good', $result['result']);
         $this->assertGreaterThanOrEqual(0, $result['duration']);
 
-        // Check last run time is updated
         $lastRun = $this->runner->getLastRunTime('GoodJob');
         $this->assertNotNull($lastRun);
         $this->assertLessThanOrEqual(time(), $lastRun);
@@ -92,21 +92,17 @@ class CronJobRunnerTest extends TestCase
     public function testCronControllerRouteVerification(): void
     {
         $container = new \OwnPay\Container();
-        
-        // Register config.app to resolve the expected cron_secret cleanly without mocking final SettingsRepository
         $container->instance('config.app', [
             'cron_secret' => 'test-secret-123'
         ]);
-        
-        // Instantiate real EventManager and Logger to build real CronJobRunner
+
         $events = new \OwnPay\Event\EventManager();
         $logger = new \OwnPay\Service\System\Logger('test-cron');
         $runner = new \OwnPay\Cron\CronJobRunner($events, $logger);
         $container->instance(\OwnPay\Cron\CronJobRunner::class, $runner);
-        
+
         $controller = new \OwnPay\Controller\Page\CronController($container);
-        
-        // Mock request to mimic path parameters: /cron/{secret}
+
         $req = new \OwnPay\Http\Request(
             server: [
                 'REQUEST_METHOD' => 'GET',
@@ -114,7 +110,7 @@ class CronJobRunnerTest extends TestCase
             ]
         );
         $req->setRouteParams(['secret' => 'test-secret-123']);
-        
+
         $response = $controller->run($req);
         $this->assertSame(200, $response->getStatusCode());
         $this->assertStringContainsString('OK:', (string)$response->getBody());

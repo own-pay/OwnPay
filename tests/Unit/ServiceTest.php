@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -7,7 +8,6 @@ use PHPUnit\Framework\TestCase;
 
 class ServiceTest extends TestCase
 {
-    // L7: Payment/Ledger/Transaction
     public function testBcmathPrecision(): void
     {
         $a = '100.50'; $b = '0.03';
@@ -33,7 +33,6 @@ class ServiceTest extends TestCase
         $this->assertMatchesRegularExpression('/^OP-[A-F0-9]{10}$/', $trxId);
     }
 
-    // L8: SMS Parser
     public function testSmsParserBkashPattern(): void
     {
         $sms = 'You have received Tk 500.00 from 01712345678. Fee Tk 0.00. Balance Tk 1500.00. TrxID ABC123XYZ. 01/01/25 at 10:30 AM.';
@@ -50,7 +49,6 @@ class ServiceTest extends TestCase
         $this->assertSame('NXYZ789', $m[1] ?? '');
     }
 
-    // L9: Manual Gateway
     public function testManualGatewayAccountMasking(): void
     {
         $number = '01712345678';
@@ -58,14 +56,12 @@ class ServiceTest extends TestCase
         $this->assertSame('017******78', $masked);
     }
 
-    // L11: Domain + DNS
     public function testDomainValidation(): void
     {
         $this->assertTrue((bool) filter_var('example.com', FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME));
         $this->assertFalse((bool) filter_var('not a domain!', FILTER_VALIDATE_DOMAIN, FILTER_FLAG_HOSTNAME));
     }
 
-    // L12: Theme brand color validation
     public function testBrandColorValidation(): void
     {
         $this->assertSame(1, preg_match('/^#[0-9a-fA-F]{6}$/', '#0D9488'));

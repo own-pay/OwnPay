@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -6,7 +7,6 @@ namespace Tests\Integration;
 use OwnPay\Container;
 use OwnPay\Core\Database;
 use OwnPay\Http\Request;
-use OwnPay\Http\Response;
 use OwnPay\Controller\Api\CustomerController;
 use OwnPay\Service\Customer\CustomerPiiService;
 
@@ -56,7 +56,6 @@ final class CustomerApiIntegrationTest extends IntegrationTestCase
 
     public function testCustomerListReturnsUnmaskedFields(): void
     {
-        // 1. Create a customer using Pii service under merchant 99997
         $email = 'john.doe@example.com';
         $phone = '+8801700000000';
         $name = 'John Doe';
@@ -69,7 +68,6 @@ final class CustomerApiIntegrationTest extends IntegrationTestCase
 
         $this->assertNotNull($customer['id'] ?? null);
 
-        // 2. Query list via controller
         $req = new Request([], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/customers'
@@ -93,7 +91,6 @@ final class CustomerApiIntegrationTest extends IntegrationTestCase
 
     public function testCustomerShowWorksWithEmailAndPhone(): void
     {
-        // 1. Create a customer under merchant 99997
         $email = 'jane.doe@example.com';
         $phone = '+8801711111111';
         $name = 'Jane Doe';
@@ -104,7 +101,6 @@ final class CustomerApiIntegrationTest extends IntegrationTestCase
             'phone' => $phone
         ]);
 
-        // 2. Find by Email (contains @)
         $reqEmail = new Request([], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/customers/' . $email
@@ -120,7 +116,6 @@ final class CustomerApiIntegrationTest extends IntegrationTestCase
         $this->assertSame($email, $bodyEmail['data']['email']);
         $this->assertSame($phone, $bodyEmail['data']['phone']);
 
-        // 3. Find by Phone (contains +)
         $reqPhone = new Request([], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/customers/' . urlencode($phone)
@@ -136,7 +131,6 @@ final class CustomerApiIntegrationTest extends IntegrationTestCase
         $this->assertSame($email, $bodyPhone['data']['email']);
         $this->assertSame($phone, $bodyPhone['data']['phone']);
 
-        // 4. Find by URL-encoded Email (contains %40)
         $reqEncodedEmail = new Request([], [], [
             'REQUEST_METHOD' => 'GET',
             'REQUEST_URI' => '/api/v1/customers/' . urlencode($email)

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -6,7 +7,6 @@ namespace Tests\Integration;
 use OwnPay\Container;
 use OwnPay\Core\Database;
 use OwnPay\Http\Request;
-use OwnPay\Http\Response;
 use OwnPay\Controller\Api\PaymentController;
 use OwnPay\Controller\Api\TransactionController;
 use OwnPay\Controller\Api\RefundController;
@@ -39,37 +39,31 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $this->transactionController = $this->container->get(TransactionController::class);
         $this->refundController = $this->container->get(RefundController::class);
 
-        // Cleanup
         $this->db->execute("DELETE FROM op_refunds WHERE merchant_id = 99997");
         $this->db->execute("DELETE FROM op_transactions WHERE merchant_id = 99997");
         $this->db->execute("DELETE FROM op_payment_intents WHERE merchant_id = 99997");
         $this->db->execute("DELETE FROM op_merchants WHERE id = 99997");
 
-        // Insert merchant
         $this->db->execute(
             "INSERT INTO op_merchants (id, uuid, name, slug, email, status, settings)
              VALUES (99997, 'test-merchant-uuid-99997', 'Trx ID Test Merchant', 'trx-test', 'trx-test@test.com', 'active', '{}')"
         );
 
-        // Insert payment intent
         $this->db->execute(
             "INSERT INTO op_payment_intents (id, merchant_id, uuid, token, amount, currency, status, expires_at, created_at)
              VALUES (999975, 99997, '01eb81ef-2479-4bfb-96d6-146ac41813d8', 'test-token-999975', 100.00, 'BDT', 'completed', NOW() + INTERVAL 1 HOUR, NOW())"
         );
 
-        // Insert transaction
         $this->db->execute(
             "INSERT INTO op_transactions (id, merchant_id, uuid, trx_id, payment_intent_id, gateway_trx_id, gateway_slug, amount, fee, net_amount, currency, status, created_at)
              VALUES (999971, 99997, 'tx-uuid-999971', 'OP-TESTTRX123', 999975, 'GATEWAY123', 'bkash', 100.00, 2.00, 98.00, 'BDT', 'completed', NOW())"
         );
 
-        // Insert transaction 2 (OP_TRX_ format)
         $this->db->execute(
             "INSERT INTO op_transactions (id, merchant_id, uuid, trx_id, payment_intent_id, gateway_trx_id, gateway_slug, amount, fee, net_amount, currency, status, created_at)
              VALUES (999973, 99997, 'tx-uuid-999973', 'OP_TRX_TEST123', NULL, 'GATEWAY456', 'bkash', 100.00, 2.00, 98.00, 'BDT', 'completed', NOW())"
         );
 
-        // Insert refund for transaction
         $this->db->execute(
             "INSERT INTO op_refunds (id, merchant_id, uuid, transaction_id, amount, reason, status, created_at)
              VALUES (999972, 99997, 'ref-uuid-999972', 999971, 50.00, 'Customer request', 'completed', NOW())"
@@ -89,7 +83,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
 
     public function testPaymentLookupByPaymentId(): void
     {
-        // 1. Lookup by Payment UUID
         $req1 = new Request();
         $req1->setRouteParams(['payment_id' => '01eb81ef-2479-4bfb-96d6-146ac41813d8']);
         $req1->setAttribute('merchant_id', 99997);
@@ -101,7 +94,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $this->assertSame('OP-TESTTRX123', $body1['data']['trx_id']);
         $this->assertSame('GATEWAY123', $body1['data']['gateway_trx_id']);
 
-        // 2. Lookup with invalid UUID format
         $req2 = new Request();
         $req2->setRouteParams(['payment_id' => 'invalid-uuid']);
         $req2->setAttribute('merchant_id', 99997);
@@ -109,7 +101,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $res2 = $this->paymentController->show($req2);
         $this->assertSame(422, $res2->getStatusCode());
 
-        // 3. Not found with unknown UUID
         $req3 = new Request();
         $req3->setRouteParams(['payment_id' => '00000000-0000-0000-0000-000000000000']);
         $req3->setAttribute('merchant_id', 99997);
@@ -122,7 +113,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
 
     public function testTransactionLookupByOwnPayAndGatewayTrxId(): void
     {
-        // 1. Lookup by OwnPay trx_id
         $req1 = new Request();
         $req1->setRouteParams(['trx_id' => 'OP-TESTTRX123']);
         $req1->setAttribute('merchant_id', 99997);
@@ -134,7 +124,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $this->assertSame('OP-TESTTRX123', $body1['data']['trx_id']);
         $this->assertSame('GATEWAY123', $body1['data']['gateway_trx_id']);
 
-        // 2. Lookup by Gateway gateway_trx_id
         $req2 = new Request();
         $req2->setRouteParams(['trx_id' => 'GATEWAY123']);
         $req2->setAttribute('merchant_id', 99997);
@@ -146,7 +135,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $this->assertSame('OP-TESTTRX123', $body2['data']['trx_id']);
         $this->assertSame('GATEWAY123', $body2['data']['gateway_trx_id']);
 
-        // 2b. Lookup by OwnPay trx_id (OP_TRX_ prefix format)
         $req2b = new Request();
         $req2b->setRouteParams(['trx_id' => 'OP_TRX_TEST123']);
         $req2b->setAttribute('merchant_id', 99997);
@@ -158,7 +146,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $this->assertSame('OP_TRX_TEST123', $body2b['data']['trx_id']);
         $this->assertSame('GATEWAY456', $body2b['data']['gateway_trx_id']);
 
-        // 3. Not found with OwnPay ID
         $req3 = new Request();
         $req3->setRouteParams(['trx_id' => 'OP-UNKNOWN']);
         $req3->setAttribute('merchant_id', 99997);
@@ -168,7 +155,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $body3 = json_decode($res3->getBody(), true);
         $this->assertSame('Transaction not found', $body3['errors'][0]['message']);
 
-        // 3b. Not found with OwnPay OP_TRX_ ID
         $req3b = new Request();
         $req3b->setRouteParams(['trx_id' => 'OP_TRX_UNKNOWN']);
         $req3b->setAttribute('merchant_id', 99997);
@@ -178,7 +164,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $body3b = json_decode($res3b->getBody(), true);
         $this->assertSame('Transaction not found', $body3b['errors'][0]['message']);
 
-        // 4. Not found with Gateway ID
         $req4 = new Request();
         $req4->setRouteParams(['trx_id' => 'UNKNOWN_GW_ID']);
         $req4->setAttribute('merchant_id', 99997);
@@ -194,7 +179,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
 
     public function testRefundLookupByOwnPayAndGatewayTrxId(): void
     {
-        // 1. Lookup by OwnPay trx_id
         $req1 = new Request();
         $req1->setRouteParams(['trx_id' => 'OP-TESTTRX123']);
         $req1->setAttribute('merchant_id', 99997);
@@ -205,7 +189,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $this->assertTrue($body1['success']);
         $this->assertSame(999971, $body1['data']['transaction_id']);
 
-        // 2. Lookup by Gateway gateway_trx_id
         $req2 = new Request();
         $req2->setRouteParams(['trx_id' => 'GATEWAY123']);
         $req2->setAttribute('merchant_id', 99997);
@@ -216,7 +199,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $this->assertTrue($body2['success']);
         $this->assertSame(999971, $body2['data']['transaction_id']);
 
-        // 2b. Lookup refund by OwnPay trx_id (OP_TRX_ prefix format) - should exist but have no refund record
         $req2b = new Request();
         $req2b->setRouteParams(['trx_id' => 'OP_TRX_TEST123']);
         $req2b->setAttribute('merchant_id', 99997);
@@ -227,7 +209,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $this->assertFalse($body2b['success']);
         $this->assertSame('Refund not found', $body2b['errors'][0]['message']);
 
-        // 3. Not found with OwnPay ID
         $req3 = new Request();
         $req3->setRouteParams(['trx_id' => 'OP-UNKNOWN']);
         $req3->setAttribute('merchant_id', 99997);
@@ -237,7 +218,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $body3 = json_decode($res3->getBody(), true);
         $this->assertSame('Transaction not found', $body3['errors'][0]['message']);
 
-        // 3b. Not found with OwnPay OP_TRX_ ID
         $req3b = new Request();
         $req3b->setRouteParams(['trx_id' => 'OP_TRX_UNKNOWN']);
         $req3b->setAttribute('merchant_id', 99997);
@@ -247,7 +227,6 @@ final class TrxIdLookupApiTest extends IntegrationTestCase
         $body3b = json_decode($res3b->getBody(), true);
         $this->assertSame('Transaction not found', $body3b['errors'][0]['message']);
 
-        // 4. Not found with Gateway ID
         $req4 = new Request();
         $req4->setRouteParams(['trx_id' => 'UNKNOWN_GW_ID']);
         $req4->setAttribute('merchant_id', 99997);

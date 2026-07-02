@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Security;
 
-use PHPUnit\Framework\TestCase;
 use OwnPay\Security\LogSanitizer;
+use PHPUnit\Framework\TestCase;
 
-class LogSanitizerTest extends TestCase
+final class LogSanitizerTest extends TestCase
 {
     private LogSanitizer $sanitizer;
 
@@ -16,7 +16,7 @@ class LogSanitizerTest extends TestCase
         $this->sanitizer = new LogSanitizer();
     }
 
-    public function testSanitizeEmailInString(): void
+    public function test_sanitize_email_in_string(): void
     {
         $input = 'User john@example.com failed login';
         $result = $this->sanitizer->sanitizeString($input);
@@ -25,7 +25,7 @@ class LogSanitizerTest extends TestCase
         $this->assertStringContainsString('[EMAIL_REDACTED]', $result);
     }
 
-    public function testSanitizePhoneInString(): void
+    public function test_sanitize_phone_in_string(): void
     {
         $input = 'SMS sent to +8801712345678';
         $result = $this->sanitizer->sanitizeString($input);
@@ -34,7 +34,7 @@ class LogSanitizerTest extends TestCase
         $this->assertStringContainsString('[PHONE_REDACTED]', $result);
     }
 
-    public function testSanitizeArrayRedactsSensitiveFields(): void
+    public function test_sanitize_array_redacts_sensitive_fields(): void
     {
         $data = [
             'username' => 'john',
@@ -43,53 +43,48 @@ class LogSanitizerTest extends TestCase
         ];
         $result = $this->sanitizer->sanitizeArray($data);
 
-        $this->assertEquals('john', $result['username']);
-        $this->assertEquals('[REDACTED]', $result['password']);
-        $this->assertEquals('[REDACTED]', $result['api_key']);
+        $this->assertSame('john', $result['username']);
+        $this->assertSame('[REDACTED]', $result['password']);
+        $this->assertSame('[REDACTED]', $result['api_key']);
     }
 
-    public function testSanitizeJsonString(): void
+    public function test_sanitize_json_string(): void
     {
         $json = '{"email":"test@test.com","amount":"100"}';
         $result = $this->sanitizer->sanitizeJson($json);
 
         $decoded = json_decode($result, true);
         $this->assertStringContainsString('[EMAIL_REDACTED]', $decoded['email']);
-        $this->assertEquals('100', $decoded['amount']);
+        $this->assertSame('100', $decoded['amount']);
     }
 
-    // â”€â”€ F14: extended PII coverage â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
-    public function testSanitize19DigitMaestroCard(): void
+    public function test_sanitize_19_digit_maestro_card(): void
     {
-        // Maestro / UnionPay can be 19 digits
         $input = 'Card: 6759 6498 2643 8453 1239 charged $100';
         $result = $this->sanitizer->sanitizeString($input);
         $this->assertStringContainsString('[CARD_REDACTED]', $result);
         $this->assertStringNotContainsString('6759 6498 2643 8453 1239', $result);
     }
 
-    public function testSanitize13DigitNidInStrictMode(): void
+    public function test_sanitize_13_digit_nid_in_strict_mode(): void
     {
-        // Bangladesh NID-13. Note: the BD-phone regex may pre-empt and redact
-        // a 10-digit substring as [PHONE_REDACTED]; either redaction is acceptable
-        // â€” the key property is that the raw 13-digit NID does NOT survive.
+        // BD NID-13: the phone regex may pre-empt and redact a 10-digit substring;
+        // either redaction is acceptable as long as the raw 13-digit NID does not survive.
         $strict = new LogSanitizer(true);
         $input = 'NID 1990123456789 verified';
         $result = $strict->sanitizeString($input);
         $this->assertStringNotContainsString('1990123456789', $result);
     }
 
-    public function testSanitize17DigitNidInStrictMode(): void
+    public function test_sanitize_17_digit_nid_in_strict_mode(): void
     {
-        // Bangladesh NID-17 (smart NID)
         $strict = new LogSanitizer(true);
         $input = 'Smart NID 19880123456781234 issued 2024';
         $result = $strict->sanitizeString($input);
         $this->assertStringNotContainsString('19880123456781234', $result);
     }
 
-    public function testSanitizeFieldNamedSigningSecret(): void
+    public function test_sanitize_field_named_signing_secret(): void
     {
         $data = [
             'webhook_url'    => 'https://example.com/hook',
@@ -97,18 +92,18 @@ class LogSanitizerTest extends TestCase
             'event_type'     => 'payment.completed',
         ];
         $result = $this->sanitizer->sanitizeArray($data);
-        $this->assertEquals('[REDACTED]', $result['signing_secret']);
-        $this->assertEquals('https://example.com/hook', $result['webhook_url']);
+        $this->assertSame('[REDACTED]', $result['signing_secret']);
+        $this->assertSame('https://example.com/hook', $result['webhook_url']);
     }
 
-    public function testSanitizeAuthorizationField(): void
+    public function test_sanitize_authorization_field(): void
     {
         $data = ['authorization' => 'Bearer eyJhbGc...'];
         $result = $this->sanitizer->sanitizeArray($data);
-        $this->assertEquals('[REDACTED]', $result['authorization']);
+        $this->assertSame('[REDACTED]', $result['authorization']);
     }
 
-    public function testSanitizeNestedArrayRedactsAtAnyDepth(): void
+    public function test_sanitize_nested_array_redacts_at_any_depth(): void
     {
         $data = [
             'request' => [
@@ -121,11 +116,11 @@ class LogSanitizerTest extends TestCase
             ],
         ];
         $result = $this->sanitizer->sanitizeArray($data);
-        $this->assertEquals('[REDACTED]', $result['request']['headers']['authorization']);
+        $this->assertSame('[REDACTED]', $result['request']['headers']['authorization']);
         $this->assertStringContainsString('[EMAIL_REDACTED]', $result['request']['body']['email']);
     }
 
-    public function testSanitizePreservesNonSensitiveFields(): void
+    public function test_sanitize_preserves_non_sensitive_fields(): void
     {
         $data = [
             'user_id'    => 12345,
@@ -135,11 +130,10 @@ class LogSanitizerTest extends TestCase
             'currency'   => 'USD',
         ];
         $result = $this->sanitizer->sanitizeArray($data);
-        $this->assertEquals(12345, $result['user_id']);
-        $this->assertEquals('Acme Co', $result['merchant']);
-        $this->assertEquals('invoice.created', $result['event_type']);
-        $this->assertEquals('99.99', $result['amount']);
-        $this->assertEquals('USD', $result['currency']);
+        $this->assertSame(12345, $result['user_id']);
+        $this->assertSame('Acme Co', $result['merchant']);
+        $this->assertSame('invoice.created', $result['event_type']);
+        $this->assertSame('99.99', $result['amount']);
+        $this->assertSame('USD', $result['currency']);
     }
 }
-

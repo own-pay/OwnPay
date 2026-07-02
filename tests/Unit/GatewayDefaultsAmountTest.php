@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -6,15 +7,8 @@ namespace Tests\Unit;
 use OwnPay\Gateway\GatewayDefaults;
 use PHPUnit\Framework\TestCase;
 
-/**
- * Verifies the exact (float-free) money conversion helpers used by gateway
- * adapters. The previous `(int) bcmul((string)(float)$amount, '100', 0)`
- * pattern corrupted large amounts and accepted scientific notation,
- * negatives, and arrays.
- */
 final class GatewayDefaultsAmountTest extends TestCase
 {
-    /** @var object Anonymous trait host exposing the protected helpers. */
     private object $gateway;
 
     protected function setUp(): void
@@ -45,7 +39,6 @@ final class GatewayDefaultsAmountTest extends TestCase
 
     public function testConvertsLargeAmountsExactly(): void
     {
-        // DECIMAL(15,2) maximum - the float path returns a corrupted value here.
         $this->assertSame(999999999999999, $this->gateway->minor('9999999999999.99'));
         $this->assertSame(123456789012345, $this->gateway->minor('1234567890123.45'));
     }
@@ -58,8 +51,6 @@ final class GatewayDefaultsAmountTest extends TestCase
 
     public function testTruncatesBeyondExponentLikeLegacyBehavior(): void
     {
-        // bcmul at scale 0 truncates - identical to the previous behavior for
-        // sub-cent precision, which cannot occur for DECIMAL(15,2) amounts.
         $this->assertSame(1055, $this->gateway->minor('10.555'));
     }
 

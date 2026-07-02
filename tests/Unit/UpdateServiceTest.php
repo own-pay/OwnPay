@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -12,9 +13,6 @@ use OwnPay\Update\MaintenanceMode;
 use OwnPay\Repository\UpdateHistoryRepository;
 use OwnPay\Event\EventManager;
 
-/**
- * Test subclass to isolate network/filesystem operations.
- */
 class TestableUpdateService extends UpdateService
 {
     public ?array $mockManifest = null;
@@ -42,7 +40,6 @@ class TestableUpdateService extends UpdateService
     protected function extractPackage(string $zipPath): void
     {
         $this->extractPackageCalled = true;
-        // Do not actually extract files in tests to avoid overwriting workspace
     }
 
     protected function runMigrations(): int
@@ -65,7 +62,6 @@ class UpdateServiceTest extends TestCase
     protected function setUp(): void
     {
         parent::setUp();
-        // Create a dummy zip file
         $this->tempZipPath = tempnam(sys_get_temp_dir(), 'op_test_update_') . '.zip';
         $zip = new \ZipArchive();
         if ($zip->open($this->tempZipPath, \ZipArchive::CREATE | \ZipArchive::OVERWRITE) === true) {
@@ -82,9 +78,6 @@ class UpdateServiceTest extends TestCase
         parent::tearDown();
     }
 
-    /**
-     * Helper to build mocks.
-     */
     private function createUpdateService(): TestableUpdateService
     {
         $backup = $this->createMock(BackupService::class);
@@ -118,7 +111,7 @@ class UpdateServiceTest extends TestCase
             'releases' => [
                 [
                     'version' => '0.2.1',
-                    'download_url' => 'https://malicious-domain.com/releases/ownpay-0.2.1.zip',
+                    'download_url' => 'https://example.com/releases/ownpay-0.2.1.zip',
                     'checksum_sha256' => hash_file('sha256', $this->tempZipPath),
                     'signature' => 'some-signature-value'
                 ]
@@ -134,7 +127,6 @@ class UpdateServiceTest extends TestCase
 
     public function testAllowedDomainsVerification(): void
     {
-        // 1. github.com should be allowed (it passes domain check and fails at signature check)
         $zip1 = tempnam(sys_get_temp_dir(), 'op_test_allowed_domain_') . '.zip';
         copy($this->tempZipPath, $zip1);
 
@@ -156,7 +148,6 @@ class UpdateServiceTest extends TestCase
         $this->assertStringNotContainsString('Security Exception', $result['error']);
         $this->assertStringContainsString('signature verification failed', $result['error']);
 
-        // 2. objects.githubusercontent.com should be allowed
         $zip2 = tempnam(sys_get_temp_dir(), 'op_test_allowed_domain_') . '.zip';
         copy($this->tempZipPath, $zip2);
 
@@ -189,7 +180,6 @@ class UpdateServiceTest extends TestCase
                     'version' => '0.2.1',
                     'download_url' => 'https://update.ownpay.org/releases/ownpay-0.2.1.zip',
                     'checksum_sha256' => hash_file('sha256', $this->tempZipPath),
-                    // Missing signature
                 ]
             ]
         ];
@@ -249,12 +239,12 @@ class UpdateServiceTest extends TestCase
     {
         $privateKeyPath = dirname(__DIR__, 2) . '/update_private_key.pem';
         if (!file_exists($privateKeyPath)) {
-            $this->markTestSkipped('update_private_key.pem not found in project root. Skipping success path verification.');
+            $this->markTestSkipped('update_private_key.pem not found in project root.');
         }
 
         $privateKeyContent = file_get_contents($privateKeyPath);
         $privKeyResource = openssl_pkey_get_private($privateKeyContent);
-        $this->assertNotFalse($privKeyResource, 'Private key resource should be valid.');
+        $this->assertNotFalse($privKeyResource);
 
         $zipData = file_get_contents($this->tempZipPath);
         $this->assertTrue(openssl_sign($zipData, $signature, $privKeyResource, OPENSSL_ALGO_SHA256));
@@ -281,11 +271,7 @@ class UpdateServiceTest extends TestCase
         $this->assertTrue($updater->clearCacheCalled);
     }
 
-    /**
-     * Invokes the private splitSqlStatements() for direct verification.
-     *
-     * @return array<int, string>
-     */
+    /** @return array<int, string> */
     private function splitSql(string $sql): array
     {
         $method = new \ReflectionMethod(UpdateService::class, 'splitSqlStatements');
@@ -296,10 +282,6 @@ class UpdateServiceTest extends TestCase
 
     public function testSplitSqlKeepsStatementPrecededByComment(): void
     {
-        // Regression: a statement whose chunk starts with a '-- comment' line
-        // used to be discarded entirely - the migration was then marked as
-        // executed without its DDL ever running (silent schema drift). This is
-        // the exact shape of migration 008_add_provider_trx_id.sql.
         $sql = "-- Add provider_trx_id column and index to op_transactions\n"
              . "ALTER TABLE `op_transactions`\n"
              . "  ADD COLUMN `provider_trx_id` VARCHAR(100) DEFAULT NULL,\n"

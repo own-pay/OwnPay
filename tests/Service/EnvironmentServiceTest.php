@@ -10,7 +10,7 @@ use PDO;
 use PHPUnit\Framework\TestCase;
 use ReflectionClass;
 
-class EnvironmentServiceTest extends TestCase
+final class EnvironmentServiceTest extends TestCase
 {
     private PDO $pdo;
 
@@ -45,7 +45,6 @@ class EnvironmentServiceTest extends TestCase
         $instanceProperty = $reflection->getProperty('instance');
         $instanceProperty->setValue(null, $instance);
 
-        // Reset the static settingsRepo property in EnvironmentService to prevent test pollution
         $reflectionSvc = new ReflectionClass(EnvironmentService::class);
         $repoProperty = $reflectionSvc->getProperty('settingsRepo');
         $repoProperty->setValue(null, null);
@@ -56,7 +55,6 @@ class EnvironmentServiceTest extends TestCase
     protected function tearDown(): void
     {
         Database::reset();
-        // Reset settingsRepo in tearDown too
         $reflectionSvc = new ReflectionClass(EnvironmentService::class);
         $repoProperty = $reflectionSvc->getProperty('settingsRepo');
         $repoProperty->setValue(null, null);
@@ -164,4 +162,3 @@ class EnvironmentServiceTest extends TestCase
         $this->assertSame('AfterClear', EnvironmentService::get('site_name'));
     }
 }
-

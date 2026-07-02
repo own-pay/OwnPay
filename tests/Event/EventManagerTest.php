@@ -7,7 +7,7 @@ namespace Tests\Event;
 use OwnPay\Event\EventManager;
 use PHPUnit\Framework\TestCase;
 
-class EventManagerTest extends TestCase
+final class EventManagerTest extends TestCase
 {
     protected function setUp(): void
     {
@@ -18,8 +18,6 @@ class EventManagerTest extends TestCase
     {
         EventManager::resetInstance();
     }
-
-    // â”€â”€ Singleton â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testGetInstanceReturnsSameObject(): void
     {
@@ -36,8 +34,6 @@ class EventManagerTest extends TestCase
         $this->assertNotSame($a, $b);
     }
 
-    // â”€â”€ Actions â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testDoActionInvokesRegisteredCallback(): void
     {
         $em = EventManager::getInstance();
@@ -52,7 +48,6 @@ class EventManagerTest extends TestCase
     public function testDoActionWithUnregisteredHookIsNoOp(): void
     {
         $em = EventManager::getInstance();
-        // Should not throw
         $em->doAction('never.registered');
         $this->assertFalse($em->hasAction('never.registered'));
     }
@@ -130,8 +125,6 @@ class EventManagerTest extends TestCase
         $this->assertFalse($em->hasAction('not.exists'));
     }
 
-    // â”€â”€ Filters â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testApplyFiltersReturnsValueUnchangedWhenNoCallbacks(): void
     {
         $em = EventManager::getInstance();
@@ -179,7 +172,7 @@ class EventManagerTest extends TestCase
             ini_set('error_log', $errorLog ?: '');
         }
 
-        // The exception filter is skipped â€” original value flows through unchanged
+        // Exception filter is skipped - original value flows through unchanged
         $this->assertSame('x-good-also-good', $result);
     }
 
@@ -190,8 +183,6 @@ class EventManagerTest extends TestCase
         $em->addFilter('foo', fn($v) => $v);
         $this->assertTrue($em->hasFilter('foo'));
     }
-
-    // â”€â”€ Owner-based bulk removal â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testRemoveAllByOwnerRemovesActionsAndFilters(): void
     {
@@ -218,8 +209,6 @@ class EventManagerTest extends TestCase
         $em->addAction('hookA', fn() => null, owner: 'plugin-x');
         $this->assertSame(0, $em->removeAllByOwner('plugin-z'));
     }
-
-    // â”€â”€ Introspection â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testGetRegisteredReturnsHookCounts(): void
     {
@@ -251,4 +240,3 @@ class EventManagerTest extends TestCase
         $this->assertSame(50, $details[2]['priority']);
     }
 }
-

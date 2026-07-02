@@ -1,13 +1,11 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
 
 use PHPUnit\Framework\TestCase;
 
-/**
- * L21 - Smoke test: validates essential system contracts.
- */
 class SmokeTest extends TestCase
 {
     private string $root;

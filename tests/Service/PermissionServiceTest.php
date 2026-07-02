@@ -7,10 +7,8 @@ namespace Tests\Service;
 use OwnPay\Service\Auth\PermissionService;
 use PHPUnit\Framework\TestCase;
 
-class PermissionServiceTest extends TestCase
+final class PermissionServiceTest extends TestCase
 {
-    // â”€â”€ permissionSchema() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testPermissionSchemaReturnsExpectedTopLevelKeys(): void
     {
         $schema = PermissionService::permissionSchema();
@@ -26,8 +24,6 @@ class PermissionServiceTest extends TestCase
         $this->assertArrayHasKey('approve', $schema['resources']['transaction']);
         $this->assertArrayHasKey('refund', $schema['resources']['transaction']);
     }
-
-    // â”€â”€ countPermissions() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testCountPermissionsForResourcesSumsActions(): void
     {
@@ -48,8 +44,6 @@ class PermissionServiceTest extends TestCase
     {
         $this->assertSame(0, PermissionService::countPermissions('unknown', ['foo', 'bar']));
     }
-
-    // â”€â”€ hasPermission() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
 
     public function testHasPermissionAdminAlwaysTrue(): void
     {
@@ -93,8 +87,6 @@ class PermissionServiceTest extends TestCase
         $this->assertTrue(PermissionService::hasPermission($perms, 'reports', 'view', 'staff'));
     }
 
-    // â”€â”€ canAccessPage() â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
-
     public function testCanAccessPageAdminAlwaysTrue(): void
     {
         $this->assertTrue(PermissionService::canAccessPage([], 'any-page', 'admin'));
@@ -119,4 +111,3 @@ class PermissionServiceTest extends TestCase
         $this->assertFalse(PermissionService::canAccessPage($perms, 'reports', 'staff'));
     }
 }
-

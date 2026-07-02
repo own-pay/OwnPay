@@ -9,10 +9,10 @@ use OwnPay\Core\Database;
 use OwnPay\Http\Request;
 
 /**
- * Verifies the installer re-arm protection: when storage/.installed is
- * missing but the configured database already contains a superadmin, every
- * wizard endpoint must refuse (and self-heal the marker) instead of letting
- * an unauthenticated visitor drop the schema or mint a new superadmin.
+ * Verifies the installer re-arm protection: when storage/.installed is missing but the
+ * configured database already contains a superadmin, every wizard endpoint must refuse
+ * (and self-heal the marker) instead of letting an unauthenticated visitor drop the schema
+ * or mint a new superadmin.
  */
 final class InstallerLockTest extends IntegrationTestCase
 {
@@ -23,7 +23,7 @@ final class InstallerLockTest extends IntegrationTestCase
     private Database $db;
     private string $tempRoot;
 
-    /** @var array<string, string|null> Environment values to restore in tearDown. */
+    /** @var array<string, string|null> */
     private array $envBackup = [];
 
     protected function setUp(): void
@@ -64,8 +64,7 @@ final class InstallerLockTest extends IntegrationTestCase
             ]
         );
 
-        // Isolated root: the controller's marker file and .env.temp paths must
-        // not touch the real installation in this working copy.
+        // Isolated root so marker file and .env.temp paths don't touch the real installation
         $this->tempRoot = sys_get_temp_dir() . '/op_installer_lock_' . bin2hex(random_bytes(6));
         mkdir($this->tempRoot . '/storage', 0777, true);
     }
@@ -111,10 +110,6 @@ final class InstallerLockTest extends IntegrationTestCase
         }
     }
 
-    /**
-     * Builds an installer controller whose filesystem paths point at the
-     * isolated temp root instead of the real project.
-     */
     private function makeController(): InstallerController
     {
         $controller = new InstallerController();
@@ -198,8 +193,6 @@ final class InstallerLockTest extends IntegrationTestCase
             ['HTTP_X_INSTALL_FORCE_KEY' => 'force-key-0123456789abcdef']
         ));
 
-        // Past the install lock, the wizard enforces step order: with no
-        // .env.temp the request stops with 400, not the 403 lock.
         $this->assertSame(400, $response->getStatusCode());
         $body = json_decode($response->getBody(), true);
         $this->assertIsArray($body);
@@ -226,8 +219,6 @@ final class InstallerLockTest extends IntegrationTestCase
 
     public function testFreshInstallNotBlockedWhenDatabaseUnreachable(): void
     {
-        // Simulate a fresh box: env points at a database that does not exist,
-        // so the probe must fail open and let the wizard run.
         $this->setEnv('DB_NAME', 'op_no_such_database_xyz');
         $controller = $this->makeController();
 
@@ -238,8 +229,6 @@ final class InstallerLockTest extends IntegrationTestCase
             'password' => 'password123',
         ]));
 
-        // Not the install lock (403) - the wizard proceeds and stops at the
-        // step-order check because the DB step has not run yet.
         $this->assertSame(400, $response->getStatusCode());
     }
 }

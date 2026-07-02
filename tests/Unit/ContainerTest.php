@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -21,7 +22,7 @@ class ContainerTest extends TestCase
         $c->singleton('counter', function () { return new \stdClass(); });
         $a = $c->get('counter');
         $b = $c->get('counter');
-        $this->assertSame($a, $b, 'Singleton must return same instance');
+        $this->assertSame($a, $b);
     }
 
     public function testBindCreatesNewInstances(): void
@@ -30,7 +31,7 @@ class ContainerTest extends TestCase
         $c->bind('maker', function () { return new \stdClass(); });
         $a = $c->get('maker');
         $b = $c->get('maker');
-        $this->assertNotSame($a, $b, 'Bind must return new instances');
+        $this->assertNotSame($a, $b);
     }
 
     public function testHasReturnsTrueForRegistered(): void

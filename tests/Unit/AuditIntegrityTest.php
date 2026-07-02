@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -9,27 +10,12 @@ use OwnPay\Repository\AuditLogRepository;
 use OwnPay\Core\Database;
 use OwnPay\Service\System\AuditService;
 
-/**
- * Class AuditIntegrityTest
- *
- * Verifies cryptographic signature chaining, integrity checks, and backport signing for Audit Trail compliance.
- */
 #[AllowMockObjectsWithoutExpectations]
 class AuditIntegrityTest extends TestCase
 {
-    /**
-     * @var \PHPUnit\Framework\MockObject\MockObject&Database
-     */
+    /** @var \PHPUnit\Framework\MockObject\MockObject&Database */
     private $dbMock;
-
-    /**
-     * @var AuditLogRepository
-     */
     private AuditLogRepository $repo;
-
-    /**
-     * @var AuditService
-     */
     private AuditService $service;
 
     protected function setUp(): void
@@ -54,7 +40,7 @@ class AuditIntegrityTest extends TestCase
         );
 
         $this->assertNotEmpty($signature);
-        $this->assertSame(64, strlen($signature)); // SHA-256 HMAC signature length is 64 characters
+        $this->assertSame(64, strlen($signature));
     }
 
     public function testRecordLogWithSignature(): void
@@ -90,7 +76,6 @@ class AuditIntegrityTest extends TestCase
 
     public function testVerifyIntegritySecure(): void
     {
-        // Compute a valid signature
         $merchantId = 1;
         $userId = 2;
         $action = 'test.action';

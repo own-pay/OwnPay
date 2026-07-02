@@ -1,18 +1,13 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
 
 use PHPUnit\Framework\TestCase;
 
-/**
- * Unit and contract tests for the Google Pay and Apple Pay express checkout gateways.
- */
 class ExpressGatewayTest extends TestCase
 {
-    /**
-     * Test the manifest validation logic for the new express gateways.
-     */
     public function testExpressGatewayManifestSpecs(): void
     {
         $root = dirname(__DIR__, 2);
@@ -33,9 +28,6 @@ class ExpressGatewayTest extends TestCase
         }
     }
 
-    /**
-     * Test that the express provider parameter parsing validates successfully.
-     */
     public function testExpressProviderParsing(): void
     {
         $validApple = ['apple-pay', 'Apple Pay'];
@@ -69,13 +61,8 @@ class ExpressGatewayTest extends TestCase
         }
     }
 
-    /**
-     * Test supported currencies returns an empty array to allow any currency conversion or defaults.
-     */
     public function testGatewaySupportedCurrencies(): void
     {
-        // Both express checkout gateways are white-labeled and accept any currency.
-        // Therefore their supportedCurrencies() method must return [] (empty array).
         $appleSupported = [];
         $googleSupported = [];
 

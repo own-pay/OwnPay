@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Middleware;
@@ -17,7 +18,6 @@ final class SecurityHeadersMiddlewareTest extends TestCase
     {
         parent::setUp();
         $this->container = new Container();
-        // Default configuration
         $this->container->instance('config.app', [
             'debug' => false,
             'paths' => [
@@ -30,7 +30,7 @@ final class SecurityHeadersMiddlewareTest extends TestCase
     {
         $middleware = new SecurityHeadersMiddleware($this->container);
         $request = new Request([], [], ['HTTP_HOST' => 'ownpay.test']);
-        
+
         $response = $middleware->handle($request, function (Request $req) {
             return new Response('OK', 200);
         });
@@ -47,20 +47,18 @@ final class SecurityHeadersMiddlewareTest extends TestCase
     {
         $middleware = new SecurityHeadersMiddleware($this->container);
         $request = new Request([], [], ['HTTP_HOST' => 'ownpay.test']);
-        
+
         $response = $middleware->handle($request, function (Request $req) {
             return new Response('OK', 200);
         });
 
         $headers = $response->getHeaders();
 
-        // Verify Report-To is set
         $this->assertArrayHasKey('Report-To', $headers);
         $reportTo = json_decode($headers['Report-To'], true);
         $this->assertSame('csp-endpoint', $reportTo['group'] ?? null);
         $this->assertSame('http://ownpay.test/csp-report-api', $reportTo['endpoints'][0]['url'] ?? null);
 
-        // Verify CSP includes reporting directives
         $csp = $headers['Content-Security-Policy'] ?? '';
         $this->assertStringContainsString('report-uri /csp-report', $csp);
         $this->assertStringContainsString('report-to csp-endpoint', $csp);
@@ -70,14 +68,13 @@ final class SecurityHeadersMiddlewareTest extends TestCase
     {
         $middleware = new SecurityHeadersMiddleware($this->container);
         $request = new Request([], [], ['HTTP_HOST' => 'ownpay.test', 'HTTPS' => 'on']);
-        
+
         $response = $middleware->handle($request, function (Request $req) {
             return new Response('OK', 200);
         });
 
         $headers = $response->getHeaders();
 
-        // Verify Report-To is set with https
         $this->assertArrayHasKey('Report-To', $headers);
         $reportTo = json_decode($headers['Report-To'], true);
         $this->assertSame('https://ownpay.test/csp-report-api', $reportTo['endpoints'][0]['url'] ?? null);
@@ -95,7 +92,7 @@ final class SecurityHeadersMiddlewareTest extends TestCase
 
         $middleware = new SecurityHeadersMiddleware($this->container);
         $request = new Request([], [], ['HTTP_HOST' => 'ownpay.test']);
-        
+
         $response = $middleware->handle($request, function (Request $req) {
             return new Response('OK', 200);
         });
@@ -110,7 +107,7 @@ final class SecurityHeadersMiddlewareTest extends TestCase
     {
         $middleware = new SecurityHeadersMiddleware($this->container);
         $request = new Request([], [], ['HTTP_HOST' => 'ownpay.test', 'REQUEST_URI' => '/checkout/intent/123']);
-        
+
         $response = $middleware->handle($request, function (Request $req) {
             return new Response('OK', 200);
         });

@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -7,12 +8,6 @@ use OwnPay\Container;
 use OwnPay\View\TwigExtensions;
 use PHPUnit\Framework\TestCase;
 
-/**
- * Verifies the plugin-hook output sanitizer against the bypasses
- * the previous single-pass, quoted-only implementation allowed:
- * split-tag reassembly, unquoted event handlers, unquoted javascript: URIs,
- * and self-closing <link> elements.
- */
 final class HookOutputSanitizerTest extends TestCase
 {
     private function sanitize(string $html): string
@@ -37,8 +32,6 @@ final class HookOutputSanitizerTest extends TestCase
 
     public function testStripsSplitTagReassembly(): void
     {
-        // One strip pass turns <scr<script>ipt> into <script> - the loop must
-        // keep going until nothing dangerous remains.
         $result = strtolower($this->sanitize('<scr<script>ipt>alert(1)</scr</script>ipt>'));
         $this->assertStringNotContainsString('<script', $result);
     }

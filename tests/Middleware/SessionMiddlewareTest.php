@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Middleware;
@@ -32,7 +33,6 @@ final class SessionMiddlewareTest extends TestCase
 
     public function testEnsureStartedAppliesSameSiteFromConfig(): void
     {
-        // Close any active session to allow setting cookie parameters
         if (session_status() === PHP_SESSION_ACTIVE) {
             session_write_close();
         }
@@ -46,7 +46,6 @@ final class SessionMiddlewareTest extends TestCase
 
         $request = new Request([], [], ['HTTPS' => 'on']);
 
-        // Suppress "headers already sent" warning in CLI
         @SessionMiddleware::ensureStarted($this->container, $request);
 
         $params = session_get_cookie_params();

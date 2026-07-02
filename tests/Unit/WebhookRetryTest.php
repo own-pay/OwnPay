@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -13,47 +14,17 @@ use OwnPay\Service\Payment\WebhookService;
 use OwnPay\Cron\WebhookRetryCron;
 use OwnPay\Core\Database;
 
-/**
- * Class WebhookRetryTest
- *
- * Verifies webhook queueing, exponential backoffs, DLQ quarantining, and background retries.
- */
 #[AllowMockObjectsWithoutExpectations]
 class WebhookRetryTest extends TestCase
 {
-    /**
-     * @var \PHPUnit\Framework\MockObject\MockObject&Database
-     */
+    /** @var \PHPUnit\Framework\MockObject\MockObject&Database */
     private $dbMock;
-
-    /**
-     * @var \PHPUnit\Framework\MockObject\MockObject&\PDOStatement
-     */
+    /** @var \PHPUnit\Framework\MockObject\MockObject&\PDOStatement */
     private $stmtMock;
-
-    /**
-     * @var WebhookRepository
-     */
     private WebhookRepository $webhooks;
-
-    /**
-     * @var CommLogRepository
-     */
     private CommLogRepository $commLog;
-
-    /**
-     * @var EventManager
-     */
     private EventManager $events;
-
-    /**
-     * @var WebhookEventRepository
-     */
     private WebhookEventRepository $webhookEvents;
-
-    /**
-     * @var WebhookService
-     */
     private WebhookService $service;
 
     protected function setUp(): void
@@ -86,8 +57,6 @@ class WebhookRetryTest extends TestCase
             'merchant_id' => $merchantId,
         ];
 
-        // 1. Mock listing active webhooks (fetchAll op_webhooks)
-        // 2. Mock finding event (fetchOne op_webhook_events)
         $this->dbMock->method('fetchAll')
             ->willReturnCallback(function (string $query, array $params = []) use ($webhookMock) {
                 if (str_contains($query, 'op_webhooks')) {
@@ -104,7 +73,6 @@ class WebhookRetryTest extends TestCase
                 return null;
             });
 
-        // 3. Mock inserting the webhook event record & comm log
         $this->dbMock->method('insert')
             ->willReturnCallback(function (string $query, array $data = []) use ($webhookMock, $eventType, $payload) {
                 if (str_contains($query, 'op_webhook_events')) {
@@ -121,7 +89,6 @@ class WebhookRetryTest extends TestCase
                 return '1';
             });
 
-        // 4. Mock execution of update & execute
         $this->dbMock->method('update')->willReturn(1);
         $this->dbMock->method('execute')->willReturn($this->stmtMock);
 

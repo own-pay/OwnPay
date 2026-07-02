@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -52,7 +53,6 @@ class SecurityTest extends TestCase
 
     public function testSqlInjectionInPrefix(): void
     {
-        // Installer validates prefix with regex
         $valid = preg_match('/^[a-z0-9_]{1,30}$/i', 'op_');
         $this->assertSame(1, $valid);
 

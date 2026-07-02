@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Integration;
@@ -15,19 +16,10 @@ use OwnPay\Repository\SettingsRepository;
 use OwnPay\Service\Communication\EmailNotificationService;
 use OwnPay\Service\Communication\MailProviderInterface;
 
-/**
- * In-memory mail provider used to capture dispatched email payloads for assertions,
- * standing in for a real SMTP/API channel plugin (mirrors how SmsGatewayAddonTest
- * registers a real communication plugin).
- */
 final class CapturingMailProvider implements PluginInterface, MailProviderInterface
 {
-    /** @var array<int, array<string, mixed>> Captured outbound messages. */
     public array $sent = [];
 
-    /**
-     * @return array{name: string, slug: string, version: string, description: string, author: string, type: string}
-     */
     public static function metadata(): array
     {
         return [
@@ -40,7 +32,6 @@ final class CapturingMailProvider implements PluginInterface, MailProviderInterf
         ];
     }
 
-    /** @return array<int, Capability> */
     public function capabilities(): array
     {
         return [Capability::COMMUNICATION];
@@ -62,7 +53,6 @@ final class CapturingMailProvider implements PluginInterface, MailProviderInterf
     {
     }
 
-    /** @return array<int, array{name: string, label: string, type: string, default?: mixed, options?: array<string, string>}> */
     public function fields(): array
     {
         return [];
@@ -73,10 +63,6 @@ final class CapturingMailProvider implements PluginInterface, MailProviderInterf
         return 'capturing-mail';
     }
 
-    /**
-     * @param array{to: string, subject: string, body: string, html?: string, from?: string, reply_to?: string, attachments?: array<int, array<string, mixed>>} $message
-     * @return array{success: bool, message_id?: string, error?: string}
-     */
     public function send(array $message): array
     {
         $this->sent[] = $message;
@@ -84,10 +70,6 @@ final class CapturingMailProvider implements PluginInterface, MailProviderInterf
     }
 }
 
-/**
- * Verifies the transactional email pipeline: per-brand preference gating, recipient and
- * sender resolution, refund handling, event wiring and failure isolation.
- */
 final class EmailNotificationTest extends IntegrationTestCase
 {
     private Database $db;
@@ -111,7 +93,6 @@ final class EmailNotificationTest extends IntegrationTestCase
         $bootstrap($this->container);
         $this->container->instance(Database::class, $this->db);
 
-        // Register the capturing mail provider so sendEmail resolves the logged provider path.
         $this->mail = new CapturingMailProvider();
         $manifest = PluginManifest::fromArray([
             'name'         => 'Capturing Mail',
@@ -140,9 +121,6 @@ final class EmailNotificationTest extends IntegrationTestCase
         parent::tearDown();
     }
 
-    /**
-     * Clears email logs and any brand-1 'general' overrides left by prior runs.
-     */
     private function resetState(): void
     {
         $this->db->execute("DELETE FROM op_comm_log WHERE merchant_id = 1");
@@ -154,7 +132,7 @@ final class EmailNotificationTest extends IntegrationTestCase
     }
 
     /**
-     * @param array<string, string> $keyValues Brand-scoped 'general' settings to apply for merchant 1.
+     * @param array<string, string> $keyValues
      */
     private function configure(array $keyValues): void
     {
@@ -164,9 +142,6 @@ final class EmailNotificationTest extends IntegrationTestCase
         $settings->flushCache();
     }
 
-    /**
-     * @return array<string, mixed> A representative completed-transaction record.
-     */
     private function sampleTransaction(): array
     {
         return [

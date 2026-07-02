@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Tests\Unit;
@@ -9,7 +10,6 @@ class MiddlewareTest extends TestCase
 {
     public function testCsrfMiddlewareBlocksWithoutToken(): void
     {
-        // Simulate missing CSRF token - middleware should reject
         $headers = ['X-CSRF-Token' => ''];
         $sessionToken = bin2hex(random_bytes(32));
         $this->assertNotSame($headers['X-CSRF-Token'], $sessionToken);
@@ -30,7 +30,7 @@ class MiddlewareTest extends TestCase
             $store[$ip] = ($store[$ip] ?? 0) + 1;
         }
         $this->assertSame($limit, $store[$ip]);
-        $this->assertTrue($store[$ip] >= $limit, 'Should hit rate limit');
+        $this->assertTrue($store[$ip] >= $limit);
     }
 
     public function testBearerTokenExtraction(): void
@@ -42,7 +42,6 @@ class MiddlewareTest extends TestCase
 
     public function testJwtStructureValidation(): void
     {
-        // JWT must have 3 dot-separated parts
         $validJwt = 'eyJ0.eyJz.sig';
         $parts = explode('.', $validJwt);
         $this->assertCount(3, $parts);
