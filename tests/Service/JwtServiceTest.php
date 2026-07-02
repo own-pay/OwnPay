@@ -1,0 +1,123 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Tests\Service;
+
+use OwnPay\Service\Auth\JwtService;
+use PHPUnit\Framework\TestCase;
+
+final class JwtServiceTest extends TestCase
+{
+    private JwtService $jwt;
+    private string $secret;
+
+    protected function setUp(): void
+    {
+        $this->secret = JwtService::generateSecret();
+        $this->jwt = new JwtService($this->secret);
+    }
+
+    public function testEncodeReturnsTokenAndExpiry(): void
+    {
+        $result = $this->jwt->encode('test-uuid', 1);
+
+        $this->assertArrayHasKey('token', $result);
+        $this->assertArrayHasKey('expires_at', $result);
+        $this->assertArrayHasKey('expires_in', $result);
+        $this->assertIsString($result['token']);
+        $this->assertSame(900, $result['expires_in']);
+    }
+
+    public function testEncodeRespectsCustomTtl(): void
+    {
+        $result = $this->jwt->encode('test-uuid', 1, ['sms:submit'], 60);
+
+        $this->assertSame(60, $result['expires_in']);
+        $this->assertGreaterThan(time(), $result['expires_at']);
+    }
+
+    public function testDecodeValidToken(): void
+    {
+        $encoded = $this->jwt->encode('device-abc', 42);
+        $result = $this->jwt->decode($encoded['token']);
+
+        $this->assertTrue($result['valid']);
+        $this->assertNull($result['error']);
+        $this->assertSame('device:device-abc', $result['payload']->sub);
+        $this->assertSame(42, $result['payload']->brand_id);
+    }
+
+    public function testDecodeWithWrongSecretFails(): void
+    {
+        $encoded = $this->jwt->encode('device-abc', 1);
+        $wrongSecret = JwtService::generateSecret();
+        $wrongJwt = new JwtService($wrongSecret);
+
+        $result = $wrongJwt->decode($encoded['token']);
+
+        $this->assertFalse($result['valid']);
+        $this->assertSame('INVALID_SIGNATURE', $result['error']);
+    }
+
+    public function testDecodeExpiredTokenReturnsExpiredError(): void
+    {
+        $encoded = $this->jwt->encode('device-abc', 1, [], -1);
+        $result = $this->jwt->decode($encoded['token']);
+
+        $this->assertFalse($result['valid']);
+        $this->assertSame('TOKEN_EXPIRED', $result['error']);
+    }
+
+    public function testDecodeMalformedTokenFails(): void
+    {
+        $result = $this->jwt->decode('not.a.jwt');
+
+        $this->assertFalse($result['valid']);
+        $this->assertNotNull($result['error']);
+    }
+
+    public function testDecodeEmptyTokenFails(): void
+    {
+        $result = $this->jwt->decode('');
+
+        $this->assertFalse($result['valid']);
+    }
+
+    public function testExtractDeviceUuidFromValidSub(): void
+    {
+        $uuid = $this->jwt->extractDeviceUuid('device:abc-123-def');
+        $this->assertSame('abc-123-def', $uuid);
+    }
+
+    public function testExtractDeviceUuidReturnsNullForInvalidSub(): void
+    {
+        $this->assertNull($this->jwt->extractDeviceUuid('user:abc'));
+        $this->assertNull($this->jwt->extractDeviceUuid('device:'));
+        $this->assertNull($this->jwt->extractDeviceUuid(''));
+    }
+
+    public function testGenerateSecretReturns64HexChars(): void
+    {
+        $secret = JwtService::generateSecret();
+        $this->assertSame(64, strlen($secret));
+        $this->assertMatchesRegularExpression('/^[a-f0-9]{64}$/', $secret);
+    }
+
+    public function testGenerateSecretIsUnique(): void
+    {
+        $a = JwtService::generateSecret();
+        $b = JwtService::generateSecret();
+        $this->assertNotSame($a, $b);
+    }
+
+    public function testTokenContainsScopes(): void
+    {
+        $scopes = ['sms:submit', 'dashboard:read'];
+        $encoded = $this->jwt->encode('dev-1', 1, $scopes);
+        $decoded = $this->jwt->decode($encoded['token']);
+
+        $this->assertTrue($decoded['valid']);
+        $this->assertSame($scopes, $decoded['payload']->scopes);
+    }
+}

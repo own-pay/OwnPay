@@ -67,15 +67,11 @@ final class DomainUrlService
         if ($req !== null) {
             $requestHost = $req->host();
             $requestHostName = strtolower(explode(':', $requestHost)[0]);
-            if ($requestHostName !== '' && $requestHostName !== 'localhost') {
-                $appDomain = strtolower(explode(':', $this->envGet('APP_DOMAIN'))[0]);
-                $brandDomain = $this->getBrandDomain($merchantId);
-                $brandHostName = $brandDomain !== null ? strtolower($brandDomain) : '';
-                if (($appDomain !== '' && $requestHostName === $appDomain)
-                    || ($brandHostName !== '' && $requestHostName === $brandHostName)
-                ) {
-                    return $req->scheme() . '://' . $requestHost;
-                }
+            if ($requestHostName !== ''
+                && $requestHostName !== 'localhost'
+                && $requestHostName !== '127.0.0.1'
+            ) {
+                return $req->scheme() . '://' . $requestHost;
             }
         }
 
