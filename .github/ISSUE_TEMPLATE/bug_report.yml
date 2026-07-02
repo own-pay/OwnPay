@@ -1,0 +1,115 @@
+name: Bug report
+description: Create a report to help us improve
+title: "[BUG] "
+labels: ["bug"]
+assignees: []
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🛡️ Security Note
+        If you found a security vulnerability, please **DO NOT** use this form. Instead, follow the instructions in our [Security Policy](https://github.com/own-pay/OwnPay/blob/main/SECURITY.md).
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: A clear and concise description of what the bug is.
+      placeholder: Describe the issue...
+    validations:
+      required: true
+
+  - type: textarea
+    id: reproduction
+    attributes:
+      label: Steps to Reproduce
+      description: Steps to reproduce the behavior.
+      placeholder: |
+        1. Go to '...'
+        2. Click on '....'
+        3. Scroll down to '....'
+        4. See error
+        5. Screenshot or screen record (if applicable)
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected Behavior
+      description: A clear and concise description of what you expected to happen.
+    validations:
+      required: true
+
+  - type: dropdown
+    id: brand-scope
+    attributes:
+      label: Brand Scope
+      description: Does this affect a specific brand or the entire platform?
+      options:
+        - All Brands (platform-wide)
+        - Single Brand (specify below)
+        - Not applicable / Unknown
+    validations:
+      required: true
+
+  - type: textarea
+    id: brand-name
+    attributes:
+      label: Affected Brand(s)
+      description: If single-brand, which brand/merchant is affected?
+      placeholder: e.g. MyStore, ShopABC
+    validations:
+      required: false
+
+  - type: dropdown
+    id: deployment
+    attributes:
+      label: Deployment Type
+      description: How is OwnPay deployed?
+      options:
+        - Docker
+        - Shared Hosting
+        - Control Panel (if shared hosting)
+        - VPS / Dedicated Server
+        - Local (Laragon / XAMPP / Valet)
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: gateway
+    attributes:
+      label: Payment Gateway
+      description: Which gateway is involved (if applicable)?
+      options:
+        - Not gateway-related
+        - Stripe
+        - PayPal
+        - Razorpay
+        - Mollie
+        - Other (specify below)
+      multiple: true
+    validations:
+      required: false
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Please provide details about your environment.
+      placeholder: |
+        - OwnPay Version:
+        - PHP Version:
+        - Database & Version:
+        - Webserver:
+        - OS:
+        - Browser (if applicable):
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs(storages/logs) / Screenshots
+      description: Add any logs or screenshots that might help us understand the issue.
