@@ -141,7 +141,7 @@
          data-desc="{{ mg.instructions|default('')|lower }}">
         <div class="op-gateway-logo">
             {% if mg.logo_path is defined and mg.logo_path %}
-                <img src="/storage/{{ mg.logo_path }}" alt="{{ mg.name }}" loading="lazy" class="op-gateway-logo-img">
+                <img src="{{ mg.logo_path }}" alt="{{ mg.name }}" loading="lazy" class="op-gateway-logo-img">
                 <div class="op-gateway-icon op-gateway-fallback">{{ mg.name[0:2]|upper }}</div>
             {% else %}
                 <div class="op-gateway-icon">{{ mg.name[0:2]|upper }}</div>

@@ -14,11 +14,18 @@ use OwnPay\Support\DateHelper;
 final class FilesystemService
 {
     /**
-     * Directory path serving as the base root for all file operations.
+     * Directory path serving as the base root for all PRIVATE file operations (not web-accessible).
      *
      * @var string
      */
     private string $baseDir;
+
+    /**
+     * Directory path serving as the base root for PUBLIC uploads (web-accessible via /assets/uploads/...).
+     *
+     * @var string
+     */
+    private string $publicUploadsDir;
 
     /**
      * Whitelist of permitted upload file extensions.
@@ -30,11 +37,13 @@ final class FilesystemService
     /**
      * Initialises the filesystem service.
      *
-     * @param string|null $baseDir Base folder absolute path. Defaults to the system storage directory.
+     * @param string|null $baseDir          Private base folder absolute path. Defaults to the system storage directory.
+     * @param string|null $publicUploadsDir Public uploads base folder absolute path. Defaults to `public/assets/uploads`.
      */
-    public function __construct(?string $baseDir = null)
+    public function __construct(?string $baseDir = null, ?string $publicUploadsDir = null)
     {
         $this->baseDir = $baseDir ?? dirname(__DIR__, 3) . '/storage';
+        $this->publicUploadsDir = $publicUploadsDir ?? dirname(__DIR__, 3) . '/public/assets/uploads';
     }
 
     /**
@@ -49,6 +58,42 @@ final class FilesystemService
      * @throws \RuntimeException If the upload contains errors, validation fails, or file transfer fails.
      */
     public function storeUpload(array $file, string $subDir = 'uploads'): string
+    {
+        $relative = $this->moveValidatedUpload($file, $this->baseDir, $subDir);
+        return $relative;
+    }
+
+    /**
+     * Stores an uploaded file securely under the PUBLIC web root, for assets that must be
+     * directly reachable via `<img src>`/`<link href>` (gateway logos/QRs, brand logos,
+     * favicons, staff avatars). Do NOT use this for sensitive uploads (e.g. dispute evidence) -
+     * use {@see storeUpload()} for those so they stay outside the web root.
+     *
+     * Applies the exact same validation as {@see storeUpload()} (extension whitelist, MIME
+     * signature check, SVG XSS/XXE screening).
+     *
+     * @param array{error: int, name: string, tmp_name: string} $file Associative array structure containing PHP upload metadata.
+     * @param string $subDir Sub-directory path where the file should be deposited.
+     * @return string Web-root-relative URL (leading slash) referencing the newly stored file, e.g. `/assets/uploads/gateways/2026/07/<hash>.png`.
+     * @throws \RuntimeException If the upload contains errors, validation fails, or file transfer fails.
+     */
+    public function storePublicUpload(array $file, string $subDir = 'uploads'): string
+    {
+        $relative = $this->moveValidatedUpload($file, $this->publicUploadsDir, $subDir);
+        return '/assets/uploads/' . $relative;
+    }
+
+    /**
+     * Validates and moves an uploaded file into the given base directory, shared by both the
+     * private ({@see storeUpload()}) and public ({@see storePublicUpload()}) storage paths.
+     *
+     * @param array{error: int, name: string, tmp_name: string} $file Associative array structure containing PHP upload metadata.
+     * @param string $targetBaseDir Absolute path of the directory tree to store the file under.
+     * @param string $subDir Sub-directory path where the file should be deposited.
+     * @return string Path of the stored file, relative to $targetBaseDir.
+     * @throws \RuntimeException If the upload contains errors, validation fails, or file transfer fails.
+     */
+    private function moveValidatedUpload(array $file, string $targetBaseDir, string $subDir): string
     {
         if ($file['error'] !== UPLOAD_ERR_OK) {
             throw new \RuntimeException('Upload error: ' . $file['error']);
@@ -79,7 +124,8 @@ final class FilesystemService
             }
         }
 
-        $targetDir = $this->baseDir . '/' . $subDir . '/' . DateHelper::yearMonthPath();
+        $relativeDir = $subDir . '/' . DateHelper::yearMonthPath();
+        $targetDir = $targetBaseDir . '/' . $relativeDir;
         if (!is_dir($targetDir)) {
             @mkdir($targetDir, 0755, true);
         }
@@ -91,7 +137,7 @@ final class FilesystemService
             throw new \RuntimeException('Failed to move uploaded file');
         }
 
-        return $subDir . '/' . DateHelper::yearMonthPath() . '/' . $filename;
+        return $relativeDir . '/' . $filename;
     }
 
     /**
