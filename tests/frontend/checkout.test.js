@@ -51,6 +51,32 @@ describe('checkout.js', () => {
           <input type="hidden" name="gateway" value="stripe">
           <button type="submit">Pay</button>
         </form>
+
+        <div id="t-mfs" class="ck-tc">
+          <div class="ck-gw-grid" id="mfsG">
+            <div class="ck-gw" data-tab="mfs" data-slug="bkash" data-name="bKash" data-mode="manual" data-color="#E2136E"></div>
+          </div>
+          <button type="button" id="mfsBtn" disabled class="ck-pay-btn ck-pay-disabled">Select a provider</button>
+        </div>
+
+        <div id="manualPopup" class="ck-popup ck-hidden">
+          <div class="ck-popup-backdrop" data-action="close-manual"></div>
+          <div class="ck-popup-dialog">
+            <button type="button" data-action="close-manual" class="ck-popup-close">&times;</button>
+            <p id="mpName"></p>
+            <p id="mpType"></p>
+            <div id="mpIcon"></div>
+            <p id="mpNumber"></p>
+            <div id="mpSteps"></div>
+            <div id="mpStep1"></div>
+            <div id="mpStep2" class="ck-hidden"><form id="mpVerifyForm"></form></div>
+          </div>
+        </div>
+
+        <div id="genericModal" class="ck-modal ck-hidden">
+          <div class="ck-modal-backdrop"></div>
+          <div class="ck-modal-dialog"></div>
+        </div>
       </body>
       </html>
     `;
@@ -241,6 +267,66 @@ describe('checkout.js', () => {
       
       consoleSpy.mockRestore();
       newDom.window.close();
+    });
+  });
+
+  // Regression tests for GitHub issue #21 bug 3: clicking "Pay manually via ..." (or the popup's
+  // close button) appeared to do nothing. Root cause: openManualPopup()/closeManual() (and the
+  // generic openMdl()/closeMdl() helpers) only toggled the `ck-hidden` (display:none) class, but
+  // checkout.css gates real visibility/interactivity behind a separate `vis` (.ck-popup) /
+  // `is-open` (.ck-modal) class that was never added or removed.
+  describe('Manual Popup / Generic Modal Visibility', () => {
+    afterEach(() => {
+      vi.useRealTimers();
+    });
+
+    it('picking a manual gateway and clicking pay reveals the popup with the "vis" class, not just ck-hidden removed', () => {
+      const card = document.querySelector('.ck-gw[data-slug="bkash"]');
+      window.pickGW(card, 'mfs', 'bkash', 'bKash', 'manual');
+
+      const btn = document.getElementById('mfsBtn');
+      btn.onclick();
+
+      const popup = document.getElementById('manualPopup');
+      expect(popup.classList.contains('ck-hidden')).toBe(false);
+      expect(popup.classList.contains('vis')).toBe(true);
+    });
+
+    it('closeManual() hides the popup by removing "vis" (immediately click-inert) and restoring ck-hidden after the transition', () => {
+      vi.useFakeTimers();
+      const popup = document.getElementById('manualPopup');
+      popup.classList.remove('ck-hidden');
+      popup.classList.add('vis');
+
+      window.closeManual();
+
+      // Must be click-inert the instant close is requested (pointer-events gated by "vis" in CSS).
+      expect(popup.classList.contains('vis')).toBe(false);
+
+      vi.runAllTimers();
+      expect(popup.classList.contains('ck-hidden')).toBe(true);
+    });
+
+    it('openMdl() adds the "is-open" class the .ck-modal CSS requires for visibility', () => {
+      window.openMdl('genericModal');
+
+      const modal = document.getElementById('genericModal');
+      expect(modal.classList.contains('ck-hidden')).toBe(false);
+      expect(modal.classList.contains('is-open')).toBe(true);
+    });
+
+    it('closeMdl() removes "is-open" immediately and restores ck-hidden after the close transition', () => {
+      vi.useFakeTimers();
+      const modal = document.getElementById('genericModal');
+      modal.classList.remove('ck-hidden');
+      modal.classList.add('is-open');
+
+      window.closeMdl('genericModal');
+
+      expect(modal.classList.contains('is-open')).toBe(false);
+
+      vi.runAllTimers();
+      expect(modal.classList.contains('ck-hidden')).toBe(true);
     });
   });
 });
