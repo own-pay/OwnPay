@@ -1,0 +1,18 @@
+parameters:
+    level: 9
+    
+    paths:
+        - config
+        - modules
+        - src
+        - templates/install
+        - public/index.php
+        
+    excludePaths:
+        analyse:
+        - vendor
+        - node_modules (?)
+    ignoreErrors:
+        - '#Constant OWNPAY_INIT not found.#'
+        
+    reportUnmatchedIgnoredErrors: false
