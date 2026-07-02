@@ -148,7 +148,7 @@ final class Router
             if ($m[1] === 'identifier') {
                 return '([a-zA-Z0-9_\-\.\+\@\%]+)';
             }
-            // BUG-023: Prevent route-based injection by constraining character set.
+            // Constrain the character set to prevent route-based injection.
             return '([a-zA-Z0-9_\-\.]+)';
         }, $pattern);
 

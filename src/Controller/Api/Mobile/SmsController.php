@@ -134,26 +134,25 @@ final class SmsController
 
         $this->events->doAction('sms.received.before', $body);
 
+
         $parsedMessages = [];
         foreach ($messages as $msg) {
-            if (is_array($msg)) {
-                $localIdVal = $msg['local_id'] ?? null;
-                $localId = (is_int($localIdVal) || is_string($localIdVal)) ? (int) $localIdVal : null;
-                $senderVal = $msg['sender'] ?? '';
-                $sender = is_string($senderVal) ? $senderVal : '';
-                $encryptedPayloadVal = $msg['encrypted_payload'] ?? $msg['body'] ?? '';
-                $encryptedPayload = is_string($encryptedPayloadVal) ? $encryptedPayloadVal : '';
-                $receivedAtVal = $msg['received_at'] ?? DateHelper::now();
-                $receivedAt = is_string($receivedAtVal) ? $receivedAtVal : DateHelper::now();
+            $localIdVal = $msg['local_id'] ?? null;
+            $localId = (is_int($localIdVal) || is_string($localIdVal)) ? (int) $localIdVal : null;
+            $senderVal = $msg['sender'] ?? '';
+            $sender = is_string($senderVal) ? $senderVal : '';
+            $encryptedPayloadVal = $msg['encrypted_payload'] ?? $msg['body'] ?? '';
+            $encryptedPayload = is_string($encryptedPayloadVal) ? $encryptedPayloadVal : '';
+            $receivedAtVal = $msg['received_at'] ?? DateHelper::now();
+            $receivedAt = is_string($receivedAtVal) ? $receivedAtVal : DateHelper::now();
 
-                $parsedMessages[] = [
-                    'local_id'          => $localId,
-                    'sender'            => $sender,
-                    'encrypted_payload' => $encryptedPayload,
-                    'received_at'       => $receivedAt,
-                    'device_id'         => $deviceId,
-                ];
-            }
+            $parsedMessages[] = [
+                'local_id'          => $localId,
+                'sender'            => $sender,
+                'encrypted_payload' => $encryptedPayload,
+                'received_at'       => $receivedAt,
+                'device_id'         => $deviceId,
+            ];
         }
 
         $results = $this->parser->processBatch($deviceId, $mid, $parsedMessages);

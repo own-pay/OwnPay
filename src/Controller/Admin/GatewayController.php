@@ -320,10 +320,7 @@ final class GatewayController
             return Response::redirect('/admin/gateways');
         }
 
-        $inputFieldsVal = $gateway['input_fields'] ?? '[]';
-        $gateway['input_fields'] = json_decode(is_string($inputFieldsVal) ? $inputFieldsVal : '[]', true);
-        $colorsVal = $gateway['colors'] ?? '{}';
-        $gateway['colors'] = json_decode(is_string($colorsVal) ? $colorsVal : '{}', true);
+        $gateway = $this->decodeGatewayForEdit($gateway);
 
         if ($request->method() === 'GET') {
             return $this->renderAdminPage('admin/gateways/edit-manual.twig', ['gateway' => $gateway, 'active_page' => 'gateways']);
@@ -486,6 +483,26 @@ final class GatewayController
     }
 
     /**
+     * Decodes a raw manual-gateway DB row's JSON-encoded columns into their render-ready /
+     * human-editable forms for the platform-level edit form. Without this, the edit form would
+     * pre-fill the "Payment Instructions" textarea with the raw stored JSON, and saving it would
+     * re-wrap that JSON as a single instruction line, compounding on every save.
+     *
+     * @param array<string, mixed> $gateway Raw manual gateway DB row.
+     *
+     * @return array<string, mixed> Gateway row with `instructions`/`input_fields`/`colors` decoded.
+     */
+    private function decodeGatewayForEdit(array $gateway): array
+    {
+        $inputFieldsVal = $gateway['input_fields'] ?? '[]';
+        $gateway['input_fields'] = json_decode(is_string($inputFieldsVal) ? $inputFieldsVal : '[]', true);
+        $colorsVal = $gateway['colors'] ?? '{}';
+        $gateway['colors'] = json_decode(is_string($colorsVal) ? $colorsVal : '{}', true);
+        $gateway['instructions'] = $this->instructionsToText($gateway['instructions'] ?? null);
+        return $gateway;
+    }
+
+    /**
      * Builds a brand-owned account record from a platform template, applying the brand's account
      * overrides (instructions + any uploaded logo/QR). The TYPE definition is copied verbatim from the
      * template so the brand row is self-contained; the slug is kept identical so checkout resolution
@@ -606,12 +623,12 @@ final class GatewayController
         if (isset($_FILES['logo']) && is_array($_FILES['logo']) && !empty($_FILES['logo']['tmp_name']) && is_string($_FILES['logo']['tmp_name'])) {
             /** @var array{error: int, name: string, tmp_name: string} $file */
             $file = $_FILES['logo'];
-            $record['logo_path'] = $this->fs->storeUpload($file, 'gateways');
+            $record['logo_path'] = $this->fs->storePublicUpload($file, 'gateways');
         }
         if (isset($_FILES['qr_code']) && is_array($_FILES['qr_code']) && !empty($_FILES['qr_code']['tmp_name']) && is_string($_FILES['qr_code']['tmp_name'])) {
             /** @var array{error: int, name: string, tmp_name: string} $file */
             $file = $_FILES['qr_code'];
-            $record['qr_code_path'] = $this->fs->storeUpload($file, 'gateways');
+            $record['qr_code_path'] = $this->fs->storePublicUpload($file, 'gateways');
         }
     }
 
