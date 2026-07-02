@@ -58,21 +58,27 @@
             document.head.appendChild(style);
         }
 
-        // Inject Custom JS if present
+        // Inject Custom JS if present (CSP nonce required for security)
         var customJs = dataEl.getAttribute("data-custom-js");
-        if (customJs) {
+        if (customJs && nonce) {
+            // SECURITY: Only allow custom JS when CSP nonce is present
+            // This prevents execution if nonce is missing or compromised
             var script = document.createElement("script");
-            if (nonce) {
-                script.setAttribute("nonce", nonce);
-            }
+            script.setAttribute("nonce", nonce);
             script.textContent = customJs;
             document.body.appendChild(script);
         }
     }
 
     var basePath = cfg.checkoutBasePath || ("/checkout/" + cfg.txnRef);
+    // Defense in depth: basePath drives form.action targets below - it must always be a
+    // same-origin relative path, never an absolute URL with an attacker-influenceable scheme.
+    if (typeof basePath !== "string" || !basePath.startsWith("/")) {
+        basePath = "/checkout/" + (cfg.txnRef || "");
+    }
 
     // ---------- TIMER ----------
+    var TIMER_URGENCY_THRESHOLD_SEC = 60; // Show urgent style when less than 60 seconds remain
     var tEl = document.getElementById("timer");
     if (cfg.timeoutEnabled && tEl) {
         var storageKey = "op_timer_" + cfg.txnRef;
@@ -102,7 +108,7 @@
             var m = String(Math.floor(sec / 60)).padStart(2, "0");
             var s = String(sec % 60).padStart(2, "0");
             tEl.textContent = m + ":" + s;
-            if (sec <= 60) {
+            if (sec <= TIMER_URGENCY_THRESHOLD_SEC) {
                 tEl.classList.add("ck-timer-urgent");
             } else {
                 tEl.classList.remove("ck-timer-urgent");
@@ -142,16 +148,25 @@
                     cancelForm.submit();
                 }
             }, 1000);
+
+            // Cleanup timer on page unload to prevent memory leak
+            window.addEventListener("beforeunload", function () {
+                clearInterval(iv);
+            });
         }
     }
 
     // ---------- TABS ----------
     window.goT = function (t) {
+        if (!t || typeof t !== "string") { return; }
+        // Sanitize: only allow alphanumeric, hyphens, underscores
+        var safe = t.replace(/[^a-zA-Z0-9_-]/g, "");
+        if (!safe) { return; }
         document.querySelectorAll(".ck-tab").forEach(function (b) { b.classList.remove("on"); });
-        var tab = document.querySelector('.ck-tab[data-t="' + t + '"]');
+        var tab = document.querySelector('.ck-tab[data-t="' + safe + '"]');
         if (tab) {tab.classList.add("on");}
         document.querySelectorAll(".ck-tc").forEach(function (c) { c.classList.add("ck-hidden"); });
-        var pane = document.getElementById("t-" + t);
+        var pane = document.getElementById("t-" + safe);
         if (pane) {pane.classList.remove("ck-hidden");}
     };
 
@@ -175,6 +190,22 @@
         btn.onclick = function () { executeGW(tab); };
     };
 
+    // Shared payment response handler
+    function handlePaymentResponse(res, fallbackError) {
+        if (res.ok && res.data && res.data.success && res.data.redirect_url) {
+            window.location.href = res.data.redirect_url;
+            return;
+        }
+        hideLoading();
+        var errorMsg = (res.data && res.data.error) ? res.data.error : fallbackError;
+        showCheckoutError(errorMsg);
+    }
+
+    function handlePaymentError(fallbackError) {
+        hideLoading();
+        showCheckoutError(fallbackError);
+    }
+
     function executeGW(tab) {
         var s = gwState[tab];
         if (!s.slug) {return;}
@@ -197,20 +228,10 @@
 
         window.opPost(basePath + "/pay", payload)
             .then(function (res) {
-                if (res.ok && res.data && res.data.success && res.data.redirect_url) {
-                    window.location.href = res.data.redirect_url;
-                    return;
-                }
-
-                hideLoading();
-                var errorMsg = (res.data && res.data.error)
-                    ? res.data.error
-                    : "Payment gateway is temporarily unavailable. Please try another method.";
-                showCheckoutError(errorMsg);
+                handlePaymentResponse(res, "Payment gateway is temporarily unavailable. Please try another method.");
             })
             .catch(function () {
-                hideLoading();
-                showCheckoutError("Network error. Please check your connection and try again.");
+                handlePaymentError("Network error. Please check your connection and try again.");
             });
     }
 
@@ -242,6 +263,9 @@
         if (overlay) {overlay.remove();}
     }
 
+    var ERROR_TOAST_DURATION_MS = 8000; // Auto-dismiss error toast after 8 seconds
+    var ERROR_TOAST_FADE_MS = 300; // Fade animation duration
+
     function showCheckoutError(msg) {
         var existing = document.getElementById("ck-error-toast");
         if (existing) {existing.remove();}
@@ -271,12 +295,14 @@
         setTimeout(function () {
             if (toast.parentNode) {
                 toast.classList.add("ck-error-toast-fade");
-                setTimeout(function () { toast.remove(); }, 300);
+                setTimeout(function () { toast.remove(); }, ERROR_TOAST_FADE_MS);
             }
-        }, 8000);
+        }, ERROR_TOAST_DURATION_MS);
     }
 
     // ---------- MANUAL POPUP ----------
+    var POPUP_CLOSE_DUR_MS = 300; // Matches --dur-normal in checkout.css (.ck-popup opacity transition)
+
     function openManualPopup(slug, name) {
         var meta = (cfg.gatewayMeta && cfg.gatewayMeta[slug]) || { color: "#0D9488", type: "Send Money", logoText: "" };
         var gwData = manualGateways[slug] || {};
@@ -350,12 +376,22 @@
         }
 
         var popup = document.getElementById("manualPopup");
-        if (popup) {popup.classList.remove("ck-hidden");}
+        if (popup) {
+            popup.classList.remove("ck-hidden");
+            // Force a reflow so the display:none -> flex change is committed before adding "vis",
+            // otherwise the opacity transition collapses into an instant, un-animated jump.
+            void popup.offsetWidth;
+            popup.classList.add("vis");
+        }
     }
 
     window.closeManual = function () {
         var p = document.getElementById("manualPopup");
-        if (p) {p.classList.add("ck-hidden");}
+        if (!p) {return;}
+        // "vis" gates both opacity and pointer-events in CSS - removing it makes the popup
+        // instantly click-inert even before the fade-out transition finishes.
+        p.classList.remove("vis");
+        setTimeout(function () { p.classList.add("ck-hidden"); }, POPUP_CLOSE_DUR_MS);
     };
 
     window.goMpStep = function (step) {
@@ -415,13 +451,28 @@
     };
 
     // ---------- MODALS ----------
+    var MODAL_CLOSE_DUR_MS = 150; // Matches --modal-close-dur in checkout.css (.ck-modal.is-closing)
+
     window.openMdl = function (id) {
         var e = document.getElementById(id);
-        if (e) {e.classList.remove("ck-hidden");}
+        if (!e) {return;}
+        e.classList.remove("ck-hidden");
+        // Force a reflow so the display:none -> flex change is committed before adding
+        // "is-open", otherwise the opacity/transform transition collapses into an instant jump.
+        void e.offsetWidth;
+        e.classList.add("is-open");
     };
     window.closeMdl = function (id) {
         var e = document.getElementById(id);
-        if (e) {e.classList.add("ck-hidden");}
+        if (!e) {return;}
+        // "is-open" gates visibility/pointer-events in CSS; swap to "is-closing" so the close
+        // transition plays, then restore ck-hidden once it finishes.
+        e.classList.remove("is-open");
+        e.classList.add("is-closing");
+        setTimeout(function () {
+            e.classList.remove("is-closing");
+            e.classList.add("ck-hidden");
+        }, MODAL_CLOSE_DUR_MS);
     };
 
     // ---------- COPY ----------
@@ -469,19 +520,10 @@
         
         window.opPost(basePath + "/express", payload)
             .then(function (res) {
-                if (res.ok && res.data && res.data.success && res.data.redirect_url) {
-                    window.location.href = res.data.redirect_url;
-                    return;
-                }
-                hideLoading();
-                var errorMsg = (res.data && res.data.error)
-                    ? res.data.error
-                    : "Express checkout failed. Please try another method.";
-                showCheckoutError(errorMsg);
+                handlePaymentResponse(res, "Express checkout failed. Please try another method.");
             })
             .catch(function () {
-                hideLoading();
-                showCheckoutError("Express checkout is temporarily unavailable. Please try another method.");
+                handlePaymentError("Express checkout is temporarily unavailable. Please try another method.");
             });
     };
 

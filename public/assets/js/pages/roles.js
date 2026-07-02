@@ -14,7 +14,12 @@
         if (nameDisplay) { nameDisplay.textContent = role.name; }
         if (nameInput) { nameInput.value = role.name; }
         if (descInput) { descInput.value = role.description || ""; }
-        if (form) { form.action = "/admin/roles/" + role.id + "/update"; }
+        if (form) {
+            var roleId = parseInt(role.id, 10);
+            if (!isNaN(roleId) && roleId > 0) {
+                form.action = "/admin/roles/" + roleId + "/update";
+            }
+        }
 
         document.querySelectorAll(".perm-cb").forEach(function (cb) { cb.checked = false; });
         var perms = role.permissions || [];

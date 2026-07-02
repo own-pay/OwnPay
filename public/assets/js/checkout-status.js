@@ -17,7 +17,16 @@ document.addEventListener("DOMContentLoaded", function() {
         var paymentId = wrapper.getAttribute("data-payment-id");
         var status = wrapper.getAttribute("data-status");
 
-        if (redirectUrl) {
+        // Refuses javascript:/data:/vbscript: (and any other non-http(s)) URL schemes. The server
+        // already rejects non-http(s) redirect_url values at intent creation, but this stays the
+        // last line of defense before the value drives href/location.href navigation targets.
+        var hasSafeUrlScheme = function (url) {
+            if (!url) { return false; }
+            var schemeMatch = url.trim().match(/^([a-zA-Z][a-zA-Z0-9+.-]*):/);
+            return !schemeMatch || schemeMatch[1].toLowerCase() === "http" || schemeMatch[1].toLowerCase() === "https";
+        };
+
+        if (redirectUrl && hasSafeUrlScheme(redirectUrl)) {
             // Construct target URL with query parameters
             var separator = redirectUrl.indexOf("?") !== -1 ? "&" : "?";
             var finalUrl = redirectUrl + separator + "payment_id=" + encodeURIComponent(paymentId) + "&status=" + encodeURIComponent(status);
@@ -29,7 +38,10 @@ document.addEventListener("DOMContentLoaded", function() {
                     btn.setAttribute("href", finalUrl);
                     var label = btn.querySelector(".st-btn-label");
                     if (label) {
-                        label.innerHTML = "Return to<br>Merchant";
+                        label.textContent = "";
+                        label.appendChild(document.createTextNode("Return to"));
+                        label.appendChild(document.createElement("br"));
+                        label.appendChild(document.createTextNode("Merchant"));
                     }
                 }
             });
