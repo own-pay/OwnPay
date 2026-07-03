@@ -312,6 +312,28 @@ return static function (\OwnPay\Container $c): void {
         return $twig;
     });
 
+    // --- Theme Rendering Abstraction
+    $c->singleton(\OwnPay\View\Theme\ThemeRendererRegistry::class, static function (\OwnPay\Container $c): \OwnPay\View\Theme\ThemeRendererRegistry {
+        $twig = ensureType($c->get(\Twig\Environment::class), \Twig\Environment::class);
+        return new \OwnPay\View\Theme\ThemeRendererRegistry([
+            'twig'      => new \OwnPay\View\Theme\TwigThemeRenderer($twig),
+            'plain-php' => new \OwnPay\View\Theme\PlainPhpThemeRenderer(),
+        ]);
+    });
+
+    $c->singleton(\OwnPay\View\Theme\ActiveThemeResolver::class, static function (\OwnPay\Container $c): \OwnPay\View\Theme\ActiveThemeResolver {
+        $appCfg = ensureArray($c->get('config.app'));
+        $paths = ensureArray($appCfg['paths'] ?? null);
+        $themesBaseDir = ensureString($paths['modules'] ?? '') . '/themes';
+        return new \OwnPay\View\Theme\ActiveThemeResolver(
+            ensureType($c->get(\OwnPay\Repository\SettingsRepository::class), \OwnPay\Repository\SettingsRepository::class),
+            ensureType($c->get(\OwnPay\Plugin\PluginRegistry::class), \OwnPay\Plugin\PluginRegistry::class),
+            ensureType($c->get(\OwnPay\Repository\PluginRepository::class), \OwnPay\Repository\PluginRepository::class),
+            $themesBaseDir,
+            'own-pay'
+        );
+    });
+
     // --- Smart SMS Analyzer
     $c->singleton(\OwnPay\Service\Sms\SmartSmsAnalyzer::class, static function (): \OwnPay\Service\Sms\SmartSmsAnalyzer {
         return new \OwnPay\Service\Sms\SmartSmsAnalyzer();
