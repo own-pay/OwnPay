@@ -91,6 +91,7 @@ return static function (\OwnPay\Http\Router $router): void {
 
     // ─── Admin Panel (SPA-style AJAX fragments :D) ────────────────
     $router->get('/admin', 'Admin\\DashboardController@index', 'admin');
+    $router->get('/admin/setup-wizard', 'Admin\\DashboardController@setupWizard', 'admin');
     $router->get('/admin/contributors', 'Admin\\ContributorController@index', 'admin');
 
     // Onboarding Setup Wizard <!-- note: Need to improve it. Contributor are welcome -->

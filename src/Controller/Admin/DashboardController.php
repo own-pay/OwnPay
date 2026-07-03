@@ -112,6 +112,16 @@ final class DashboardController
     public function index(Request $req): Response
     {
         $this->brand->resolveFromRequest($req);
+
+        /** @var \OwnPay\Repository\SettingsRepository $onboardingCheckRepo */
+        $onboardingCheckRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
+        if (!$onboardingCheckRepo instanceof \OwnPay\Repository\SettingsRepository) {
+            throw new \RuntimeException('SettingsRepository service unavailable');
+        }
+        if ((int) $onboardingCheckRepo->get('system', 'onboarding_completed', '0') === 0) {
+            return \OwnPay\Http\Response::redirect('/admin/setup-wizard');
+        }
+
         $range = $req->query('range', 'today');
 
         $dateFilter = match ($range) {
@@ -169,11 +179,11 @@ final class DashboardController
         if (!$settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
             throw new \RuntimeException('SettingsRepository service unavailable');
         }
-        $onboardingCompleted = (int) $settingsRepo->get('system', 'onboarding_completed', '0');
+        $onboardingCompleted = 1;
 
         $currencies = [];
         $timezones = [];
-        if ($onboardingCompleted === 0) {
+        if (false) {
             $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
             if (!$currencySvc instanceof \OwnPay\Service\Payment\CurrencyService) {
                 throw new \RuntimeException('CurrencyService unavailable');
@@ -717,6 +727,53 @@ final class DashboardController
         return Response::html($csv, 200)
             ->withHeader('Content-Type', 'text/csv; charset=UTF-8')
             ->withHeader('Content-Disposition', "attachment; filename=\"{$filename}\"");
+    }
+
+    /**
+     * Renders the dedicated full-screen onboarding wizard, or redirects to
+     * the dashboard if onboarding is already complete.
+     *
+     * @param Request $req The incoming HTTP request.
+     * @return Response The wizard page, or a redirect.
+     */
+    public function setupWizard(Request $req): Response
+    {
+        $this->brand->resolveFromRequest($req);
+
+        /** @var \OwnPay\Repository\SettingsRepository $settingsRepo */
+        $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
+        if ((int) $settingsRepo->get('system', 'onboarding_completed', '0') === 1) {
+            return Response::redirect('/admin');
+        }
+
+        /** @var \OwnPay\Repository\MerchantRepository $merchantRepo */
+        $merchantRepo = $this->c->get(\OwnPay\Repository\MerchantRepository::class);
+        $existingBrand = $merchantRepo->findFirst();
+
+        /** @var \OwnPay\Service\Payment\CurrencyService $currencySvc */
+        $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
+        $currencies = $currencySvc->listAll();
+
+        $timezones = [
+            'UTC' => 'UTC (GMT+00:00)',
+            'America/New_York' => 'New York (EST/EDT - GMT-05:00)',
+            'America/Chicago' => 'Chicago (CST/CDT - GMT-06:00)',
+            'America/Denver' => 'Denver (MST/MDT - GMT-07:00)',
+            'America/Los_Angeles' => 'Los Angeles (PST/PDT - GMT-08:00)',
+            'Europe/London' => 'London (GMT/BST - GMT+00:00)',
+            'Europe/Berlin' => 'Berlin (CET/CEST - GMT+01:00)',
+            'Asia/Dhaka' => 'Dhaka (BST - GMT+06:00)',
+            'Asia/Kolkata' => 'Kolkata (IST - GMT+05:30)',
+            'Asia/Singapore' => 'Singapore (SGT - GMT+08:00)',
+            'Australia/Sydney' => 'Sydney (AEST/AEDT - GMT+10:00)',
+        ];
+
+        return $this->renderAdminPage('admin/setup-wizard/index.twig', [
+            'active_page'    => 'setup-wizard',
+            'currencies'     => $currencies,
+            'timezones'      => $timezones,
+            'existing_brand' => $existingBrand,
+        ]);
     }
 
     /**
