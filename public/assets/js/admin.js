@@ -442,6 +442,14 @@
             Array.from(oldScript.attributes).forEach(function (attr) {
                 newScript.setAttribute(attr.name, attr.value);
             });
+            // The fetched partial's script tag carries the CSP nonce issued for
+            // that AJAX response, which never matches the nonce the browser's
+            // live CSP policy trusts (each response gets a fresh random nonce
+            // from SecurityHeadersMiddleware). Overwrite it with the nonce this
+            // page was actually loaded with, or the browser silently blocks the
+            // re-injected script and every rebound listener in it goes dead
+            // until a real page reload.
+            newScript.setAttribute("nonce", window.OP_CSP_NONCE || "");
             if (oldScript.src) {
                 newScript.src = oldScript.src;
             } else {
