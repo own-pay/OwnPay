@@ -24,6 +24,7 @@ use OwnPay\Support\DateHelper;
 final class CheckoutController
 {
     use CheckoutPresentationTrait;
+    use \OwnPay\View\Theme\RendersThemedResponsesTrait;
 
     /**
      * @var \OwnPay\Container The dependency injection container.
@@ -326,15 +327,7 @@ final class CheckoutController
         $tplFilter = $this->events->applyFilter('checkout.template', 'checkout/checkout.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout.twig';
         $brandId = isset($txn['merchant_id']) ? (int) $txn['merchant_id'] : null;
-        $resolver = $this->c->get(\OwnPay\View\Theme\ActiveThemeResolver::class);
-        $registry = $this->c->get(\OwnPay\View\Theme\ThemeRendererRegistry::class);
-        if (!$resolver instanceof \OwnPay\View\Theme\ActiveThemeResolver
-            || !$registry instanceof \OwnPay\View\Theme\ThemeRendererRegistry) {
-            throw new \RuntimeException('Theme rendering services not available.');
-        }
-        $theme = $resolver->resolve($brandId);
-        $renderer = $registry->get($theme->engine);
-        return Response::html($renderer->render($theme->resolveTemplate($tplName), $data));
+        return $this->renderThemed($tplName, $brandId, $data);
     }
 
     /**
@@ -369,15 +362,7 @@ final class CheckoutController
         $tplFilter = $this->events->applyFilter('checkout.status.template', 'checkout/checkout-status.twig');
         $tplName = is_string($tplFilter) ? $tplFilter : 'checkout/checkout-status.twig';
         $brandId = $mid > 0 ? $mid : null;
-        $resolver = $this->c->get(\OwnPay\View\Theme\ActiveThemeResolver::class);
-        $registry = $this->c->get(\OwnPay\View\Theme\ThemeRendererRegistry::class);
-        if (!$resolver instanceof \OwnPay\View\Theme\ActiveThemeResolver
-            || !$registry instanceof \OwnPay\View\Theme\ThemeRendererRegistry) {
-            throw new \RuntimeException('Theme rendering services not available.');
-        }
-        $theme = $resolver->resolve($brandId);
-        $renderer = $registry->get($theme->engine);
-        return Response::html($renderer->render($theme->resolveTemplate($tplName), [
+        return $this->renderThemed($tplName, $brandId, [
             'txn'          => $txn ?? ['trx_id' => $ref],
             'status'       => $status ?: (is_array($txn) && is_string($txn['status'] ?? null) ? $txn['status'] : 'expired'),
             'status_label' => $this->statusLabel($status),
@@ -387,7 +372,7 @@ final class CheckoutController
                 'pending_msg' => (!empty($brand['checkout_pending_msg']) && is_string($brand['checkout_pending_msg'])) ? $brand['checkout_pending_msg'] : (is_string($this->settings->get('checkout', 'checkout_pending_msg', '')) ? $this->settings->get('checkout', 'checkout_pending_msg', '') : (is_string($this->settings->get('general', 'checkout_pending_msg', '')) ? $this->settings->get('general', 'checkout_pending_msg', '') : '')),
                 'failed_msg'  => (!empty($brand['checkout_failed_msg']) && is_string($brand['checkout_failed_msg'])) ? $brand['checkout_failed_msg'] : (is_string($this->settings->get('checkout', 'checkout_failed_msg', '')) ? $this->settings->get('checkout', 'checkout_failed_msg', '') : (is_string($this->settings->get('general', 'checkout_failed_msg', '')) ? $this->settings->get('general', 'checkout_failed_msg', '') : '')),
             ],
-        ]));
+        ]);
     }
 
     /**
