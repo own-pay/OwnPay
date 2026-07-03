@@ -341,4 +341,44 @@ describe('admin.js', () => {
       expect(window.__testScriptRan).toBe(true);
     });
   });
+
+  describe('AJAX page-scripts container sync', () => {
+    it('re-executes scripts living in #op-page-scripts (outside .op-content) after an AJAX form submit', async () => {
+      // Test fixture markup: hardcoded, not user-controlled input.
+      document.body.innerHTML = `
+        <div class="op-content">
+          <form method="POST" action="/admin/plugins/example/activate">
+            <button type="submit">Activate</button>
+          </form>
+        </div>
+        <div id="op-page-scripts"></div>
+      `;
+
+      window.OP_CSP_NONCE = 'TRUSTED_NONCE';
+      window.__pageScriptRan = false;
+
+      const fetchedHtml = `
+        <div class="op-content"></div>
+        <div id="op-page-scripts">
+          <script nonce="WRONG_NONCE">window.__pageScriptRan = true;</script>
+        </div>
+      `;
+
+      window.fetch = vi.fn(() => Promise.resolve({
+        ok: true,
+        url: 'http://localhost/admin/plugins',
+        text: () => Promise.resolve(fetchedHtml),
+      }));
+
+      document.querySelector('button[type="submit"]').click();
+
+      await vi.waitFor(() => {
+        if (!window.__pageScriptRan) { throw new Error('page script not re-executed yet'); }
+        expect(window.__pageScriptRan).toBe(true);
+      });
+
+      const reinjected = document.querySelector('#op-page-scripts script');
+      expect(reinjected.getAttribute('nonce')).toBe('TRUSTED_NONCE');
+    });
+  });
 });

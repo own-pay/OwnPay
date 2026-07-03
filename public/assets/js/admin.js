@@ -459,6 +459,20 @@
         });
     }
 
+    // Swaps one container's innerHTML from the fetched document and re-executes
+    // any script tags inside it. Used for both the visible content panel
+    // (.op-content) and the page-specific script block (#op-page-scripts),
+    // which live as separate top-level siblings in base.twig - a script tag
+    // inside one is never found by scanning the other.
+    function syncContainer(selector, doc) {
+        var newEl = doc.querySelector(selector);
+        var currentEl = document.querySelector(selector);
+        if (newEl && currentEl) {
+            currentEl.innerHTML = newEl.innerHTML;
+            executeScripts(currentEl);
+        }
+    }
+
     // Same-page links interceptor (pagination, filters, tabs)
     document.addEventListener("click", function (e) {
         if (e.defaultPrevented) { return; }
@@ -502,11 +516,10 @@
                             return;
                         }
 
-                        var newContent = doc.querySelector(".op-content");
                         var currentContent = document.querySelector(".op-content");
-                        if (newContent && currentContent) {
-                            currentContent.innerHTML = newContent.innerHTML;
-                            executeScripts(currentContent);
+                        if (doc.querySelector(".op-content") && currentContent) {
+                            syncContainer(".op-content", doc);
+                            syncContainer("#op-page-scripts", doc);
                             requestAnimationFrame(function () {
                                 currentContent.setAttribute("data-open", "true");
                             });
@@ -599,17 +612,16 @@
                     var parser = new DOMParser();
                     var doc = parser.parseFromString(result.html, "text/html");
 
-                    var newContent = doc.querySelector(".op-content");
                     var currentContent = document.querySelector(".op-content");
-                    if (newContent && currentContent) {
+                    if (doc.querySelector(".op-content") && currentContent) {
                         var activeTab = document.querySelector(".op-tab.active");
                         var activeTabSlug = activeTab ? activeTab.dataset.tab : null;
 
                         var activeSandboxTab = document.querySelector(".op-sandbox-tab.active");
                         var activeSandboxTabSlug = activeSandboxTab ? activeSandboxTab.dataset.sandboxTab : null;
 
-                        currentContent.innerHTML = newContent.innerHTML;
-                        executeScripts(currentContent);
+                        syncContainer(".op-content", doc);
+                        syncContainer("#op-page-scripts", doc);
                         requestAnimationFrame(function () {
                             currentContent.setAttribute("data-open", "true");
                         });

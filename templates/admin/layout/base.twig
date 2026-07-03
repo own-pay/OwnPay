@@ -53,7 +53,7 @@
     {% include 'admin/layout/modals.twig' %}
 
     <script nonce="{{ csp_nonce }}" src="/assets/js/admin.js?v=048"></script>
-    {% block scripts %}{% endblock %}
+    <div id="op-page-scripts">{% block scripts %}{% endblock %}</div>
     {{ hook('admin.footer')|raw }}
     <div id="toast-container" class="op-toast-container"></div>
 </body>
