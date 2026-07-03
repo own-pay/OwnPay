@@ -44,6 +44,15 @@ final class PluginManifest
     public readonly string $type;
 
     /**
+     * Rendering engine identifier for theme plugins (e.g. 'twig', 'plain-php').
+     * Empty string means the theme did not declare one; treated as 'twig'
+     * downstream for back-compat.
+     *
+     * @var string
+     */
+    public readonly string $engine;
+
+    /**
      * Brief description of the plugin functionality.
      *
      * @var string
@@ -202,6 +211,7 @@ final class PluginManifest
         $this->slug = is_string($data['slug'] ?? null) ? $data['slug'] : '';
         $this->version = is_string($data['version'] ?? null) ? $data['version'] : '0.0.0';
         $this->type = is_string($data['type'] ?? null) ? $data['type'] : 'plugin';
+        $this->engine = is_string($data['engine'] ?? null) ? $data['engine'] : '';
         $this->description = is_string($data['description'] ?? null) ? $data['description'] : '';
         $this->author = is_string($data['author'] ?? null) ? $data['author'] : '';
         $this->authorUrl = is_string($data['author_url'] ?? null) ? $data['author_url'] : '';
@@ -426,6 +436,9 @@ final class PluginManifest
         if (!in_array($this->type, ['plugin', 'gateway', 'theme', 'addon'], true)) {
             $errors[] = 'Invalid type';
         }
+        if ($this->type === 'theme' && !in_array($this->engine, ['twig', 'plain-php', ''], true)) {
+            $errors[] = 'Invalid engine';
+        }
         if ($this->entrypoint === '') {
             $errors[] = 'Missing required field: "entrypoint"';
         } elseif (str_contains($this->entrypoint, '..') || str_contains($this->entrypoint, '/') || str_contains($this->entrypoint, '\\')) {
@@ -522,6 +535,7 @@ final class PluginManifest
             'slug' => $this->slug,
             'version' => $this->version,
             'type' => $this->type,
+            'engine' => $this->engine,
             'description' => $this->description,
             'author' => $this->author,
             'author_url' => $this->authorUrl,
