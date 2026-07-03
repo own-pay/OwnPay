@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html lang="{{ locale() }}" data-theme="dark" id="html-root">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}{{ __('wizard.system_setup') }} - {{ app_name }}{% endblock %}</title>
+    <meta name="robots" content="noindex, nofollow">
+    <link rel="stylesheet" href="/assets/css/tokens.css?v=015">
+    <link rel="stylesheet" href="/assets/css/reset.css?v=017">
+    <link rel="stylesheet" href="/assets/css/animations.css?v=015">
+    <link rel="stylesheet" href="/assets/css/utilities.css?v=015">
+    <link rel="stylesheet" href="/assets/css/pages/setup-wizard.css?v=017">
+    <meta name="csrf-token" content="{{ csrf_token }}">
+    <script nonce="{{ csp_nonce }}" src="/assets/js/theme-init.js"></script>
+    <script nonce="{{ csp_nonce }}">window.OP_CSP_NONCE = "{{ csp_nonce }}";</script>
+</head>
+<body class="op-admin op-wizard-body">
+    {% block content %}{% endblock %}
+
+    <div id="op-page-scripts">
+        <script nonce="{{ csp_nonce }}" src="/assets/js/admin.js?v=048"></script>
+        {% block scripts %}{% endblock %}
+    </div>
+</body>
+</html>
