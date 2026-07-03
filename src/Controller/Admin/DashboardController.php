@@ -119,7 +119,7 @@ final class DashboardController
             throw new \RuntimeException('SettingsRepository service unavailable');
         }
         if ((int) $onboardingCheckRepo->get('system', 'onboarding_completed', '0') === 0) {
-            return \OwnPay\Http\Response::redirect('/admin/setup-wizard');
+            return Response::redirect('/admin/setup-wizard');
         }
 
         $range = $req->query('range', 'today');
@@ -178,72 +178,6 @@ final class DashboardController
         $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
         if (!$settingsRepo instanceof \OwnPay\Repository\SettingsRepository) {
             throw new \RuntimeException('SettingsRepository service unavailable');
-        }
-        $onboardingCompleted = 1;
-
-        $currencies = [];
-        $timezones = [];
-        if (false) {
-            $currencySvc = $this->c->get(\OwnPay\Service\Payment\CurrencyService::class);
-            if (!$currencySvc instanceof \OwnPay\Service\Payment\CurrencyService) {
-                throw new \RuntimeException('CurrencyService unavailable');
-            }
-            $currencies = $currencySvc->listAll();
-            // TODO: Timezone will be dynamicly show from DB not hardcoded
-            $timezones = [
-                'UTC' => 'UTC (GMT+00:00)',
-
-                // Americas
-                'America/New_York' => 'New York (EST/EDT - GMT-05:00)',
-                'America/Chicago' => 'Chicago (CST/CDT - GMT-06:00)',
-                'America/Denver' => 'Denver (MST/MDT - GMT-07:00)',
-                'America/Phoenix' => 'Phoenix (MST - GMT-07:00)',
-                'America/Los_Angeles' => 'Los Angeles (PST/PDT - GMT-08:00)',
-                'America/Anchorage' => 'Anchorage (AKST/AKDT - GMT-09:00)',
-                'Pacific/Honolulu' => 'Honolulu (HST - GMT-10:00)',
-                'America/Sao_Paulo' => 'Sao Paulo (BRT - GMT-03:00)',
-                'America/Argentina/Buenos_Aires' => 'Buenos Aires (ART - GMT-03:00)',
-                'America/Mexico_City' => 'Mexico City (CST - GMT-06:00)',
-                'America/Toronto' => 'Toronto (EST/EDT - GMT-05:00)',
-
-                // Europe
-                'Europe/London' => 'London (GMT/BST - GMT+00:00)',
-                'Europe/Dublin' => 'Dublin (GMT/IST - GMT+00:00)',
-                'Europe/Paris' => 'Paris (CET/CEST - GMT+01:00)',
-                'Europe/Berlin' => 'Berlin (CET/CEST - GMT+01:00)',
-                'Europe/Rome' => 'Rome (CET/CEST - GMT+01:00)',
-                'Europe/Amsterdam' => 'Amsterdam (CET/CEST - GMT+01:00)',
-                'Europe/Athens' => 'Athens (EET/EEST - GMT+02:00)',
-                'Europe/Istanbul' => 'Istanbul (TRT - GMT+03:00)',
-                'Europe/Moscow' => 'Moscow (MSK - GMT+03:00)',
-
-                // Asia / Middle East
-                'Asia/Dubai' => 'Dubai (GST - GMT+04:00)',
-                'Asia/Karachi' => 'Karachi (PKT - GMT+05:00)',
-                'Asia/Kolkata' => 'Kolkata (IST - GMT+05:30)',
-                'Asia/Kathmandu' => 'Kathmandu (NPT - GMT+05:45)',
-                'Asia/Dhaka' => 'Dhaka (BST - GMT+06:00)',
-                'Asia/Bangkok' => 'Bangkok (ICT - GMT+07:00)',
-                'Asia/Singapore' => 'Singapore (SGT - GMT+08:00)',
-                'Asia/Hong_Kong' => 'Hong Kong (HKT - GMT+08:00)',
-                'Asia/Shanghai' => 'Shanghai (CST - GMT+08:00)',
-                'Asia/Tokyo' => 'Tokyo (JST - GMT+09:00)',
-                'Asia/Seoul' => 'Seoul (KST - GMT+09:00)',
-                'Asia/Jakarta' => 'Jakarta (WIB - GMT+07:00)',
-                'Asia/Manila' => 'Manila (PST - GMT+08:00)',
-
-                // Africa
-                'Africa/Cairo' => 'Cairo (EET/EEST - GMT+02:00)',
-                'Africa/Johannesburg' => 'Johannesburg (SAST - GMT+02:00)',
-                'Africa/Lagos' => 'Lagos (WAT - GMT+01:00)',
-
-                // Oceania
-                'Australia/Perth' => 'Perth (AWST - GMT+08:00)',
-                'Australia/Adelaide' => 'Adelaide (ACST/ACDT - GMT+09:30)',
-                'Australia/Sydney' => 'Sydney (AEST/AEDT - GMT+10:00)',
-                'Australia/Melbourne' => 'Melbourne (AEST/AEDT - GMT+10:00)',
-                'Pacific/Auckland' => 'Auckland (NZST/NZDT - GMT+12:00)',
-            ];
         }
 
         $statsArray = is_array($stats) ? $stats : [];
@@ -501,9 +435,6 @@ final class DashboardController
             'active_page'          => 'dashboard',
             'is_global_view'       => $isGlobal,
             'brand_breakdown'      => $brandBreakdown,
-            'onboarding_completed' => $onboardingCompleted,
-            'currencies'           => $currencies,
-            'timezones'            => $timezones,
             'payment_intents'      => $intentsList,
         ]);
     }
