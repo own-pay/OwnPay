@@ -18,7 +18,7 @@
 <div class="op-tabs" id="dev-tabs">
     <button class="op-tab active" data-tab="api-keys">API Keys</button>
     <button class="op-tab" data-tab="endpoints">Endpoint Reference</button>
-    <button class="op-tab" data-tab="webhooks">Webhooks / IPN</button>
+    <button class="op-tab" data-tab="webhooks">Webhooks</button>
     <button class="op-tab" data-tab="auth">Authentication</button>
     <button class="op-tab" data-tab="rate-limits">Rate Limits</button>
 </div>
@@ -207,7 +207,10 @@
     <div class="op-card op-mb-4">
         <div class="op-card-header op-flex-row-space-between">
             <h3>Webhook Endpoints</h3>
-            <button type="button" class="op-btn op-btn-sm op-btn-primary" data-open-modal="webhook-modal" onclick="window.prepareWebhookForm()">+ Add Endpoint</button>
+            <div class="op-flex-gap-8">
+                <a href="/admin/webhooks/events" class="op-btn op-btn-sm op-btn-outline">View Delivery Log</a>
+                <button type="button" class="op-btn op-btn-sm op-btn-primary" data-open-modal="webhook-modal" onclick="window.prepareWebhookForm()">+ Add Endpoint</button>
+            </div>
         </div>
         <div class="op-card-body op-p-0">
             <div class="op-table-responsive">
