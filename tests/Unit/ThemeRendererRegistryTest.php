@@ -32,4 +32,11 @@ final class ThemeRendererRegistryTest extends TestCase
         $registry = new ThemeRendererRegistry(['twig' => $twigLike]);
         $this->assertInstanceOf(ThemeRendererInterface::class, $registry->get(''));
     }
+
+    public function testEmptyEngineThrowsWhenTwigNotRegistered(): void
+    {
+        $registry = new ThemeRendererRegistry(['plain-php' => new PlainPhpThemeRenderer()]);
+        $this->expectException(InvalidArgumentException::class);
+        $registry->get('');
+    }
 }
