@@ -1168,7 +1168,10 @@ final class DashboardController
 
         // Land on the platform-wide All Brands view right after onboarding,
         // rather than staying auto-scoped into the brand just configured.
+        // Pair with setActiveBrandId(0), matching BrandController::switchBrand()'s
+        // global-view pattern, so the session isn't left pointing at a stale brand id.
         $this->brand->setGlobalView(true);
+        $this->brand->setActiveBrandId(0);
 
         return Response::json(['success' => true]);
     }
@@ -1186,6 +1189,7 @@ final class DashboardController
         $settingsRepo->set('system', 'onboarding_completed', '1');
 
         $this->brand->setGlobalView(true);
+        $this->brand->setActiveBrandId(0);
 
         return Response::json(['success' => true]);
     }

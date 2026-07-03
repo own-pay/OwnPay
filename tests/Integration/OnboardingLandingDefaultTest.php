@@ -32,11 +32,12 @@ final class OnboardingLandingDefaultTest extends IntegrationTestCase
             @session_start();
         }
         $_SESSION['brand_view_mode'] = 'single';
+        $_SESSION['active_brand_id'] = 42;
     }
 
     protected function tearDown(): void
     {
-        unset($_SESSION['brand_view_mode']);
+        unset($_SESSION['brand_view_mode'], $_SESSION['active_brand_id']);
         parent::tearDown();
     }
 
@@ -48,6 +49,7 @@ final class OnboardingLandingDefaultTest extends IntegrationTestCase
 
         $this->assertTrue($body['success']);
         $this->assertSame('global', $_SESSION['brand_view_mode']);
+        $this->assertSame(0, $_SESSION['active_brand_id']);
     }
 
     public function testDismissOnboardingSetsGlobalBrandView(): void
@@ -58,5 +60,6 @@ final class OnboardingLandingDefaultTest extends IntegrationTestCase
 
         $this->assertTrue($body['success']);
         $this->assertSame('global', $_SESSION['brand_view_mode']);
+        $this->assertSame(0, $_SESSION['active_brand_id']);
     }
 }
