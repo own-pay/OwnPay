@@ -1166,6 +1166,10 @@ final class DashboardController
         $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
         $settingsRepo->set('system', 'onboarding_completed', '1');
 
+        // Land on the platform-wide All Brands view right after onboarding,
+        // rather than staying auto-scoped into the brand just configured.
+        $this->brand->setGlobalView(true);
+
         return Response::json(['success' => true]);
     }
 
@@ -1180,6 +1184,8 @@ final class DashboardController
         /** @var \OwnPay\Repository\SettingsRepository $settingsRepo */
         $settingsRepo = $this->c->get(\OwnPay\Repository\SettingsRepository::class);
         $settingsRepo->set('system', 'onboarding_completed', '1');
+
+        $this->brand->setGlobalView(true);
 
         return Response::json(['success' => true]);
     }
