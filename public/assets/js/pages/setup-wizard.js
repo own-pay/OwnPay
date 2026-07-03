@@ -15,27 +15,21 @@
         const otpEl = document.getElementById("op-wizard-otp-display");
         const otpText = otpEl ? otpEl.textContent : "";
         if (otpText && otpText !== "------") {
-            if (typeof window.opCopyText === "function") {
-                window.opCopyText(otpText, otpEl, function () {
-                    const copiedEl = document.getElementById("op-wizard-otp-copied");
-                    if (copiedEl) {
-                        copiedEl.style.display = "inline";
-                        setTimeout(() => {
-                            copiedEl.style.display = "none";
-                        }, 2000);
-                    }
-                });
-            } else {
-                navigator.clipboard.writeText(otpText).then(() => {
-                    const copiedEl = document.getElementById("op-wizard-otp-copied");
-                    if (copiedEl) {
-                        copiedEl.style.display = "inline";
-                        setTimeout(() => {
-                            copiedEl.style.display = "none";
-                        }, 2000);
-                    }
-                });
-            }
+            // admin.js (which defines window.opCopyText) always loads before
+            // this page script — see #op-page-scripts in wizard.twig — so no
+            // typeof guard/fallback is needed. The old fallback called
+            // navigator.clipboard.writeText() directly with no .catch(),
+            // silently stranding the user mid-onboarding on any rejection
+            // (denied permission, unfocused document, managed-browser policy).
+            window.opCopyText(otpText, otpEl, function () {
+                const copiedEl = document.getElementById("op-wizard-otp-copied");
+                if (copiedEl) {
+                    copiedEl.style.display = "inline";
+                    setTimeout(() => {
+                        copiedEl.style.display = "none";
+                    }, 2000);
+                }
+            });
         }
     }
 
