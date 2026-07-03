@@ -126,9 +126,15 @@
     var copyKeyBtn = document.getElementById("copy-key-btn");
     if (copyKeyBtn && generatedKeyInput) {
         copyKeyBtn.addEventListener("click", function () {
-            navigator.clipboard.writeText(generatedKeyInput.value).then(function () {
-                var btn = copyKeyBtn;
-                var origHTML = btn.innerHTML;
+            var btn = copyKeyBtn;
+            var origHTML = btn.innerHTML;
+            // Every other copy button on this page already uses the shared
+            // window.opCopyText helper (execCommand primary, Clipboard API
+            // fallback, real error handling). This one previously called
+            // navigator.clipboard.writeText() directly with no .catch(), so
+            // any rejection (denied permission, unfocused context, managed-
+            // browser policy) made the button silently do nothing.
+            window.opCopyText(generatedKeyInput.value, btn, function () {
                 btn.innerHTML = '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="vertical-align:-2px;margin-right:4px;"><polyline points="20 6 9 17 4 12"/></svg> Copied!';
                 btn.classList.add("op-btn-success");
                 var fb = document.getElementById("copy-feedback");
