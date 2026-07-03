@@ -15,7 +15,7 @@ $currency = is_array($txn ?? null) ? (string) ($txn['currency'] ?? '') : '';
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title><?= $esc($brandName) ?> — Checkout (Plain PHP Demo)</title>
+    <title><?= $esc($brandName) ?> - Checkout (Plain PHP Demo)</title>
 </head>
 <body>
     <main style="max-width:480px;margin:40px auto;font-family:system-ui,sans-serif;">
