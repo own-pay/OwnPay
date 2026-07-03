@@ -805,7 +805,10 @@ final class DashboardController
 
         // If any brand already exists, this is a resumed/abandoned wizard
         // session (system.onboarding_completed is still 0) - configure that
-        // existing brand instead of creating a duplicate.
+        // existing brand instead of creating a duplicate. This assumes
+        // single-tenant onboarding (the first/only brand row is the one
+        // being configured); a future multi-brand-during-onboarding flow
+        // would need a different signal than "any row exists".
         $existingBrand = $merchantRepo->findFirst();
 
         if ($existingBrand !== null) {
