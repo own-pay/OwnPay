@@ -189,14 +189,14 @@
 .op-stat-grid {
     display: grid;
     grid-template-columns: repeat(3, 1fr);
-    gap: 16px;
+    gap: 8px;
 }
 
 .op-stat-box {
     background: var(--op-bg-input);
     border: 1px solid var(--op-border);
     border-radius: var(--op-radius);
-    padding: 16px;
+    padding: 12px;
     text-align: center;
 }
 
