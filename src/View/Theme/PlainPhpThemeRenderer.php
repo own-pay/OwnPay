@@ -12,6 +12,13 @@ use RuntimeException;
  * variables into global scope. Context keys become local variables. Plain PHP
  * has no auto-escaping, so an $esc() helper is exposed for templates to call
  * explicitly (documented for theme authors).
+ *
+ * SECURITY: this renderer executes theme template PHP files with full trust -
+ * there is no sandboxing. `include` provides scope isolation only, not a
+ * security boundary: a template can call any global function, read
+ * superglobals, and touch the filesystem. Only install themes from trusted
+ * sources; a malicious template has the same capabilities as any other
+ * server-side PHP code.
  */
 final class PlainPhpThemeRenderer implements ThemeRendererInterface
 {
