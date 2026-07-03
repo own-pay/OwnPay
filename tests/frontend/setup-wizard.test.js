@@ -19,7 +19,7 @@ describe('setup-wizard.js', () => {
         <div id="op-setup-wizard">
           <a href="#" id="op-wizard-skip-setup">Skip setup</a>
           <div class="op-wizard-tracker">
-            <div class="op-wizard-tracker-node active" data-step="1"></div>
+            <div class="op-wizard-tracker-node" data-step="1"></div>
             <div class="op-wizard-tracker-node" data-step="2"></div>
             <div class="op-wizard-tracker-node" data-step="3"></div>
           </div>
@@ -44,6 +44,11 @@ describe('setup-wizard.js', () => {
 
   afterEach(() => {
     dom.window.close();
+  });
+
+  it('marks step 1 as active in the tracker on initial load, matching the server-rendered active panel', () => {
+    const trackerStep1 = document.querySelector('.op-wizard-tracker-node[data-step="1"]');
+    expect(trackerStep1.classList.contains('active')).toBe(true);
   });
 
   it('skip-this-step on step 1 POSTs skip=1 and advances to step 2', async () => {
