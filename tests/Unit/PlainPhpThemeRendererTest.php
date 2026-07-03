@@ -47,4 +47,12 @@ final class PlainPhpThemeRendererTest extends TestCase
             @unlink($tmp);
         }
     }
+
+    public function testContextKeyNamedEscDoesNotOverwriteHelper(): void
+    {
+        // extract(...EXTR_SKIP) intentionally keeps the built-in $esc() helper
+        // when a context key is also named "esc" - the helper wins silently.
+        $html = (new PlainPhpThemeRenderer())->render($this->fixture, ['name' => 'World', 'esc' => 'not-a-closure']);
+        $this->assertStringContainsString('Hello World', $html);
+    }
 }
