@@ -1,36 +1,41 @@
 {# Onboarding Setup Wizard Component #}
-<div id="op-setup-wizard" class="op-setup-wizard-card">
-    <button type="button" class="op-wizard-dismiss" title="{{ __('common.close') }}" aria-label="{{ __('common.close') }}">×</button>
-
-    <div class="op-wizard-header">
-        <div class="op-wizard-title" id="wizard-title">{{ __('wizard.system_setup') }}</div>
-        <div class="op-wizard-subtitle" id="wizard-subtitle">{{ __('wizard.welcome_subtitle') }}</div>
+<div id="op-setup-wizard" class="op-setup-wizard-shell">
+    <div class="op-wizard-topbar">
+        <div class="op-wizard-brand">
+            <div class="op-wizard-brand-mark"></div>
+            <span>{{ app_name }}</span>
+        </div>
+        <a href="#" id="op-wizard-skip-setup" class="op-wizard-skip-setup-link">{{ __('wizard.skip_setup') }}</a>
     </div>
 
-    <!-- 5-Step Stepper Progress Bar -->
-    <div class="op-wizard-steps">
-        <div class="op-wizard-progress-bar" id="wizard-progress-bar"></div>
-        <div class="op-wizard-step active" data-step="1">
-            1
-            <div class="op-wizard-step-label">{{ __('wizard.step_platform') }}</div>
+    <div class="op-wizard-tracker" id="wizard-tracker">
+        <div class="op-wizard-tracker-node" data-step="1">
+            <div class="op-wizard-tracker-circle"><span class="op-wizard-tracker-num">1</span><span class="op-wizard-tracker-check">&#10003;</span></div>
+            <span class="op-wizard-tracker-label">{{ __('wizard.step_platform') }}</span>
         </div>
-        <div class="op-wizard-step" data-step="2">
-            2
-            <div class="op-wizard-step-label">{{ __('wizard.step_brand') }}</div>
+        <div class="op-wizard-tracker-line"></div>
+        <div class="op-wizard-tracker-node" data-step="2">
+            <div class="op-wizard-tracker-circle"><span class="op-wizard-tracker-num">2</span><span class="op-wizard-tracker-check">&#10003;</span></div>
+            <span class="op-wizard-tracker-label">{{ __('wizard.step_brand') }}</span>
         </div>
-        <div class="op-wizard-step" data-step="3">
-            3
-            <div class="op-wizard-step-label">{{ __('wizard.step_mail') }}</div>
+        <div class="op-wizard-tracker-line"></div>
+        <div class="op-wizard-tracker-node" data-step="3">
+            <div class="op-wizard-tracker-circle"><span class="op-wizard-tracker-num">3</span><span class="op-wizard-tracker-check">&#10003;</span></div>
+            <span class="op-wizard-tracker-label">{{ __('wizard.step_mail') }}</span>
         </div>
-        <div class="op-wizard-step" data-step="4">
-            4
-            <div class="op-wizard-step-label">{{ __('wizard.step_gateways') }}</div>
+        <div class="op-wizard-tracker-line"></div>
+        <div class="op-wizard-tracker-node" data-step="4">
+            <div class="op-wizard-tracker-circle"><span class="op-wizard-tracker-num">4</span><span class="op-wizard-tracker-check">&#10003;</span></div>
+            <span class="op-wizard-tracker-label">{{ __('wizard.step_gateways') }}</span>
         </div>
-        <div class="op-wizard-step" data-step="5">
-            5
-            <div class="op-wizard-step-label">{{ __('wizard.step_device') }}</div>
+        <div class="op-wizard-tracker-line"></div>
+        <div class="op-wizard-tracker-node" data-step="5">
+            <div class="op-wizard-tracker-circle"><span class="op-wizard-tracker-num">5</span><span class="op-wizard-tracker-check">&#10003;</span></div>
+            <span class="op-wizard-tracker-label">{{ __('wizard.step_device') }}</span>
         </div>
     </div>
+
+    <div class="op-setup-wizard-card">
 
     <!-- Notification Messages -->
     <div class="op-wizard-error" id="wizard-error">
@@ -101,7 +106,7 @@
                 </div>
             </div>
             <div class="op-wizard-actions">
-                <div></div>
+                <a href="#" id="btn-skip-step1" class="op-wizard-skip-step-link">{{ __('wizard.skip_step') }}</a>
                 <button type="submit" class="op-wizard-btn op-wizard-btn-next">
                     {{ __('wizard.continue_to_brand') }}
                     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -116,24 +121,24 @@
             <div class="op-wizard-form-grid">
                 <div class="op-wizard-field">
                     <label class="op-wizard-label" for="brand_name">{{ __('wizard.brand_name') }}</label>
-                    <input type="text" id="brand_name" name="brand_name" class="op-wizard-input" required placeholder="{{ __('wizard.brand_name_placeholder') }}">
+                    <input type="text" id="brand_name" name="brand_name" class="op-wizard-input" value="{{ existing_brand.name ?? '' }}" required placeholder="{{ __('wizard.brand_name_placeholder') }}">
                     <div class="op-wizard-hint">{{ __('wizard.brand_name_hint') }}</div>
                 </div>
                 <div class="op-wizard-field">
                     <label class="op-wizard-label" for="brand_email">{{ __('wizard.support_email') }}</label>
-                    <input type="email" id="brand_email" name="brand_email" class="op-wizard-input" required placeholder="support@acmestore.com">
+                    <input type="email" id="brand_email" name="brand_email" class="op-wizard-input" value="{{ existing_brand.email ?? '' }}" required placeholder="support@acmestore.com">
                     <div class="op-wizard-hint">{{ __('wizard.support_email_hint') }}</div>
                 </div>
                 <div class="op-wizard-field">
                     <label class="op-wizard-label" for="brand_phone">{{ __('wizard.support_phone') }}</label>
-                    <input type="text" id="brand_phone" name="brand_phone" class="op-wizard-input" placeholder="+1234567890">
+                    <input type="text" id="brand_phone" name="brand_phone" class="op-wizard-input" value="{{ existing_brand.phone ?? '' }}" placeholder="+1234567890">
                     <div class="op-wizard-hint">{{ __('wizard.support_phone_hint') }}</div>
                 </div>
                 <div class="op-wizard-field">
                     <label class="op-wizard-label" for="brand_currency">{{ __('wizard.brand_currency') }}</label>
                     <select id="brand_currency" name="brand_currency" class="op-wizard-select" required>
                         {% for cur in currencies %}
-                            <option value="{{ cur.code }}" {{ cur.code == 'USD' ? 'selected' : '' }}>{{ cur.code }} - {{ cur.name }}</option>
+                            <option value="{{ cur.code }}" {{ cur.code == (existing_brand.default_currency ?? 'USD') ? 'selected' : '' }}>{{ cur.code }} - {{ cur.name }}</option>
                         {% endfor %}
                     </select>
                     <div class="op-wizard-hint">{{ __('wizard.brand_currency_hint') }}</div>
@@ -142,7 +147,7 @@
                     <label class="op-wizard-label" for="brand_timezone">{{ __('wizard.brand_timezone') }}</label>
                     <select id="brand_timezone" name="brand_timezone" class="op-wizard-select" required>
                         {% for tz_code, tz_name in timezones %}
-                            <option value="{{ tz_code }}" {{ tz_code == 'UTC' ? 'selected' : '' }}>{{ tz_name }}</option>
+                            <option value="{{ tz_code }}" {{ tz_code == (existing_brand.timezone ?? 'UTC') ? 'selected' : '' }}>{{ tz_name }}</option>
                         {% endfor %}
                     </select>
                     <div class="op-wizard-hint">{{ __('wizard.brand_timezone_hint') }}</div>
@@ -153,6 +158,9 @@
                     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                     {{ __('common.back') }}
                 </button>
+                {% if existing_brand %}
+                <a href="#" id="btn-skip-step2" class="op-wizard-skip-step-link">{{ __('wizard.skip_step') }}</a>
+                {% endif %}
                 <button type="submit" class="op-wizard-btn op-wizard-btn-next">
                     {{ __('wizard.continue_to_mail') }}
                     <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -369,6 +377,7 @@
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
                 {{ __('common.back') }}
             </button>
+            <a href="#" id="btn-skip-step4" class="op-wizard-skip-step-link">{{ __('wizard.skip_step') }}</a>
             <button type="button" class="op-wizard-btn op-wizard-btn-next" id="btn-save-gateway">
                 {{ __('wizard.save_continue') }}
                 <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M9 5l7 7-7 7"/></svg>
@@ -441,6 +450,7 @@
                 {{ __('wizard.finish_launch') }}
             </button>
         </div>
+    </div>
     </div>
 </div>
 
