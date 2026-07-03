@@ -694,6 +694,10 @@
         if (finishBtn) {
             finishBtn.addEventListener("click", completeWizard);
         }
+
+        // Mark step 1 active on first render — the tracker has no server-rendered
+        // active state, only showStep() toggles it, so it must run once on load.
+        showStep(1);
     });
 
 }());
